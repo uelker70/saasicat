@@ -42,6 +42,8 @@ interface SubscriptionDbRow {
     pendingPlanVersionAcceptedAt: Date | null;
     pendingPlanVersionEffectiveAt: Date | null;
     pendingPlanVersionId: string | null;
+    /** Present where plan versions are synchronized. */
+    planVersionId?: string | null;
 }
 
 interface PlanVersionIdentityDbRow {
@@ -151,24 +153,37 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             ...(input.trialEndsAt ? { trialEndsAt: input.trialEndsAt } : {}),
         };
 
+        // The binding this write decided from. The claim takes the row only
+        // while it still holds, so a rebinding in between — a pending version
+        // taken over, another change — is not written over.
+        let boundVersionId: string | null | undefined;
         if (this.schema.tenantSubscription.synchronizePlanVersion) {
             const current = await subscription.findUnique({ where: { tenantId } });
             if (!current) {
                 throw subscriptionGone(tenantId);
             }
+            boundVersionId = current.planVersionId ?? null;
             const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
-            data.planVersionId = await this.findTargetPlanVersionId(
-                client,
-                input.planId,
-                storagePlanId,
-                input.periodStart ?? new Date(),
-            );
+            const keepsVersion =
+                input.keepsBoundVersion && current.plan === input.planId && boundVersionId !== null;
+            data.planVersionId = keepsVersion
+                ? boundVersionId
+                : await this.findTargetPlanVersionId(
+                      client,
+                      input.planId,
+                      storagePlanId,
+                      input.periodStart ?? new Date(),
+                  );
+            // A pending version of another plan has nothing left to be
+            // accepted for, and one the write binds is accepted by being bound:
+            // the subscriber is not asked for a version they are already on.
             if (
-                await this.pendingVersionBelongsToAnotherPlan(
+                data.planVersionId === current.pendingPlanVersionId ||
+                (await this.pendingVersionBelongsToAnotherPlan(
                     client,
                     current.pendingPlanVersionId,
                     storagePlanId,
-                )
+                ))
             ) {
                 Object.assign(data, clearedPendingVersionData());
             }
@@ -178,7 +193,13 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         // and this takes the row only while that state still holds. One
         // statement, so a cancellation arriving in between loses the race
         // instead of being written over.
-        const claim = await this.claimRow(client, tenantId, input.expectedCanceledAt, data);
+        const claim = await this.claimRow(
+            client,
+            tenantId,
+            input.expectedCanceledAt,
+            data,
+            boundVersionId,
+        );
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
             throw subscriptionGone(tenantId);
@@ -405,10 +426,15 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         tenantId: string,
         expectedCanceledAt: Date | null | undefined,
         data: Record<string, unknown>,
+        boundVersionId?: string | null,
     ): Promise<{ count: number }> {
         try {
             return await this.subscription(client).updateMany({
-                where: { tenantId, canceledAt: expectedCanceledAt },
+                where: {
+                    tenantId,
+                    canceledAt: expectedCanceledAt,
+                    ...(boundVersionId === undefined ? {} : { planVersionId: boundVersionId }),
+                },
                 data,
             });
         } catch (error) {

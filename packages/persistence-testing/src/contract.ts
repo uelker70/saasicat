@@ -701,6 +701,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     nextStatus: null,
                     // The row has no cancellation, so this claims it.
                     expectedCanceledAt: null,
+                    keepsBoundVersion: false,
                 },
             );
             assert.equal(change.claimed, true, 'the plan write did not claim the row');
@@ -735,6 +736,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         periodEnd: null,
                         nextStatus: null,
                         expectedCanceledAt: null,
+                        keepsBoundVersion: false,
                     }),
                 refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND, {
                     tenantId: 'tenant-without-subscription',
@@ -782,6 +784,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         periodEnd: new Date('2026-06-01T00:00:00.000Z'),
                         nextStatus: null,
                         expectedCanceledAt: null,
+                        keepsBoundVersion: false,
                     }),
                 refusedAs(BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION, {
                     planId: 'UNRELEASED',
@@ -823,6 +826,144 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     tenantId: 'tenant-nothing-pending',
                 }),
             );
+        });
+
+        // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+        describe('a change that leaves the plan as it is', () => {
+            /** A tenant on PRO v1 while v2 is the version in effect, v2 also offered as pending. */
+            async function onASupersededVersion(
+                t: TestContext,
+                tenantId: string,
+            ): Promise<
+                | {
+                      writer: NonNullable<
+                          PersistenceContractHarness['adapter']['tenantSubscriptionWrite']
+                      >;
+                      bound: string;
+                      live: string;
+                  }
+                | undefined
+            > {
+                const { seed, adapter } = harness;
+                const writer = adapter.tenantSubscriptionWrite;
+                if (!writer) {
+                    missing(t, 'atomicPlanBinding');
+                    return undefined;
+                }
+                if (writer.bindsPlanVersion === false) {
+                    t.skip('the write binds no plan version, so it keeps none either');
+                    return undefined;
+                }
+                const bound = await seed.createPlanVersion({
+                    planKey: 'LOYAL',
+                    version: 1,
+                    quotas: { users: 5 },
+                    features: [],
+                    published: true,
+                });
+                const live = await seed.createPlanVersion({
+                    planKey: 'LOYAL',
+                    version: 2,
+                    quotas: { users: 10 },
+                    features: [],
+                    published: true,
+                });
+                await seed.createSubscription({
+                    tenantId,
+                    plan: 'LOYAL',
+                    planVersionId: bound.planVersionId,
+                    pendingPlanVersionId: live.planVersionId,
+                });
+                return { writer, bound: bound.planVersionId, live: live.planVersionId };
+            }
+
+            const toYearly = (keepsBoundVersion: boolean) => ({
+                planId: 'LOYAL',
+                cycle: 'YEARLY',
+                periodStart: new Date('2026-05-01T00:00:00.000Z'),
+                periodEnd: new Date('2027-05-01T00:00:00.000Z'),
+                nextStatus: null,
+                expectedCanceledAt: null,
+                keepsBoundVersion,
+            });
+
+            test('keeps the version the subscriber is bound to when the change moves only the rhythm', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-rhythm-only');
+                if (!tenant) return;
+
+                const change = await tenant.writer.changePlanImmediate(
+                    'tenant-rhythm-only',
+                    toYearly(true),
+                );
+
+                assert.equal(change.claimed, true);
+                assert.equal(change.billingCycle, 'YEARLY');
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-rhythm-only',
+                    );
+                assert.equal(after?.planVersionId, tenant.bound, 'still on the version bought');
+                const accepted = await tenant.writer.acceptPendingPlanVersion(
+                    'tenant-rhythm-only',
+                    'user-1',
+                    new Date('2026-05-02T00:00:00.000Z'),
+                );
+                assert.equal(accepted.accepted, true, 'the newer version is still on offer');
+            });
+
+            test('binds the version in effect of another plan, whatever the change asks to keep', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-scheduled-downgrade');
+                if (!tenant) return;
+                const other = await harness.seed.createPlanVersion({
+                    planKey: 'SMALLER',
+                    version: 1,
+                    quotas: { users: 2 },
+                    features: [],
+                    published: true,
+                });
+
+                await tenant.writer.changePlanImmediate('tenant-scheduled-downgrade', {
+                    ...toYearly(true),
+                    planId: 'SMALLER',
+                });
+
+                const after = await harness.adapter.subscriptionRepository.findByTenantId(
+                    'tenant-scheduled-downgrade',
+                );
+                assert.equal(after?.plan, 'SMALLER');
+                assert.equal(after?.planVersionId, other.planVersionId);
+                await assert.rejects(
+                    tenant.writer.acceptPendingPlanVersion(
+                        'tenant-scheduled-downgrade',
+                        'user-1',
+                        new Date('2026-05-02T00:00:00.000Z'),
+                    ),
+                    refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION),
+                    'a version of the plan left behind is not on offer any more',
+                );
+            });
+
+            test('binds the version in effect when the change is a sale', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-sold-again');
+                if (!tenant) return;
+
+                await tenant.writer.changePlanImmediate('tenant-sold-again', toYearly(false));
+
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-sold-again',
+                    );
+                assert.equal(after?.planVersionId, tenant.live);
+                await assert.rejects(
+                    tenant.writer.acceptPendingPlanVersion(
+                        'tenant-sold-again',
+                        'user-1',
+                        new Date('2026-05-02T00:00:00.000Z'),
+                    ),
+                    refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION),
+                    'the version bound is not offered again',
+                );
+            });
         });
 
         test('onboarding selection binds the version it sells, as the write declares', async (t) => {

@@ -2,6 +2,8 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import type {
     BillingCycle,
     PlanCatalog,
+    PlanRepository,
+    PlanVersionRow,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
@@ -10,14 +12,17 @@ import type {
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
+import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
     findPlan,
     getPlanPriceNet,
     isPlanNotSoldInCycle,
+    listPriceNet,
     planNotSoldInCycle,
 } from './plan-helpers.js';
+import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { periodEndAfter } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -197,6 +202,12 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly contracts: SubscriptionContractRepository | null = null,
+        // The version the subscription is bound to is what it pays for, and a
+        // change that leaves the plan as it is keeps it. Without a repository
+        // that reads versions, the catalogue's prices stand in.
+        @Optional()
+        @Inject(PLAN_REPOSITORY_TOKEN)
+        private readonly plans: PlanRepository | null = null,
     ) {}
 
     async preview(
@@ -251,24 +262,61 @@ export class PlanChangePreviewService {
             this.usageSnapshot.snapshot(tenantId),
         ]);
 
+        // The version bound, read by the rules the contract freeze bills it by:
+        // a price the row does not carry is a rhythm it is not sold in, never
+        // a free one.
+        const bound = await this.boundVersionOf(sub.planVersion?.id);
+        const stem = findPlan(catalog, sub.plan);
+        const boundDef = bound
+            ? planDefFromVersion(
+                  { id: sub.plan, name: stem?.name ?? sub.plan, tagline: stem?.tagline },
+                  bound,
+              )
+            : null;
         const currentPlanDef = findPlan(catalog, currentLimits.plan);
         const currentSnap: PlanSnapshotDto = {
             id: currentLimits.plan,
             name: currentPlanDef?.name ?? currentLimits.plan,
-            monthlyNet: getPlanPriceNet(catalog, currentLimits.plan, 'MONTHLY' as BillingCycle),
-            yearlyNet: getPlanPriceNet(catalog, currentLimits.plan, 'YEARLY' as BillingCycle),
+            ...(boundDef
+                ? {
+                      monthlyNet: listPriceNet(boundDef, 'MONTHLY' as BillingCycle),
+                      yearlyNet: listPriceNet(boundDef, 'YEARLY' as BillingCycle),
+                  }
+                : {
+                      monthlyNet: getPlanPriceNet(
+                          catalog,
+                          currentLimits.plan,
+                          'MONTHLY' as BillingCycle,
+                      ),
+                      yearlyNet: getPlanPriceNet(
+                          catalog,
+                          currentLimits.plan,
+                          'YEARLY' as BillingCycle,
+                      ),
+                  }),
             quotas: currentLimits.quotas,
             features: Array.from(currentLimits.features).sort(),
         };
 
-        const targetSnap: PlanSnapshotDto = {
-            id: targetPlanDef.id,
-            name: targetPlanDef.name ?? targetPlanDef.id,
-            monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
-            yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
-            quotas: targetPlanDef.quotas,
-            features: targetPlanDef.features.slice().sort(),
-        };
+        // A change that leaves the plan as it is moves the rhythm and keeps the
+        // version bound (`keepsBoundVersion`): it is quoted at that version's
+        // price, and what the tenant may use does not change with it — not at
+        // the version the catalogue sells to new customers now.
+        const keptDef = boundDef && targetPlan === sub.plan ? boundDef : null;
+        const targetSnap: PlanSnapshotDto = keptDef
+            ? {
+                  ...currentSnap,
+                  id: targetPlanDef.id,
+                  name: targetPlanDef.name ?? targetPlanDef.id,
+              }
+            : {
+                  id: targetPlanDef.id,
+                  name: targetPlanDef.name ?? targetPlanDef.id,
+                  monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
+                  yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
+                  quotas: targetPlanDef.quotas,
+                  features: targetPlanDef.features.slice().sort(),
+              };
 
         const changeType = this.classify(
             catalog,
@@ -359,8 +407,11 @@ export class PlanChangePreviewService {
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         const blockedSources = this.blockedPlans?.asSource ?? [];
 
-        if (isPlanNotSoldInCycle(targetPlanDef, targetCycle as BillingCycle)) {
-            blockers.push(planNotSoldInCycle(targetPlanDef, targetCycle as BillingCycle));
+        // A change that keeps the version is sold in the rhythm that version
+        // carries, whatever the catalogue offers new customers.
+        const soldAs = keptDef ?? targetPlanDef;
+        if (isPlanNotSoldInCycle(soldAs, targetCycle as BillingCycle)) {
+            blockers.push(planNotSoldInCycle(soldAs, targetCycle as BillingCycle));
         }
         if (blockedTargets.includes(targetPlan)) {
             blockers.push({
@@ -571,6 +622,11 @@ export class PlanChangePreviewService {
                     .toISOString()
                     .slice(0, 10),
             }));
+    }
+
+    private async boundVersionOf(versionId: string | undefined): Promise<PlanVersionRow | null> {
+        if (!versionId || !this.plans?.findVersionById) return null;
+        return this.plans.findVersionById(versionId);
     }
 
     private classify(

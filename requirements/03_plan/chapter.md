@@ -732,6 +732,10 @@ _Tested by:_
     - a tenant's own writes
         - a scheduled change is written, and only while the row is uncancelled
         - an immediate change binds the plan and refuses once a cancellation lands
+        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
+          newer one, when it moves only the rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
+          offers it as pending
         - changing to a plan with no live version says so rather than binding nothing
         - an immediate change stays on its own connection when a version is pending
         - accepting a pending version is idempotent, and reports the second call as such
@@ -953,6 +957,10 @@ _Tested by:_
     - a tenant's own writes
         - a scheduled change is written, and only while the row is uncancelled
         - an immediate change binds the plan and refuses once a cancellation lands
+        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
+          newer one, when it moves only the rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
+          offers it as pending
         - changing to a plan with no live version says so rather than binding nothing
         - an immediate change stays on its own connection when a version is pending
         - accepting a pending version is idempotent, and reports the second call as such

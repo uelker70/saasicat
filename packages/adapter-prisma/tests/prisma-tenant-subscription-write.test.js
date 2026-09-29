@@ -341,8 +341,12 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         const prisma = fakePrisma({
             subscription: subscriptionRow({
                 plan: 'PRO',
-                pendingPlanVersionId: 'version-pro',
+                pendingPlanVersionId: 'version-pro-next',
             }),
+            planVersions: [
+                { id: 'version-pro', planId: 'plan-pro' },
+                { id: 'version-pro-next', planId: 'plan-pro' },
+            ],
         });
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
             planBinding: { mode: 'normalized-plan-id' },
@@ -355,9 +359,84 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             periodStart: null,
             periodEnd: null,
             nextStatus: null,
+            expectedCanceledAt: null,
+            keepsBoundVersion: false,
         });
 
         assert.equal('pendingPlanVersionId' in planWrite(prisma), false);
+    });
+
+    // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+    describe('a change that leaves the plan as it is', () => {
+        const onProV1 = () =>
+            fakePrisma({
+                subscription: subscriptionRow({
+                    plan: 'PRO',
+                    planVersionId: 'version-pro-v1',
+                    pendingPlanVersionId: 'version-pro',
+                }),
+            });
+        const toMonthly = (keepsBoundVersion) => ({
+            planId: 'PRO',
+            cycle: 'MONTHLY',
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+            expectedCanceledAt: null,
+            keepsBoundVersion,
+        });
+        const inNormalizedMode = (prisma) =>
+            new PrismaTenantSubscriptionWriteAdapter(prisma, {
+                planBinding: { mode: 'normalized-plan-id' },
+                tenantSubscription: { synchronizePlanVersion: true },
+            });
+
+        test('keeps the bound version, and the offer of the newer one, when it moves only the rhythm', async () => {
+            const prisma = onProV1();
+
+            await inNormalizedMode(prisma).changePlanImmediate('tenant-1', toMonthly(true));
+
+            assert.equal(prisma.state.subscription.planVersionId, 'version-pro-v1');
+            assert.equal(prisma.state.subscription.pendingPlanVersionId, 'version-pro');
+            assert.equal(prisma.state.subscription.billingCycle, 'MONTHLY');
+        });
+
+        test('a sale binds the version in effect, and no longer offers it as pending', async () => {
+            const prisma = onProV1();
+
+            await inNormalizedMode(prisma).changePlanImmediate('tenant-1', toMonthly(false));
+
+            assert.equal(prisma.state.subscription.planVersionId, 'version-pro');
+            assert.equal(prisma.state.subscription.pendingPlanVersionId, null);
+        });
+
+        test('binds the version in effect where the subscription is bound to none', async () => {
+            const prisma = fakePrisma({
+                subscription: subscriptionRow({ plan: 'PRO', planVersionId: null }),
+            });
+
+            await inNormalizedMode(prisma).changePlanImmediate('tenant-1', toMonthly(true));
+
+            assert.equal(prisma.state.subscription.planVersionId, 'version-pro');
+        });
+
+        test('a rebinding between its read and its write is not written over', async () => {
+            const prisma = onProV1();
+            const updateMany = prisma.subscription.updateMany.bind(prisma.subscription);
+            prisma.subscription.updateMany = async (args) => {
+                // The subscriber's acceptance lands first and moves the binding.
+                prisma.state.subscription.planVersionId = 'version-pro';
+                return updateMany(args);
+            };
+
+            const change = await inNormalizedMode(prisma).changePlanImmediate(
+                'tenant-1',
+                toMonthly(true),
+            );
+
+            assert.equal(change.claimed, false);
+            assert.equal(prisma.state.subscription.billingCycle, 'YEARLY', 'nothing was written');
+        });
     });
 
     test('a failing onboarding callback rolls plan and version back together', async () => {

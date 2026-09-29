@@ -260,11 +260,36 @@ _Source:_ release 1.0.0-rc.6 · `docs/explanation/data-model.md`
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
+    - a tenant's own writes
+        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
+          newer one, when it moves only the rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
+          offers it as pending
+- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
+    - PrismaTenantSubscriptionWriteAdapter
+        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
+          newer one, when it moves only the rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
+          offers it as pending
+        - a change that leaves the plan as it is › binds the version in effect where the
+          subscription is bound to none
+        - a change that leaves the plan as it is › a rebinding between its read and its write is not
+          written over
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
     - a plan version published before the customer left
         - does not roll onto a subscription whose term is over
         - while a cancellation still to come stops nothing
         - and an uncancelled subscription rolls as before
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
+      is
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
+        - is quoted from the catalogue where no repository reads versions
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - the plan line records the version the subscription is bound to
         - a tenant on v1 who books an add-on after v2 is published keeps v1
@@ -337,6 +362,8 @@ _Tested by:_
     - defaults to MONTHLY cycle when pendingBillingCycle is null
     - is non-fatal per tenant — one failure does not abort the run
     - no-op when nothing is due
+    - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
+      is
 
 <!-- END proof -->
 

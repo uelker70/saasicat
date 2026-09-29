@@ -380,3 +380,90 @@ describe('a plan without a price for the rhythm asked for', () => {
         assert.deepEqual(notSold(dto.blockers), []);
     });
 });
+
+// @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+describe('a subscriber on an older version of the plan', () => {
+    // Bound to STARTER v1 at 15 € a month and 150 € a year, while the
+    // catalogue sells STARTER at 19 € and 190 € to new customers.
+    const V1 = {
+        id: 'pv1',
+        planId: 'STARTER',
+        version: 1,
+        monthlyNet: '15.00',
+        yearlyNet: '150.00',
+        features: ['CORE_IDENTITY'],
+        quotas: { users: 3, members: 250, storageGb: 2 },
+    };
+    const plans = { findVersionById: async (id) => (id === V1.id ? V1 : null) };
+    const previewFor = (repository) =>
+        new PlanChangePreviewService(
+            givenPlanCatalogSource(CATALOG),
+            // What the tenant may use includes an add-on the plan version lacks.
+            buildEntitlement({ users: 3, members: 250, storageGb: 2 }, [
+                'CORE_IDENTITY',
+                'ADDON_REPORTS',
+            ]),
+            buildSubPort(),
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+            null,
+            null,
+            null,
+            repository,
+        );
+
+    test('is quoted the version they keep for a change of rhythm, and loses nothing by it', async () => {
+        const dto = await previewFor(plans).preview(
+            't1',
+            'STARTER',
+            'YEARLY',
+            new Date('2026-05-15'),
+        );
+
+        assert.equal(dto.changeType, 'CYCLE_CHANGE');
+        assert.equal(
+            dto.target.plan.yearlyNet,
+            150,
+            "the bound version's price, not the catalogue's",
+        );
+        assert.deepEqual(dto.featuresLost, []);
+        assert.deepEqual(dto.featuresGained, []);
+    });
+
+    test('sees the price they pay as their current one when changing plan', async () => {
+        const dto = await previewFor(plans).preview(
+            't1',
+            'STANDARD',
+            'MONTHLY',
+            new Date('2026-05-15'),
+        );
+
+        assert.equal(dto.current.plan.monthlyNet, 15);
+        assert.equal(dto.target.plan.monthlyNet, 49, 'another plan is sold at its price now');
+    });
+
+    test('is refused a rhythm the version they keep is not sold in, rather than quoted it free', async () => {
+        // The catalogue's STARTER is sold yearly; the version bound is not.
+        const monthlyOnly = { ...V1, yearlyNet: null };
+        const dto = await previewFor({
+            findVersionById: async (id) => (id === V1.id ? monthlyOnly : null),
+        }).preview('t1', 'STARTER', 'YEARLY', new Date('2026-05-15'));
+
+        assert.equal(dto.target.plan.yearlyNet, null, 'not a price of 0');
+        assert.deepEqual(
+            dto.blockers.map((blocker) => blocker.code),
+            ['PLAN_NOT_SOLD_IN_CYCLE'],
+        );
+    });
+
+    test('is quoted from the catalogue where no repository reads versions', async () => {
+        const dto = await previewFor(null).preview(
+            't1',
+            'STARTER',
+            'YEARLY',
+            new Date('2026-05-15'),
+        );
+
+        assert.equal(dto.target.plan.yearlyNet, 190);
+    });
+});

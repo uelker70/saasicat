@@ -118,6 +118,8 @@ describe('a plan change is timed by the rules, not by the request', () => {
 
         assert.equal(writePort.immediateCalls.length, 1);
         assert.equal(writePort.scheduledCalls.length, 0);
+        // An immediate change is an upgrade, a sale at the version in effect.
+        assert.equal(writePort.immediateCalls[0].input.keepsBoundVersion, false);
     });
 
     test("the scheduled date is the preview's, not a second computation", async () => {

@@ -165,6 +165,8 @@ _Tested by:_
     - defaults to MONTHLY cycle when pendingBillingCycle is null
     - is non-fatal per tenant — one failure does not abort the run
     - no-op when nothing is due
+    - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
+      is
 
 <!-- END proof -->
 
@@ -290,6 +292,11 @@ _Tested by:_
         - is not blocked in the rhythm it does carry a price for
         - a plan on request is blocked in either rhythm
         - a plan that is not marketed is left to the special contract that prices it
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
+        - is quoted from the catalogue where no repository reads versions
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -352,6 +359,11 @@ _Tested by:_
         - is not blocked in the rhythm it does carry a price for
         - a plan on request is blocked in either rhythm
         - a plan that is not marketed is left to the special contract that prices it
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
+        - is quoted from the catalogue where no repository reads versions
 
 <!-- END proof -->
 

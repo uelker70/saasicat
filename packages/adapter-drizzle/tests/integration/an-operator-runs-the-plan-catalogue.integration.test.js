@@ -380,6 +380,62 @@ describe("a tenant's own writes", () => {
         assert.equal(refused.plan, 'IMM_B', 'and the stored plan is untouched');
     });
 
+    // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+    describe('a change that leaves the plan as it is', () => {
+        /** A tenant on v1, with v2 in effect from May and offered to them as pending. */
+        async function onV1WithV2Pending(planKey) {
+            const { version: v1 } = await livePlan(planKey);
+            const v2 = await publish(
+                (await draftFor(planKey)).id,
+                new Date('2026-05-01T00:00:00.000Z'),
+            );
+            await seedSubscription(planKey, v1.id, {
+                pendingPlanVersionId: v2.id,
+                pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
+            });
+            return { v1, v2 };
+        }
+
+        const toYearly = (planId, keepsBoundVersion) => ({
+            planId,
+            cycle: 'YEARLY',
+            periodStart: new Date('2026-06-01T00:00:00.000Z'),
+            periodEnd: new Date('2027-06-01T00:00:00.000Z'),
+            nextStatus: null,
+            expectedCanceledAt: null,
+            keepsBoundVersion,
+        });
+
+        async function stored() {
+            const [row] = await db
+                .select()
+                .from(saasicatSchema.subscriptions)
+                .where(eq(saasicatSchema.subscriptions.tenantId, TENANT));
+            return row;
+        }
+
+        test('keeps the bound version, and the offer of the newer one, when it moves only the rhythm', async () => {
+            const { v1, v2 } = await onV1WithV2Pending('RHYTHM_ONLY');
+
+            await tenantWrite.changePlanImmediate(TENANT, toYearly('RHYTHM_ONLY', true));
+
+            const row = await stored();
+            assert.equal(row.billingCycle, 'YEARLY');
+            assert.equal(row.planVersionId, v1.id);
+            assert.equal(row.pendingPlanVersionId, v2.id);
+        });
+
+        test('a sale binds the version in effect, and no longer offers it as pending', async () => {
+            const { v2 } = await onV1WithV2Pending('SOLD_AGAIN');
+
+            await tenantWrite.changePlanImmediate(TENANT, toYearly('SOLD_AGAIN', false));
+
+            const row = await stored();
+            assert.equal(row.planVersionId, v2.id);
+            assert.equal(row.pendingPlanVersionId, null);
+        });
+    });
+
     test('changing to a plan with no live version says so rather than binding nothing', async () => {
         const { version } = await livePlan('IMM_ONLY');
         await plans.create({ planKey: 'DRAFT_ONLY', label: 'Draft only' });

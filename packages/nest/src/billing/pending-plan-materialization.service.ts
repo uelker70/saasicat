@@ -70,6 +70,9 @@ export class PendingPlanMaterializationService {
                     // Status stays (ACTIVE/PAST_DUE etc.) — only the plan is materialized.
                     nextStatus: null,
                     expectedCanceledAt: change.canceledAt,
+                    // A change that leaves the plan as it is moves the rhythm,
+                    // not the version the subscriber agreed to.
+                    keepsBoundVersion: true,
                 });
                 if (!result.claimed) {
                     // A cancellation arrived between the query and this write.

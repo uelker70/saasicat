@@ -103,3 +103,16 @@ test('no-op when nothing is due', async () => {
     assert.equal(calls.changePlan.length, 0);
     assert.equal(calls.invalidated.length, 0);
 });
+
+// @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+test('a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it is', async () => {
+    // The store keeps the binding only where the plan does not change; a
+    // scheduled change of plan is still bound to the version in effect.
+    const { calls, service } = makeDeps([
+        { tenantId: 't1', pendingPlan: 'STANDARD', pendingBillingCycle: 'YEARLY' },
+    ]);
+
+    await service.materializeDuePlanChanges(new Date('2026-06-09T00:00:00.000Z'));
+
+    assert.equal(calls.changePlan[0].input.keepsBoundVersion, true);
+});

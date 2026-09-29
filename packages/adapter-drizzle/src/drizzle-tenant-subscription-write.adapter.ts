@@ -69,16 +69,24 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             // decision made on a row that then changes is applied to a state
             // nobody looked at. The lock makes read and write one moment.
             const current = await this.requireSubscription(db, tenantId, { lock: true });
-            const planVersionId = await this.activeVersionId(
-                input.planId,
-                input.periodStart ?? new Date(),
-                tx as unknown as TransactionContext,
-            );
-            const pendingMovedAway = await this.pendingVersionBelongsToAnotherPlan(
-                tx as unknown as TransactionContext,
-                current.pendingPlanVersionId,
-                input.planId,
-            );
+            const keepsVersion = input.keepsBoundVersion && current.plan === input.planId;
+            const planVersionId = keepsVersion
+                ? current.planVersionId
+                : await this.activeVersionId(
+                      input.planId,
+                      input.periodStart ?? new Date(),
+                      tx as unknown as TransactionContext,
+                  );
+            // A pending version of another plan has nothing left to be
+            // accepted for, and one the write binds is accepted by being bound:
+            // the subscriber is not asked for a version they are already on.
+            const pendingMovedAway =
+                planVersionId === current.pendingPlanVersionId ||
+                (await this.pendingVersionBelongsToAnotherPlan(
+                    tx as unknown as TransactionContext,
+                    current.pendingPlanVersionId,
+                    input.planId,
+                ));
             const claimed = await this.claim(db, tenantId, input.expectedCanceledAt, {
                 plan: input.planId,
                 billingCycle: input.cycle,

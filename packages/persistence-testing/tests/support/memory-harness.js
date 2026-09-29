@@ -134,14 +134,21 @@ export function createMemoryHarness() {
                 (subscription) => subscription.tenantId === tenantId,
             );
             if (!row) throw subscriptionGone(tenantId);
-            const target = state.planVersions
-                .filter(
-                    (version) =>
-                        version.planId === input.planId &&
-                        version.publishedAt &&
-                        !version.supersededAt,
-                )
-                .sort((a, b) => b.version - a.version)[0];
+            // A change of rhythm keeps the version the subscriber agreed to.
+            const keepsVersion =
+                input.keepsBoundVersion &&
+                row.plan === input.planId &&
+                (row.planVersionId ?? null) !== null;
+            const target = keepsVersion
+                ? { id: row.planVersionId }
+                : state.planVersions
+                      .filter(
+                          (version) =>
+                              version.planId === input.planId &&
+                              version.publishedAt &&
+                              !version.supersededAt,
+                      )
+                      .sort((a, b) => b.version - a.version)[0];
             if (!target) throw noActivePlanVersion(input.planId, input.periodStart ?? new Date());
             // The contract's own claim: the write takes the row only while the
             // cancellation is what the caller read. This reference store keeps
@@ -150,9 +157,16 @@ export function createMemoryHarness() {
             if ((row.canceledAt ?? null) !== (input.expectedCanceledAt ?? null)) {
                 return { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
             }
+            const pending = state.planVersions.find(
+                (version) => version.id === row.pendingPlanVersionId,
+            );
             row.plan = input.planId;
+            row.billingCycle = input.cycle;
             row.planVersionId = target.id;
-            row.pendingPlanVersionId = null;
+            // Cleared where it belongs to another plan, or is what was bound.
+            if (pending && (pending.planId !== input.planId || pending.id === target.id)) {
+                row.pendingPlanVersionId = null;
+            }
             return { plan: row.plan, billingCycle: input.cycle, claimed: true };
         },
         async applyOnboardingSelection(tenantId, input, redeemPromo) {
@@ -161,6 +175,7 @@ export function createMemoryHarness() {
                     ...input,
                     trialEndsAt: null,
                     expectedCanceledAt: null,
+                    keepsBoundVersion: false,
                 });
                 const row = state.subscriptions.find(
                     (subscription) => subscription.tenantId === tenantId,
