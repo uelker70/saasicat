@@ -8,7 +8,6 @@ import type {
 } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
     type PrismaModelDelegateLike,
     type PrismaTxLike,
 } from './prisma-client-token.js';
@@ -22,7 +21,20 @@ interface PromoCodeHoldRow {
     createdAt: Date;
 }
 
-type HoldClient = PrismaTxLike & { promoCodeHold: PrismaModelDelegateLike<PromoCodeHoldRow> };
+/** What this repository reads and writes, inside a transaction or out of one. */
+type HoldClient = Pick<PrismaTxLike, '$executeRaw' | '$queryRaw'> & {
+    promoCodeHold: PrismaModelDelegateLike<PromoCodeHoldRow>;
+};
+
+/**
+ * The injected client, typed only as far as this repository relies on it —
+ * the hold delegate, raw statements and the interactive transaction — so a
+ * client without the SuperAdmin tables can be handed over as it is.
+ */
+interface HoldRepositoryClient extends Pick<PrismaTxLike, '$executeRaw' | '$queryRaw'> {
+    promoCodeHold: unknown;
+    $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
+}
 
 const HOLD_COLUMNS = {
     id: true,
@@ -44,7 +56,7 @@ const HOLD_COLUMNS = {
  */
 @Injectable()
 export class PrismaPromoCodeHoldRepository implements PromoCodeHoldRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: HoldRepositoryClient) {}
 
     async findByCheckoutOffer(
         checkoutOfferId: string,
@@ -61,7 +73,8 @@ export class PrismaPromoCodeHoldRepository implements PromoCodeHoldRepository {
         checkoutOfferId: string;
         expiresAt: Date;
     }): Promise<PromoCodeHoldTaken> {
-        return this.prisma.$transaction(async (tx) => {
+        return this.prisma.$transaction(async (transaction) => {
+            const tx = transaction as HoldClient;
             // Locking the code first serialises every take of it, so a second
             // take for the same offer finds the first one's row.
             const locked = (await tx.$queryRaw`
@@ -188,6 +201,6 @@ export class PrismaPromoCodeHoldRepository implements PromoCodeHoldRepository {
     }
 }
 
-function holdsOf(client: PrismaTxLike): HoldClient['promoCodeHold'] {
+function holdsOf(client: unknown): HoldClient['promoCodeHold'] {
     return (client as HoldClient).promoCodeHold;
 }

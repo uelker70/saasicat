@@ -1,8 +1,11 @@
-import type {
-    PasswordHasher,
-    PersistenceInjectionToken,
-    PersistenceProvider,
-    SaaSiCatPersistenceAdapter,
+import {
+    membersLeftOut,
+    type OptionalBundleMember,
+    type OptionalCanonicalModel,
+    type PasswordHasher,
+    type PersistenceInjectionToken,
+    type PersistenceProvider,
+    type SaaSiCatPersistenceAdapter,
 } from '@saasicat/core';
 import type { DrizzleClient } from './client.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
@@ -73,6 +76,15 @@ export interface DrizzlePersistenceOptions {
      * declared `rowLevelSecurity` capability. Default false.
      */
     rlsIntegration?: boolean;
+    /**
+     * The canonical models your schema leaves out, as `saasicat schema check`
+     * lists them under "Not adopted". The bundle leaves out the members that
+     * need them, so the platform decides at start what it can do without them
+     * rather than a request failing on a table that is not there. Only models
+     * the bundle can do without are accepted (`OPTIONAL_CANONICAL_MODELS`);
+     * for any other, pass your own adapter.
+     */
+    notAdopted?: readonly OptionalCanonicalModel[];
 }
 
 /**
@@ -95,6 +107,16 @@ export interface DrizzlePersistenceOptions {
  */
 export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCatPersistenceAdapter {
     const { db } = options;
+    const leftOut = membersLeftOut(options.notAdopted);
+    if (options.passwordHasher && leftOut.has('core.superAdminProvisioning')) {
+        throw new Error(
+            'drizzlePersistence: `passwordHasher` provisions SuperAdmins into `super_admin_users`, ' +
+                'and `notAdopted` says the schema has no such table. Drop one of the two.',
+        );
+    }
+    /** The member, unless a model it needs is not adopted. */
+    const unless = <T>(member: OptionalBundleMember, value: T): T | undefined =>
+        leftOut.has(member) ? undefined : value;
 
     const provide = <T>(build: (client: DrizzleClient) => T): PersistenceProvider<T> =>
         isInjectionToken(db)
@@ -109,15 +131,24 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             advisoryLocks: false,
         },
         core: {
-            mfa: provide((client) => new DrizzleMfaAdapter(client)),
+            mfa: unless(
+                'core.mfa',
+                provide((client) => new DrizzleMfaAdapter(client)),
+            ),
             audit: provide((client) => new DrizzleAuditAdapter(client)),
             rlsBypass: new AsyncLocalRlsBypassAdapter(),
             transactionRunner: provide((client) => new DrizzleTransactionRunner(client)),
             auditQuery: provide((client) => new DrizzleAuditQueryAdapter(client)),
             auditStats: provide((client) => new DrizzleAuditStatsAdapter(client)),
             superAdminProvisioning: buildProvisioning(db, options.passwordHasher),
-            appliedSettings: provide((client) => new DrizzleAppliedSettingsRepository(client)),
-            maintenanceWindows: provide((client) => new DrizzleMaintenanceWindowRepository(client)),
+            appliedSettings: unless(
+                'core.appliedSettings',
+                provide((client) => new DrizzleAppliedSettingsRepository(client)),
+            ),
+            maintenanceWindows: unless(
+                'core.maintenanceWindows',
+                provide((client) => new DrizzleMaintenanceWindowRepository(client)),
+            ),
         },
         entitlement: {
             subscriptionRepository: provide((client) => new DrizzleSubscriptionRepository(client)),
@@ -138,8 +169,9 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             // The party each of those contracts is concluded with.
             subscriberRepository: provide((client) => new DrizzleSubscriberRepository(client)),
             // The charges those contracts give rise to, written once each.
-            subscriberLedgerRepository: provide(
-                (client) => new DrizzleSubscriberLedgerRepository(client),
+            subscriberLedgerRepository: unless(
+                'entitlement.subscriberLedgerRepository',
+                provide((client) => new DrizzleSubscriberLedgerRepository(client)),
             ),
             // The catalogue behind those bookings: entitlement resolves a
             // booking's features by reading the pinned version.
@@ -176,7 +208,10 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             ),
             subscriptionLookup: provide((client) => new DrizzlePromoSubscriptionLookup(client)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
-            holdRepository: provide((client) => new DrizzlePromoCodeHoldRepository(client)),
+            holdRepository: unless(
+                'promo.holdRepository',
+                provide((client) => new DrizzlePromoCodeHoldRepository(client)),
+            ),
         },
         payments: {
             paymentEventLog: provide((client) => new DrizzlePaymentEventLog(client)),

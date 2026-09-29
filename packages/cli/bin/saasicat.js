@@ -71,6 +71,7 @@ import {
     SCANNED_FOR_DB_CATALOG,
     WHERE_DB_CATALOG_GOES,
 } from '../dist/index.js';
+import { OPTIONAL_CANONICAL_MODELS } from '@saasicat/core';
 
 const require_ = createRequire(import.meta.url);
 
@@ -333,6 +334,18 @@ function printCheckReport(report) {
     if (absent.length > 0) {
         console.log(`→ Not adopted (${absent.length}): ${absent.join(', ')}`);
         console.log('  Not an error — the app does not use these fragments.');
+        // The persistence bundles build a member for each of these unless told
+        // otherwise; said here, the check and the bundle give one answer.
+        const optional = report.absentModels.filter((model) =>
+            Object.hasOwn(OPTIONAL_CANONICAL_MODELS, model),
+        );
+        if (optional.length > 0) {
+            console.log(
+                '  With prismaPersistence() or drizzlePersistence(), pass them on, and the',
+            );
+            console.log('  bundle leaves out what needs them:');
+            console.log(`    notAdopted: [${optional.map((model) => `'${model}'`).join(', ')}]`);
+        }
         console.log('');
     }
 }

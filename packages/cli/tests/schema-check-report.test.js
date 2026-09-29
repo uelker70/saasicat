@@ -91,5 +91,20 @@ describe('the check never prints two answers to one question', () => {
         assert.equal(code, 0, stdout);
         assert.match(stdout, /Not adopted[^\n]*SubscriberPaymentMethod/);
         assert.match(stdout, /Not an error/);
+        assert.doesNotMatch(
+            stdout,
+            /notAdopted:/,
+            'a model the persistence bundle cannot leave out is not offered as one it can',
+        );
+    });
+
+    // @requirement SC-COMP-016 — What the schema check calls not adopted, the persistence bundle can be told
+    test('a model the persistence bundle can leave out is handed over as the option to pass', async () => {
+        const { stdout, code } = await check(
+            await fragment('13-subscriber.prisma'),
+            '--fragments=12,13',
+        );
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /notAdopted: \['AppliedSettings', 'SettingsChange'\]/);
     });
 });

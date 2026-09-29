@@ -440,6 +440,11 @@ export class PromoCodesService {
 
     // ─── Checkout: a slot held until the conclusion ────────────────────────
 
+    /** Whether a slot can be held for a checkout: a `PromoCodeHoldRepository` is wired. */
+    canHoldForCheckout(): boolean {
+        return this.holds !== null;
+    }
+
     /**
      * Holds a slot of the code for a checkout offer until `until`, after every
      * check a preview makes — so a customer who reaches the payment form keeps

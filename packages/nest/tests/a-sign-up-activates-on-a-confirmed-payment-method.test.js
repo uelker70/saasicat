@@ -44,6 +44,7 @@ import {
     providerRefusal,
     signedCallback,
 } from './helpers/payments.js';
+import { buildOfferService } from './helpers/checkout-catalogue.js';
 import { concludeFor, installation } from './helpers/held-code-installation.js';
 import {
     FakeAuditLogger,
@@ -1166,6 +1167,24 @@ describe('step 4 holds the promo code of the offer the sign-up concludes', () =>
             /no CheckoutOfferService is registered/,
         );
         assert.deepEqual(ctx.gateway.setups, []);
+    });
+});
+
+// @requirement SC-COMP-016 — What the schema check calls not adopted, the persistence bundle can be told
+describe('self-registration beside checkout offers', () => {
+    test('does not start where the promo code of an offer cannot be held, and says what to wire', async () => {
+        await assert.rejects(
+            signUpApp({ shop: installation({ holds: false }) }),
+            /no PromoCodeHoldRepository to keep that hold\. Adopt the `PromoCodeHold` model/,
+        );
+    });
+
+    test('starts without the promo module, where no offer carries a code to hold', async () => {
+        const offers = buildOfferService({ promoCodes: null });
+
+        const ctx = await signUpApp({ shop: { service: offers.service, stores: [offers.repo] } });
+
+        assert.ok(ctx.service instanceof PendingRegistrationService);
     });
 });
 

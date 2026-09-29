@@ -1,0 +1,155 @@
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+
+// An application that keeps its SuperAdmins in its own user table leaves the
+// SuperAdmin fragment out — the fragment itself says so — and its generated
+// client has no `superAdminUser` or `superAdminMfa`. The adapters that never
+// touch those tables have to take such a client as it is: the alternative, a
+// cast to the whole client type, switches the type check off exactly where a
+// renamed column should be caught.
+//
+// Compiled with the TypeScript compiler against the shipped declarations, so
+// what is checked is what a consumer's build sees.
+
+const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.js');
+
+const SOURCE = `
+import {
+    PrismaPromoCodeHoldRepository,
+    PrismaPromoCodeRedemptionRepository,
+    PrismaPromoCodeRepository,
+    PrismaPromoCodeValidationLogRepository,
+    PrismaPromoSubscriptionLookup,
+    PrismaSubscriptionContractRepository,
+    type PrismaLike,
+} from ${JSON.stringify(DIST)};
+
+type Delegates = Omit<PrismaLike, 'superAdminUser' | 'superAdminMfa' | '$transaction'> & {
+    subscriptionContract: unknown;
+    promoCodeHold: unknown;
+};
+declare const client: Delegates & {
+    $transaction<T>(fn: (tx: Delegates) => Promise<T>): Promise<T>;
+};
+
+new PrismaSubscriptionContractRepository(client);
+new PrismaPromoCodeRepository(client);
+new PrismaPromoCodeRedemptionRepository(client);
+new PrismaPromoCodeValidationLogRepository(client);
+new PrismaPromoSubscriptionLookup(client);
+new PrismaPromoCodeHoldRepository(client);
+`;
+
+function diagnosticsOf(source) {
+    const dir = mkdtempSync(join(tmpdir(), 'saasicat-client-types-'));
+    try {
+        const file = join(dir, 'wiring.ts');
+        writeFileSync(file, source);
+        const program = ts.createProgram([file], {
+            strict: true,
+            noEmit: true,
+            skipLibCheck: true,
+            target: ts.ScriptTarget.ES2022,
+            module: ts.ModuleKind.NodeNext,
+            moduleResolution: ts.ModuleResolutionKind.NodeNext,
+            experimentalDecorators: true,
+        });
+        return ts
+            .getPreEmitDiagnostics(program)
+            .map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'));
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
+}
+
+// @requirement SC-COMP-017 — An adapter asks only for the tables it uses
+describe('a client from a schema without the SuperAdmin fragment', () => {
+    test('is taken by every adapter that does not touch those tables, without a cast', () => {
+        assert.deepEqual(diagnosticsOf(SOURCE), []);
+    });
+
+    test('the check sees a client that lacks what an adapter does use', () => {
+        // Without this, an empty diagnostic list could mean the compiler never
+        // resolved the declarations at all.
+        const missingDelegate = SOURCE.replace(
+            "'superAdminUser' | 'superAdminMfa' | '$transaction'",
+            "'superAdminUser' | 'superAdminMfa' | '$transaction' | 'promoCode'",
+        );
+        const found = diagnosticsOf(missingDelegate);
+        assert.ok(
+            found.some((message) => message.includes('promoCode')),
+            found.join('\n') || 'no diagnostic at all',
+        );
+    });
+});
+
+/** The persistence bundle given the same client, told which models the schema leaves out. */
+function bundleWiring(notAdopted) {
+    return `
+import { prismaPersistence, type PrismaLike } from ${JSON.stringify(DIST)};
+
+type Delegates = Omit<PrismaLike, 'superAdminUser' | 'superAdminMfa' | '$transaction'>;
+declare const client: Delegates & {
+    $transaction<T>(fn: (tx: Delegates) => Promise<T>): Promise<T>;
+};
+
+prismaPersistence({ client${notAdopted === undefined ? '' : `, notAdopted: ${notAdopted}`} });
+`;
+}
+
+// @requirement SC-COMP-016 — What the schema check calls not adopted, the persistence bundle can be told
+describe('the persistence bundle given a client without the SuperAdmin delegates', () => {
+    test('takes it without a cast once both models are named as not adopted', () => {
+        assert.deepEqual(diagnosticsOf(bundleWiring("['SuperAdminUser', 'SuperAdminMfa']")), []);
+    });
+
+    test('refuses it while a model it lacks is not named, since a member would use it', () => {
+        const withoutMfa = diagnosticsOf(bundleWiring("['SuperAdminUser']")).join('\n');
+        assert.match(withoutMfa, /superAdminMfa/);
+        const withoutEither = diagnosticsOf(bundleWiring(undefined)).join('\n');
+        assert.match(withoutEither, /superAdminUser|superAdminMfa/);
+    });
+});
+
+// A generated client types the audit row's `changes` as its own JSON input, and
+// its `create` is generic over that shape. The two audit adapters only read,
+// so a client whose write the structural type cannot describe is theirs to take.
+const AUDIT_WIRING = `
+import {
+    PrismaAuditQueryAdapter,
+    PrismaAuditStatsAdapter,
+    type PrismaLike,
+} from ${JSON.stringify(DIST)};
+
+type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
+type AuditLog = PrismaLike['auditLog'];
+declare const client: {
+    auditLog: Pick<AuditLog, 'findMany' | 'count'> & {
+        create<T extends { data: { entity: string; changes: Json } }>(args: T): Promise<unknown>;
+    };
+};
+
+new PrismaAuditQueryAdapter(client);
+new PrismaAuditStatsAdapter(client);
+`;
+
+// @requirement SC-COMP-017 — An adapter asks only for the tables it uses
+describe('a client whose audit write is typed by its own schema', () => {
+    test('is taken by both audit adapters, which only read', () => {
+        assert.deepEqual(diagnosticsOf(AUDIT_WIRING), []);
+    });
+
+    test('the check sees the write where an adapter still asks for it', () => {
+        const asksForTheWrite = AUDIT_WIRING.replace(
+            'new PrismaAuditStatsAdapter(client);',
+            'const wholeDelegate: { auditLog: AuditLog } = client;',
+        );
+        const found = diagnosticsOf(asksForTheWrite).join('\n');
+        assert.match(found, /changes|create/);
+    });
+});

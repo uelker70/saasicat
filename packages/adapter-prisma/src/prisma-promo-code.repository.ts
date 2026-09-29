@@ -14,7 +14,7 @@ import type {
 import { promoCodeTaken, toDecimalString } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
+    type PrismaTxLike,
     type PromoCodeRowLike,
 } from './prisma-client-token.js';
 import { resolveClient } from './tx.js';
@@ -31,7 +31,10 @@ import { resolveClient } from './tx.js';
  */
 @Injectable()
 export class PrismaPromoCodeRepository implements PromoCodeRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaTxLike, 'promoCode' | '$executeRaw'>,
+    ) {}
 
     async findById(id: string): Promise<PromoCodeRecord | null> {
         const row = await this.prisma.promoCode.findUnique({ where: { id } });

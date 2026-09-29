@@ -1,11 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PromoCodeValidationLogRepository } from '@saasicat/core';
-import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaTxLike } from './prisma-client-token.js';
 
 /** `PromoCodeValidationLogRepository` against `promo_code_validation_logs`. */
 @Injectable()
 export class PrismaPromoCodeValidationLogRepository implements PromoCodeValidationLogRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaTxLike, 'promoCodeValidationLog'>,
+    ) {}
 
     async log(args: {
         promoCodeId: string | null;
