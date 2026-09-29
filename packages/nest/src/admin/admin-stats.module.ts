@@ -24,7 +24,9 @@ import {
 //
 // Prerequisite: `SuperAdminGuard` is available in the DI scope — either
 // through `AdminModule.forRoot({...})` (which exports it as a provider) or
-// by registering the provider directly in the app.
+// by registering the provider directly in the app. Under row-level security
+// `RlsBypassPort` has to be in scope too: the figures are read inside it, and
+// without one they are read in the request's scope, where a policy shows zeros.
 
 export interface AdminStatsModuleOptions {
     subscriptionStatsPort: ProviderSpec<SubscriptionStatsPort>;

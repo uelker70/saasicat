@@ -100,6 +100,14 @@ export interface SubscriptionRepository {
      * frozen (fail-closed). Implementation hint: count in a single
      * COUNT(*) over the subscription table with an OR over the two
      * FK columns — not in two separate queries, to avoid race conditions.
+     *
+     * Counts across every tenant. The platform calls it inside
+     * `RlsBypassPort`; an implementation on a tenant-scoped client has to see
+     * every tenant's rows there. Whether the frame lifts the policy for this
+     * query is up to the application's bypass and the database layer behind it
+     * — one that lifts only reads such as `find*` leaves a `count` filtered, and
+     * then the implementation lifts the policy itself. A subscriber hidden from
+     * the count counts as nobody, which opens the version for editing.
      */
     countByPlanVersionId?(planVersionId: string): Promise<number>;
 
@@ -120,6 +128,9 @@ export interface SubscriptionRepository {
      *
      * Optional — if not implemented, the service defensively treats the
      * version as frozen (fail-closed).
+     *
+     * Counts across every tenant, inside `RlsBypassPort`, and has to see every
+     * tenant's rows there, as `countByPlanVersionId` does.
      */
     countByBundleVersionId?(bundleVersionId: string): Promise<number>;
 
@@ -131,8 +142,9 @@ export interface SubscriptionRepository {
      * (subscriptions on superseded versions are included).
      *
      * Returns a map `planKey → count`; plans without an active subscription
-     * are missing (UI defaults to 0). Platform-wide count across all tenants →
-     * adapters must count RLS-exempt.
+     * are missing (UI defaults to 0). Platform-wide count across all tenants:
+     * the platform calls it inside `RlsBypassPort`, and an implementation has to
+     * see every tenant's rows there, as for `countByPlanVersionId`.
      *
      * Optional — if not implemented, the tenant column stays 0.
      */
@@ -272,8 +284,8 @@ export interface SubscriptionContractRepository {
      *
      * Platform-wide: unlike every other read here it is anchored by no tenant,
      * no contract and no offer, and a start makes it before anything is served.
-     * An implementation on a tenant-scoped client must count RLS-exempt, as
-     * `countActiveByPlanKey` must — the platform wraps the call in
+     * An implementation on a tenant-scoped client counts inside the bypass
+     * frame, as `countActiveByPlanKey` does — the platform wraps the call in
      * `RlsBypassPort`, and one that answers with the caller's tenant scope
      * instead returns nothing at a boot, where there is no tenant. The
      * persistence contract runs with no policy forced, so it cannot catch that

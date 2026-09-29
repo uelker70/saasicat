@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnApplicationBootstrap, Optional } from '@nest
 import type { RlsBypassPort, SubscriberPaymentMethodRepository } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
 import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from './payments.tokens.js';
 
@@ -32,8 +33,7 @@ export class StoredPaymentReferencesCheck implements OnApplicationBootstrap {
     ) {}
 
     async onApplicationBootstrap(): Promise<void> {
-        const read = () => this.methods.accountsInUse();
-        const inUse = await (this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read());
+        const inUse = await readAcrossTenants(this.rlsBypass, () => this.methods.accountsInUse());
         const unconfigured = this.registry.unconfigured(inUse);
         if (unconfigured.length === 0) return;
         throw new Error(

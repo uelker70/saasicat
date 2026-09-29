@@ -26,6 +26,7 @@ import {
     type PlanVersionMutationResult,
     type PlanVersionRow,
     type PublishPlanVersionData,
+    type RlsBypassPort,
     type StrictModeWarning,
     type SubscriptionRepository,
     type UpdatePlanVersionDraftData,
@@ -39,6 +40,8 @@ import {
     hasDiscoverySnapshotSource,
     resolveDiscoverySnapshot,
 } from '../core/discovery-snapshot-source.js';
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
@@ -73,6 +76,9 @@ export class PlanVersionsService {
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {
         this.mode = config.strictModeCheckMode ?? 'blocking';
         this.marketedOnly = new Set(config.marketedOnlyFeatures ?? []);
@@ -180,6 +186,10 @@ export class PlanVersionsService {
      * editability decision. `subscriptionCount` stays
      * `undefined` when no SubscriptionRepository is registered —
      * `isVersionEditable` interprets that fail-closed (= frozen).
+     *
+     * The count spans every tenant, so it runs past the tenants' row-level
+     * policy: a subscriber the policy hid would count as nobody, and the
+     * version they are on would open for editing.
      */
     private async annotateEditability(versions: PlanVersionRow[]): Promise<PlanVersionRow[]> {
         if (versions.length === 0) return versions;
@@ -196,7 +206,7 @@ export class PlanVersionsService {
                 // COUNT(*).
                 const subscriptionCount =
                     counter && isLatestInChain && v.publishedAt !== null && v.supersededAt === null
-                        ? await counter(v.id)
+                        ? await readAcrossTenants(this.rlsBypass, () => counter(v.id))
                         : undefined;
                 return { ...v, isLatestInChain, subscriptionCount };
             }),

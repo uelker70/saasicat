@@ -12,6 +12,14 @@
 //   strictModeCheckMode: 'blocking', // default (#12)
 // })
 // ```
+//
+// Where tenants are kept apart by row-level security, `RlsBypassPort` has to be
+// in scope as well — `AdminModule.forRoot({ …, global: true })` or `imports`.
+// The services count the subscriptions a version binds inside that frame; with
+// no port in scope they count in the request's own scope, a policy hides every
+// row there, and a published version with subscribers opens for editing.
+// `SaaSiCatModule` registers `AdminModule` globally, so this concerns only a
+// catalogue wired by hand.
 
 import {
     type CanActivate,

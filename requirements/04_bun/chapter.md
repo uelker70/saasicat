@@ -875,6 +875,9 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - a bundle the operator retired
         - is not priced, though its version is still live
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - an add-on version tenants have booked, behind a tenant policy
+        - stays locked against editing
 - `packages/nest/tests/bundles-service.test.js`
     - BundlesService — Version lifecycle
         - createBundleDraft creates v1 with baseVersionId=null

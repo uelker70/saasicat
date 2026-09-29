@@ -16,10 +16,13 @@ import type {
     CreatePlanData,
     PlanRepository,
     PlanRow,
+    RlsBypassPort,
     SubscriptionRepository,
     UpdatePlanData,
 } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { PLAN_REPOSITORY_TOKEN } from './catalog.tokens.js';
 import { CATALOG_ERROR_CODES } from '@saasicat/core';
@@ -32,6 +35,9 @@ export class PlansService {
         @Optional()
         @Inject(SUBSCRIPTION_REPOSITORY_TOKEN)
         private readonly subscriptions: SubscriptionRepository | null = null,
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /**
@@ -42,7 +48,9 @@ export class PlansService {
      * `countActiveByPlanKey`.
      */
     async getTenantCounts(): Promise<Record<string, number>> {
-        return (await this.subscriptions?.countActiveByPlanKey?.()) ?? {};
+        const count = this.subscriptions?.countActiveByPlanKey?.bind(this.subscriptions);
+        if (!count) return {};
+        return readAcrossTenants(this.rlsBypass, count);
     }
 
     listPlans(opts: { onlyPublished?: boolean } = {}): Promise<PlanRow[]> {

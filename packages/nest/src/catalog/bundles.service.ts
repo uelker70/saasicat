@@ -36,6 +36,7 @@ import {
     type DiscoverySnapshot,
     type PlanRepository,
     type PublishBundleVersionData,
+    type RlsBypassPort,
     type StrictModeWarning,
     type SubscriptionRepository,
     type UpdateBundleData,
@@ -51,6 +52,8 @@ import {
     hasDiscoverySnapshotSource,
     resolveDiscoverySnapshot,
 } from '../core/discovery-snapshot-source.js';
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import {
     BUNDLE_REPOSITORY_TOKEN,
@@ -112,6 +115,9 @@ export class BundlesService {
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {
         this.mode = config.strictModeCheckMode ?? 'blocking';
         this.marketedOnly = new Set(config.marketedOnlyFeatures ?? []);
@@ -247,6 +253,10 @@ export class BundlesService {
      * when no SubscriptionRepository is registered or the method was not
      * implemented — `isVersionEditable` interprets that fail-closed
      * (= frozen).
+     *
+     * The count spans every tenant, so it runs past the tenants' row-level
+     * policy: a booking the policy hid would count as nobody, and the version
+     * it is on would open for editing.
      */
     private async annotateEditability(versions: BundleVersionRow[]): Promise<BundleVersionRow[]> {
         if (versions.length === 0) return versions;
@@ -260,7 +270,7 @@ export class BundlesService {
                 const isLatestInChain = v.version === maxVersion;
                 const subscriptionCount =
                     counter && isLatestInChain && v.publishedAt !== null && v.supersededAt === null
-                        ? await counter(v.id)
+                        ? await readAcrossTenants(this.rlsBypass, () => counter(v.id))
                         : undefined;
                 return { ...v, isLatestInChain, subscriptionCount };
             }),
