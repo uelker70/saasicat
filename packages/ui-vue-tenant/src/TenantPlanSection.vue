@@ -562,15 +562,10 @@ const currentPlanName = computed(() => {
     return plan?.name ?? usage.value.plan;
 });
 
-// Amount actually due per billing cycle: yearly price for YEARLY, monthly
-// price for MONTHLY — NO /12 conversion (otherwise a yearly contract would
-// show a monthly amount in the card).
-const currentPriceEur = computed(() => {
-    if (!usage.value) return null;
-    const plan = catalog.plans.value?.find((p) => p.id === usage.value!.plan);
-    if (!plan) return null;
-    return usage.value.billingCycle === 'YEARLY' ? plan.yearlyNet : plan.monthlyNet;
-});
+// The amount due per billing cycle, as the server reads it off the version the
+// subscription is bound to. Not the catalogue's: that is the price a new
+// customer pays, and after a new version it is not this subscriber's.
+const currentPriceEur = computed(() => usage.value?.planPriceNet ?? null);
 
 const currentPriceUnit = computed(() =>
     usage.value?.billingCycle === 'YEARLY'

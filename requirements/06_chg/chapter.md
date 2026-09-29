@@ -297,6 +297,14 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -364,6 +372,14 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 
 <!-- END proof -->
 

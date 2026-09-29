@@ -290,6 +290,14 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - the plan line records the version the subscription is bound to
         - a tenant on v1 who books an add-on after v2 is published keeps v1
@@ -466,5 +474,41 @@ _Tested by:_
     - the tenant changes how it is reached
         - the ${field} can be changed but not cleared, and a refused change writes nothing
         - the ${field} reaches the service through the pipe and is refused there, not dropped
+
+<!-- END proof -->
+
+### SC-SUB-019 — A subscriber is shown the price of the version they are bound to
+
+🟢 💰 The account read (`GET billing/usage`, as `planPriceNet`) and the plan card state what the
+subscription pays per billing cycle at the version it is bound to, priced by the rules its contract
+is frozen by — not the price the catalogue lists for new customers. After a new version of the plan
+those are two numbers, and the card is where a subscriber checks the one on the next invoice. Where
+no repository reads plan versions, the catalogue is the only reading there is and its price is
+shown.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
+- `packages/nest/tests/tenant-billing-controller.test.js`
+    - getUsage states the price the subscription pays, as the plan preview reads it off the version
+      bound
+- `packages/ui-vue-tenant/tests/component/a-subscriber-sees-the-price-they-pay.test.ts`
+    - the plan card
+        - shows the price of the version the subscription is bound to, not the catalogue's
+        - shows no price where the version bound has none in this rhythm, whatever the catalogue
+          lists
 
 <!-- END proof -->

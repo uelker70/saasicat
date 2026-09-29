@@ -2,11 +2,12 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import type {
     BillingCycle,
     PlanCatalog,
+    PlanDef,
     PlanRepository,
-    PlanVersionRow,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
+    SubscriptionUsageRecord,
     UsageSnapshotPort,
 } from '@saasicat/core';
 import { BILLING_ERROR_CODES } from '@saasicat/core';
@@ -16,13 +17,13 @@ import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
+    boundPlanDef,
     findPlan,
     getPlanPriceNet,
     isPlanNotSoldInCycle,
     listPriceNet,
     planNotSoldInCycle,
 } from './plan-helpers.js';
-import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { periodEndAfter } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -265,14 +266,7 @@ export class PlanChangePreviewService {
         // The version bound, read by the rules the contract freeze bills it by:
         // a price the row does not carry is a rhythm it is not sold in, never
         // a free one.
-        const bound = await this.boundVersionOf(sub.planVersion?.id);
-        const stem = findPlan(catalog, sub.plan);
-        const boundDef = bound
-            ? planDefFromVersion(
-                  { id: sub.plan, name: stem?.name ?? sub.plan, tagline: stem?.tagline },
-                  bound,
-              )
-            : null;
+        const boundDef = await this.boundPlanDefOf(catalog, sub);
         const currentPlanDef = findPlan(catalog, currentLimits.plan);
         const currentSnap: PlanSnapshotDto = {
             id: currentLimits.plan,
@@ -624,9 +618,30 @@ export class PlanChangePreviewService {
             }));
     }
 
-    private async boundVersionOf(versionId: string | undefined): Promise<PlanVersionRow | null> {
+    /**
+     * What the subscription pays for its plan per billing cycle, net: the
+     * version it is bound to, priced as the contract freeze bills it. Where no
+     * repository reads versions, or the subscription is bound to none, the
+     * catalogue is the only reading there is and its price stands in. Null
+     * where the plan is not sold in the rhythm, or is sold under a special
+     * contract whose price no catalogue holds.
+     */
+    async planPriceNet(
+        sub: Pick<SubscriptionUsageRecord, 'plan' | 'billingCycle' | 'planVersion'>,
+    ): Promise<number | null> {
+        const catalog = await this.catalogs.current();
+        const plan = (await this.boundPlanDefOf(catalog, sub)) ?? findPlan(catalog, sub.plan);
+        return plan ? listPriceNet(plan, sub.billingCycle as BillingCycle) : null;
+    }
+
+    private async boundPlanDefOf(
+        catalog: PlanCatalog,
+        sub: Pick<SubscriptionUsageRecord, 'plan' | 'planVersion'>,
+    ): Promise<PlanDef | null> {
+        const versionId = sub.planVersion?.id;
         if (!versionId || !this.plans?.findVersionById) return null;
-        return this.plans.findVersionById(versionId);
+        const bound = await this.plans.findVersionById(versionId);
+        return bound ? boundPlanDef(catalog, sub.plan, bound) : null;
     }
 
     private classify(

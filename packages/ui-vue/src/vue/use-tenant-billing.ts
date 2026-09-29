@@ -39,6 +39,13 @@ export interface UsageSnapshotShape {
         supersededAt: string | null;
         changeNote: string | null;
     };
+    /**
+     * What the plan costs per billing cycle, net, at the version the
+     * subscription is bound to. The catalogue lists the price new customers
+     * pay, which after a new version is not this one. Null where the plan has
+     * no list price in this rhythm.
+     */
+    planPriceNet: number | null;
     pendingPlanVersion: {
         id: string;
         planId: string;

@@ -11,9 +11,11 @@ import {
     type PlanCatalog,
     type PlanDef,
     type PlanId,
+    type PlanVersionRow,
     type QuotaKey,
 } from '@saasicat/core';
 import { grossFromNet } from '../promo/math.js';
+import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { assertTaxRatePercent } from '../subscription-contract/contract-refusals.js';
 
 /**
@@ -34,6 +36,25 @@ export function getPlanOrThrow(catalog: PlanCatalog, planId: PlanId): PlanDef {
         throw new Error(`Plan "${planId}" is not in the catalog`);
     }
     return plan;
+}
+
+/**
+ * A plan as the version a subscription is bound to defines it, under the name
+ * the catalogue sells it by. Features, quotas and prices come from the version
+ * alone: the catalogue's entry is the version on sale now, which need not be
+ * the one bought. Whatever bills, quotes or shows a bound subscription reads
+ * the plan through this, so the three cannot disagree.
+ */
+export function boundPlanDef(
+    catalog: PlanCatalog,
+    planId: PlanId,
+    version: PlanVersionRow,
+): PlanDef {
+    const stem = findPlan(catalog, planId);
+    return planDefFromVersion(
+        { id: planId, name: stem?.name ?? planId, tagline: stem?.tagline },
+        version,
+    );
 }
 
 /**

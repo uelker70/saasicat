@@ -466,4 +466,40 @@ describe('a subscriber on an older version of the plan', () => {
 
         assert.equal(dto.target.plan.yearlyNet, 190);
     });
+
+    // @requirement SC-SUB-019 — A subscriber is shown the price of the version they are bound to
+    describe('is shown the price they pay', () => {
+        const sub = (billingCycle, planVersion = { id: V1.id }) => ({
+            plan: 'STARTER',
+            billingCycle,
+            planVersion,
+        });
+        const reading = (version) => ({
+            findVersionById: async (id) => (id === V1.id ? version : null),
+        });
+
+        test("at the version they keep, in either rhythm, not the catalogue's", async () => {
+            const preview = previewFor(plans);
+
+            assert.equal(await preview.planPriceNet(sub('MONTHLY')), 15);
+            assert.equal(await preview.planPriceNet(sub('YEARLY')), 150);
+        });
+
+        test('as none in a rhythm the version they keep is not sold in, not as 0', async () => {
+            const preview = previewFor(reading({ ...V1, yearlyNet: null }));
+
+            assert.equal(await preview.planPriceNet(sub('YEARLY')), null);
+        });
+
+        test('as none where the version they keep is sold under a special contract', async () => {
+            const preview = previewFor(reading({ ...V1, marketed: false }));
+
+            assert.equal(await preview.planPriceNet(sub('MONTHLY')), null);
+        });
+
+        test('from the catalogue where no repository reads versions, or none is bound', async () => {
+            assert.equal(await previewFor(null).planPriceNet(sub('MONTHLY')), 19);
+            assert.equal(await previewFor(plans).planPriceNet(sub('MONTHLY', null)), 19);
+        });
+    });
 });

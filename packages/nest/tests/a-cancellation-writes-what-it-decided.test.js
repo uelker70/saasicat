@@ -79,6 +79,9 @@ function buildController(subscription, port, noticePeriodDays = 0) {
             async preview() {
                 return { isImmediate: false, effectiveAt: null, blockers: [] };
             },
+            async planPriceNet() {
+                return 49;
+            },
         },
         { findForTenant: async () => subscription },
         { snapshot: async () => ({}) },

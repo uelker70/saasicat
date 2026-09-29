@@ -18,7 +18,6 @@ import {
 } from '../subscription-contract/subscription-contract.service.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
-import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -27,7 +26,7 @@ import { generatedDiscountLine } from '../checkout-offer/discount-line-items.js'
 import { buildLabel, promoCodeDiscountNet } from '../promo/calculator.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import {
-    findPlan,
+    boundPlanDef,
     isPlanNotSoldInCycle,
     listPriceNet,
     planNotSoldInCycle,
@@ -187,11 +186,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                     'Bind the plan version on the subscription before the contract is frozen.',
             );
         }
-        const stem = findPlan(catalog, newPlan);
-        const planDef = planDefFromVersion(
-            { id: newPlan, name: stem?.name ?? newPlan, tagline: stem?.tagline },
-            bound,
-        );
+        const planDef = boundPlanDef(catalog, newPlan, bound);
         if (isPlanNotSoldInCycle(planDef, billingCycle)) {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
         }

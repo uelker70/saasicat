@@ -639,6 +639,7 @@ const TENANT_USAGE: UsageSnapshotShape = {
         supersededAt: null,
         changeNote: 'More storage',
     },
+    planPriceNet: null,
     // The pending-version banner only renders when this is set, and it is the
     // surface that paints `--sa-color-inverse-notice`.
     pendingPlanVersion: {

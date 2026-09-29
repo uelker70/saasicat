@@ -276,6 +276,8 @@ _Tested by:_
     - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
     - getUsage returns packageSnapshot=null when the Subscription has no snapshot
     - getUsage throws NotFoundException when the Subscription is missing
+    - getUsage states the price the subscription pays, as the plan preview reads it off the version
+      bound
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
     - getUsage throws NotFoundException when tenantIdResolver yields no ID

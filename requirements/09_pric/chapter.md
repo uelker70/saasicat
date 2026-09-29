@@ -135,6 +135,14 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
     - while a replacement preview is on the wire
         - the answer to the abandoned question is taken off the screen
@@ -565,6 +573,8 @@ _Tested by:_
     - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
     - getUsage returns packageSnapshot=null when the Subscription has no snapshot
     - getUsage throws NotFoundException when the Subscription is missing
+    - getUsage states the price the subscription pays, as the plan preview reads it off the version
+      bound
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
     - getUsage throws NotFoundException when tenantIdResolver yields no ID

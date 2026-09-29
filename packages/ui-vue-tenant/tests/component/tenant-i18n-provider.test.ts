@@ -45,6 +45,7 @@ const usage: UsageSnapshotShape = {
         supersededAt: null,
         changeNote: null,
     },
+    planPriceNet: 49,
     pendingPlanVersion: null,
     pendingPlanVersionEffectiveAt: null,
     pendingPlanVersionAccepted: false,

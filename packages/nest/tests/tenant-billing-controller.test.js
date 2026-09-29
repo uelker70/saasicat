@@ -16,6 +16,9 @@ function buildEntitlement(stub) {
     };
 }
 
+/** The price the plan preview reads; what it reads is its own suite's subject. */
+const PRICING = { planPriceNet: async () => 49 };
+
 function buildSub({ plan = 'STANDARD', status = 'ACTIVE', pendingPlanVersion = null } = {}) {
     return {
         plan,
@@ -70,7 +73,7 @@ test('getUsage joins Subscription + Limits + Usage and fills missing quotaKeys w
     };
     const ctrl = new TenantBillingController(
         buildEntitlement(limits),
-        null,
+        PRICING,
         { findForTenant: async () => buildSub() },
         { snapshot: async () => ({ users: 4, members: 850 }) }, // storageGb + resources are missing
         null,
@@ -110,7 +113,7 @@ test('getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)', as
     };
     const ctrl = new TenantBillingController(
         buildEntitlement(limits),
-        null,
+        PRICING,
         { findForTenant: async () => sub },
         { snapshot: async () => ({}) },
         null,
@@ -129,7 +132,7 @@ test('getUsage returns packageSnapshot=null when the Subscription has no snapsho
     };
     const ctrl = new TenantBillingController(
         buildEntitlement(limits),
-        null,
+        PRICING,
         { findForTenant: async () => buildSub() },
         { snapshot: async () => ({}) },
         null,
@@ -143,13 +146,34 @@ test('getUsage returns packageSnapshot=null when the Subscription has no snapsho
 test('getUsage throws NotFoundException when the Subscription is missing', async () => {
     const ctrl = new TenantBillingController(
         buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
-        null,
+        PRICING,
         { findForTenant: async () => null },
         { snapshot: async () => ({}) },
         null,
         () => 't404',
     );
     await assert.rejects(() => ctrl.getUsage({ user: { tenantId: 't404' } }), /No subscription/);
+});
+
+// @requirement SC-SUB-019 — A subscriber is shown the price of the version they are bound to
+test('getUsage states the price the subscription pays, as the plan preview reads it off the version bound', async () => {
+    let askedFor = null;
+    const ctrl = new TenantBillingController(
+        buildEntitlement({ plan: 'STANDARD', quotas: {}, features: new Set() }),
+        {
+            planPriceNet: async (sub) => {
+                askedFor = sub;
+                return 39;
+            },
+        },
+        { findForTenant: async () => buildSub() },
+        { snapshot: async () => ({}) },
+        null,
+        () => 't1',
+    );
+    const result = await ctrl.getUsage({ user: { tenantId: 't1' } });
+    assert.equal(result.planPriceNet, 39);
+    assert.equal(askedFor.planVersion.id, 'pv-1', 'the subscription as read, with its binding');
 });
 
 // @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
@@ -160,7 +184,7 @@ test('the tenant is taken from the session, not from what the caller sent', asyn
     let asked = null;
     const ctrl = new TenantBillingController(
         buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
-        null,
+        PRICING,
         {
             findForTenant: async (tenantId) => {
                 asked = tenantId;
