@@ -186,6 +186,99 @@ describe('the platform’s own scheduled jobs', () => {
         }
     });
 
+    // @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+    test('the promotional code sweep runs under the RLS bypass, every step of it', async () => {
+        const repositories = promoRepositories();
+        let lifted = false;
+        const insideTheBypass = [];
+        for (const [name, repository, method] of [
+            ['codes', repositories.codes, 'expireDueCodes'],
+            ['redemptions', repositories.redemptions, 'expireDueRedemptions'],
+            ['holds', repositories.holds, 'expireDue'],
+        ]) {
+            const counted = repository[method];
+            repository[method] = async (...args) => {
+                if (lifted) insideTheBypass.push(name);
+                return counted(...args);
+            };
+        }
+        const bypass = {
+            async runWithBypass(work) {
+                lifted = true;
+                try {
+                    return await work();
+                } finally {
+                    lifted = false;
+                }
+            },
+        };
+
+        await new PromoCodeExpirer(
+            repositories.codes,
+            repositories.redemptions,
+            repositories.holds,
+            null,
+            bypass,
+        ).expirePromoCodes();
+
+        assert.deepEqual(insideTheBypass, ['codes', 'redemptions', 'holds']);
+    });
+
+    test('and an installation hands the sweep its bypass, as the platform composes it', async () => {
+        // Optional where it is injected, so a wiring that never reached the
+        // promo module would pass the test above and expire nothing in a
+        // consumer. Booted the way a consumer boots it, the job runs lifted.
+        let lifted = false;
+        const seen = [];
+        const recording = (name, answer) => async () => {
+            seen.push({ name, lifted });
+            return answer;
+        };
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                SaaSiCatModule.forRoot({
+                    planCatalog: CATALOG,
+                    controller: { guards: [PassGuard] },
+                    discoverySnapshotPath: null,
+                    defaultPlanId: 'PRO',
+                    promoCodes: { adminController: false, includePublicController: false },
+                    persistence: {
+                        ...persistenceWith({
+                            rlsBypass: {
+                                async runWithBypass(work) {
+                                    lifted = true;
+                                    try {
+                                        return await work();
+                                    } finally {
+                                        lifted = false;
+                                    }
+                                },
+                            },
+                        }),
+                        promo: {
+                            promoCodeRepository: { expireDueCodes: recording('codes', 0) },
+                            redemptionRepository: {
+                                expireDueRedemptions: recording('redemptions', 0),
+                            },
+                            validationLogRepository: {},
+                            subscriptionLookup: {},
+                            revenueAggregator: {},
+                        },
+                    },
+                }),
+            ],
+        }).compile();
+        await moduleRef.init();
+
+        await moduleRef.get(PromoCodeExpirer).expirePromoCodes();
+
+        assert.deepEqual(seen, [
+            { name: 'codes', lifted: true },
+            { name: 'redemptions', lifted: true },
+        ]);
+        await moduleRef.close();
+    });
+
     test('the expired sign-up cleanup skips its run while the lock holds', async () => {
         mock.method(Logger.prototype, 'log', () => {});
         const calls = [];
