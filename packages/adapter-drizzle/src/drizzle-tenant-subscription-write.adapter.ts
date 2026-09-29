@@ -149,13 +149,17 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             )
             .returning({ id: subscriptions.id });
         const updated = await this.requireSubscription(this.db, tenantId);
+        // Nothing claimed and the row is not in the accepted state either: the
+        // pending version was cleared underneath this request — which the
+        // check answers as nothing pending — or replaced by another one.
+        if (claimed.length === 0 && updated.pendingPlanVersionId === null) {
+            throw noPendingPlanVersion(tenantId);
+        }
         if (
             claimed.length === 0 &&
             (updated.pendingPlanVersionId !== pendingPlanVersionId ||
                 !updated.pendingPlanVersionAccepted)
         ) {
-            // Nothing claimed and the row is not in the accepted state either:
-            // somebody replaced the pending version underneath this request.
             throw subscriptionChanged(tenantId);
         }
         return {

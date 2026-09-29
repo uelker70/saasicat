@@ -243,6 +243,12 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         if (!updated) {
             throw subscriptionGone(tenantId);
         }
+        // Nothing claimed and the row is not in the accepted state either: the
+        // pending version was cleared underneath this request — which the
+        // check answers as nothing pending — or replaced by another one.
+        if (claimed.count === 0 && updated.pendingPlanVersionId === null) {
+            throw noPendingPlanVersion(tenantId);
+        }
         if (
             claimed.count === 0 &&
             (updated.pendingPlanVersionId !== pendingPlanVersionId ||

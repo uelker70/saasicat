@@ -457,6 +457,23 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         );
     });
 
+    test('a pending PlanVersion cleared while accepting it answers as nothing pending', async () => {
+        const prisma = fakePrisma({
+            subscription: subscriptionRow({ pendingPlanVersionId: 'version-pro' }),
+        });
+        const updateMany = prisma.subscription.updateMany.bind(prisma.subscription);
+        prisma.subscription.updateMany = async (args) => {
+            prisma.state.subscription.pendingPlanVersionId = null;
+            return updateMany(args);
+        };
+        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
+
+        await assert.rejects(
+            adapter.acceptPendingPlanVersion('tenant-1', 'user-1', new Date()),
+            refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, { tenantId: 'tenant-1' }),
+        );
+    });
+
     test('invalid validity capability combinations fail at construction', () => {
         const prisma = fakePrisma();
         assert.throws(
