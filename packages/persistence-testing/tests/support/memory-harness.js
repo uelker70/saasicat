@@ -24,6 +24,7 @@ import {
     toSubscriberChargeRecord,
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
+    subscriptionContractGone,
     subscriptionGone,
     toSubscriptionBundleRecord,
 } from '@saasicat/core';
@@ -644,15 +645,19 @@ export function createMemoryHarness() {
             };
         },
         async terminate(contractId, data) {
-            const row = state.contracts.find((candidate) => candidate.id === contractId);
-            if (!row) throw new Error(`SubscriptionContract '${contractId}' not found.`);
+            const row = state.contracts.find(
+                (candidate) => candidate.id === contractId && candidate.tenantId === data.tenantId,
+            );
+            if (!row) throw subscriptionContractGone(contractId);
             row.effectiveUntil = data.effectiveUntil;
             if (data.status !== null) row.status = data.status;
             row.updatedAt = FIXED_NOW;
             return withLines(row);
         },
         async supersede(contractId, data) {
-            const row = state.contracts.find((candidate) => candidate.id === contractId);
+            const row = state.contracts.find(
+                (candidate) => candidate.id === contractId && candidate.tenantId === data.tenantId,
+            );
             // The condition the adapters put on their update: in force under
             // an active status, and ending when the caller read it.
             const endedAsRead =

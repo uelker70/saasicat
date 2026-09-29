@@ -215,7 +215,11 @@ describe('what `doctor` is told', () => {
         const frozen = await t.freeze();
         // Frozen before the code declared the replacement, so the snapshot
         // holds the old key alone and only the declaration grants the new one.
-        await t.repo.terminate(frozen.id, { effectiveUntil: FROZEN, status: 'superseded' });
+        await t.repo.terminate(frozen.id, {
+            tenantId: frozen.tenantId,
+            effectiveUntil: FROZEN,
+            status: 'superseded',
+        });
         await t.repo.create({
             ...t.contracts.dataOf(frozen),
             status: 'active',
@@ -337,7 +341,11 @@ describe('carrying the features over', () => {
         const t = installation();
         const frozen = await t.freeze();
         // The contract as the migration left it: parties copied, and said so.
-        await t.repo.terminate(frozen.id, { effectiveUntil: FROZEN, status: 'superseded' });
+        await t.repo.terminate(frozen.id, {
+            tenantId: frozen.tenantId,
+            effectiveUntil: FROZEN,
+            status: 'superseded',
+        });
         const migrated = await t.repo.create({
             ...t.contracts.dataOf(frozen),
             status: 'active',
@@ -475,7 +483,11 @@ describe('re-freezing in full', () => {
         const frozen = await t.freeze();
         // As an offer concludes it: terms, the offer, a minimum term on the plan line.
         const minimumTermUntil = new Date('2027-05-01T00:00:00.000Z');
-        await t.repo.terminate(frozen.id, { effectiveUntil: FROZEN, status: 'superseded' });
+        await t.repo.terminate(frozen.id, {
+            tenantId: frozen.tenantId,
+            effectiveUntil: FROZEN,
+            status: 'superseded',
+        });
         await t.repo.create({
             ...t.contracts.dataOf(frozen),
             status: 'active',
@@ -542,7 +554,7 @@ describe('what the refresh is asked about', () => {
         // refresh has read.
         const supersede = t.repo.supersede.bind(t.repo);
         t.repo.supersede = async (id, data, tx) => {
-            await supersede(id, { at: NOW, readEffectiveUntil: null });
+            await supersede(id, { tenantId: data.tenantId, at: NOW, readEffectiveUntil: null });
             return supersede(id, data, tx);
         };
 

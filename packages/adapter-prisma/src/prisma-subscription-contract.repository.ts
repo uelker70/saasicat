@@ -12,6 +12,7 @@ import type {
 } from '@saasicat/core';
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    subscriptionContractGone,
     toRunningContractIssuer,
     toSubscriptionContractRecord,
     type CanonicalContractLineItemRow,
@@ -206,8 +207,9 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord> {
-        const row = await this.db().subscriptionContract.update({
-            where: { id: contractId },
+        const db = this.db();
+        const { count } = await db.subscriptionContract.updateMany({
+            where: { id: contractId, tenantId: data.tenantId },
             // A null status leaves the column alone: the contract keeps whatever
             // it had — `active`, usually — and its new `effectiveUntil` is what
             // takes it out of the active lookup once that moment arrives.
@@ -215,8 +217,13 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
                 effectiveUntil: data.effectiveUntil,
                 ...(data.status === null ? {} : { status: data.status }),
             },
+        });
+        if (count === 0) throw subscriptionContractGone(contractId);
+        const row = await db.subscriptionContract.findUnique({
+            where: { id: contractId },
             include: { lineItems: true },
         });
+        if (!row) throw subscriptionContractGone(contractId);
         return toSubscriptionContractRecord(row, row.lineItems);
     }
 
@@ -232,6 +239,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         const { count } = await db.subscriptionContract.updateMany({
             where: {
                 id: contractId,
+                tenantId: data.tenantId,
                 status: { in: [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES] },
                 effectiveUntil: data.readEffectiveUntil,
             },

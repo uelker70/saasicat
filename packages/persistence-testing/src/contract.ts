@@ -29,6 +29,7 @@ import type {
 import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
+    CONTRACT_ERROR_CODES,
     PROMO_ERROR_CODES,
     isPersistenceRefusal,
 } from '@saasicat/core';
@@ -3257,6 +3258,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // Ending it writes a window, and leaves everything else alone.
             const endsAt = new Date('2026-07-01T00:00:00.000Z');
             const terminated = await contracts.terminate(created.id, {
+                tenantId: created.tenantId,
                 effectiveUntil: endsAt,
                 status: null,
             });
@@ -3355,6 +3357,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 first.id,
             );
             await contracts.terminate(first.id, {
+                tenantId: first.tenantId,
                 effectiveUntil: handover,
                 status: 'superseded',
             });
@@ -3555,6 +3558,45 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await contracts.findByOriginalOfferId('offer-nobody-concluded'), null);
         });
 
+        test("a contract is neither superseded nor ended under another tenant's id", async (t) => {
+            // The tenant is in the statement as well as the id, so an id that
+            // reaches the write by mistake cannot end another tenant's contract
+            // — also where no row policy would stop it.
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Grenze GmbH' });
+            const parties = partiesWith(subscriberId, 'Grenze GmbH');
+            const running = await contracts.create(contractFromOffer('offer-foreign-id', parties));
+            const stranger = `${running.tenantId}-stranger`;
+
+            assert.equal(
+                await contracts.supersede(running.id, {
+                    tenantId: stranger,
+                    at: new Date('2026-03-01T00:00:00.000Z'),
+                    readEffectiveUntil: null,
+                }),
+                null,
+                "superseded under another tenant's id",
+            );
+            await assert.rejects(
+                contracts.terminate(running.id, {
+                    tenantId: stranger,
+                    effectiveUntil: new Date('2026-03-01T00:00:00.000Z'),
+                    status: 'terminated',
+                }),
+                refusedAs(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND, {
+                    contractId: running.id,
+                }),
+            );
+            const unchanged = await contracts.findById(running.id);
+            assert.equal(unchanged?.status, running.status);
+            assert.equal(unchanged?.effectiveUntil, null, 'still running');
+        });
+
         test('a contract is superseded only while it is as the caller read it', async (t) => {
             // A plan change and an operator's refresh both read the contract in
             // force and write a successor. The condition on the write is what
@@ -3573,6 +3615,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             assert.equal(
                 await contracts.supersede(running.id, {
+                    tenantId: running.tenantId,
                     at,
                     readEffectiveUntil: new Date('2026-12-31T00:00:00.000Z'),
                 }),
@@ -3580,6 +3623,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'superseded against an end it does not have',
             );
             const superseded = await contracts.supersede(running.id, {
+                tenantId: running.tenantId,
                 at,
                 readEffectiveUntil: null,
             });
@@ -3587,7 +3631,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(superseded?.effectiveUntil?.toISOString(), at.toISOString());
             assert.equal(superseded?.lineItems.length, 1, 'with its lines');
             assert.equal(
-                await contracts.supersede(running.id, { at, readEffectiveUntil: null }),
+                await contracts.supersede(running.id, {
+                    tenantId: running.tenantId,
+                    at,
+                    readEffectiveUntil: null,
+                }),
                 null,
                 'superseded twice',
             );
@@ -3602,14 +3650,23 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // the contract has moved on.
             const capped = await contracts.create(contractFromOffer('offer-capped', parties));
             const endsAt = new Date('2026-12-31T00:00:00.000Z');
-            await contracts.terminate(capped.id, { effectiveUntil: endsAt, status: null });
+            await contracts.terminate(capped.id, {
+                tenantId: capped.tenantId,
+                effectiveUntil: endsAt,
+                status: null,
+            });
             const first = await contracts.supersede(capped.id, {
+                tenantId: capped.tenantId,
                 at: endsAt,
                 readEffectiveUntil: endsAt,
             });
             assert.equal(first?.status, 'superseded', 'a capped contract read with its end');
             assert.equal(
-                await contracts.supersede(capped.id, { at, readEffectiveUntil: endsAt }),
+                await contracts.supersede(capped.id, {
+                    tenantId: capped.tenantId,
+                    at,
+                    readEffectiveUntil: endsAt,
+                }),
                 null,
                 'superseded again by a writer that read the same end',
             );
@@ -3645,7 +3702,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     adapter.transactionRunner.run(async (tx) => {
                         const ended = await contracts.supersede(
                             running.id,
-                            { at, readEffectiveUntil: null },
+                            { tenantId: running.tenantId, at, readEffectiveUntil: null },
                             tx,
                         );
                         return ended ? contracts.create(successor(offerId), tx) : null;
@@ -3681,7 +3738,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 adapter.transactionRunner.run(async (tx) => {
                     await contracts.supersede(
                         running.id,
-                        { at: new Date('2026-05-01T00:00:00.000Z'), readEffectiveUntil: null },
+                        {
+                            tenantId: running.tenantId,
+                            at: new Date('2026-05-01T00:00:00.000Z'),
+                            readEffectiveUntil: null,
+                        },
                         tx,
                     );
                     throw new Error('the successor could not be written');

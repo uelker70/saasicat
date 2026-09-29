@@ -148,6 +148,26 @@ describe('SubscriptionContractService', () => {
         );
     });
 
+    // @requirement SC-SEC-001 — A tenant never sees another tenant's data
+    test('terminate ends the contract under the tenant it belongs to, whoever asks', async () => {
+        // The store matches the tenant as well as the id; the service hands it
+        // the tenant of the contract it read, so the caller names none.
+        const contract = await service.createFromOffer(consumedOffer(), {
+            tenantId: 'tenant-1',
+            effectiveFrom: EFFECTIVE_FROM,
+            entitlementSnapshot: { plan: 'STANDARD', quotas: {}, features: [] },
+        });
+        const endsAt = new Date(EFFECTIVE_FROM.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const ended = await service.terminate(contract.id, {
+            effectiveUntil: endsAt,
+            status: 'terminated',
+        });
+
+        assert.equal(ended.status, 'terminated');
+        assert.equal(ended.effectiveUntil.getTime(), endsAt.getTime());
+    });
+
     test('createFromOffer creates immutable contract line items from a consumed offer', async () => {
         const offer = consumedOffer();
         const contract = await service.createFromOffer(offer, {

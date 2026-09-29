@@ -25,6 +25,7 @@ import type {
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { round2 } from '../promo/math.js';
 import {
     type PricedContractLineItem,
@@ -42,6 +43,9 @@ import {
     assertTaxRatePercent,
 } from './contract-refusals.js';
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
+
+/** A termination as a caller asks for it: the tenant is the contract's own. */
+type ContractTermination = Omit<TerminateSubscriptionContractData, 'tenantId'>;
 
 /**
  * How often a successor is written against the contract in force read again,
@@ -214,11 +218,15 @@ export class SubscriptionContractService {
 
     async terminate(
         contractId: string,
-        data: TerminateSubscriptionContractData,
+        data: ContractTermination,
     ): Promise<SubscriptionContractRecord> {
         const existing = await this.getById(contractId);
         this.assertTerminable(existing, data);
-        return this.repo.terminate(contractId, data);
+        // The tenant of the contract read, whatever the caller passed: the
+        // write is drawn around the contract the checks above looked at.
+        return answeringRefusals(() =>
+            this.repo.terminate(contractId, { ...data, tenantId: existing.tenantId }),
+        );
     }
 
     async replaceActiveContract(
@@ -272,7 +280,11 @@ export class SubscriptionContractService {
             if (previous) {
                 const superseded = await this.repo.supersede(
                     previous.id,
-                    { at, readEffectiveUntil: previous.effectiveUntil },
+                    {
+                        tenantId: previous.tenantId,
+                        at,
+                        readEffectiveUntil: previous.effectiveUntil,
+                    },
                     tx,
                 );
                 if (!superseded) return null;
@@ -505,7 +517,7 @@ export class SubscriptionContractService {
 
     private assertTerminable(
         existing: SubscriptionContractRecord,
-        data: TerminateSubscriptionContractData,
+        data: ContractTermination,
     ): void {
         if (existing.status === 'terminated' || existing.status === 'superseded') {
             throw new ConflictException({

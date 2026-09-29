@@ -21,6 +21,9 @@ _Tested by:_
     - a write never reaches another tenant's row
         - a plan change asked for by a stranger changes nothing
         - a cancellation asked for by a stranger changes nothing
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - terminate ends the contract under the tenant it belongs to, whoever asks
 
 <!-- END proof -->
 

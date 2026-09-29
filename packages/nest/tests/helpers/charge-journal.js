@@ -170,7 +170,11 @@ export function anAccount({
         async supersede(at) {
             const running = await contracts.findActiveByTenantId('t1', at);
             if (running) {
-                await contracts.terminate(running.id, { effectiveUntil: at, status: 'superseded' });
+                await contracts.terminate(running.id, {
+                    tenantId: running.tenantId,
+                    effectiveUntil: at,
+                    status: 'superseded',
+                });
             }
         },
         /** The account as the operator reads it. */
