@@ -573,6 +573,8 @@ test('fallback path kicks in when the adapter does NOT implement applyOnboarding
 
     assert.equal(write.changePlanCalls.length, 1, 'sequential changePlanImmediate must run');
     assert.equal(result.plan, 'SPORT');
+    // A sale at the version in effect, as the atomic path binds it.
+    assert.equal(write.changePlanCalls[0].input.keepsBoundVersion, false);
 });
 
 test('onboarding catches audit failures (write path stays green)', async () => {

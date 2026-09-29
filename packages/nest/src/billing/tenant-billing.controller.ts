@@ -467,6 +467,8 @@ export class TenantBillingController {
                     nextStatus: wasTrial ? null : 'ACTIVE',
                     trialEndsAt,
                     expectedCanceledAt: sub.canceledAt ?? null,
+                    // A change of plan binds the version in effect.
+                    keepsBoundVersion: false,
                 }),
             );
             if (!result.claimed) {
@@ -685,6 +687,9 @@ export class TenantBillingController {
                     // takes the row instead of being written over. A landed one was
                     // refused above; a pending one is legitimate and claims fine.
                     expectedCanceledAt: sub.canceledAt ?? null,
+                    // Onboarding sells the chosen plan at the version in effect,
+                    // as the atomic path does.
+                    keepsBoundVersion: false,
                 }),
             );
             if (!planResult.claimed) {

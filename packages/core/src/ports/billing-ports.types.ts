@@ -541,6 +541,19 @@ export interface ImmediatePlanChangeInput {
      * no cancellation, and loses against one that has acquired one.
      */
     expectedCanceledAt: Date | null;
+    /**
+     * Whether a change that leaves the plan as it is keeps the plan version
+     * the subscription is bound to.
+     *
+     * A scheduled change that only moves the rhythm passes `true`: the
+     * subscriber agreed to the version they are on, and moving them to a newer
+     * one is what accepting a pending version is for. A sale passes `false` —
+     * a change of plan, or onboarding, where the customer chose at the version
+     * in effect — and the write binds the version of `planId` in effect at
+     * `periodStart`. Where `planId` is another plan than the one bound, the
+     * version in effect is bound either way.
+     */
+    keepsBoundVersion: boolean;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */

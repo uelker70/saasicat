@@ -165,6 +165,8 @@ _Tested by:_
     - defaults to MONTHLY cycle when pendingBillingCycle is null
     - is non-fatal per tenant — one failure does not abort the run
     - no-op when nothing is due
+    - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
+      is
 
 <!-- END proof -->
 
