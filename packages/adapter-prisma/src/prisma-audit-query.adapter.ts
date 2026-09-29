@@ -5,6 +5,7 @@ import {
     type AuditLogDelegateLike,
     type AuditLogRowLike,
 } from './prisma-client-token.js';
+import { literalInLike } from './like-pattern.js';
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
@@ -61,13 +62,13 @@ function toActorTagFilter(actorTag?: string):
     | undefined {
     if (!actorTag) return undefined;
     if (actorTag.startsWith('*') && actorTag.endsWith('*')) {
-        return { contains: actorTag.slice(1, -1), mode: 'insensitive' };
+        return { contains: literalInLike(actorTag.slice(1, -1)), mode: 'insensitive' };
     }
     if (actorTag.startsWith('*')) {
-        return { endsWith: actorTag.slice(1), mode: 'insensitive' };
+        return { endsWith: literalInLike(actorTag.slice(1)), mode: 'insensitive' };
     }
     if (actorTag.endsWith('*')) {
-        return { startsWith: actorTag.slice(0, -1), mode: 'insensitive' };
+        return { startsWith: literalInLike(actorTag.slice(0, -1)), mode: 'insensitive' };
     }
     return actorTag;
 }

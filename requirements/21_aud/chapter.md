@@ -253,3 +253,22 @@ German law asks for the terms of a contract concluded online, general terms incl
 retrievable and storable when it is concluded.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-018 — An operator finds what one person did by their e-mail, whatever they acted through
+
+🟢 `<app> audit tail --actor <email>` lists the entries of that person from the web and the command
+line alike, and so does a pattern with a star at its start, its end or both, matched without regard
+to case, through every shipped adapter the same way. A value with a colon or a star is taken as the
+tag or pattern it already is.
+
+_Source:_ #371
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/audit-tail-flow.test.js`
+    - AuditTailFlow.run — filter mapping
+        - an e-mail is looked for between the source and the context
+
+<!-- END proof -->

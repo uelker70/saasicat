@@ -31,7 +31,13 @@ export interface AuditQuery {
     entity?: string;
     entityId?: string;
     action?: string;
-    /** Wildcard-capable, e.g. 'cli:*'. */
+    /**
+     * A tag, matched exactly, or a pattern with `*` at its start, its end or
+     * both, matched without regard to case: `cli:*` is every entry from the
+     * command line, `*:ops@example.com:*` every entry of one person, whatever
+     * they acted through. Everything between the stars is literal. A tag reads
+     * `<source>:<email>:<context>`.
+     */
     actorTag?: string;
     from?: string;
     to?: string;

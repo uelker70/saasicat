@@ -237,6 +237,12 @@ export function createMemoryHarness() {
     const toCents = (value) =>
         value == null ? value : (Math.round(Number(`${value}e2`)) / 100).toFixed(2);
     const promoCodeRepository = {
+        async findMany(filter) {
+            const search = filter.search?.toUpperCase();
+            return state.promoCodes
+                .filter((code) => !code.deletedAt && (!search || code.code.includes(search)))
+                .map((code) => ({ ...code }));
+        },
         async create(data) {
             // A name is taken for good, by a deleted code too — the unique index
             // the real tables carry.
@@ -468,12 +474,8 @@ export function createMemoryHarness() {
         async list(filter) {
             return state.audits.filter((entry) => {
                 if (filter.action && entry.action !== filter.action) return false;
-                if (filter.actorTag) {
-                    if (filter.actorTag.endsWith('*')) {
-                        if (!entry.actorTag.startsWith(filter.actorTag.slice(0, -1))) return false;
-                    } else if (entry.actorTag !== filter.actorTag) {
-                        return false;
-                    }
+                if (filter.actorTag && !actorTagMatches(entry.actorTag, filter.actorTag)) {
+                    return false;
                 }
                 return true;
             });
@@ -1410,4 +1412,15 @@ export function createMemoryHarness() {
             state = freshState();
         },
     };
+}
+
+/** `AuditQuery.actorTag`: a tag exactly, or a pattern with a star at either end, without case. */
+function actorTagMatches(tag, pattern) {
+    const leading = pattern.startsWith('*');
+    const trailing = pattern.length > 1 && pattern.endsWith('*');
+    if (!leading && !trailing) return tag === pattern;
+    const literal = pattern.slice(leading ? 1 : 0, trailing ? -1 : undefined).toLowerCase();
+    const value = tag.toLowerCase();
+    if (leading && trailing) return value.includes(literal);
+    return leading ? value.endsWith(literal) : value.startsWith(literal);
 }
