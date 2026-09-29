@@ -53,8 +53,9 @@ start — so that the reads a transaction waits on can still get a
 connection. Why, and what is counted, is the same as for
 [`@saasicat/adapter-prisma`](../adapter-prisma/README.md#transactions-under-load).
 How long a transaction or a connection wait may take is the pool's own
-setting (`connectionTimeoutMillis`, `statement_timeout`). Wired by hand,
-provide the options as `DRIZZLE_TRANSACTION_OPTIONS_TOKEN`.
+setting (`connectionTimeoutMillis`, `statement_timeout`). Runners built from
+one options object share the bound; wired by hand, provide the options once
+as `DRIZZLE_TRANSACTION_OPTIONS_TOKEN`.
 
 ## Schema
 

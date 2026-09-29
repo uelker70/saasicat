@@ -18,4 +18,7 @@ needed one, until Prisma's five-second `timeout` aborted them with `P2028`.
   Your pool size minus five is a sound start. Unset, nothing changes.
 - Wired by hand, the runners read the same options from
   `PRISMA_TRANSACTION_OPTIONS_TOKEN` and `DRIZZLE_TRANSACTION_OPTIONS_TOKEN`.
-- `concurrencyGate` in `@saasicat/core` is the queue both runners use.
+- The bound is the pool's: every runner built from one options object shares
+  it — also where Nest builds a runner for each module that asks for one.
+- `concurrencyGate` and `concurrencyGateOf` in `@saasicat/core` are the queue
+  both runners use.

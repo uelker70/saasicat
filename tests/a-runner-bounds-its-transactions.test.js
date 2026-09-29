@@ -80,6 +80,24 @@ describe('the transaction runners', () => {
             assert.equal(p.peak(), 2);
         });
 
+        test(`${name}: runners built from one configuration share its bound`, async () => {
+            // Nest builds a runner for every module that asks for one; the
+            // bound is the pool's, so they queue together.
+            const p = pool();
+            const options = { maxConcurrent: 2 };
+            const first = build(p, options);
+            const second = build(p, options);
+            const runs = [first, second, first, second, first, second].map((runner) =>
+                runner.run(async () => 'done'),
+            );
+            for (let round = 0; round < 6; round += 1) {
+                await settle();
+                p.releaseAll();
+            }
+            assert.deepEqual(await Promise.all(runs), Array(6).fill('done'));
+            assert.equal(p.peak(), 2);
+        });
+
         test(`${name} without a bound opens as many as are asked for`, async () => {
             const p = pool();
             const runner = build(p, undefined);

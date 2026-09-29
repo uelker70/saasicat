@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { concurrencyGate, type TransactionContext, type TransactionRunner } from '@saasicat/core';
+import { concurrencyGateOf, type TransactionContext, type TransactionRunner } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN } from './prisma-client-token.js';
 
 /** How the platform's interactive transactions run against the pool. */
@@ -11,6 +11,8 @@ export interface PrismaTransactionOptions {
      * inside its transactions and then reads further, and with every
      * connection held by a transaction the reads they wait on cannot get one.
      * The pool size minus five is a sound start. Unset, nothing is bounded.
+     * Runners built from one options object share one bound, so pass the same
+     * object to every one rather than a copy each.
      * Counted is what runs through `run`; a repository called without a
      * transaction opens its own on its own handle, and is not.
      */
@@ -54,7 +56,7 @@ export class PrismaTransactionRunner implements TransactionRunner {
         this.admit =
             options?.maxConcurrent === undefined
                 ? (work) => work()
-                : concurrencyGate(options.maxConcurrent);
+                : concurrencyGateOf(options, options.maxConcurrent);
         // Only what was set: a key present as `undefined` is not the same as
         // leaving Prisma its default.
         const limits = {

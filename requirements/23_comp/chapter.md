@@ -1208,6 +1208,7 @@ _Tested by:_
 - `tests/a-runner-bounds-its-transactions.test.js`
     - the transaction runners
         - ${name} holds at most maxConcurrent transactions open
+        - ${name}: runners built from one configuration share its bound
         - ${name} without a bound opens as many as are asked for
         - Prisma's limits are handed over where they were set, and only those
 

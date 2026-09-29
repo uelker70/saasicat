@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { concurrencyGate } from '../dist/index.js';
+import { concurrencyGate, concurrencyGateOf } from '../dist/index.js';
 
 // Transactions hold a pooled connection each. Admitted without a bound, every
 // connection can end up held by one waiting for a lock or for a connection a
@@ -69,4 +69,18 @@ describe('a concurrency gate', () => {
             assert.throws(() => concurrencyGate(limit), RangeError);
         });
     }
+});
+
+describe('the gate of a configuration', () => {
+    test('is one queue for every caller holding the same object, and its own for another', () => {
+        const options = { maxConcurrent: 2 };
+        const other = { maxConcurrent: 2 };
+
+        assert.equal(concurrencyGateOf(options, 2), concurrencyGateOf(options, 2));
+        assert.notEqual(concurrencyGateOf(options, 2), concurrencyGateOf(other, 2));
+    });
+
+    test('refuses a limit that is not a place count, as the gate itself does', () => {
+        assert.throws(() => concurrencyGateOf({}, 0), RangeError);
+    });
 });
