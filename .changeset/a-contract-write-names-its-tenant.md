@@ -1,6 +1,6 @@
 ---
 '@saasicat/core': major
-'@saasicat/nest': patch
+'@saasicat/nest': major
 '@saasicat/adapter-prisma': minor
 '@saasicat/adapter-drizzle': minor
 '@saasicat/persistence-testing': major
@@ -15,14 +15,14 @@ contract by id alone. On an installation with a row policy on
 id from ending another tenant's contract.
 
 - `SupersedeSubscriptionContractData` and `TerminateSubscriptionContractData`
-  carry `tenantId`, and both shipped adapters match it in the statement. The
-  platform passes the tenant of the contract it read.
+  carry `tenantId`, and both shipped adapters match it in the statement.
 - `terminate` of a contract that no contract of that tenant carries is refused
   with `SUBSCRIPTION_CONTRACT_NOT_FOUND`, where Prisma failed with its own
   error and Drizzle with a plain one.
-- `SubscriptionContractService.terminate` takes the tenant the caller acts
-  for, and answers a contract of another tenant as one that does not exist —
-  also where that contract is closed already. `writeSuccessor` refuses a
+- `SubscriptionContractService.terminate` now requires `tenantId` in its
+  input: the tenant the caller acts for. A contract of another tenant is
+  answered as one that does not exist, also where it is closed already, so a
+  call that leaves `tenantId` out is answered 404. `writeSuccessor` refuses a
   successor for one tenant in place of another tenant's contract.
 - The persistence contract supersedes and terminates under another tenant's
   id and expects nothing to change. A store of your own matches the tenant,
