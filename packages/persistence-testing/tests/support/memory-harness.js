@@ -7,6 +7,8 @@
 
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
     formatCustomerNumber,
     identityCorrectionDelta,
     refuseForeignPaymentMethodReference,
@@ -637,10 +639,11 @@ export function createMemoryHarness() {
         },
     };
 
-    // The plan stem, which the contract's identity scenarios need. Only the
-    // stem: the version lifecycle is `planVersionRepository`'s, and offering a
-    // half of it here would make those scenarios pass against a shape no real
-    // adapter has.
+    // The plan stem, which the contract's identity scenarios need, and the
+    // draft's own steps — create, publish, discard — whose claim the contract
+    // checks. The time-aware reads stay out: the version lifecycle is
+    // `planVersionRepository`'s, and offering a half of it here would make
+    // those scenarios pass against a shape no real adapter has.
     const planRepository = {
         async create(data) {
             // `plans_planKey_key` in memory — a key is taken once for the whole
@@ -687,6 +690,64 @@ export function createMemoryHarness() {
         async softDelete(planId) {
             const row = state.plans.find((candidate) => candidate.id === planId);
             if (row) row.deletedAt = FIXED_NOW;
+        },
+        async createPlanVersionDraft(data) {
+            const versions = state.planVersions.filter((v) => v.planId === data.planId);
+            const row = {
+                id: nextId('pv'),
+                planId: data.planId,
+                version: versions.length + 1,
+                features: [...data.features],
+                quotas: data.quotas ?? {},
+                monthlyNet: data.monthlyNet,
+                yearlyNet: data.yearlyNet,
+                publishedAt: null,
+                publishedByUserId: null,
+                supersededAt: null,
+                validFrom: null,
+                validUntil: null,
+            };
+            state.planVersions.push(row);
+            return { ...row };
+        },
+        async findVersionById(versionId) {
+            const row = state.planVersions.find((candidate) => candidate.id === versionId);
+            return row ? { ...row } : null;
+        },
+        async publishPlanVersionDraft(versionId, meta) {
+            // Claimed before the predecessor is touched, as both real adapters
+            // do, and with nothing awaited in between: a second publication of
+            // one draft loses before it changes anything.
+            const row = state.planVersions.find(
+                (candidate) => candidate.id === versionId && candidate.publishedAt === null,
+            );
+            if (!row) {
+                const exists = state.planVersions.some((candidate) => candidate.id === versionId);
+                throw exists
+                    ? catalogVersionAlreadyPublished('PlanVersion', versionId)
+                    : catalogVersionGone('PlanVersion', versionId);
+            }
+            row.publishedAt = FIXED_NOW.toISOString();
+            row.publishedByUserId = meta.publishedByUserId;
+            row.validFrom = meta.validFrom.toISOString();
+            row.validUntil = meta.validUntil?.toISOString() ?? null;
+            for (const other of state.planVersions) {
+                if (other.planId !== row.planId || other.id === versionId) continue;
+                if (!other.publishedAt || other.supersededAt) continue;
+                other.supersededAt = FIXED_NOW.toISOString();
+            }
+            return { ...row };
+        },
+        async deletePlanVersionDraft(versionId) {
+            const index = state.planVersions.findIndex(
+                (candidate) => candidate.id === versionId && candidate.publishedAt === null,
+            );
+            if (index >= 0) {
+                state.planVersions.splice(index, 1);
+                return;
+            }
+            if (!state.planVersions.some((candidate) => candidate.id === versionId)) return;
+            throw catalogVersionAlreadyPublished('PlanVersion', versionId);
         },
     };
 
@@ -760,7 +821,10 @@ export function createMemoryHarness() {
                 (candidate) => candidate.id === versionId && candidate.publishedAt === null,
             );
             if (!row) {
-                throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+                const exists = state.bundleVersions.some((candidate) => candidate.id === versionId);
+                throw exists
+                    ? catalogVersionAlreadyPublished('BundleVersion', versionId)
+                    : catalogVersionGone('BundleVersion', versionId);
             }
             for (const other of state.bundleVersions) {
                 if (other.bundleId !== row.bundleId || other.id === versionId) continue;
@@ -787,9 +851,7 @@ export function createMemoryHarness() {
             // Gone is the state the caller wanted; published is a refusal they
             // have to see. Same distinction both real adapters make.
             if (!state.bundleVersions.some((candidate) => candidate.id === versionId)) return;
-            throw new Error(
-                `BundleVersion '${versionId}' is already published and cannot be discarded.`,
-            );
+            throw catalogVersionAlreadyPublished('BundleVersion', versionId);
         },
     };
 

@@ -617,8 +617,11 @@ function versionDelegate(initialRows = []) {
         },
         async create(args) {
             calls.create.push(args);
+            // A new row is a draft: `publishedAt` defaults to NULL in the
+            // table, whatever the fixture default for seeded rows says.
             const row = versionRow({
                 id: `version-${rows.length + 1}`,
+                publishedAt: null,
                 ...args.data,
             });
             rows.push(row);

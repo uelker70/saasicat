@@ -46,7 +46,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_HARD_DELETE_NOT_IMPLEMENTED:
         'Hard delete is not implemented in the current repository. Implement PlanRepository.hardDelete.',
     PLAN_VERSION_ALREADY_PUBLISHED:
-        "PlanVersion '{versionId}' is already published and cannot be discarded.",
+        "PlanVersion '{versionId}' is already published; it is not published again or discarded.",
     PLAN_VERSION_NOT_EDITABLE:
         "PlanVersion '{versionId}' is not editable. Only drafts and published versions are editable that are latest-in-chain, bind no subscription yet, and whose validFrom lies in the future.",
     PLAN_VERSION_REGRESSION:
@@ -74,7 +74,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_TERMINATE_NOT_IMPLEMENTED:
         'Terminate is not implemented in the current repository. Implement PlanRepository.terminate.',
     BUNDLE_VERSION_ALREADY_PUBLISHED:
-        "BundleVersion '{versionId}' is already published and cannot be discarded.",
+        "BundleVersion '{versionId}' is already published; it is not published again or discarded.",
     BUNDLE_VERSION_NOT_EDITABLE:
         "BundleVersion '{versionId}' is not editable. Only drafts and published versions are editable that are latest-in-chain, bind no subscription yet, and whose validFrom lies in the future.",
     BUNDLE_VERSION_NOT_PUBLISHED:

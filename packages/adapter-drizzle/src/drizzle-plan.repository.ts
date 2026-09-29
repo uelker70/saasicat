@@ -13,7 +13,14 @@ import type {
     UpdatePlanVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
-import { previousUtcDay, startOfUtcDay, toPlanRow, toPlanVersionRow } from '@saasicat/core';
+import {
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
+    previousUtcDay,
+    startOfUtcDay,
+    toPlanRow,
+    toPlanVersionRow,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { plans, planVersions } from './schema.js';
 
@@ -391,7 +398,16 @@ export class DrizzlePlanRepository implements PlanRepository {
             .where(and(eq(planVersions.id, versionId), isNull(planVersions.publishedAt)))
             .returning();
         if (!publishedRows[0]) {
-            throw new Error(`PlanVersion '${versionId}' not found or already published.`);
+            // Gone, or published by somebody else a moment ago; the caller is
+            // told which, with the code the platform's own check would use.
+            const existing = await db
+                .select({ id: planVersions.id })
+                .from(planVersions)
+                .where(eq(planVersions.id, versionId))
+                .limit(1);
+            throw existing[0]
+                ? catalogVersionAlreadyPublished('PlanVersion', versionId)
+                : catalogVersionGone('PlanVersion', versionId);
         }
 
         await db
@@ -433,12 +449,7 @@ export class DrizzlePlanRepository implements PlanRepository {
             .where(eq(planVersions.id, versionId))
             .limit(1);
         // Already gone is a no-op; still there means it is published.
-        if (existing[0]) {
-            throw new Error(
-                `PlanVersion '${versionId}' is already published and cannot be discarded ` +
-                    '(published versions are immutable — contract protection P1).',
-            );
-        }
+        if (existing[0]) throw catalogVersionAlreadyPublished('PlanVersion', versionId);
     }
 
     async terminate(versionId: string, endsAt: Date): Promise<PlanVersionRow> {

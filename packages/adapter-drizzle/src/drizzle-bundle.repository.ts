@@ -21,6 +21,8 @@ import type {
 import {
     bundleDraftDefaults,
     bundleStemDefaults,
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
     previousUtcDay,
     toBundleStemRow,
 } from '@saasicat/core';
@@ -359,8 +361,16 @@ export class DrizzleBundleRepository implements BundleRepository {
             .returning();
         if (!publishedRows[0]) {
             // Gone, or published by somebody else a moment ago. Either way this
-            // request wrote nothing and the caller has to look again.
-            throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+            // request wrote nothing; the caller is told which, with the code the
+            // platform's own check would use.
+            const existing = await db
+                .select({ id: bundleVersions.id })
+                .from(bundleVersions)
+                .where(eq(bundleVersions.id, versionId))
+                .limit(1);
+            throw existing[0]
+                ? catalogVersionAlreadyPublished('BundleVersion', versionId)
+                : catalogVersionGone('BundleVersion', versionId);
         }
         const draft = publishedRows[0];
 
@@ -414,11 +424,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             .from(bundleVersions)
             .where(eq(bundleVersions.id, versionId))
             .limit(1);
-        if (!remaining[0]) return;
-        throw new Error(
-            `BundleVersion '${versionId}' is already published and cannot be discarded ` +
-                '(published versions are immutable — contract protection P1).',
-        );
+        if (remaining[0]) throw catalogVersionAlreadyPublished('BundleVersion', versionId);
     }
 
     /**

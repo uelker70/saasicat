@@ -45,7 +45,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_HARD_DELETE_NOT_IMPLEMENTED:
         'Hard Delete ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.hardDelete.',
     PLAN_VERSION_ALREADY_PUBLISHED:
-        "PlanVersion '{versionId}' ist bereits veröffentlicht und kann nicht verworfen werden.",
+        "PlanVersion '{versionId}' ist bereits veröffentlicht und wird weder erneut veröffentlicht noch verworfen.",
     PLAN_VERSION_NOT_EDITABLE:
         "PlanVersion '{versionId}' ist nicht bearbeitbar. Bearbeitbar sind nur Entwürfe sowie veröffentlichte Versionen, die letzte in der Kette sind, noch kein Abonnement binden und deren validFrom in der Zukunft liegt.",
     PLAN_VERSION_REGRESSION:
@@ -73,7 +73,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_TERMINATE_NOT_IMPLEMENTED:
         'Das Beenden ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.terminate.',
     BUNDLE_VERSION_ALREADY_PUBLISHED:
-        "BundleVersion '{versionId}' ist bereits veröffentlicht und kann nicht verworfen werden.",
+        "BundleVersion '{versionId}' ist bereits veröffentlicht und wird weder erneut veröffentlicht noch verworfen.",
     BUNDLE_VERSION_NOT_EDITABLE:
         "BundleVersion '{versionId}' ist nicht bearbeitbar. Bearbeitbar sind nur Entwürfe sowie veröffentlichte Versionen, die letzte in der Kette sind, noch kein Abonnement binden und deren validFrom in der Zukunft liegt.",
     BUNDLE_VERSION_NOT_PUBLISHED:
