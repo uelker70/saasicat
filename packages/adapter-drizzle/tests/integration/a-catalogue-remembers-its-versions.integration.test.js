@@ -12,7 +12,7 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { CATALOG_ERROR_CODES } from '@saasicat/core';
+import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import { DrizzleBundleRepository } from '../../dist/index.js';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
@@ -125,6 +125,39 @@ describe('an operator manages a bundle', () => {
             createBundle({ bundleKey: bundle.bundleKey, label: 'A second claim' }),
             'the key names one bundle for the whole installation',
         );
+    });
+});
+
+describe('a bundle key taken, and a unique index of the application', () => {
+    test('a taken key is refused with its code', async () => {
+        const bundle = await createBundle();
+        await assert.rejects(
+            () => createBundle({ bundleKey: bundle.bundleKey }),
+            (error) => {
+                assert.equal(error.code, CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS);
+                assert.deepEqual(error.params, { bundleKey: bundle.bundleKey });
+                return true;
+            },
+        );
+    });
+
+    test("a conflict on the application's own index is its own, not a key taken", async () => {
+        await pool.query(
+            'CREATE UNIQUE INDEX "bundles_label_of_the_application" ON bundles (label)',
+        );
+        try {
+            await createBundle({ label: 'Same label' });
+            await assert.rejects(
+                () => createBundle({ label: 'Same label' }),
+                (error) => {
+                    assert.equal(isPersistenceRefusal(error), false, String(error));
+                    assert.equal((error.cause ?? error).code, '23505');
+                    return true;
+                },
+            );
+        } finally {
+            await pool.query('DROP INDEX IF EXISTS "bundles_label_of_the_application"');
+        }
     });
 });
 

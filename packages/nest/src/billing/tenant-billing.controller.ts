@@ -22,7 +22,7 @@ import type {
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
 } from '@saasicat/core';
-import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
+import { AUTH_ERROR_CODES, BILLING_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -57,7 +57,7 @@ import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
-import { answeringRefusals } from '../errors/answering-refusals.js';
+import { answerRefusal, answeringRefusals } from '../errors/answering-refusals.js';
 import { codedError } from '../errors/coded-error.js';
 import { NO_NOTICE_PERIOD, noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
@@ -640,6 +640,10 @@ export class TenantBillingController {
                     warnings.push(...this.collectPromoSkipReasons(dto.promoCode, sub));
                 }
             } catch (err) {
+                // A store refusal is a race the checks above answer themselves:
+                // the subscription went, or the plan lost its version. It gets
+                // their answer, as the sequential path below gives it.
+                if (isPersistenceRefusal(err)) throw answerRefusal(err);
                 // Atomic path: a failure rolls back EVERYTHING (plan, redeem).
                 // The tenant sees a hard error message, because the
                 // subscription was in fact not modified — no

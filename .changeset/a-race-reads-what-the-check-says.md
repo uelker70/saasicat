@@ -24,12 +24,16 @@ moment later.
 - Both adapters create catalogue keys, drafts and marketing projections with
   `ON CONFLICT DO NOTHING`, so a refused create leaves a caller's transaction
   usable. `PrismaModelDelegateLike` declares `createManyAndReturn`, which
-  Prisma has had since 5.14.
+  Prisma has had since 5.14. A conflict on a unique index of your own is not
+  reported as a key taken: Drizzle aims the conflict at the key, and Prisma,
+  which cannot, looks the key up and otherwise fails with an error of its own.
 - The Prisma and Drizzle subscription writes refuse a missing subscription, a
   pending version cleared or replaced meanwhile and a plan with no version in
   effect by code; a booking cancellation tells a booking that is gone from one
   cancelled first. The three configuration checks the Prisma write makes when
   it is constructed stay plain errors.
+- Onboarding answers a refusal of the store the same way on both of its
+  paths; the atomic one reported it as `ONBOARDING_CREATE_FAILED` before.
 - `FakePlanRepository`, `FakeBundleRepository`,
   `FakeMarketingProjectionRepository` and `FakeSubscriptionBundleRepository`
   from `@saasicat/nest/testing` refuse the same way, and the plan fake refuses

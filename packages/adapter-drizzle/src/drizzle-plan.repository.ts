@@ -142,8 +142,9 @@ export class DrizzlePlanRepository implements PlanRepository {
                 updatedAt: now,
             })
             // A key taken by a create that raced past the platform's check is
-            // refused, and a caller's transaction stays usable.
-            .onConflictDoNothing()
+            // refused, and a caller's transaction stays usable. On the key
+            // alone: a unique index of the application's own is its to report.
+            .onConflictDoNothing({ target: plans.planKey })
             .returning();
         if (!rows[0]) throw planKeyTaken(data.planKey);
         return toPlanRow(rows[0]);

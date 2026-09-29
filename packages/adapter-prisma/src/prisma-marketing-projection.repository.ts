@@ -10,6 +10,7 @@ import type {
 } from '@saasicat/core';
 import { marketingProjectionTaken } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
+import { refusalOfSkippedInsert } from './skipped-insert.js';
 
 /** DB columns this repository reads from `marketing_projections`. */
 interface MarketingProjectionDbRow {
@@ -114,11 +115,18 @@ export class PrismaMarketingProjectionRepository implements MarketingProjectionR
             ],
         });
         if (!row) {
-            throw marketingProjectionTaken({
+            const target = {
                 targetType: data.targetType,
                 targetVersionId: data.targetVersionId,
                 locale,
-            });
+            };
+            throw await refusalOfSkippedInsert(
+                async () =>
+                    (await this.findByTarget(target.targetType, target.targetVersionId, locale)) !==
+                    null,
+                () => marketingProjectionTaken(target),
+                `Marketing projection ${target.targetType}/${target.targetVersionId}/${locale}`,
+            );
         }
         return toRow(row);
     }

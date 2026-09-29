@@ -239,7 +239,7 @@ function billingOver(port, decision = { isImmediate: false, effectiveAt: null, b
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
-        { preview: async () => decision },
+        { preview: async () => decision, assertChangeAllowed: async () => [] },
         { findForTenant: async () => SUBSCRIPTION },
         { snapshot: async () => ({}) },
         port,
@@ -283,6 +283,36 @@ describe('a tenant whose subscription moves while the request is decided', () =>
         await assert.rejects(
             billingOver(port).cancelSubscription(request, {}),
             answeredWith(404, 'NO_SUBSCRIPTION'),
+        );
+    });
+
+    test('an onboarding whose subscription went meanwhile answers as the check does, on the atomic path too', async () => {
+        const port = {
+            applyOnboardingSelection: async (tenantId) => {
+                throw subscriptionGone(tenantId);
+            },
+        };
+        await assert.rejects(
+            billingOver(port).completeOnboardingSubscription(request, {
+                plan: 'PRO',
+                billingCycle: 'MONTHLY',
+            }),
+            answeredWith(404, 'SUBSCRIPTION_NOT_FOUND', { tenantId: 't1' }),
+        );
+    });
+
+    test('and any other failure of the atomic onboarding still reads as its own', async () => {
+        const port = {
+            applyOnboardingSelection: async () => {
+                throw new Error('connection reset');
+            },
+        };
+        await assert.rejects(
+            billingOver(port).completeOnboardingSubscription(request, {
+                plan: 'PRO',
+                billingCycle: 'MONTHLY',
+            }),
+            answeredWith(400, 'ONBOARDING_CREATE_FAILED'),
         );
     });
 

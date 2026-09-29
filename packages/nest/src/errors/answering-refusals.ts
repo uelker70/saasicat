@@ -22,13 +22,21 @@ export async function answeringRefusals<T>(
         return await write();
     } catch (error) {
         if (!isPersistenceRefusal(error)) throw error;
-        const answer = Object.prototype.hasOwnProperty.call(answers, error.code)
-            ? answers[error.code]
-            : undefined;
-        if (answer) throw answer(error);
-        const body = { code: error.code, message: error.message, params: error.params };
-        throw error.reason === 'gone'
-            ? new NotFoundException(body)
-            : new UnprocessableEntityException(body);
+        throw answerRefusal(error, answers);
     }
+}
+
+/** The answer to one refusal, by the rules of `answeringRefusals`. */
+export function answerRefusal(
+    refusal: PersistenceRefusal,
+    answers: Readonly<Record<string, RefusalAnswer>> = {},
+): Error {
+    const answer = Object.prototype.hasOwnProperty.call(answers, refusal.code)
+        ? answers[refusal.code]
+        : undefined;
+    if (answer) return answer(refusal);
+    const body = { code: refusal.code, message: refusal.message, params: refusal.params };
+    return refusal.reason === 'gone'
+        ? new NotFoundException(body)
+        : new UnprocessableEntityException(body);
 }

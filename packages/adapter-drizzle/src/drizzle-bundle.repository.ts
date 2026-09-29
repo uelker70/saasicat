@@ -135,6 +135,8 @@ export class DrizzleBundleRepository implements BundleRepository {
         const now = new Date();
         // `ON CONFLICT DO NOTHING`: a key taken by a create that raced past the
         // platform's check is refused, and a caller's transaction stays usable.
+        // On the key alone: a unique index of the application's own is its to
+        // report.
         const rows = await this.db
             .insert(bundles)
             .values({
@@ -142,7 +144,7 @@ export class DrizzleBundleRepository implements BundleRepository {
                 ...bundleStemDefaults(data),
                 updatedAt: now,
             })
-            .onConflictDoNothing()
+            .onConflictDoNothing({ target: bundles.bundleKey })
             .returning();
         if (!rows[0]) throw bundleKeyTaken(data.bundleKey);
         return toBundleStemRow(rows[0]);

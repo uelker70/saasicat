@@ -29,6 +29,7 @@ import {
     type DecimalLike,
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
+import { refusalOfSkippedInsert } from './skipped-insert.js';
 import { toQuotaMap, toStringArray } from './tx.js';
 
 /** DB columns this repository reads from `bundles`. */
@@ -212,7 +213,13 @@ export class PrismaBundleRepository implements BundleRepository {
             skipDuplicates: true,
             data: [bundleStemDefaults(data)],
         });
-        if (!created) throw bundleKeyTaken(data.bundleKey);
+        if (!created) {
+            throw await refusalOfSkippedInsert(
+                async () => (await this.findByKey(data.bundleKey)) !== null,
+                () => bundleKeyTaken(data.bundleKey),
+                `Bundle '${data.bundleKey}'`,
+            );
+        }
         return toBundleStemRow(created);
     }
 

@@ -305,6 +305,26 @@ describe('a create the store refuses', () => {
         );
     });
 
+    test("a unique index of the application's own is not reported as a key taken", async () => {
+        await prisma.$executeRawUnsafe(
+            'CREATE UNIQUE INDEX "plans_label_of_the_application" ON plans (label)',
+        );
+        try {
+            const plans = new PrismaPlanRepository(prisma);
+            await plans.create({ planKey: 'OWN-INDEX-A', label: 'Same label' });
+            await assert.rejects(
+                plans.create({ planKey: 'OWN-INDEX-B', label: 'Same label' }),
+                (error) => {
+                    assert.equal(isPersistenceRefusal(error), false, String(error));
+                    assert.match(error.message, /unique index other than its key/);
+                    return true;
+                },
+            );
+        } finally {
+            await prisma.$executeRawUnsafe('DROP INDEX IF EXISTS "plans_label_of_the_application"');
+        }
+    });
+
     test("leaves the caller's transaction usable, where a failed insert would abort it", async () => {
         const planKey = 'TAKEN-IN-A-TRANSACTION';
         await new PrismaPlanRepository(prisma).create({ planKey, label: 'First' });

@@ -821,6 +821,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
+        - a unique index of the application's own is not reported as a key taken
         - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist
@@ -991,6 +992,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
+        - a unique index of the application's own is not reported as a key taken
         - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist

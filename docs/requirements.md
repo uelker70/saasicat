@@ -15108,6 +15108,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
+        - a unique index of the application's own is not reported as a key taken
         - leaves the caller's transaction usable, where a failed insert would abort it
 - `packages/core/tests/a-refused-write-names-what-it-found.test.js`
     - a write that lost a race names the case the check names
@@ -15128,6 +15129,9 @@ _Tested by:_
         - accepting a pending version cleared meanwhile answers as the check does
         - accepting a pending version replaced meanwhile is told to reload
         - cancelling a subscription gone meanwhile answers as the check does
+        - an onboarding whose subscription went meanwhile answers as the check does, on the atomic
+          path too
+        - and any other failure of the atomic onboarding still reads as its own
         - an immediate plan change whose target lost its version answers as not found
 
 <!-- END proof -->
@@ -16198,6 +16202,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
+        - a unique index of the application's own is not reported as a key taken
         - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist
@@ -16368,6 +16373,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
+        - a unique index of the application's own is not reported as a key taken
         - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist

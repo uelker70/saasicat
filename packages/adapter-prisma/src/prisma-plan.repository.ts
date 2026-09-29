@@ -31,6 +31,7 @@ import {
     type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
+import { refusalOfSkippedInsert } from './skipped-insert.js';
 
 /** DB columns this repository reads from `plans`. */
 interface PlanDbRow {
@@ -238,7 +239,13 @@ export class PrismaPlanRepository implements PlanRepository {
                 },
             ],
         });
-        if (!created) throw planKeyTaken(data.planKey);
+        if (!created) {
+            throw await refusalOfSkippedInsert(
+                async () => (await this.findByKey(data.planKey)) !== null,
+                () => planKeyTaken(data.planKey),
+                `Plan '${data.planKey}'`,
+            );
+        }
         return toPlanRow(created);
     }
 
