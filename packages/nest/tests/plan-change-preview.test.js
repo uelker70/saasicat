@@ -497,6 +497,15 @@ describe('a subscriber on an older version of the plan', () => {
             assert.equal(await preview.planPriceNet(sub('MONTHLY')), null);
         });
 
+        test('not from the catalogue where the version bound cannot be read', async () => {
+            // A store whose subscription read joins a version its plan
+            // repository does not find. The catalogue's 19 would be the price
+            // of a version this subscriber never bought.
+            const preview = previewFor({ findVersionById: async () => null });
+
+            await assert.rejects(() => preview.planPriceNet(sub('MONTHLY')), /does not find/);
+        });
+
         test('from the catalogue where no repository reads versions, or none is bound', async () => {
             assert.equal(await previewFor(null).planPriceNet(sub('MONTHLY')), 19);
             assert.equal(await previewFor(plans).planPriceNet(sub('MONTHLY', null)), 19);

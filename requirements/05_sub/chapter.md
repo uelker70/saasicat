@@ -296,6 +296,8 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
+        - is shown the price they pay › not from the catalogue where the version bound cannot be
+          read
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
@@ -500,6 +502,8 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
+        - is shown the price they pay › not from the catalogue where the version bound cannot be
+          read
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 - `packages/nest/tests/tenant-billing-controller.test.js`

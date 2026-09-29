@@ -624,7 +624,9 @@ export class PlanChangePreviewService {
      * repository reads versions, or the subscription is bound to none, the
      * catalogue is the only reading there is and its price stands in. Null
      * where the plan is not sold in the rhythm, or is sold under a special
-     * contract whose price no catalogue holds.
+     * contract whose price no catalogue holds. A version bound that the
+     * repository cannot read is refused rather than priced from the catalogue,
+     * which would show the newest price as the one paid.
      */
     async planPriceNet(
         sub: Pick<SubscriptionUsageRecord, 'plan' | 'billingCycle' | 'planVersion'>,
@@ -634,6 +636,14 @@ export class PlanChangePreviewService {
         return plan ? listPriceNet(plan, sub.billingCycle as BillingCycle) : null;
     }
 
+    /**
+     * The plan as the version bound defines it. Null only where nothing can be
+     * read: no repository that reads versions, or no version bound. A version
+     * bound that the repository does not find is a store whose two reads
+     * disagree — the subscription came with the version joined — and it fails
+     * here as the contract freeze fails on it, rather than being priced from
+     * the catalogue.
+     */
     private async boundPlanDefOf(
         catalog: PlanCatalog,
         sub: Pick<SubscriptionUsageRecord, 'plan' | 'planVersion'>,
@@ -641,7 +651,13 @@ export class PlanChangePreviewService {
         const versionId = sub.planVersion?.id;
         if (!versionId || !this.plans?.findVersionById) return null;
         const bound = await this.plans.findVersionById(versionId);
-        return bound ? boundPlanDef(catalog, sub.plan, bound) : null;
+        if (!bound) {
+            throw new Error(
+                `The subscription is bound to plan version '${versionId}' of plan '${sub.plan}', ` +
+                    'which the plan repository does not find. Its price cannot be read.',
+            );
+        }
+        return boundPlanDef(catalog, sub.plan, bound);
     }
 
     private classify(
