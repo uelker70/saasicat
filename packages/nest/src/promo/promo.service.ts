@@ -26,7 +26,12 @@ import type {
     TransactionRunner,
     UpdatePromoCodeData,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, CONTRACT_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/core';
+import {
+    BILLING_ERROR_CODES,
+    CONTRACT_ERROR_CODES,
+    PROMO_ERROR_CODES,
+    isPersistenceRefusal,
+} from '@saasicat/core';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { getPlanPriceGross } from '../billing/plan-helpers.js';
@@ -255,16 +260,28 @@ export class PromoCodesService {
             this.ruleContext(),
         );
 
-        const exists = await this.promoRepo.findByCode(code);
-        if (exists) {
-            throw new BadRequestException({
+        // A deleted code counts: its name stays taken (`SC-PROMO-028`).
+        const taken = () =>
+            new BadRequestException({
                 code: PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS,
                 message: 'The code already exists.',
                 params: { promoCode: code },
             });
-        }
+        if (await this.promoRepo.findByCode(code)) throw taken();
 
-        return this.promoRepo.create({ ...input, code });
+        try {
+            return await this.promoRepo.create({ ...input, code });
+        } catch (error) {
+            // Two creates of one name that both passed the check above: the
+            // adapter's unique index decides, and the loser gets the same answer.
+            if (
+                isPersistenceRefusal(error) &&
+                error.code === PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS
+            ) {
+                throw taken();
+            }
+            throw error;
+        }
     }
 
     /**

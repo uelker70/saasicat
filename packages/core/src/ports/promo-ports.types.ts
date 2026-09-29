@@ -129,8 +129,18 @@ export interface PromoCodeRedemptionListItem extends PromoCodeRedemptionRecord {
  */
 export interface PromoCodeRepository {
     findById(id: string): Promise<PromoCodeRecord | null>;
+    /**
+     * The code with this name, deleted ones included: a deleted code keeps its
+     * name (`SC-PROMO-028`), so the platform's duplicate check has to see it.
+     * Every caller that redeems or previews checks `deletedAt` itself.
+     */
     findByCode(code: string, tx?: TransactionContext): Promise<PromoCodeRecord | null>;
     findMany(filter: PromoCodeFilter): Promise<PromoCodeRecord[]>;
+    /**
+     * Refuses a name that is taken — by a live or a deleted code — with
+     * `promoCodeTaken`: two creates can pass the platform's duplicate check
+     * together, and the second one's answer is the refusal, not a driver error.
+     */
     create(data: CreatePromoCodeData): Promise<PromoCodeRecord>;
     update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord>;
     softDelete(id: string): Promise<void>;
@@ -152,7 +162,8 @@ export interface PromoCodeRepository {
     releaseSlot(id: string, tx?: TransactionContext): Promise<void>;
     /**
      * Bulk-expire cron: sets all codes with `validUntil < now` and status
-     * ACTIVE/PAUSED to EXPIRED. Returns: number of updated rows.
+     * ACTIVE/PAUSED to EXPIRED, leaving deleted codes as they were — a write
+     * to a row the operator removed. Returns: number of updated rows.
      */
     expireDueCodes(now: Date): Promise<number>;
 }

@@ -188,6 +188,27 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PROMO-028 — A deleted code keeps its name
+
+🟢 A contract, an offer and a redemption name a code by its text, so a second "SPRING-25" could not
+be told from the first in any of them. Creating a code under a name a deleted code carried is
+refused as a name that exists, whether the check sees it first or two creates race past the check
+together. The nightly expiry leaves a deleted code as the operator left it.
+
+_Source:_ #350
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — a name that is taken
+        - by a deleted code, it is refused
+        - by a create that won the race past the check, it is refused the same way
+        - an adapter failure that is no refusal reaches the caller as it was
+
+<!-- END proof -->
+
 ### SC-PROMO-006 — A discount runs for at most 24 months or billing periods
 
 🟢

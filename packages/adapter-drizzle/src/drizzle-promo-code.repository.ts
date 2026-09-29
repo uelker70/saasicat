@@ -13,7 +13,7 @@ import type {
     TransactionContext,
     UpdatePromoCodeData,
 } from '@saasicat/core';
-import { toDecimalString } from '@saasicat/core';
+import { promoCodeTaken, toDecimalString } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, escapeLikePattern, resolveDb, type DrizzleClient } from './client.js';
 import { promoCodes } from './schema.js';
 
@@ -46,9 +46,9 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
             .where(eq(promoCodes.code, normalizeCode(code)))
             .limit(1);
         const row = rows[0] as PromoCodeRow | undefined;
-        // Soft-deleted codes are not redeemable/visible via code lookup.
-        if (!row || row.deletedAt) return null;
-        return toRecord(row);
+        // Deleted codes included: a code's name stays taken (`SC-PROMO-028`),
+        // and every caller that redeems or previews checks `deletedAt` itself.
+        return row ? toRecord(row) : null;
     }
 
     async findMany(filter: PromoCodeFilter): Promise<PromoCodeRecord[]> {
@@ -69,11 +69,12 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
     }
 
     async create(data: CreatePromoCodeData): Promise<PromoCodeRecord> {
+        const code = normalizeCode(data.code);
         const rows = await this.db
             .insert(promoCodes)
             .values({
                 id: randomUUID(),
-                code: normalizeCode(data.code),
+                code,
                 valueType: data.valueType,
                 value: toDecimalString(data.value),
                 durationType: data.durationType,
@@ -92,8 +93,14 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
                 createdById: data.createdById,
                 updatedAt: new Date(),
             })
+            // The unique index on the name answers two creates that raced past
+            // the platform's check, with a refusal rather than a driver error —
+            // and leaves a caller's transaction usable.
+            .onConflictDoNothing({ target: promoCodes.code })
             .returning();
-        return toRecord(rows[0] as PromoCodeRow);
+        const row = rows[0] as PromoCodeRow | undefined;
+        if (!row) throw promoCodeTaken(code);
+        return toRecord(row);
     }
 
     async update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord> {
@@ -182,6 +189,7 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
                 and(
                     inArray(promoCodes.status, ['ACTIVE', 'PAUSED']),
                     lt(promoCodes.validUntil, now),
+                    isNull(promoCodes.deletedAt),
                 ),
             )
             .returning({ id: promoCodes.id });

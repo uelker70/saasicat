@@ -40,9 +40,9 @@ function recordingClient() {
     return {
         calls,
         promoCode: {
-            async create(args) {
-                calls.create.push(args.data);
-                return row(args.data);
+            async createManyAndReturn(args) {
+                calls.create.push(args.data[0]);
+                return [row(args.data[0])];
             },
             async update(args) {
                 calls.update.push(args.data);

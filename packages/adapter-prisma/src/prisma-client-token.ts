@@ -296,8 +296,9 @@ export interface PromoCodeDelegateLike {
         };
         orderBy?: { createdAt?: SortDirection };
     }): Promise<PromoCodeRowLike[]>;
-    create(args: {
-        data: {
+    /** `INSERT … ON CONFLICT DO NOTHING RETURNING *`: a taken code returns no row. */
+    createManyAndReturn(args: {
+        data: Array<{
             code: string;
             valueType: string;
             value: string;
@@ -315,8 +316,9 @@ export interface PromoCodeDelegateLike {
             campaignTag: string | null;
             revenueDeductionAccount: string | null;
             createdById: string;
-        };
-    }): Promise<PromoCodeRowLike>;
+        }>;
+        skipDuplicates: boolean;
+    }): Promise<PromoCodeRowLike[]>;
     update(args: {
         where: { id: string };
         data: {
@@ -340,7 +342,7 @@ export interface PromoCodeDelegateLike {
         };
     }): Promise<PromoCodeRowLike>;
     updateMany(args: {
-        where: { status?: { in: string[] }; validUntil?: { lt: Date } };
+        where: { status?: { in: string[] }; validUntil?: { lt: Date }; deletedAt?: null };
         data: { status?: string };
     }): Promise<{ count: number }>;
 }
