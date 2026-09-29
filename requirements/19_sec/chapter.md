@@ -72,6 +72,9 @@ _Tested by:_
     - the operator's figures, behind a tenant policy
         - the plan list counts the tenants on each plan
         - the dashboard reads subscriptions, promo codes and the audit trail
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the platform’s own scheduled jobs
+        - the promotional code sweep runs under the RLS bypass, every step of it
 
 <!-- END proof -->
 

@@ -566,6 +566,8 @@ _Tested by:_
     - the platform’s own scheduled jobs
         - the promotional code sweep skips its run while the lock holds
         - and runs once it is unlocked, or where maintenance is off
+        - the promotional code sweep runs under the RLS bypass, every step of it
+        - and an installation hands the sweep its bypass, as the platform composes it
         - the expired sign-up cleanup skips its run while the lock holds
 - `packages/nest/tests/the-administration-stays-reachable-during-maintenance.test.js`
     - the routes a maintenance lock lets through
