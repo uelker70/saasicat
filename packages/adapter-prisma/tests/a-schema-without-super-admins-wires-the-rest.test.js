@@ -87,3 +87,31 @@ describe('a client from a schema without the SuperAdmin fragment', () => {
         );
     });
 });
+
+/** The persistence bundle given the same client, told which models the schema leaves out. */
+function bundleWiring(notAdopted) {
+    return `
+import { prismaPersistence, type PrismaLike } from ${JSON.stringify(DIST)};
+
+type Delegates = Omit<PrismaLike, 'superAdminUser' | 'superAdminMfa' | '$transaction'>;
+declare const client: Delegates & {
+    $transaction<T>(fn: (tx: Delegates) => Promise<T>): Promise<T>;
+};
+
+prismaPersistence({ client${notAdopted === undefined ? '' : `, notAdopted: ${notAdopted}`} });
+`;
+}
+
+// @requirement SC-COMP-016 — What the schema check calls not adopted, the persistence bundle can be told
+describe('the persistence bundle given a client without the SuperAdmin delegates', () => {
+    test('takes it without a cast once both models are named as not adopted', () => {
+        assert.deepEqual(diagnosticsOf(bundleWiring("['SuperAdminUser', 'SuperAdminMfa']")), []);
+    });
+
+    test('refuses it while a model it lacks is not named, since a member would use it', () => {
+        const withoutMfa = diagnosticsOf(bundleWiring("['SuperAdminUser']")).join('\n');
+        assert.match(withoutMfa, /superAdminMfa/);
+        const withoutEither = diagnosticsOf(bundleWiring(undefined)).join('\n');
+        assert.match(withoutEither, /superAdminUser|superAdminMfa/);
+    });
+});

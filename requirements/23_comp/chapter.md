@@ -1148,9 +1148,17 @@ _Source:_ #351
 
 _Tested by:_
 
+- `packages/adapter-prisma/tests/a-schema-without-super-admins-wires-the-rest.test.js`
+    - the persistence bundle given a client without the SuperAdmin delegates
+        - takes it without a cast once both models are named as not adopted
+        - refuses it while a model it lacks is not named, since a member would use it
 - `packages/cli/tests/schema-check-report.test.js`
     - the check never prints two answers to one question
         - a model the persistence bundle can leave out is handed over as the option to pass
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - self-registration beside checkout offers
+        - does not start where the promo code of an offer cannot be held, and says what to wire
+        - starts without the promo module, where no offer carries a code to hold
 
 <!-- END proof -->
 

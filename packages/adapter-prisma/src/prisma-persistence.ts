@@ -7,7 +7,7 @@ import {
     type PersistenceProvider,
     type SaaSiCatPersistenceAdapter,
 } from '@saasicat/core';
-import type { PrismaLike } from './prisma-client-token.js';
+import type { PrismaLike, PrismaTxLike } from './prisma-client-token.js';
 import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 import { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
@@ -73,13 +73,34 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriberLedgerEntry: unknown;
 }
 
-export interface PrismaPersistenceOptions {
+/**
+ * The delegates of `PrismaLike` that a model left out takes with it. Only the
+ * SuperAdmin models have one there; the adapters reach every other optional
+ * model through a type of their own.
+ */
+interface DelegatesOfModel {
+    SuperAdminUser: 'superAdminUser';
+    SuperAdminMfa: 'superAdminMfa';
+}
+
+type TxWithout<M extends OptionalCanonicalModel> = Omit<
+    PrismaTxLike,
+    DelegatesOfModel[M & keyof DelegatesOfModel]
+>;
+
+/** A client generated from a schema that leaves the models `M` out. */
+type PrismaClientWithout<M extends OptionalCanonicalModel> = TxWithout<M> & {
+    $transaction<T>(fn: (tx: TxWithout<M>) => Promise<T>): Promise<T>;
+};
+
+export interface PrismaPersistenceOptions<M extends OptionalCanonicalModel = never> {
     /**
      * The app's Prisma client: either its injection token (typically the
      * `PrismaService` class) — resolved through Nest DI at boot — or a ready
-     * `PrismaLike` instance (tests, non-DI scripts).
+     * `PrismaLike` instance (tests, non-DI scripts), which needs no delegate
+     * of a model named in `notAdopted`.
      */
-    client: PrismaLike | PersistenceInjectionToken;
+    client: PrismaClientWithout<M> | PersistenceInjectionToken;
     /**
      * App `PasswordHasher` (token or instance). Enables
      * `core.superAdminProvisioning` (setup wizard / create-super-admin);
@@ -124,7 +145,7 @@ export interface PrismaPersistenceOptions {
      * the bundle can do without are accepted (`OPTIONAL_CANONICAL_MODELS`);
      * for any other, pass your own adapter.
      */
-    notAdopted?: readonly OptionalCanonicalModel[];
+    notAdopted?: readonly M[];
 }
 
 /**
@@ -142,9 +163,13 @@ export interface PrismaPersistenceOptions {
  * tenant-billing, promo and plan-catalog persistence. App-specific behavior
  * such as quota counters and authentication remains in the consumer.
  */
-export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPersistenceAdapter {
-    const { client } = options;
+export function prismaPersistence<M extends OptionalCanonicalModel = never>(
+    options: PrismaPersistenceOptions<M>,
+): SaaSiCatPersistenceAdapter {
     const leftOut = membersLeftOut(options.notAdopted);
+    // The whole client type from here on: a member that uses a delegate the
+    // client may lack is one `leftOut` names, and is never built.
+    const client = options.client as PrismaLike | PersistenceInjectionToken;
     if (options.passwordHasher && leftOut.has('core.superAdminProvisioning')) {
         throw new Error(
             'prismaPersistence: `passwordHasher` provisions SuperAdmins into `super_admin_users`, ' +

@@ -1797,8 +1797,9 @@ two models as they are now.
 **An installation that keeps no holds** — a `PromoCodeRepository` of your own and no hold
 repository — adds the column alone and leaves `PromoCodeHold` out of its schema, which
 `schema check` lists as not adopted; with the persistence bundle it passes
-`notAdopted: ['PromoCodeHold']`. The whole file would create a table the schema does not declare,
-and Prisma would then want to drop it again:
+`notAdopted: ['PromoCodeHold']`. It cannot run `RegistrationModule` beside checkout offers, since a
+sign-up holds its offer's code from step 4 on. The whole file would create a table the schema does
+not declare, and Prisma would then want to drop it again:
 
 ```sql
 ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "heldCount" INTEGER NOT NULL DEFAULT 0;
@@ -1831,10 +1832,10 @@ ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "heldCount" INTEGER NOT NULL 
   holds — and the TypeScript types say where. Holds are a port of their own,
   `PromoCodeHoldRepository`, which both shipped adapters provide as `promo.holdRepository` in their
   persistence bundle; wired by hand, pass it to `PromoCodesModule.forRoot` as `holdRepository`. An
-  installation without one holds nothing, and a sign-up that names an offer with a code is refused
-  with an error saying so. If you provide holds, your `claimSlot` counts `heldCount`, and your
-  persistence contract harness wires `promoCodeHoldRepository`; a harness without it declares
-  `gaps: ['promoCodeHolds']`.
+  installation without one holds nothing, so `RegistrationModule` does not start beside checkout
+  offers and promo codes without it, and says what to wire. If you provide holds, your `claimSlot`
+  counts `heldCount`, and your persistence contract harness wires `promoCodeHoldRepository`; a
+  harness without it declares `gaps: ['promoCodeHolds']`.
 - **A `PaymentGateway` of your own** states `confirmableUntil` on the `PaymentMethodSetupSession`
   it returns: the end of its form plus the time it goes on retrying a confirmation it could not
   deliver, or `null` where it states neither, which holds the slot for the checkout's

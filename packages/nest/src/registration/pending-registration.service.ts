@@ -4,6 +4,7 @@ import {
     Injectable,
     Logger,
     NotFoundException,
+    type OnModuleInit,
     Optional,
 } from '@nestjs/common';
 import type {
@@ -89,7 +90,7 @@ import {
  *    Only a newly generated OTP (resend, rate-limited separately) unlocks it.
  */
 @Injectable()
-export class PendingRegistrationService {
+export class PendingRegistrationService implements OnModuleInit {
     private readonly logger = new Logger(PendingRegistrationService.name);
 
     constructor(
@@ -129,6 +130,22 @@ export class PendingRegistrationService {
         @Inject(CheckoutOfferService)
         private readonly checkoutOffers?: CheckoutOfferService,
     ) {}
+
+    /**
+     * A sign-up that names an offer holds its promo code from step 4 on. An
+     * installation that cannot keep that hold would find out at the first such
+     * checkout, so the start is refused instead.
+     */
+    onModuleInit(): void {
+        if (!this.checkoutOffers || this.checkoutOffers.canHoldPromoCodes()) return;
+        throw new Error(
+            'RegistrationModule holds the promo code of the checkout offer a sign-up concludes, ' +
+                'and the promo module has no PromoCodeHoldRepository to keep that hold. Adopt the ' +
+                "`PromoCodeHold` model — with a persistence bundle, drop 'PromoCodeHold' from " +
+                '`notAdopted` — or pass `holdRepository` to PromoCodesModule.forRoot when wiring ' +
+                'it by hand.',
+        );
+    }
 
     private async record(
         eventType: RegistrationAuditEventType,

@@ -1,5 +1,6 @@
 ---
 '@saasicat/core': major
+'@saasicat/nest': patch
 '@saasicat/adapter-prisma': minor
 '@saasicat/adapter-drizzle': minor
 '@saasicat/cli': minor
@@ -22,6 +23,8 @@ of a redemption. Both now take `notAdopted`, in the model names
 `saasicat schema check` prints under "Not adopted" — which now hands over the
 list for the models the bundle can leave out — and leave out the members that
 need them.
+A ready Prisma client passed to `prismaPersistence()` needs no delegate of a
+model named there.
 
 - `OPTIONAL_CANONICAL_MODELS` and `membersLeftOut` are new in
   `@saasicat/core`. A name the bundle cannot do without is refused with the
@@ -31,3 +34,7 @@ need them.
   `adapters` is refused.
 - `passwordHasher` together with `notAdopted: ['SuperAdminUser']` is refused,
   since the hasher provisions into that table.
+- `RegistrationModule` does not start beside checkout offers and promo
+  codes without a `PromoCodeHoldRepository`, and says what to wire: a sign-up
+  that names an offer holds its code from step 4 on, and failed there on the
+  first checkout before.

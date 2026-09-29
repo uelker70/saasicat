@@ -221,6 +221,15 @@ export class CheckoutOfferService {
     }
 
     /**
+     * Whether `holdPromoCode` can hold every code an offer can carry. An offer
+     * carries one only through the promo module, so without that module there
+     * is nothing to hold.
+     */
+    canHoldPromoCodes(): boolean {
+        return this.promoCodes === null || this.promoCodes.canHoldForCheckout();
+    }
+
+    /**
      * Holds a slot of the offer's promo code for its checkout until `until` —
      * what a sign-up does as its checkout starts, until a confirmation of its
      * payment form can no longer arrive — so that the code cannot run out
