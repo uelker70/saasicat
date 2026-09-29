@@ -52,8 +52,10 @@ import { computeNewPeriodCharge, computeProration, type ProrationDto } from './p
 // Compared to an app's own hardwiring (fixed users/vehicles/storageGb):
 //   - LimitsCheck iterates over the union of quota keys from the current
 //     entitlement, target plan and usage snapshot.
-//   - Prices (currentPriceNet, targetPriceNet) come from the PlanCatalog,
-//     not from DB PlanVersion snapshots — the catalog is the list-price SSoT.
+//   - Prices come from the version the subscription is bound to where the
+//     plan stays, and from the version of another plan live now, read as a
+//     row, where it moves — the version a scheduled change then records.
+//     The PlanCatalog stands in where no repository reads versions.
 //   - Plan rank is derived from the catalog order; non-marketed plans
 //     (ENTERPRISE) get rank `Number.POSITIVE_INFINITY`.
 

@@ -21,11 +21,14 @@ reached the customer through a change they had confirmed at another price
   subscriptions table gains the column, with a foreign key to `plan_versions`.
   `1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql` adds it to an
   existing installation and gives a change already scheduled to another plan
-  the version live when it runs.
+  the version live and in effect when it runs.
 - `ImmediatePlanChangeInput` takes `quotedPlanVersionId`: where set, and no
   version is kept by `keepsBoundVersion`, the write binds it rather than the
-  version in effect. Materialisation passes the recorded version; a sale and
-  onboarding pass `null`.
+  version in effect — while it can still be booked for that plan on the day
+  the change lands: a version of another plan, one that has ended
+  (`SC-PLAN-016`), or one published ahead of a date that has not come yet is
+  not bound, and the version in effect is. Materialisation passes the recorded
+  version; a sale and onboarding pass `null`.
 - `DuePendingPlanChange` requires `pendingChangeVersionId`. A
   `PendingPlanQueryPort` of your own returns it, and a
   `TenantSubscriptionWritePort` of your own stores, clears and binds it; the

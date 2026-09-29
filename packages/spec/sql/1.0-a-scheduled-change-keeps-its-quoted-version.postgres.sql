@@ -13,10 +13,11 @@
 --   psql "$DATABASE_URL" -f 1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql
 --
 -- What happens to a change scheduled before this file. The version it was
--- shown was never recorded, so the one live now — the newest published, not
--- superseded and not ended, as the catalogue shows it — stands for it. That is the version
--- the change would have bound had it come due today, which is what it did
--- before this file. A change that stays on its plan is left empty: it keeps the
+-- shown was never recorded, so the one live and in effect now stands for it:
+-- the newest published, not superseded, not ended, and — on a schema with
+-- validity windows — already begun. A version published ahead of its date is
+-- left out; the change then binds the version in effect when it comes due, as
+-- it did before this file. A change that stays on its plan is left empty: it keeps the
 -- version bound, whatever that is by the day it comes due. A plan with no live
 -- version is left empty too, and binds the version in effect when it comes due,
 -- and so is every change on a schema whose "plan_versions"."planId" holds the
@@ -47,10 +48,11 @@ BEGIN
     ) THEN
         ALTER TABLE "subscriptions" ADD COLUMN "pendingChangeVersionId" TEXT;
 
-        -- Live as the catalogue reads it: published, not superseded, and — on
-        -- a schema that can end a version — not ended, since an ended version
-        -- takes no new bookings. The clause is added only where the column
-        -- exists; a schema from before it ends nothing.
+        -- Live and in effect: published, not superseded, and — where the
+        -- schema has the columns — not ended and already begun. An ended
+        -- version takes no new bookings, and one published ahead of its date
+        -- is not the one in effect. Each clause is added only where its column
+        -- exists; a schema from before it ends and delays nothing.
         EXECUTE format(
             $backfill$
             UPDATE "subscriptions" AS s
@@ -60,6 +62,7 @@ BEGIN
                 WHERE v."planId" = s."pendingPlan"
                   AND v."publishedAt" IS NOT NULL
                   AND v."supersededAt" IS NULL
+                  %s
                   %s
                 ORDER BY v."version" DESC
                 LIMIT 1
@@ -76,6 +79,17 @@ BEGIN
                       AND column_name = 'endsAt'
                 )
                 THEN 'AND (v."endsAt" IS NULL OR v."endsAt" > NOW())'
+                ELSE ''
+            END,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'plan_versions'
+                      AND column_name = 'validFrom'
+                )
+                THEN 'AND (v."validFrom" IS NULL OR v."validFrom" <= NOW())'
                 ELSE ''
             END
         );

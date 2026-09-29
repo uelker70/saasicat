@@ -1616,12 +1616,20 @@ describe('a scheduled change learns the version it was quoted at', () => {
     // left empty. And the backfill belongs to the run that adds the column: a
     // second run must not pin a version published in between.
     const MIGRATION = '1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql';
-    const version = (id, planId, number, published, superseded = null, endsAt = null) =>
+    const version = (
+        id,
+        planId,
+        number,
+        published,
+        superseded = null,
+        endsAt = null,
+        validFrom = null,
+    ) =>
         client.query(
             'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
-                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "endsAt", "updatedAt") ' +
-                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, $6, NOW())",
-            [id, planId, number, published, superseded, endsAt],
+                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "endsAt", "validFrom", "updatedAt") ' +
+                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, $6, $7, NOW())",
+            [id, planId, number, published, superseded, endsAt, validFrom],
         );
     const subscription = (tenantId, pendingPlan) =>
         client.query(
@@ -1648,6 +1656,11 @@ describe('a scheduled change learns the version it was quoted at', () => {
         await version('ended-1', 'ENDED', 1, '2026-01-01', null, '2026-02-01');
         await subscription('to-another-plan', 'PRO');
         await subscription('to-a-plan-whose-version-ended', 'ENDED');
+        // Published ahead of its date: the version in effect today is the
+        // superseded one, which the backfill does not take either.
+        await version('ahead-1', 'AHEAD', 1, '2026-01-01', '2026-09-01');
+        await version('ahead-2', 'AHEAD', 2, '2026-09-01', null, null, '2099-01-01');
+        await subscription('to-a-plan-whose-next-version-is-not-in-effect-yet', 'AHEAD');
         await subscription('on-its-plan', 'STARTER');
         await subscription('to-a-plan-not-on-sale', 'UNRELEASED');
         await subscription('with-nothing-scheduled', null);
@@ -1660,6 +1673,7 @@ describe('a scheduled change learns the version it was quoted at', () => {
         assert.deepEqual(await quoted(), {
             'on-its-plan': null,
             'to-a-plan-not-on-sale': null,
+            'to-a-plan-whose-next-version-is-not-in-effect-yet': null,
             'to-a-plan-whose-version-ended': null,
             'to-another-plan': 'pro-2',
             'with-nothing-scheduled': null,

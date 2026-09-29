@@ -147,7 +147,10 @@ export function createMemoryHarness() {
                 (version) => version.id === input.quotedPlanVersionId,
             );
             const quoted =
-                quotedRow && !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf)
+                quotedRow &&
+                quotedRow.planId === input.planId &&
+                !(quotedRow.validFrom && new Date(quotedRow.validFrom) > asOf) &&
+                !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf)
                     ? { id: quotedRow.id }
                     : null;
             const target = keepsVersion

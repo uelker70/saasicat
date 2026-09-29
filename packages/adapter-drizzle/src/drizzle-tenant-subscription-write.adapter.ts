@@ -74,6 +74,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 ? current.planVersionId
                 : ((await this.stillBookable(
                       input.quotedPlanVersionId,
+                      input.planId,
                       input.periodStart ?? new Date(),
                       tx as unknown as TransactionContext,
                   )) ??
@@ -331,20 +332,23 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
     }
 
     /**
-     * The version a change was quoted at, while it can still be booked on the
-     * day the change takes effect; null otherwise, and the version in effect is
-     * bound. A version ended by then takes no new bookings (`SC-PLAN-016`),
-     * whatever a customer was quoted before its end was set. On the caller's
-     * transaction, for the reason given below.
+     * The version a change was quoted at, while it can still be booked for its
+     * plan on the day the change takes effect: it belongs to that plan, it has
+     * begun, and it has not ended (`SC-PLAN-016`). Null otherwise, and the
+     * version in effect is bound. A window closed by a successor's publication
+     * does not count against it — that is the version quoted before the
+     * successor. On the caller's transaction, for the reason given below.
      */
     private async stillBookable(
         quotedVersionId: string | null,
+        planKey: string,
         asOf: Date,
         tx: TransactionContext,
     ): Promise<string | null> {
         if (!quotedVersionId) return null;
         const quoted = await this.plans.findVersionById(quotedVersionId, tx);
-        if (!quoted) return null;
+        if (!quoted || quoted.planId !== planKey) return null;
+        if (quoted.validFrom && new Date(quoted.validFrom) > asOf) return null;
         return quoted.endsAt && new Date(quoted.endsAt) <= asOf ? null : quotedVersionId;
     }
 

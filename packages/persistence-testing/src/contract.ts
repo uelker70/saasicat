@@ -1027,6 +1027,100 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
 
             // @requirement SC-CHG-022
+            test('does not bind a quoted version of another plan', async (t) => {
+                // A due change read back with its plan and its version out of
+                // step — a query of the installation's own, a row edited by
+                // hand — binds the plan's version in effect, never a version
+                // of a plan the subscription is not moving to.
+                const tenant = await onASupersededVersion(t, 'tenant-quoted-elsewhere');
+                if (!tenant) return;
+                const inEffect = await harness.seed.createPlanVersion({
+                    planKey: 'ELSEWHERE',
+                    version: 1,
+                    quotas: { users: 2 },
+                    features: [],
+                    published: true,
+                });
+
+                await tenant.writer.changePlanImmediate('tenant-quoted-elsewhere', {
+                    ...toYearly(true),
+                    planId: 'ELSEWHERE',
+                    quotedPlanVersionId: tenant.live,
+                });
+
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-quoted-elsewhere',
+                    );
+                assert.equal(after?.plan, 'ELSEWHERE');
+                assert.equal(after?.planVersionId, inEffect.planVersionId);
+            });
+
+            // @requirement SC-CHG-022
+            test('binds a quoted version that has not begun only as far as a sale that day would', async (t) => {
+                // Published ahead of its date, the next version is live before it
+                // is in effect. A change quoted at it and landing before its date
+                // binds what a sale on that day binds, not the price it will
+                // have from its date on.
+                const tenant = await onASupersededVersion(t, 'tenant-quoted-ahead');
+                if (!tenant) return;
+                const repository = harness.adapter.planRepository;
+                if (
+                    !repository?.create ||
+                    !repository.createPlanVersionDraft ||
+                    !repository.publishPlanVersionDraft
+                ) {
+                    t.skip('the plan repository publishes no versions with a date');
+                    return;
+                }
+                await repository.create({ planKey: 'AHEAD', label: 'Ahead' });
+                const publish = async (validFrom: string) => {
+                    const draft = await repository.createPlanVersionDraft!({
+                        planId: 'AHEAD',
+                        features: [],
+                        quotas: { users: 2 },
+                        monthlyNet: '10.00',
+                        yearlyNet: '100.00',
+                        validFrom: validFrom.slice(0, 10),
+                    });
+                    return repository.publishPlanVersionDraft!(draft.id, {
+                        publishedByUserId: null,
+                        publishedChanges: [],
+                        nonRegressive: true,
+                        validFrom: new Date(validFrom),
+                        validUntil: null,
+                    });
+                };
+                await publish('2026-01-01T00:00:00.000Z');
+                const ahead = await publish('2027-01-01T00:00:00.000Z');
+                await harness.seed.createSubscription({
+                    tenantId: 'tenant-sold-ahead',
+                    plan: 'LOYAL',
+                    planVersionId: tenant.bound,
+                });
+
+                await tenant.writer.changePlanImmediate('tenant-quoted-ahead', {
+                    ...toYearly(true),
+                    planId: 'AHEAD',
+                    quotedPlanVersionId: ahead.id,
+                });
+                await tenant.writer.changePlanImmediate('tenant-sold-ahead', {
+                    ...toYearly(false),
+                    planId: 'AHEAD',
+                });
+
+                const quoted =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-quoted-ahead',
+                    );
+                const sold =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-sold-ahead',
+                    );
+                assert.equal(quoted?.planVersionId, sold?.planVersionId);
+            });
+
+            // @requirement SC-CHG-022
             test('keeps the version bound where the plan stays, whatever version is quoted', async (t) => {
                 const tenant = await onASupersededVersion(t, 'tenant-quoted-same-plan');
                 if (!tenant) return;
