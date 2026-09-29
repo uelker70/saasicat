@@ -1,3 +1,4 @@
+import { planNotInCatalog } from '@saasicat/core';
 import type { PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /**
@@ -200,9 +201,7 @@ export function createPrismaPlanBindingResolver(
             const plan = await asPlanIdentityClient(client).plan.findFirst({
                 where: { planKey, deletedAt: null },
             });
-            if (!plan) {
-                throw new Error(`Plan '${planKey}' not found.`);
-            }
+            if (!plan) throw planNotInCatalog(planKey);
             return plan.id;
         },
 

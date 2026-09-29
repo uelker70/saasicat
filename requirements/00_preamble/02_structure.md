@@ -96,11 +96,11 @@ properties it has while doing it.
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
-| 22  | Repeating an operation safely                | `SC-OPS-…`   | 15      |
+| 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 523 entries: 🟢 453 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 524 entries: 🟢 454 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

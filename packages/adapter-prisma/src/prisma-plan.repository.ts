@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     buildActivePlanVersionWhere,
     catalogVersionAlreadyPublished,
+    catalogDraftExists,
     catalogVersionGone,
     type CreatePlanData,
     type CreatePlanVersionDraftData,
@@ -15,7 +16,7 @@ import {
     type VersionChange,
     definedFields,
 } from '@saasicat/core';
-import { previousUtcDay, toPlanRow, toPlanVersionRow } from '@saasicat/core';
+import { planKeyTaken, previousUtcDay, toPlanRow, toPlanVersionRow } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type DecimalLike,
@@ -30,6 +31,7 @@ import {
     type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
+import { refusalOfSkippedInsert } from './skipped-insert.js';
 
 /** DB columns this repository reads from `plans`. */
 interface PlanDbRow {
@@ -223,15 +225,27 @@ export class PrismaPlanRepository implements PlanRepository {
     }
 
     async create(data: CreatePlanData): Promise<PlanRow> {
-        const created = await this.db().plan.create({
-            data: {
-                planKey: data.planKey,
-                label: data.label,
-                description: data.description ?? null,
-                icon: data.icon ?? null,
-                sortOrder: data.sortOrder ?? 0,
-            },
+        // `ON CONFLICT DO NOTHING`: a key taken by a create that raced past the
+        // platform's check is refused, and a caller's transaction stays usable.
+        const [created] = await this.db().plan.createManyAndReturn({
+            skipDuplicates: true,
+            data: [
+                {
+                    planKey: data.planKey,
+                    label: data.label,
+                    description: data.description ?? null,
+                    icon: data.icon ?? null,
+                    sortOrder: data.sortOrder ?? 0,
+                },
+            ],
         });
+        if (!created) {
+            throw await refusalOfSkippedInsert(
+                async () => (await this.findByKey(data.planKey)) !== null,
+                () => planKeyTaken(data.planKey),
+                `Plan '${data.planKey}'`,
+            );
+        }
         return toPlanRow(created);
     }
 
@@ -335,28 +349,42 @@ export class PrismaPlanRepository implements PlanRepository {
             orderBy: { version: 'desc' },
         });
         const nextVersion = (latest?.version ?? 0) + 1;
-        const created = await planVersion.create({
-            data: {
-                planId: storedPlanId,
-                version: nextVersion,
-                baseVersionId: data.baseVersionId ?? null,
-                features: data.features,
-                quotas: data.quotas,
-                monthlyNet: data.monthlyNet,
-                yearlyNet: data.yearlyNet,
-                marketed: data.marketed ?? true,
-                changeNote: data.changeNote ?? '',
-                createdByUserId: data.createdByUserId ?? null,
-                ...(this.fields.validityWindows
-                    ? {
-                          validFrom: data.validFrom ? new Date(data.validFrom) : null,
-                          validUntil: data.validUntil ? new Date(data.validUntil) : null,
-                      }
-                    : {}),
-                // publishedAt defaults to null (draft). `bundles` remains
-                // app-specific and is intentionally not persisted here.
-            },
+        // `ON CONFLICT DO NOTHING` on the one-draft-per-plan index and on the
+        // version number: a draft created in the meantime is refused.
+        const [created] = await planVersion.createManyAndReturn({
+            skipDuplicates: true,
+            data: [
+                {
+                    planId: storedPlanId,
+                    version: nextVersion,
+                    baseVersionId: data.baseVersionId ?? null,
+                    features: data.features,
+                    quotas: data.quotas,
+                    monthlyNet: data.monthlyNet,
+                    yearlyNet: data.yearlyNet,
+                    marketed: data.marketed ?? true,
+                    changeNote: data.changeNote ?? '',
+                    createdByUserId: data.createdByUserId ?? null,
+                    ...(this.fields.validityWindows
+                        ? {
+                              validFrom: data.validFrom ? new Date(data.validFrom) : null,
+                              validUntil: data.validUntil ? new Date(data.validUntil) : null,
+                          }
+                        : {}),
+                    // publishedAt defaults to null (draft). `bundles` remains
+                    // app-specific and is intentionally not persisted here.
+                },
+            ],
         });
+        if (!created) {
+            // The version number can also have been taken by a draft published
+            // a moment later; that reads as the draft it was, and asking again
+            // succeeds.
+            const draft = await planVersion.findFirst({
+                where: { planId: storedPlanId, publishedAt: null },
+            });
+            throw catalogDraftExists('PlanVersion', planKey, draft?.version ?? nextVersion);
+        }
         return this.toPlanVersionRow(created, planKey);
     }
 

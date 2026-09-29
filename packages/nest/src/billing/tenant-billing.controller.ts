@@ -22,7 +22,7 @@ import type {
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
 } from '@saasicat/core';
-import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
+import { AUTH_ERROR_CODES, BILLING_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -57,6 +57,8 @@ import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
+import { answerRefusal, answeringRefusals } from '../errors/answering-refusals.js';
+import { codedError } from '../errors/coded-error.js';
 import { NO_NOTICE_PERIOD, noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
@@ -454,15 +456,19 @@ export class TenantBillingController {
                           now: new Date(),
                       })
                     : undefined;
-            const result = await this.subscriptionWrite.changePlanImmediate(tenantId, {
-                planId: dto.plan,
-                cycle: dto.billingCycle,
-                periodStart: period?.start ?? null,
-                periodEnd: period?.end ?? null,
-                nextStatus: wasTrial ? null : 'ACTIVE',
-                trialEndsAt,
-                expectedCanceledAt: sub.canceledAt ?? null,
-            });
+            // A subscription gone or a plan version retired since the checks
+            // above is refused by the store with the code those checks give.
+            const result = await answeringRefusals(() =>
+                this.subscriptionWrite.changePlanImmediate(tenantId, {
+                    planId: dto.plan,
+                    cycle: dto.billingCycle,
+                    periodStart: period?.start ?? null,
+                    periodEnd: period?.end ?? null,
+                    nextStatus: wasTrial ? null : 'ACTIVE',
+                    trialEndsAt,
+                    expectedCanceledAt: sub.canceledAt ?? null,
+                }),
+            );
             if (!result.claimed) {
                 throw new ConflictException(changedUnderneath);
             }
@@ -634,6 +640,10 @@ export class TenantBillingController {
                     warnings.push(...this.collectPromoSkipReasons(dto.promoCode, sub));
                 }
             } catch (err) {
+                // A store refusal is a race the checks above answer themselves:
+                // the subscription went, or the plan lost its version. It gets
+                // their answer, as the sequential path below gives it.
+                if (isPersistenceRefusal(err)) throw answerRefusal(err);
                 // Atomic path: a failure rolls back EVERYTHING (plan, redeem).
                 // The tenant sees a hard error message, because the
                 // subscription was in fact not modified — no
@@ -664,17 +674,19 @@ export class TenantBillingController {
             // The adapter does not (yet) implement applyOnboardingSelection —
             // we apply plan + promo one after another. Atomicity is not
             // guaranteed; failures may leave a half-state behind.
-            planResult = await this.subscriptionWrite.changePlanImmediate(tenantId, {
-                planId: dto.plan,
-                cycle: dto.billingCycle,
-                periodStart: period?.start ?? null,
-                periodEnd: period?.end ?? null,
-                nextStatus: wasTrial ? null : 'ACTIVE',
-                // What this route read, so a cancellation declared since then
-                // takes the row instead of being written over. A landed one was
-                // refused above; a pending one is legitimate and claims fine.
-                expectedCanceledAt: sub.canceledAt ?? null,
-            });
+            planResult = await answeringRefusals(() =>
+                this.subscriptionWrite.changePlanImmediate(tenantId, {
+                    planId: dto.plan,
+                    cycle: dto.billingCycle,
+                    periodStart: period?.start ?? null,
+                    periodEnd: period?.end ?? null,
+                    nextStatus: wasTrial ? null : 'ACTIVE',
+                    // What this route read, so a cancellation declared since then
+                    // takes the row instead of being written over. A landed one was
+                    // refused above; a pending one is legitimate and claims fine.
+                    expectedCanceledAt: sub.canceledAt ?? null,
+                }),
+            );
             if (!planResult.claimed) {
                 throw new ConflictException({
                     code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
@@ -822,17 +834,22 @@ export class TenantBillingController {
                 canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             });
         }
-        if (!sub.pendingPlanVersion) {
-            throw new BadRequestException({
+        const noPendingVersion = () =>
+            new BadRequestException({
                 code: BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
                 message: 'There is no pending plan version awaiting confirmation.',
             });
-        }
+        if (!sub.pendingPlanVersion) throw noPendingVersion();
 
-        const result = await this.subscriptionWrite.acceptPendingPlanVersion(
-            tenantId,
-            userId,
-            new Date(),
+        // The pending version cleared or replaced since the checks above is
+        // refused by the store; the caller gets the answer those checks give.
+        const result = await answeringRefusals(
+            () => this.subscriptionWrite.acceptPendingPlanVersion(tenantId, userId, new Date()),
+            {
+                [BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION]: noPendingVersion,
+                [BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED]: () =>
+                    new ConflictException(codedError(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED)),
+            },
         );
         if (!result.alreadyAccepted) {
             this.entitlements.invalidateTenant(tenantId);
@@ -869,13 +886,13 @@ export class TenantBillingController {
         const userId = this.requireUserId(req);
         const now = new Date();
 
-        const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) {
-            throw new NotFoundException({
+        const noSubscription = () =>
+            new NotFoundException({
                 code: BILLING_ERROR_CODES.NO_SUBSCRIPTION,
                 message: 'This tenant has no subscription to cancel.',
             });
-        }
+        const sub = await this.subscriptionUsage.findForTenant(tenantId);
+        if (!sub) throw noSubscription();
 
         // Already cancelled? Say so and change nothing.
         //
@@ -984,12 +1001,18 @@ export class TenantBillingController {
         // every reader of the term end looks at `minimumTermUntil` rather than
         // at this cancellation — a downgrade scheduled meanwhile would otherwise
         // land at the old term end, inside the period just paid for.
-        const result = await this.subscriptionWrite.cancelSubscription(tenantId, {
-            canceledAt: now,
-            effectiveAt: decision.effectiveAt,
-            terminateNow: decision.effectiveAt <= now,
-            minimumTermUntil: decision.afterNoticeDeadline ? decision.effectiveAt : undefined,
-        });
+        const result = await answeringRefusals(
+            () =>
+                this.subscriptionWrite.cancelSubscription(tenantId, {
+                    canceledAt: now,
+                    effectiveAt: decision.effectiveAt,
+                    terminateNow: decision.effectiveAt <= now,
+                    minimumTermUntil: decision.afterNoticeDeadline
+                        ? decision.effectiveAt
+                        : undefined,
+                }),
+            { [BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND]: noSubscription },
+        );
         // The check above and this write are two moments, and a second request
         // can arrive between them. The store settles it — the claim either took
         // the row or found it taken — and a claim that lost neither audits a

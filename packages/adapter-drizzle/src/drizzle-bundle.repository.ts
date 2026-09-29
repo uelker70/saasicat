@@ -22,6 +22,8 @@ import {
     bundleDraftDefaults,
     bundleStemDefaults,
     catalogVersionAlreadyPublished,
+    bundleKeyTaken,
+    catalogDraftExists,
     catalogVersionGone,
     previousUtcDay,
     toBundleStemRow,
@@ -131,6 +133,10 @@ export class DrizzleBundleRepository implements BundleRepository {
 
     async create(data: CreateBundleData): Promise<BundleRow> {
         const now = new Date();
+        // `ON CONFLICT DO NOTHING`: a key taken by a create that raced past the
+        // platform's check is refused, and a caller's transaction stays usable.
+        // On the key alone: a unique index of the application's own is its to
+        // report.
         const rows = await this.db
             .insert(bundles)
             .values({
@@ -138,7 +144,9 @@ export class DrizzleBundleRepository implements BundleRepository {
                 ...bundleStemDefaults(data),
                 updatedAt: now,
             })
+            .onConflictDoNothing({ target: bundles.bundleKey })
             .returning();
+        if (!rows[0]) throw bundleKeyTaken(data.bundleKey);
         return toBundleStemRow(rows[0]);
     }
 
@@ -257,13 +265,11 @@ export class DrizzleBundleRepository implements BundleRepository {
     }
 
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
+        const stem = await this.findById(data.bundleId);
+        const draftExists = (draftVersion: number) =>
+            catalogDraftExists('BundleVersion', stem?.bundleKey ?? data.bundleId, draftVersion);
         const existingDraft = await this.findCurrentDraft(data.bundleId);
-        if (existingDraft) {
-            throw new Error(
-                `Bundle '${data.bundleId}' already has a draft version (v${existingDraft.version}); ` +
-                    'only one draft per bundle is allowed.',
-            );
-        }
+        if (existingDraft) throw draftExists(existingDraft.version);
         const latest = await this.db
             .select({ version: bundleVersions.version })
             .from(bundleVersions)
@@ -271,19 +277,30 @@ export class DrizzleBundleRepository implements BundleRepository {
             .orderBy(desc(bundleVersions.version))
             .limit(1);
         const now = new Date();
+        const nextVersion = latest[0] ? latest[0].version + 1 : 1;
+        // `ON CONFLICT DO NOTHING` on the one-draft-per-bundle index and on the
+        // version number: a draft created since the read above is refused.
         const rows = await this.db
             .insert(bundleVersions)
             .values({
                 id: randomUUID(),
                 bundleId: data.bundleId,
-                version: latest[0] ? latest[0].version + 1 : 1,
+                version: nextVersion,
                 ...bundleDraftDefaults(data),
                 validFrom: this.validityWindows ? toNullableDate(data.validFrom) : null,
                 validUntil: this.validityWindows ? toNullableDate(data.validUntil) : null,
                 updatedAt: now,
             })
+            .onConflictDoNothing()
             .returning();
-        return this.toVersionRow(rows[0], await this.findById(data.bundleId));
+        if (!rows[0]) {
+            // The version number can also have been taken by a draft published
+            // a moment later; that reads as the draft it was, and asking again
+            // succeeds.
+            const draft = await this.findCurrentDraft(data.bundleId);
+            throw draftExists(draft?.version ?? nextVersion);
+        }
+        return this.toVersionRow(rows[0], stem);
     }
 
     async updateDraft(

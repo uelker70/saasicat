@@ -12,6 +12,7 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
+import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import { DrizzleBundleRepository } from '../../dist/index.js';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
@@ -127,6 +128,39 @@ describe('an operator manages a bundle', () => {
     });
 });
 
+describe('a bundle key taken, and a unique index of the application', () => {
+    test('a taken key is refused with its code', async () => {
+        const bundle = await createBundle();
+        await assert.rejects(
+            () => createBundle({ bundleKey: bundle.bundleKey }),
+            (error) => {
+                assert.equal(error.code, CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS);
+                assert.deepEqual(error.params, { bundleKey: bundle.bundleKey });
+                return true;
+            },
+        );
+    });
+
+    test("a conflict on the application's own index is its own, not a key taken", async () => {
+        await pool.query(
+            'CREATE UNIQUE INDEX "bundles_label_of_the_application" ON bundles (label)',
+        );
+        try {
+            await createBundle({ label: 'Same label' });
+            await assert.rejects(
+                () => createBundle({ label: 'Same label' }),
+                (error) => {
+                    assert.equal(isPersistenceRefusal(error), false, String(error));
+                    assert.equal((error.cause ?? error).code, '23505');
+                    return true;
+                },
+            );
+        } finally {
+            await pool.query('DROP INDEX IF EXISTS "bundles_label_of_the_application"');
+        }
+    });
+});
+
 describe('drafting a version', () => {
     test('the first draft is v1, and the next one after publishing is v2', async () => {
         const bundle = await createBundle();
@@ -149,7 +183,11 @@ describe('drafting a version', () => {
         await repository.createDraft({ bundleId: bundle.id, features: ['REPORTS'] });
         await assert.rejects(
             () => repository.createDraft({ bundleId: bundle.id, features: ['OTHER'] }),
-            /already has a draft version \(v1\)/,
+            (error) => {
+                assert.equal(error.code, CATALOG_ERROR_CODES.BUNDLE_DRAFT_ALREADY_EXISTS);
+                assert.deepEqual(error.params, { bundleKey: bundle.bundleKey, draftVersion: 1 });
+                return true;
+            },
         );
     });
 

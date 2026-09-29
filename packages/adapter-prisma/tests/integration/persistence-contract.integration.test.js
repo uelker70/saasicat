@@ -22,6 +22,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     PrismaAuditAdapter,
@@ -37,6 +38,7 @@ import {
     PrismaPromoSubscriptionLookup,
     PrismaAppliedSettingsRepository,
     PrismaMaintenanceWindowRepository,
+    PrismaMarketingProjectionRepository,
     PrismaPaymentEventLog,
     PrismaSubscriberPaymentMethodRepository,
     PrismaSubscriberLedgerRepository,
@@ -284,6 +286,59 @@ persistenceAdapterContract({
     // The adapter ships no CheckoutOfferRepository: an application implements
     // that port against its own table, and wires it into its own harness.
     gaps: ['checkoutOffers'],
+});
+
+// @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error
+describe('a create the store refuses', () => {
+    test('a marketing projection for a target and locale that has one is refused by code', async () => {
+        const repository = new PrismaMarketingProjectionRepository(prisma);
+        const target = { targetType: 'plan', targetVersionId: 'pv-refused', locale: 'de' };
+        await repository.create({ ...target, displayLabel: 'Pro', description: '' });
+        await assert.rejects(
+            repository.create({ ...target, displayLabel: 'Pro again', description: '' }),
+            (error) => {
+                assert.ok(isPersistenceRefusal(error), String(error));
+                assert.equal(error.code, CATALOG_ERROR_CODES.MARKETING_PROJECTION_ALREADY_EXISTS);
+                assert.deepEqual(error.params, target);
+                return true;
+            },
+        );
+    });
+
+    test("a unique index of the application's own is not reported as a key taken", async () => {
+        await prisma.$executeRawUnsafe(
+            'CREATE UNIQUE INDEX "plans_label_of_the_application" ON plans (label)',
+        );
+        try {
+            const plans = new PrismaPlanRepository(prisma);
+            await plans.create({ planKey: 'OWN-INDEX-A', label: 'Same label' });
+            await assert.rejects(
+                plans.create({ planKey: 'OWN-INDEX-B', label: 'Same label' }),
+                (error) => {
+                    assert.equal(isPersistenceRefusal(error), false, String(error));
+                    assert.match(error.message, /unique index other than its key/);
+                    return true;
+                },
+            );
+        } finally {
+            await prisma.$executeRawUnsafe('DROP INDEX IF EXISTS "plans_label_of_the_application"');
+        }
+    });
+
+    test("leaves the caller's transaction usable, where a failed insert would abort it", async () => {
+        const planKey = 'TAKEN-IN-A-TRANSACTION';
+        await new PrismaPlanRepository(prisma).create({ planKey, label: 'First' });
+        const readAfterwards = await prisma.$transaction(async (tx) => {
+            await assert.rejects(
+                new PrismaPlanRepository(tx).create({ planKey, label: 'Second' }),
+                (error) =>
+                    isPersistenceRefusal(error) &&
+                    error.code === CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS,
+            );
+            return tx.plan.findFirst({ where: { planKey } });
+        });
+        assert.equal(readAfterwards?.label, 'First');
+    });
 });
 
 describe('canonical schema structure', () => {

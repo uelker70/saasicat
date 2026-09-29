@@ -17,6 +17,7 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+    BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     isVersionEditable,
     type CatalogEntryRepository,
@@ -49,7 +50,7 @@ import {
     PLAN_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
 import type { CatalogServiceConfig } from './bundles.service.js';
-import { answeringRefusals } from './answering-refusals.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { loadApprovedCatalogKeys } from './approved-keys.js';
 import { blockingStrictModeWarnings, validatePlanDraft } from './strict-mode-check.js';
 
@@ -224,13 +225,13 @@ export class PlanVersionsService {
         // A retired plan takes no new version: it is out of the catalogue, and
         // a draft could only be published into a plan nobody can buy. Publishing
         // an existing draft is refused the same way below.
-        if (!plan || plan.deletedAt !== null) {
-            throw new NotFoundException({
+        const notFound = () =>
+            new NotFoundException({
                 code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
                 message: `Plan '${data.planId}' not found`,
                 params: { planId: data.planId },
             });
-        }
+        if (!plan || plan.deletedAt !== null) throw notFound();
         const planKey = plan.planKey;
 
         const existingDraft = await this.repo.findCurrentDraft!(planKey);
@@ -255,11 +256,12 @@ export class PlanVersionsService {
         });
         this.gateOrPass(warnings);
 
-        const planVersion = await this.repo.createPlanVersionDraft!({
-            ...data,
-            planId: planKey,
-            baseVersionId,
-        });
+        // A draft created in the meantime is refused with the code the check
+        // above gives; a plan retired in the meantime is answered as not found.
+        const planVersion = await answeringRefusals(
+            () => this.repo.createPlanVersionDraft!({ ...data, planId: planKey, baseVersionId }),
+            { [BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG]: notFound },
+        );
         return { planVersion, warnings };
     }
 

@@ -26,7 +26,12 @@ import type {
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
-import { CATALOG_ERROR_CODES, PROMO_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
+import {
+    BILLING_ERROR_CODES,
+    CATALOG_ERROR_CODES,
+    PROMO_ERROR_CODES,
+    isPersistenceRefusal,
+} from '@saasicat/core';
 import type {
     ContractGap,
     PersistenceAdapterContractOptions,
@@ -37,6 +42,9 @@ const LOCK_HOLD_MS = 150;
 
 /** An id no version carries. */
 const NO_SUCH_VERSION = '00000000-0000-4000-8000-000000000000';
+
+/** An id no booking carries. */
+const NO_SUCH_BOOKING = '00000000-0000-4000-8000-000000000001';
 
 /** A plan draft on `planKey`, starting on `validFrom`. */
 function planDraft(planKey: string, validFrom: string) {
@@ -61,11 +69,18 @@ function publishedOn(validFrom: string, publishedByUserId: string | null) {
     };
 }
 
-/** An `assert.rejects` validator: refused by the adapter with the platform's `code`. */
-function refusedAs(code: string): (error: unknown) => true {
+/**
+ * An `assert.rejects` validator: refused by the adapter with the platform's
+ * `code`, and with `params` where they are given.
+ */
+function refusedAs(
+    code: string,
+    params?: Readonly<Record<string, unknown>>,
+): (error: unknown) => true {
     return (error) => {
         assert.ok(isPersistenceRefusal(error), `a PersistenceRefusal, not ${String(error)}`);
         assert.equal(error.code, code);
+        if (params) assert.deepEqual(error.params, params);
         return true;
     };
 }
@@ -705,6 +720,111 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a plan change for a tenant without a subscription is refused as gone', async (t) => {
+            const writer = harness.adapter.tenantSubscriptionWrite;
+            if (!writer) {
+                missing(t, 'atomicPlanBinding');
+                return;
+            }
+            await assert.rejects(
+                () =>
+                    writer.changePlanImmediate('tenant-without-subscription', {
+                        planId: 'PRO',
+                        cycle: 'MONTHLY',
+                        periodStart: null,
+                        periodEnd: null,
+                        nextStatus: null,
+                        expectedCanceledAt: null,
+                    }),
+                refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND, {
+                    tenantId: 'tenant-without-subscription',
+                }),
+            );
+        });
+
+        test('a plan change to a plan with no version in effect is refused as gone', async (t) => {
+            const { seed, adapter } = harness;
+            const writer = adapter.tenantSubscriptionWrite;
+            if (!writer) {
+                missing(t, 'atomicPlanBinding');
+                return;
+            }
+            if (writer.bindsPlanVersion === false) {
+                t.skip('the write binds no plan version, so it asks for none');
+                return;
+            }
+            const current = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            // The plan exists, with nothing published yet.
+            await seed.createPlanVersion({
+                planKey: 'UNRELEASED',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: false,
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-unreleased-plan',
+                plan: 'STARTER',
+                planVersionId: current.planVersionId,
+            });
+            await assert.rejects(
+                () =>
+                    writer.changePlanImmediate('tenant-unreleased-plan', {
+                        planId: 'UNRELEASED',
+                        cycle: 'MONTHLY',
+                        periodStart: new Date('2026-05-01T00:00:00.000Z'),
+                        periodEnd: new Date('2026-06-01T00:00:00.000Z'),
+                        nextStatus: null,
+                        expectedCanceledAt: null,
+                    }),
+                refusedAs(BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION, {
+                    planId: 'UNRELEASED',
+                    asOf: '2026-05-01',
+                }),
+            );
+            const unchanged =
+                await adapter.subscriptionRepository.findByTenantId('tenant-unreleased-plan');
+            assert.equal(unchanged?.plan, 'STARTER', 'nothing was written');
+        });
+
+        test('accepting a pending plan version where none is pending is refused', async (t) => {
+            const { seed, adapter } = harness;
+            const writer = adapter.tenantSubscriptionWrite;
+            if (!writer) {
+                missing(t, 'atomicPlanBinding');
+                return;
+            }
+            const current = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-nothing-pending',
+                plan: 'STARTER',
+                planVersionId: current.planVersionId,
+            });
+            await assert.rejects(
+                () =>
+                    writer.acceptPendingPlanVersion(
+                        'tenant-nothing-pending',
+                        'user-1',
+                        new Date('2026-05-01T00:00:00.000Z'),
+                    ),
+                refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, {
+                    tenantId: 'tenant-nothing-pending',
+                }),
+            );
+        });
+
         test('onboarding selection binds the version it sells, as the write declares', async (t) => {
             const { seed, adapter } = harness;
             const writer = adapter.tenantSubscriptionWrite;
@@ -1112,6 +1232,24 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('cancelling a booking that is not there is refused as gone', async (t) => {
+            const repository = harness.adapter.subscriptionBundleRepository;
+            if (!repository) {
+                missing(t, 'bundleBookings');
+                return;
+            }
+            await assert.rejects(
+                () =>
+                    repository.cancel(NO_SUCH_BOOKING, {
+                        canceledAt: new Date('2026-03-01T00:00:00.000Z'),
+                        canceledEffectiveAt: new Date('2026-04-01T00:00:00.000Z'),
+                    }),
+                refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND, {
+                    subscriptionBundleId: NO_SUCH_BOOKING,
+                }),
+            );
+        });
+
         test('a second cancellation of one booking is refused, not applied', async (t) => {
             // The port has always said this method throws on an already-
             // cancelled booking. Neither adapter did: both updated by id alone,
@@ -1160,7 +1298,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         canceledAt: new Date('2026-03-02T00:00:00.000Z'),
                         canceledEffectiveAt: new Date('2026-09-01T00:00:00.000Z'),
                     }),
-                'a second cancellation must be refused',
+                refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED, {
+                    subscriptionBundleId: booking.id,
+                }),
             );
 
             const readBack = await repository.findById(booking.id);
@@ -1554,7 +1694,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             await repository.create({ planKey: 'DOUBLE', label: 'First' });
             await assert.rejects(
                 () => repository.create({ planKey: 'DOUBLE', label: 'Second' }),
-                'a plan key is taken once',
+                refusedAs(CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS, { planKey: 'DOUBLE' }),
             );
         });
 
@@ -1567,7 +1707,75 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             await catalog.create({ bundleKey: 'DOUBLE', label: 'First' });
             await assert.rejects(
                 () => catalog.create({ bundleKey: 'DOUBLE', label: 'Second' }),
-                'a bundle key is taken once',
+                refusedAs(CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS, { bundleKey: 'DOUBLE' }),
+            );
+        });
+
+        test('a plan has one draft at a time, and a second is refused naming the first', async (t) => {
+            const repository = harness.adapter.planRepository;
+            const createDraft = repository?.createPlanVersionDraft?.bind(repository);
+            if (!repository || !createDraft) {
+                missing(t, 'planDraftPublish');
+                return;
+            }
+            await repository.create({ planKey: 'ONE-DRAFT', label: 'One draft' });
+            const draft = {
+                planId: 'ONE-DRAFT',
+                features: ['CORE'],
+                quotas: {},
+                monthlyNet: '10.00',
+                yearlyNet: '100.00',
+            };
+            const first = await createDraft(draft);
+            await assert.rejects(
+                () => createDraft(draft),
+                refusedAs(CATALOG_ERROR_CODES.PLAN_DRAFT_ALREADY_EXISTS, {
+                    planKey: 'ONE-DRAFT',
+                    draftVersion: first.version,
+                }),
+            );
+        });
+
+        test('two drafts of one bundle asked for at once: one is created, the other refused', async (t) => {
+            // Both requests can read "no draft" before either writes, so what
+            // decides is the store's one-draft index, not the read before it.
+            const catalog = harness.adapter.bundleRepository;
+            if (!catalog?.publishDraft) {
+                missing(t, 'bundleDraftPublish');
+                return;
+            }
+            const bundle = await catalog.create({ bundleKey: 'TWO-AT-ONCE', label: 'Two at once' });
+            const draft = { bundleId: bundle.id, features: ['REPORTS'], quotas: {} };
+            const outcomes = await Promise.allSettled([
+                catalog.createDraft(draft),
+                catalog.createDraft(draft),
+            ]);
+            const created = outcomes.filter((outcome) => outcome.status === 'fulfilled');
+            const refused = outcomes.filter((outcome) => outcome.status === 'rejected');
+            assert.equal(created.length, 1, 'exactly one draft is created');
+            assert.equal(refused.length, 1, 'the other is refused');
+            refusedAs(CATALOG_ERROR_CODES.BUNDLE_DRAFT_ALREADY_EXISTS, {
+                bundleKey: 'TWO-AT-ONCE',
+                draftVersion: (created[0] as PromiseFulfilledResult<{ version: number }>).value
+                    .version,
+            })((refused[0] as PromiseRejectedResult).reason);
+        });
+
+        test('a bundle has one draft at a time, and a second is refused naming the first', async (t) => {
+            const catalog = harness.adapter.bundleRepository;
+            if (!catalog?.publishDraft) {
+                missing(t, 'bundleDraftPublish');
+                return;
+            }
+            const bundle = await catalog.create({ bundleKey: 'ONE-DRAFT', label: 'One draft' });
+            const draft = { bundleId: bundle.id, features: ['REPORTS'], quotas: {} };
+            const first = await catalog.createDraft(draft);
+            await assert.rejects(
+                () => catalog.createDraft(draft),
+                refusedAs(CATALOG_ERROR_CODES.BUNDLE_DRAFT_ALREADY_EXISTS, {
+                    bundleKey: 'ONE-DRAFT',
+                    draftVersion: first.version,
+                }),
             );
         });
 

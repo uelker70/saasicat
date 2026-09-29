@@ -25,6 +25,7 @@ import {
     DrizzleTenantSubscriptionWrite,
     saasicatSchema,
 } from '../../dist/index.js';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
 let pool;
@@ -393,7 +394,7 @@ describe("a tenant's own writes", () => {
                 nextStatus: null,
                 expectedCanceledAt: null,
             }),
-            /No active PlanVersion/,
+            (error) => error.code === BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
         );
     });
 
@@ -485,7 +486,65 @@ describe("a tenant's own writes", () => {
         await seedSubscription('ACC_NONE', version.id);
         await assert.rejects(
             tenantWrite.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
-            /No pending PlanVersion/,
+            (error) => error.code === BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
+        );
+    });
+
+    /**
+     * The write adapter over a pool that runs `meanwhile` just before the
+     * statement that claims the acceptance: a request of somebody else's
+     * landing between this write's read and its claim.
+     */
+    function writerWhere(meanwhile) {
+        const interleaving = {
+            async query(...args) {
+                const text = typeof args[0] === 'string' ? args[0] : args[0].text;
+                if (/^update "subscriptions" set "pendingPlanVersionAccepted"/i.test(text)) {
+                    await meanwhile();
+                }
+                return pool.query(...args);
+            },
+            connect: (...args) => pool.connect(...args),
+            end: () => {},
+        };
+        return new DrizzleTenantSubscriptionWrite(drizzle(interleaving));
+    }
+
+    async function subscriptionWithPending(planKey) {
+        const { version } = await livePlan(planKey);
+        const pending = await livePlan(`${planKey}_NEXT`, new Date('2026-05-01T00:00:00.000Z'));
+        await seedSubscription(planKey, version.id, {
+            pendingPlanVersionId: pending.version.id,
+            pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
+        });
+        return { version, pending };
+    }
+
+    test('a pending version cleared while accepting it answers as nothing pending', async () => {
+        await subscriptionWithPending('ACC_CLEARED');
+        const writer = writerWhere(() =>
+            pool.query(
+                'UPDATE subscriptions SET "pendingPlanVersionId" = NULL WHERE "tenantId" = $1',
+                [TENANT],
+            ),
+        );
+        await assert.rejects(
+            writer.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
+            (error) => error.code === BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
+        );
+    });
+
+    test('a pending version replaced while accepting it answers that the subscription changed', async () => {
+        const { version } = await subscriptionWithPending('ACC_REPLACED');
+        const writer = writerWhere(() =>
+            pool.query(
+                'UPDATE subscriptions SET "pendingPlanVersionId" = $2 WHERE "tenantId" = $1',
+                [TENANT, version.id],
+            ),
+        );
+        await assert.rejects(
+            writer.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
+            (error) => error.code === BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
         );
     });
 

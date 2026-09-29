@@ -11,7 +11,13 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
-import { buildActivePlanVersionWhere } from '@saasicat/core';
+import {
+    buildActivePlanVersionWhere,
+    noActivePlanVersion,
+    noPendingPlanVersion,
+    subscriptionChanged,
+    subscriptionGone,
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import {
     createPrismaPlanBindingResolver,
@@ -148,11 +154,12 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         if (this.schema.tenantSubscription.synchronizePlanVersion) {
             const current = await subscription.findUnique({ where: { tenantId } });
             if (!current) {
-                throw new Error(`No subscription for tenant ${tenantId}.`);
+                throw subscriptionGone(tenantId);
             }
             const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
             data.planVersionId = await this.findTargetPlanVersionId(
                 client,
+                input.planId,
                 storagePlanId,
                 input.periodStart ?? new Date(),
             );
@@ -174,7 +181,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         const claim = await this.claimRow(client, tenantId, input.expectedCanceledAt, data);
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
-            throw new Error(`No subscription for tenant ${tenantId}.`);
+            throw subscriptionGone(tenantId);
         }
         return {
             plan: current.plan,
@@ -214,10 +221,10 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         const subscription = this.subscription(this.prisma);
         const sub = await subscription.findUnique({ where: { tenantId } });
         if (!sub) {
-            throw new Error(`No subscription for tenant ${tenantId}.`);
+            throw subscriptionGone(tenantId);
         }
         if (!sub.pendingPlanVersionId) {
-            throw new Error(`No pending PlanVersion for tenant ${tenantId}.`);
+            throw noPendingPlanVersion(tenantId);
         }
         const pendingPlanVersionId = sub.pendingPlanVersionId;
         const claimed = await subscription.updateMany({
@@ -234,16 +241,20 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         });
         const updated = await subscription.findUnique({ where: { id: sub.id } });
         if (!updated) {
-            throw new Error(`No subscription for tenant ${tenantId}.`);
+            throw subscriptionGone(tenantId);
+        }
+        // Nothing claimed and the row is not in the accepted state either: the
+        // pending version was cleared underneath this request — which the
+        // check answers as nothing pending — or replaced by another one.
+        if (claimed.count === 0 && updated.pendingPlanVersionId === null) {
+            throw noPendingPlanVersion(tenantId);
         }
         if (
             claimed.count === 0 &&
             (updated.pendingPlanVersionId !== pendingPlanVersionId ||
                 !updated.pendingPlanVersionAccepted)
         ) {
-            throw new Error(
-                `Pending PlanVersion changed while accepting it for tenant ${tenantId}.`,
-            );
+            throw subscriptionChanged(tenantId);
         }
         return {
             accepted: true,
@@ -281,6 +292,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 const storagePlanId = await this.planBinding.toStoragePlanId(tx, input.planId);
                 data.planVersionId = await this.findTargetPlanVersionId(
                     tx,
+                    input.planId,
                     storagePlanId,
                     input.periodStart ?? new Date(),
                 );
@@ -293,7 +305,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             const claim = await this.claimRow(tx, tenantId, input.expectedCanceledAt, data);
             const updated = await this.subscription(tx).findUnique({ where: { tenantId } });
             if (!updated) {
-                throw new Error(`No subscription for tenant ${tenantId}.`);
+                throw subscriptionGone(tenantId);
             }
             if (claim.count === 0) {
                 return {
@@ -325,7 +337,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         const subscription = this.subscription(this.prisma);
         const sub = await subscription.findUnique({ where: { tenantId } });
         if (!sub) {
-            throw new Error(`No subscription for tenant ${tenantId}.`);
+            throw subscriptionGone(tenantId);
         }
         // A conditional claim, not an update: `updateMany` with the emptiness of
         // both cancellation columns in its `where` is one statement, so two
@@ -356,7 +368,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         });
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
-            throw new Error(`No subscription for tenant ${tenantId}.`);
+            throw subscriptionGone(tenantId);
         }
         return {
             canceledAt: current.canceledAt ?? null,
@@ -412,6 +424,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     private async findTargetPlanVersionId(
         client: unknown,
+        planKey: string,
         storagePlanId: string,
         asOf: Date,
     ): Promise<string> {
@@ -441,9 +454,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 ? [{ validFrom: { sort: 'desc', nulls: 'last' } }, { version: 'desc' }]
                 : { version: 'desc' },
         });
-        if (!target) {
-            throw new Error(`No active PlanVersion for plan '${storagePlanId}'.`);
-        }
+        if (!target) throw noActivePlanVersion(planKey, asOf);
         return target.id;
     }
 

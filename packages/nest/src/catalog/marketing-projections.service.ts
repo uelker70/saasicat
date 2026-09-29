@@ -15,6 +15,7 @@ import type {
     UpdateMarketingProjectionData,
 } from '@saasicat/core';
 
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { MARKETING_PROJECTION_REPOSITORY_TOKEN } from './catalog.tokens.js';
 
 @Injectable()
@@ -42,13 +43,8 @@ export class MarketingProjectionsService {
 
     async create(data: CreateMarketingProjectionData): Promise<MarketingProjectionRow> {
         const locale = data.locale ?? 'de';
-        const existing = await this.repo.findByTarget(
-            data.targetType,
-            data.targetVersionId,
-            locale,
-        );
-        if (existing) {
-            throw new ConflictException({
+        const taken = () =>
+            new ConflictException({
                 code: CATALOG_ERROR_CODES.MARKETING_PROJECTION_ALREADY_EXISTS,
                 message: `Marketing projection for ${data.targetType}/${data.targetVersionId}/${locale} already exists — use PATCH to edit it`,
                 params: {
@@ -57,8 +53,12 @@ export class MarketingProjectionsService {
                     locale,
                 },
             });
+        if (await this.repo.findByTarget(data.targetType, data.targetVersionId, locale)) {
+            throw taken();
         }
-        return this.repo.create({ ...data, locale });
+        return answeringRefusals(() => this.repo.create({ ...data, locale }), {
+            [CATALOG_ERROR_CODES.MARKETING_PROJECTION_ALREADY_EXISTS]: taken,
+        });
     }
 
     async update(id: string, data: UpdateMarketingProjectionData): Promise<MarketingProjectionRow> {

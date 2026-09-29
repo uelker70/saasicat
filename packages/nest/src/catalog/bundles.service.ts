@@ -61,7 +61,7 @@ import {
     CATALOG_SERVICE_CONFIG_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
-import { answeringRefusals } from './answering-refusals.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { loadApprovedCatalogKeys } from './approved-keys.js';
 import { blockingStrictModeWarnings, validateBundleDraft } from './strict-mode-check.js';
 
@@ -158,15 +158,16 @@ export class BundlesService {
     }
 
     async createBundle(data: CreateBundleData): Promise<BundleRow> {
-        const existing = await this.repo.findByKey(data.bundleKey);
-        if (existing) {
-            throw new UnprocessableEntityException({
+        const taken = () =>
+            new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS,
                 message: `Bundle '${data.bundleKey}' already exists`,
                 params: { bundleKey: data.bundleKey },
             });
-        }
-        return this.repo.create(data);
+        if (await this.repo.findByKey(data.bundleKey)) throw taken();
+        return answeringRefusals(() => this.repo.create(data), {
+            [CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS]: taken,
+        });
     }
 
     async updateBundle(bundleId: string, data: UpdateBundleData): Promise<BundleRow> {
@@ -320,7 +321,9 @@ export class BundlesService {
         });
         this.gateOrPass(warnings);
 
-        const bundleVersion = await this.repo.createDraft(data);
+        // A draft created in the meantime is refused with the code the check
+        // above gives.
+        const bundleVersion = await answeringRefusals(() => this.repo.createDraft(data));
         return { bundleVersion, warnings };
     }
 

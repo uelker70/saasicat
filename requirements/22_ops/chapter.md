@@ -365,6 +365,53 @@ each reports the state that already holds instead of creating a second effect.
 
 _Source:_ release 1.0.0-rc.6
 
+### SC-OPS-016 — A request that loses a race reads what the check says, not a server error
+
+🟢 Two operators creating one key, a double click asking for a second draft, a cancellation arriving
+after another: the platform checks before it writes, and where two requests pass that check
+together the store decides. The one that loses is answered with the status, code and parameters a
+request arriving a moment later gets from the check, rather than a 500 that reads like a crash in
+the log. That holds for the writes the shipped stores guard this way — catalogue keys and drafts,
+add-on cancellations, and the subscription's plan, pending version and cancellation — and for a
+store of an integrator's own where it refuses with a `PersistenceRefusal`.
+
+_Source:_ #352
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a create the store refuses
+        - a marketing projection for a target and locale that has one is refused by code
+        - a unique index of the application's own is not reported as a key taken
+        - leaves the caller's transaction usable, where a failed insert would abort it
+- `packages/core/tests/a-refused-write-names-what-it-found.test.js`
+    - a write that lost a race names the case the check names
+        - ${code} is refused as ${reason}, with what its message names
+- `packages/nest/tests/a-request-that-loses-a-race-reads-what-the-check-says.test.js`
+    - an operator who creates in the catalogue a moment after another
+        - is told the plan key is taken, as the check says it
+        - is told the bundle key is taken, as the check says it
+        - is told the marketing projection exists, with the check’s 409
+        - is told the plan has a draft, naming it
+        - is told the plan is not found where it was retired in the meantime
+        - is told the bundle has a draft, naming it
+        - meets any other failure of the store unchanged
+    - a tenant who cancels an add-on a moment after another request
+        - is told it is already cancelled, as the check says it
+        - is told it is not found where it went
+    - a tenant whose subscription moves while the request is decided
+        - accepting a pending version cleared meanwhile answers as the check does
+        - accepting a pending version replaced meanwhile is told to reload
+        - cancelling a subscription gone meanwhile answers as the check does
+        - an onboarding whose subscription went meanwhile answers as the check does, on the atomic
+          path too
+        - and any other failure of the atomic onboarding still reads as its own
+        - an immediate plan change whose target lost its version answers as not found
+
+<!-- END proof -->
+
 ### SC-OPS-008 — A scheduled job that has not run for months catches up in one step
 
 🟢 Not one step per missed period, and not by walking forward one period at a time until it arrives

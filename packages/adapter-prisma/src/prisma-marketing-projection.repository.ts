@@ -8,7 +8,9 @@ import type {
     MarketingTopFeature,
     UpdateMarketingProjectionData,
 } from '@saasicat/core';
+import { marketingProjectionTaken } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
+import { refusalOfSkippedInsert } from './skipped-insert.js';
 
 /** DB columns this repository reads from `marketing_projections`. */
 interface MarketingProjectionDbRow {
@@ -44,7 +46,7 @@ interface MarketingProjectionRepositoryClient {
  * `MarketingProjectionRepository` against the canonical `marketing_projections`
  * table. Not versioned: per (`targetType`, `targetVersionId`, `locale`) there is
  * exactly one row (enforced by a unique index), edited directly. `create` on a
- * duplicate triple therefore raises the DB unique-constraint error.
+ * duplicate triple is refused with `MARKETING_PROJECTION_ALREADY_EXISTS`.
  */
 @Injectable()
 export class PrismaMarketingProjectionRepository implements MarketingProjectionRepository {
@@ -88,24 +90,44 @@ export class PrismaMarketingProjectionRepository implements MarketingProjectionR
     }
 
     async create(data: CreateMarketingProjectionData): Promise<MarketingProjectionRow> {
-        const row = await this.db.marketingProjection.create({
-            data: {
+        const locale = data.locale ?? 'de';
+        // `ON CONFLICT DO NOTHING`: a triple taken by a create that raced past
+        // the platform's check is refused, and a caller's transaction stays usable.
+        const [row] = await this.db.marketingProjection.createManyAndReturn({
+            skipDuplicates: true,
+            data: [
+                {
+                    targetType: data.targetType,
+                    targetVersionId: data.targetVersionId,
+                    locale,
+                    displayLabel: data.displayLabel,
+                    description: data.description,
+                    visible: data.visible ?? true,
+                    badge: data.badge ?? '',
+                    topFeatures: data.topFeatures ?? [],
+                    trialEnabled: data.trialEnabled ?? false,
+                    trialDays: data.trialDays ?? 30,
+                    priceTag: data.priceTag ?? null,
+                    ctaLabel: data.ctaLabel ?? null,
+                    priority: data.priority ?? 0,
+                    highlight: data.highlight ?? false,
+                },
+            ],
+        });
+        if (!row) {
+            const target = {
                 targetType: data.targetType,
                 targetVersionId: data.targetVersionId,
-                locale: data.locale ?? 'de',
-                displayLabel: data.displayLabel,
-                description: data.description,
-                visible: data.visible ?? true,
-                badge: data.badge ?? '',
-                topFeatures: data.topFeatures ?? [],
-                trialEnabled: data.trialEnabled ?? false,
-                trialDays: data.trialDays ?? 30,
-                priceTag: data.priceTag ?? null,
-                ctaLabel: data.ctaLabel ?? null,
-                priority: data.priority ?? 0,
-                highlight: data.highlight ?? false,
-            },
-        });
+                locale,
+            };
+            throw await refusalOfSkippedInsert(
+                async () =>
+                    (await this.findByTarget(target.targetType, target.targetVersionId, locale)) !==
+                    null,
+                () => marketingProjectionTaken(target),
+                `Marketing projection ${target.targetType}/${target.targetVersionId}/${locale}`,
+            );
+        }
         return toRow(row);
     }
 

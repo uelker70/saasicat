@@ -510,6 +510,8 @@ export interface PrismaModelDelegateLike<Row> {
     upsert(args: unknown): Promise<Row>;
     updateMany(args: unknown): Promise<{ count: number }>;
     createMany(args: unknown): Promise<{ count: number }>;
+    /** With `skipDuplicates`, `INSERT … ON CONFLICT DO NOTHING RETURNING *`. */
+    createManyAndReturn(args: unknown): Promise<Row[]>;
     deleteMany(args: unknown): Promise<{ count: number }>;
     count(args?: unknown): Promise<number>;
 }

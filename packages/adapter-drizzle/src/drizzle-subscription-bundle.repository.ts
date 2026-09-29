@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
 import {
+    subscriptionBundleAlreadyCancelled,
+    subscriptionBundleGone,
     toSubscriptionBundleRecord,
     type CancelSubscriptionBundleData,
     type CreateSubscriptionBundleData,
@@ -109,15 +111,17 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 ),
             )
             .returning();
-        if (!rows[0]) {
-            // Two reasons, one answer: the row is gone, or it was cancelled
-            // between the caller's read and this write. Both mean this request
-            // changed nothing, and the caller has to look again either way.
-            throw new Error(
-                `SubscriptionBundle '${subscriptionBundleId}' not found or already cancelled`,
-            );
-        }
-        return toSubscriptionBundleRecord(rows[0]);
+        if (rows[0]) return toSubscriptionBundleRecord(rows[0]);
+        // Nothing claimed: the row is gone, or another request cancelled it
+        // between the caller's read and this write. A read says which.
+        const [row] = await this.db
+            .select({ id: subscriptionBundles.id })
+            .from(subscriptionBundles)
+            .where(eq(subscriptionBundles.id, subscriptionBundleId))
+            .limit(1);
+        throw row
+            ? subscriptionBundleAlreadyCancelled(subscriptionBundleId)
+            : subscriptionBundleGone(subscriptionBundleId);
     }
 
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {

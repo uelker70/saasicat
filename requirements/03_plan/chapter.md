@@ -736,6 +736,8 @@ _Tested by:_
         - an immediate change stays on its own connection when a version is pending
         - accepting a pending version is idempotent, and reports the second call as such
         - accepting when nothing is pending says so
+        - a pending version cleared while accepting it answers as nothing pending
+        - a pending version replaced while accepting it answers that the subscription changed
         - a second cancellation returns the first one instead of replacing it
         - an operator ending a contract on the spot flips the status
     - the statements a tenant write sends
@@ -955,6 +957,8 @@ _Tested by:_
         - an immediate change stays on its own connection when a version is pending
         - accepting a pending version is idempotent, and reports the second call as such
         - accepting when nothing is pending says so
+        - a pending version cleared while accepting it answers as nothing pending
+        - a pending version replaced while accepting it answers that the subscription changed
         - a second cancellation returns the first one instead of replacing it
         - an operator ending a contract on the spot flips the status
     - the statements a tenant write sends

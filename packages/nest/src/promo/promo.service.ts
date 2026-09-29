@@ -26,15 +26,11 @@ import type {
     TransactionRunner,
     UpdatePromoCodeData,
 } from '@saasicat/core';
-import {
-    BILLING_ERROR_CODES,
-    CONTRACT_ERROR_CODES,
-    PROMO_ERROR_CODES,
-    isPersistenceRefusal,
-} from '@saasicat/core';
+import { BILLING_ERROR_CODES, CONTRACT_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/core';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { getPlanPriceGross } from '../billing/plan-helpers.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import {
     PROMO_CODE_HOLD_REPOSITORY_TOKEN,
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
@@ -273,19 +269,11 @@ export class PromoCodesService {
         const existing = await this.promoRepo.findByCode(code);
         if (existing) throw taken(existing.deletedAt !== null);
 
-        try {
-            return await this.promoRepo.create({ ...input, code });
-        } catch (error) {
-            // Two creates of one name that both passed the check above: the
-            // adapter's unique index decides, and the loser gets the same answer.
-            if (
-                isPersistenceRefusal(error) &&
-                error.code === PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS
-            ) {
-                throw taken();
-            }
-            throw error;
-        }
+        // Two creates of one name that both passed the check above: the
+        // adapter's unique index decides, and the loser gets the same answer.
+        return answeringRefusals(() => this.promoRepo.create({ ...input, code }), {
+            [PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS]: () => taken(),
+        });
     }
 
     /**
