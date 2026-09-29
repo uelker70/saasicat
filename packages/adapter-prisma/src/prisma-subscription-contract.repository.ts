@@ -207,23 +207,26 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord> {
-        const db = this.db();
-        const { count } = await db.subscriptionContract.updateMany({
-            where: { id: contractId, tenantId: data.tenantId },
-            // A null status leaves the column alone: the contract keeps whatever
-            // it had — `active`, usually — and its new `effectiveUntil` is what
-            // takes it out of the active lookup once that moment arrives.
-            data: {
-                effectiveUntil: data.effectiveUntil,
-                ...(data.status === null ? {} : { status: data.status }),
-            },
-        });
-        if (count === 0) throw subscriptionContractGone(contractId);
-        const row = await db.subscriptionContract.findUnique({
-            where: { id: contractId },
-            include: { lineItems: true },
-        });
-        if (!row) throw subscriptionContractGone(contractId);
+        let row: SubscriptionContractDbRow;
+        try {
+            // One statement that writes and hands back what it wrote, so a
+            // second writer cannot land between the two.
+            row = await this.db().subscriptionContract.update({
+                where: { id: contractId, tenantId: data.tenantId },
+                // A null status leaves the column alone: the contract keeps
+                // whatever it had — `active`, usually — and its new
+                // `effectiveUntil` is what takes it out of the active lookup
+                // once that moment arrives.
+                data: {
+                    effectiveUntil: data.effectiveUntil,
+                    ...(data.status === null ? {} : { status: data.status }),
+                },
+                include: { lineItems: true },
+            });
+        } catch (error) {
+            if (isRecordNotFound(error)) throw subscriptionContractGone(contractId);
+            throw error;
+        }
         return toSubscriptionContractRecord(row, row.lineItems);
     }
 
@@ -274,4 +277,13 @@ function toLineItemCreate(item: NewContractLineItemData) {
         quotaEffectsSnapshot: item.quotaEffectsSnapshot,
         ...(item.metadata != null ? { metadata: item.metadata } : {}),
     };
+}
+
+/** Prisma's answer to an update whose `where` matched no row. */
+function isRecordNotFound(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        (error as { code?: unknown }).code === 'P2025'
+    );
 }
