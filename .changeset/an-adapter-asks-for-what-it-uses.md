@@ -15,7 +15,10 @@ then has no `superAdminUser` or `superAdminMfa`. Six Prisma adapters that
 never touch those tables still demanded the whole client type, so wiring one
 needed `as unknown as PrismaLike`. They now ask only for the delegates they
 use: the subscription contract repository, the four promo code repositories
-and the promo subscription lookup.
+and the promo subscription lookup. The two audit adapters ask only for the
+reads they make, so a generated client whose audit `create` types `changes`
+as its own JSON input — Prisma 7 does — no longer fails to compile against
+them.
 
 `prismaPersistence()` and `drizzlePersistence()` built every member whatever
 the schema held, so a schema without `promo_code_holds` failed in the middle

@@ -115,3 +115,41 @@ describe('the persistence bundle given a client without the SuperAdmin delegates
         assert.match(withoutEither, /superAdminUser|superAdminMfa/);
     });
 });
+
+// A generated client types the audit row's `changes` as its own JSON input, and
+// its `create` is generic over that shape. The two audit adapters only read,
+// so a client whose write the structural type cannot describe is theirs to take.
+const AUDIT_WIRING = `
+import {
+    PrismaAuditQueryAdapter,
+    PrismaAuditStatsAdapter,
+    type PrismaLike,
+} from ${JSON.stringify(DIST)};
+
+type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
+type AuditLog = PrismaLike['auditLog'];
+declare const client: {
+    auditLog: Pick<AuditLog, 'findMany' | 'count'> & {
+        create<T extends { data: { entity: string; changes: Json } }>(args: T): Promise<unknown>;
+    };
+};
+
+new PrismaAuditQueryAdapter(client);
+new PrismaAuditStatsAdapter(client);
+`;
+
+// @requirement SC-COMP-017 — An adapter asks only for the tables it uses
+describe('a client whose audit write is typed by its own schema', () => {
+    test('is taken by both audit adapters, which only read', () => {
+        assert.deepEqual(diagnosticsOf(AUDIT_WIRING), []);
+    });
+
+    test('the check sees the write where an adapter still asks for it', () => {
+        const asksForTheWrite = AUDIT_WIRING.replace(
+            'new PrismaAuditStatsAdapter(client);',
+            'const wholeDelegate: { auditLog: AuditLog } = client;',
+        );
+        const found = diagnosticsOf(asksForTheWrite).join('\n');
+        assert.match(found, /changes|create/);
+    });
+});

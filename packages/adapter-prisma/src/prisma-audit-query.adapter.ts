@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
+    type AuditLogDelegateLike,
     type AuditLogRowLike,
-    type PrismaLike,
 } from './prisma-client-token.js';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -17,7 +17,9 @@ const MAX_PAGE_SIZE = 200;
 export class PrismaAuditQueryAdapter implements AuditQueryPort {
     constructor(
         @Inject(PRISMA_CLIENT_TOKEN)
-        private readonly prisma: Pick<PrismaLike, 'auditLog'>,
+        // Reads only: a client whose `create` types `changes` as its own JSON
+        // input would not satisfy the delegate's write.
+        private readonly prisma: { auditLog: Pick<AuditLogDelegateLike, 'findMany'> },
     ) {}
 
     async list(filter: AuditQuery): Promise<AuditEntry[]> {

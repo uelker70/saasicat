@@ -1179,5 +1179,8 @@ _Tested by:_
     - a client from a schema without the SuperAdmin fragment
         - is taken by every adapter that does not touch those tables, without a cast
         - the check sees a client that lacks what an adapter does use
+    - a client whose audit write is typed by its own schema
+        - is taken by both audit adapters, which only read
+        - the check sees the write where an adapter still asks for it
 
 <!-- END proof -->
