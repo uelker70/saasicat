@@ -19,9 +19,11 @@ dependencies of the X (?, ...)` errors. NestJS 11+ is stricter here than 9/10.
 5. **RLS bypass for work that crosses tenants.** Every route the platform mounts behind its
    operator guard chain runs inside your `RlsBypassPort` already (`SC-SEC-015`), and so do its
    own jobs — the promo sweep, the materialisation of scheduled plan changes, the contract
-   refresh. An operator controller of your own puts `AdminBypassRlsInterceptor` beside its
-   guards, in a module that sees `RLS_BYPASS_PORT_TOKEN` — where it does not, the route runs as
-   it is; work of your own that runs _outside_ a request (boot, a scheduler) calls
+   refresh. The frame follows the chain, so an override of one — `adminResources.guards`,
+   `promoCodes.adminGuards`, `adminStats.guards` — keeps `SuperAdminGuard` in it, or its routes
+   run in the tenant's frame. An operator controller of your own puts `AdminBypassRlsInterceptor`
+   beside its guards, in a module that sees `RLS_BYPASS_PORT_TOKEN` — where it does not, the
+   route runs as it is; work of your own that runs _outside_ a request (boot, a scheduler) calls
    `rlsBypass.runWithBypass(() => …)` itself. Without the frame a forced policy hides what the
    work looks for, and that reads as nothing: an empty list, a count of 0, an update of no row.
 
