@@ -11,13 +11,13 @@
 // it opens is the innermost one of the request, so it carries over what the
 // installation's own frame holds — the user, the tenant — rather than
 // replacing it.
-// Without one bound — an installation wiring modules by hand and no row
-// policy to lift — the route runs as it is, as `readAcrossTenants` does. An
-// integrator's own controller that puts this interceptor on a route therefore
-// sits in a module that sees the port; where it does not, nothing says so and
-// the route runs in the tenant's frame. No warning either: an installation
-// without row policies binds no port on purpose, and a warning it cannot
-// silence teaches everyone to skip warnings.
+// Without one bound the route runs as it is, as `readAcrossTenants` does.
+// `SaaSiCatModule.forRoot` never gets there: it refuses to boot without a port
+// (`core.adapters-bound`) and registers it globally, so every module of the
+// application sees it, an integrator's own included. What is left is a module
+// mounted without the platform — a test's, mostly — and a frame missing there
+// fails closed: a policy that is not lifted hides rows, it shows none. No
+// warning for the same reason: it would fire only where nothing is wrong.
 
 import {
     type CallHandler,
