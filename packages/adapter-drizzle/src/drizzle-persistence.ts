@@ -35,7 +35,10 @@ import { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-va
 import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
 import { DrizzleSubscriptionRepository } from './drizzle-subscription.repository.js';
 import { DrizzleSuperAdminBootstrapAdapter } from './drizzle-super-admin-bootstrap.adapter.js';
-import { DrizzleTransactionRunner } from './drizzle-transaction-runner.adapter.js';
+import {
+    DrizzleTransactionRunner,
+    type DrizzleTransactionOptions,
+} from './drizzle-transaction-runner.adapter.js';
 import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 
 export interface DrizzlePersistenceOptions {
@@ -85,6 +88,11 @@ export interface DrizzlePersistenceOptions {
      * for any other, pass your own adapter.
      */
     notAdopted?: readonly OptionalCanonicalModel[];
+    /**
+     * How many of the platform's transactions run at once: `maxConcurrent`
+     * below your pool's `max`. Unset, the transactions are unbounded.
+     */
+    transactions?: DrizzleTransactionOptions;
 }
 
 /**
@@ -137,7 +145,9 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             ),
             audit: provide((client) => new DrizzleAuditAdapter(client)),
             rlsBypass: new AsyncLocalRlsBypassAdapter(),
-            transactionRunner: provide((client) => new DrizzleTransactionRunner(client)),
+            transactionRunner: provide(
+                (client) => new DrizzleTransactionRunner(client, options.transactions),
+            ),
             auditQuery: provide((client) => new DrizzleAuditQueryAdapter(client)),
             auditStats: provide((client) => new DrizzleAuditStatsAdapter(client)),
             superAdminProvisioning: buildProvisioning(db, options.passwordHasher),

@@ -57,6 +57,7 @@ export * from './promo-code.types.js';
 export * from './error-codes.js';
 export * from './errors.js';
 export * from './optional-canonical-models.js';
+export * from './concurrency-gate.js';
 export * from './catalog-version-refusals.js';
 export * from './catalog-key-refusals.js';
 export * from './decimal-string.js';

@@ -129,10 +129,10 @@ properties it has while doing it.
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
-| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 17      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 526 entries: 🟢 456 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 527 entries: 🟢 457 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 526 entries: 🟢 456 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 526 requirements. Do not edit by hand:
+Generated from `requirements/` — 527 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16615,6 +16615,34 @@ _Tested by:_
     - a client whose audit write is typed by its own schema
         - is taken by both audit adapters, which only read
         - the check sees the write where an adapter still asks for it
+
+<!-- END proof -->
+
+### SC-COMP-018 — An installation bounds how many platform transactions hold a connection at once
+
+🟢 The shipped persistence bundles take a bound; transactions beyond it wait, in the order they
+arrived, before they open, so connections stay free for the reads a transaction waits on. Unset,
+nothing is bounded. The bound counts what the platform runs through its transaction runner: a
+data-access call made without a transaction opens its own for that call alone, and is not counted.
+With Prisma, how long a transaction may run and how long it waits for a connection are set in the
+same place.
+
+_Source:_ #353
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/transactions-wait-their-turn.test.js`
+    - a concurrency gate
+        - admits no more than its limit at once, and the rest in arrival order
+        - gives the place back when the work fails
+        - refuses a limit of ${limit}
+- `tests/a-runner-bounds-its-transactions.test.js`
+    - the transaction runners
+        - ${name} holds at most maxConcurrent transactions open
+        - ${name} without a bound opens as many as are asked for
+        - Prisma's limits are handed over where they were set, and only those
 
 <!-- END proof -->
 

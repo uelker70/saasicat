@@ -47,7 +47,10 @@ import { PrismaSubscriptionRepository } from './prisma-subscription.repository.j
 import { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 import { PrismaSuperAdminBootstrapAdapter } from './prisma-super-admin-bootstrap.adapter.js';
 import { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
-import { PrismaTransactionRunner } from './prisma-transaction-runner.adapter.js';
+import {
+    PrismaTransactionRunner,
+    type PrismaTransactionOptions,
+} from './prisma-transaction-runner.adapter.js';
 import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 
 /** Additional delegates present when the canonical catalog fragments are installed. */
@@ -146,6 +149,12 @@ export interface PrismaPersistenceOptions<M extends OptionalCanonicalModel = nev
      * for any other, pass your own adapter.
      */
     notAdopted?: readonly M[];
+    /**
+     * How the platform's transactions run against the pool: `maxConcurrent`
+     * below your pool size, and Prisma's `timeout` and `maxWait`. Unset, the
+     * transactions are unbounded and use Prisma's defaults.
+     */
+    transactions?: PrismaTransactionOptions;
 }
 
 /**
@@ -199,7 +208,9 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             ),
             audit: provide((prisma) => new PrismaAuditAdapter(prisma)),
             rlsBypass: new AsyncLocalRlsBypassAdapter(),
-            transactionRunner: provide((prisma) => new PrismaTransactionRunner(prisma)),
+            transactionRunner: provide(
+                (prisma) => new PrismaTransactionRunner(prisma, options.transactions),
+            ),
             auditQuery: provide((prisma) => new PrismaAuditQueryAdapter(prisma)),
             auditStats: provide((prisma) => new PrismaAuditStatsAdapter(prisma)),
             superAdminProvisioning: buildProvisioning(client, options.passwordHasher),

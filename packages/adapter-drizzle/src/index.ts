@@ -13,7 +13,11 @@
 export { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 export { drizzlePersistence, type DrizzlePersistenceOptions } from './drizzle-persistence.js';
 export * as saasicatSchema from './schema.js';
-export { DrizzleTransactionRunner } from './drizzle-transaction-runner.adapter.js';
+export {
+    DRIZZLE_TRANSACTION_OPTIONS_TOKEN,
+    DrizzleTransactionRunner,
+    type DrizzleTransactionOptions,
+} from './drizzle-transaction-runner.adapter.js';
 export { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
 export { DrizzleAuditAdapter, buildActorTag } from './drizzle-audit.adapter.js';
 export { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
