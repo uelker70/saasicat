@@ -44,7 +44,7 @@ import {
 } from './contract-refusals.js';
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
 
-/** A termination as a caller asks for it: the tenant is the contract's own. */
+/** What ending a contract asks of it, whoever's contract it is. */
 type ContractTermination = Omit<TerminateSubscriptionContractData, 'tenantId'>;
 
 /**
@@ -119,13 +119,7 @@ export class SubscriptionContractService {
 
     async getById(contractId: string): Promise<SubscriptionContractRecord> {
         const row = await this.repo.findById(contractId);
-        if (!row) {
-            throw new NotFoundException({
-                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND,
-                message: `SubscriptionContract '${contractId}' not found`,
-                params: { contractId },
-            });
-        }
+        if (!row) throw contractNotFound(contractId);
         return row;
     }
 
@@ -216,17 +210,19 @@ export class SubscriptionContractService {
         return this.repo.findByOriginalOfferId(offerId, tx);
     }
 
+    /**
+     * Ends a contract of the tenant the caller acts for. Another tenant's
+     * contract answers as one that does not exist — not the caller's to end,
+     * nor to learn of — and the store draws the same line again in its write.
+     */
     async terminate(
         contractId: string,
-        data: ContractTermination,
+        data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord> {
         const existing = await this.getById(contractId);
+        if (existing.tenantId !== data.tenantId) throw contractNotFound(contractId);
         this.assertTerminable(existing, data);
-        // The tenant of the contract read, whatever the caller passed: the
-        // write is drawn around the contract the checks above looked at.
-        return answeringRefusals(() =>
-            this.repo.terminate(contractId, { ...data, tenantId: existing.tenantId }),
-        );
+        return answeringRefusals(() => this.repo.terminate(contractId, data));
     }
 
     async replaceActiveContract(
@@ -271,6 +267,12 @@ export class SubscriptionContractService {
         options: SuccessorOptions = {},
     ): Promise<SubscriptionContractRecord | null> {
         this.assertCreateData(next);
+        if (previous && previous.tenantId !== next.tenantId) {
+            throw new Error(
+                `A successor for tenant '${next.tenantId}' cannot replace contract '${previous.id}', ` +
+                    `which belongs to tenant '${previous.tenantId}'.`,
+            );
+        }
         if (previous) this.assertTerminable(previous, { effectiveUntil: at, status: 'superseded' });
         const kept = options.keepParties && previous ? previous : null;
         if (!kept) await this.assertPartyFor(next.tenantId);
@@ -280,11 +282,7 @@ export class SubscriptionContractService {
             if (previous) {
                 const superseded = await this.repo.supersede(
                     previous.id,
-                    {
-                        tenantId: previous.tenantId,
-                        at,
-                        readEffectiveUntil: previous.effectiveUntil,
-                    },
+                    { tenantId: next.tenantId, at, readEffectiveUntil: previous.effectiveUntil },
                     tx,
                 );
                 if (!superseded) return null;
@@ -620,4 +618,13 @@ function lineItemKindPriority(kind: ContractLineItemRecord['kind']): number {
         case 'discount':
             return 90;
     }
+}
+
+/** A contract that does not exist, or is not the caller's: the same answer for both. */
+function contractNotFound(contractId: string): NotFoundException {
+    return new NotFoundException({
+        code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND,
+        message: `SubscriptionContract '${contractId}' not found`,
+        params: { contractId },
+    });
 }

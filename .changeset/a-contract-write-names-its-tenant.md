@@ -20,8 +20,10 @@ id from ending another tenant's contract.
 - `terminate` of a contract that no contract of that tenant carries is refused
   with `SUBSCRIPTION_CONTRACT_NOT_FOUND`, where Prisma failed with its own
   error and Drizzle with a plain one.
-- `SubscriptionContractService.terminate` takes the tenant from the contract
-  it reads rather than from the caller.
+- `SubscriptionContractService.terminate` takes the tenant the caller acts
+  for, and answers a contract of another tenant as one that does not exist —
+  also where that contract is closed already. `writeSuccessor` refuses a
+  successor for one tenant in place of another tenant's contract.
 - The persistence contract supersedes and terminates under another tenant's
   id and expects nothing to change. A store of your own matches the tenant,
   and code that calls `supersede` or `terminate` on the port passes it.

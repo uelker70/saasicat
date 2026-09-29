@@ -99,6 +99,24 @@ async function inForce(t) {
 }
 
 describe('writing a successor', () => {
+    // @requirement SC-SEC-001 — A tenant never sees another tenant's data
+    test("refuses a successor for one tenant in place of another tenant's contract", async () => {
+        const t = contractsWith();
+        const previous = await inForce(t);
+        t.writes.length = 0;
+
+        await assert.rejects(
+            t.service.writeSuccessor(
+                previous,
+                contractData({ tenantId: 't2', effectiveFrom: LATER }),
+                LATER,
+            ),
+            /cannot replace contract .* which belongs to tenant 't1'/,
+        );
+        assert.deepEqual(t.writes, [], 'nothing was written');
+        assert.equal((await t.repo.findById(previous.id)).status, 'active');
+    });
+
     test('ends the contract in force as superseded and writes the successor, on one transaction', async () => {
         const t = contractsWith();
         const previous = await inForce(t);
