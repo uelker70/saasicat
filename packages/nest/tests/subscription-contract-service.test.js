@@ -148,6 +148,75 @@ describe('SubscriptionContractService', () => {
         );
     });
 
+    // @requirement SC-SEC-001 — A tenant never sees another tenant's data
+    describe('terminate', () => {
+        async function aContractOfTenantOne() {
+            return service.createFromOffer(consumedOffer(), {
+                tenantId: 'tenant-1',
+                effectiveFrom: EFFECTIVE_FROM,
+                entitlementSnapshot: { plan: 'STANDARD', quotas: {}, features: [] },
+            });
+        }
+        const endsAt = new Date(EFFECTIVE_FROM.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        test('ends a contract of the tenant it acts for', async () => {
+            const contract = await aContractOfTenantOne();
+
+            const ended = await service.terminate(contract.id, {
+                tenantId: 'tenant-1',
+                effectiveUntil: endsAt,
+                status: 'terminated',
+            });
+
+            assert.equal(ended.status, 'terminated');
+            assert.equal(ended.effectiveUntil.getTime(), endsAt.getTime());
+        });
+
+        test("answers another tenant's contract as one that does not exist, and leaves it", async () => {
+            const contract = await aContractOfTenantOne();
+
+            await assert.rejects(
+                service.terminate(contract.id, {
+                    tenantId: 'tenant-2',
+                    effectiveUntil: endsAt,
+                    status: 'terminated',
+                }),
+                (error) => {
+                    assert.equal(error.getStatus(), 404);
+                    assert.equal(
+                        error.getResponse().code,
+                        CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND,
+                    );
+                    return true;
+                },
+            );
+            const unchanged = await repo.findById(contract.id);
+            assert.equal(unchanged.status, 'active');
+            assert.equal(unchanged.effectiveUntil, null);
+        });
+
+        test('does not tell another tenant that a contract of the first one is closed', async () => {
+            const contract = await aContractOfTenantOne();
+            await service.terminate(contract.id, {
+                tenantId: 'tenant-1',
+                effectiveUntil: endsAt,
+                status: 'terminated',
+            });
+
+            await assert.rejects(
+                service.terminate(contract.id, {
+                    tenantId: 'tenant-2',
+                    effectiveUntil: endsAt,
+                    status: 'terminated',
+                }),
+                (error) => {
+                    assert.equal(error.getStatus(), 404, 'not 409 ALREADY_CLOSED');
+                    return true;
+                },
+            );
+        });
+    });
+
     test('createFromOffer creates immutable contract line items from a consumed offer', async () => {
         const offer = consumedOffer();
         const contract = await service.createFromOffer(offer, {

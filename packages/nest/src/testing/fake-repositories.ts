@@ -62,6 +62,7 @@ import {
     planKeyTaken,
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
+    subscriptionContractGone,
     formatCustomerNumber,
     identityCorrectionDelta,
     startOfUtcDay,
@@ -345,7 +346,9 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord> {
         const existing = this.byId.get(contractId);
-        if (!existing) throw new Error(`SubscriptionContract '${contractId}' not found`);
+        if (!existing || existing.tenantId !== data.tenantId) {
+            throw subscriptionContractGone(contractId);
+        }
         const updated: SubscriptionContractRecord = {
             ...existing,
             // Null means "end it by date": the row keeps the status it has and
@@ -363,7 +366,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         data: SupersedeSubscriptionContractData,
     ): Promise<SubscriptionContractRecord | null> {
         const existing = this.byId.get(contractId);
-        if (!existing) return null;
+        if (!existing || existing.tenantId !== data.tenantId) return null;
         if (existing.status !== 'active' && existing.status !== 'scheduled') return null;
         if (existing.effectiveUntil?.getTime() !== data.readEffectiveUntil?.getTime()) return null;
         const updated: SubscriptionContractRecord = {

@@ -109,6 +109,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const active = await this.contracts.findActiveByTenantId(tenantId, effectiveAt);
         if (!active) return;
         await this.contracts.terminate(active.id, {
+            tenantId,
             effectiveUntil: effectiveAt,
             // Only when it is already over. An ordinary cancellation lands at
             // the term end, months out, and the customer is under this contract

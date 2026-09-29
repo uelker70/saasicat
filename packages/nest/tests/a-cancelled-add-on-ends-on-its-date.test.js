@@ -268,6 +268,7 @@ describe('a contract that recorded the add-on in its own entitlements', () => {
         const t = await bookedAndCancelled();
         const written = await t.contracts.findActiveByTenantId('t1', BEFORE);
         await t.contracts.terminate(written.id, {
+            tenantId: written.tenantId,
             effectiveUntil: CANCELLED,
             status: 'superseded',
         });

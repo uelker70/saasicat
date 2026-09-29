@@ -8774,6 +8774,9 @@ _Tested by:_
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
@@ -8930,6 +8933,9 @@ _Tested by:_
 
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
@@ -8959,6 +8965,9 @@ _Tested by:_
 
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
@@ -13941,6 +13950,14 @@ _Tested by:_
     - a write never reaches another tenant's row
         - a plan change asked for by a stranger changes nothing
         - a cancellation asked for by a stranger changes nothing
+- `packages/nest/tests/a-successor-replaces-the-contract-in-force.test.js`
+    - writing a successor
+        - refuses a successor for one tenant in place of another tenant's contract
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
 
 <!-- END proof -->
 

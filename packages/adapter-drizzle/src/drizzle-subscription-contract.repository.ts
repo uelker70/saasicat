@@ -14,6 +14,7 @@ import type {
 } from '@saasicat/core';
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    subscriptionContractGone,
     toRunningContractIssuer,
     toSubscriptionContractRecord,
 } from '@saasicat/core';
@@ -214,9 +215,14 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                 ...(data.status === null ? {} : { status: data.status }),
                 updatedAt: new Date(),
             })
-            .where(eq(subscriptionContracts.id, contractId))
+            .where(
+                and(
+                    eq(subscriptionContracts.id, contractId),
+                    eq(subscriptionContracts.tenantId, data.tenantId),
+                ),
+            )
             .returning();
-        if (!rows[0]) throw new Error(`SubscriptionContract '${contractId}' not found.`);
+        if (!rows[0]) throw subscriptionContractGone(contractId);
         return (await this.withLineItems(this.db, rows))[0];
     }
 
@@ -235,6 +241,7 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
             .where(
                 and(
                     eq(subscriptionContracts.id, contractId),
+                    eq(subscriptionContracts.tenantId, data.tenantId),
                     inArray(subscriptionContracts.status, [
                         ...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
                     ]),

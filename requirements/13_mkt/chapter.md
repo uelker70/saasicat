@@ -477,6 +477,9 @@ _Tested by:_
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
@@ -633,6 +636,9 @@ _Tested by:_
 
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
@@ -662,6 +668,9 @@ _Tested by:_
 
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
+        - terminate › ends a contract of the tenant it acts for
+        - terminate › answers another tenant's contract as one that does not exist, and leaves it
+        - terminate › does not tell another tenant that a contract of the first one is closed
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one

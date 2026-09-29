@@ -181,6 +181,12 @@ export interface NewSubscriptionContractData extends CreateSubscriptionContractD
 }
 
 export interface TerminateSubscriptionContractData {
+    /**
+     * The tenant the caller read the contract under. The write matches it as
+     * well as the id, so an id that reaches the call by mistake cannot end
+     * another tenant's contract, whether or not a row policy would stop it.
+     */
+    tenantId: string;
     effectiveUntil: Date;
     /**
      * The terminal status, or `null` to end the contract by date alone.
@@ -203,6 +209,12 @@ export interface TerminateSubscriptionContractData {
  * it is still as the caller read it.
  */
 export interface SupersedeSubscriptionContractData {
+    /**
+     * The tenant the caller read the contract under. The write matches it as
+     * well as the id, so an id that reaches the call by mistake cannot end
+     * another tenant's contract, whether or not a row policy would stop it.
+     */
+    tenantId: string;
     /** When the successor takes over; written as the contract's `effectiveUntil`. */
     at: Date;
     /**

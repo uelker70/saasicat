@@ -1,4 +1,4 @@
-import { BILLING_ERROR_CODES } from './error-codes.js';
+import { BILLING_ERROR_CODES, CONTRACT_ERROR_CODES } from './error-codes.js';
 import type { PersistenceRefusal } from './errors.js';
 import { refusal } from './refusal.js';
 
@@ -48,4 +48,9 @@ export function subscriptionBundleAlreadyCancelled(
     return refusal(BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED, 'moved', {
         subscriptionBundleId,
     });
+}
+
+/** No contract of the tenant named carries the id. */
+export function subscriptionContractGone(contractId: string): PersistenceRefusal {
+    return refusal(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND, 'gone', { contractId });
 }

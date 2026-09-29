@@ -99,6 +99,24 @@ async function inForce(t) {
 }
 
 describe('writing a successor', () => {
+    // @requirement SC-SEC-001 — A tenant never sees another tenant's data
+    test("refuses a successor for one tenant in place of another tenant's contract", async () => {
+        const t = contractsWith();
+        const previous = await inForce(t);
+        t.writes.length = 0;
+
+        await assert.rejects(
+            t.service.writeSuccessor(
+                previous,
+                contractData({ tenantId: 't2', effectiveFrom: LATER }),
+                LATER,
+            ),
+            /cannot replace contract .* which belongs to tenant 't1'/,
+        );
+        assert.deepEqual(t.writes, [], 'nothing was written');
+        assert.equal((await t.repo.findById(previous.id)).status, 'active');
+    });
+
     test('ends the contract in force as superseded and writes the successor, on one transaction', async () => {
         const t = contractsWith();
         const previous = await inForce(t);
@@ -164,7 +182,11 @@ describe('writing a successor', () => {
         const t = contractsWith();
         const previous = await inForce(t);
         // Another writer got there first.
-        await t.repo.supersede(previous.id, { at: LATER, readEffectiveUntil: null });
+        await t.repo.supersede(previous.id, {
+            tenantId: previous.tenantId,
+            at: LATER,
+            readEffectiveUntil: null,
+        });
         await t.repo.create({
             ...contractData({ effectiveFrom: LATER }),
             parties: partiesNamed('x'),
@@ -184,6 +206,7 @@ describe('writing a successor', () => {
         const t = contractsWith();
         const previous = await inForce(t);
         await t.repo.terminate(previous.id, {
+            tenantId: previous.tenantId,
             effectiveUntil: new Date('2026-12-31'),
             status: null,
         });
@@ -200,7 +223,11 @@ describe('writing a successor', () => {
     test('with nothing in force it writes the first contract, and one that ended does not stand in its way', async () => {
         const t = contractsWith();
         const ended = await inForce(t);
-        await t.repo.terminate(ended.id, { effectiveUntil: LATER, status: 'terminated' });
+        await t.repo.terminate(ended.id, {
+            tenantId: ended.tenantId,
+            effectiveUntil: LATER,
+            status: 'terminated',
+        });
         const after = new Date('2026-08-01T00:00:00.000Z');
 
         const first = await t.service.writeSuccessor(
@@ -220,7 +247,11 @@ describe('writing a successor', () => {
         const previous = await inForce(t);
         const earlier = new Date('2026-07-01T00:00:00.000Z');
         const later = new Date('2026-07-01T00:00:00.005Z');
-        await t.repo.supersede(previous.id, { at: later, readEffectiveUntil: null });
+        await t.repo.supersede(previous.id, {
+            tenantId: previous.tenantId,
+            at: later,
+            readEffectiveUntil: null,
+        });
         const theirs = await t.repo.create({
             ...contractData({ effectiveFrom: later }),
             parties: partiesNamed('Tenant One GmbH'),
@@ -280,7 +311,11 @@ describe('replacing the contract in force', () => {
             if (!raced) {
                 raced = true;
                 // Another writer supersedes it and writes its own successor.
-                await supersede(id, { at: LATER, readEffectiveUntil: null }, tx);
+                await supersede(
+                    id,
+                    { tenantId: data.tenantId, at: LATER, readEffectiveUntil: null },
+                    tx,
+                );
                 await t.repo.create({
                     ...contractData({ effectiveFrom: LATER }),
                     parties: partiesNamed('Tenant One GmbH'),
@@ -358,7 +393,11 @@ describe('a plan change beside another writer', () => {
         const previous = await inForce(t);
         const earlier = new Date('2026-07-01T00:00:00.000Z');
         const later = new Date('2026-07-01T00:00:00.005Z');
-        await t.repo.supersede(previous.id, { at: later, readEffectiveUntil: null });
+        await t.repo.supersede(previous.id, {
+            tenantId: previous.tenantId,
+            at: later,
+            readEffectiveUntil: null,
+        });
         await t.repo.create({
             ...contractData({ effectiveFrom: later }),
             parties: partiesNamed('Tenant One GmbH'),
