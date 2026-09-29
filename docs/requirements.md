@@ -7073,7 +7073,7 @@ _Tested by:_
     - a stored customLimits value
         - none stored is none
         - the platform shape is read whole
-        - a quota nothing can count reads as unlimited, as a plan quota does, and is named
+        - a quota value nothing can count is left out, so the plan applies, and is named
         - a key the platform does not read is named, and the rest is still read
         - quotas or features of the wrong kind are named rather than guessed at
         - a value that is not an object is not read at all, and says so

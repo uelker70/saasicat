@@ -20,13 +20,11 @@ fragment stored limits the entitlement read nothing from, without an error.
   `@saasicat/nest/entitlement`; use `CustomLimits`. `Subscription.customLimits`
   was declared flat, which nothing ever read; it now has the shape that is
   applied.
-- Both adapters read the stored JSON through `readCustomLimits`. A quota goes
-  through the same reading as a plan quota, and a key the platform does not
-  read is left out and named in a warning, once per subscription: the tenant
-  stays on its plan's limits rather than being blocked, and the operator sees
-  what was not applied.
-- A quota value nothing can count still reads as unlimited, as a plan's does,
-  and is named in that warning too.
+- Both adapters read the stored JSON through `readCustomLimits`. A key the
+  platform does not read, and a quota value nothing can count, are left out
+  and named in a warning, once per subscription: the tenant stays on its
+  plan's limits rather than being blocked or handed an unlimited quota, and
+  the operator sees what was not applied.
 - The fragment, `examples/notesapp` and the normative admin API schema document
   the shape that is read: `customLimits` in the application's subscription
   `PATCH` route and in `SubscriptionDetail` was a flat map of integers, and now

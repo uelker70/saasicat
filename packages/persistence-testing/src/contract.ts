@@ -588,10 +588,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 tenantId: 'tenant-historical',
                 plan: 'STARTER',
                 planVersionId,
-                customLimits: { maxUsers: 20, quotas: { users: 7 } },
+                customLimits: { maxUsers: 20, quotas: { users: 7, seats: 'many' } },
             });
 
             const record = await adapter.subscriptionRepository.findByTenantId('tenant-historical');
+            // `seats` is left out rather than read as unlimited: the plan's value
+            // applies, which is declared and can be counted.
             assert.deepEqual(record?.customLimits, { quotas: { users: 7 } });
         });
 

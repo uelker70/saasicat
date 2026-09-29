@@ -22,12 +22,12 @@ describe('a stored customLimits value', () => {
         );
     });
 
-    test('a quota nothing can count reads as unlimited, as a plan quota does, and is named', () => {
-        // The one reading of a quota in JSON (`SC-ENTL-010`): an unreadable
-        // value blocks nobody rather than turning into an absent limit. It is
-        // also the one reading an operator did not ask for, so it is reported.
+    test('a quota value nothing can count is left out, so the plan applies, and is named', () => {
+        // Not read as unlimited, as a plan's own unreadable quota is: an
+        // override that is absent falls back to the plan's declared value, and
+        // unlimited would hand out what nobody agreed to.
         assert.deepEqual(readCustomLimits({ quotas: { users: 'fifty', seats: 3 } }), {
-            limits: { quotas: { users: -1, seats: 3 } },
+            limits: { quotas: { seats: 3 } },
             unread: ['quotas.users'],
         });
     });

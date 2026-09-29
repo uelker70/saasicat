@@ -1,5 +1,5 @@
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
-import { readQuotaRecord, readQuotaValue } from './quota-value.js';
+import { readQuotaValue } from './quota-value.js';
 
 /**
  * A tenant's own limits beside its plan — a negotiated contract, a pilot.
@@ -37,8 +37,8 @@ const NOT_AN_OBJECT = '(the value is not an object)';
  * A shape the platform does not read is reported rather than refused: the
  * tenant keeps its plan's limits and goes on working, as a limit nothing can
  * count does not block anybody (`SC-ENTL-010`), and the caller says out loud
- * which limits were not applied. Quotas go through `readQuotaRecord`, the one
- * reading of a quota in JSON.
+ * which limits were not applied. Each quota value goes through
+ * `readQuotaValue`, the one reading of a quota in JSON.
  */
 export function readCustomLimits(value: unknown): ReadCustomLimits {
     if (value === null || value === undefined) return { limits: null, unread: [] };
@@ -49,11 +49,16 @@ export function readCustomLimits(value: unknown): ReadCustomLimits {
     const unread: string[] = [];
     for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
         if (key === 'quotas' && isRecord(entry)) {
-            // An unreadable value still counts as unlimited, as a plan's does —
-            // and is named, since that is the one reading nobody asked for.
-            limits.quotas = readQuotaRecord(entry);
+            // An unreadable value is left out, so the plan's value applies. Unlike
+            // a plan quota, whose absence would leave the quota undeclared, an
+            // override that is absent falls back to a limit that is declared and
+            // can be counted — reading it as unlimited would hand out what
+            // nobody agreed to.
+            limits.quotas = {};
             for (const [quota, amount] of Object.entries(entry)) {
-                if (readQuotaValue(amount) === null) unread.push(`quotas.${quota}`);
+                const value = readQuotaValue(amount);
+                if (value === null) unread.push(`quotas.${quota}`);
+                else limits.quotas[quota] = value;
             }
         } else if (key === 'features' && isFeatureList(entry)) {
             limits.features = [...entry];
