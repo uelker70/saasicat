@@ -11,6 +11,8 @@
 // charged in full, less what is left of the period it replaces
 // (`computeNewPeriodCharge`).
 
+import { prorate, sumToCents } from '@saasicat/core';
+
 const DAY_MS = 86_400_000;
 
 /**
@@ -77,7 +79,11 @@ export interface ProrationInput {
 export function computeProration(input: ProrationInput): ProrationDto {
     const { periodStart, periodEnd, now, currentPriceNet, targetPriceNet } = input;
     const { daysInPeriod, daysRemaining } = daysOf(periodStart, periodEnd, now);
-    const rawDeltaNet = round2(((targetPriceNet - currentPriceNet) * daysRemaining) / daysInPeriod);
+    const rawDeltaNet = prorate(
+        sumToCents(targetPriceNet, -currentPriceNet),
+        daysRemaining,
+        daysInPeriod,
+    );
 
     return {
         basis: 'difference',
@@ -106,8 +112,8 @@ export function computeProration(input: ProrationInput): ProrationDto {
 export function computeNewPeriodCharge(input: ProrationInput): ProrationDto {
     const { periodStart, periodEnd, now, currentPriceNet, targetPriceNet } = input;
     const { daysInPeriod, daysRemaining } = daysOf(periodStart, periodEnd, now);
-    const remainderNet = round2((currentPriceNet * daysRemaining) / daysInPeriod);
-    const rawDeltaNet = round2(targetPriceNet - remainderNet);
+    const remainderNet = prorate(currentPriceNet, daysRemaining, daysInPeriod);
+    const rawDeltaNet = sumToCents(targetPriceNet, -remainderNet);
 
     return {
         basis: 'newPeriod',
@@ -138,11 +144,4 @@ function daysOf(
         Math.min(daysInPeriod, Math.round((periodEnd.getTime() - now.getTime()) / DAY_MS)),
     );
     return { daysInPeriod, daysRemaining };
-}
-
-// Local instead of imported from ../promo: the sub-entries (billing/promo)
-// bundle separately — a cross-entry import would duplicate the promo module
-// into the billing chunk.
-function round2(n: number): number {
-    return Math.round(n * 100) / 100;
 }

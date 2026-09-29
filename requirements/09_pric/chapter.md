@@ -1363,3 +1363,49 @@ they can act on. The account belongs to the subscriber and shows its amounts, wh
 a tenant is meant to see. This entry supersedes `SC-PRIC-019` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
+
+🟢 💰 A discount taken as a percentage, gross from net and net from gross, the tax a gross amount
+includes, and the share of a price a part of a period costs are each computed from the decimals the
+amounts and rates were written as, and rounded once, to the cent, half away from zero. 5 % of 20.10
+is 1.01, and 11.50 net at 19 % is 13.69 gross — what an accountant, an import into the bookkeeping
+and a customer with a calculator arrive at, not a cent less because a binary fraction lay just
+below the half. A percentage discount rounds the discount and takes it off, the same way for a promo
+code and for a promotion.
+
+_Source:_ #370
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/money-is-rounded-as-written.test.js`
+    - the cases a binary double gets wrong
+        - what
+    - a half cent
+        - rounds up
+        - and the value just below it rounds down
+        - a credit rounds away from zero, mirrored
+        - zero stays zero
+    - against whole-number arithmetic
+        - a percentage of a price
+        - gross from net, net from gross, and the tax a gross amount holds
+        - a share of a price for part of a period
+    - a sum, and a difference
+        - is taken from the decimals, not from their binary difference
+        - of any number of cent amounts is their sum in cents
+        - of nothing is 0
+    - an amount that is not a number of any kind
+        - ${value} is refused rather than rounded
+- `packages/core/tests/promotion-helpers.test.js`
+    - applyPromo
+        - a percentage takes off its discount rounded, as a promo code does
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - half of a price that ends on an odd cent
+        - is charged as 0.58 for the rest of the period
+        - and is 0.58 of rest a new period is reduced by
+- `packages/nest/tests/promo-calculator.test.js`
+    - a percentage discount on a half cent rounds the way a person computing it rounds
+
+<!-- END proof -->

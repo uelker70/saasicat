@@ -90,6 +90,14 @@ describe('applyPromo', () => {
         assert.equal(r.discounted, 80);
         assert.equal(r.original, 100);
     });
+    // @requirement SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
+    test('a percentage takes off its discount rounded, as a promo code does', () => {
+        // 5 % of 20.10 is 1.005, a discount of 1.01. Rounding the reduced
+        // price instead — 19.095 — gave 19.10, a cent less off than the same
+        // percentage as a promo code.
+        const r = applyPromo(promo({ type: 'percent', value: 5 }), 20.1);
+        assert.equal(r.discounted, 19.09);
+    });
     test('amount', () => {
         const r = applyPromo(promo({ type: 'amount', value: 15 }), 49);
         assert.equal(r.kind, 'amount');

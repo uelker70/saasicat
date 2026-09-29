@@ -5,7 +5,8 @@
 // consuming apps (including those working purely via the wire format).
 
 import type { BillingCycle, PromoCodeDurationType, PromoCodeValueType } from '@saasicat/core';
-import { grossFromNet, netFromGross, round2 } from './math.js';
+import { percentOf, roundToCents, sumToCents } from '@saasicat/core';
+import { grossFromNet, netFromGross } from './math.js';
 
 /** Structural view of a PromoCode for the calculator functions.
  *
@@ -26,9 +27,9 @@ export function computeDiscountGross(
 ): number {
     const v = Number(code.value);
     if (code.valueType === 'PERCENT') {
-        return round2((plan.gross * v) / 100);
+        return percentOf(plan.gross, v);
     }
-    return round2(v);
+    return roundToCents(v);
 }
 
 /**
@@ -48,7 +49,7 @@ export function promoCodeDiscountNet(
 }
 
 export function computeDiscountedGross(planGross: number, discountGross: number): number {
-    return round2(planGross - discountGross);
+    return sumToCents(planGross, -discountGross);
 }
 
 /**

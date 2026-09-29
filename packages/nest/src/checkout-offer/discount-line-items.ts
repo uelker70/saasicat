@@ -6,6 +6,7 @@ import type {
 } from '@saasicat/core';
 
 import { grossSharesOf } from '../subscription-contract/contract-line-item-money.js';
+import { sumToCents } from '@saasicat/core';
 
 type LineWithoutGross = Omit<CheckoutOfferLineItem, 'priceGross'>;
 
@@ -31,8 +32,9 @@ export function appendImplicitDiscountLineItem(
 
 function linesWithDiscount(input: AppendImplicitDiscountLineItemInput): LineWithoutGross[] {
     const lineItems = input.lineItems.map((item) => cloneCheckoutOfferLineItem(item));
-    const discountNet = roundMoney(
-        input.priceBreakdown.regularNet - input.priceBreakdown.effectiveNet,
+    const discountNet = sumToCents(
+        input.priceBreakdown.regularNet,
+        -input.priceBreakdown.effectiveNet,
     );
     if (lineItems.some((item) => item.kind === 'discount' && !isGeneratedDiscount(item))) {
         return lineItems;
@@ -101,10 +103,6 @@ export function generatedDiscountLine(
             promoCodeSnapshot: cloneJsonValue(promoCode),
         },
     };
-}
-
-function roundMoney(value: number): number {
-    return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function isGeneratedDiscount(item: LineWithoutGross): boolean {

@@ -7,6 +7,8 @@
 // The pure functions `promoStatus` / `pickActivePromo` / `applyPromo` are
 // shared by the public catalog backend and the UI preview.
 
+import { percentOf, sumToCents } from './money.js';
+
 /** Promotion type. */
 export type PromotionType = 'percent' | 'amount' | 'intro' | 'freeMonths';
 
@@ -175,7 +177,9 @@ function boundedPromo(
         const pct = withinBounds(promo.value, 100);
         return {
             kind: 'percent',
-            discounted: Math.round(basePrice * (100 - pct)) / 100,
+            // The discount is rounded and taken off, as a promo code's is: two
+            // rules for one percentage would state two prices for it.
+            discounted: sumToCents(basePrice, -percentOf(basePrice, pct)),
             original: basePrice,
             pct,
         };
@@ -184,7 +188,7 @@ function boundedPromo(
         const saved = withinBounds(promo.value, basePrice);
         return {
             kind: 'amount',
-            discounted: Math.round((basePrice - saved) * 100) / 100,
+            discounted: sumToCents(basePrice, -saved),
             original: basePrice,
             saved,
         };

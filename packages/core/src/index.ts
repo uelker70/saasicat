@@ -8,6 +8,16 @@ export * from './audit-event.types.js';
 export * from './bundle.types.js';
 export * from './catalog-entry.types.js';
 export * from './promotion.types.js';
+export {
+    computeIncludedVat,
+    grossFromNet,
+    netFromGross,
+    percentOf,
+    prorate,
+    roundToCents,
+    sumToCents,
+    toCents,
+} from './money.js';
 export * from './checkout-offer.types.js';
 export * from './marketing-settings.types.js';
 export * from './public-marketing-catalog.types.js';

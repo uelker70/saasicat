@@ -387,13 +387,14 @@ _Tested by:_
         - targetType filters bundle promotions separately from plan promotions
     - applyPromo
         - percent
+        - a percentage takes off its discount rounded, as a promo code does
         - amount
         - amount clamps at 0
         - intro
         - freeMonths
         - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
-    - round2 rounds to two decimal places
+    - a percentage discount on a half cent rounds the way a person computing it rounds
     - grossFromNet adds VAT
     - computeIncludedVat extracts VAT from gross
     - computeDiscountGross PERCENT 25%
@@ -446,13 +447,14 @@ _Tested by:_
         - targetType filters bundle promotions separately from plan promotions
     - applyPromo
         - percent
+        - a percentage takes off its discount rounded, as a promo code does
         - amount
         - amount clamps at 0
         - intro
         - freeMonths
         - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
-    - round2 rounds to two decimal places
+    - a percentage discount on a half cent rounds the way a person computing it rounds
     - grossFromNet adds VAT
     - computeIncludedVat extracts VAT from gross
     - computeDiscountGross PERCENT 25%
@@ -492,7 +494,7 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/nest/tests/promo-calculator.test.js`
-    - round2 rounds to two decimal places
+    - a percentage discount on a half cent rounds the way a person computing it rounds
     - grossFromNet adds VAT
     - computeIncludedVat extracts VAT from gross
     - computeDiscountGross PERCENT 25%

@@ -15,20 +15,17 @@ import {
     computeIncludedVat,
     computeRegularStartsAt,
     grossFromNet,
-    round2,
 } from '../dist/promo/index.js';
 
 // ──────────────────────────────────────────────────────────────────
 // Math
 // ──────────────────────────────────────────────────────────────────
 
-test('round2 rounds to two decimal places', () => {
-    assert.equal(round2(1.234), 1.23);
-    assert.equal(round2(1.235), 1.24);
-    assert.equal(round2(0.1 + 0.2), 0.3);
-    // round2 uses Math.round(n*100)/100 — FP edge cases like 1.005 (which is
-    // internally 1.00499…) round down. This matches the original implementation.
-    assert.equal(round2(1.005), 1);
+// @requirement SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
+test('a percentage discount on a half cent rounds the way a person computing it rounds', () => {
+    // 5 % of 20.10 is 1.005 in decimal; in binary it lies just below, and
+    // rounding the binary form gave 1.00.
+    assert.equal(computeDiscountGross({ gross: 20.1 }, { valueType: 'PERCENT', value: 5 }), 1.01);
 });
 
 test('grossFromNet adds VAT', () => {
@@ -64,10 +61,9 @@ test('computeDiscountGross accepts a Prisma decimal string', () => {
 test('computeDiscountedGross subtracts', () => {
     assert.equal(computeDiscountedGross(100, 25), 75);
     assert.equal(computeDiscountedGross(50, 12.5), 37.5);
-    // FP edge case: 29.9 - 7.475 would mathematically be 22.425, but FP yields ~22.4249…,
-    // so round2 → 22.42. We accept this because the original logic
-    // behaves identically.
-    assert.equal(computeDiscountedGross(29.9, 7.475), 22.42);
+    // 29.9 − 7.475 is 22.425 in decimal, and a half cent rounds up
+    // (`SC-PRIC-061`), whatever the binary difference lies next to.
+    assert.equal(computeDiscountedGross(29.9, 7.475), 22.43);
 });
 
 // ──────────────────────────────────────────────────────────────────

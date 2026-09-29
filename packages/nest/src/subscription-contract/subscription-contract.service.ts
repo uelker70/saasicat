@@ -26,7 +26,7 @@ import type {
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
-import { round2 } from '../promo/math.js';
+import { roundToCents, sumToCents } from '@saasicat/core';
 import {
     type PricedContractLineItem,
     recordContractLinesMoney,
@@ -438,7 +438,7 @@ export class SubscriptionContractService {
             currency: breakdown.currency,
             billingCycle: breakdown.billingCycle,
             subtotalNet: breakdown.regularNet,
-            discountNet: Math.max(0, round2(breakdown.regularNet - breakdown.effectiveNet)),
+            discountNet: Math.max(0, sumToCents(breakdown.regularNet, -breakdown.effectiveNet)),
             totalNet: breakdown.effectiveNet,
             vatRate: breakdown.vatRate,
             totalGross: breakdown.effectiveGross,
@@ -490,7 +490,7 @@ export class SubscriptionContractService {
             });
         }
         const contradictory = data.lineItems.find(
-            (item) => round2(item.priceGross - item.priceNet) !== round2(item.taxAmount),
+            (item) => sumToCents(item.priceGross, -item.priceNet) !== roundToCents(item.taxAmount),
         );
         if (contradictory) {
             throw new UnprocessableEntityException({
@@ -499,7 +499,7 @@ export class SubscriptionContractService {
                 params: {
                     sourceKey: contradictory.sourceKey,
                     taxAmount: contradictory.taxAmount,
-                    expected: round2(contradictory.priceGross - contradictory.priceNet),
+                    expected: sumToCents(contradictory.priceGross, -contradictory.priceNet),
                 },
             });
         }
