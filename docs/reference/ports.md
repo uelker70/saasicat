@@ -80,9 +80,9 @@ Read adapter for the current AdminManifest.
 
 Adapter for the RLS bypass context.
 
-| Member                                               | What it does |
-| ---------------------------------------------------- | ------------ |
-| `runWithBypass<T>(fn: () => Promise<T>): Promise<T>` | —            |
+| Member                                               | What it does                      |
+| ---------------------------------------------------- | --------------------------------- |
+| `runWithBypass<T>(fn: () => Promise<T>): Promise<T>` | Runs `fn` with the policy lifted. |
 
 ## Billing
 
