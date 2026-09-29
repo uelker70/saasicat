@@ -163,6 +163,9 @@ function createHarness() {
                     pendingPlanVersionId: input.pendingPlanVersionId ?? null,
                     ...(input.billingCycle ? { billingCycle: input.billingCycle } : {}),
                     ...(input.startedAt ? { startedAt: input.startedAt } : {}),
+                    ...(input.customLimits !== undefined
+                        ? { customLimits: input.customLimits }
+                        : {}),
                     updatedAt: new Date(),
                 });
                 return { subscriptionId: id };

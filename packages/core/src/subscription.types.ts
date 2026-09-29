@@ -2,6 +2,7 @@
 
 import type { PlanId, QuotaKey, FeatureKey } from './plan-catalog.types.js';
 import type { BillingCycle } from './promo-code.types.js';
+import type { CustomLimits } from './custom-limits.js';
 
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'PENDING_SALES';
 
@@ -14,8 +15,8 @@ export interface Subscription {
     billingCycle: BillingCycle;
     status: SubscriptionStatus;
 
-    /** Override per Tenant; unset fields fall back to the PlanVersion. */
-    customLimits?: Partial<Record<QuotaKey, number>>;
+    /** Override per tenant; unset fields fall back to the PlanVersion. */
+    customLimits?: CustomLimits | null;
     /** ENTERPRISE special contract. */
     customMonthlyNet?: number | null;
 

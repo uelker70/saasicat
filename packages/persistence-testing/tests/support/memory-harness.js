@@ -11,6 +11,7 @@ import {
     catalogVersionGone,
     formatCustomerNumber,
     identityCorrectionDelta,
+    readCustomLimits,
     refuseForeignPaymentMethodReference,
     subscriberChargeColumns,
     subscriberPaymentMethodColumns,
@@ -91,6 +92,7 @@ export function createMemoryHarness() {
                 tenantId: row.tenantId,
                 plan: row.plan,
                 status: row.status,
+                customLimits: readCustomLimits(row.customLimits).limits,
                 planVersionId: row.planVersionId,
                 planVersion: { planId: pv.planId, quotas: pv.quotas, features: pv.features },
             };
@@ -1065,6 +1067,7 @@ export function createMemoryHarness() {
                 pendingPlanVersionId: input.pendingPlanVersionId ?? null,
                 billingCycle: input.billingCycle ?? 'YEARLY',
                 startedAt: input.startedAt ?? null,
+                customLimits: input.customLimits ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };

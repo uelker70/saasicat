@@ -2,7 +2,7 @@
 //
 // Slice A (P1.5, Phase 19): pure-function aggregation over snapshot form.
 //   - types:           PlanVersionSnapshot, SubscriptionLimitsInput,
-//                      CustomLimitsShape, EffectiveLimits, EffectiveLimitsSnapshot
+//                      EffectiveLimits, EffectiveLimitsSnapshot
 //   - aggregation:     aggregateLimits, filterActiveSubscriptionBundles,
 //                      aggregateSubscriptionBundleQuotas, applyCustomLimits,
 //                      filterPlannedOnlyFeatures, hasFeature, hasAnyFeature,

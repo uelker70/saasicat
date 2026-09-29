@@ -1,8 +1,9 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import type {
-    SubscriptionRecord,
-    SubscriptionRepository,
-    TransactionContext,
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+    customLimitsReader,
+    type SubscriptionRecord,
+    type SubscriptionRepository,
+    type TransactionContext,
 } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
@@ -54,6 +55,9 @@ interface SubscriptionPrisma {
 export class PrismaSubscriptionRepository implements SubscriptionRepository {
     readonly countByBundleVersionId?: (bundleVersionId: string) => Promise<number>;
 
+    private readonly logger = new Logger(PrismaSubscriptionRepository.name);
+    /** Limits in the platform's shape; an unread shape is logged once per subscription. */
+    private readonly customLimitsOf = customLimitsReader((line) => this.logger.warn(line));
     private readonly binding: PrismaPlanBindingResolver;
     private readonly planVersionDelegateName: string;
     private readonly subscriptionDelegateName: string;
@@ -203,7 +207,7 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
             trialEntitlementPlan: row.trialEntitlementPlan,
             pendingPlan: row.pendingPlan,
             pendingEffectiveAt: row.pendingEffectiveAt,
-            customLimits: (row.customLimits ?? null) as SubscriptionRecord['customLimits'],
+            customLimits: this.customLimitsOf(row.id, row.customLimits),
             // Entitlement resolution ends a subscription by reading these. An
             // adapter that leaves them out grants a subscription that ended
             // last January everything it had — which is why the port requires

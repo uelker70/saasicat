@@ -113,7 +113,7 @@ model Subscription {
 
     // Special contract / pilot — audit (who/when) lives in the AuditLog.
     customMonthlyNet Decimal?  @db.Decimal(10, 2)
-    customLimits     Json? // { maxUsers?, maxVehicles?, maxStorageGb?, features?: string[] }
+    customLimits     Json? // CustomLimits (@saasicat/core): { quotas?: { <quotaKey>: number }, features?: string[] }
     customNote       String?
     isPilot          Boolean   @default(false)
     pilotEndsAt      DateTime?

@@ -607,3 +607,36 @@ _Tested by:_
         - blocks with ForbiddenException when the feature is missing
 
 <!-- END proof -->
+
+### SC-ENTL-024 — Negotiated limits are applied, and a stored shape that cannot be read is reported
+
+🟢 A negotiated contract or a pilot can give one tenant limits beside its plan: a quota replaces the
+plan's value, a feature is added to the plan's. They are stored in one shape, `{ quotas, features }`.
+A stored value in any other shape does not block the tenant — it stays on what its plan allows, as a
+limit nothing can count does not block anybody (`SC-ENTL-010`) — and the part that was not applied
+is named in the log, once for each subscription, rather than being dropped without a word.
+
+_Source:_ #354
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/negotiated-limits-are-read-one-way.test.js`
+    - a stored customLimits value
+        - none stored is none
+        - the platform shape is read whole
+        - a quota value nothing can count is left out, so the plan applies, and is named
+        - a key the platform does not read is named, and the rest is still read
+        - quotas or features of the wrong kind are named rather than guessed at
+        - a value that is not an object is not read at all, and says so
+    - reading limits for an adapter
+        - reports what went unread once per subscription, naming it
+        - hands back what it could read
+- `tests/the-api-schema-names-the-limits-the-platform-reads.test.js`
+    - the admin API schema for negotiated limits
+        - names exactly the keys the platform reads
+        - every route that carries them refers to it
+        - a value written to the schema is read whole
+
+<!-- END proof -->

@@ -352,11 +352,7 @@ paths:
                             properties:
                                 planId: { type: string }
                                 billingCycle: { type: string, enum: [MONTHLY, YEARLY] }
-                                customLimits:
-                                    type: object
-                                    additionalProperties:
-                                        type: integer
-                                        description: 'quotaKey → maxValue (-1 = unlimited)'
+                                customLimits: { $ref: '#/components/schemas/CustomLimits' }
                                 customMonthlyNet: { type: number, format: decimal }
                                 isPilot: { type: boolean }
                                 pilotEndsAt: { type: string, format: date-time }
@@ -2169,6 +2165,24 @@ components:
                 sendWelcomeMail: { type: boolean, default: true }
 
         # ────────── Subscription ──────────
+        CustomLimits:
+            type: object
+            description: >-
+                A tenant's own limits beside its plan — a negotiated contract, a pilot
+                (`CustomLimits` in @saasicat/core). A quota replaces the plan's value for that
+                quota; a feature is added to the plan's. Stored as JSON in
+                `subscriptions.customLimits`; a stored value in any other shape is not applied.
+            additionalProperties: false
+            properties:
+                quotas:
+                    type: object
+                    additionalProperties:
+                        type: integer
+                        minimum: -1
+                        description: 'quotaKey → maxValue (-1 = unlimited)'
+                features:
+                    type: array
+                    items: { type: string }
         SubscriptionDetail:
             type: object
             properties:
@@ -2181,9 +2195,7 @@ components:
                 canceledAt: { type: string, format: date-time }
                 isPilot: { type: boolean }
                 pilotEndsAt: { type: string, format: date-time }
-                customLimits:
-                    type: object
-                    additionalProperties: { type: integer }
+                customLimits: { $ref: '#/components/schemas/CustomLimits' }
                 customMonthlyNet: { type: number, format: decimal, nullable: true }
                 effectiveLimits:
                     type: object

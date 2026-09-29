@@ -76,6 +76,7 @@ export * from './subscription-bundle-mapping.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';
+export * from './custom-limits.js';
 export * from './version-editability.js';
 export * from './recommended-plan.js';
 export * from './error-messages.js';

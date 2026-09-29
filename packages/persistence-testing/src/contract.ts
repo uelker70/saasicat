@@ -536,6 +536,67 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(record.planVersion.features, ['CORE']);
         });
 
+        test('a subscription carries its negotiated limits in the shape the platform applies', async () => {
+            // `quotas[key]` replaces the plan's value, `features` adds to the
+            // plan's. The stored JSON is handed back in that shape and no other:
+            // an adapter that passes it through untyped hands the entitlement a
+            // shape it reads nothing from.
+            const { seed, adapter } = harness;
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: { users: 5 },
+                features: ['CORE'],
+                published: true,
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-negotiated',
+                plan: 'STARTER',
+                planVersionId,
+                customLimits: { quotas: { users: 50, storage: -1 }, features: ['EXPORT'] },
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-plain',
+                plan: 'STARTER',
+                planVersionId,
+            });
+
+            const negotiated =
+                await adapter.subscriptionRepository.findByTenantId('tenant-negotiated');
+            assert.deepEqual(negotiated?.customLimits, {
+                quotas: { users: 50, storage: -1 },
+                features: ['EXPORT'],
+            });
+            const plain = await adapter.subscriptionRepository.findByTenantId('tenant-plain');
+            assert.equal(plain?.customLimits ?? null, null, 'none stored reads as none');
+        });
+
+        test('negotiated limits in a shape the platform does not read are left out', async () => {
+            // `{ maxUsers: 20 }` is a shape one application stored before the
+            // platform settled on `quotas`. Handed through, it reads as "no
+            // override" without a word; the adapter keeps what it can read and
+            // leaves the rest out, and says so in its log.
+            const { seed, adapter } = harness;
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: { users: 5 },
+                features: ['CORE'],
+                published: true,
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-historical',
+                plan: 'STARTER',
+                planVersionId,
+                customLimits: { maxUsers: 20, quotas: { users: 7, seats: 'many' } },
+            });
+
+            const record = await adapter.subscriptionRepository.findByTenantId('tenant-historical');
+            // `seats` is left out rather than read as unlimited: the plan's value
+            // applies, which is declared and can be counted.
+            assert.deepEqual(record?.customLimits, { quotas: { users: 7 } });
+        });
+
         test('findByTenantId is tenant-isolated', async () => {
             const { seed, adapter } = harness;
             const { planVersionId } = await seed.createPlanVersion({

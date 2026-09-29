@@ -1,9 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, gt, inArray, isNull, or } from 'drizzle-orm';
-import type {
-    SubscriptionRecord,
-    SubscriptionRepository,
-    TransactionContext,
+import {
+    customLimitsReader,
+    type SubscriptionRecord,
+    type SubscriptionRepository,
+    type TransactionContext,
 } from '@saasicat/core';
 import {
     DRIZZLE_DB_TOKEN,
@@ -25,6 +26,10 @@ type SubscriptionRow = typeof subscriptions.$inferSelect;
  */
 @Injectable()
 export class DrizzleSubscriptionRepository implements SubscriptionRepository {
+    private readonly logger = new Logger(DrizzleSubscriptionRepository.name);
+    /** Limits in the platform's shape; an unread shape is logged once per subscription. */
+    private readonly customLimitsOf = customLimitsReader((line) => this.logger.warn(line));
+
     constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {}
 
     async findByTenantId(tenantId: string): Promise<SubscriptionRecord | null> {
@@ -127,7 +132,7 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
             trialEntitlementPlan: row.trialEntitlementPlan,
             pendingPlan: row.pendingPlan,
             pendingEffectiveAt: row.pendingEffectiveAt,
-            customLimits: (row.customLimits ?? null) as SubscriptionRecord['customLimits'],
+            customLimits: this.customLimitsOf(row.id, row.customLimits),
             canceledAt: row.canceledAt ?? null,
             canceledEffectiveAt: row.canceledEffectiveAt ?? null,
             planVersionId: row.planVersionId,
