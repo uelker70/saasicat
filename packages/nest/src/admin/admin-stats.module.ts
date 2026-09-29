@@ -44,7 +44,9 @@ export interface AdminStatsModuleOptions {
     extraProviders?: Provider[];
     /**
      * Complete ordered guard chain for the dashboard endpoint. When omitted,
-     * the backwards-compatible default is `SuperAdminGuard` only.
+     * the backwards-compatible default is `SuperAdminGuard` only. Keep
+     * `SuperAdminGuard` in a chain given here: that is what runs the endpoint
+     * across tenants (`SC-SEC-015`), where the counts it shows live.
      */
     guards?: Array<Type<CanActivate>>;
     /** Register the module globally — default `false`. */

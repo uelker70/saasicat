@@ -215,7 +215,10 @@ export interface SaaSiCatAdminResourcesOptions extends Omit<
     /**
      * Override the default controller guards + `SuperAdminGuard` chain.
      * Suspending and reactivating a tenant require the second factor either
-     * way; that check sits on the two handlers, not in this list.
+     * way; that check sits on the two handlers, not in this list. Keep
+     * `SuperAdminGuard` in it: a chain that holds it runs its routes across
+     * tenants (`SC-SEC-015`), and one without it runs them in the tenant's
+     * frame, where a row policy leaves the operator's lists empty.
      */
     guards?: Array<Type<CanActivate>>;
     /** Custom schema override; the persistence bundle supplies the default. */
@@ -240,7 +243,11 @@ export interface SaaSiCatPromoCodesOptions extends Omit<
      * setups do not need an app-specific customer-history check.
      */
     firstTimeCustomerCheck?: ProviderSpec<FirstTimeCustomerCheck>;
-    /** Override the default controller guards + `SuperAdminGuard` chain. */
+    /**
+     * Override the default controller guards + `SuperAdminGuard` chain. Keep
+     * `SuperAdminGuard` in it: that is what runs the routes across tenants
+     * (`SC-SEC-015`).
+     */
     adminGuards?: Array<Type<CanActivate>>;
     /**
      * Mount the SuperAdmin promo-code CRUD controller. Default `true`.

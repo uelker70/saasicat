@@ -20,7 +20,6 @@ import {
     Patch,
     Post,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 
 import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
@@ -33,6 +32,7 @@ import {
     UpdateBundleVersionDraftDto,
 } from './dto/bundles.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 /**
  * Builds the controller class at boot time with the guards configured by the
@@ -41,7 +41,7 @@ import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.
 export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/bundles')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedBundlesController {
         constructor(
             @Inject(BundlesService)
@@ -120,7 +120,7 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
 export function buildBundleVersionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/bundle-versions')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedBundleVersionsController {
         constructor(
             @Inject(BundlesService)

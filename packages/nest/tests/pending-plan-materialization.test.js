@@ -7,17 +7,20 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { PendingPlanMaterializationService } from '../dist/billing/index.js';
 
-function makeDeps(due) {
-    const calls = { changePlan: [], invalidated: [] };
+function makeDeps(due, { rlsBypass = null, frame = null } = {}) {
+    const calls = { changePlan: [], invalidated: [], framesSeen: [] };
     const query = {
         async findDuePendingPlanChanges() {
+            calls.framesSeen.push(frame?.getStore() ?? 'none');
             return due;
         },
     };
     const subscriptionWrite = {
         async changePlanImmediate(tenantId, input) {
+            calls.framesSeen.push(frame?.getStore() ?? 'none');
             calls.changePlan.push({ tenantId, input });
             return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
@@ -29,7 +32,13 @@ function makeDeps(due) {
     };
     return {
         calls,
-        service: new PendingPlanMaterializationService(query, subscriptionWrite, entitlements),
+        service: new PendingPlanMaterializationService(
+            query,
+            subscriptionWrite,
+            entitlements,
+            null,
+            rlsBypass,
+        ),
     };
 }
 
@@ -131,4 +140,19 @@ test('a scheduled change to another plan binds the version it was quoted at', as
     await service.materializeDuePlanChanges(new Date('2026-06-09T00:00:00.000Z'));
 
     assert.equal(calls.changePlan[0].input.quotedPlanVersionId, 'pv-quoted');
+});
+
+// @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
+test("the run reads and writes every tenant's change inside the bypass", async () => {
+    // A forced policy with no frame leaves the run nothing to find and nothing
+    // to write, and it reports that as a quiet night.
+    const frame = new AsyncLocalStorage();
+    const { calls, service } = makeDeps(
+        [{ tenantId: 't1', pendingPlan: 'STANDARD', pendingBillingCycle: 'YEARLY' }],
+        { frame, rlsBypass: { runWithBypass: (work) => frame.run('bypass', work) } },
+    );
+
+    await service.materializeDuePlanChanges(new Date('2026-06-09T00:00:00.000Z'));
+
+    assert.deepEqual(calls.framesSeen, ['bypass', 'bypass']);
 });

@@ -16,17 +16,17 @@ import {
     Patch,
     Post,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { CheckoutOfferService } from './checkout-offer.service.js';
 import { CreateCheckoutOfferDto, UpdateCheckoutOfferDto } from './dto/checkout-offer.dto.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export function buildCheckoutOfferController(guards: Array<Type<CanActivate>>): Type {
     @Controller('public/checkout-offer')
     @SaaSiCatPublicRoute()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedCheckoutOfferController {
         constructor(
             @Inject(CheckoutOfferService)

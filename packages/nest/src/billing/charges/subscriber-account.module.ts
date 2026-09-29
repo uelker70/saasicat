@@ -8,7 +8,6 @@ import {
     Module,
     Param,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 import type { AdminSubscriberAccount, RlsBypassPort } from '@saasicat/core';
 
@@ -16,6 +15,7 @@ import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { SubscriberAccountService } from './subscriber-account.service.js';
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
 
 export interface SubscriberAccountModuleOptions {
     /** The same chain the tenant routes of the administration run behind. */
@@ -33,7 +33,7 @@ export interface SubscriberAccountModuleOptions {
 function buildSubscriberAccountController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedSubscriberAccountController {
         constructor(
             @Inject(AdminResourcesService)

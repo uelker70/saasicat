@@ -125,14 +125,14 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 15      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 18      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 531 entries: 🟢 461 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 532 entries: 🟢 462 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 531 entries: 🟢 461 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 531 requirements. Do not edit by hand:
+Generated from `requirements/` — 532 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3881,6 +3881,7 @@ _Tested by:_
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
     - a scheduled change to another plan binds the version it was quoted at
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
 
@@ -4196,6 +4197,7 @@ _Tested by:_
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
     - a scheduled change to another plan binds the version it was quoted at
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
 
@@ -14248,6 +14250,8 @@ _Tested by:_
 - `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
     - the platform’s own scheduled jobs
         - the promotional code sweep runs under the RLS bypass, every step of it
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
 
@@ -14578,6 +14582,31 @@ _Tested by:_
         - a refused code keeps the dialog open, says so, and a second code goes through
         - a package error carrying the status counts as a refusal, not only an AdminError
         - any other failure closes the dialog and reaches the caller
+
+<!-- END proof -->
+
+### SC-SEC-015 — An operator's route runs across tenants, and no other route does
+
+🟢 🔒 Every route the platform mounts behind its operator guard chain runs inside the installation's
+row-level-security bypass, so an operator's lists and counts are not empty under a tenant's policy.
+Every other route — a tenant's, a public one — runs in whatever frame the installation opened for the
+request. The frame follows from the guard chain rather than from a list of routes, and the check that
+the administrator is calling runs before it opens. This is the exception `SC-SEC-003` names. A chain
+an integrator sets for a module the platform mounts frames its routes where it holds `SuperAdminGuard`,
+and a route an integrator builds itself chooses its frame with `AdminBypassRlsInterceptor`.
+
+_Source:_ #344
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
+    - the frame a route runs in follows its guard chain
+        - every route behind the administrator runs in the bypass, and no other does
+    - where the handler of a route actually runs
+        - an operator's route reads in the bypass
+        - a tenant turned away from the operator route never reached a frame
 
 <!-- END proof -->
 

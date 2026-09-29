@@ -15,7 +15,6 @@ import {
     Post,
     Req,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 import { SETTINGS_ERROR_CODES } from '@saasicat/core';
 import {
@@ -34,6 +33,7 @@ import { codedError } from '../errors/coded-error.js';
 import { fingerprintOf } from './settings-fingerprint.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 /** How many past changes the screen is shown. */
 const RECENT_CHANGES = 20;
@@ -70,7 +70,7 @@ export interface AppliedSettingsView {
 export function buildSettingsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedSettingsController {
         // Explicit @Inject: tsup/esbuild emit no `design:paramtypes`.
         constructor(

@@ -11,7 +11,6 @@ import {
     Query,
     Req,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 import type {
     AdminActor,
@@ -24,6 +23,7 @@ import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { CreatePromoCodeDto, UpdatePromoCodeDto } from './dto/promo-admin.dto.js';
 import { PromoCodesService } from './promo.service.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 interface AdminRequest {
     user?: {
@@ -37,7 +37,7 @@ interface AdminRequest {
 export function buildPromoCodeAdminController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/promo-codes')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedPromoCodeAdminController {
         constructor(
             @Inject(PromoCodesService)

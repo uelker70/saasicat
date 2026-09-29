@@ -11,16 +11,9 @@
 // is the app's choice — so no document can pin it.
 //
 
-import {
-    type CanActivate,
-    Controller,
-    Get,
-    Inject,
-    Req,
-    type Type,
-    UseGuards,
-} from '@nestjs/common';
+import { type CanActivate, Controller, Get, Inject, Req, type Type } from '@nestjs/common';
 import { TenantManifestService } from './tenant-manifest.service.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 interface RequestWithUser {
     user?: { tenantId?: string };
@@ -47,7 +40,7 @@ export function buildTenantManifestController(
     const path = options.path ?? 'tenant/manifest';
 
     @Controller(path)
-    @UseGuards(...options.guards)
+    @UseRouteGuards(...options.guards)
     class GeneratedTenantManifestController {
         constructor(@Inject(TenantManifestService) private readonly svc: TenantManifestService) {}
 

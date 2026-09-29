@@ -26,7 +26,6 @@ import {
     Post,
     Query,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 
 import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
@@ -40,11 +39,12 @@ import {
     UpdatePlanVersionDraftDto,
 } from './dto/plan-versions.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/plans')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedPlansController {
         constructor(
             @Inject(PlansService)
@@ -148,7 +148,7 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
 export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/plan-versions')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedPlanVersionsController {
         constructor(
             @Inject(PlanVersionsService)

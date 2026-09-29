@@ -11,7 +11,6 @@ import {
     Inject,
     Post,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
@@ -25,6 +24,7 @@ import { CATALOG_ERROR_CODES } from '@saasicat/core';
 
 import { PlanCatalogImporterService } from './plan-catalog-importer.service.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export class PlanCatalogImportDto {
     @IsString()
@@ -61,7 +61,7 @@ function isUnreadableDocument(error: unknown): boolean {
 export function buildPlanCatalogImporterController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/billing/plan-catalog')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedPlanCatalogImporterController {
         constructor(
             @Inject(PlanCatalogImporterService)

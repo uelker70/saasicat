@@ -1,7 +1,8 @@
-import { type CanActivate, Controller, Get, Inject, type Type, UseGuards } from '@nestjs/common';
+import { type CanActivate, Controller, Get, Inject, type Type } from '@nestjs/common';
 import { AdminStatsService, type AdminStatsSnapshot } from './admin-stats.service.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from './use-route-guards.decorator.js';
 
 // AdminStatsController — `GET /admin/stats/dashboard` for the SuperAdmin
 // dashboard page. SuperAdminGuard guards against tenant access. App-specific
@@ -11,7 +12,7 @@ import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.
 
 @Controller('admin/stats')
 @AllowDuringMaintenance()
-@UseGuards(SuperAdminGuard)
+@UseRouteGuards(SuperAdminGuard)
 export class AdminStatsController {
     // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
     // `design:paramtypes` metadata, so Nest could otherwise not resolve the
@@ -28,7 +29,7 @@ export class AdminStatsController {
 export function buildAdminStatsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/stats')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedAdminStatsController {
         constructor(@Inject(AdminStatsService) private readonly stats: AdminStatsService) {}
 

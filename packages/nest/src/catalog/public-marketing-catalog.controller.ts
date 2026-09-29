@@ -4,18 +4,11 @@
 // `currency` and `vatRate` are bound at build time (app identity); the
 // website passes only `?lang=`.
 
-import {
-    type CanActivate,
-    Controller,
-    Get,
-    Inject,
-    Query,
-    type Type,
-    UseGuards,
-} from '@nestjs/common';
+import { type CanActivate, Controller, Get, Inject, Query, type Type } from '@nestjs/common';
 
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { PublicMarketingCatalogService } from './public-marketing-catalog.service.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export function buildPublicMarketingCatalogController(
     guards: Array<Type<CanActivate>>,
@@ -24,7 +17,7 @@ export function buildPublicMarketingCatalogController(
 ): Type {
     @Controller('public/marketing-catalog')
     @SaaSiCatPublicRoute()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedPublicMarketingCatalogController {
         constructor(
             @Inject(PublicMarketingCatalogService)

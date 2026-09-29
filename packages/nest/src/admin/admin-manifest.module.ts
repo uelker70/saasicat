@@ -39,6 +39,7 @@ import {
 import { AdminPublicBootController } from './admin-public-boot.controller.js';
 import { PLATFORM_CORE_MANIFEST_CONTRIBUTION } from './manifest-core.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from './use-route-guards.decorator.js';
 
 type ConfigSpec =
     AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
@@ -124,7 +125,7 @@ function buildManifestController(
 
     @Controller('admin')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedAdminManifestController {
         // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
         // `design:paramtypes` metadata, so Nest cannot otherwise resolve the
@@ -152,6 +153,9 @@ function buildManifestController(
         }
 
         @Post('manifest/reload')
+        // Plain guards: the class above already opens the bypass for this
+        // route, and a second frame inside it would nest a second transaction
+        // with a port that runs one.
         @UseGuards(...reloadChain)
         @HttpCode(HttpStatus.OK)
         async reload() {
