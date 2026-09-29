@@ -116,7 +116,7 @@ properties it has while doing it.
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 60      |
-| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 23      |
+| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 27      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 521 entries: 🟢 451 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 522 entries: 🟢 452 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 521 entries: 🟢 451 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 521 requirements. Do not edit by hand:
+Generated from `requirements/` — 522 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7052,6 +7052,34 @@ _Tested by:_
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — feature set matching
         - blocks with ForbiddenException when the feature is missing
+
+<!-- END proof -->
+
+### SC-ENTL-024 — Negotiated limits are applied, and a stored shape that cannot be read is reported
+
+🟢 A negotiated contract or a pilot can give one tenant limits beside its plan: a quota replaces the
+plan's value, a feature is added to the plan's. They are stored in one shape, `{ quotas, features }`.
+A stored value in any other shape does not block the tenant — it stays on what its plan allows, as a
+limit nothing can count does not block anybody (`SC-ENTL-010`) — and the part that was not applied
+is named in the log, once for each subscription, rather than being dropped without a word.
+
+_Source:_ #354
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/negotiated-limits-are-read-one-way.test.js`
+    - a stored customLimits value
+        - none stored is none
+        - the platform shape is read whole
+        - a quota nothing can count reads as unlimited, as a plan quota does
+        - a key the platform does not read is named, and the rest is still read
+        - quotas or features of the wrong kind are named rather than guessed at
+        - a value that is not an object is not read at all, and says so
+    - reading limits for an adapter
+        - reports what went unread once per subscription, naming it
+        - hands back what it could read
 
 <!-- END proof -->
 

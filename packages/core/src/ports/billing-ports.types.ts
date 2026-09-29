@@ -1,4 +1,5 @@
 import type { TransactionContext } from './core-ports.types.js';
+import type { CustomLimits } from '../custom-limits.js';
 import type { PromoCodeRedemptionRecord } from './promo-ports.types.js';
 import type {
     CancelSubscriptionBundleData,
@@ -40,7 +41,7 @@ export interface SubscriptionRecord {
     trialEntitlementPlan?: string | null;
     pendingPlan?: string | null;
     pendingEffectiveAt?: Date | null;
-    customLimits?: { quotas?: Record<string, number>; features?: string[] } | null;
+    customLimits?: CustomLimits | null;
     planVersionId: string;
     planVersion: PlanVersionRecord;
     /**

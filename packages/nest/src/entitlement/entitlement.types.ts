@@ -3,7 +3,7 @@
 // Consumers map their Prisma models onto these snapshots; the platform
 // aggregation works exclusively on this form (no Prisma imports).
 
-import type { FeatureKey, PlanId, QuotaKey } from '@saasicat/core';
+import type { CustomLimits, FeatureKey, PlanId, QuotaKey } from '@saasicat/core';
 
 /**
  * Snapshot of the binding `PlanVersion` of a subscription. Quotas are
@@ -49,16 +49,6 @@ export interface SubscriptionBundleSnapshot {
 }
 
 /**
- * Consumer override from `Subscription.customLimits` (e.g. an ENTERPRISE
- * special contract or pilot). Field-wise — unset quotas/features fall back
- * to the plan default.
- */
-export interface CustomLimitsShape {
-    quotas?: Record<QuotaKey, number>;
-    features?: FeatureKey[];
-}
-
-/**
  * Input for `aggregateLimits` — the platform expects the consumer to have
  * already performed the plan resolution (trial/pilot/pending). `plan` and
  * `planVersion` are the result of that resolution; see
@@ -74,7 +64,7 @@ export interface SubscriptionLimitsInput {
      * the effective limits.
      */
     subscriptionBundles?: SubscriptionBundleSnapshot[];
-    customLimits?: CustomLimitsShape | null;
+    customLimits?: CustomLimits | null;
 }
 
 /**

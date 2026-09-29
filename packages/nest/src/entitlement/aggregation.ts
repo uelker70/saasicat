@@ -7,13 +7,13 @@
 import type {
     ContractLineItemRecord,
     FeatureKey,
+    CustomLimits,
     PlanCatalog,
     QuotaKey,
     SubscriptionContractRecord,
 } from '@saasicat/core';
 import { isFeaturePlannedOnly } from '../billing/plan-helpers.js';
 import type {
-    CustomLimitsShape,
     EffectiveLimits,
     EffectiveLimitsSnapshot,
     SubscriptionBundleSnapshot,
@@ -233,7 +233,7 @@ export function filterPlannedOnlyFeatures(
  */
 export function applyCustomLimits(
     base: EffectiveLimits,
-    custom: CustomLimitsShape | null | undefined,
+    custom: CustomLimits | null | undefined,
 ): EffectiveLimits {
     if (!custom) return base;
     const quotas = { ...base.quotas };

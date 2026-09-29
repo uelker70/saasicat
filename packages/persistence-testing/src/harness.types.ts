@@ -160,6 +160,11 @@ export interface ContractSeed {
         billingCycle?: string;
         /** Defaults to null; set it where a scenario reads it. */
         startedAt?: Date;
+        /**
+         * Written to the JSON column as given — the stored value is what the
+         * scenario asks the adapter to read, whatever its shape. Defaults to null.
+         */
+        customLimits?: unknown;
     }): Promise<{ subscriptionId: string }>;
     /**
      * A published BundleVersion to book against.
