@@ -454,6 +454,13 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
                     plan: 'STARTER',
                     planVersionId: 'version-starter',
                 }),
+                planVersions: [
+                    { id: 'version-starter', planId: 'plan-starter' },
+                    // Live now, and what the write binds without a quote.
+                    { id: 'version-pro', planId: 'plan-pro' },
+                    // Quoted earlier, superseded since, and not ended.
+                    { id: 'version-pro-quoted', planId: 'plan-pro', endsAt: null },
+                ],
             });
             const adapter = adapterOver(prisma);
 

@@ -1616,12 +1616,12 @@ describe('a scheduled change learns the version it was quoted at', () => {
     // left empty. And the backfill belongs to the run that adds the column: a
     // second run must not pin a version published in between.
     const MIGRATION = '1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql';
-    const version = (id, planId, number, published, superseded = null) =>
+    const version = (id, planId, number, published, superseded = null, endsAt = null) =>
         client.query(
             'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
-                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "updatedAt") ' +
-                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, NOW())",
-            [id, planId, number, published, superseded],
+                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "endsAt", "updatedAt") ' +
+                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, $6, NOW())",
+            [id, planId, number, published, superseded, endsAt],
         );
     const subscription = (tenantId, pendingPlan) =>
         client.query(
@@ -1645,7 +1645,9 @@ describe('a scheduled change learns the version it was quoted at', () => {
         await version('pro-1', 'PRO', 1, '2026-01-01', '2026-03-01');
         await version('pro-2', 'PRO', 2, '2026-03-01');
         await version('pro-3', 'PRO', 3, null);
+        await version('ended-1', 'ENDED', 1, '2026-01-01', null, '2026-02-01');
         await subscription('to-another-plan', 'PRO');
+        await subscription('to-a-plan-whose-version-ended', 'ENDED');
         await subscription('on-its-plan', 'STARTER');
         await subscription('to-a-plan-not-on-sale', 'UNRELEASED');
         await subscription('with-nothing-scheduled', null);
@@ -1658,6 +1660,7 @@ describe('a scheduled change learns the version it was quoted at', () => {
         assert.deepEqual(await quoted(), {
             'on-its-plan': null,
             'to-a-plan-not-on-sale': null,
+            'to-a-plan-whose-version-ended': null,
             'to-another-plan': 'pro-2',
             'with-nothing-scheduled': null,
         });

@@ -140,8 +140,16 @@ export function createMemoryHarness() {
                 input.keepsBoundVersion &&
                 row.plan === input.planId &&
                 (row.planVersionId ?? null) !== null;
-            // A change that names the version it was quoted at is bound to it.
-            const quoted = input.quotedPlanVersionId ? { id: input.quotedPlanVersionId } : null;
+            // A change that names the version it was quoted at is bound to it,
+            // while that version still takes bookings on the day it lands.
+            const asOf = input.periodStart ?? new Date();
+            const quotedRow = state.planVersions.find(
+                (version) => version.id === input.quotedPlanVersionId,
+            );
+            const quoted =
+                quotedRow && !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf)
+                    ? { id: quotedRow.id }
+                    : null;
             const target = keepsVersion
                 ? { id: row.planVersionId }
                 : (quoted ??

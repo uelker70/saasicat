@@ -13,8 +13,8 @@
 --   psql "$DATABASE_URL" -f 1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql
 --
 -- What happens to a change scheduled before this file. The version it was
--- shown was never recorded, so the one live now — the newest published and not
--- superseded, as the catalogue shows it — stands for it. That is the version
+-- shown was never recorded, so the one live now — the newest published, not
+-- superseded and not ended, as the catalogue shows it — stands for it. That is the version
 -- the change would have bound had it come due today, which is what it did
 -- before this file. A change that stays on its plan is left empty: it keeps the
 -- version bound, whatever that is by the day it comes due. A plan with no live
@@ -47,18 +47,38 @@ BEGIN
     ) THEN
         ALTER TABLE "subscriptions" ADD COLUMN "pendingChangeVersionId" TEXT;
 
-        UPDATE "subscriptions" AS s
-        SET "pendingChangeVersionId" = (
-            SELECT v."id"
-            FROM "plan_versions" AS v
-            WHERE v."planId" = s."pendingPlan"
-              AND v."publishedAt" IS NOT NULL
-              AND v."supersededAt" IS NULL
-            ORDER BY v."version" DESC
-            LIMIT 1
-        )
-        WHERE s."pendingPlan" IS NOT NULL
-          AND s."pendingPlan" <> s."plan";
+        -- Live as the catalogue reads it: published, not superseded, and — on
+        -- a schema that can end a version — not ended, since an ended version
+        -- takes no new bookings. The clause is added only where the column
+        -- exists; a schema from before it ends nothing.
+        EXECUTE format(
+            $backfill$
+            UPDATE "subscriptions" AS s
+            SET "pendingChangeVersionId" = (
+                SELECT v."id"
+                FROM "plan_versions" AS v
+                WHERE v."planId" = s."pendingPlan"
+                  AND v."publishedAt" IS NOT NULL
+                  AND v."supersededAt" IS NULL
+                  %s
+                ORDER BY v."version" DESC
+                LIMIT 1
+            )
+            WHERE s."pendingPlan" IS NOT NULL
+              AND s."pendingPlan" <> s."plan"
+            $backfill$,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'plan_versions'
+                      AND column_name = 'endsAt'
+                )
+                THEN 'AND (v."endsAt" IS NULL OR v."endsAt" > NOW())'
+                ELSE ''
+            END
+        );
     END IF;
 
     IF NOT EXISTS (

@@ -49,6 +49,8 @@ interface SubscriptionDbRow {
 interface PlanVersionIdentityDbRow {
     id: string;
     planId: string;
+    /** Present only where the schema can end a version. */
+    endsAt?: Date | null;
 }
 
 /** Structural minimum of the root client; model delegates are configurable. */
@@ -167,15 +169,11 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
             const keepsVersion =
                 input.keepsBoundVersion && current.plan === input.planId && boundVersionId !== null;
+            const asOf = input.periodStart ?? new Date();
             data.planVersionId = keepsVersion
                 ? boundVersionId
-                : (input.quotedPlanVersionId ??
-                  (await this.findTargetPlanVersionId(
-                      client,
-                      input.planId,
-                      storagePlanId,
-                      input.periodStart ?? new Date(),
-                  )));
+                : ((await this.stillBookable(client, input.quotedPlanVersionId, asOf)) ??
+                  (await this.findTargetPlanVersionId(client, input.planId, storagePlanId, asOf)));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.
@@ -486,6 +484,26 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         });
         if (!target) throw noActivePlanVersion(planKey, asOf);
         return target.id;
+    }
+
+    /**
+     * The version a change was quoted at, while it can still be booked on the
+     * day the change takes effect; null otherwise, and the version in effect is
+     * bound. A version ended by then takes no new bookings (`SC-PLAN-016`),
+     * whatever a customer was quoted before its end was set. The row is read
+     * whole, so a schema without `endsAt` hands none back and ends nothing.
+     */
+    private async stillBookable(
+        client: unknown,
+        quotedVersionId: string | null,
+        asOf: Date,
+    ): Promise<string | null> {
+        if (!quotedVersionId) return null;
+        const quoted = await this.planVersions(client).findUnique({
+            where: { id: quotedVersionId },
+        });
+        if (!quoted) return null;
+        return quoted.endsAt && quoted.endsAt <= asOf ? null : quotedVersionId;
     }
 
     private async pendingVersionBelongsToAnotherPlan(

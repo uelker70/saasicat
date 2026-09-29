@@ -982,6 +982,50 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.notEqual(after?.planVersionId, publishedSince.planVersionId);
             });
 
+            // @requirement SC-PLAN-016
+            test('binds the version in effect where the version quoted has ended by the day it lands', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-quoted-ended');
+                if (!tenant) return;
+                const repository = harness.adapter.planRepository;
+                const end = repository?.terminate?.bind(repository);
+                if (!end) {
+                    t.skip('the plan repository ends no versions');
+                    return;
+                }
+                const quoted = await harness.seed.createPlanVersion({
+                    planKey: 'ENDING',
+                    version: 1,
+                    quotas: { users: 2 },
+                    features: [],
+                    published: true,
+                });
+                const inEffect = await harness.seed.createPlanVersion({
+                    planKey: 'ENDING',
+                    version: 2,
+                    quotas: { users: 3 },
+                    features: [],
+                    published: true,
+                });
+                // Ended after the change was quoted, before it lands in May.
+                await end(quoted.planVersionId, new Date('2026-04-15T00:00:00.000Z'));
+
+                await tenant.writer.changePlanImmediate('tenant-quoted-ended', {
+                    ...toYearly(true),
+                    planId: 'ENDING',
+                    quotedPlanVersionId: quoted.planVersionId,
+                });
+
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-quoted-ended',
+                    );
+                assert.equal(
+                    after?.planVersionId,
+                    inEffect.planVersionId,
+                    'an ended version is booked',
+                );
+            });
+
             // @requirement SC-CHG-022
             test('keeps the version bound where the plan stays, whatever version is quoted', async (t) => {
                 const tenant = await onASupersededVersion(t, 'tenant-quoted-same-plan');
