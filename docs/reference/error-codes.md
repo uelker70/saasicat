@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 189 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 190 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -128,6 +128,7 @@ Subscriptions, plan changes, entitlements.
 
 | Code                                         | Shipped English text                                                                                                                                        |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BOUND_PLAN_VERSION_UNREADABLE`              | The plan version this subscription is bound to ({planVersionId}) cannot be read for plan "{planKey}", so no change can be quoted.                           |
 | `BUNDLE_ALREADY_SUBSCRIBED`                  | Subscription '{subscriptionId}' has already actively booked this bundle.                                                                                    |
 | `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`       | A yearly bundle is booked until {until}. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.                                |
 | `BUNDLE_CYCLE_EXCEEDS_PLAN`                  | A yearly bundle cannot run beside a monthly plan: it would still be committed on every day the plan could end.                                              |

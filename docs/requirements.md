@@ -3786,8 +3786,12 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
-        - is shown the price they pay › not from the catalogue where the version bound cannot be
-          read
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
@@ -3992,8 +3996,12 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
-        - is shown the price they pay › not from the catalogue where the version bound cannot be
-          read
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 - `packages/nest/tests/tenant-billing-controller.test.js`
@@ -4310,8 +4318,12 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
-        - is shown the price they pay › not from the catalogue where the version bound cannot be
-          read
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
@@ -4387,8 +4399,12 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
-        - is shown the price they pay › not from the catalogue where the version bound cannot be
-          read
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 
@@ -5370,8 +5386,12 @@ _Tested by:_
           not as 0
         - is shown the price they pay › as none where the version they keep is sold under a special
           contract
-        - is shown the price they pay › not from the catalogue where the version bound cannot be
-          read
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
         - is shown the price they pay › from the catalogue where no repository reads versions, or
           none is bound
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
