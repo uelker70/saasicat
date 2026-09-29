@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, ne } from 'drizzle-orm';
 import type {
     PromoCodeDurationType,
     PromoCodeRedemptionListItem,
@@ -62,18 +62,20 @@ export class DrizzlePromoCodeRedemptionRepository implements PromoCodeRedemption
         return toRecord(rows[0] as RedemptionRow);
     }
 
-    async setReversed(id: string, tx?: TransactionContext): Promise<PromoCodeRedemptionRecord> {
+    async setReversed(
+        id: string,
+        tx?: TransactionContext,
+    ): Promise<PromoCodeRedemptionRecord | null> {
         const db = resolveDb(this.db, tx);
         const rows = await db
             .update(promoCodeRedemptions)
             .set({ status: 'REVERSED', reversedAt: new Date() })
-            .where(eq(promoCodeRedemptions.id, id))
+            .where(
+                and(eq(promoCodeRedemptions.id, id), ne(promoCodeRedemptions.status, 'REVERSED')),
+            )
             .returning();
         const row = rows[0] as RedemptionRow | undefined;
-        if (!row) {
-            throw new Error(`PromoCodeRedemption ${id} not found.`);
-        }
-        return toRecord(row);
+        return row ? toRecord(row) : null;
     }
 
     async countByPromoCode(

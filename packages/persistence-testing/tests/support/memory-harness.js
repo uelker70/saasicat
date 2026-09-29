@@ -419,6 +419,15 @@ export function createMemoryHarness() {
             state.redemptions.push(row);
             return row;
         },
+        // A claim: only a redemption not reversed yet is reversed, so one of
+        // two reversals wins.
+        async setReversed(id) {
+            const row = state.redemptions.find((r) => r.id === id);
+            if (!row || row.status === 'REVERSED') return null;
+            row.status = 'REVERSED';
+            row.reversedAt = new Date();
+            return { ...row };
+        },
     };
 
     const audit = {

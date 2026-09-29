@@ -323,6 +323,7 @@ export class MemoryRedemptions {
 
     async setReversed(id) {
         const row = this.rows.find((r) => r.id === id);
+        if (!row || row.status === 'REVERSED') return null;
         row.status = 'REVERSED';
         return { ...row };
     }

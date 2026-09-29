@@ -368,14 +368,10 @@ export interface PromoCodeRedemptionDelegateLike {
             endsAt: Date | null;
         };
     }): Promise<PromoCodeRedemptionRowLike>;
-    update(args: {
-        where: { id: string };
-        data: { status?: string; reversedAt?: Date | null };
-    }): Promise<PromoCodeRedemptionRowLike>;
     count(args?: { where?: { promoCodeId?: string; status?: string } }): Promise<number>;
     updateMany(args: {
-        where: { status?: string; endsAt?: { lt: Date } };
-        data: { status?: string };
+        where: { id?: string; status?: string | { not: string }; endsAt?: { lt: Date } };
+        data: { status?: string; reversedAt?: Date | null };
     }): Promise<{ count: number }>;
 }
 
