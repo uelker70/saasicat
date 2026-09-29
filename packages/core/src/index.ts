@@ -56,6 +56,7 @@ export * from './ports/maintenance-ports.types.js';
 export * from './promo-code.types.js';
 export * from './error-codes.js';
 export * from './errors.js';
+export * from './catalog-version-refusals.js';
 export * from './feature-requires.js';
 export * from './upsell.types.js';
 export * from './payment-gateway.types.js';

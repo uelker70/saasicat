@@ -49,6 +49,7 @@ import {
     PLAN_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
 import type { CatalogServiceConfig } from './bundles.service.js';
+import { answeringRefusals } from './answering-refusals.js';
 import { loadApprovedCatalogKeys } from './approved-keys.js';
 import { blockingStrictModeWarnings, validatePlanDraft } from './strict-mode-check.js';
 
@@ -146,7 +147,8 @@ export class PlanVersionsService {
                     'Implement PlanRepository.deletePlanVersionDraft.',
             });
         }
-        await this.repo.deletePlanVersionDraft(versionId);
+        const discard = this.repo.deletePlanVersionDraft.bind(this.repo);
+        await answeringRefusals(() => discard(versionId));
     }
 
     /**
@@ -388,13 +390,15 @@ export class PlanVersionsService {
             });
         }
 
-        const planVersion = await this.repo.publishPlanVersionDraft!(versionId, {
-            publishedByUserId: publishMeta.publishedByUserId,
-            publishedChanges: diff.changes,
-            nonRegressive: diff.nonRegressive,
-            validFrom,
-            validUntil,
-        });
+        const planVersion = await answeringRefusals(() =>
+            this.repo.publishPlanVersionDraft!(versionId, {
+                publishedByUserId: publishMeta.publishedByUserId,
+                publishedChanges: diff.changes,
+                nonRegressive: diff.nonRegressive,
+                validFrom,
+                validUntil,
+            }),
+        );
         return { planVersion, warnings };
     }
 

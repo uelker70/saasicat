@@ -201,6 +201,10 @@ _Tested by:_
 - `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
     - discarding a draft
         - a published version is refused — it is what somebody may have booked
+- `packages/nest/tests/a-version-somebody-published-first-is-refused-by-code.test.js`
+    - the operator who discards a draft somebody just published
+        - is told the plan version is already published
+        - is told the add-on version is already published
 
 <!-- END proof -->
 
@@ -858,6 +862,16 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/core/tests/a-refused-write-names-what-it-found.test.js`
+    - a catalogue version refused
+        - a ${kind} published first is refused as moved, with its code and id
+        - a ${kind} that is not there is refused as gone
+- `packages/nest/tests/a-version-somebody-published-first-is-refused-by-code.test.js`
+    - the operator who publishes second
+        - is told the plan version is already published
+        - is told the add-on version is already published
+        - is told a version that went meanwhile is not found
+        - an adapter failure that is no refusal still reaches the caller as it was
 - `packages/nest/tests/version-publish.test.js`
     - assertOptimisticLockHeld
         - accepts exactly 1 update

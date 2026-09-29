@@ -234,10 +234,14 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         assert.equal('validUntil' in prisma.calls.creates[0], false);
 
         await repo.publishDraft(draft.id, publishMeta);
-        assert.equal(prisma.calls.transactions, 0, 'legacy transaction behavior stays unchanged');
-        assert.equal('validUntil' in prisma.calls.updateMany[0].data, false);
-        assert.equal('validFrom' in prisma.calls.updates.at(-1).data, false);
-        assert.equal('validUntil' in prisma.calls.updates.at(-1).data, false);
+        // Claiming the draft and closing its predecessor are one step in every
+        // mode: apart, a failure between them leaves the bundle with no live
+        // version or with two.
+        assert.equal(prisma.calls.transactions, 1, 'published in one transaction');
+        const [claim, supersede] = prisma.calls.updateMany;
+        assert.equal('validFrom' in claim.data, false);
+        assert.equal('validUntil' in claim.data, false);
+        assert.equal('validUntil' in supersede.data, false);
     });
 
     test('enabled mode round-trips validity dates on create and update', async () => {

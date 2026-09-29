@@ -26,6 +26,7 @@ import type {
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
+import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import type {
     ContractGap,
     PersistenceAdapterContractOptions,
@@ -33,6 +34,41 @@ import type {
 } from './harness.types.js';
 
 const LOCK_HOLD_MS = 150;
+
+/** An id no version carries. */
+const NO_SUCH_VERSION = '00000000-0000-4000-8000-000000000000';
+
+/** A plan draft on `planKey`, starting on `validFrom`. */
+function planDraft(planKey: string, validFrom: string) {
+    return {
+        planId: planKey,
+        features: ['CORE'],
+        quotas: {},
+        monthlyNet: '10.00',
+        yearlyNet: '100.00',
+        validFrom,
+    };
+}
+
+/** What a publication records, starting on `validFrom`. */
+function publishedOn(validFrom: string, publishedByUserId: string | null) {
+    return {
+        publishedByUserId,
+        publishedChanges: [],
+        nonRegressive: true,
+        validFrom: new Date(`${validFrom}T00:00:00.000Z`),
+        validUntil: null,
+    };
+}
+
+/** An `assert.rejects` validator: refused by the adapter with the platform's `code`. */
+function refusedAs(code: string): (error: unknown) => true {
+    return (error) => {
+        assert.ok(isPersistenceRefusal(error), `a PersistenceRefusal, not ${String(error)}`);
+        assert.equal(error.code, code);
+        return true;
+    };
+}
 
 /** An offer as a pricing page stores it: one plan line, priced. */
 const OFFER: CreateCheckoutOfferData = {
@@ -291,6 +327,29 @@ const CONTRACT_GAPS: Record<
     bundleDraftPublish: {
         reason: 'adapter provides no BundleRepository that publishes drafts',
         present: ({ adapter }) => Boolean(adapter.bundleRepository?.publishDraft),
+    },
+    planDraftPublish: {
+        reason: 'adapter provides no PlanRepository that creates, publishes and reads drafts',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.createPlanVersionDraft &&
+                repository.publishPlanVersionDraft &&
+                repository.findVersionById,
+            );
+        },
+    },
+    planDraftDiscard: {
+        reason: 'adapter provides no PlanRepository that discards drafts',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.createPlanVersionDraft &&
+                repository.publishPlanVersionDraft &&
+                repository.findVersionById &&
+                repository.deletePlanVersionDraft,
+            );
+        },
     },
     bundleRetirement: {
         reason: 'adapter provides no BundleRepository that retires and finds bundles by key',
@@ -1208,6 +1267,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             await assert.rejects(
                 () => discardDraft(draft.id),
+                refusedAs(CATALOG_ERROR_CODES.BUNDLE_VERSION_ALREADY_PUBLISHED),
                 'a published version must not be discardable',
             );
             assert.ok(
@@ -1270,6 +1330,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         validFrom: new Date('2026-06-01T00:00:00.000Z'),
                         validUntil: null,
                     }),
+                refusedAs(CATALOG_ERROR_CODES.BUNDLE_VERSION_ALREADY_PUBLISHED),
                 'a version that is already published must not be published again',
             );
 
@@ -1291,6 +1352,129 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     'the predecessor must close the day before its successor opens',
                 );
             }
+        });
+
+        test('publishing a bundle version that is not there is refused as gone', async (t) => {
+            const catalog = harness.adapter.bundleRepository;
+            const publish = catalog?.publishDraft?.bind(catalog);
+            if (!catalog || !publish) {
+                missing(t, 'bundleDraftPublish');
+                return;
+            }
+            await assert.rejects(
+                () => publish(NO_SUCH_VERSION, publishedOn('2026-01-01', null)),
+                refusedAs(CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND),
+            );
+        });
+
+        test('publishing one plan draft twice claims it once', async (t) => {
+            // The plan twin of the bundle scenario above. Superseding the
+            // predecessor before claiming the draft lets the second publication
+            // write as well: it overwrites when, by whom and from when the
+            // version was published — the record of what it promised — and
+            // closes the predecessor a second time.
+            const repository = harness.adapter.planRepository;
+            const createDraft = repository?.createPlanVersionDraft?.bind(repository);
+            const publish = repository?.publishPlanVersionDraft?.bind(repository);
+            const byId = repository?.findVersionById?.bind(repository);
+            if (!repository || !createDraft || !publish || !byId) {
+                missing(t, 'planDraftPublish');
+                return;
+            }
+            await repository.create({ planKey: 'PLAN_CLAIM', label: 'Claim' });
+            const first = await createDraft(planDraft('PLAN_CLAIM', '2026-01-01'));
+            await publish(first.id, publishedOn('2026-01-01', 'first-operator'));
+            const second = await createDraft({
+                ...planDraft('PLAN_CLAIM', '2026-03-01'),
+                baseVersionId: first.id,
+            });
+            const winner = await publish(second.id, publishedOn('2026-03-01', 'winner'));
+            const closed = await byId(first.id);
+
+            // The losing request, arriving with another operator and date.
+            await assert.rejects(
+                () => publish(second.id, publishedOn('2026-06-01', 'loser')),
+                refusedAs(CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED),
+            );
+
+            const successor = await byId(second.id);
+            assert.equal(successor?.publishedByUserId, 'winner', 'who published it still stands');
+            assert.equal(successor?.publishedAt, winner.publishedAt, 'and when');
+            assert.equal(
+                (await byId(first.id))?.supersededAt,
+                closed?.supersededAt,
+                'the predecessor is closed once',
+            );
+        });
+
+        test('two publications of one plan draft at once: one wins, the other is refused', async (t) => {
+            // A double click. Both requests pass the service's check before
+            // either writes, so only the adapter's claim decides.
+            const repository = harness.adapter.planRepository;
+            const createDraft = repository?.createPlanVersionDraft?.bind(repository);
+            const publish = repository?.publishPlanVersionDraft?.bind(repository);
+            const byId = repository?.findVersionById?.bind(repository);
+            if (!repository || !createDraft || !publish || !byId) {
+                missing(t, 'planDraftPublish');
+                return;
+            }
+            await repository.create({ planKey: 'PLAN_TWICE', label: 'Twice' });
+            const draft = await createDraft(planDraft('PLAN_TWICE', '2026-01-01'));
+
+            const outcomes = await Promise.allSettled([
+                publish(draft.id, publishedOn('2026-01-01', 'first')),
+                publish(draft.id, publishedOn('2026-01-01', 'second')),
+            ]);
+
+            const won = outcomes.filter((outcome) => outcome.status === 'fulfilled');
+            const lost = outcomes.filter((outcome) => outcome.status === 'rejected');
+            assert.equal(won.length, 1, 'exactly one publication wins');
+            assert.equal(lost.length, 1, 'and the other is refused');
+            refusedAs(CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED)(lost[0]?.reason);
+            assert.equal(
+                (await byId(draft.id))?.publishedByUserId,
+                won[0]?.value.publishedByUserId,
+                "the stored version is the winner's",
+            );
+        });
+
+        test('discarding a plan draft cannot remove a version published meanwhile', async (t) => {
+            // The order the race produces: the caller decided to discard a
+            // draft, and somebody published it before the discard arrived.
+            const repository = harness.adapter.planRepository;
+            const createDraft = repository?.createPlanVersionDraft?.bind(repository);
+            const publish = repository?.publishPlanVersionDraft?.bind(repository);
+            const byId = repository?.findVersionById?.bind(repository);
+            const discard = repository?.deletePlanVersionDraft?.bind(repository);
+            if (!repository || !createDraft || !publish || !byId || !discard) {
+                missing(t, 'planDraftDiscard');
+                return;
+            }
+            await repository.create({ planKey: 'PLAN_RACE', label: 'Race' });
+            const draft = await createDraft(planDraft('PLAN_RACE', '2026-01-01'));
+            await publish(draft.id, publishedOn('2026-01-01', null));
+
+            await assert.rejects(
+                () => discard(draft.id),
+                refusedAs(CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED),
+            );
+            assert.ok(await byId(draft.id), 'and it is still there afterwards');
+
+            // A draft that is already gone is what the caller wanted.
+            await discard(NO_SUCH_VERSION);
+        });
+
+        test('publishing a plan version that is not there is refused as gone', async (t) => {
+            const repository = harness.adapter.planRepository;
+            const publish = repository?.publishPlanVersionDraft?.bind(repository);
+            if (!repository || !publish) {
+                missing(t, 'planDraftPublish');
+                return;
+            }
+            await assert.rejects(
+                () => publish(NO_SUCH_VERSION, publishedOn('2026-01-01', null)),
+                refusedAs(CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND),
+            );
         });
 
         test('a plan key names one plan for the whole installation', async (t) => {

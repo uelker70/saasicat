@@ -1,6 +1,8 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     buildActivePlanVersionWhere,
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
     type CreatePlanData,
     type CreatePlanVersionDraftData,
     type PlanListFilter,
@@ -395,41 +397,16 @@ export class PrismaPlanRepository implements PlanRepository {
         },
         tx?: TransactionContext,
     ): Promise<PlanVersionRow> {
-        const operationDb = this.db(tx);
-        const draft = await this.versions(operationDb).findUnique({
-            where: { id: versionId },
-        });
-        if (!draft) {
-            throw new Error(`PlanVersion ${versionId} not found.`);
-        }
-        const storedPlanId = draft.planId;
-
         const publish = async (db: PlanPrisma): Promise<PlanVersionDbRow> => {
             const planVersion = this.versions(db);
-            const previous = await planVersion.findFirst({
-                where: {
-                    planId: storedPlanId,
-                    publishedAt: { not: null },
-                    supersededAt: null,
-                    id: { not: versionId },
-                },
-                orderBy: { version: 'desc' },
-            });
             const now = new Date();
-            if (previous) {
-                const predecessorValidUntil = previousUtcDay(publishMeta.validFrom);
-                await planVersion.update({
-                    where: { id: previous.id },
-                    data: {
-                        supersededAt: now,
-                        ...(this.fields.validityWindows
-                            ? { validUntil: predecessorValidUntil }
-                            : {}),
-                    },
-                });
-            }
-            return planVersion.update({
-                where: { id: versionId },
+            // Claim the draft first, and only while it IS one — the order
+            // `adapter-drizzle` and the bundle repository use. Superseding the
+            // predecessor first lets two publications of one draft both write:
+            // the second overwrites when and by whom the version was published,
+            // and closes the predecessor a second time.
+            const claimed = await planVersion.updateMany({
+                where: { id: versionId, publishedAt: null },
                 data: {
                     publishedAt: now,
                     publishedChanges: publishMeta.publishedChanges,
@@ -443,6 +420,25 @@ export class PrismaPlanRepository implements PlanRepository {
                         : {}),
                 },
             });
+            const published = await planVersion.findUnique({ where: { id: versionId } });
+            if (!published) throw catalogVersionGone('PlanVersion', versionId);
+            if (claimed.count === 0) throw catalogVersionAlreadyPublished('PlanVersion', versionId);
+
+            await planVersion.updateMany({
+                where: {
+                    planId: published.planId,
+                    publishedAt: { not: null },
+                    supersededAt: null,
+                    id: { not: versionId },
+                },
+                data: {
+                    supersededAt: now,
+                    ...(this.fields.validityWindows
+                        ? { validUntil: previousUtcDay(publishMeta.validFrom) }
+                        : {}),
+                },
+            });
+            return published;
         };
 
         const published = tx
@@ -450,21 +446,24 @@ export class PrismaPlanRepository implements PlanRepository {
             : await this.prisma.$transaction((txClient) =>
                   publish(txClient as unknown as PlanPrisma),
               );
-        const planKey = await this.binding.toPlanKey(operationDb, storedPlanId);
+        const planKey = await this.binding.toPlanKey(this.db(tx), published.planId);
         return this.toPlanVersionRow(published, planKey);
     }
 
     async deletePlanVersionDraft(versionId: string): Promise<void> {
         const planVersion = this.versions(this.db());
-        const row = await planVersion.findUnique({ where: { id: versionId } });
-        if (!row) return; // no-op — the draft is already gone
-        if (row.publishedAt !== null) {
-            throw new Error(
-                `PlanVersion ${versionId} is already published and cannot be discarded ` +
-                    '(published versions are immutable — contract protection P1).',
-            );
-        }
-        await planVersion.deleteMany({ where: { id: versionId, publishedAt: null } });
+        // Conditional on the row still being a draft, and the answer read from
+        // what the DELETE matched rather than from a SELECT before it: a
+        // publish committing in between would otherwise leave the caller told
+        // the draft is gone while a published version stands.
+        const { count } = await planVersion.deleteMany({
+            where: { id: versionId, publishedAt: null },
+        });
+        if (count > 0) return;
+        // Already gone is the state the caller wanted; still there means it
+        // was published, and that is a refusal they have to see.
+        const remaining = await planVersion.findUnique({ where: { id: versionId } });
+        if (remaining) throw catalogVersionAlreadyPublished('PlanVersion', versionId);
     }
 
     private async terminateWithEndsAt(versionId: string, endsAt: Date): Promise<PlanVersionRow> {

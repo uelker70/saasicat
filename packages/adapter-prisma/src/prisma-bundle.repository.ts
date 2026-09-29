@@ -1,9 +1,12 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     buildActiveVersionWhere,
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
     bundleDraftDefaults,
     bundleStemDefaults,
     definedFields,
+    previousUtcDay,
     toBundleStemRow,
     type BundleCompatibility,
     type BundleListFilter,
@@ -357,45 +360,13 @@ export class PrismaBundleRepository implements BundleRepository {
         publishMeta: PublishBundleVersionMeta,
         tx?: TransactionContext,
     ): Promise<BundleVersionRow> {
-        if (this.validityWindows && tx === undefined) {
-            return this.transaction((transaction) =>
-                this.publishDraftWithValidity(transaction, versionId, publishMeta),
-            );
-        }
-        if (this.validityWindows) {
-            return this.publishDraftWithValidity(this.db(tx), versionId, publishMeta);
-        }
-
-        const db = this.db(tx);
-        const draft = await db.bundleVersion.findUnique({ where: { id: versionId } });
-        if (!draft) {
-            throw new Error(`BundleVersion '${versionId}' not found.`);
-        }
-
-        await db.bundleVersion.updateMany({
-            where: {
-                bundleId: draft.bundleId,
-                publishedAt: { not: null },
-                supersededAt: null,
-                NOT: { id: versionId },
-            },
-            data: { supersededAt: new Date() },
-        });
-
-        const published = await db.bundleVersion.update({
-            where: { id: versionId },
-            data: {
-                publishedAt: new Date(),
-                publishedByUserId: publishMeta.publishedByUserId,
-                publishedChanges: publishMeta.publishedChanges,
-                nonRegressive: publishMeta.nonRegressive,
-            },
-        });
-        const bundle = await db.bundle.findUnique({ where: { id: published.bundleId } });
-        return toBundleVersionRow(published, bundle, false);
+        if (tx !== undefined) return this.publishWithin(this.db(tx), versionId, publishMeta);
+        return this.transaction((transaction) =>
+            this.publishWithin(transaction, versionId, publishMeta),
+        );
     }
 
-    private async publishDraftWithValidity(
+    private async publishWithin(
         db: BundlePrisma,
         versionId: string,
         publishMeta: PublishBundleVersionMeta,
@@ -403,8 +374,10 @@ export class PrismaBundleRepository implements BundleRepository {
         const now = new Date();
         // Claim the draft first, and only while it IS one — see the same
         // comment in `adapter-drizzle`. Superseding the predecessor before
-        // claiming lets two concurrent publications of one draft both do work,
-        // and the stored windows end up a gap or an overlap.
+        // claiming lets two concurrent publications of one draft both do work:
+        // the second overwrites when and by whom the version was published,
+        // and with validity windows the stored windows end up a gap or an
+        // overlap.
         const claimed = await db.bundleVersion.updateMany({
             where: { id: versionId, publishedAt: null },
             data: {
@@ -412,15 +385,14 @@ export class PrismaBundleRepository implements BundleRepository {
                 publishedByUserId: publishMeta.publishedByUserId,
                 publishedChanges: publishMeta.publishedChanges,
                 nonRegressive: publishMeta.nonRegressive,
-                validFrom: publishMeta.validFrom,
-                validUntil: publishMeta.validUntil,
+                ...(this.validityWindows
+                    ? { validFrom: publishMeta.validFrom, validUntil: publishMeta.validUntil }
+                    : {}),
             },
         });
-        if (claimed.count === 0) {
-            throw new Error(`BundleVersion '${versionId}' not found or already published.`);
-        }
         const published = await db.bundleVersion.findUnique({ where: { id: versionId } });
-        if (!published) throw new Error(`BundleVersion '${versionId}' disappeared`);
+        if (!published) throw catalogVersionGone('BundleVersion', versionId);
+        if (claimed.count === 0) throw catalogVersionAlreadyPublished('BundleVersion', versionId);
 
         await db.bundleVersion.updateMany({
             where: {
@@ -431,12 +403,14 @@ export class PrismaBundleRepository implements BundleRepository {
             },
             data: {
                 supersededAt: now,
-                validUntil: previousUtcDay(publishMeta.validFrom),
+                ...(this.validityWindows
+                    ? { validUntil: previousUtcDay(publishMeta.validFrom) }
+                    : {}),
             },
         });
 
         const bundle = await db.bundle.findUnique({ where: { id: published.bundleId } });
-        return toBundleVersionRow(published, bundle, true);
+        return toBundleVersionRow(published, bundle, this.validityWindows);
     }
 
     async deleteDraft(versionId: string): Promise<void> {
@@ -458,11 +432,7 @@ export class PrismaBundleRepository implements BundleRepository {
         // row that is gone is the state the caller wanted, a published one is a
         // refusal they have to see.
         const remaining = await db.bundleVersion.findUnique({ where: { id: versionId } });
-        if (!remaining) return;
-        throw new Error(
-            `BundleVersion '${versionId}' is already published and cannot be discarded ` +
-                '(published versions are immutable — contract protection P1).',
-        );
+        if (remaining) throw catalogVersionAlreadyPublished('BundleVersion', versionId);
     }
 }
 
@@ -476,12 +446,6 @@ function toDecimalString(value: DecimalLike | null): string | null {
 
 function toNullableDate(value: string | null | undefined): Date | null {
     return value ? new Date(value) : null;
-}
-
-function previousUtcDay(value: Date): Date {
-    const result = new Date(value);
-    result.setUTCDate(result.getUTCDate() - 1);
-    return result;
 }
 
 function toVersionChanges(value: unknown): VersionChange[] | null {

@@ -239,6 +239,8 @@ export type ContractGap =
     | 'planRetirement'
     | 'planVersionReads'
     | 'planVersionRetirement'
+    | 'planDraftPublish'
+    | 'planDraftDiscard'
     | 'bundleRepository'
     | 'bundleValidity'
     | 'bundleDraftDiscard'

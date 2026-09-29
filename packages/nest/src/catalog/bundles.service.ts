@@ -61,6 +61,7 @@ import {
     CATALOG_SERVICE_CONFIG_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
+import { answeringRefusals } from './answering-refusals.js';
 import { loadApprovedCatalogKeys } from './approved-keys.js';
 import { blockingStrictModeWarnings, validateBundleDraft } from './strict-mode-check.js';
 
@@ -222,7 +223,8 @@ export class BundlesService {
                     'Implement BundleRepository.deleteDraft.',
             });
         }
-        await this.repo.deleteDraft(versionId);
+        const discard = this.repo.deleteDraft.bind(this.repo);
+        await answeringRefusals(() => discard(versionId));
     }
 
     // =========================================================================
@@ -493,13 +495,15 @@ export class BundlesService {
             });
         }
 
-        const bundleVersion = await this.repo.publishDraft(versionId, {
-            publishedByUserId: publishMeta.publishedByUserId,
-            publishedChanges: diff.changes,
-            nonRegressive: diff.nonRegressive,
-            validFrom,
-            validUntil,
-        });
+        const bundleVersion = await answeringRefusals(() =>
+            this.repo.publishDraft(versionId, {
+                publishedByUserId: publishMeta.publishedByUserId,
+                publishedChanges: diff.changes,
+                nonRegressive: diff.nonRegressive,
+                validFrom,
+                validUntil,
+            }),
+        );
         return { bundleVersion, warnings };
     }
 
