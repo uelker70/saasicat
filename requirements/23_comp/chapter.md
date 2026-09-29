@@ -702,7 +702,7 @@ _Tested by:_
     - PrismaPromoCodeRepository
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
-        - create normalizes the code and serializes decimals
+        - create normalizes the code and hands the decimal over as written
         - findByCode hides soft-deleted codes
         - update persists every field editable in the Admin promo page
         - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
@@ -847,7 +847,7 @@ _Tested by:_
     - PrismaPromoCodeRepository
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
-        - create normalizes the code and serializes decimals
+        - create normalizes the code and hands the decimal over as written
         - findByCode hides soft-deleted codes
         - update persists every field editable in the Admin promo page
         - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now

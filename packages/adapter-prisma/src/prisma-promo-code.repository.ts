@@ -11,6 +11,7 @@ import type {
     TransactionContext,
     UpdatePromoCodeData,
 } from '@saasicat/core';
+import { toDecimalString } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PrismaLike,
@@ -65,7 +66,7 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
             data: {
                 code: normalizeCode(data.code),
                 valueType: data.valueType,
-                value: data.value.toFixed(2),
+                value: toDecimalString(data.value),
                 durationType: data.durationType,
                 durationValue: data.durationValue ?? null,
                 validFrom: data.validFrom ?? null,
@@ -74,7 +75,7 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
                 appliesToPlans: data.appliesToPlans ?? [],
                 appliesToBilling: data.appliesToBilling ?? null,
                 firstTimeCustomersOnly: data.firstTimeCustomersOnly ?? true,
-                minimumPlanAmountGross: data.minimumPlanAmountGross?.toFixed(2) ?? null,
+                minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross) ?? null,
                 allowZeroInvoice: data.allowZeroInvoice ?? false,
                 description: data.description ?? null,
                 campaignTag: data.campaignTag ?? null,
@@ -91,7 +92,7 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
             data: {
                 status: data.status,
                 valueType: data.valueType,
-                value: data.value?.toFixed(2),
+                value: data.value === undefined ? undefined : toDecimalString(data.value),
                 durationType: data.durationType,
                 durationValue: data.durationValue,
                 validFrom: data.validFrom,
@@ -101,10 +102,7 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
                 appliesToPlans: data.appliesToPlans,
                 appliesToBilling: data.appliesToBilling,
                 firstTimeCustomersOnly: data.firstTimeCustomersOnly,
-                minimumPlanAmountGross:
-                    data.minimumPlanAmountGross === null
-                        ? null
-                        : data.minimumPlanAmountGross?.toFixed(2),
+                minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross),
                 allowZeroInvoice: data.allowZeroInvoice,
                 campaignTag: data.campaignTag,
                 revenueDeductionAccount: data.revenueDeductionAccount,
@@ -192,4 +190,9 @@ function toRecord(row: PromoCodeRowLike): PromoCodeRecord {
         updatedAt: row.updatedAt,
         deletedAt: row.deletedAt,
     };
+}
+
+/** An amount to write: absent stays absent, cleared stays cleared. */
+function nullableDecimal(value: number | null | undefined): string | null | undefined {
+    return value == null ? value : toDecimalString(value);
 }

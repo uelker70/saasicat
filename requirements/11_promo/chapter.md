@@ -143,6 +143,51 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PROMO-026 — A discount is kept as the operator entered it, or refused
+
+🟢 💰 A discount and a minimum amount are stored with two decimal places, up to what their columns
+hold. An amount entered with more places, or larger, is refused where it is entered rather than
+rounded or overflowing on its way into the table, and what is stored is the decimal that was
+entered: nothing on the way rounds its binary representation, which would send 1.005 down and 10.005
+up.
+
+_Source:_ #349
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-discount-reaches-the-column-as-entered.test.js`
+    - the amounts a code is written with
+        - reach the column as the decimals they were written as
+        - a change hands over its amount the same way, and clears a cleared minimum
+- `packages/nest/tests/a-discount-is-entered-to-the-cent.test.js`
+    - an amount entered for a code
+        - ${name}: two places are taken
+        - ${name}: an amount in exponent notation is counted, not a crash
+        - ${name}: the largest amount a column holds is taken, one cent more is refused
+        - ${name}: a third place is refused, on the discount and on the minimum
+
+<!-- END proof -->
+
+### SC-PROMO-027 — Changing a code saves every field that was changed
+
+🟢 💰 A change that is dropped on its way to the table reports success and leaves the old discount in
+place: the list shows it, and every invoice the code touches is priced with it. A field the change
+does not name keeps its value, and one it clears is cleared.
+
+_Source:_ #349
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-discount-reaches-the-column-as-entered.test.js`
+    - a change to a code
+        - hands over every field it names
+
+<!-- END proof -->
+
 ### SC-PROMO-006 — A discount runs for at most 24 months or billing periods
 
 🟢
