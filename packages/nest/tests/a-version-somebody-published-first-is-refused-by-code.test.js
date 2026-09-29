@@ -1,7 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { catalogVersionAlreadyPublished, catalogVersionGone } from '@saasicat/core';
+import {
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
+    isPersistenceRefusal,
+} from '@saasicat/core';
 import { BundlesService, PlanVersionsService, PlansService } from '../dist/catalog/index.js';
 import { FakeBundleRepository, FakePlanRepository } from '../dist/testing/index.js';
 
@@ -144,3 +148,66 @@ describe('the operator who discards a draft somebody just published', () => {
         );
     });
 });
+
+// The fakes `@saasicat/nest/testing` ships stand in for an adapter in a
+// consumer's tests. Where they refused differently — or published a draft a
+// second time — a test of the race path would pass against a shape no shipped
+// adapter has.
+describe('the shipped test fakes refuse as the adapters do', () => {
+    test('a plan version published once is refused the second time, by code', async () => {
+        const { repo, draft } = await aPlanDraft();
+        const publish = () =>
+            repo.publishPlanVersionDraft(draft.id, {
+                publishedByUserId: 'first',
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date(FUTURE),
+                validUntil: null,
+            });
+        await publish();
+
+        await assert.rejects(publish, refusedAs('PLAN_VERSION_ALREADY_PUBLISHED'));
+        await assert.rejects(
+            () => repo.deletePlanVersionDraft(draft.id),
+            refusedAs('PLAN_VERSION_ALREADY_PUBLISHED'),
+        );
+        await assert.rejects(
+            () =>
+                repo.publishPlanVersionDraft('no-such-version', {
+                    publishedByUserId: null,
+                    publishedChanges: [],
+                    nonRegressive: true,
+                    validFrom: new Date(FUTURE),
+                    validUntil: null,
+                }),
+            refusedAs('PLAN_VERSION_NOT_FOUND'),
+        );
+    });
+
+    test('so is an add-on version', async () => {
+        const { repo, draft } = await aBundleDraft();
+        const publish = () =>
+            repo.publishDraft(draft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date(FUTURE),
+                validUntil: null,
+            });
+        await publish();
+
+        await assert.rejects(publish, refusedAs('BUNDLE_VERSION_ALREADY_PUBLISHED'));
+        await assert.rejects(
+            () => repo.deleteDraft(draft.id),
+            refusedAs('BUNDLE_VERSION_ALREADY_PUBLISHED'),
+        );
+    });
+});
+
+function refusedAs(code) {
+    return (error) => {
+        assert.ok(isPersistenceRefusal(error), `a PersistenceRefusal, not ${String(error)}`);
+        assert.equal(error.code, code);
+        return true;
+    };
+}

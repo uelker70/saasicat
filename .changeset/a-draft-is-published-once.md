@@ -28,6 +28,10 @@ nor discarded.
   when a row is no longer what its caller read, carrying the platform's code.
   `catalogVersionGone` and `catalogVersionAlreadyPublished` build the two
   catalogue cases, with the parameters each code's message interpolates.
+- `FakePlanRepository` and `FakeBundleRepository` from `@saasicat/nest/testing`
+  refuse the same way: a version published once is not published again, and
+  the refusal carries the code. A test of yours that published one draft twice
+  through them now sees the refusal.
 - The persistence contract publishes a plan draft twice, one after the other
   and at the same moment, discards one published meanwhile, and publishes a
   version that is not there. A plan repository of your own throws

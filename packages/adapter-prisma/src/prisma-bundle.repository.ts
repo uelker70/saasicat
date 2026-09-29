@@ -121,10 +121,10 @@ export interface PrismaBundleRepositoryOptions {
  * `validUntil`, and therefore keeps working with the 0.6 schema. In the
  * enabled mode the repository expects both nullable columns to exist.
  *
- * In validity-window mode `publishDraft` opens an internal transaction when
- * the caller did not provide one. This makes superseding the predecessor,
- * applying its auto-succession end date and publishing the draft atomic.
- * Legacy mode retains the 0.6 transaction behavior unchanged.
+ * `publishDraft` opens an internal transaction when the caller did not
+ * provide one, in either mode: claiming the draft and closing its predecessor
+ * are one step, and with validity windows the predecessor's auto-succession
+ * end date is part of it.
  */
 @Injectable()
 export class PrismaBundleRepository implements BundleRepository {

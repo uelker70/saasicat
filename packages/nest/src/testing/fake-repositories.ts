@@ -53,7 +53,13 @@ import type {
     UpdatePlanVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
-import { formatCustomerNumber, identityCorrectionDelta, startOfUtcDay } from '@saasicat/core';
+import {
+    catalogVersionAlreadyPublished,
+    catalogVersionGone,
+    formatCustomerNumber,
+    identityCorrectionDelta,
+    startOfUtcDay,
+} from '@saasicat/core';
 
 /**
  * In-memory FakeSubscriptionRepository — stores subscriptions by
@@ -779,7 +785,7 @@ export class FakeBundleRepository implements BundleRepository {
         const existing = this.versions.get(versionId);
         if (!existing) return;
         if (existing.publishedAt !== null) {
-            throw new Error(`BundleVersion '${versionId}' is already published`);
+            throw catalogVersionAlreadyPublished('BundleVersion', versionId);
         }
         this.versions.delete(versionId);
     }
@@ -794,10 +800,12 @@ export class FakeBundleRepository implements BundleRepository {
             validUntil: Date | null;
         },
     ): Promise<BundleVersionRow> {
+        // Refused the way the shipped adapters refuse, so a test of the race
+        // path sees the answer the real stack gives rather than a 500.
         const draft = this.versions.get(versionId);
-        if (!draft) throw new Error(`BundleVersion '${versionId}' not found`);
+        if (!draft) throw catalogVersionGone('BundleVersion', versionId);
         if (draft.publishedAt !== null) {
-            throw new Error(`BundleVersion '${versionId}' is already published`);
+            throw catalogVersionAlreadyPublished('BundleVersion', versionId);
         }
         const now = this.nowIso();
         const validFromIso = publishMeta.validFrom.toISOString();
@@ -1217,8 +1225,13 @@ export class FakePlanRepository implements PlanRepository {
             validUntil: Date | null;
         },
     ): Promise<PlanVersionRow> {
+        // Claimed like the shipped adapters claim: a version published once is
+        // refused, not published again over its first publication.
         const draft = this.versions.get(versionId);
-        if (!draft) throw new Error(`PlanVersion '${versionId}' not found`);
+        if (!draft) throw catalogVersionGone('PlanVersion', versionId);
+        if (draft.publishedAt !== null) {
+            throw catalogVersionAlreadyPublished('PlanVersion', versionId);
+        }
         const planKey = draft.planId;
         const now = this.nowIso();
         // Predecessor: supersededAt + auto-succession of validUntil
@@ -1258,9 +1271,7 @@ export class FakePlanRepository implements PlanRepository {
         const existing = this.versions.get(versionId);
         if (!existing) return;
         if (existing.publishedAt !== null) {
-            throw new Error(
-                `FakePlanRepository: plan version '${versionId}' is already published — discard is not allowed`,
-            );
+            throw catalogVersionAlreadyPublished('PlanVersion', versionId);
         }
         this.versions.delete(versionId);
     }
