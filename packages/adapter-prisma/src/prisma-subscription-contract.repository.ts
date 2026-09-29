@@ -50,12 +50,12 @@ type SubscriptionContractDbRow = CanonicalContractRow & {
     lineItems: ContractLineItemDbRow[];
 };
 
-/** Narrow view of the injected client used by this repository. */
 /** The one delegate this repository reads and writes, whatever else the client carries. */
 interface SubscriptionContractRepositoryClient {
     subscriptionContract: unknown;
 }
 
+/** Narrow view of the injected client used by this repository. */
 interface SubscriptionContractPrisma {
     subscriptionContract: PrismaModelDelegateLike<SubscriptionContractDbRow>;
 }

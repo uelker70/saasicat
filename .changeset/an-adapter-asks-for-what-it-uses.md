@@ -1,6 +1,6 @@
 ---
 '@saasicat/core': major
-'@saasicat/nest': patch
+'@saasicat/nest': minor
 '@saasicat/adapter-prisma': minor
 '@saasicat/adapter-drizzle': minor
 '@saasicat/cli': minor
@@ -36,5 +36,9 @@ model named there.
   since the hasher provisions into that table.
 - `RegistrationModule` does not start beside checkout offers and promo
   codes without a `PromoCodeHoldRepository`, and says what to wire: a sign-up
-  that names an offer holds its code from step 4 on, and failed there on the
-  first checkout before.
+  that names an offer holds its code from step 4 on, and an operator can put
+  a code on an offer at any time. This stops an installation that starts
+  today: one that wires `PromoCodesModule` by hand without `holdRepository`
+  beside checkout offers and self-registration, and until now failed only at
+  the first checkout of an offer carrying a code. Pass `holdRepository`, or
+  drop `'PromoCodeHold'` from `notAdopted`, before you upgrade.
