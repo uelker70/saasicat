@@ -2,6 +2,8 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import type {
     BillingCycle,
     PlanCatalog,
+    PlanRepository,
+    PlanVersionRow,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
@@ -10,6 +12,7 @@ import type {
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
+import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
@@ -197,6 +200,12 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly contracts: SubscriptionContractRepository | null = null,
+        // The version the subscription is bound to is what it pays for, and a
+        // change that leaves the plan as it is keeps it. Without a repository
+        // that reads versions, the catalogue's prices stand in.
+        @Optional()
+        @Inject(PLAN_REPOSITORY_TOKEN)
+        private readonly plans: PlanRepository | null = null,
     ) {}
 
     async preview(
@@ -251,24 +260,48 @@ export class PlanChangePreviewService {
             this.usageSnapshot.snapshot(tenantId),
         ]);
 
+        const bound = await this.boundVersionOf(sub.planVersion?.id);
         const currentPlanDef = findPlan(catalog, currentLimits.plan);
         const currentSnap: PlanSnapshotDto = {
             id: currentLimits.plan,
             name: currentPlanDef?.name ?? currentLimits.plan,
-            monthlyNet: getPlanPriceNet(catalog, currentLimits.plan, 'MONTHLY' as BillingCycle),
-            yearlyNet: getPlanPriceNet(catalog, currentLimits.plan, 'YEARLY' as BillingCycle),
+            ...(bound
+                ? pricesOf(bound)
+                : {
+                      monthlyNet: getPlanPriceNet(
+                          catalog,
+                          currentLimits.plan,
+                          'MONTHLY' as BillingCycle,
+                      ),
+                      yearlyNet: getPlanPriceNet(
+                          catalog,
+                          currentLimits.plan,
+                          'YEARLY' as BillingCycle,
+                      ),
+                  }),
             quotas: currentLimits.quotas,
             features: Array.from(currentLimits.features).sort(),
         };
 
-        const targetSnap: PlanSnapshotDto = {
-            id: targetPlanDef.id,
-            name: targetPlanDef.name ?? targetPlanDef.id,
-            monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
-            yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
-            quotas: targetPlanDef.quotas,
-            features: targetPlanDef.features.slice().sort(),
-        };
+        // A change that leaves the plan as it is moves the rhythm and keeps the
+        // version bound (`keepsBoundVersion`): it is quoted at that version's
+        // price, and what the tenant may use does not change with it — not at
+        // the version the catalogue sells to new customers now.
+        const targetSnap: PlanSnapshotDto =
+            bound && targetPlan === sub.plan
+                ? {
+                      ...currentSnap,
+                      id: targetPlanDef.id,
+                      name: targetPlanDef.name ?? targetPlanDef.id,
+                  }
+                : {
+                      id: targetPlanDef.id,
+                      name: targetPlanDef.name ?? targetPlanDef.id,
+                      monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
+                      yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
+                      quotas: targetPlanDef.quotas,
+                      features: targetPlanDef.features.slice().sort(),
+                  };
 
         const changeType = this.classify(
             catalog,
@@ -573,6 +606,11 @@ export class PlanChangePreviewService {
             }));
     }
 
+    private async boundVersionOf(versionId: string | undefined): Promise<PlanVersionRow | null> {
+        if (!versionId || !this.plans?.findVersionById) return null;
+        return this.plans.findVersionById(versionId);
+    }
+
     private classify(
         catalog: PlanCatalog,
         currentPlan: string,
@@ -672,4 +710,9 @@ function priceForCycle(snap: PlanSnapshotDto, cycle: string): number | null {
 function isFloatQuota(key: string): boolean {
     // Storage values are GB floats; all others are integer counts.
     return key.toLowerCase().includes('storage');
+}
+
+/** A version's list prices, as the snapshot carries them. */
+function pricesOf(version: PlanVersionRow): Pick<PlanSnapshotDto, 'monthlyNet' | 'yearlyNet'> {
+    return { monthlyNet: Number(version.monthlyNet), yearlyNet: Number(version.yearlyNet) };
 }

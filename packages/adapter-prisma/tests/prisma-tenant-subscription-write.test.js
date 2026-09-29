@@ -410,6 +410,16 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             assert.equal(prisma.state.subscription.pendingPlanVersionId, null);
         });
 
+        test('binds the version in effect where the subscription is bound to none', async () => {
+            const prisma = fakePrisma({
+                subscription: subscriptionRow({ plan: 'PRO', planVersionId: null }),
+            });
+
+            await inNormalizedMode(prisma).changePlanImmediate('tenant-1', toMonthly(true));
+
+            assert.equal(prisma.state.subscription.planVersionId, 'version-pro');
+        });
+
         test('a rebinding between its read and its write is not written over', async () => {
             const prisma = onProV1();
             const updateMany = prisma.subscription.updateMany.bind(prisma.subscription);

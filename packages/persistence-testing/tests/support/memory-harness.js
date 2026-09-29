@@ -135,7 +135,10 @@ export function createMemoryHarness() {
             );
             if (!row) throw subscriptionGone(tenantId);
             // A change of rhythm keeps the version the subscriber agreed to.
-            const keepsVersion = input.keepsBoundVersion && row.plan === input.planId;
+            const keepsVersion =
+                input.keepsBoundVersion &&
+                row.plan === input.planId &&
+                (row.planVersionId ?? null) !== null;
             const target = keepsVersion
                 ? { id: row.planVersionId }
                 : state.planVersions

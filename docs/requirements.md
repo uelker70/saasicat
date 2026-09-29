@@ -3762,6 +3762,8 @@ _Tested by:_
           newer one, when it moves only the rhythm
         - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
           offers it as pending
+        - a change that leaves the plan as it is › binds the version in effect where the
+          subscription is bound to none
         - a change that leaves the plan as it is › a rebinding between its read and its write is not
           written over
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
@@ -3772,6 +3774,11 @@ _Tested by:_
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is quoted from the catalogue where no repository reads versions
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - the plan line records the version the subscription is bound to
         - a tenant on v1 who books an add-on after v2 is published keeps v1
@@ -4243,6 +4250,10 @@ _Tested by:_
         - is not blocked in the rhythm it does carry a price for
         - a plan on request is blocked in either rhythm
         - a plan that is not marketed is left to the special contract that prices it
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is quoted from the catalogue where no repository reads versions
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -4305,6 +4316,10 @@ _Tested by:_
         - is not blocked in the rhythm it does carry a price for
         - a plan on request is blocked in either rhythm
         - a plan that is not marketed is left to the special contract that prices it
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is quoted from the catalogue where no repository reads versions
 
 <!-- END proof -->
 
@@ -5273,6 +5288,10 @@ _Tested by:_
         - is not blocked in the rhythm it does carry a price for
         - a plan on request is blocked in either rhythm
         - a plan that is not marketed is left to the special contract that prices it
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is quoted from the catalogue where no repository reads versions
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
     - while a replacement preview is on the wire
         - the answer to the abandoned question is taken off the screen

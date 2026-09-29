@@ -23,6 +23,11 @@ pending version is for (`SC-SUB-012`).
   A store of your own reads the flag; code that builds the input passes it.
 - A version the write binds is no longer offered as pending: the subscriber is
   not asked to accept a version they are already on.
+- The plan-change preview quotes a change of rhythm at the version kept, and
+  shows the price of the version bound as the current one, where the plan
+  repository reads versions (`findVersionById`); a subscriber on an older
+  version was quoted the catalogue's newest price, which the write no longer
+  bills.
 - The Prisma write claims the row only while it is bound to the version it
   read, so an acceptance landing between its read and its write is not
   written over; the caller is told the subscription changed. The Drizzle

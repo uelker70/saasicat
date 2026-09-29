@@ -551,7 +551,8 @@ export interface ImmediatePlanChangeInput {
      * a change of plan, or onboarding, where the customer chose at the version
      * in effect — and the write binds the version of `planId` in effect at
      * `periodStart`. Where `planId` is another plan than the one bound, the
-     * version in effect is bound either way.
+     * version in effect is bound either way, and so it is where the
+     * subscription is bound to no version at all: it has none to keep.
      */
     keepsBoundVersion: boolean;
 }
