@@ -1,7 +1,5 @@
 import { readQuotaRecord } from '@saasicat/core';
 import type { TransactionContext } from '@saasicat/core';
-import type { PrismaTxLike } from './prisma-client-token.js';
-
 /**
  * Resolves the client a repository call runs against: the opaque
  * `TransactionContext` when the caller opened a transaction, otherwise the
@@ -9,8 +7,8 @@ import type { PrismaTxLike } from './prisma-client-token.js';
  * context becomes Prisma-shaped — valid because `PrismaTransactionRunner`
  * is the only producer of contexts in this adapter.
  */
-export function resolveClient(client: PrismaTxLike, tx?: TransactionContext): PrismaTxLike {
-    return (tx as PrismaTxLike | undefined) ?? client;
+export function resolveClient<C>(client: C, tx?: TransactionContext): C {
+    return (tx as C | undefined) ?? client;
 }
 
 /** Narrows a JSON column to the platform quota object; non-objects become {}. */

@@ -10,7 +10,7 @@ import type {
 } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
+    type PrismaTxLike,
     type PromoCodeRedemptionRowLike,
 } from './prisma-client-token.js';
 import { resolveClient } from './tx.js';
@@ -23,7 +23,10 @@ import { resolveClient } from './tx.js';
  */
 @Injectable()
 export class PrismaPromoCodeRedemptionRepository implements PromoCodeRedemptionRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaTxLike, 'promoCodeRedemption'>,
+    ) {}
 
     async findBySubscription(
         subscriptionId: string,

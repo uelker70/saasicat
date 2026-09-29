@@ -51,6 +51,11 @@ Options:
   your Prisma middleware really applies the bypass (see below).
 - `schema` — explicit plan identity, delegate and optional-field capabilities
   for schemas that differ from the 0.6 canonical layout.
+- `notAdopted` — the canonical models your schema leaves out, as
+  `saasicat schema check` prints them (it hands over the list it can use). The
+  bundle leaves out what needs them, and a model it cannot do without is
+  refused with the ones it can. Leaving out `SuperAdminMfa` means passing your
+  own `MfaPort` in `adapters`; a start without one is refused.
 
 The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
 omit `planCatalog` and name the file the settings come from:

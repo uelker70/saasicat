@@ -21,7 +21,6 @@ import {
 import {
     PRISMA_CLIENT_TOKEN,
     type DecimalLike,
-    type PrismaLike,
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
 
@@ -52,6 +51,11 @@ type SubscriptionContractDbRow = CanonicalContractRow & {
 };
 
 /** Narrow view of the injected client used by this repository. */
+/** The one delegate this repository reads and writes, whatever else the client carries. */
+interface SubscriptionContractRepositoryClient {
+    subscriptionContract: unknown;
+}
+
 interface SubscriptionContractPrisma {
     subscriptionContract: PrismaModelDelegateLike<SubscriptionContractDbRow>;
 }
@@ -76,7 +80,9 @@ interface RunningContractPrisma {
  */
 @Injectable()
 export class PrismaSubscriptionContractRepository implements SubscriptionContractRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: SubscriptionContractRepositoryClient,
+    ) {}
 
     private db(tx?: TransactionContext): SubscriptionContractPrisma {
         return (tx ?? this.prisma) as unknown as SubscriptionContractPrisma;

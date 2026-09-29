@@ -129,10 +129,10 @@ properties it has while doing it.
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
-| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 17      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 524 entries: 🟢 454 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 526 entries: 🟢 456 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 524 entries: 🟢 454 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 524 requirements. Do not edit by hand:
+Generated from `requirements/` — 526 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15890,6 +15890,7 @@ _Tested by:_
     - the check never prints two answers to one question
         - an enum a reported field names is not also listed as not adopted
         - and a model nothing reported still is
+        - a model the persistence bundle can leave out is handed over as the option to pass
 - `packages/cli/tests/schema-check.test.js`
     - parseFields
         - reads name, type and modifiers, skips attributes and comments
@@ -16510,6 +16511,47 @@ _Tested by:_
 - `packages/nest/tests/saasicat-module-escape-hatches.test.js`
     - root entry incremental migration
         - root SaaSiCatModule composes the same root-entry module classes
+
+<!-- END proof -->
+
+### SC-COMP-016 — What the schema check calls not adopted, the persistence bundle can be told
+
+🟢 An application that leaves canonical models out of its schema names them to the persistence
+bundle, `notAdopted`, in the words the schema check prints, and the bundle leaves out what needs
+them. A start then goes ahead without those features, or is refused naming what is missing, rather
+than a request failing on a table that is not there. The schema check hands over the list for the
+models the bundle can do without; a model it cannot do without is refused with the ones it can, and
+the application brings its own adapter for it.
+
+_Source:_ #351
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-check-report.test.js`
+    - the check never prints two answers to one question
+        - a model the persistence bundle can leave out is handed over as the option to pass
+
+<!-- END proof -->
+
+### SC-COMP-017 — An adapter asks only for the tables it uses
+
+🟢 An application that keeps its SuperAdmins in its own user table leaves the SuperAdmin fragment
+out, and its client has no delegate for it. Every shipped adapter that does not touch those tables
+takes such a client as it is, without a cast that would switch off the type check where a renamed
+column should be caught.
+
+_Source:_ #351
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-schema-without-super-admins-wires-the-rest.test.js`
+    - a client from a schema without the SuperAdmin fragment
+        - is taken by every adapter that does not touch those tables, without a cast
+        - the check sees a client that lacks what an adapter does use
 
 <!-- END proof -->
 

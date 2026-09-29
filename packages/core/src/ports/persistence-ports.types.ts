@@ -105,7 +105,12 @@ export interface PersistenceCapabilities {
 
 /** Always-required slice: admin surface + transactions. */
 export interface SaaSiCatPersistenceCore {
-    mfa: PersistenceProvider<MfaPort>;
+    /**
+     * Absent where the schema leaves the SuperAdmin MFA table out
+     * (`notAdopted: ['SuperAdminMfa']`); the application then passes its own
+     * `MfaPort` in `adapters`, and a start without one is refused.
+     */
+    mfa?: PersistenceProvider<MfaPort>;
     audit: PersistenceProvider<AuditPort>;
     rlsBypass: PersistenceProvider<RlsBypassPort>;
     transactionRunner: PersistenceProvider<TransactionRunner>;

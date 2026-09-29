@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { BillingCycle, PromoSubscriptionLookup, TransactionContext } from '@saasicat/core';
-import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaTxLike } from './prisma-client-token.js';
 import { resolveClient } from './tx.js';
 
 /** `PromoSubscriptionLookup` against the canonical `subscriptions` table. */
 @Injectable()
 export class PrismaPromoSubscriptionLookup implements PromoSubscriptionLookup {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: Pick<PrismaTxLike, 'subscription'>,
+    ) {}
 
     async findById(
         subscriptionId: string,

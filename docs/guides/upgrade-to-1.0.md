@@ -1489,7 +1489,9 @@ net, written once. It needs frozen contracts. To adopt it:
 
 1. Add `SubscriberLedgerEntry` from `prisma-fragments/15-subscriber-ledger.prisma` to your schema,
    with the back-relations it names on `Subscriber`, `SubscriptionContract` and `ContractLineItem`.
-   Leave them out and `saasicat schema check` lists the model as not adopted.
+   Leave them out and `saasicat schema check` lists the model as not adopted; with
+   `prismaPersistence()` or `drizzlePersistence()`, pass `notAdopted: ['SubscriberLedgerEntry']`
+   and the bundle builds no journal.
 2. Run the migration once, before `db push` where you use one:
 
     ```bash
@@ -1794,8 +1796,9 @@ two models as they are now.
 
 **An installation that keeps no holds** — a `PromoCodeRepository` of your own and no hold
 repository — adds the column alone and leaves `PromoCodeHold` out of its schema, which
-`schema check` lists as not adopted. The whole file would create a table the schema does not
-declare, and Prisma would then want to drop it again:
+`schema check` lists as not adopted; with the persistence bundle it passes
+`notAdopted: ['PromoCodeHold']`. The whole file would create a table the schema does not declare,
+and Prisma would then want to drop it again:
 
 ```sql
 ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "heldCount" INTEGER NOT NULL DEFAULT 0;

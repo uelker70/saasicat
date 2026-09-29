@@ -40,9 +40,11 @@ SaaSiCatModule.forRoot({
 `drizzlePersistence({ db })` accepts a ready Drizzle database (any pg
 driver — node-postgres, postgres.js) or an injection token, and returns the
 same `SaaSiCatPersistenceAdapter` bundle shape as `prismaPersistence()`.
-Options: `passwordHasher` (enables `core.superAdminProvisioning`) and
+Options: `passwordHasher` (enables `core.superAdminProvisioning`),
 `rlsIntegration` (declares the `rowLevelSecurity` capability once your db
-layer applies the bypass).
+layer applies the bypass) and `notAdopted` (the canonical models your schema
+leaves out, as `saasicat schema check` prints them; the bundle leaves out what
+needs them).
 
 ## Schema
 

@@ -1,8 +1,11 @@
-import type {
-    PasswordHasher,
-    PersistenceInjectionToken,
-    PersistenceProvider,
-    SaaSiCatPersistenceAdapter,
+import {
+    membersLeftOut,
+    type OptionalBundleMember,
+    type OptionalCanonicalModel,
+    type PasswordHasher,
+    type PersistenceInjectionToken,
+    type PersistenceProvider,
+    type SaaSiCatPersistenceAdapter,
 } from '@saasicat/core';
 import type { PrismaLike } from './prisma-client-token.js';
 import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
@@ -49,6 +52,8 @@ import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggreg
 
 /** Additional delegates present when the canonical catalog fragments are installed. */
 interface CanonicalPersistencePrisma extends PrismaLike {
+    subscriptionContract: unknown;
+    promoCodeHold: unknown;
     bundle: unknown;
     bundleVersion: unknown;
     subscriptionBundle: unknown;
@@ -111,6 +116,15 @@ export interface PrismaPersistenceOptions {
      * directly rather than through Nest DI.
      */
     bundle?: PrismaBundleRepositoryOptions;
+    /**
+     * The canonical models your schema leaves out, as `saasicat schema check`
+     * lists them under "Not adopted". The bundle leaves out the members that
+     * need them, so the platform decides at start what it can do without them
+     * rather than a request failing on a table that is not there. Only models
+     * the bundle can do without are accepted (`OPTIONAL_CANONICAL_MODELS`);
+     * for any other, pass your own adapter.
+     */
+    notAdopted?: readonly OptionalCanonicalModel[];
 }
 
 /**
@@ -130,6 +144,16 @@ export interface PrismaPersistenceOptions {
  */
 export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPersistenceAdapter {
     const { client } = options;
+    const leftOut = membersLeftOut(options.notAdopted);
+    if (options.passwordHasher && leftOut.has('core.superAdminProvisioning')) {
+        throw new Error(
+            'prismaPersistence: `passwordHasher` provisions SuperAdmins into `super_admin_users`, ' +
+                'and `notAdopted` says the schema has no such table. Drop one of the two.',
+        );
+    }
+    /** The member, unless a model it needs is not adopted. */
+    const unless = <T>(member: OptionalBundleMember, value: T): T | undefined =>
+        leftOut.has(member) ? undefined : value;
 
     const provide = <T>(build: (prisma: PrismaLike) => T): PersistenceProvider<T> =>
         isInjectionToken(client)
@@ -144,18 +168,23 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             advisoryLocks: false,
         },
         core: {
-            mfa: provide((prisma) => new PrismaMfaAdapter(prisma)),
+            mfa: unless(
+                'core.mfa',
+                provide((prisma) => new PrismaMfaAdapter(prisma)),
+            ),
             audit: provide((prisma) => new PrismaAuditAdapter(prisma)),
             rlsBypass: new AsyncLocalRlsBypassAdapter(),
             transactionRunner: provide((prisma) => new PrismaTransactionRunner(prisma)),
             auditQuery: provide((prisma) => new PrismaAuditQueryAdapter(prisma)),
             auditStats: provide((prisma) => new PrismaAuditStatsAdapter(prisma)),
             superAdminProvisioning: buildProvisioning(client, options.passwordHasher),
-            appliedSettings: provide(
-                (prisma) => new PrismaAppliedSettingsRepository(canonical(prisma)),
+            appliedSettings: unless(
+                'core.appliedSettings',
+                provide((prisma) => new PrismaAppliedSettingsRepository(canonical(prisma))),
             ),
-            maintenanceWindows: provide(
-                (prisma) => new PrismaMaintenanceWindowRepository(canonical(prisma)),
+            maintenanceWindows: unless(
+                'core.maintenanceWindows',
+                provide((prisma) => new PrismaMaintenanceWindowRepository(canonical(prisma))),
             ),
         },
         entitlement: {
@@ -166,14 +195,15 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
                 (prisma) => new PrismaPlanVersionRepository(prisma, options.schema),
             ),
             subscriptionContractRepository: provide(
-                (prisma) => new PrismaSubscriptionContractRepository(prisma),
+                (prisma) => new PrismaSubscriptionContractRepository(canonical(prisma)),
             ),
             subscriberRepository: provide(
                 (prisma) => new PrismaSubscriberRepository(canonical(prisma)),
             ),
             // The charges those contracts give rise to, written once each.
-            subscriberLedgerRepository: provide(
-                (prisma) => new PrismaSubscriberLedgerRepository(canonical(prisma)),
+            subscriberLedgerRepository: unless(
+                'entitlement.subscriberLedgerRepository',
+                provide((prisma) => new PrismaSubscriberLedgerRepository(canonical(prisma))),
             ),
             subscriptionBundleRepository: provide(
                 (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),
@@ -230,7 +260,10 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             ),
             subscriptionLookup: provide((prisma) => new PrismaPromoSubscriptionLookup(prisma)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
-            holdRepository: provide((prisma) => new PrismaPromoCodeHoldRepository(prisma)),
+            holdRepository: unless(
+                'promo.holdRepository',
+                provide((prisma) => new PrismaPromoCodeHoldRepository(canonical(prisma))),
+            ),
         },
         payments: {
             paymentEventLog: provide((prisma) => new PrismaPaymentEventLog(prisma)),
