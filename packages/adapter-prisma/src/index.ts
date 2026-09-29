@@ -35,7 +35,11 @@ export {
     type PrismaTenantSubscriptionOptions,
     type ResolvedPrismaSchemaOptions,
 } from './prisma-plan-binding.js';
-export { PrismaTransactionRunner } from './prisma-transaction-runner.adapter.js';
+export {
+    PRISMA_TRANSACTION_OPTIONS_TOKEN,
+    PrismaTransactionRunner,
+    type PrismaTransactionOptions,
+} from './prisma-transaction-runner.adapter.js';
 export { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 export { PrismaAuditAdapter, buildActorTag } from './prisma-audit.adapter.js';
 export { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';

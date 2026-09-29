@@ -42,9 +42,20 @@ driver — node-postgres, postgres.js) or an injection token, and returns the
 same `SaaSiCatPersistenceAdapter` bundle shape as `prismaPersistence()`.
 Options: `passwordHasher` (enables `core.superAdminProvisioning`),
 `rlsIntegration` (declares the `rowLevelSecurity` capability once your db
-layer applies the bypass) and `notAdopted` (the canonical models your schema
+layer applies the bypass), `notAdopted` (the canonical models your schema
 leaves out, as `saasicat schema check` prints them; the bundle leaves out what
-needs them).
+needs them) and `transactions`.
+
+`transactions: { maxConcurrent }` bounds how many of the platform's
+transactions are open at once; the rest wait in arrival order before they
+open. Set it below your pool's `max` — the pool size minus five is a sound
+start — so that the reads a transaction waits on can still get a
+connection. Why, and what is counted, is the same as for
+[`@saasicat/adapter-prisma`](../adapter-prisma/README.md#transactions-under-load).
+How long a transaction or a connection wait may take is the pool's own
+setting (`connectionTimeoutMillis`, `statement_timeout`); the wait for a place
+has none. Every runner on one database handle shares the bound; wired by hand,
+provide the options as `DRIZZLE_TRANSACTION_OPTIONS_TOKEN`.
 
 ## Schema
 

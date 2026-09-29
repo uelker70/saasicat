@@ -57,6 +57,10 @@ Options:
   refused with the ones it can. Leaving out `SuperAdminMfa` means passing your
   own `MfaPort` in `adapters`; a start without one is refused. A ready client
   passed as `client` needs no delegate of a model named here.
+- `transactions` — `maxConcurrent`, the most platform transactions open at
+  once, and Prisma's `timeout` and `maxWait` for each. Unset, nothing is
+  bounded and Prisma's defaults apply; see
+  [Transactions under load](#transactions-under-load).
 
 The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
 omit `planCatalog` and name the file the settings come from:
@@ -129,6 +133,48 @@ providers: [
 `PrismaLike`/`PrismaTxLike` are structural sub-interfaces — the package
 builds without `prisma generate`, and any client generated from the
 canonical schema satisfies them.
+
+## Transactions under load
+
+The platform's transactions take row locks and then read further, and each
+holds a pooled connection for its whole life. Opened for every request at
+once, they can end up holding every connection while waiting for a lock or for
+a read that needs one — and the service stalls until Prisma's `timeout` aborts
+them with `P2028`. `maxConcurrent` keeps some connections free: transactions
+beyond it wait in arrival order before they open, and that wait does not count
+against `timeout`.
+
+```ts
+prismaPersistence({
+    client: PrismaService,
+    // A pool of 20 connections (`connection_limit` in the database URL).
+    transactions: { maxConcurrent: 15, timeout: 30_000, maxWait: 10_000 },
+});
+```
+
+Your pool size minus five is a sound start; too low a value queues work that
+could have run side by side. `timeout` bounds what runs inside a transaction,
+including the wait for a row lock, so a burst at a quota limit wants more than
+Prisma's five seconds.
+
+What is counted is what runs through `transactionRunner`. A repository called
+without a transaction opens its own for that one call; it works on its own
+handle only, so it cannot hold a connection while waiting for another, and it
+is not counted. A transaction opened inside another — `run` called again rather
+than `tx` passed on — needs a second place, and with every place taken waits
+for the one its caller holds; pass `tx` on.
+
+The bound belongs to the pool, not to a runner: every runner on one client
+shares it, however many modules Nest builds one for, and a second, different
+bound for the same client is refused. A transaction waits for its place as long
+as it takes — the wait has no deadline, so a sustained overload queues rather
+than fails; leave the bound headroom against your request timeouts. Wired by
+hand, provide the options beside the runner:
+
+```ts
+{ provide: PRISMA_TRANSACTION_OPTIONS_TOKEN, useValue: { maxConcurrent: 15 } },
+PrismaTransactionRunner,
+```
 
 ## Schema assumptions
 

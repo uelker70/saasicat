@@ -1184,3 +1184,34 @@ _Tested by:_
         - the check sees the write where an adapter still asks for it
 
 <!-- END proof -->
+
+### SC-COMP-018 — An installation bounds how many platform transactions hold a connection at once
+
+🟢 The shipped persistence bundles take a bound; transactions beyond it wait, in the order they
+arrived, before they open, so connections stay free for the reads a transaction waits on. Unset,
+nothing is bounded. The bound counts what the platform runs through its transaction runner: a
+data-access call made without a transaction opens its own for that call alone, and is not counted.
+With Prisma, how long a transaction may run and how long it waits for a connection are set in the
+same place.
+
+_Source:_ #353
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/transactions-wait-their-turn.test.js`
+    - a concurrency gate
+        - admits no more than its limit at once, and the rest in arrival order
+        - gives the place back when the work fails
+        - refuses a limit of ${limit}
+- `tests/a-runner-bounds-its-transactions.test.js`
+    - the transaction runners
+        - ${name} holds at most maxConcurrent transactions open
+        - ${name}: every runner on one pool shares its bound, a copy of the options too
+        - ${name}: two pools keep a bound each, whatever options object they share
+        - ${name}: a second, different bound for one pool is refused
+        - ${name} without a bound opens as many as are asked for
+        - Prisma's limits are handed over where they were set, and only those
+
+<!-- END proof -->
