@@ -819,6 +819,9 @@ _Tested by:_
         - there is more than one, so a broken scan cannot pass by finding none
         - ${table} declares exactly the canonical columns
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a create the store refuses
+        - a marketing projection for a target and locale that has one is refused by code
+        - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database
@@ -986,6 +989,9 @@ _Tested by:_
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a create the store refuses
+        - a marketing projection for a target and locale that has one is refused by code
+        - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database

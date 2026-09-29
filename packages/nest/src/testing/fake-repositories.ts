@@ -55,7 +55,13 @@ import type {
 } from '@saasicat/core';
 import {
     catalogVersionAlreadyPublished,
+    bundleKeyTaken,
+    catalogDraftExists,
     catalogVersionGone,
+    marketingProjectionTaken,
+    planKeyTaken,
+    subscriptionBundleAlreadyCancelled,
+    subscriptionBundleGone,
     formatCustomerNumber,
     identityCorrectionDelta,
     startOfUtcDay,
@@ -199,11 +205,9 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
         data: CancelSubscriptionBundleData,
     ): Promise<SubscriptionBundleRecord> {
         const existing = this.byId.get(subscriptionBundleId);
-        if (!existing) {
-            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' not found`);
-        }
+        if (!existing) throw subscriptionBundleGone(subscriptionBundleId);
         if (existing.canceledAt !== null) {
-            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' is already cancelled`);
+            throw subscriptionBundleAlreadyCancelled(subscriptionBundleId);
         }
         const updated: SubscriptionBundleRecord = {
             ...existing,
@@ -645,9 +649,7 @@ export class FakeBundleRepository implements BundleRepository {
     async create(data: CreateBundleData): Promise<BundleRow> {
         // `bundles_bundleKey_key` in memory — a key is taken once for the
         // whole installation, and a double claim fails here as it would there.
-        if (await this.findByKey(data.bundleKey)) {
-            throw new Error(`bundleKey '${data.bundleKey}' is already taken.`);
-        }
+        if (await this.findByKey(data.bundleKey)) throw bundleKeyTaken(data.bundleKey);
         const now = this.nowIso();
         const row: BundleRow = {
             id: this.genId('bbbb'),
@@ -718,9 +720,8 @@ export class FakeBundleRepository implements BundleRepository {
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
         const draft = await this.findCurrentDraft(data.bundleId);
         if (draft) {
-            throw new Error(
-                `Bundle '${data.bundleId}' already has a draft version v${draft.version}`,
-            );
+            const bundleKey = (await this.findById(data.bundleId))?.bundleKey ?? data.bundleId;
+            throw catalogDraftExists('BundleVersion', bundleKey, draft.version);
         }
         const all = await this.listVersions(data.bundleId);
         const nextVersion = all.length === 0 ? 1 : Math.max(...all.map((v) => v.version)) + 1;
@@ -903,9 +904,11 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
         const locale = data.locale ?? 'de';
         const existing = await this.findByTarget(data.targetType, data.targetVersionId, locale);
         if (existing) {
-            throw new Error(
-                `Marketing projection for ${data.targetType}/${data.targetVersionId}/${locale} already exists`,
-            );
+            throw marketingProjectionTaken({
+                targetType: data.targetType,
+                targetVersionId: data.targetVersionId,
+                locale,
+            });
         }
         const now = this.nowIso();
         const row: MarketingProjectionRow = {
@@ -1029,9 +1032,7 @@ export class FakePlanRepository implements PlanRepository {
 
     async create(data: CreatePlanData): Promise<PlanRow> {
         // `plans_planKey_key` in memory.
-        if (await this.findByKey(data.planKey)) {
-            throw new Error(`planKey '${data.planKey}' is already taken.`);
-        }
+        if (await this.findByKey(data.planKey)) throw planKeyTaken(data.planKey);
         const now = this.nowIso();
         const row: PlanRow = {
             id: this.genId(),
@@ -1164,6 +1165,9 @@ export class FakePlanRepository implements PlanRepository {
         // data.planId is already planKey here (the service has resolved it).
         const planKey = data.planId;
         const versions = [...this.versions.values()].filter((v) => v.planId === planKey);
+        // `plan_versions_draft_per_plan` in memory.
+        const draft = versions.find((v) => v.publishedAt === null);
+        if (draft) throw catalogDraftExists('PlanVersion', planKey, draft.version);
         const nextVersion = versions.reduce((max, v) => Math.max(max, v.version), 0) + 1;
         const now = this.nowIso();
         const row: PlanVersionRow = {

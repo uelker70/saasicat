@@ -25,6 +25,7 @@ import {
     DrizzleTenantSubscriptionWrite,
     saasicatSchema,
 } from '../../dist/index.js';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
 let pool;
@@ -393,7 +394,7 @@ describe("a tenant's own writes", () => {
                 nextStatus: null,
                 expectedCanceledAt: null,
             }),
-            /No active PlanVersion/,
+            (error) => error.code === BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
         );
     });
 
@@ -485,7 +486,7 @@ describe("a tenant's own writes", () => {
         await seedSubscription('ACC_NONE', version.id);
         await assert.rejects(
             tenantWrite.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
-            /No pending PlanVersion/,
+            (error) => error.code === BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
         );
     });
 

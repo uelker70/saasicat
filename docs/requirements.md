@@ -128,11 +128,11 @@ properties it has while doing it.
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
-| 22  | Repeating an operation safely                | `SC-OPS-…`   | 15      |
+| 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 523 entries: 🟢 453 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 524 entries: 🟢 454 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 523 entries: 🟢 453 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 523 requirements. Do not edit by hand:
+Generated from `requirements/` — 524 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15085,6 +15085,49 @@ each reports the state that already holds instead of creating a second effect.
 
 _Source:_ release 1.0.0-rc.6
 
+### SC-OPS-016 — A request that loses a race reads what the check says, not a server error
+
+🟢 Two operators creating one key, a double click asking for a second draft, a cancellation arriving
+after another: the platform checks before it writes, and where two requests pass that check
+together the store decides. The one that loses is answered with the status, code and parameters a
+request arriving a moment later gets from the check, rather than a 500 that reads like a crash in
+the log. That holds for the writes the shipped stores guard this way — catalogue keys and drafts,
+add-on cancellations, and the subscription's plan, pending version and cancellation — and for a
+store of an integrator's own where it refuses with a `PersistenceRefusal`.
+
+_Source:_ #352
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a create the store refuses
+        - a marketing projection for a target and locale that has one is refused by code
+        - leaves the caller's transaction usable, where a failed insert would abort it
+- `packages/core/tests/a-refused-write-names-what-it-found.test.js`
+    - a write that lost a race names the case the check names
+        - ${code} is refused as ${reason}, with what its message names
+- `packages/nest/tests/a-request-that-loses-a-race-reads-what-the-check-says.test.js`
+    - an operator who creates in the catalogue a moment after another
+        - is told the plan key is taken, as the check says it
+        - is told the bundle key is taken, as the check says it
+        - is told the marketing projection exists, with the check’s 409
+        - is told the plan has a draft, naming it
+        - is told the plan is not found where it was retired in the meantime
+        - is told the bundle has a draft, naming it
+        - meets any other failure of the store unchanged
+    - a tenant who cancels an add-on a moment after another request
+        - is told it is already cancelled, as the check says it
+        - is told it is not found where it went
+    - a tenant whose subscription moves while the request is decided
+        - accepting a pending version cleared meanwhile answers as the check does
+        - accepting a pending version replaced meanwhile is told to reload
+        - cancelling a subscription gone meanwhile answers as the check does
+        - an immediate plan change whose target lost its version answers as not found
+
+<!-- END proof -->
+
 ### SC-OPS-008 — A scheduled job that has not run for months catches up in one step
 
 🟢 Not one step per missed period, and not by walking forward one period at a time until it arrives
@@ -16149,6 +16192,9 @@ _Tested by:_
         - there is more than one, so a broken scan cannot pass by finding none
         - ${table} declares exactly the canonical columns
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a create the store refuses
+        - a marketing projection for a target and locale that has one is refused by code
+        - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database
@@ -16316,6 +16362,9 @@ _Tested by:_
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - a create the store refuses
+        - a marketing projection for a target and locale that has one is refused by code
+        - leaves the caller's transaction usable, where a failed insert would abort it
     - canonical schema structure
         - partial unique draft indexes exist
         - one draft per plan lineage is enforced by the database

@@ -7,16 +7,24 @@
 
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    bundleKeyTaken,
+    catalogDraftExists,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
     formatCustomerNumber,
     identityCorrectionDelta,
+    noActivePlanVersion,
+    noPendingPlanVersion,
+    planKeyTaken,
     promoCodeTaken,
     readCustomLimits,
     refuseForeignPaymentMethodReference,
     subscriberChargeColumns,
     subscriberPaymentMethodColumns,
     toSubscriberChargeRecord,
+    subscriptionBundleAlreadyCancelled,
+    subscriptionBundleGone,
+    subscriptionGone,
     toSubscriptionBundleRecord,
 } from '@saasicat/core';
 
@@ -125,7 +133,7 @@ export function createMemoryHarness() {
             const row = state.subscriptions.find(
                 (subscription) => subscription.tenantId === tenantId,
             );
-            if (!row) throw new Error(`No subscription for tenant ${tenantId}.`);
+            if (!row) throw subscriptionGone(tenantId);
             const target = state.planVersions
                 .filter(
                     (version) =>
@@ -134,7 +142,7 @@ export function createMemoryHarness() {
                         !version.supersededAt,
                 )
                 .sort((a, b) => b.version - a.version)[0];
-            if (!target) throw new Error(`No active PlanVersion for plan ${input.planId}.`);
+            if (!target) throw noActivePlanVersion(input.planId, input.periodStart ?? new Date());
             // The contract's own claim: the write takes the row only while the
             // cancellation is what the caller read. This reference store keeps
             // the field as `null` unless something set it, which is what the
@@ -166,12 +174,20 @@ export function createMemoryHarness() {
             });
         },
         async schedulePlanChange() {},
-        async acceptPendingPlanVersion() {
+        async acceptPendingPlanVersion(tenantId, userId, now) {
+            const row = state.subscriptions.find(
+                (subscription) => subscription.tenantId === tenantId,
+            );
+            if (!row) throw subscriptionGone(tenantId);
+            if (!row.pendingPlanVersionId) throw noPendingPlanVersion(tenantId);
+            const alreadyAccepted = row.pendingPlanVersionAccepted === true;
+            row.pendingPlanVersionAccepted = true;
+            row.pendingPlanVersionAcceptedAt ??= now;
             return {
                 accepted: true,
-                acceptedAt: new Date(),
+                acceptedAt: row.pendingPlanVersionAcceptedAt,
                 effectiveAt: null,
-                alreadyAccepted: false,
+                alreadyAccepted,
             };
         },
         async cancelSubscription() {
@@ -480,10 +496,9 @@ export function createMemoryHarness() {
             // Refuses an already-cancelled booking, as the port says and both
             // real adapters now do. A reference implementation that is lenient
             // where they are strict is not a reference.
-            const row = state.subscriptionBundles.find(
-                (candidate) => candidate.id === id && candidate.canceledAt === null,
-            );
-            if (!row) throw new Error(`SubscriptionBundle '${id}' not found or already cancelled`);
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row) throw subscriptionBundleGone(id);
+            if (row.canceledAt !== null) throw subscriptionBundleAlreadyCancelled(id);
             row.canceledAt = canceledAt;
             row.canceledEffectiveAt = canceledEffectiveAt;
             return toSubscriptionBundleRecord(row);
@@ -710,7 +725,7 @@ export function createMemoryHarness() {
             // `plans_planKey_key` in memory — a key is taken once for the whole
             // installation, retired rows included.
             if (state.plans.some((candidate) => candidate.planKey === data.planKey)) {
-                throw new Error(`planKey '${data.planKey}' is already taken.`);
+                throw planKeyTaken(data.planKey);
             }
             const row = {
                 id: nextId('plan'),
@@ -754,6 +769,8 @@ export function createMemoryHarness() {
         },
         async createPlanVersionDraft(data) {
             const versions = state.planVersions.filter((v) => v.planId === data.planId);
+            const draft = versions.find((v) => v.publishedAt === null);
+            if (draft) throw catalogDraftExists('PlanVersion', data.planId, draft.version);
             const row = {
                 id: nextId('pv'),
                 planId: data.planId,
@@ -817,7 +834,7 @@ export function createMemoryHarness() {
             // The unique index, in memory: a key is taken once for the whole
             // installation, retired rows included.
             if (state.bundles.some((candidate) => candidate.bundleKey === data.bundleKey)) {
-                throw new Error(`bundleKey '${data.bundleKey}' is already taken.`);
+                throw bundleKeyTaken(data.bundleKey);
             }
             const row = {
                 id: nextId('bundle'),
@@ -856,6 +873,15 @@ export function createMemoryHarness() {
         },
         async createDraft(data) {
             const versions = state.bundleVersions.filter((v) => v.bundleId === data.bundleId);
+            const draft = versions.find((v) => v.publishedAt === null);
+            if (draft) {
+                const bundle = state.bundles.find((candidate) => candidate.id === data.bundleId);
+                throw catalogDraftExists(
+                    'BundleVersion',
+                    bundle?.bundleKey ?? data.bundleId,
+                    draft.version,
+                );
+            }
             const row = {
                 id: nextId('bv'),
                 bundleId: data.bundleId,

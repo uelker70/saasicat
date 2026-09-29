@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+    subscriptionBundleAlreadyCancelled,
+    subscriptionBundleGone,
     toSubscriptionBundleRecord,
     type CancelSubscriptionBundleData,
     type CanonicalSubscriptionBundleRow,
@@ -104,20 +106,13 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
                 canceledEffectiveAt: data.canceledEffectiveAt,
             },
         });
-        if (count === 0) {
-            // Two reasons, one answer: the row is gone, or it was cancelled
-            // between the caller's read and this write. Both mean this request
-            // changed nothing, and the caller has to look again either way.
-            throw new Error(
-                `SubscriptionBundle '${subscriptionBundleId}' not found or already cancelled`,
-            );
-        }
         const row = await this.db().subscriptionBundle.findUnique({
             where: { id: subscriptionBundleId },
         });
-        // The update matched a row a moment ago, so this can only be null if
-        // something deleted it in between — which nothing in the platform does.
-        if (!row) throw new Error(`SubscriptionBundle '${subscriptionBundleId}' disappeared`);
+        // Nothing claimed: the row is gone, or another request cancelled it
+        // between the caller's read and this write. The read says which.
+        if (!row) throw subscriptionBundleGone(subscriptionBundleId);
+        if (count === 0) throw subscriptionBundleAlreadyCancelled(subscriptionBundleId);
         return toSubscriptionBundleRecord(row);
     }
 

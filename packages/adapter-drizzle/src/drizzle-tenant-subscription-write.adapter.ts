@@ -12,6 +12,12 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
+import {
+    noActivePlanVersion,
+    noPendingPlanVersion,
+    subscriptionChanged,
+    subscriptionGone,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { subscriptions } from './schema.js';
@@ -122,9 +128,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         alreadyAccepted: boolean;
     }> {
         const sub = await this.requireSubscription(this.db, tenantId);
-        if (!sub.pendingPlanVersionId) {
-            throw new Error(`No pending PlanVersion for tenant ${tenantId}.`);
-        }
+        if (!sub.pendingPlanVersionId) throw noPendingPlanVersion(tenantId);
         const pendingPlanVersionId = sub.pendingPlanVersionId;
         const claimed = await this.db
             .update(subscriptions)
@@ -152,9 +156,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         ) {
             // Nothing claimed and the row is not in the accepted state either:
             // somebody replaced the pending version underneath this request.
-            throw new Error(
-                `Pending PlanVersion changed while accepting it for tenant ${tenantId}.`,
-            );
+            throw subscriptionChanged(tenantId);
         }
         return {
             accepted: true,
@@ -294,7 +296,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
     ) {
         const query = db.select().from(subscriptions).where(eq(subscriptions.tenantId, tenantId));
         const rows = await (options.lock ? query.for('update') : query).limit(1);
-        if (!rows[0]) throw new Error(`No subscription for tenant ${tenantId}.`);
+        if (!rows[0]) throw subscriptionGone(tenantId);
         return rows[0];
     }
 
@@ -304,7 +306,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         tx: TransactionContext,
     ): Promise<string> {
         const active = await this.plans.findActivePlanVersion?.(planKey, asOf, tx);
-        if (!active) throw new Error(`No active PlanVersion for plan '${planKey}'.`);
+        if (!active) throw noActivePlanVersion(planKey, asOf);
         return active.id;
     }
 

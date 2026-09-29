@@ -3,6 +3,8 @@ import {
     buildActiveVersionWhere,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
+    bundleKeyTaken,
+    catalogDraftExists,
     bundleDraftDefaults,
     bundleStemDefaults,
     definedFields,
@@ -204,11 +206,13 @@ export class PrismaBundleRepository implements BundleRepository {
     }
 
     async create(data: CreateBundleData): Promise<BundleRow> {
-        const created = await this.db().bundle.create({
-            data: {
-                ...bundleStemDefaults(data),
-            },
+        // `ON CONFLICT DO NOTHING`: a key taken by a create that raced past the
+        // platform's check is refused, and a caller's transaction stays usable.
+        const [created] = await this.db().bundle.createManyAndReturn({
+            skipDuplicates: true,
+            data: [bundleStemDefaults(data)],
         });
+        if (!created) throw bundleKeyTaken(data.bundleKey);
         return toBundleStemRow(created);
     }
 
@@ -293,35 +297,46 @@ export class PrismaBundleRepository implements BundleRepository {
 
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
         const db = this.db();
+        const bundle = await db.bundle.findUnique({ where: { id: data.bundleId } });
+        const draftExists = (draftVersion: number) =>
+            catalogDraftExists('BundleVersion', bundle?.bundleKey ?? data.bundleId, draftVersion);
         const existingDraft = await db.bundleVersion.findFirst({
             where: { bundleId: data.bundleId, publishedAt: null },
         });
-        if (existingDraft) {
-            throw new Error(
-                `Bundle '${data.bundleId}' already has a draft version (v${existingDraft.version}); ` +
-                    'only one draft per bundle is allowed.',
-            );
-        }
+        if (existingDraft) throw draftExists(existingDraft.version);
         const latest = await db.bundleVersion.findFirst({
             where: { bundleId: data.bundleId },
             orderBy: { version: 'desc' },
         });
         const nextVersion = latest ? latest.version + 1 : 1;
 
-        const created = await db.bundleVersion.create({
-            data: {
-                bundleId: data.bundleId,
-                version: nextVersion,
-                ...bundleDraftDefaults(data),
-                ...(this.validityWindows
-                    ? {
-                          validFrom: toNullableDate(data.validFrom),
-                          validUntil: toNullableDate(data.validUntil),
-                      }
-                    : {}),
-            },
+        // `ON CONFLICT DO NOTHING` on the one-draft-per-bundle index and on the
+        // version number: a draft created since the read above is refused.
+        const [created] = await db.bundleVersion.createManyAndReturn({
+            skipDuplicates: true,
+            data: [
+                {
+                    bundleId: data.bundleId,
+                    version: nextVersion,
+                    ...bundleDraftDefaults(data),
+                    ...(this.validityWindows
+                        ? {
+                              validFrom: toNullableDate(data.validFrom),
+                              validUntil: toNullableDate(data.validUntil),
+                          }
+                        : {}),
+                },
+            ],
         });
-        const bundle = await db.bundle.findUnique({ where: { id: data.bundleId } });
+        if (!created) {
+            // The version number can also have been taken by a draft published
+            // a moment later; that reads as the draft it was, and asking again
+            // succeeds.
+            const draft = await db.bundleVersion.findFirst({
+                where: { bundleId: data.bundleId, publishedAt: null },
+            });
+            throw draftExists(draft?.version ?? nextVersion);
+        }
         return toBundleVersionRow(created, bundle, this.validityWindows);
     }
 

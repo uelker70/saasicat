@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
+import { BILLING_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import { PrismaTenantSubscriptionWriteAdapter } from '../dist/index.js';
+
+/** Refused as the platform names the case, with what it names. */
+function refusedAs(code, params) {
+    return (error) => {
+        assert.ok(isPersistenceRefusal(error), String(error));
+        assert.equal(error.code, code);
+        assert.deepEqual(error.params, params);
+        return true;
+    };
+}
 
 function subscriptionRow(overrides = {}) {
     return {
@@ -433,7 +444,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
 
         await assert.rejects(
             adapter.acceptPendingPlanVersion('tenant-1', 'user-1', new Date()),
-            /Pending PlanVersion changed while accepting it/,
+            refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED, { tenantId: 'tenant-1' }),
         );
         assert.equal(prisma.state.subscription.pendingPlanVersionAccepted, false);
 
@@ -442,7 +453,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         );
         await assert.rejects(
             withoutPending.acceptPendingPlanVersion('tenant-1', 'user-1', new Date()),
-            /No pending PlanVersion/,
+            refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, { tenantId: 'tenant-1' }),
         );
     });
 
@@ -488,7 +499,7 @@ describe("a write never reaches another tenant's row", () => {
                     periodEnd: null,
                     nextStatus: null,
                 }),
-            /No subscription for tenant tenant-2/,
+            refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND, { tenantId: 'tenant-2' }),
         );
 
         assert.equal(prisma.state.subscription.plan, 'STARTER');
@@ -509,7 +520,7 @@ describe("a write never reaches another tenant's row", () => {
                     canceledEffectiveAt: null,
                     nextStatus: null,
                 }),
-            /No subscription for tenant tenant-2/,
+            refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND, { tenantId: 'tenant-2' }),
         );
 
         assert.equal(prisma.state.subscription.canceledAt, null);

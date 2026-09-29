@@ -15,7 +15,9 @@ import type {
 } from '@saasicat/core';
 import {
     catalogVersionAlreadyPublished,
+    catalogDraftExists,
     catalogVersionGone,
+    planKeyTaken,
     previousUtcDay,
     startOfUtcDay,
     toPlanRow,
@@ -139,7 +141,11 @@ export class DrizzlePlanRepository implements PlanRepository {
                 createdAt: now,
                 updatedAt: now,
             })
+            // A key taken by a create that raced past the platform's check is
+            // refused, and a caller's transaction stays usable.
+            .onConflictDoNothing()
             .returning();
+        if (!rows[0]) throw planKeyTaken(data.planKey);
         return toPlanRow(rows[0]);
     }
 
@@ -281,12 +287,13 @@ export class DrizzlePlanRepository implements PlanRepository {
             .where(eq(planVersions.planId, data.planId))
             .orderBy(desc(planVersions.version))
             .limit(1);
+        const nextVersion = (latest[0]?.version ?? 0) + 1;
         const rows = await this.db
             .insert(planVersions)
             .values({
                 id: randomUUID(),
                 planId: data.planId,
-                version: (latest[0]?.version ?? 0) + 1,
+                version: nextVersion,
                 baseVersionId: data.baseVersionId ?? null,
                 features: data.features,
                 quotas: data.quotas,
@@ -306,7 +313,17 @@ export class DrizzlePlanRepository implements PlanRepository {
                       }
                     : {}),
             })
+            // On the one-draft-per-plan index and on the version number: a
+            // draft created in the meantime is refused.
+            .onConflictDoNothing()
             .returning();
+        if (!rows[0]) {
+            // The version number can also have been taken by a draft published
+            // a moment later; that reads as the draft it was, and asking again
+            // succeeds.
+            const draft = await this.findCurrentDraft(data.planId);
+            throw catalogDraftExists('PlanVersion', data.planId, draft?.version ?? nextVersion);
+        }
         return this.versionRow(rows[0]);
     }
 

@@ -2,6 +2,17 @@
 
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
+import { BILLING_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
+
+/** Refused as the platform names the case, with what it names. */
+function refusedAs(code, params) {
+    return (error) => {
+        assert.ok(isPersistenceRefusal(error), String(error));
+        assert.equal(error.code, code);
+        assert.deepEqual(error.params, params);
+        return true;
+    };
+}
 import {
     PrismaPlanCatalogImportSink,
     PrismaPlanCatalogReadSink,
@@ -58,7 +69,10 @@ describe('Prisma plan binding options', () => {
         assert.equal(await resolver.toStoragePlanId(client, 'BASIC'), 'plan-basic');
         assert.equal(await resolver.toPlanKey(client, 'plan-basic'), 'BASIC');
         await assert.rejects(resolver.toPlanKey(client, 'plan-missing'), /not found/);
-        await assert.rejects(resolver.toStoragePlanId(client, 'NO_SUCH_KEY'), /not found/);
+        await assert.rejects(
+            resolver.toStoragePlanId(client, 'NO_SUCH_KEY'),
+            refusedAs(BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG, { planKey: 'NO_SUCH_KEY' }),
+        );
     });
 
     test('a read finds a retired plan and finds nothing for a key no plan has', async () => {
@@ -70,7 +84,10 @@ describe('Prisma plan binding options', () => {
         const resolver = createPrismaPlanBindingResolver(APP_SCHEMA.planBinding);
 
         assert.equal(await resolver.findStoragePlanId(client, 'PRO'), 'plan-pro');
-        await assert.rejects(resolver.toStoragePlanId(client, 'PRO'), /not found/);
+        await assert.rejects(
+            resolver.toStoragePlanId(client, 'PRO'),
+            refusedAs(BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG, { planKey: 'PRO' }),
+        );
         assert.equal(await resolver.findStoragePlanId(client, 'NO_SUCH_KEY'), null);
         assert.equal(
             await createPrismaPlanBindingResolver().findStoragePlanId({}, 'NO_SUCH_KEY'),
@@ -626,6 +643,11 @@ function versionDelegate(initialRows = []) {
             });
             rows.push(row);
             return row;
+        },
+        async createManyAndReturn({ data }) {
+            const created = [];
+            for (const row of data) created.push(await this.create({ data: row }));
+            return created;
         },
         async update(args) {
             calls.update.push(args);

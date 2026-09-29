@@ -12,6 +12,7 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
+import { CATALOG_ERROR_CODES } from '@saasicat/core';
 import { DrizzleBundleRepository } from '../../dist/index.js';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
@@ -149,7 +150,11 @@ describe('drafting a version', () => {
         await repository.createDraft({ bundleId: bundle.id, features: ['REPORTS'] });
         await assert.rejects(
             () => repository.createDraft({ bundleId: bundle.id, features: ['OTHER'] }),
-            /already has a draft version \(v1\)/,
+            (error) => {
+                assert.equal(error.code, CATALOG_ERROR_CODES.BUNDLE_DRAFT_ALREADY_EXISTS);
+                assert.deepEqual(error.params, { bundleKey: bundle.bundleKey, draftVersion: 1 });
+                return true;
+            },
         );
     });
 

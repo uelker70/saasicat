@@ -167,6 +167,11 @@ function fakePrisma(seedVersions = []) {
                 versions.set(row.id, row);
                 return row;
             },
+            async createManyAndReturn({ data }) {
+                const created = [];
+                for (const row of data) created.push(await this.create({ data: row }));
+                return created;
+            },
             async update({ where, data }) {
                 calls.updates.push({ where, data });
                 const existing = versions.get(where.id);

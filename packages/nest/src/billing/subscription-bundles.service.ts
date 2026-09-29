@@ -37,6 +37,7 @@ import {
 } from './bundle-period.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
@@ -376,10 +377,11 @@ export class SubscriptionBundlesService {
             parentEndsAt: input.parentEndsAt,
         });
 
-        return this.repo.cancel(input.subscriptionBundleId, {
-            canceledAt,
-            canceledEffectiveAt,
-        });
+        // A booking cancelled or removed in the meantime is refused with the
+        // code the checks above give.
+        return answeringRefusals(() =>
+            this.repo.cancel(input.subscriptionBundleId, { canceledAt, canceledEffectiveAt }),
+        );
     }
 
     /**

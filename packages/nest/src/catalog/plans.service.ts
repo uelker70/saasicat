@@ -23,6 +23,7 @@ import type {
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
+import { answeringRefusals } from '../errors/answering-refusals.js';
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { PLAN_REPOSITORY_TOKEN } from './catalog.tokens.js';
 import { CATALOG_ERROR_CODES } from '@saasicat/core';
@@ -73,15 +74,16 @@ export class PlansService {
     }
 
     async createPlan(data: CreatePlanData): Promise<PlanRow> {
-        const existing = await this.repo.findByKey(data.planKey);
-        if (existing) {
-            throw new UnprocessableEntityException({
+        const taken = () =>
+            new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS,
                 message: `Plan '${data.planKey}' already exists`,
                 params: { planKey: data.planKey },
             });
-        }
-        return this.repo.create(data);
+        if (await this.repo.findByKey(data.planKey)) throw taken();
+        return answeringRefusals(() => this.repo.create(data), {
+            [CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS]: taken,
+        });
     }
 
     async updatePlan(planId: string, data: UpdatePlanData): Promise<PlanRow> {

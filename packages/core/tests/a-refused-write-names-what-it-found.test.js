@@ -2,12 +2,25 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     ERROR_MESSAGES_EN,
     PersistenceRefusal,
+    bundleKeyTaken,
+    catalogDraftExists,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
+    formatErrorMessage,
     isPersistenceRefusal,
+    marketingProjectionTaken,
+    noActivePlanVersion,
+    noPendingPlanVersion,
+    planKeyTaken,
+    planNotInCatalog,
+    subscriptionBundleAlreadyCancelled,
+    subscriptionBundleGone,
+    subscriptionChanged,
+    subscriptionGone,
 } from '../dist/index.js';
 
 // An adapter says what it found; the platform turns that into an answer. The
@@ -67,6 +80,97 @@ describe('a refusal reads as its message says', () => {
                 );
             });
         }
+    }
+});
+
+// @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error
+describe('a write that lost a race names the case the check names', () => {
+    // Each refusal carries the code the platform's check answers the same case
+    // with, and reads as that code's shipped English message does — so a
+    // client that shows the message and one that localizes by code and params
+    // tell the operator the same thing.
+    const TARGET = { targetType: 'plan', targetVersionId: 'pv-1', locale: 'de' };
+    const CASES = [
+        [planKeyTaken('PRO'), CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS, 'moved', { planKey: 'PRO' }],
+        [
+            bundleKeyTaken('BANKING'),
+            CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS,
+            'moved',
+            { bundleKey: 'BANKING' },
+        ],
+        [
+            marketingProjectionTaken(TARGET),
+            CATALOG_ERROR_CODES.MARKETING_PROJECTION_ALREADY_EXISTS,
+            'moved',
+            TARGET,
+        ],
+        [
+            catalogDraftExists('PlanVersion', 'PRO', 3),
+            CATALOG_ERROR_CODES.PLAN_DRAFT_ALREADY_EXISTS,
+            'moved',
+            { planKey: 'PRO', draftVersion: 3 },
+        ],
+        [
+            catalogDraftExists('BundleVersion', 'BANKING', 2),
+            CATALOG_ERROR_CODES.BUNDLE_DRAFT_ALREADY_EXISTS,
+            'moved',
+            { bundleKey: 'BANKING', draftVersion: 2 },
+        ],
+        [
+            subscriptionBundleGone('sb-1'),
+            BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
+            'gone',
+            { subscriptionBundleId: 'sb-1' },
+        ],
+        [
+            subscriptionBundleAlreadyCancelled('sb-1'),
+            BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED,
+            'moved',
+            { subscriptionBundleId: 'sb-1' },
+        ],
+        [
+            subscriptionGone('t1'),
+            BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+            'gone',
+            { tenantId: 't1' },
+        ],
+        [
+            subscriptionChanged('t1'),
+            BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
+            'moved',
+            { tenantId: 't1' },
+        ],
+        [
+            noPendingPlanVersion('t1'),
+            BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
+            'moved',
+            { tenantId: 't1' },
+        ],
+        [
+            // Late in the evening in UTC is still that day, whatever the
+            // server's zone: the date is the UTC calendar day of the moment.
+            noActivePlanVersion('PRO', new Date('2026-05-01T23:30:00.000Z')),
+            BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
+            'gone',
+            { planId: 'PRO', asOf: '2026-05-01' },
+        ],
+        [
+            planNotInCatalog('PRO'),
+            BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG,
+            'gone',
+            { planKey: 'PRO' },
+        ],
+    ];
+
+    for (const [refusal, code, reason, params] of CASES) {
+        test(`${code} is refused as ${reason}, with what its message names`, () => {
+            assert.ok(isPersistenceRefusal(refusal));
+            assert.equal(refusal.code, code);
+            assert.equal(refusal.reason, reason);
+            assert.deepEqual(refusal.params, params);
+            assert.equal(refusal.message, formatErrorMessage(ERROR_MESSAGES_EN[code], params));
+            assert.doesNotMatch(refusal.message, /\{\w+\}/, 'no placeholder is left unfilled');
+        });
     }
 });
 
