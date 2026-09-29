@@ -24,7 +24,9 @@ export interface SubscriptionStatsSnapshot {
  * Prisma `subscription.groupBy(...)` / `count(...)` calls.
  *
  * The figures span every tenant: the platform reads them, together with the
- * promo code and audit figures, inside `RlsBypassPort`.
+ * promo code and audit figures, inside `RlsBypassPort`, and an implementation
+ * has to see every tenant's rows there — as for
+ * `SubscriptionRepository.countByPlanVersionId`.
  */
 export interface SubscriptionStatsPort {
     getStats(): Promise<SubscriptionStatsSnapshot>;

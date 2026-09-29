@@ -14,8 +14,11 @@ policy, that scope sees no rows, so every count read 0 — and a published versi
 that starts in the future and has nobody on it may still be edited. The terms
 tenants had been told about, and some had accepted, could be rewritten.
 
-- An adapter of your own no longer has to lift the policy itself for
-  `countByPlanVersionId`, `countByBundleVersionId`, `countActiveByPlanKey` and
-  the stats ports; the port documentation says the platform does.
-- A hand-wired `CatalogModule` or `AdminStatsModule` without an `RlsBypassPort`
-  in scope reads plainly, as before.
+- Whether the frame lifts a policy is up to your `RlsBypassPort` and the
+  database layer behind it. The middleware recipe shipped with
+  `@saasicat/adapter-prisma` lifts only `find*` queries, and these are counts:
+  if your adapter lifts the policy itself for them today, keep it until your
+  bypass demonstrably covers `count`.
+- A `CatalogModule` or `AdminStatsModule` wired by hand needs an
+  `RlsBypassPort` in scope under row-level security; without one it counts in
+  the request's scope, as before. `SaaSiCatModule` provides it.
