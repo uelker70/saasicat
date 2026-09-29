@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 60      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 27      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 30      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 522 entries: 🟢 452 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 523 entries: 🟢 453 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 522 entries: 🟢 452 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 522 requirements. Do not edit by hand:
+Generated from `requirements/` — 523 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7273,6 +7273,28 @@ _Tested by:_
 - `packages/adapter-prisma/tests/a-discount-reaches-the-column-as-entered.test.js`
     - a change to a code
         - hands over every field it names
+
+<!-- END proof -->
+
+### SC-PROMO-028 — A deleted code keeps its name
+
+🟢 A contract, an offer and a redemption name a code by its text, so a second "SPRING-25" could not
+be told from the first in any of them. Creating a code under a name a deleted code carried is
+refused as a name that exists, whether the check sees it first or two creates race past the check
+together. The nightly expiry leaves a deleted code as the operator left it.
+
+_Source:_ #350
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — a name that is taken
+        - by a deleted code, it is refused, and the answer says the code is deleted
+        - by a live code, the answer says it is not a deleted one
+        - by a create that won the race past the check, it is refused the same way
+        - an adapter failure that is no refusal reaches the caller as it was
 
 <!-- END proof -->
 
@@ -16011,9 +16033,9 @@ _Tested by:_
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
         - create normalizes the code and hands the decimal over as written
-        - findByCode hides soft-deleted codes
+        - findByCode finds a deleted code too, since its name stays taken
         - update persists every field editable in the Admin promo page
-        - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+        - expireDueCodes targets live ACTIVE/PAUSED codes with validUntil &lt; now
     - PrismaPromoCodeRedemptionRepository
         - create maps defaults and double redemption rejects
     - PrismaSuperAdminBootstrapAdapter
@@ -16156,9 +16178,9 @@ _Tested by:_
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
         - create normalizes the code and hands the decimal over as written
-        - findByCode hides soft-deleted codes
+        - findByCode finds a deleted code too, since its name stays taken
         - update persists every field editable in the Admin promo page
-        - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+        - expireDueCodes targets live ACTIVE/PAUSED codes with validUntil &lt; now
     - PrismaPromoCodeRedemptionRepository
         - create maps defaults and double redemption rejects
     - PrismaSuperAdminBootstrapAdapter

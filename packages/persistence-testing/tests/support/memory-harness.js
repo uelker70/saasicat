@@ -11,6 +11,7 @@ import {
     catalogVersionGone,
     formatCustomerNumber,
     identityCorrectionDelta,
+    promoCodeTaken,
     readCustomLimits,
     refuseForeignPaymentMethodReference,
     subscriberChargeColumns,
@@ -190,6 +191,11 @@ export function createMemoryHarness() {
         value == null ? value : (Math.round(Number(`${value}e2`)) / 100).toFixed(2);
     const promoCodeRepository = {
         async create(data) {
+            // A name is taken for good, by a deleted code too — the unique index
+            // the real tables carry.
+            if (state.promoCodes.some((candidate) => candidate.code === data.code)) {
+                throw promoCodeTaken(data.code);
+            }
             const row = {
                 id: nextId('promo'),
                 code: data.code,
@@ -220,6 +226,21 @@ export function createMemoryHarness() {
         async findById(id) {
             const row = promoCode(id);
             return row ? { ...row } : null;
+        },
+        async findByCode(code) {
+            // Deleted codes included, as both real adapters answer it.
+            const row = state.promoCodes.find((candidate) => candidate.code === code);
+            return row ? { ...row } : null;
+        },
+        async expireDueCodes(now) {
+            let expired = 0;
+            for (const row of state.promoCodes) {
+                if (row.deletedAt || !['ACTIVE', 'PAUSED'].includes(row.status)) continue;
+                if (!row.validUntil || row.validUntil >= now) continue;
+                row.status = 'EXPIRED';
+                expired += 1;
+            }
+            return expired;
         },
         async update(id, data) {
             const amounts = {};

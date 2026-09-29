@@ -239,7 +239,7 @@ Redemption, validity and limits.
 | Code                               | Shipped English text                                                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `PROMO_AMOUNT_NOT_POSITIVE`        | The amount must be positive.                                                                                             |
-| `PROMO_CODE_ALREADY_EXISTS`        | The code already exists.                                                                                                 |
+| `PROMO_CODE_ALREADY_EXISTS`        | The code exists, or a deleted code carries it; a deleted code keeps its name.                                            |
 | `PROMO_CODE_FORMAT_INVALID`        | The code may only contain upper-case letters, digits, "-" and "_" (4–32 characters).                                     |
 | `PROMO_CODE_HAS_REDEMPTIONS`       | The code already has redemptions, or checkouts holding one — it cannot be soft-deleted. Pause it instead.                |
 | `PROMO_CODE_NOT_FOUND`             | Code not found                                                                                                           |

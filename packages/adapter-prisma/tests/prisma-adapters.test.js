@@ -157,17 +157,26 @@ function fakePrisma() {
             async findMany() {
                 return [...state.promoCodesById.values()];
             },
-            async create({ data }) {
-                const row = {
-                    id: 'promo-1',
-                    redemptionsCount: 0,
-                    createdAt: new Date(0),
-                    updatedAt: new Date(0),
-                    deletedAt: null,
-                    ...data,
-                };
-                state.promoCodesById.set(row.id, row);
-                return row;
+            // `ON CONFLICT DO NOTHING` on the unique name, as the table does.
+            async createManyAndReturn({ data }) {
+                const created = [];
+                for (const entry of data) {
+                    const taken = [...state.promoCodesById.values()].some(
+                        (c) => c.code === entry.code,
+                    );
+                    if (taken) continue;
+                    const row = {
+                        id: `promo-${state.promoCodesById.size + 1}`,
+                        redemptionsCount: 0,
+                        createdAt: new Date(0),
+                        updatedAt: new Date(0),
+                        deletedAt: null,
+                        ...entry,
+                    };
+                    state.promoCodesById.set(row.id, row);
+                    created.push(row);
+                }
+                return created;
             },
             async update({ where, data }) {
                 const row = { ...state.promoCodesById.get(where.id), ...data };
@@ -574,7 +583,7 @@ describe('PrismaPromoCodeRepository', () => {
         assert.equal(record.firstTimeCustomersOnly, true);
     });
 
-    test('findByCode hides soft-deleted codes', async () => {
+    test('findByCode finds a deleted code too, since its name stays taken', async () => {
         const p = fakePrisma();
         p.state.promoCodesById.set('promo-1', {
             id: 'promo-1',
@@ -602,7 +611,9 @@ describe('PrismaPromoCodeRepository', () => {
             deletedAt: new Date(0),
         });
         const repo = new PrismaPromoCodeRepository(p);
-        assert.equal(await repo.findByCode('gone'), null);
+        const found = await repo.findByCode('gone');
+        assert.equal(found?.id, 'promo-1');
+        assert.ok(found?.deletedAt, 'and says it is deleted, for the caller to check');
     });
 
     test('update persists every field editable in the Admin promo page', async () => {
@@ -652,13 +663,17 @@ describe('PrismaPromoCodeRepository', () => {
         assert.equal(record.revenueDeductionAccount, '4736');
     });
 
-    test('expireDueCodes targets ACTIVE/PAUSED with validUntil < now', async () => {
+    test('expireDueCodes targets live ACTIVE/PAUSED codes with validUntil < now', async () => {
         const p = fakePrisma();
         const repo = new PrismaPromoCodeRepository(p);
         const now = new Date('2026-07-01T00:00:00Z');
         assert.equal(await repo.expireDueCodes(now), 3);
         assert.deepEqual(p.calls.promoCodeUpdateMany[0], {
-            where: { status: { in: ['ACTIVE', 'PAUSED'] }, validUntil: { lt: now } },
+            where: {
+                status: { in: ['ACTIVE', 'PAUSED'] },
+                validUntil: { lt: now },
+                deletedAt: null,
+            },
             data: { status: 'EXPIRED' },
         });
     });

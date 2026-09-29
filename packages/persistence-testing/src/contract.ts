@@ -26,7 +26,7 @@ import type {
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
-import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
+import { CATALOG_ERROR_CODES, PROMO_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
 import type {
     ContractGap,
     PersistenceAdapterContractOptions,
@@ -1951,6 +1951,94 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             assert.equal(Number(created.value).toFixed(2), '2.68');
             assert.equal(Number(created.minimumPlanAmountGross).toFixed(2), '1.01');
+        });
+
+        test('a deleted code keeps its name', async (t) => {
+            // Contract snapshots and redemption records name a code by its
+            // text, so a second "SPRING-25" could not be told from the first.
+            // The name stays taken; the platform's duplicate check has to see
+            // the deleted code to say so, and the unique index says it when
+            // that check is passed.
+            const promoCodes = harness.adapter.promoCodeRepository;
+            if (!promoCodes) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            const first = await promoCodes.create({
+                code: 'KEPT-NAME',
+                valueType: 'PERCENT',
+                value: 10,
+                durationType: 'ONCE',
+                createdById: 'operator-1',
+            });
+            await promoCodes.softDelete(first.id);
+
+            const found = await promoCodes.findByCode('KEPT-NAME');
+            assert.equal(found?.id, first.id, 'found by its name after it was deleted');
+            assert.ok(found?.deletedAt, 'and saying it is deleted');
+            await assert.rejects(
+                () =>
+                    promoCodes.create({
+                        code: 'KEPT-NAME',
+                        valueType: 'PERCENT',
+                        value: 20,
+                        durationType: 'ONCE',
+                        createdById: 'operator-2',
+                    }),
+                refusedAs(PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS),
+            );
+        });
+
+        test('two creates of one name at once: one is created, the other is refused', async (t) => {
+            const promoCodes = harness.adapter.promoCodeRepository;
+            if (!promoCodes) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            const create = (createdById: string) =>
+                promoCodes.create({
+                    code: 'RACED-NAME',
+                    valueType: 'PERCENT',
+                    value: 10,
+                    durationType: 'ONCE',
+                    createdById,
+                });
+
+            const outcomes = await Promise.allSettled([create('first'), create('second')]);
+
+            assert.equal(outcomes.filter((o) => o.status === 'fulfilled').length, 1);
+            const lost = outcomes.find((o) => o.status === 'rejected');
+            refusedAs(PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS)(lost?.reason);
+        });
+
+        test('the expiry leaves a deleted code as it was', async (t) => {
+            const promoCodes = harness.adapter.promoCodeRepository;
+            if (!promoCodes) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            const lapsed = (code: string) =>
+                promoCodes.create({
+                    code,
+                    valueType: 'PERCENT',
+                    value: 10,
+                    durationType: 'ONCE',
+                    validUntil: new Date('2026-01-31T00:00:00.000Z'),
+                    createdById: 'operator-1',
+                });
+            const live = await lapsed('LAPSED-LIVE');
+            const deleted = await lapsed('LAPSED-DELETED');
+            await promoCodes.softDelete(deleted.id);
+
+            const expired = await promoCodes.expireDueCodes(new Date('2026-02-15T00:00:00.000Z'));
+
+            assert.equal(expired, 1, 'the live code only');
+            assert.equal((await promoCodes.findById(live.id))?.status, 'EXPIRED');
+            assert.equal(
+                (await promoCodes.findById(deleted.id))?.status,
+                'ACTIVE',
+                'a row the operator removed is not written to',
+            );
         });
 
         test('an update writes every field it names, and leaves the others', async (t) => {

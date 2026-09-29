@@ -1,5 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { promoCodeTaken } from '@saasicat/core';
 import { PromoCodesService } from '../dist/promo/index.js';
 import { givenPlanCatalogSource } from '../dist/billing/index.js';
 import { publishingCatalogue } from './helpers/publishing-catalogue.js';
@@ -258,6 +259,64 @@ describe('PromoCodesService.create — validation', () => {
         const svc = buildSvc();
         await svc.create(BASE_INPUT);
         await assert.rejects(svc.create(BASE_INPUT));
+    });
+});
+
+// @requirement SC-PROMO-028 — A deleted code keeps its name
+describe('PromoCodesService.create — a name that is taken', () => {
+    const answeredAsTaken = (error) => {
+        assert.equal(error.getStatus(), 400);
+        assert.equal(error.getResponse().code, 'PROMO_CODE_ALREADY_EXISTS');
+        return true;
+    };
+
+    test('by a deleted code, it is refused, and the answer says the code is deleted', async () => {
+        // The admin list leaves deleted codes out; without saying which case it
+        // is, the operator is told the code exists and cannot find it.
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({ promoRepo });
+        const first = await svc.create(BASE_INPUT);
+        promoRepo.byCode.set(first.code, { ...first, deletedAt: new Date() });
+
+        await assert.rejects(svc.create(BASE_INPUT), (error) => {
+            answeredAsTaken(error);
+            assert.equal(error.getResponse().params.deleted, true);
+            return true;
+        });
+    });
+
+    test('by a live code, the answer says it is not a deleted one', async () => {
+        const svc = buildSvc();
+        await svc.create(BASE_INPUT);
+
+        await assert.rejects(svc.create(BASE_INPUT), (error) => {
+            answeredAsTaken(error);
+            assert.equal(error.getResponse().params.deleted, false);
+            return true;
+        });
+    });
+
+    test('by a create that won the race past the check, it is refused the same way', async () => {
+        // Both requests saw the name free; the adapter's unique index decides.
+        const promoRepo = new FakePromoRepo();
+        promoRepo.create = async (data) => {
+            throw promoCodeTaken(data.code);
+        };
+
+        await assert.rejects(buildSvc({ promoRepo }).create(BASE_INPUT), answeredAsTaken);
+    });
+
+    test('an adapter failure that is no refusal reaches the caller as it was', async () => {
+        const promoRepo = new FakePromoRepo();
+        const failure = new Error('connection reset');
+        promoRepo.create = async () => {
+            throw failure;
+        };
+
+        await assert.rejects(
+            buildSvc({ promoRepo }).create(BASE_INPUT),
+            (error) => error === failure,
+        );
     });
 });
 

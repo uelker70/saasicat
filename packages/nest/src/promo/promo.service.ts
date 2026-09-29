@@ -26,7 +26,12 @@ import type {
     TransactionRunner,
     UpdatePromoCodeData,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES, CONTRACT_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/core';
+import {
+    BILLING_ERROR_CODES,
+    CONTRACT_ERROR_CODES,
+    PROMO_ERROR_CODES,
+    isPersistenceRefusal,
+} from '@saasicat/core';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { getPlanPriceGross } from '../billing/plan-helpers.js';
@@ -255,16 +260,32 @@ export class PromoCodesService {
             this.ruleContext(),
         );
 
-        const exists = await this.promoRepo.findByCode(code);
-        if (exists) {
-            throw new BadRequestException({
+        // A deleted code counts: its name stays taken (`SC-PROMO-028`). The
+        // admin list does not show deleted codes, so `deleted` says which case
+        // it is; a create that lost a race cannot tell, and leaves it out.
+        const taken = (deleted?: boolean) =>
+            new BadRequestException({
                 code: PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS,
-                message: 'The code already exists.',
-                params: { promoCode: code },
+                message:
+                    'The code exists, or a deleted code carries it; a deleted code keeps its name.',
+                params: { promoCode: code, ...(deleted === undefined ? {} : { deleted }) },
             });
-        }
+        const existing = await this.promoRepo.findByCode(code);
+        if (existing) throw taken(existing.deletedAt !== null);
 
-        return this.promoRepo.create({ ...input, code });
+        try {
+            return await this.promoRepo.create({ ...input, code });
+        } catch (error) {
+            // Two creates of one name that both passed the check above: the
+            // adapter's unique index decides, and the loser gets the same answer.
+            if (
+                isPersistenceRefusal(error) &&
+                error.code === PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS
+            ) {
+                throw taken();
+            }
+            throw error;
+        }
     }
 
     /**

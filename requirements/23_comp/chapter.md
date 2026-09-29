@@ -703,9 +703,9 @@ _Tested by:_
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
         - create normalizes the code and hands the decimal over as written
-        - findByCode hides soft-deleted codes
+        - findByCode finds a deleted code too, since its name stays taken
         - update persists every field editable in the Admin promo page
-        - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+        - expireDueCodes targets live ACTIVE/PAUSED codes with validUntil &lt; now
     - PrismaPromoCodeRedemptionRepository
         - create maps defaults and double redemption rejects
     - PrismaSuperAdminBootstrapAdapter
@@ -848,9 +848,9 @@ _Tested by:_
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
         - create normalizes the code and hands the decimal over as written
-        - findByCode hides soft-deleted codes
+        - findByCode finds a deleted code too, since its name stays taken
         - update persists every field editable in the Admin promo page
-        - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+        - expireDueCodes targets live ACTIVE/PAUSED codes with validUntil &lt; now
     - PrismaPromoCodeRedemptionRepository
         - create maps defaults and double redemption rejects
     - PrismaSuperAdminBootstrapAdapter

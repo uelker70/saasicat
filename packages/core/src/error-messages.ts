@@ -197,7 +197,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     QUOTA_DIMENSION_UNKNOWN: 'Unknown quota dimension "{dimension}".',
     // ── promo ──
     PROMO_CODE_NOT_FOUND: 'Code not found',
-    PROMO_CODE_ALREADY_EXISTS: 'The code already exists.',
+    PROMO_CODE_ALREADY_EXISTS:
+        'The code exists, or a deleted code carries it; a deleted code keeps its name.',
     PROMO_CODE_HAS_REDEMPTIONS:
         'The code already has redemptions, or checkouts holding one — it cannot be soft-deleted. Pause it instead.',
     PROMO_CODE_NOT_REDEEMABLE: 'Code cannot be redeemed: {reason}',

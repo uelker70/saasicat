@@ -11,7 +11,7 @@ import type {
     TransactionContext,
     UpdatePromoCodeData,
 } from '@saasicat/core';
-import { toDecimalString } from '@saasicat/core';
+import { promoCodeTaken, toDecimalString } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PrismaLike,
@@ -43,9 +43,9 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
         const row = await db.promoCode.findUnique({
             where: { code: normalizeCode(code) },
         });
-        // Soft-deleted codes are not redeemable/visible via code lookup.
-        if (!row || row.deletedAt) return null;
-        return toRecord(row);
+        // Deleted codes included: a code's name stays taken (`SC-PROMO-028`),
+        // and every caller that redeems or previews checks `deletedAt` itself.
+        return row ? toRecord(row) : null;
     }
 
     async findMany(filter: PromoCodeFilter): Promise<PromoCodeRecord[]> {
@@ -62,27 +62,35 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
     }
 
     async create(data: CreatePromoCodeData): Promise<PromoCodeRecord> {
-        const row = await this.prisma.promoCode.create({
-            data: {
-                code: normalizeCode(data.code),
-                valueType: data.valueType,
-                value: toDecimalString(data.value),
-                durationType: data.durationType,
-                durationValue: data.durationValue ?? null,
-                validFrom: data.validFrom ?? null,
-                validUntil: data.validUntil ?? null,
-                maxRedemptions: data.maxRedemptions ?? null,
-                appliesToPlans: data.appliesToPlans ?? [],
-                appliesToBilling: data.appliesToBilling ?? null,
-                firstTimeCustomersOnly: data.firstTimeCustomersOnly ?? true,
-                minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross) ?? null,
-                allowZeroInvoice: data.allowZeroInvoice ?? false,
-                description: data.description ?? null,
-                campaignTag: data.campaignTag ?? null,
-                revenueDeductionAccount: data.revenueDeductionAccount ?? null,
-                createdById: data.createdById,
-            },
+        const code = normalizeCode(data.code);
+        // `ON CONFLICT DO NOTHING`: the unique index on the name answers two
+        // creates that raced past the platform's check, with a refusal rather
+        // than a driver error — and leaves a caller's transaction usable.
+        const [row] = await this.prisma.promoCode.createManyAndReturn({
+            skipDuplicates: true,
+            data: [
+                {
+                    code,
+                    valueType: data.valueType,
+                    value: toDecimalString(data.value),
+                    durationType: data.durationType,
+                    durationValue: data.durationValue ?? null,
+                    validFrom: data.validFrom ?? null,
+                    validUntil: data.validUntil ?? null,
+                    maxRedemptions: data.maxRedemptions ?? null,
+                    appliesToPlans: data.appliesToPlans ?? [],
+                    appliesToBilling: data.appliesToBilling ?? null,
+                    firstTimeCustomersOnly: data.firstTimeCustomersOnly ?? true,
+                    minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross) ?? null,
+                    allowZeroInvoice: data.allowZeroInvoice ?? false,
+                    description: data.description ?? null,
+                    campaignTag: data.campaignTag ?? null,
+                    revenueDeductionAccount: data.revenueDeductionAccount ?? null,
+                    createdById: data.createdById,
+                },
+            ],
         });
+        if (!row) throw promoCodeTaken(code);
         return toRecord(row);
     }
 
@@ -151,7 +159,11 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
 
     async expireDueCodes(now: Date): Promise<number> {
         const result = await this.prisma.promoCode.updateMany({
-            where: { status: { in: ['ACTIVE', 'PAUSED'] }, validUntil: { lt: now } },
+            where: {
+                status: { in: ['ACTIVE', 'PAUSED'] },
+                validUntil: { lt: now },
+                deletedAt: null,
+            },
             data: { status: 'EXPIRED' },
         });
         return result.count;
