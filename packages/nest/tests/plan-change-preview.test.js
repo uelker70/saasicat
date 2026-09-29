@@ -467,6 +467,46 @@ describe('a subscriber on an older version of the plan', () => {
         assert.equal(dto.target.plan.yearlyNet, 190);
     });
 
+    // @requirement SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
+    describe('is quoted a change at a version the change can name', () => {
+        // The catalogue lists STANDARD at 49 €; the version live now, read as a
+        // row, says 59 € — a catalogue read a moment before a publish.
+        const STANDARD_LIVE = {
+            id: 'pv-standard-3',
+            planId: 'STANDARD',
+            version: 3,
+            monthlyNet: '59.00',
+            yearlyNet: '590.00',
+            features: ['CORE_IDENTITY'],
+            quotas: { users: 8, members: 1000, storageGb: 10 },
+        };
+        const reading = {
+            ...plans,
+            findLatestLivePlanVersion: async (key) => (key === 'STANDARD' ? STANDARD_LIVE : null),
+        };
+        const at = new Date('2026-05-15');
+
+        test('another plan at the version live now, priced from that version and named by it', async () => {
+            const dto = await previewFor(reading).preview('t1', 'STANDARD', 'MONTHLY', at);
+
+            assert.equal(dto.target.planVersionId, 'pv-standard-3');
+            assert.equal(dto.target.plan.monthlyNet, 59, 'the price of the version named');
+        });
+
+        test('the plan it stays on at the version kept', async () => {
+            const dto = await previewFor(reading).preview('t1', 'STARTER', 'YEARLY', at);
+
+            assert.equal(dto.target.planVersionId, V1.id);
+        });
+
+        test('none where nothing reads versions, priced from the catalogue', async () => {
+            const dto = await previewFor(null).preview('t1', 'STANDARD', 'MONTHLY', at);
+
+            assert.equal(dto.target.planVersionId, null);
+            assert.equal(dto.target.plan.monthlyNet, 49);
+        });
+    });
+
     // @requirement SC-SUB-019 — A subscriber is shown the price of the version they are bound to
     describe('is shown the price they pay', () => {
         const sub = (billingCycle, planVersion = { id: V1.id }) => ({

@@ -110,6 +110,9 @@ model Subscription {
     pendingPlan          String? // Downgrade/change at period end
     pendingBillingCycle  BillingCycle?
     pendingEffectiveAt   DateTime?
+    // The version of `pendingPlan` the change was quoted at, bound when it
+    // comes due; null where the plan stays or nothing reads versions.
+    pendingChangeVersionId String?
 
     // Special contract / pilot — audit (who/when) lives in the AuditLog.
     customMonthlyNet Decimal?  @db.Decimal(10, 2)
@@ -135,12 +138,14 @@ model Subscription {
     promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
     planVersion         PlanVersion                 @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
+    pendingChangeVersion PlanVersion?               @relation("SubscriptionPendingChangeVersion", fields: [pendingChangeVersionId], references: [id], onDelete: Restrict)
     // Standalone add-on bookings (see 11-subscription-bundle.prisma).
     bundles             SubscriptionBundle[]
 
     @@index([tenantId])
     @@index([planVersionId])
     @@index([pendingPlanVersionId])
+    @@index([pendingChangeVersionId])
     @@index([currentPeriodEnd])
     @@map("subscriptions")
 }

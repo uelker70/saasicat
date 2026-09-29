@@ -1606,3 +1606,75 @@ function preflightQueryFromTheGuide() {
     assert.ok(opens !== -1 && closes !== -1, 'the query block is not closed');
     return guide.slice(body, closes).trim();
 }
+
+// @requirement SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
+describe('a scheduled change learns the version it was quoted at', () => {
+    // A change scheduled before the column was never told which version it was
+    // shown. The one live when the file runs stands for it, because that is
+    // the version the change would have bound had it come due that day. A
+    // change that keeps its plan, or moves to one with no live version, is
+    // left empty. And the backfill belongs to the run that adds the column: a
+    // second run must not pin a version published in between.
+    const MIGRATION = '1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql';
+    const version = (id, planId, number, published, superseded = null) =>
+        client.query(
+            'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
+                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "updatedAt") ' +
+                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, NOW())",
+            [id, planId, number, published, superseded],
+        );
+    const subscription = (tenantId, pendingPlan) =>
+        client.query(
+            'INSERT INTO "subscriptions" ("id", "tenantId", "plan", "planVersionId", "pendingPlan", "updatedAt") ' +
+                "VALUES ($1, $1, 'STARTER', 'starter-1', $2, NOW())",
+            [tenantId, pendingPlan],
+        );
+    const quoted = async () =>
+        Object.fromEntries(
+            (
+                await client.query(
+                    'SELECT "tenantId", "pendingChangeVersionId" FROM "subscriptions" ORDER BY "tenantId"',
+                )
+            ).rows.map((row) => [row.tenantId, row.pendingChangeVersionId]),
+        );
+
+    async function beforeTheColumn() {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+        await version('starter-1', 'STARTER', 1, '2026-01-01');
+        await version('pro-1', 'PRO', 1, '2026-01-01', '2026-03-01');
+        await version('pro-2', 'PRO', 2, '2026-03-01');
+        await version('pro-3', 'PRO', 3, null);
+        await subscription('to-another-plan', 'PRO');
+        await subscription('on-its-plan', 'STARTER');
+        await subscription('to-a-plan-not-on-sale', 'UNRELEASED');
+        await subscription('with-nothing-scheduled', null);
+    }
+
+    test('a change to another plan is given the version live now; the rest are left empty', async () => {
+        await beforeTheColumn();
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), {
+            'on-its-plan': null,
+            'to-a-plan-not-on-sale': null,
+            'to-another-plan': 'pro-2',
+            'with-nothing-scheduled': null,
+        });
+    });
+
+    test('a second run pins nothing published since the first', async () => {
+        await beforeTheColumn();
+        await apply(MIGRATION);
+        const afterFirst = await quoted();
+        await version('unreleased-1', 'UNRELEASED', 1, '2026-09-01');
+        await client.query(
+            `UPDATE "plan_versions" SET "supersededAt" = NOW() WHERE "id" = 'pro-2'`,
+        );
+        await version('pro-4', 'PRO', 4, '2026-09-01');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), afterFirst);
+    });
+});

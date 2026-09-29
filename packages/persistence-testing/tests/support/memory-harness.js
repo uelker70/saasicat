@@ -140,16 +140,19 @@ export function createMemoryHarness() {
                 input.keepsBoundVersion &&
                 row.plan === input.planId &&
                 (row.planVersionId ?? null) !== null;
+            // A change that names the version it was quoted at is bound to it.
+            const quoted = input.quotedPlanVersionId ? { id: input.quotedPlanVersionId } : null;
             const target = keepsVersion
                 ? { id: row.planVersionId }
-                : state.planVersions
+                : (quoted ??
+                  state.planVersions
                       .filter(
                           (version) =>
                               version.planId === input.planId &&
                               version.publishedAt &&
                               !version.supersededAt,
                       )
-                      .sort((a, b) => b.version - a.version)[0];
+                      .sort((a, b) => b.version - a.version)[0]);
             if (!target) throw noActivePlanVersion(input.planId, input.periodStart ?? new Date());
             // The contract's own claim: the write takes the row only while the
             // cancellation is what the caller read. This reference store keeps
@@ -177,6 +180,7 @@ export function createMemoryHarness() {
                     trialEndsAt: null,
                     expectedCanceledAt: null,
                     keepsBoundVersion: false,
+                    quotedPlanVersionId: null,
                 });
                 const row = state.subscriptions.find(
                     (subscription) => subscription.tenantId === tenantId,

@@ -131,6 +131,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             pendingPlan: null,
             pendingBillingCycle: null,
             pendingEffectiveAt: null,
+            pendingChangeVersionId: null,
             ...(input.nextStatus ? { status: input.nextStatus } : {}),
             // Opening a window sets the day the subscription is billed on, and
             // that day IS the window's start — derived rather than passed,
@@ -168,12 +169,13 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 input.keepsBoundVersion && current.plan === input.planId && boundVersionId !== null;
             data.planVersionId = keepsVersion
                 ? boundVersionId
-                : await this.findTargetPlanVersionId(
+                : (input.quotedPlanVersionId ??
+                  (await this.findTargetPlanVersionId(
                       client,
                       input.planId,
                       storagePlanId,
                       input.periodStart ?? new Date(),
-                  );
+                  )));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.
@@ -224,6 +226,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingPlan: input.pendingPlan,
                 pendingBillingCycle: input.pendingBillingCycle,
                 pendingEffectiveAt: input.pendingEffectiveAt,
+                pendingChangeVersionId: input.pendingChangeVersionId,
             },
         });
         return { claimed: claim.count > 0 };
@@ -297,6 +300,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingPlan: null,
                 pendingBillingCycle: null,
                 pendingEffectiveAt: null,
+                pendingChangeVersionId: null,
                 ...clearedPendingVersionData(),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 // Same derivation as the immediate path: the billing day is

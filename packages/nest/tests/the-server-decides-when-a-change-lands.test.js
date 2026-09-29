@@ -41,7 +41,12 @@ const SUBSCRIPTION = {
 function previewSaying({ isImmediate, effectiveAt = new Date('2027-01-01') }) {
     return {
         async preview() {
-            return { isImmediate, effectiveAt: isImmediate ? null : effectiveAt, blockers: [] };
+            return {
+                isImmediate,
+                effectiveAt: isImmediate ? null : effectiveAt,
+                blockers: [],
+                target: { planVersionId: 'pv-quoted' },
+            };
         },
         async assertChangeAllowed() {
             return [];
@@ -137,5 +142,35 @@ describe('a plan change is timed by the rules, not by the request', () => {
             writePort.scheduledCalls[0].input.pendingEffectiveAt,
             new Date('2028-06-30'),
         );
+    });
+});
+
+// @requirement SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
+describe('a scheduled change records the version it was quoted at', () => {
+    test('another plan: the version the preview priced', async () => {
+        const writePort = buildWritePort();
+        const controller = buildController(previewSaying({ isImmediate: false }), writePort);
+
+        await controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'MONTHLY' });
+
+        assert.equal(writePort.scheduledCalls[0].input.pendingChangeVersionId, 'pv-quoted');
+    });
+
+    test('the same plan: none, so the version bound by the day it comes due is kept', async () => {
+        const writePort = buildWritePort();
+        const controller = buildController(previewSaying({ isImmediate: false }), writePort);
+
+        await controller.changePlan(request, { plan: 'STARTER', billingCycle: 'MONTHLY' });
+
+        assert.equal(writePort.scheduledCalls[0].input.pendingChangeVersionId, null);
+    });
+
+    test('an immediate change is a sale, and binds the version in effect', async () => {
+        const writePort = buildWritePort();
+        const controller = buildController(previewSaying({ isImmediate: true }), writePort);
+
+        await controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
+
+        assert.equal(writePort.immediateCalls[0].input.quotedPlanVersionId, null);
     });
 });

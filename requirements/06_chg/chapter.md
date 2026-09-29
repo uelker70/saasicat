@@ -167,6 +167,7 @@ _Tested by:_
     - no-op when nothing is due
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
+    - a scheduled change to another plan binds the version it was quoted at
 
 <!-- END proof -->
 
@@ -297,6 +298,12 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is quoted a change at a version the change can name › another plan at the version live
+          now, priced from that version and named by it
+        - is quoted a change at a version the change can name › the plan it stays on at the version
+          kept
+        - is quoted a change at a version the change can name › none where nothing reads versions,
+          priced from the catalogue
         - is shown the price they pay › at the version they keep, in either rhythm, not the
           catalogue's
         - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
@@ -378,6 +385,12 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is quoted a change at a version the change can name › another plan at the version live
+          now, priced from that version and named by it
+        - is quoted a change at a version the change can name › the plan it stays on at the version
+          kept
+        - is quoted a change at a version the change can name › none where nothing reads versions,
+          priced from the catalogue
         - is shown the price they pay › at the version they keep, in either rhythm, not the
           catalogue's
         - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
@@ -506,5 +519,50 @@ _Tested by:_
         - is not sent when the summary emits without its button
         - becomes a plan again in the rhythm it is priced for
         - an add-on priced in the other rhythm only says so and cannot be chosen
+
+<!-- END proof -->
+
+### SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
+
+🟢 💰 The plan-change preview names the version of the target plan it prices, and a change scheduled
+for a later date records it. When the change comes due, that version is bound, not whichever is in
+effect that day: a version published in between reaches the customer as an offer, never through a
+change they already confirmed at another price. A change that keeps the plan keeps the version bound
+(`SC-SUB-012`). Where no repository reads plan versions there is nothing to record, and the version
+in effect when the change comes due is bound.
+
+_Source:_ #348
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
+    - a tenant's own writes
+        - a change that leaves the plan as it is › a change to another plan is scheduled with the
+          version it was quoted at, and bound to it
+- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
+    - PrismaTenantSubscriptionWriteAdapter
+        - a change to another plan › is scheduled with the version it was quoted at, and bound to it
+          when it comes due
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - a scheduled change to another plan binds the version it was quoted at
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is quoted a change at a version the change can name › another plan at the version live
+          now, priced from that version and named by it
+        - is quoted a change at a version the change can name › the plan it stays on at the version
+          kept
+        - is quoted a change at a version the change can name › none where nothing reads versions,
+          priced from the catalogue
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records the version it was quoted at
+        - another plan: the version the preview priced
+        - the same plan: none, so the version bound by the day it comes due is kept
+        - an immediate change is a sale, and binds the version in effect
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a scheduled change learns the version it was quoted at
+        - a change to another plan is given the version live now; the rest are left empty
+        - a second run pins nothing published since the first
 
 <!-- END proof -->

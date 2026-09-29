@@ -736,6 +736,8 @@ _Tested by:_
           newer one, when it moves only the rhythm
         - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
           offers it as pending
+        - a change that leaves the plan as it is › a change to another plan is scheduled with the
+          version it was quoted at, and bound to it
         - changing to a plan with no live version says so rather than binding nothing
         - an immediate change stays on its own connection when a version is pending
         - accepting a pending version is idempotent, and reports the second call as such
@@ -961,6 +963,8 @@ _Tested by:_
           newer one, when it moves only the rhythm
         - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
           offers it as pending
+        - a change that leaves the plan as it is › a change to another plan is scheduled with the
+          version it was quoted at, and bound to it
         - changing to a plan with no live version says so rather than binding nothing
         - an immediate change stays on its own connection when a version is pending
         - accepting a pending version is idempotent, and reports the second call as such

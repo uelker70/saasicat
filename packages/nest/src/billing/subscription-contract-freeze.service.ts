@@ -26,7 +26,7 @@ import { generatedDiscountLine } from '../checkout-offer/discount-line-items.js'
 import { buildLabel, promoCodeDiscountNet } from '../promo/calculator.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import {
-    boundPlanDef,
+    planDefOfVersion,
     isPlanNotSoldInCycle,
     listPriceNet,
     planNotSoldInCycle,
@@ -186,7 +186,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                     'Bind the plan version on the subscription before the contract is frozen.',
             );
         }
-        const planDef = boundPlanDef(catalog, newPlan, bound);
+        const planDef = planDefOfVersion(catalog, newPlan, bound);
         if (isPlanNotSoldInCycle(planDef, billingCycle)) {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
         }

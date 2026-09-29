@@ -475,8 +475,10 @@ export class TenantBillingController {
                     nextStatus: wasTrial ? null : 'ACTIVE',
                     trialEndsAt,
                     expectedCanceledAt: sub.canceledAt ?? null,
-                    // A change of plan binds the version in effect.
+                    // A change of plan binds the version in effect: quote and
+                    // write are one request apart, not a period.
                     keepsBoundVersion: false,
+                    quotedPlanVersionId: null,
                 }),
             );
             if (!result.claimed) {
@@ -511,6 +513,10 @@ export class TenantBillingController {
             pendingBillingCycle: dto.billingCycle,
             pendingEffectiveAt: effectiveAt,
             expectedCanceledAt: sub.canceledAt ?? null,
+            // The version the preview priced, bound when the change comes due
+            // (`SC-CHG-022`). A change that keeps the plan records none: it
+            // keeps whatever version is bound by that day.
+            pendingChangeVersionId: dto.plan !== sub.plan ? decision.target.planVersionId : null,
         });
         if (!scheduled.claimed) {
             throw new ConflictException(changedUnderneath);
@@ -698,6 +704,7 @@ export class TenantBillingController {
                     // Onboarding sells the chosen plan at the version in effect,
                     // as the atomic path does.
                     keepsBoundVersion: false,
+                    quotedPlanVersionId: null,
                 }),
             );
             if (!planResult.claimed) {

@@ -77,6 +77,7 @@ export const subscriptions = pgTable('subscriptions', {
     pendingPlanVersionReminderSentAt: ts('pendingPlanVersionReminderSentAt'),
     postTrialPlan: text('postTrialPlan'),
     pendingBillingCycle: text('pendingBillingCycle'),
+    pendingChangeVersionId: text('pendingChangeVersionId'),
     // A negotiated price and the note that explains it, a pilot window, the
     // offer this subscription came from, and the package as it was sold.
     customMonthlyNet: numeric('customMonthlyNet', { precision: 10, scale: 2 }),

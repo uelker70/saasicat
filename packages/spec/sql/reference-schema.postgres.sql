@@ -80,6 +80,7 @@ CREATE TABLE "subscriptions" (
     "pendingPlan" TEXT,
     "pendingBillingCycle" "BillingCycle",
     "pendingEffectiveAt" TIMESTAMP(3),
+    "pendingChangeVersionId" TEXT,
     "customMonthlyNet" DECIMAL(10,2),
     "customLimits" JSONB,
     "customNote" TEXT,
@@ -736,6 +737,9 @@ CREATE INDEX "subscriptions_planVersionId_idx" ON "subscriptions"("planVersionId
 CREATE INDEX "subscriptions_pendingPlanVersionId_idx" ON "subscriptions"("pendingPlanVersionId");
 
 -- CreateIndex
+CREATE INDEX "subscriptions_pendingChangeVersionId_idx" ON "subscriptions"("pendingChangeVersionId");
+
+-- CreateIndex
 CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPeriodEnd");
 
 -- CreateIndex
@@ -965,6 +969,9 @@ ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingPlanVersionId_fkey" FOREIGN KEY ("pendingPlanVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingChangeVersionId_fkey" FOREIGN KEY ("pendingChangeVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "promo_code_redemptions" ADD CONSTRAINT "promo_code_redemptions_promoCodeId_fkey" FOREIGN KEY ("promoCodeId") REFERENCES "promo_codes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

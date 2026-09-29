@@ -2017,6 +2017,33 @@ and answers `null` where it already was — the reversal that gets `null` gives 
 persistence contract runs two reversals of one redemption at once against it. `reverse` now rolls
 back an expired redemption as well as an active one.
 
+### A plan change binds the version the customer agreed to
+
+A scheduled change to another plan binds the version its preview showed when it was scheduled, not
+whichever version is in effect the day it comes due (`SC-CHG-022`), and a change that only moves the
+rhythm keeps the version the subscription is bound to (`SC-SUB-012`). A version published in
+between reaches the customer as an offer, never through a change they confirmed at another price.
+
+1. Add `pendingChangeVersionId` to `Subscription`, with its relation, and the back-relation to
+   `PlanVersion`, from `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma`;
+   `saasicat schema check` names what is missing.
+2. Run the migration once, before `db push` where you use one. A change already scheduled to another
+   plan is given the version live when the file runs:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql
+    ```
+
+- **A `PendingPlanQueryPort` of your own** returns `pendingChangeVersionId` on each
+  `DuePendingPlanChange`. It is required, so your build stops until it does: a query that left it
+  out would bind the version in effect, the price the customer did not confirm.
+- **A `TenantSubscriptionWritePort` of your own** stores `pendingChangeVersionId` in
+  `schedulePlanChange`, clears it with the other pending fields, and in `changePlanImmediate` reads
+  two fields of `ImmediatePlanChangeInput`: `keepsBoundVersion` keeps the version bound where the
+  plan does not change, and `quotedPlanVersionId`, where it is set and nothing is kept, is the
+  version to bind instead of the one in effect. The persistence contract holds yours to both.
+- **`PlanChangePreviewDto.target`** carries `planVersionId`, the version the target is priced at.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

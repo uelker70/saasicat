@@ -233,7 +233,15 @@ const SUBSCRIPTION = {
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 
 /** The controller over a subscription the checks accept and a store that refuses. */
-function billingOver(port, decision = { isImmediate: false, effectiveAt: null, blockers: [] }) {
+function billingOver(
+    port,
+    decision = {
+        isImmediate: false,
+        effectiveAt: null,
+        blockers: [],
+        target: { planVersionId: 'pv-quoted' },
+    },
+) {
     return new TenantBillingController(
         {
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),

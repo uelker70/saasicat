@@ -24,7 +24,7 @@ import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
-    boundPlanDef,
+    planDefOfVersion,
     findPlan,
     getPlanPriceNet,
     isPlanNotSoldInCycle,
@@ -122,7 +122,13 @@ export interface PlanChangePreviewDto {
     planDirection: PlanDirection;
     cycleDirection: CycleDirection;
     current: { plan: PlanSnapshotDto; billingCycle: string };
-    target: { plan: PlanSnapshotDto; billingCycle: string };
+    /**
+     * `planVersionId` is the version the target is priced at, and the one the
+     * change binds: the version kept where the plan stays, the version live
+     * now where it moves to another plan (`SC-CHG-022`). Null where no
+     * repository reads plan versions and the catalogue is all there is.
+     */
+    target: { plan: PlanSnapshotDto; billingCycle: string; planVersionId: string | null };
     /** For upgrade/NOOP: immediately (null). Otherwise period end. */
     effectiveAt: Date | null;
     isImmediate: boolean;
@@ -325,6 +331,12 @@ export class PlanChangePreviewService {
         // price, and what the tenant may use does not change with it — not at
         // the version the catalogue sells to new customers now.
         const keptDef = boundDef && targetPlan === sub.plan ? boundDef : null;
+        // Another plan is quoted at the version live now, read as a row, so the
+        // version a scheduled change records is the one priced here
+        // (`SC-CHG-022`). The catalogue is built from the same live versions,
+        // and stands in where no repository reads them.
+        const quoted = keptDef ? null : await this.readLiveVersion(catalog, targetPlan);
+        const quotedDef = quoted?.plan ?? targetPlanDef;
         const targetSnap: PlanSnapshotDto = keptDef
             ? {
                   ...currentSnap,
@@ -334,11 +346,14 @@ export class PlanChangePreviewService {
             : {
                   id: targetPlanDef.id,
                   name: targetPlanDef.name ?? targetPlanDef.id,
-                  monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
-                  yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
-                  quotas: targetPlanDef.quotas,
-                  features: targetPlanDef.features.slice().sort(),
+                  monthlyNet: listPriceNet(quotedDef, 'MONTHLY' as BillingCycle),
+                  yearlyNet: listPriceNet(quotedDef, 'YEARLY' as BillingCycle),
+                  quotas: quotedDef.quotas,
+                  features: quotedDef.features.slice().sort(),
               };
+        const targetVersionId = keptDef
+            ? (sub.planVersion?.id ?? null)
+            : (quoted?.versionId ?? null);
 
         const changeType = this.classify(
             catalog,
@@ -431,7 +446,7 @@ export class PlanChangePreviewService {
 
         // A change that keeps the version is sold in the rhythm that version
         // carries, whatever the catalogue offers new customers.
-        const soldAs = keptDef ?? targetPlanDef;
+        const soldAs = keptDef ?? quotedDef;
         if (isPlanNotSoldInCycle(soldAs, targetCycle as BillingCycle)) {
             blockers.push(planNotSoldInCycle(soldAs, targetCycle as BillingCycle));
         }
@@ -566,7 +581,7 @@ export class PlanChangePreviewService {
             planDirection,
             cycleDirection,
             current: { plan: currentSnap, billingCycle: sub.billingCycle },
-            target: { plan: targetSnap, billingCycle: targetCycle },
+            target: { plan: targetSnap, billingCycle: targetCycle, planVersionId: targetVersionId },
             effectiveAt,
             isImmediate,
             projectedTrialEndsAt,
@@ -686,7 +701,17 @@ export class PlanChangePreviewService {
         if (!planVersionId || !this.plans?.findVersionById) return { kind: 'none' };
         const bound = await this.plans.findVersionById(planVersionId);
         if (!bound || bound.planId !== sub.plan) return { kind: 'unreadable', planVersionId };
-        return { kind: 'read', plan: boundPlanDef(catalog, sub.plan, bound) };
+        return { kind: 'read', plan: planDefOfVersion(catalog, sub.plan, bound) };
+    }
+
+    /** The version of a plan live now, as a plan and with its id; null where nothing reads versions. */
+    private async readLiveVersion(
+        catalog: PlanCatalog,
+        planKey: string,
+    ): Promise<{ versionId: string; plan: PlanDef } | null> {
+        if (!this.plans?.findLatestLivePlanVersion) return null;
+        const live = await this.plans.findLatestLivePlanVersion(planKey);
+        return live ? { versionId: live.id, plan: planDefOfVersion(catalog, planKey, live) } : null;
     }
 
     private classify(
