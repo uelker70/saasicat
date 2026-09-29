@@ -626,12 +626,17 @@ _Tested by:_
     - a stored customLimits value
         - none stored is none
         - the platform shape is read whole
-        - a quota nothing can count reads as unlimited, as a plan quota does
+        - a quota nothing can count reads as unlimited, as a plan quota does, and is named
         - a key the platform does not read is named, and the rest is still read
         - quotas or features of the wrong kind are named rather than guessed at
         - a value that is not an object is not read at all, and says so
     - reading limits for an adapter
         - reports what went unread once per subscription, naming it
         - hands back what it could read
+- `tests/the-api-schema-names-the-limits-the-platform-reads.test.js`
+    - the admin API schema for negotiated limits
+        - names exactly the keys the platform reads
+        - every route that carries them refers to it
+        - a value written to the schema is read whole
 
 <!-- END proof -->

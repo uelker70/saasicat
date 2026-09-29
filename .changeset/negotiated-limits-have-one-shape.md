@@ -25,7 +25,13 @@ fragment stored limits the entitlement read nothing from, without an error.
   read is left out and named in a warning, once per subscription: the tenant
   stays on its plan's limits rather than being blocked, and the operator sees
   what was not applied.
-- The fragment and `examples/notesapp` document the shape that is read.
+- A quota value nothing can count still reads as unlimited, as a plan's does,
+  and is named in that warning too.
+- The fragment, `examples/notesapp` and the normative admin API schema document
+  the shape that is read: `customLimits` in the application's subscription
+  `PATCH` route and in `SubscriptionDetail` was a flat map of integers, and now
+  refers to a `CustomLimits` schema. A repository test holds that schema to
+  `CUSTOM_LIMITS_KEYS`, the keys the platform reads.
 - The persistence contract reads negotiated limits back, in the platform's
   shape and in one it does not read. Its `createSubscription` seed writer
   takes `customLimits`; a harness of your own writes it to the column.
