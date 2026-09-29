@@ -71,13 +71,20 @@ describe('a concurrency gate', () => {
     }
 });
 
-describe('the gate of a configuration', () => {
-    test('is one queue for every caller holding the same object, and its own for another', () => {
-        const options = { maxConcurrent: 2 };
-        const other = { maxConcurrent: 2 };
+describe('the gate of a pool', () => {
+    test('is one queue for every caller naming the same pool, and its own for another', () => {
+        const pool = {};
+        const other = {};
 
-        assert.equal(concurrencyGateOf(options, 2), concurrencyGateOf(options, 2));
-        assert.notEqual(concurrencyGateOf(options, 2), concurrencyGateOf(other, 2));
+        assert.equal(concurrencyGateOf(pool, 2), concurrencyGateOf(pool, 2));
+        assert.notEqual(concurrencyGateOf(pool, 2), concurrencyGateOf(other, 2));
+    });
+
+    test('refuses a second, different bound for a pool rather than split it', () => {
+        const pool = {};
+        concurrencyGateOf(pool, 2);
+
+        assert.throws(() => concurrencyGateOf(pool, 3), RangeError);
     });
 
     test('refuses a limit that is not a place count, as the gate itself does', () => {

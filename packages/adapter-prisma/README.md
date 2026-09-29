@@ -164,9 +164,12 @@ is not counted. A transaction opened inside another — `run` called again rathe
 than `tx` passed on — needs a second place, and with every place taken waits
 for the one its caller holds; pass `tx` on.
 
-The bound belongs to the pool, not to a runner: where Nest builds a runner for
-every module that asks for one, all runners built from one options object
-share it. Wired by hand, provide the options once, beside the runner:
+The bound belongs to the pool, not to a runner: every runner on one client
+shares it, however many modules Nest builds one for, and a second, different
+bound for the same client is refused. A transaction waits for its place as long
+as it takes — the wait has no deadline, so a sustained overload queues rather
+than fails; leave the bound headroom against your request timeouts. Wired by
+hand, provide the options beside the runner:
 
 ```ts
 { provide: PRISMA_TRANSACTION_OPTIONS_TOKEN, useValue: { maxConcurrent: 15 } },

@@ -80,13 +80,12 @@ describe('the transaction runners', () => {
             assert.equal(p.peak(), 2);
         });
 
-        test(`${name}: runners built from one configuration share its bound`, async () => {
+        test(`${name}: every runner on one pool shares its bound, a copy of the options too`, async () => {
             // Nest builds a runner for every module that asks for one; the
             // bound is the pool's, so they queue together.
             const p = pool();
-            const options = { maxConcurrent: 2 };
-            const first = build(p, options);
-            const second = build(p, options);
+            const first = build(p, { maxConcurrent: 2 });
+            const second = build(p, { maxConcurrent: 2 });
             const runs = [first, second, first, second, first, second].map((runner) =>
                 runner.run(async () => 'done'),
             );
@@ -96,6 +95,28 @@ describe('the transaction runners', () => {
             }
             assert.deepEqual(await Promise.all(runs), Array(6).fill('done'));
             assert.equal(p.peak(), 2);
+        });
+
+        test(`${name}: two pools keep a bound each, whatever options object they share`, async () => {
+            const options = { maxConcurrent: 2 };
+            const one = pool();
+            const other = pool();
+            const runners = [build(one, options), build(other, options)];
+            const runs = [0, 1, 0, 1, 0, 1].map((i) => runners[i].run(async () => 'done'));
+            for (let round = 0; round < 6; round += 1) {
+                await settle();
+                one.releaseAll();
+                other.releaseAll();
+            }
+            await Promise.all(runs);
+            assert.equal(one.peak(), 2);
+            assert.equal(other.peak(), 2);
+        });
+
+        test(`${name}: a second, different bound for one pool is refused`, () => {
+            const p = pool();
+            build(p, { maxConcurrent: 2 });
+            assert.throws(() => build(p, { maxConcurrent: 3 }), RangeError);
         });
 
         test(`${name} without a bound opens as many as are asked for`, async () => {

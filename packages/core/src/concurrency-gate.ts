@@ -38,23 +38,30 @@ export function concurrencyGate(limit: number): ConcurrencyGate {
     };
 }
 
-const GATES = new WeakMap<object, ConcurrencyGate>();
+const GATES = new WeakMap<object, { limit: number; gate: ConcurrencyGate }>();
 
 /**
- * The one gate of a configuration: every caller holding the same `owner`
- * object gets the same queue, with the limit the first of them brought.
+ * The one gate of a pool: every caller naming the same `pool` — the client or
+ * database handle the transactions run on — gets the same queue.
  *
  * A bound is a property of the pool, not of whoever builds a runner. Where
  * the client is an injection token, Nest builds a runner once for every module
- * that asks for one, and a gate per runner would admit the limit once per
- * module — as many transactions as there are features, all against one pool.
- * The options object names the configuration: a persistence bundle hands the
- * same one to every runner it builds, and a token provides one.
+ * that asks for one, all on the same client; a gate per runner would admit the
+ * limit once per module, and a gate per configuration object would join two
+ * pools that happen to share one. A second, different limit for a pool already
+ * bounded is refused rather than split.
  */
-export function concurrencyGateOf(owner: object, limit: number): ConcurrencyGate {
-    const known = GATES.get(owner);
-    if (known) return known;
+export function concurrencyGateOf(pool: object, limit: number): ConcurrencyGate {
+    const known = GATES.get(pool);
+    if (known) {
+        if (known.limit !== limit) {
+            throw new RangeError(
+                `This pool is bounded at ${known.limit} transactions already; a second bound of ${limit} would split it.`,
+            );
+        }
+        return known.gate;
+    }
     const gate = concurrencyGate(limit);
-    GATES.set(owner, gate);
+    GATES.set(pool, { limit, gate });
     return gate;
 }

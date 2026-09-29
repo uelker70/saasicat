@@ -11,8 +11,9 @@ export interface DrizzleTransactionOptions {
      * inside its transactions and then reads further, and with every
      * connection held by a transaction the reads they wait on cannot get one.
      * The pool size minus five is a sound start. Unset, nothing is bounded.
-     * Runners built from one options object share one bound, so pass the same
-     * object to every one rather than a copy each.
+     * Every runner on one client shares the bound, however many modules build
+     * one. A transaction waits for its place as long as it takes — the wait
+     * has no deadline, so a sustained overload queues rather than fails.
      * Counted is what runs through `run`; a repository called without a
      * transaction opens its own on its own handle, and is not.
      * How long a transaction or a connection wait may take is the pool's own
@@ -47,7 +48,7 @@ export class DrizzleTransactionRunner implements TransactionRunner {
         this.admit =
             options?.maxConcurrent === undefined
                 ? (work) => work()
-                : concurrencyGateOf(options, options.maxConcurrent);
+                : concurrencyGateOf(db, options.maxConcurrent);
     }
 
     async run<T>(fn: (tx: TransactionContext) => Promise<T>): Promise<T> {

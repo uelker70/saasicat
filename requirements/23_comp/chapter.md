@@ -1208,7 +1208,9 @@ _Tested by:_
 - `tests/a-runner-bounds-its-transactions.test.js`
     - the transaction runners
         - ${name} holds at most maxConcurrent transactions open
-        - ${name}: runners built from one configuration share its bound
+        - ${name}: every runner on one pool shares its bound, a copy of the options too
+        - ${name}: two pools keep a bound each, whatever options object they share
+        - ${name}: a second, different bound for one pool is refused
         - ${name} without a bound opens as many as are asked for
         - Prisma's limits are handed over where they were set, and only those
 
