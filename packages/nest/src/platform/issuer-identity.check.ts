@@ -50,6 +50,7 @@ import {
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from '../settings/settings.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
@@ -134,6 +135,9 @@ export class IssuerIdentityInspector {
         @Optional()
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly contracts: SubscriptionContractRepository | null = null,
+        // Optional rather than required because a hand-wired application may
+        // have no `AdminModule` in scope, and a boot check is not the place to
+        // refuse to construct over a message.
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
@@ -241,26 +245,15 @@ export class IssuerIdentityInspector {
             // decision does not depend on it — but the count and the list are
             // the only part an operator can weigh a transfer against, and an
             // empty one reads as reassurance rather than as blindness.
-            const listed = await this.withBypass(() => this.contracts!.listRunningIssuers(named));
+            const listed = await readAcrossTenants(this.rlsBypass, () =>
+                this.contracts!.listRunningIssuers(named),
+            );
             return { known: true, contracts: listed };
         } catch (error) {
             const why = `The contracts still running could not be read: ${messageOf(error)}`;
             this.logger.warn(why);
             return { known: false, why };
         }
-    }
-
-    /**
-     * Inside the bypass frame where one is bound, and plainly where none is.
-     *
-     * An installation without row-level security binds a port that only calls
-     * through; one that has it cannot be read platform-wide without this.
-     * `@Optional()` rather than required because a hand-wired application may
-     * have no `AdminModule` in scope, and a boot check is not the place to
-     * refuse to construct over a message.
-     */
-    private withBypass<T>(read: () => Promise<T>): Promise<T> {
-        return this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read();
     }
 
     /**

@@ -13,6 +13,7 @@ import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { contractBundleVersionIds, contractLimits } from '../entitlement/aggregation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
@@ -160,7 +161,7 @@ export class ContractRefreshService {
 
     /** The contracts in force whose frozen features hold unknown keys or lack granted ones. */
     inspect(asOf: Date = new Date()): Promise<ContractVocabularyReport> {
-        return this.withBypass(async () => {
+        return readAcrossTenants(this.rlsBypass, async () => {
             const previews = await this.previewAll({}, 'features', asOf);
             return {
                 inForce: previews.length,
@@ -181,7 +182,7 @@ export class ContractRefreshService {
         mode: ContractRefreshMode,
         asOf: Date = new Date(),
     ): Promise<ContractRefreshPreview[]> {
-        return this.withBypass(() => this.previewAll(selection, mode, asOf));
+        return readAcrossTenants(this.rlsBypass, () => this.previewAll(selection, mode, asOf));
     }
 
     /**
@@ -195,7 +196,7 @@ export class ContractRefreshService {
         actor: AdminActor,
         asOf: Date = new Date(),
     ): Promise<ContractRefreshOutcome[]> {
-        return this.withBypass(async () => {
+        return readAcrossTenants(this.rlsBypass, async () => {
             const catalog = await this.catalogs.current();
             const outcomes: ContractRefreshOutcome[] = [];
             for (const target of await this.targets(selection, asOf)) {
@@ -457,10 +458,6 @@ export class ContractRefreshService {
                 error instanceof Error ? error.stack : String(error),
             );
         }
-    }
-
-    private withBypass<T>(read: () => Promise<T>): Promise<T> {
-        return this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read();
     }
 }
 

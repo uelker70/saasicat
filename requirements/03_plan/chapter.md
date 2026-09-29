@@ -222,6 +222,10 @@ _Tested by:_
         - subscriptionCount undefined blocks fail-closed
         - referenced versions remain frozen
         - non-latest, superseded and already-active versions remain frozen
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - a plan version subscribers are on, behind a tenant policy
+        - stays locked against editing
+        - is listed with the subscribers the policy hides from the request
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null

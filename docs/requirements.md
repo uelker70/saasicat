@@ -1221,6 +1221,10 @@ _Tested by:_
         - subscriptionCount undefined blocks fail-closed
         - referenced versions remain frozen
         - non-latest, superseded and already-active versions remain frozen
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - a plan version subscribers are on, behind a tenant policy
+        - stays locked against editing
+        - is listed with the subscribers the policy hides from the request
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
@@ -3057,6 +3061,9 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - a bundle the operator retired
         - is not priced, though its version is still live
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - an add-on version tenants have booked, behind a tenant policy
+        - stays locked against editing
 - `packages/nest/tests/bundles-service.test.js`
     - BundlesService — Version lifecycle
         - createBundleDraft creates v1 with baseVersionId=null
@@ -13793,6 +13800,22 @@ Administration acts on behalf of the platform rather than of a tenant, which is 
 only reads that step outside a tenant's boundary.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - a plan version subscribers are on, behind a tenant policy
+        - stays locked against editing
+        - is listed with the subscribers the policy hides from the request
+    - an add-on version tenants have booked, behind a tenant policy
+        - stays locked against editing
+    - the operator's figures, behind a tenant policy
+        - the plan list counts the tenants on each plan
+        - the dashboard reads subscriptions, promo codes and the audit trail
+
+<!-- END proof -->
 
 ### SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
 

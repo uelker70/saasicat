@@ -4,6 +4,7 @@ import type {
     AuditStatsSnapshot,
     PromoCodeStatsPort,
     PromoCodeStatsSnapshot,
+    RlsBypassPort,
     SubscriptionStatsPort,
     SubscriptionStatsSnapshot,
 } from '@saasicat/core';
@@ -13,6 +14,8 @@ import {
     PROMO_CODE_STATS_PORT_TOKEN,
     SUBSCRIPTION_STATS_PORT_TOKEN,
 } from './admin-stats.tokens.js';
+import { RLS_BYPASS_PORT_TOKEN } from './admin.tokens.js';
+import { readAcrossTenants } from './read-across-tenants.js';
 
 const DAY_MS = 86_400_000;
 const DEFAULT_AUDIT_WINDOW_DAYS = 7;
@@ -42,15 +45,25 @@ export class AdminStatsService {
         @Optional()
         @Inject(ADMIN_STATS_AUDIT_WINDOW_DAYS_TOKEN)
         private readonly auditWindowDays: number = DEFAULT_AUDIT_WINDOW_DAYS,
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
+    /**
+     * Every figure spans all tenants, so the three are read past the tenants'
+     * row-level policy: under one, a dashboard read in a tenant scope shows
+     * zeros that look like an empty installation.
+     */
     async getSnapshot(): Promise<AdminStatsSnapshot> {
         const since = new Date(Date.now() - this.auditWindowDays * DAY_MS);
-        const [subscriptions, promos, auditCount] = await Promise.all([
-            this.subscriptions.getStats(),
-            this.promos.getStats(),
-            this.audit.countSince(since),
-        ]);
+        const [subscriptions, promos, auditCount] = await readAcrossTenants(this.rlsBypass, () =>
+            Promise.all([
+                this.subscriptions.getStats(),
+                this.promos.getStats(),
+                this.audit.countSince(since),
+            ]),
+        );
         return {
             subscriptions,
             promos,

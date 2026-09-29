@@ -51,6 +51,22 @@ only reads that step outside a tenant's boundary.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-counts-past-the-tenant-policy.test.js`
+    - a plan version subscribers are on, behind a tenant policy
+        - stays locked against editing
+        - is listed with the subscribers the policy hides from the request
+    - an add-on version tenants have booked, behind a tenant policy
+        - stays locked against editing
+    - the operator's figures, behind a tenant policy
+        - the plan list counts the tenants on each plan
+        - the dashboard reads subscriptions, promo codes and the audit trail
+
+<!-- END proof -->
+
 ### SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
 
 🟢 🔒 Within a gateway account, the reference a payment method is kept under names one subscriber,
