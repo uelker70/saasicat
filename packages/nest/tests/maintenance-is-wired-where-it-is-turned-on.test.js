@@ -269,14 +269,16 @@ describe('the platform’s own scheduled jobs', () => {
             ],
         }).compile();
         await moduleRef.init();
+        try {
+            await moduleRef.get(PromoCodeExpirer).expirePromoCodes();
 
-        await moduleRef.get(PromoCodeExpirer).expirePromoCodes();
-
-        assert.deepEqual(seen, [
-            { name: 'codes', lifted: true },
-            { name: 'redemptions', lifted: true },
-        ]);
-        await moduleRef.close();
+            assert.deepEqual(seen, [
+                { name: 'codes', lifted: true },
+                { name: 'redemptions', lifted: true },
+            ]);
+        } finally {
+            await moduleRef.close();
+        }
     });
 
     test('the expired sign-up cleanup skips its run while the lock holds', async () => {
