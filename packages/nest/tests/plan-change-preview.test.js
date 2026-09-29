@@ -466,4 +466,69 @@ describe('a subscriber on an older version of the plan', () => {
 
         assert.equal(dto.target.plan.yearlyNet, 190);
     });
+
+    // @requirement SC-SUB-019 — A subscriber is shown the price of the version they are bound to
+    describe('is shown the price they pay', () => {
+        const sub = (billingCycle, planVersion = { id: V1.id }) => ({
+            plan: 'STARTER',
+            billingCycle,
+            planVersion,
+        });
+        const reading = (version) => ({
+            findVersionById: async (id) => (id === V1.id ? version : null),
+        });
+
+        test("at the version they keep, in either rhythm, not the catalogue's", async () => {
+            const preview = previewFor(plans);
+
+            assert.equal(await preview.planPriceNet(sub('MONTHLY')), 15);
+            assert.equal(await preview.planPriceNet(sub('YEARLY')), 150);
+        });
+
+        test('as none in a rhythm the version they keep is not sold in, not as 0', async () => {
+            const preview = previewFor(reading({ ...V1, yearlyNet: null }));
+
+            assert.equal(await preview.planPriceNet(sub('YEARLY')), null);
+        });
+
+        test('as none where the version they keep is sold under a special contract', async () => {
+            const preview = previewFor(reading({ ...V1, marketed: false }));
+
+            assert.equal(await preview.planPriceNet(sub('MONTHLY')), null);
+        });
+
+        // A store whose subscription read joins a version its plan repository
+        // then does not find, or finds as a version of another plan. The
+        // catalogue's 19 would be the price of a version this subscriber never
+        // bought, so the price is unknown — and only the price: the account
+        // read it sits in still answers.
+        test("as unknown, not the catalogue's, where the version bound cannot be read", async () => {
+            const preview = previewFor({ findVersionById: async () => null });
+
+            assert.equal(await preview.planPriceNet(sub('MONTHLY')), null);
+        });
+
+        test('as unknown where the version bound is a version of another plan', async () => {
+            const preview = previewFor(reading({ ...V1, planId: 'STANDARD' }));
+
+            assert.equal(await preview.planPriceNet(sub('MONTHLY')), null);
+        });
+
+        test('and a change is refused with a code rather than quoted from the catalogue', async () => {
+            const preview = previewFor({ findVersionById: async () => null });
+
+            await assert.rejects(
+                () => preview.preview('t1', 'STANDARD', 'MONTHLY', new Date('2026-05-15')),
+                (error) =>
+                    error.getStatus() === 422 &&
+                    error.getResponse().code === 'BOUND_PLAN_VERSION_UNREADABLE' &&
+                    error.getResponse().params.planVersionId === V1.id,
+            );
+        });
+
+        test('from the catalogue where no repository reads versions, or none is bound', async () => {
+            assert.equal(await previewFor(null).planPriceNet(sub('MONTHLY')), 19);
+            assert.equal(await previewFor(plans).planPriceNet(sub('MONTHLY', null)), 19);
+        });
+    });
 });

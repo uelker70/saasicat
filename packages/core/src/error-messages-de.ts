@@ -154,6 +154,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     TENANT_NOT_FOUND: 'Mandant {slug} nicht gefunden',
     NO_ACTIVE_PLAN_VERSION:
         'Zum {asOf} ist keine Planversion für {planId} aktiv — weder ist das validFrom-Fenster erfüllt, noch steht eine jüngste Live-Version bereit.',
+    BOUND_PLAN_VERSION_UNREADABLE:
+        'Die Planversion, an die dieses Abonnement gebunden ist ({planVersionId}), ist für den Plan "{planKey}" nicht lesbar; deshalb kann kein Wechsel berechnet werden.',
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog',
     PLAN_NOT_SELF_SERVICE:
         '{planName} wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',

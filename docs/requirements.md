@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 18      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 19      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 21      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 527 entries: 🟢 457 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 528 entries: 🟢 458 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 527 entries: 🟢 457 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 527 requirements. Do not edit by hand:
+Generated from `requirements/` — 528 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3780,6 +3780,20 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - the plan line records the version the subscription is bound to
         - a tenant on v1 who books an add-on after v2 is published keeps v1
@@ -3956,6 +3970,48 @@ _Tested by:_
     - the tenant changes how it is reached
         - the ${field} can be changed but not cleared, and a refused change writes nothing
         - the ${field} reaches the service through the pipe and is refused there, not dropped
+
+<!-- END proof -->
+
+### SC-SUB-019 — A subscriber is shown the price of the version they are bound to
+
+🟢 💰 The account read (`GET billing/usage`, as `planPriceNet`) and the plan card state what the
+subscription pays per billing cycle at the version it is bound to, priced by the rules its contract
+is frozen by — not the price the catalogue lists for new customers. After a new version of the plan
+those are two numbers, and the card is where a subscriber checks the one on the next invoice. Where
+no repository reads plan versions, the catalogue is the only reading there is and its price is
+shown.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
+- `packages/nest/tests/tenant-billing-controller.test.js`
+    - getUsage states the price the subscription pays, as the plan preview reads it off the version
+      bound
+- `packages/ui-vue-tenant/tests/component/a-subscriber-sees-the-price-they-pay.test.ts`
+    - the plan card
+        - shows the price of the version the subscription is bound to, not the catalogue's
+        - shows no price where the version bound has none in this rhythm, whatever the catalogue
+          lists
 
 <!-- END proof -->
 
@@ -4256,6 +4312,20 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -4323,6 +4393,20 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 
 <!-- END proof -->
 
@@ -5296,6 +5380,20 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
     - while a replacement preview is on the wire
         - the answer to the abandoned question is taken off the screen
@@ -5726,6 +5824,8 @@ _Tested by:_
     - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
     - getUsage returns packageSnapshot=null when the Subscription has no snapshot
     - getUsage throws NotFoundException when the Subscription is missing
+    - getUsage states the price the subscription pays, as the plan preview reads it off the version
+      bound
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
     - getUsage throws NotFoundException when tenantIdResolver yields no ID
@@ -9320,6 +9420,8 @@ _Tested by:_
     - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
     - getUsage returns packageSnapshot=null when the Subscription has no snapshot
     - getUsage throws NotFoundException when the Subscription is missing
+    - getUsage states the price the subscription pays, as the plan preview reads it off the version
+      bound
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
     - getUsage throws NotFoundException when tenantIdResolver yields no ID

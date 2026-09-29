@@ -148,6 +148,12 @@ export const BILLING_ERROR_CODES = {
      * in it: a plan without a yearly price is a monthly plan.
      */
     PLAN_NOT_SOLD_IN_CYCLE: 'PLAN_NOT_SOLD_IN_CYCLE',
+    /**
+     * The subscription is bound to a plan version the plan repository does not
+     * find, or finds as a version of another plan. What the subscription pays
+     * cannot be read, so no change is quoted until the binding is repaired.
+     */
+    BOUND_PLAN_VERSION_UNREADABLE: 'BOUND_PLAN_VERSION_UNREADABLE',
     /** Plan change refused. Carries `blockers[]` with their own codes. */
     PLAN_CHANGE_BLOCKED: 'PLAN_CHANGE_BLOCKED',
     /**

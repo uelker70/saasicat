@@ -98,6 +98,12 @@ interface UsageResponse {
     pendingBillingCycle: string | null;
     pendingEffectiveAt: Date | null;
     planVersion: SubscriptionUsageRecord['planVersion'];
+    /**
+     * What the plan costs per billing cycle, net, at the version the
+     * subscription is bound to — not the catalogue's price for new customers.
+     * Null where the plan has no list price in this rhythm.
+     */
+    planPriceNet: number | null;
     pendingPlanVersion: SubscriptionUsageRecord['pendingPlanVersion'];
     pendingPlanVersionEffectiveAt: Date | null;
     pendingPlanVersionAccepted: boolean;
@@ -247,6 +253,7 @@ export class TenantBillingController {
         for (const key of new Set([...Object.keys(limits.quotas), ...Object.keys(usageRaw)])) {
             usage[key] = usageRaw[key] ?? 0;
         }
+        const planPriceNet = await this.planPreview.planPriceNet(sub);
 
         return {
             plan: sub.plan,
@@ -263,6 +270,7 @@ export class TenantBillingController {
             pendingBillingCycle: sub.pendingBillingCycle,
             pendingEffectiveAt: sub.pendingEffectiveAt,
             planVersion: sub.planVersion,
+            planPriceNet,
             pendingPlanVersion: sub.pendingPlanVersion,
             pendingPlanVersionEffectiveAt: sub.pendingPlanVersionEffectiveAt,
             pendingPlanVersionAccepted: sub.pendingPlanVersionAccepted,

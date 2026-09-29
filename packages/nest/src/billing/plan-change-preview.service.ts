@@ -1,12 +1,20 @@
-import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+    Inject,
+    Injectable,
+    Logger,
+    NotFoundException,
+    Optional,
+    UnprocessableEntityException,
+} from '@nestjs/common';
 import type {
     BillingCycle,
     PlanCatalog,
+    PlanDef,
     PlanRepository,
-    PlanVersionRow,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
+    SubscriptionUsageRecord,
     UsageSnapshotPort,
 } from '@saasicat/core';
 import { BILLING_ERROR_CODES } from '@saasicat/core';
@@ -16,13 +24,13 @@ import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
+    boundPlanDef,
     findPlan,
     getPlanPriceNet,
     isPlanNotSoldInCycle,
     listPriceNet,
     planNotSoldInCycle,
 } from './plan-helpers.js';
-import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { periodEndAfter } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -173,8 +181,23 @@ export interface PlanChangeContext {
     startedAt: Date | null;
 }
 
+/**
+ * What the version a subscription is bound to says about its plan. `none` where
+ * nothing can be read — no repository that reads versions, or no version bound
+ * — and the catalogue is then all there is. `unreadable` where a version is
+ * bound but the repository does not find it, or finds one of another plan: the
+ * subscription came with its version joined, so the store's reads disagree,
+ * and neither the version nor the catalogue says what the subscription pays.
+ */
+type BoundPlanReading =
+    | { readonly kind: 'none' }
+    | { readonly kind: 'read'; readonly plan: PlanDef }
+    | { readonly kind: 'unreadable'; readonly planVersionId: string };
+
 @Injectable()
 export class PlanChangePreviewService {
+    private readonly logger = new Logger(PlanChangePreviewService.name);
+
     constructor(
         @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource,
         // Explicit @Inject — the tsup build has no emitDecoratorMetadata,
@@ -265,14 +288,13 @@ export class PlanChangePreviewService {
         // The version bound, read by the rules the contract freeze bills it by:
         // a price the row does not carry is a rhythm it is not sold in, never
         // a free one.
-        const bound = await this.boundVersionOf(sub.planVersion?.id);
-        const stem = findPlan(catalog, sub.plan);
-        const boundDef = bound
-            ? planDefFromVersion(
-                  { id: sub.plan, name: stem?.name ?? sub.plan, tagline: stem?.tagline },
-                  bound,
-              )
-            : null;
+        // A binding that cannot be read is refused rather than quoted from the
+        // catalogue, whose price is the newest one and not the one paid.
+        const bound = await this.readBoundPlan(catalog, sub);
+        if (bound.kind === 'unreadable') {
+            throw boundPlanVersionUnreadable(sub.plan, bound.planVersionId);
+        }
+        const boundDef = bound.kind === 'read' ? bound.plan : null;
         const currentPlanDef = findPlan(catalog, currentLimits.plan);
         const currentSnap: PlanSnapshotDto = {
             id: currentLimits.plan,
@@ -624,9 +646,47 @@ export class PlanChangePreviewService {
             }));
     }
 
-    private async boundVersionOf(versionId: string | undefined): Promise<PlanVersionRow | null> {
-        if (!versionId || !this.plans?.findVersionById) return null;
-        return this.plans.findVersionById(versionId);
+    /**
+     * What the subscription pays for its plan per billing cycle, net: the
+     * version it is bound to, priced as the contract freeze bills it. Where no
+     * repository reads versions, or the subscription is bound to none, the
+     * catalogue is the only reading there is and its price stands in. Null
+     * where the plan is not sold in the rhythm, or is sold under a special
+     * contract whose price no catalogue holds, and where the version bound
+     * cannot be read: the catalogue's price there would be the newest one
+     * shown as the one paid. That case is logged rather than thrown, so the
+     * account read it sits in still answers with everything else.
+     */
+    async planPriceNet(
+        sub: Pick<SubscriptionUsageRecord, 'plan' | 'billingCycle' | 'planVersion'>,
+    ): Promise<number | null> {
+        const catalog = await this.catalogs.current();
+        const bound = await this.readBoundPlan(catalog, sub);
+        if (bound.kind === 'unreadable') {
+            this.logger.warn(
+                `A subscription on plan '${sub.plan}' is bound to plan version ` +
+                    `'${bound.planVersionId}', which the plan repository does not read as a ` +
+                    'version of that plan. Its price is shown as unknown until the binding is repaired.',
+            );
+            return null;
+        }
+        const plan = bound.kind === 'read' ? bound.plan : findPlan(catalog, sub.plan);
+        return plan ? listPriceNet(plan, sub.billingCycle as BillingCycle) : null;
+    }
+
+    /**
+     * The plan key is compared as the contract freeze compares it: a version
+     * row carries its plan's key, whatever the schema stores.
+     */
+    private async readBoundPlan(
+        catalog: PlanCatalog,
+        sub: Pick<SubscriptionUsageRecord, 'plan' | 'planVersion'>,
+    ): Promise<BoundPlanReading> {
+        const planVersionId = sub.planVersion?.id;
+        if (!planVersionId || !this.plans?.findVersionById) return { kind: 'none' };
+        const bound = await this.plans.findVersionById(planVersionId);
+        if (!bound || bound.planId !== sub.plan) return { kind: 'unreadable', planVersionId };
+        return { kind: 'read', plan: boundPlanDef(catalog, sub.plan, bound) };
     }
 
     private classify(
@@ -728,4 +788,17 @@ function priceForCycle(snap: PlanSnapshotDto, cycle: string): number | null {
 function isFloatQuota(key: string): boolean {
     // Storage values are GB floats; all others are integer counts.
     return key.toLowerCase().includes('storage');
+}
+
+function boundPlanVersionUnreadable(
+    planKey: string,
+    planVersionId: string,
+): UnprocessableEntityException {
+    return new UnprocessableEntityException({
+        code: BILLING_ERROR_CODES.BOUND_PLAN_VERSION_UNREADABLE,
+        message:
+            `The plan version this subscription is bound to (${planVersionId}) cannot be read ` +
+            `for plan "${planKey}", so no change can be quoted.`,
+        params: { planKey, planVersionId },
+    });
 }
