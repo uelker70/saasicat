@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 60      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 23      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 25      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 27      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 30      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 519 entries: 🟢 449 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 521 entries: 🟢 451 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 519 entries: 🟢 449 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 519 requirements. Do not edit by hand:
+Generated from `requirements/` — 521 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7195,6 +7195,51 @@ _Tested by:_
         - edit: the code field shows the code and is disabled
         - the status switch appears on edit only
         - the plan picker writes into the dialog form
+
+<!-- END proof -->
+
+### SC-PROMO-026 — A discount is kept as the operator entered it, or refused
+
+🟢 💰 A discount and a minimum amount are stored with two decimal places, up to what their columns
+hold. An amount entered with more places, or larger, is refused where it is entered rather than
+rounded or overflowing on its way into the table, and what is stored is the decimal that was
+entered: nothing on the way rounds its binary representation, which would send 1.005 down and 10.005
+up.
+
+_Source:_ #349
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-discount-reaches-the-column-as-entered.test.js`
+    - the amounts a code is written with
+        - reach the column as the decimals they were written as
+        - a change hands over its amount the same way, and clears a cleared minimum
+- `packages/nest/tests/a-discount-is-entered-to-the-cent.test.js`
+    - an amount entered for a code
+        - ${name}: two places are taken
+        - ${name}: an amount in exponent notation is counted, not a crash
+        - ${name}: the largest amount a column holds is taken, one cent more is refused
+        - ${name}: a third place is refused, on the discount and on the minimum
+
+<!-- END proof -->
+
+### SC-PROMO-027 — Changing a code saves every field that was changed
+
+🟢 💰 A change that is dropped on its way to the table reports success and leaves the old discount in
+place: the list shows it, and every invoice the code touches is priced with it. A field the change
+does not name keeps its value, and one it clears is cleared.
+
+_Source:_ #349
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-discount-reaches-the-column-as-entered.test.js`
+    - a change to a code
+        - hands over every field it names
 
 <!-- END proof -->
 
@@ -15932,7 +15977,7 @@ _Tested by:_
     - PrismaPromoCodeRepository
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
-        - create normalizes the code and serializes decimals
+        - create normalizes the code and hands the decimal over as written
         - findByCode hides soft-deleted codes
         - update persists every field editable in the Admin promo page
         - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
@@ -16077,7 +16122,7 @@ _Tested by:_
     - PrismaPromoCodeRepository
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
-        - create normalizes the code and serializes decimals
+        - create normalizes the code and hands the decimal over as written
         - findByCode hides soft-deleted codes
         - update persists every field editable in the Admin promo page
         - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now

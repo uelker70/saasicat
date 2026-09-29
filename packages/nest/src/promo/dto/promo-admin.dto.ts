@@ -12,10 +12,20 @@ import {
     Min,
 } from 'class-validator';
 
+import { IsStorableAmount } from './storable-amount.validator.js';
+
 const VALUE_TYPES = ['PERCENT', 'ABSOLUTE'] as const;
 const DURATION_TYPES = ['ONCE', 'MONTHS', 'BILLING_CYCLES'] as const;
 const STATUSES = ['ACTIVE', 'PAUSED'] as const;
 const BILLING_CYCLES = ['MONTHLY', 'YEARLY'] as const;
+
+/**
+ * What the canonical columns hold for a discount and a minimum amount:
+ * `numeric(8,2)` and `numeric(10,2)`. An amount with more places, or larger, is
+ * refused here rather than rounded or overflowing on its way into the table.
+ */
+const DISCOUNT_COLUMN = { places: 2, max: 999_999.99 } as const;
+const MINIMUM_COLUMN = { places: 2, max: 99_999_999.99 } as const;
 
 export class CreatePromoCodeDto {
     @IsString()
@@ -27,6 +37,7 @@ export class CreatePromoCodeDto {
     valueType!: (typeof VALUE_TYPES)[number];
 
     @IsNumber()
+    @IsStorableAmount(DISCOUNT_COLUMN)
     @Min(0)
     value!: number;
 
@@ -67,6 +78,7 @@ export class CreatePromoCodeDto {
 
     @IsOptional()
     @IsNumber()
+    @IsStorableAmount(MINIMUM_COLUMN)
     @Min(0)
     minimumPlanAmountGross?: number | null;
 
@@ -101,6 +113,7 @@ export class UpdatePromoCodeDto {
 
     @IsOptional()
     @IsNumber()
+    @IsStorableAmount(DISCOUNT_COLUMN)
     @Min(0)
     value?: number;
 
@@ -142,6 +155,7 @@ export class UpdatePromoCodeDto {
 
     @IsOptional()
     @IsNumber()
+    @IsStorableAmount(MINIMUM_COLUMN)
     @Min(0)
     minimumPlanAmountGross?: number | null;
 

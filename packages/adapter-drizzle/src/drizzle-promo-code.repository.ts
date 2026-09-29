@@ -13,6 +13,7 @@ import type {
     TransactionContext,
     UpdatePromoCodeData,
 } from '@saasicat/core';
+import { toDecimalString } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, escapeLikePattern, resolveDb, type DrizzleClient } from './client.js';
 import { promoCodes } from './schema.js';
 
@@ -74,7 +75,7 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
                 id: randomUUID(),
                 code: normalizeCode(data.code),
                 valueType: data.valueType,
-                value: data.value.toFixed(2),
+                value: toDecimalString(data.value),
                 durationType: data.durationType,
                 durationValue: data.durationValue ?? null,
                 validFrom: data.validFrom ?? null,
@@ -83,7 +84,7 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
                 appliesToPlans: data.appliesToPlans ?? [],
                 appliesToBilling: data.appliesToBilling ?? null,
                 firstTimeCustomersOnly: data.firstTimeCustomersOnly ?? true,
-                minimumPlanAmountGross: data.minimumPlanAmountGross?.toFixed(2) ?? null,
+                minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross) ?? null,
                 allowZeroInvoice: data.allowZeroInvoice ?? false,
                 description: data.description ?? null,
                 campaignTag: data.campaignTag ?? null,
@@ -100,9 +101,21 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
             .update(promoCodes)
             .set({
                 status: data.status,
+                valueType: data.valueType,
+                value: data.value === undefined ? undefined : toDecimalString(data.value),
+                durationType: data.durationType,
+                durationValue: data.durationValue,
+                validFrom: data.validFrom,
                 description: data.description,
                 validUntil: data.validUntil,
                 maxRedemptions: data.maxRedemptions,
+                appliesToPlans: data.appliesToPlans,
+                appliesToBilling: data.appliesToBilling,
+                firstTimeCustomersOnly: data.firstTimeCustomersOnly,
+                minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross),
+                allowZeroInvoice: data.allowZeroInvoice,
+                campaignTag: data.campaignTag,
+                revenueDeductionAccount: data.revenueDeductionAccount,
                 updatedAt: new Date(),
             })
             .where(eq(promoCodes.id, id))
@@ -225,4 +238,9 @@ function toRecord(row: PromoCodeRow): PromoCodeRecord {
         updatedAt: row.updatedAt,
         deletedAt: row.deletedAt,
     };
+}
+
+/** An amount to write: absent stays absent, cleared stays cleared. */
+function nullableDecimal(value: number | null | undefined): string | null | undefined {
+    return value == null ? value : toDecimalString(value);
 }

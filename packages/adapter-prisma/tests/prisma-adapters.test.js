@@ -557,7 +557,7 @@ describe('PrismaPromoCodeRepository', () => {
         assert.match(p.calls.executeRaw[0].sql, /CASE WHEN status = 'EXHAUSTED' THEN 'ACTIVE'/);
     });
 
-    test('create normalizes the code and serializes decimals', async () => {
+    test('create normalizes the code and hands the decimal over as written', async () => {
         const p = fakePrisma();
         const repo = new PrismaPromoCodeRepository(p);
         const record = await repo.create({
@@ -568,7 +568,9 @@ describe('PrismaPromoCodeRepository', () => {
             createdById: 'admin-1',
         });
         assert.equal(record.code, 'SOMMER25');
-        assert.equal(record.value, '25.00');
+        // The fake echoes what it was handed; the column's scale is the
+        // contract's to check against PostgreSQL.
+        assert.equal(record.value, '25');
         assert.equal(record.firstTimeCustomersOnly, true);
     });
 
@@ -636,7 +638,7 @@ describe('PrismaPromoCodeRepository', () => {
 
         assert.equal(record.status, 'PAUSED');
         assert.equal(record.valueType, 'ABSOLUTE');
-        assert.equal(record.value, '10.00');
+        assert.equal(record.value, '10');
         assert.equal(record.durationType, 'MONTHS');
         assert.equal(record.durationValue, 3);
         assert.equal(record.validFrom, null);

@@ -1868,6 +1868,106 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(released?.redemptionsCount, 0);
         });
 
+        test("a promo code keeps the amounts it was given, to the column's rule", async (t) => {
+            // `(2.675).toFixed(2)` is '2.67' and `(1.005).toFixed(2)` is '1.00':
+            // rounding the binary double before the column sees it sends a value
+            // one way or the other by its representation. The platform refuses
+            // a third place at its boundary; here the adapter is asked for one
+            // anyway, and the column's own rule — half away from zero — decides.
+            const promoCodes = harness.adapter.promoCodeRepository;
+            if (!promoCodes) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            const created = await promoCodes.create({
+                code: 'TO-THE-CENT',
+                valueType: 'ABSOLUTE',
+                value: 2.675,
+                durationType: 'ONCE',
+                minimumPlanAmountGross: 1.005,
+                createdById: 'operator-1',
+            });
+
+            assert.equal(Number(created.value).toFixed(2), '2.68');
+            assert.equal(Number(created.minimumPlanAmountGross).toFixed(2), '1.01');
+        });
+
+        test('an update writes every field it names, and leaves the others', async (t) => {
+            // An operator's edit that an adapter drops arrives nowhere and
+            // reports success: the list shows the old discount, and every
+            // invoice the code touches is priced with it.
+            const promoCodes = harness.adapter.promoCodeRepository;
+            if (!promoCodes) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            const created = await promoCodes.create({
+                code: 'EDITED',
+                valueType: 'PERCENT',
+                value: 10,
+                durationType: 'ONCE',
+                description: 'kept',
+                createdById: 'operator-1',
+            });
+            const changes = {
+                status: 'PAUSED',
+                valueType: 'ABSOLUTE',
+                value: 19.99,
+                durationType: 'MONTHS',
+                durationValue: 3,
+                validFrom: new Date('2026-02-01T00:00:00.000Z'),
+                validUntil: new Date('2026-12-31T00:00:00.000Z'),
+                maxRedemptions: 50,
+                appliesToPlans: ['PRO'],
+                appliesToBilling: 'YEARLY',
+                firstTimeCustomersOnly: false,
+                minimumPlanAmountGross: 49.9,
+                allowZeroInvoice: true,
+                campaignTag: 'SPRING',
+                revenueDeductionAccount: '8736',
+            } as const;
+
+            await promoCodes.update(created.id, { ...changes, appliesToPlans: ['PRO'] });
+            const stored = await promoCodes.findById(created.id);
+
+            assert.ok(stored, 'the code is still there');
+            assert.deepEqual(
+                {
+                    status: stored.status,
+                    valueType: stored.valueType,
+                    value: Number(stored.value).toFixed(2),
+                    durationType: stored.durationType,
+                    durationValue: stored.durationValue,
+                    validFrom: stored.validFrom?.toISOString(),
+                    validUntil: stored.validUntil?.toISOString(),
+                    maxRedemptions: stored.maxRedemptions,
+                    appliesToPlans: stored.appliesToPlans,
+                    appliesToBilling: stored.appliesToBilling,
+                    firstTimeCustomersOnly: stored.firstTimeCustomersOnly,
+                    minimumPlanAmountGross: Number(stored.minimumPlanAmountGross).toFixed(2),
+                    allowZeroInvoice: stored.allowZeroInvoice,
+                    campaignTag: stored.campaignTag,
+                    revenueDeductionAccount: stored.revenueDeductionAccount,
+                },
+                {
+                    ...changes,
+                    value: '19.99',
+                    validFrom: '2026-02-01T00:00:00.000Z',
+                    validUntil: '2026-12-31T00:00:00.000Z',
+                    appliesToPlans: ['PRO'],
+                    minimumPlanAmountGross: '49.90',
+                },
+            );
+            assert.equal(stored.description, 'kept', 'a field the update did not name stays');
+
+            await promoCodes.update(created.id, { minimumPlanAmountGross: null });
+            assert.equal(
+                (await promoCodes.findById(created.id))?.minimumPlanAmountGross,
+                null,
+                'and a field it clears is cleared',
+            );
+        });
+
         // -------------------------------------------------------------
         // Promo codes — a slot held for a checkout
         // -------------------------------------------------------------

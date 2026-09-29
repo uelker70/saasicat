@@ -181,13 +181,51 @@ export function createMemoryHarness() {
     const hasFreeSlot = (row) =>
         row.maxRedemptions === null || row.redemptionsCount + row.heldCount < row.maxRedemptions;
 
+    // A `numeric(p,2)` column: the decimal written, rounded half away from
+    // zero. Shifting by `e2` parses a decimal string, so it is exact where
+    // multiplying the double by 100 is not.
+    const toCents = (value) =>
+        value == null ? value : (Math.round(Number(`${value}e2`)) / 100).toFixed(2);
     const promoCodeRepository = {
+        async create(data) {
+            const row = {
+                id: nextId('promo'),
+                code: data.code,
+                valueType: data.valueType,
+                value: toCents(data.value),
+                durationType: data.durationType,
+                durationValue: data.durationValue ?? null,
+                validFrom: data.validFrom ?? null,
+                validUntil: data.validUntil ?? null,
+                maxRedemptions: data.maxRedemptions ?? null,
+                redemptionsCount: 0,
+                heldCount: 0,
+                appliesToPlans: data.appliesToPlans ?? [],
+                appliesToBilling: data.appliesToBilling ?? null,
+                firstTimeCustomersOnly: data.firstTimeCustomersOnly ?? true,
+                minimumPlanAmountGross: toCents(data.minimumPlanAmountGross) ?? null,
+                allowZeroInvoice: data.allowZeroInvoice ?? false,
+                status: 'ACTIVE',
+                description: data.description ?? null,
+                campaignTag: data.campaignTag ?? null,
+                revenueDeductionAccount: data.revenueDeductionAccount ?? null,
+                createdById: data.createdById,
+                deletedAt: null,
+            };
+            state.promoCodes.push(row);
+            return { ...row };
+        },
         async findById(id) {
             const row = promoCode(id);
             return row ? { ...row } : null;
         },
         async update(id, data) {
-            Object.assign(promoCode(id), data);
+            const amounts = {};
+            if ('value' in data) amounts.value = toCents(data.value);
+            if ('minimumPlanAmountGross' in data) {
+                amounts.minimumPlanAmountGross = toCents(data.minimumPlanAmountGross);
+            }
+            Object.assign(promoCode(id), data, amounts);
             return { ...promoCode(id) };
         },
         async softDelete(id) {
