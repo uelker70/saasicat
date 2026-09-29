@@ -4,14 +4,23 @@ import { PersistenceRefusal } from './errors.js';
 /** The two versioned catalogue entities, by the name their rows go by. */
 export type CatalogVersionKind = 'PlanVersion' | 'BundleVersion';
 
-const CODES = {
+/**
+ * Each case's code, and the name its message interpolates the id under. The
+ * catalogue says `bundleVersionId` for a bundle version that is not found and
+ * `versionId` for the other three; a client that localizes by code and params
+ * shows the bare placeholder where the two disagree.
+ */
+const CASES = {
     PlanVersion: {
-        gone: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND,
-        published: CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED,
+        gone: { code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND, param: 'versionId' },
+        published: { code: CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED, param: 'versionId' },
     },
     BundleVersion: {
-        gone: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
-        published: CATALOG_ERROR_CODES.BUNDLE_VERSION_ALREADY_PUBLISHED,
+        gone: { code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND, param: 'bundleVersionId' },
+        published: {
+            code: CATALOG_ERROR_CODES.BUNDLE_VERSION_ALREADY_PUBLISHED,
+            param: 'versionId',
+        },
     },
 } as const;
 
@@ -20,8 +29,9 @@ export function catalogVersionGone(
     kind: CatalogVersionKind,
     versionId: string,
 ): PersistenceRefusal {
-    return new PersistenceRefusal(CODES[kind].gone, 'gone', `${kind} '${versionId}' not found.`, {
-        versionId,
+    const { code, param } = CASES[kind].gone;
+    return new PersistenceRefusal(code, 'gone', `${kind} '${versionId}' not found.`, {
+        [param]: versionId,
     });
 }
 
@@ -34,10 +44,11 @@ export function catalogVersionAlreadyPublished(
     kind: CatalogVersionKind,
     versionId: string,
 ): PersistenceRefusal {
+    const { code, param } = CASES[kind].published;
     return new PersistenceRefusal(
-        CODES[kind].published,
+        code,
         'moved',
         `${kind} '${versionId}' is already published; it is not published again or discarded.`,
-        { versionId },
+        { [param]: versionId },
     );
 }

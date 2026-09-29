@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     CATALOG_ERROR_CODES,
+    ERROR_MESSAGES_EN,
     PersistenceRefusal,
     catalogVersionAlreadyPublished,
     catalogVersionGone,
@@ -41,8 +42,31 @@ describe('a catalogue version refused', () => {
 
             assert.equal(refusal.code, gone);
             assert.equal(refusal.reason, 'gone');
-            assert.deepEqual(refusal.params, { versionId: 'v-1' });
+            assert.deepEqual(Object.values(refusal.params), ['v-1']);
         });
+    }
+});
+
+describe('a refusal reads as its message says', () => {
+    // A client localizes by code and params. Where the refusal names its id
+    // under another key than the code's message interpolates, the operator
+    // reads the placeholder itself — `BUNDLE_VERSION_NOT_FOUND` says
+    // `{bundleVersionId}`, the other three `{versionId}`. The expectation is
+    // read from the catalogue, so a reworded message cannot drift from this.
+    const placeholders = (template) =>
+        [...template.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+
+    for (const kind of ['PlanVersion', 'BundleVersion']) {
+        for (const refuse of [catalogVersionGone, catalogVersionAlreadyPublished]) {
+            test(`${refuse.name} for a ${kind} fills every placeholder of its message`, () => {
+                const refusal = refuse(kind, 'v-1');
+
+                assert.deepEqual(
+                    Object.keys(refusal.params).sort(),
+                    placeholders(ERROR_MESSAGES_EN[refusal.code]),
+                );
+            });
+        }
     }
 });
 

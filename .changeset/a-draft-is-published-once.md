@@ -19,12 +19,15 @@ transaction, and refuse otherwise.
 
 The refusal reaches the operator as the platform's own check would answer:
 `422 PLAN_VERSION_ALREADY_PUBLISHED` or `BUNDLE_VERSION_ALREADY_PUBLISHED`, and
-`404` for a version that is gone — not a 500.
+`404` for a version that is gone — not a 500. The English and German texts of
+the two `…_ALREADY_PUBLISHED` codes no longer say "cannot be discarded" to
+somebody who was publishing: they say the version is neither published again
+nor discarded.
 
 - `PersistenceRefusal` is new in `@saasicat/core`: an error an adapter throws
   when a row is no longer what its caller read, carrying the platform's code.
   `catalogVersionGone` and `catalogVersionAlreadyPublished` build the two
-  catalogue cases.
+  catalogue cases, with the parameters each code's message interpolates.
 - The persistence contract publishes a plan draft twice, one after the other
   and at the same moment, discards one published meanwhile, and publishes a
   version that is not there. A plan repository of your own throws
