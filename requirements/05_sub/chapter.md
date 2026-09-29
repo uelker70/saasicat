@@ -288,6 +288,7 @@ _Tested by:_
     - a subscriber on an older version of the plan
         - is quoted the version they keep for a change of rhythm, and loses nothing by it
         - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - the plan line records the version the subscription is bound to

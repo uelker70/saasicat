@@ -295,6 +295,7 @@ _Tested by:_
     - a subscriber on an older version of the plan
         - is quoted the version they keep for a change of rhythm, and loses nothing by it
         - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
@@ -361,6 +362,7 @@ _Tested by:_
     - a subscriber on an older version of the plan
         - is quoted the version they keep for a change of rhythm, and loses nothing by it
         - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
 
 <!-- END proof -->

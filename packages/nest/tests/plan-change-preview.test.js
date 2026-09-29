@@ -442,6 +442,20 @@ describe('a subscriber on an older version of the plan', () => {
         assert.equal(dto.target.plan.monthlyNet, 49, 'another plan is sold at its price now');
     });
 
+    test('is refused a rhythm the version they keep is not sold in, rather than quoted it free', async () => {
+        // The catalogue's STARTER is sold yearly; the version bound is not.
+        const monthlyOnly = { ...V1, yearlyNet: null };
+        const dto = await previewFor({
+            findVersionById: async (id) => (id === V1.id ? monthlyOnly : null),
+        }).preview('t1', 'STARTER', 'YEARLY', new Date('2026-05-15'));
+
+        assert.equal(dto.target.plan.yearlyNet, null, 'not a price of 0');
+        assert.deepEqual(
+            dto.blockers.map((blocker) => blocker.code),
+            ['PLAN_NOT_SOLD_IN_CYCLE'],
+        );
+    });
+
     test('is quoted from the catalogue where no repository reads versions', async () => {
         const dto = await previewFor(null).preview(
             't1',

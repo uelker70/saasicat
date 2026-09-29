@@ -872,6 +872,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     tenantId,
                     plan: 'LOYAL',
                     planVersionId: bound.planVersionId,
+                    pendingPlanVersionId: live.planVersionId,
                 });
                 return { writer, bound: bound.planVersionId, live: live.planVersionId };
             }
@@ -902,6 +903,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         'tenant-rhythm-only',
                     );
                 assert.equal(after?.planVersionId, tenant.bound, 'still on the version bought');
+                const accepted = await tenant.writer.acceptPendingPlanVersion(
+                    'tenant-rhythm-only',
+                    'user-1',
+                    new Date('2026-05-02T00:00:00.000Z'),
+                );
+                assert.equal(accepted.accepted, true, 'the newer version is still on offer');
             });
 
             test('binds the version in effect of another plan, whatever the change asks to keep', async (t) => {
@@ -925,6 +932,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
                 assert.equal(after?.plan, 'SMALLER');
                 assert.equal(after?.planVersionId, other.planVersionId);
+                await assert.rejects(
+                    tenant.writer.acceptPendingPlanVersion(
+                        'tenant-scheduled-downgrade',
+                        'user-1',
+                        new Date('2026-05-02T00:00:00.000Z'),
+                    ),
+                    refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION),
+                    'a version of the plan left behind is not on offer any more',
+                );
             });
 
             test('binds the version in effect when the change is a sale', async (t) => {
@@ -938,6 +954,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         'tenant-sold-again',
                     );
                 assert.equal(after?.planVersionId, tenant.live);
+                await assert.rejects(
+                    tenant.writer.acceptPendingPlanVersion(
+                        'tenant-sold-again',
+                        'user-1',
+                        new Date('2026-05-02T00:00:00.000Z'),
+                    ),
+                    refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION),
+                    'the version bound is not offered again',
+                );
             });
         });
 

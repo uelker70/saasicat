@@ -27,7 +27,9 @@ pending version is for (`SC-SUB-012`).
   shows the price of the version bound as the current one, where the plan
   repository reads versions (`findVersionById`); a subscriber on an older
   version was quoted the catalogue's newest price, which the write no longer
-  bills.
+  bills. It prices that version by the rules the contract freeze bills it by,
+  and refuses a rhythm the version kept is not sold in with
+  `PLAN_NOT_SOLD_IN_CYCLE` — rather than a free year.
 - The Prisma write claims the row only while it is bound to the version it
   read, so an acceptance landing between its read and its write is not
   written over; the caller is told the subscription changed. The Drizzle

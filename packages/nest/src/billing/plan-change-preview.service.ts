@@ -19,8 +19,10 @@ import {
     findPlan,
     getPlanPriceNet,
     isPlanNotSoldInCycle,
+    listPriceNet,
     planNotSoldInCycle,
 } from './plan-helpers.js';
+import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { periodEndAfter } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -260,13 +262,26 @@ export class PlanChangePreviewService {
             this.usageSnapshot.snapshot(tenantId),
         ]);
 
+        // The version bound, read by the rules the contract freeze bills it by:
+        // a price the row does not carry is a rhythm it is not sold in, never
+        // a free one.
         const bound = await this.boundVersionOf(sub.planVersion?.id);
+        const stem = findPlan(catalog, sub.plan);
+        const boundDef = bound
+            ? planDefFromVersion(
+                  { id: sub.plan, name: stem?.name ?? sub.plan, tagline: stem?.tagline },
+                  bound,
+              )
+            : null;
         const currentPlanDef = findPlan(catalog, currentLimits.plan);
         const currentSnap: PlanSnapshotDto = {
             id: currentLimits.plan,
             name: currentPlanDef?.name ?? currentLimits.plan,
-            ...(bound
-                ? pricesOf(bound)
+            ...(boundDef
+                ? {
+                      monthlyNet: listPriceNet(boundDef, 'MONTHLY' as BillingCycle),
+                      yearlyNet: listPriceNet(boundDef, 'YEARLY' as BillingCycle),
+                  }
                 : {
                       monthlyNet: getPlanPriceNet(
                           catalog,
@@ -287,21 +302,21 @@ export class PlanChangePreviewService {
         // version bound (`keepsBoundVersion`): it is quoted at that version's
         // price, and what the tenant may use does not change with it — not at
         // the version the catalogue sells to new customers now.
-        const targetSnap: PlanSnapshotDto =
-            bound && targetPlan === sub.plan
-                ? {
-                      ...currentSnap,
-                      id: targetPlanDef.id,
-                      name: targetPlanDef.name ?? targetPlanDef.id,
-                  }
-                : {
-                      id: targetPlanDef.id,
-                      name: targetPlanDef.name ?? targetPlanDef.id,
-                      monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
-                      yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
-                      quotas: targetPlanDef.quotas,
-                      features: targetPlanDef.features.slice().sort(),
-                  };
+        const keptDef = boundDef && targetPlan === sub.plan ? boundDef : null;
+        const targetSnap: PlanSnapshotDto = keptDef
+            ? {
+                  ...currentSnap,
+                  id: targetPlanDef.id,
+                  name: targetPlanDef.name ?? targetPlanDef.id,
+              }
+            : {
+                  id: targetPlanDef.id,
+                  name: targetPlanDef.name ?? targetPlanDef.id,
+                  monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
+                  yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
+                  quotas: targetPlanDef.quotas,
+                  features: targetPlanDef.features.slice().sort(),
+              };
 
         const changeType = this.classify(
             catalog,
@@ -392,8 +407,11 @@ export class PlanChangePreviewService {
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         const blockedSources = this.blockedPlans?.asSource ?? [];
 
-        if (isPlanNotSoldInCycle(targetPlanDef, targetCycle as BillingCycle)) {
-            blockers.push(planNotSoldInCycle(targetPlanDef, targetCycle as BillingCycle));
+        // A change that keeps the version is sold in the rhythm that version
+        // carries, whatever the catalogue offers new customers.
+        const soldAs = keptDef ?? targetPlanDef;
+        if (isPlanNotSoldInCycle(soldAs, targetCycle as BillingCycle)) {
+            blockers.push(planNotSoldInCycle(soldAs, targetCycle as BillingCycle));
         }
         if (blockedTargets.includes(targetPlan)) {
             blockers.push({
@@ -710,9 +728,4 @@ function priceForCycle(snap: PlanSnapshotDto, cycle: string): number | null {
 function isFloatQuota(key: string): boolean {
     // Storage values are GB floats; all others are integer counts.
     return key.toLowerCase().includes('storage');
-}
-
-/** A version's list prices, as the snapshot carries them. */
-function pricesOf(version: PlanVersionRow): Pick<PlanSnapshotDto, 'monthlyNet' | 'yearlyNet'> {
-    return { monthlyNet: Number(version.monthlyNet), yearlyNet: Number(version.yearlyNet) };
 }
