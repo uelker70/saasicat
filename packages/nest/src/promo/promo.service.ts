@@ -260,14 +260,18 @@ export class PromoCodesService {
             this.ruleContext(),
         );
 
-        // A deleted code counts: its name stays taken (`SC-PROMO-028`).
-        const taken = () =>
+        // A deleted code counts: its name stays taken (`SC-PROMO-028`). The
+        // admin list does not show deleted codes, so `deleted` says which case
+        // it is; a create that lost a race cannot tell, and leaves it out.
+        const taken = (deleted?: boolean) =>
             new BadRequestException({
                 code: PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS,
-                message: 'The code already exists.',
-                params: { promoCode: code },
+                message:
+                    'The code exists, or a deleted code carries it; a deleted code keeps its name.',
+                params: { promoCode: code, ...(deleted === undefined ? {} : { deleted }) },
             });
-        if (await this.promoRepo.findByCode(code)) throw taken();
+        const existing = await this.promoRepo.findByCode(code);
+        if (existing) throw taken(existing.deletedAt !== null);
 
         try {
             return await this.promoRepo.create({ ...input, code });

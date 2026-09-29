@@ -270,13 +270,30 @@ describe('PromoCodesService.create — a name that is taken', () => {
         return true;
     };
 
-    test('by a deleted code, it is refused', async () => {
+    test('by a deleted code, it is refused, and the answer says the code is deleted', async () => {
+        // The admin list leaves deleted codes out; without saying which case it
+        // is, the operator is told the code exists and cannot find it.
         const promoRepo = new FakePromoRepo();
         const svc = buildSvc({ promoRepo });
         const first = await svc.create(BASE_INPUT);
         promoRepo.byCode.set(first.code, { ...first, deletedAt: new Date() });
 
-        await assert.rejects(svc.create(BASE_INPUT), answeredAsTaken);
+        await assert.rejects(svc.create(BASE_INPUT), (error) => {
+            answeredAsTaken(error);
+            assert.equal(error.getResponse().params.deleted, true);
+            return true;
+        });
+    });
+
+    test('by a live code, the answer says it is not a deleted one', async () => {
+        const svc = buildSvc();
+        await svc.create(BASE_INPUT);
+
+        await assert.rejects(svc.create(BASE_INPUT), (error) => {
+            answeredAsTaken(error);
+            assert.equal(error.getResponse().params.deleted, false);
+            return true;
+        });
     });
 
     test('by a create that won the race past the check, it is refused the same way', async () => {

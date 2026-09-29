@@ -203,7 +203,8 @@ _Tested by:_
 
 - `packages/nest/tests/promo-service.test.js`
     - PromoCodesService.create — a name that is taken
-        - by a deleted code, it is refused
+        - by a deleted code, it is refused, and the answer says the code is deleted
+        - by a live code, the answer says it is not a deleted one
         - by a create that won the race past the check, it is refused the same way
         - an adapter failure that is no refusal reaches the caller as it was
 

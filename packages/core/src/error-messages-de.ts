@@ -199,7 +199,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     QUOTA_DIMENSION_UNKNOWN: 'Unbekannte Quota-Dimension "{dimension}".',
     // ── promo ──
     PROMO_CODE_NOT_FOUND: 'Code nicht gefunden',
-    PROMO_CODE_ALREADY_EXISTS: 'Diesen Code gibt es bereits.',
+    PROMO_CODE_ALREADY_EXISTS:
+        'Diesen Code gibt es bereits, oder ein gelöschter Code trägt ihn; ein gelöschter Code behält seinen Namen.',
     PROMO_CODE_HAS_REDEMPTIONS:
         'Der Code wurde bereits eingelöst oder ist für einen laufenden Checkout reserviert — er lässt sich nicht per Soft-Delete entfernen. Pausiere ihn stattdessen.',
     PROMO_CODE_NOT_REDEEMABLE: 'Der Code lässt sich nicht einlösen: {reason}',

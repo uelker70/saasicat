@@ -18,6 +18,11 @@ check are answered the same way: the adapters insert with
 `ON CONFLICT DO NOTHING` and refuse with `promoCodeTaken`, and the service
 turns that into `400 PROMO_CODE_ALREADY_EXISTS`.
 
+The message for `PROMO_CODE_ALREADY_EXISTS` now says that a deleted code may
+carry the name, since the admin list does not show deleted codes, and the
+refusal from the duplicate check carries `params.deleted` so an interface can
+tell the two cases apart.
+
 The nightly expiry no longer writes to deleted codes.
 
 - `promoCodeTaken` is new in `@saasicat/core`.
