@@ -1680,6 +1680,37 @@ describe('a scheduled change learns the version it was quoted at', () => {
         });
     });
 
+    test("a plan stored by its row id is found through its key, as the Prisma adapter's normalized-plan-id binding stores it", async () => {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+        await client.query(
+            'INSERT INTO "plans" ("id", "planKey", "label", "updatedAt") VALUES ' +
+                "('plan-row-starter', 'STARTER', 'Starter', NOW()), ('plan-row-pro', 'PRO', 'Pro', NOW())",
+        );
+        await version('starter-1', 'plan-row-starter', 1, '2026-01-01');
+        await version('pro-1', 'plan-row-pro', 1, '2026-01-01', '2026-03-01');
+        await version('pro-2', 'plan-row-pro', 2, '2026-03-01');
+        await subscription('to-another-plan', 'PRO');
+        await subscription('on-its-plan', 'STARTER');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), { 'on-its-plan': null, 'to-another-plan': 'pro-2' });
+    });
+
+    test('a schema with no plans table is matched by key alone', async () => {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+        await client.query('DROP TABLE "plans" CASCADE');
+        await version('starter-1', 'STARTER', 1, '2026-01-01');
+        await version('pro-2', 'PRO', 2, '2026-03-01');
+        await subscription('to-another-plan', 'PRO');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), { 'to-another-plan': 'pro-2' });
+    });
+
     test('a second run pins nothing published since the first', async () => {
         await beforeTheColumn();
         await apply(MIGRATION);
