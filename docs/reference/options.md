@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 23 rules, in 13 areas.
+There are 24 rules, in 14 areas.
 
 ## core
 
@@ -106,6 +106,15 @@ AdminStats is enabled, but no auditStatsPort is available. Set
 Maintenance is enabled, but there is nowhere to keep the windows. Set
 `maintenance.windows` or use a bundle providing
 `persistence.core.maintenanceWindows` — both shipped adapters do.
+
+## version-notices
+
+### version-notices.requires-notice-record
+
+Version notices are turned on (`tenantBilling.versionNotices`), but there is
+nowhere to record what each subscriber was told. Set
+`tenantBilling.versionNotices.notices` or use a bundle providing
+`persistence.tenantBilling.subscriptionNotices` — both shipped adapters do.
 
 ## subscription-contract
 

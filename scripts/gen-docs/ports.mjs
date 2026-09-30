@@ -26,6 +26,7 @@ const AREA = {
     'persistence-ports.types.ts': 'Persistence bundles',
     'promo-ports.types.ts': 'Promo codes',
     'settings-ports.types.ts': 'Configuration',
+    'subscription-notice-ports.types.ts': 'Subscriber notices',
 };
 
 /**

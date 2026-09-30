@@ -77,6 +77,7 @@ export function createMemoryHarness() {
         appliedSettings: null,
         settingsChanges: [],
         maintenanceWindows: [],
+        subscriptionNotices: [],
     });
 
     let transactionCounter = 0;
@@ -1325,6 +1326,76 @@ export function createMemoryHarness() {
         },
     };
 
+    /**
+     * Subscriber notices: one per subscription, kind and subject, as the unique
+     * key keeps it, and every claim, confirmation and release conditional on
+     * the claim the caller holds.
+     */
+    const subscriptionNotices = {
+        async claim(key, content, now, staleBefore) {
+            const same = (row) =>
+                row.subscriptionId === key.subscriptionId &&
+                row.kind === key.kind &&
+                row.subject === key.subject;
+            if (!state.subscriptionNotices.some(same)) {
+                state.subscriptionNotices.push({
+                    id: nextId('notice'),
+                    ...structuredClone(key),
+                    content: structuredClone(content),
+                    createdAt: now,
+                    claimedAt: null,
+                    deliveredAt: null,
+                    delivery: null,
+                });
+            }
+            const row = state.subscriptionNotices.find(
+                (candidate) =>
+                    same(candidate) &&
+                    candidate.tenantId === key.tenantId &&
+                    candidate.deliveredAt === null &&
+                    (candidate.claimedAt === null || candidate.claimedAt < staleBefore),
+            );
+            if (!row) return null;
+            Object.assign(row, { claimedAt: now, content: structuredClone(content) });
+            return structuredClone(row);
+        },
+        async confirm(id, claimedAt, delivery, now) {
+            const row = heldNotice(id, claimedAt);
+            if (!row) return false;
+            Object.assign(row, {
+                deliveredAt: now,
+                delivery: { recipients: [...delivery.recipients], channel: delivery.channel },
+            });
+            return true;
+        },
+        async release(id, claimedAt) {
+            const row = heldNotice(id, claimedAt);
+            if (row) row.claimedAt = null;
+        },
+        async listDeliveredSubscriptionIds(kind, subject) {
+            return state.subscriptionNotices
+                .filter((row) => row.kind === kind && row.subject === subject && row.deliveredAt)
+                .map((row) => row.subscriptionId);
+        },
+        async listForSubscription(subscriptionId) {
+            const rows = state.subscriptionNotices
+                .filter((row) => row.subscriptionId === subscriptionId)
+                .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1));
+            return structuredClone(rows);
+        },
+    };
+
+    /** The notice `id`, while the claim taken at `claimedAt` holds it and it is not delivered. */
+    function heldNotice(id, claimedAt) {
+        return state.subscriptionNotices.find(
+            (row) =>
+                row.id === id &&
+                row.deliveredAt === null &&
+                row.claimedAt !== null &&
+                row.claimedAt.getTime() === claimedAt.getTime(),
+        );
+    }
+
     // Checkout offers. `consume` decides on the write whether the offer is still
     // open, as a conditional update does, so two callers cannot both consume it.
     const checkoutOfferRepository = {
@@ -1442,6 +1513,7 @@ export function createMemoryHarness() {
             checkoutOfferRepository,
             appliedSettings,
             maintenanceWindows,
+            subscriptionNotices,
         },
         seed,
         async reset() {

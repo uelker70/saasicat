@@ -1,0 +1,50 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriptionNotice
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per notice a subscriber is due: that a newer version of their plan is
+// offered to them, told once. The platform records a notice before it has the
+// application send it and confirms it after, so the unique key below is what
+// makes a notice once — however many instances run the job — and the row is
+// what shows later when it went out, to whom and how.
+//
+// A run takes a notice on by setting `claimedAt`, and lets it go again where the
+// sending failed; a claim older than a quarter of an hour counts as abandoned.
+// `deliveredAt`, `recipients` and `channel` are set together, when the
+// application confirms it sent the notice.
+//
+// The record is evidence of what a subscriber was told, and outlives the
+// subscription like the subscriber's account does (ADR 0012): `tenantId` and
+// `subscriptionId` are kept as values, not as keys.
+//
+// `kind` is text holding a closed set: version-offered.
+//
+// Optional: adopt it where `tenantBilling.versionNotices` is configured, which
+// refuses to start without a place to keep notices.
+//
+// Contract: @saasicat/core (SubscriptionNoticeRepository).
+
+model SubscriptionNotice {
+    id             String @id @default(uuid())
+    tenantId       String
+    subscriptionId String
+
+    kind    String
+    // What the notice is about — for version-offered, the id of the version.
+    subject String
+    // The notice as it was last handed to the application.
+    content Json
+
+    createdAt   DateTime  @default(now())
+    claimedAt   DateTime?
+    deliveredAt DateTime?
+    // Who it went to and how, in the application's own terms.
+    recipients  Json?
+    channel     String?
+
+    @@unique([subscriptionId, kind, subject])
+    @@index([kind, subject])
+    @@map("subscription_notices")
+}

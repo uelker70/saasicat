@@ -286,7 +286,7 @@ describe('every rule can actually fail', () => {
         options: {
             controller: { guards: [] },
             catalog: {},
-            tenantBilling: {},
+            tenantBilling: { versionNotices: {} },
             subscriptionBundles: {},
             payments: {},
             adminResources: true,

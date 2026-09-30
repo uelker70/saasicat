@@ -37,6 +37,7 @@ import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '..
 import {
     DrizzleAppliedSettingsRepository,
     DrizzleMaintenanceWindowRepository,
+    DrizzleSubscriptionNoticeRepository,
 } from '../../dist/index.js';
 import {
     DrizzlePlanRepository,
@@ -68,6 +69,7 @@ const PLATFORM_TABLES = [
     'applied_settings',
     'settings_changes',
     'maintenance_windows',
+    'subscription_notices',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -106,6 +108,7 @@ function createHarness() {
             subscriberLedgerRepository: new DrizzleSubscriberLedgerRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
             maintenanceWindows: new DrizzleMaintenanceWindowRepository(db),
+            subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),
         },
         seed: {
             async createBundleVersion(input) {

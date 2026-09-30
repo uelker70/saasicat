@@ -156,3 +156,11 @@ export interface PendingPlanQueryPort {
  * rather than after it.
  */
 export const CANCELLATION_NOTICE_DAYS_TOKEN = Symbol.for('saasicat/nest/CancellationNoticeDays');
+
+/** Adapter token: where the record of each subscriber notice is kept. */
+export const SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN = Symbol.for(
+    'saasicat/nest/SubscriptionNoticeRepository',
+);
+
+/** Adapter token: the application's `SubscriptionNoticePort`, which sends a notice. */
+export const SUBSCRIPTION_NOTICE_PORT_TOKEN = Symbol.for('saasicat/nest/SubscriptionNoticePort');

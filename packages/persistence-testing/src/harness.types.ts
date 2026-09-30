@@ -25,6 +25,7 @@ import type {
     SubscriberRepository,
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
+    SubscriptionNoticeRepository,
     SubscriptionRepository,
     TenantSubscriptionWritePort,
     TransactionRunner,
@@ -138,6 +139,15 @@ export interface ContractAdapterInstances {
      * together both land.
      */
     maintenanceWindows?: MaintenanceWindowPort;
+    /**
+     * Enables the subscriber notice scenarios: one record per subscription,
+     * kind and subject however many runs claim it at once, and a claim, a
+     * confirmation and a release each guarded on the claim the caller holds.
+     * That is what makes a notice once — an adapter that let two runs claim it
+     * would send it twice, and one whose confirmation ignored the claim would
+     * record a delivery a later run is still making.
+     */
+    subscriptionNotices?: SubscriptionNoticeRepository;
 }
 
 /** Fixture writers — implemented per adapter against its own schema. */
@@ -264,7 +274,8 @@ export type ContractGap =
     | 'subscriberLedger'
     | 'checkoutOffers'
     | 'appliedSettings'
-    | 'maintenanceWindows';
+    | 'maintenanceWindows'
+    | 'subscriptionNotices';
 
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */

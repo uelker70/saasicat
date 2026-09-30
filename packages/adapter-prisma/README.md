@@ -113,11 +113,12 @@ PromoCodesModule.forRoot({
 | `PrismaSubscriptionContractRepository`   | `SubscriptionContractRepository`   | `subscription_contracts`, `contract_line_items`                     |
 | `PrismaSubscriberLedgerRepository`       | `SubscriberLedgerRepository`       | `subscriber_ledger_entries`                                         |
 | `PrismaAppliedSettingsRepository`        | `AppliedSettingsPort`              | `applied_settings`, `settings_changes`                              |
+| `PrismaMaintenanceWindowRepository`      | `MaintenanceWindowPort`            | `maintenance_windows`                                               |
+| `PrismaSubscriptionNoticeRepository`     | `SubscriptionNoticeRepository`     | `subscription_notices`                                              |
 
 `PrismaMfaAdapter` stores the secret it is handed. The platform seals it first with the
 `SecretSealer` bound in `adapters`, which this bundle does not supply: the key belongs to the
 installation, not to the database.
-| `PrismaMaintenanceWindowRepository` | `MaintenanceWindowPort` | `maintenance_windows` |
 
 Not shipped (custom adapters stay yours): registration persistence,
 consumer-specific payment/invoice integrations, and `FirstTimeCustomerCheck`.

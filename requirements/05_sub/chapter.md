@@ -706,3 +706,86 @@ _Tested by:_
         - a refusal with no offer to show still says why
 
 <!-- END proof -->
+
+### SC-SUB-022 — A subscriber is told once of each newer version offered to them, when it is offered
+
+🟢 Where the application turns version notices on, the administrators of a tenant hear of a newer
+version of their plan once, through the application's own messages: when the offer appears beside
+the plan (`SC-SUB-020`) — not when the version is published — so a version whose window opens later
+is told when it opens, and a subscription with a change still to land is told once it has landed.
+The notice carries what the offer shows: both versions side by side, the kind of offer and when a
+switch would take effect. Each newer version is told once per subscription; nothing is repeated,
+there is no reminder and nothing to decline. A notice the application could not send is tried
+again by the next run, and one sent to nobody is kept as such rather than tried again; the platform
+runs every quarter of an hour, unless the application runs it from a scheduler of its own. The two
+cases a subscriber can hear twice: the process stops after the application sent the notice and
+before it was recorded as sent, or the application takes longer than a quarter of an hour to answer
+and another run takes the notice on meanwhile.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-is-told-once.test.js`
+    - a newer version offered to a subscriber
+        - is told with the offer, and the record keeps to whom and how
+        - is not told again by the next run
+        - is told of each newer version it is offered, once each
+        - whose window has not opened is told once it opens, not when it is published
+        - is not told while a change is still to land, and is told once it has
+        - is asked for only among subscriptions on older versions, so one already on it hears
+          nothing
+        - is told to every subscription it is offered to, each with its own tenant
+    - a notice the application could not send
+        - is tried again by the next run, and then kept as sent
+        - told to nobody is kept as sent to no one, and not tried again
+        - sent but not recorded counts as sent, and is not sent again while its claim holds
+        - is claimed at the moment it is taken, not when the run began
+        - that the application answers only after the timeout stays held, and a late success is kept
+          as sent
+        - that fails only after the timeout is let go for the next run
+        - held by another run is left to it
+    - a run reads and writes across tenants inside the RLS bypass
+    - turning version notices on
+        - is refused over a usage port that cannot list subscriptions across tenants
+        - is refused over a plan repository that cannot read a version
+        - starts over ports that have both
+    - the run every quarter of an hour
+        - waits while the application is locked for maintenance
+        - lets a run pass while the one before it is still sending
+
+<!-- END proof -->
+
+### SC-SUB-023 — Every notice to a subscriber is recorded: once, with when and to whom it went
+
+🟢 🔒 Each notice is kept as a record of its own — the subscription, what it was about, what it said,
+when it went out, to whom and through which channel — and there is one record per subscription and
+subject however many instances send notices at the same time. The record outlives the
+subscription, as the subscriber's account does.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/subscription-notice-mapping.test.js`
+    - a notice read back
+        - not yet delivered carries no delivery
+        - delivered carries to whom and how, and nobody where nobody was told
+        - of a kind the platform does not know is refused, naming the row
+        - delivered without a readable delivery is refused, naming the row
+- `packages/nest/tests/a-subscriber-is-told-once.test.js`
+    - a newer version offered to a subscriber
+        - is told with the offer, and the record keeps to whom and how
+    - a notice the application could not send
+        - told to nobody is kept as sent to no one, and not tried again
+        - sent but not recorded counts as sent, and is not sent again while its claim holds
+        - is claimed at the moment it is taken, not when the run began
+        - that the application answers only after the timeout stays held, and a late success is kept
+          as sent
+        - held by another run is left to it
+
+<!-- END proof -->

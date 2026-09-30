@@ -15,6 +15,8 @@ import type {
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
+    SubscriptionNoticePort,
+    SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
     TransactionRunner,
@@ -32,6 +34,8 @@ import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
+import { VersionNoticeCron } from './version-notice.cron.js';
+import { VersionNoticeService } from './version-notice.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
@@ -49,6 +53,8 @@ import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     PENDING_PLAN_QUERY_PORT_TOKEN,
+    SUBSCRIPTION_NOTICE_PORT_TOKEN,
+    SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
     TENANT_AUTH_GUARDS_TOKEN,
@@ -159,6 +165,19 @@ function assertNoMovedOptions(options: TenantBillingModuleOptions): void {
     );
 }
 
+export interface VersionNoticesOptions {
+    /** Sends a notice to the tenant's administrators, and says to whom and how. */
+    port: ProviderSpec<SubscriptionNoticePort>;
+    /** Where the record of each notice is kept. */
+    notices: ProviderSpec<SubscriptionNoticeRepository>;
+    /**
+     * Default `true`: a run every quarter of an hour sends what is due. Needs
+     * `ScheduleModule`; set `false` where none runs, or where the application
+     * calls `VersionNoticeService.sendDue` from a scheduler of its own.
+     */
+    includeCron?: boolean;
+}
+
 export interface TenantBillingModuleOptions {
     /**
      * App guards in the order in which they should be executed
@@ -250,6 +269,16 @@ export interface TenantBillingModuleOptions {
     chargeJournal?: {
         ledgerRepository: ProviderSpec<SubscriberLedgerRepository>;
     };
+
+    /**
+     * Optional notices that a newer version of a subscriber's plan is offered
+     * to them (`VersionNoticeService`): once per version and subscription, when
+     * the offer appears beside the plan, through the application's `port`,
+     * which finds the tenant's administrators, words the message and sends it.
+     * `notices` keeps the record of each. Without this nothing is sent, and the
+     * offer is still shown.
+     */
+    versionNotices?: VersionNoticesOptions;
 
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
@@ -390,6 +419,15 @@ export class TenantBillingModule {
                 SubscriberAccountService,
             );
         }
+        const versionNotices = options.versionNotices;
+        if (versionNotices) {
+            providers.push(
+                asProvider(SUBSCRIPTION_NOTICE_PORT_TOKEN, versionNotices.port),
+                asProvider(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN, versionNotices.notices),
+                VersionNoticeService,
+                ...(versionNotices.includeCron === false ? [] : [VersionNoticeCron]),
+            );
+        }
         if (options.tenantIdResolver) {
             providers.push({
                 provide: TENANT_ID_RESOLVER_TOKEN,
@@ -432,6 +470,7 @@ export class TenantBillingModule {
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
+                ...(versionNotices ? [VersionNoticeService] : []),
                 ...(options.extraExports ?? []),
             ],
         };

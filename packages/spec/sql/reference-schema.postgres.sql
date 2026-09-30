@@ -19,6 +19,7 @@
 --   prisma-fragments/14-payments.prisma
 --   prisma-fragments/15-subscriber-ledger.prisma
 --   prisma-fragments/16-maintenance-window.prisma
+--   prisma-fragments/17-subscription-notice.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -724,6 +725,23 @@ CREATE TABLE "maintenance_windows" (
     CONSTRAINT "maintenance_windows_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscription_notices" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "content" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "claimedAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "recipients" JSONB,
+    "channel" TEXT,
+
+    CONSTRAINT "subscription_notices_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -963,6 +981,12 @@ CREATE UNIQUE INDEX "subscriber_ledger_entries_subscriptionId_source_sourceRef_p
 
 -- CreateIndex
 CREATE INDEX "maintenance_windows_createdAt_idx" ON "maintenance_windows"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "subscription_notices_kind_subject_idx" ON "subscription_notices"("kind", "subject");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_notices_subscriptionId_kind_subject_key" ON "subscription_notices"("subscriptionId", "kind", "subject");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

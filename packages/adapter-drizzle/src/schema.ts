@@ -414,6 +414,23 @@ export const maintenanceWindows = pgTable('maintenance_windows', {
     endedBy: text('endedBy'),
 });
 
+// What each subscriber was told, once per subscription, kind and subject. The
+// DDL authority, the unique key a second record of one notice collides with, is
+// `subscription_notices_subscriptionId_kind_subject_key`.
+export const subscriptionNotices = pgTable('subscription_notices', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull(),
+    subscriptionId: text('subscriptionId').notNull(),
+    kind: text('kind').notNull(),
+    subject: text('subject').notNull(),
+    content: jsonb('content').notNull(),
+    createdAt: writtenAt('createdAt'),
+    claimedAt: ts('claimedAt'),
+    deliveredAt: ts('deliveredAt'),
+    recipients: jsonb('recipients'),
+    channel: text('channel'),
+});
+
 // ---------------------------------------------------------------------------
 // Subscribers — the party a contract is concluded with
 // ---------------------------------------------------------------------------

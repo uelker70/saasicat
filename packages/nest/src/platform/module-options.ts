@@ -38,6 +38,7 @@ import type {
     QuotaProvider,
     RlsBypassPort,
     SaaSiCatPersistenceAdapter,
+    SubscriptionNoticeRepository,
     SubscriptionRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
@@ -53,7 +54,10 @@ import {
     type SubscriptionBundleControllerOptions,
     type SubscriptionBundleModuleOptions,
 } from '../billing/subscription-bundles.module.js';
-import { type TenantBillingModuleOptions } from '../billing/tenant-billing.module.js';
+import {
+    type TenantBillingModuleOptions,
+    type VersionNoticesOptions,
+} from '../billing/tenant-billing.module.js';
 import {
     type CatalogModuleOptions,
     type PublicMarketingCatalogOptions,
@@ -171,6 +175,7 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     | 'subscriptionUsagePort'
     | 'usageSnapshotPort'
     | 'subscriptionWritePort'
+    | 'versionNotices'
     | 'global'
 > {
     /**
@@ -182,6 +187,15 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     subscriptionUsagePort?: ProviderSpec<SubscriptionUsagePort>;
     usageSnapshotPort?: ProviderSpec<UsageSnapshotPort>;
     subscriptionWritePort?: ProviderSpec<TenantSubscriptionWritePort>;
+    /**
+     * Tell each subscriber once, through `port`, that a newer version of their
+     * plan is offered to them. The record of each notice comes from
+     * `persistence.tenantBilling.subscriptionNotices` unless `notices` names
+     * another; a start with neither is refused.
+     */
+    versionNotices?: Omit<VersionNoticesOptions, 'notices'> & {
+        notices?: ProviderSpec<SubscriptionNoticeRepository>;
+    };
 }
 
 /**
