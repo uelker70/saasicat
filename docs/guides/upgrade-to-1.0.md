@@ -2082,6 +2082,31 @@ start, its end or both, matched without regard to case.
 - **The Prisma adapter matches `%` and `_` literally** in a searched value — a promo code, a tenant,
   a user, an audit tag. Before, an underscore stood for any one character.
 
+### The SuperAdmin's second factor is stored sealed
+
+`MfaService` seals a SuperAdmin's TOTP secret before `MfaPort.setSecret` sees it and opens it after
+`getSecret` (`SC-SEC-016`), and `SaaSiCatModule.forRoot` refuses to start without a sealer
+(`core.secret-sealer-bound`). Why, and the three ways to bind one:
+[The SuperAdmin's second factor is sealed](wire-the-backend.md#the-superadmins-second-factor-is-sealed).
+
+- **Bind a sealer:** `adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) }`
+  with 32 random bytes, base64, in the environment — or `storeSecretsInPlainText()` where plain
+  text is what you mean.
+- **A secret stored before the upgrade** is plain text, and `aesGcmSecretSealer` does not open it:
+  the code is turned away, the log names the user, and each SuperAdmin enrols once more with
+  `<app> admin mfa-setup --force`.
+- **An `MfaPort` of your own that encrypts the secret** moves that encryption into a
+  `SecretSealer` and stores what it is given. The secrets it has written stay readable, because the
+  sealer opens what the port used to decrypt, and nobody enrols again. Keeping the encryption in the
+  port as well would seal every secret twice.
+- **`AdminModule.forRoot`** takes `secretSealer` beside `mfaPort`. A CLI that wires it itself binds
+  the application's sealer under the same key: `admin mfa-setup` seals there, and the application
+  opens.
+- **`MfaService`** takes the sealer as its second constructor argument; a module that constructs it
+  by hand passes one.
+- **`createSaaSiCatTestModule`** binds `storeSecretsInPlainText()` unless `overrides.secretSealer`
+  names another.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

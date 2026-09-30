@@ -177,12 +177,34 @@ export interface EmailPort {
 
 /** Adapter for MFA secret persistence. */
 export interface MfaPort {
-    /** Returns the stored TOTP secret or null. */
+    /**
+     * Returns the stored secret or null. What is stored is the value the
+     * platform handed to `setSecret`: sealed by the installation's
+     * `SecretSealer`, and opened by the platform, not here.
+     */
     getSecret(userId: string): Promise<string | null>;
-    /** Persists or deletes (null) the TOTP secret. */
+    /** Persists or deletes (null) the sealed secret, as it is given. */
     setSecret(userId: string, secret: string | null): Promise<void>;
     /** The platform calls this during the mfa-setup command. */
     isEnabled(userId: string): Promise<boolean>;
+}
+
+/**
+ * Seals a secret before it is stored and opens it after it is read.
+ *
+ * The TOTP secret of a SuperAdmin is the second factor of the accounts that can
+ * change every tenant's plan, codes and contracts. Stored as it is, whoever
+ * holds a dump, a backup or a replica holds it too, and the second factor adds
+ * nothing against them. The key stays with the installation — in its
+ * configuration, not in the database the sealed value lives in.
+ *
+ * `open` refuses what it did not seal: a value from another key, a format it
+ * does not know, a secret stored before sealing. The platform then treats the
+ * code as wrong and the administrator enrols again.
+ */
+export interface SecretSealer {
+    seal(plain: string): Promise<string>;
+    open(sealed: string): Promise<string>;
 }
 
 /**

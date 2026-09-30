@@ -56,6 +56,11 @@ Optional but strongly recommended integration for ops workflows.
 export class CliModule {}
 ```
 
+The admin module binds the same `secretSealer` as the application, under the same key:
+`admin mfa-setup` seals a SuperAdmin's secret here, and the application opens it when the code is
+checked. A CLI with a key of its own enrols secrets the application turns away. See
+[the SuperAdmin's second factor](wire-the-backend.md#the-superadmins-second-factor-is-sealed).
+
 With this your app has, for example:
 
 ```bash

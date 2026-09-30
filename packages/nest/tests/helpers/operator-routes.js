@@ -6,7 +6,11 @@
 
 import 'reflect-metadata';
 
-import { SAASICAT_PUBLIC_ROUTE_KEY, SaaSiCatModule } from '../../dist/platform/index.js';
+import {
+    SAASICAT_PUBLIC_ROUTE_KEY,
+    SaaSiCatModule,
+    storeSecretsInPlainText,
+} from '../../dist/platform/index.js';
 
 /** Nest's own metadata keys. */
 export const PATH = 'path';
@@ -84,6 +88,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
         controller: { guards },
         discoverySnapshotPath: null,
         persistence,
+        adapters: { secretSealer: storeSecretsInPlainText() },
         catalog: { featureUiRegistry: {} },
         adminResources: true,
         tenantBilling: {

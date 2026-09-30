@@ -28,6 +28,7 @@ import { Module, type DynamicModule, type Type } from '@nestjs/common';
 import type { PlanCatalog, QuotaProvider } from '@saasicat/core';
 import { SaaSiCatModule } from '../platform/saasicat.module.js';
 import type { SaaSiCatAdapters } from '../platform/saasicat.module.js';
+import { storeSecretsInPlainText } from '../admin/secret-sealers.js';
 
 /** No-op stub for `MfaPort`. */
 export class StubMfaPort {
@@ -78,7 +79,7 @@ export interface CreateSaaSiCatTestModuleOptions {
     /** QuotaProvider classes for the `EnforceQuotaInterceptor`. */
     quotaProviders?: Array<Type<QuotaProvider>>;
     /** Overrides — if the test needs a different adapter. */
-    overrides?: Partial<Pick<SaaSiCatAdapters, 'mfa' | 'audit' | 'rlsBypass'>>;
+    overrides?: Partial<Pick<SaaSiCatAdapters, 'mfa' | 'secretSealer' | 'audit' | 'rlsBypass'>>;
 }
 
 /**
@@ -96,6 +97,8 @@ export function createSaaSiCatTestModule(options: CreateSaaSiCatTestModuleOption
                 controller: { guards: [] }, // Tests run without an auth guard
                 adapters: {
                     mfa: options.overrides?.mfa ?? new StubMfaPort(),
+                    // A test holds no secret worth sealing, and no key.
+                    secretSealer: options.overrides?.secretSealer ?? storeSecretsInPlainText(),
                     audit: options.overrides?.audit ?? new StubAuditPort(),
                     rlsBypass: options.overrides?.rlsBypass ?? new StubRlsBypassPort(),
                 },

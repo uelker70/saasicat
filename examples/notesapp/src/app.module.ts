@@ -3,7 +3,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { prismaPersistence } from '@saasicat/adapter-prisma';
 import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { DevPaymentGateway } from '@saasicat/nest/payments';
-import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
+import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 
 import { DemoAuthGuard } from './auth/demo-auth.guard';
 import { DemoAuthModule } from './auth/demo-auth.module';
@@ -34,6 +34,11 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                     passwordHasher: DemoPasswordHasher,
                     adminResources: { tenantMetrics: ['notes', 'users'] },
                 }),
+                // A platform administrator's second factor is stored sealed, so a
+                // dump or a backup of the database does not carry it along. The
+                // key is the installation's — 32 random bytes, base64, from the
+                // environment — and an unset one stops the boot.
+                adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
                 // The standard stack takes every repository from the persistence
                 // bundle. No forwarding Catalog/Billing modules are needed.
                 entitlement: {

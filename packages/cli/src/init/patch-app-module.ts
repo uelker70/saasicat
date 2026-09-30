@@ -136,7 +136,7 @@ function findImportsArray(source: string): ImportsArray | null {
 function renderImports(options: PatchAppModuleOptions): string {
     const lines = [
         "import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';",
-        "import { SaaSiCatModule, defineSaaSiCat } from '@saasicat/nest/platform';",
+        "import { SaaSiCatModule, aesGcmSecretSealer, defineSaaSiCat } from '@saasicat/nest/platform';",
         `import { ${options.registry.constName} } from '${options.registry.importPath}';`,
         `import { ${options.adminModule.className} } from '${options.adminModule.importPath}';`,
     ];
@@ -217,6 +217,10 @@ function renderForRootBlock(options: PatchAppModuleOptions): string {
         options.persistenceImport
             ? '        persistence,'
             : '        // persistence: prismaPersistence({ client: PrismaService }),',
+        "        // Seals a SuperAdmin's TOTP secret before it is stored. The key is",
+        '        // yours: 32 random bytes, base64, from the environment — never from',
+        '        // the database it protects. The boot stops while it is unset.',
+        '        adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },',
         '        catalog: { featureUiRegistry: ' + options.registry.constName + ' },',
         '        adminResources: true,',
         '        promoCodes: true,',

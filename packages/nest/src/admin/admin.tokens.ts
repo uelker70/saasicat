@@ -6,3 +6,4 @@
 export const MFA_PORT_TOKEN = Symbol.for('saasicat/nest/MfaPort');
 export const AUDIT_PORT_TOKEN = Symbol.for('saasicat/nest/AuditPort');
 export const RLS_BYPASS_PORT_TOKEN = Symbol.for('saasicat/nest/RlsBypassPort');
+export const SECRET_SEALER_TOKEN = Symbol.for('saasicat/nest/SecretSealer');

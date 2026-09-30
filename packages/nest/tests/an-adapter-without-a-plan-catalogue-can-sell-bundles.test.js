@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // Where a bundle repository may come from.
 //
@@ -57,6 +58,7 @@ function persistenceWithoutPlanCatalogue({ bundleRepository = {} } = {}) {
 
 const boot = (persistence) =>
     SaaSiCatModule.forRoot({
+        adapters: { secretSealer: storeSecretsInPlainText() },
         planCatalog: CATALOG,
         controller: { guards: [FakeGuard] },
         discoverySnapshotPath: null,

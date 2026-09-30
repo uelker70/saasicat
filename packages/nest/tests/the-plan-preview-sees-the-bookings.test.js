@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { PlanChangePreviewService } from '../dist/billing/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // A rule that reads an optional dependency is only as real as its wiring.
 //
@@ -171,6 +172,7 @@ async function bootWithBookings(bookings) {
     const moduleRef = await Test.createTestingModule({
         imports: [
             SaaSiCatModule.forRoot({
+                adapters: { secretSealer: storeSecretsInPlainText() },
                 planCatalog: CATALOG,
                 controller: { guards: [FakeJwtGuard] },
                 discoverySnapshotPath: null,

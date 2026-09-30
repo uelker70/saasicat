@@ -22,7 +22,12 @@ import { GUARDS_METADATA, INTERCEPTORS_METADATA } from '@nestjs/common/constants
 import { ModulesContainer } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 
-import { AdminBypassRlsInterceptor, SaaSiCatModule, SuperAdminGuard } from '../dist/index.js';
+import {
+    AdminBypassRlsInterceptor,
+    SaaSiCatModule,
+    SuperAdminGuard,
+    storeSecretsInPlainText,
+} from '../dist/index.js';
 import { FakeMaintenanceWindowPort } from './helpers/maintenance-windows.js';
 
 /** Fills `request.user` from a header, and rejects nobody: the platform's guards decide. */
@@ -77,7 +82,10 @@ function platform(windows) {
                 maintenanceWindows: windows,
             },
         },
-        adapters: { planResolver: { getPlanIdForTenant: async () => 'PRO' } },
+        adapters: {
+            planResolver: { getPlanIdForTenant: async () => 'PRO' },
+            secretSealer: storeSecretsInPlainText(),
+        },
         maintenance: true,
         // Built from a composed chain that is not an operator's: the case a
         // frame decided by anything but the chain would get wrong.

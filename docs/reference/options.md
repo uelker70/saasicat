@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 22 rules, in 13 areas.
+There are 23 rules, in 13 areas.
 
 ## core
 
@@ -17,6 +17,13 @@ There are 22 rules, in 13 areas.
 
 The core adapters are missing: mfa, audit, rlsBypass. Bind them through
 `persistence: prismaPersistence({ client })` or one by one through `adapters`.
+
+### core.secret-sealer-bound
+
+No secret sealer is bound, and a SuperAdmin's TOTP secret would be stored as it
+is. Bind `adapters.secretSealer: aesGcmSecretSealer(<32-byte key, base64>)` with
+a key from your configuration, or `storeSecretsInPlainText()` if plain text is
+what you mean.
 
 ## catalog
 

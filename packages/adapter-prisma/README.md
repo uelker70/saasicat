@@ -25,6 +25,7 @@ rows, which order, which lock — and every decision above that lives in
 
 ```ts
 import { prismaPersistence } from '@saasicat/adapter-prisma';
+import { aesGcmSecretSealer } from '@saasicat/nest/platform';
 import { PrismaService } from './prisma/prisma.service';
 
 SaaSiCatModule.forRoot({
@@ -32,6 +33,8 @@ SaaSiCatModule.forRoot({
     controller: { guards: [JwtAuthGuard] },
     imports: [AuthModule],
     persistence: prismaPersistence({ client: PrismaService }),
+    // Not the bundle's to supply: the key that seals the SuperAdmin's second factor.
+    adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
     entitlement: {},
 });
 ```
@@ -110,7 +113,11 @@ PromoCodesModule.forRoot({
 | `PrismaSubscriptionContractRepository`   | `SubscriptionContractRepository`   | `subscription_contracts`, `contract_line_items`                     |
 | `PrismaSubscriberLedgerRepository`       | `SubscriberLedgerRepository`       | `subscriber_ledger_entries`                                         |
 | `PrismaAppliedSettingsRepository`        | `AppliedSettingsPort`              | `applied_settings`, `settings_changes`                              |
-| `PrismaMaintenanceWindowRepository`      | `MaintenanceWindowPort`            | `maintenance_windows`                                               |
+
+`PrismaMfaAdapter` stores the secret it is handed. The platform seals it first with the
+`SecretSealer` bound in `adapters`, which this bundle does not supply: the key belongs to the
+installation, not to the database.
+| `PrismaMaintenanceWindowRepository` | `MaintenanceWindowPort` | `maintenance_windows` |
 
 Not shipped (custom adapters stay yours): registration persistence,
 consumer-specific payment/invoice integrations, and `FirstTimeCustomerCheck`.

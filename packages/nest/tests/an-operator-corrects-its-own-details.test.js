@@ -25,6 +25,7 @@ import {
     fingerprintOf,
     IssuerIdentityCheck,
     IssuerIdentityInspector,
+    storeSecretsInPlainText,
 } from '../dist/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
@@ -107,6 +108,7 @@ async function boot(catalog, { port, contracts, bypass } = {}) {
     const app = await Test.createTestingModule({
         imports: [
             SaaSiCatModule.forRoot({
+                adapters: { secretSealer: storeSecretsInPlainText() },
                 planCatalog: catalog,
                 controller: { guards: [FakeJwtGuard] },
                 discoverySnapshotPath: null,

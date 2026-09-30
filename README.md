@@ -88,6 +88,8 @@ SaaSiCatModule.forRoot(
             client: PrismaService,
             adminResources: { tenantMetrics: ['users'] },
         }),
+        // Seals the SuperAdmin's second factor; the key is yours, from the environment.
+        adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
         entitlement: {},
         catalog: { featureUiRegistry },
         tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },

@@ -7,6 +7,7 @@ import {
     REQUIRE_MFA_KEY,
     RequireMfa,
     SuperAdminGuard,
+    storeSecretsInPlainText,
 } from '../dist/admin/index.js';
 
 function buildContext({ user, headers = {} }) {
@@ -64,7 +65,7 @@ describe('MfaService — TOTP setup + verify', () => {
 
     test('setup() generates secret + otpauth URI and persists via port', async () => {
         const { port, store } = buildPort();
-        const svc = new MfaService(port);
+        const svc = new MfaService(port, storeSecretsInPlainText());
         const result = await svc.setup('u1', 'taci@example.com', 'DemoApp');
         assert.ok(result.secret);
         assert.match(result.otpauthUri, /^otpauth:\/\/totp\//);
@@ -73,20 +74,20 @@ describe('MfaService — TOTP setup + verify', () => {
 
     test('verify() rejects when no secret exists', async () => {
         const { port } = buildPort();
-        const svc = new MfaService(port);
+        const svc = new MfaService(port, storeSecretsInPlainText());
         assert.equal(await svc.verify({ userId: 'u1', code: '123456' }), false);
     });
 
     test('verify() rejects an invalid code', async () => {
         const { port } = buildPort();
-        const svc = new MfaService(port);
+        const svc = new MfaService(port, storeSecretsInPlainText());
         await svc.setup('u1', 'taci@example.com', 'DemoApp');
         assert.equal(await svc.verify({ userId: 'u1', code: '000000' }), false);
     });
 
     test('disable() deletes the secret', async () => {
         const { port, store } = buildPort();
-        const svc = new MfaService(port);
+        const svc = new MfaService(port, storeSecretsInPlainText());
         await svc.setup('u1', 'taci@example.com', 'DemoApp');
         await svc.disable('u1');
         assert.equal(store.has('u1'), false);
@@ -94,7 +95,7 @@ describe('MfaService — TOTP setup + verify', () => {
 
     test('isEnabled() reflects port state', async () => {
         const { port } = buildPort();
-        const svc = new MfaService(port);
+        const svc = new MfaService(port, storeSecretsInPlainText());
         assert.equal(await svc.isEnabled('u1'), false);
         await svc.setup('u1', 'a', 'X');
         assert.equal(await svc.isEnabled('u1'), true);

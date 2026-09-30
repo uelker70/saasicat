@@ -277,6 +277,7 @@ describe('patching an existing app.module.ts', () => {
             'loadPlanCatalogFromFile',
             'SaaSiCatModule',
             'defineSaaSiCat',
+            'aesGcmSecretSealer',
             'FRESHAPP_FEATURE_UI_REGISTRY',
             'NotesQuotaProvider',
             'persistence',
@@ -284,6 +285,20 @@ describe('patching an existing app.module.ts', () => {
             assert.ok(source.includes(symbol), `${symbol} is not in the output at all`);
             assert.ok(importedNames(source).has(symbol), `${symbol} is used but never imported`);
         }
+    });
+
+    // @requirement SC-SEC-016 — An administrator's second factor is stored sealed, keyed outside the database
+    test("seals the administrator's second factor with a key from the environment", () => {
+        // Without a sealer the generated application would not start:
+        // `core.secret-sealer-bound` refuses the boot. And the key is the
+        // installation's, so it is read where the installation keeps its
+        // secrets rather than written into the file.
+        const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
+        // Anchored at the indentation: a commented-out line would read the same.
+        assert.match(
+            source,
+            /^ +adapters: \{ secretSealer: aesGcmSecretSealer\(process\.env\.SECRET_SEALER_KEY\) \},$/m,
+        );
     });
 
     test('what was already in the array keeps its own line', () => {

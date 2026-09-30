@@ -31,6 +31,7 @@ import type {
     FeatureUiRegistry,
     FirstTimeCustomerCheck,
     MfaPort,
+    SecretSealer,
     PlanCatalog,
     PlanCatalogReadSink,
     PlanVersionRepository,
@@ -85,6 +86,14 @@ import { type TenantManifestControllerOptions } from './tenant-manifest.controll
  */
 export interface SaaSiCatAdapters {
     mfa?: ProviderSpec<MfaPort>;
+    /**
+     * Required. Seals a SuperAdmin's TOTP secret before `mfa` stores it, with a
+     * key from the installation's configuration: `aesGcmSecretSealer(key)`, or
+     * `storeSecretsInPlainText()` on purpose. The bundle does not supply one —
+     * the key is the installation's, and a database adapter is the one place
+     * it must not come from.
+     */
+    secretSealer?: ProviderSpec<SecretSealer>;
     audit?: ProviderSpec<AuditPort>;
     rlsBypass?: ProviderSpec<RlsBypassPort>;
     /**

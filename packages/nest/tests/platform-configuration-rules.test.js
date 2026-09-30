@@ -28,6 +28,7 @@ const MINIMAL_CATALOG = {
 
 const CORE_ADAPTERS = {
     mfa: { getSecret: async () => null },
+    secretSealer: { seal: async (plain) => plain, open: async (sealed) => sealed },
     audit: { record: async () => {} },
     rlsBypass: { run: async (fn) => fn() },
 };
@@ -115,19 +116,20 @@ describe('all of them at once', () => {
         const error = thrownBy(() => assertConfiguration(broken));
 
         assert.ok(error instanceof SaaSiCatConfigurationError);
-        assert.equal(error.violations.length, 2);
-        assert.match(error.message, /2 configuration problems/);
+        assert.equal(error.violations.length, 3);
+        assert.match(error.message, /3 configuration problems/);
         assert.match(error.message, /1\. \[core\.adapters-bound\]/);
-        assert.match(error.message, /2\. \[catalog\.requires-persistence\]/);
-        // Two links, one per violation — not one link for the set.
-        assert.equal(error.message.match(/→ https:/g).length, 2);
+        assert.match(error.message, /2\. \[core\.secret-sealer-bound\]/);
+        assert.match(error.message, /3\. \[catalog\.requires-persistence\]/);
+        // Three links, one per violation — not one link for the set.
+        assert.equal(error.message.match(/→ https:/g).length, 3);
     });
 
     test('one problem is still phrased as one', () => {
         const error = thrownBy(() =>
             assertConfiguration({
                 options: { planCatalog: MINIMAL_CATALOG, controller: { guards: [] } },
-                adapters: { audit: {}, rlsBypass: {} },
+                adapters: { secretSealer: CORE_ADAPTERS.secretSealer, audit: {}, rlsBypass: {} },
             }),
         );
         assert.match(error.message, /1 configuration problem:/);
@@ -204,6 +206,37 @@ describe('the typed errors that predate the table', () => {
             'catalog.requires-persistence',
             'entitlement.requires-transactional-persistence',
         ]);
+    });
+});
+
+// @requirement SC-SEC-016 — An administrator's second factor is stored sealed, keyed outside the database
+describe('a second factor with nothing to seal it', () => {
+    const { mfa, audit, rlsBypass } = CORE_ADAPTERS;
+    const unsealed = { mfa, audit, rlsBypass };
+
+    test('is a finding of its own, naming both ways to bind one', () => {
+        const violations = findViolations({
+            options: { planCatalog: MINIMAL_CATALOG, controller: { guards: [] } },
+            adapters: unsealed,
+        });
+
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['core.secret-sealer-bound'],
+        );
+        assert.match(violations[0].message, /aesGcmSecretSealer/);
+        assert.match(violations[0].message, /storeSecretsInPlainText/);
+    });
+
+    test('stops the boot', () => {
+        const error = thrownBy(() =>
+            SaaSiCatModule.forRoot({
+                planCatalog: MINIMAL_CATALOG,
+                controller: { guards: [] },
+                adapters: unsealed,
+            }),
+        );
+        assert.match(error.message, /\[core\.secret-sealer-bound\]/);
     });
 });
 

@@ -459,7 +459,7 @@ model SuperAdminMfa {
     // admins live exclusively in `super_admin_users` may add the relation:
     // user SuperAdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
     userId    String    @id
-    secret    String? // TOTP secret; null after reset
+    secret    String? // TOTP secret, sealed by the installation's SecretSealer; null after reset
     enabledAt DateTime? // set when a secret is stored, null after reset
 
     updatedAt DateTime @updatedAt

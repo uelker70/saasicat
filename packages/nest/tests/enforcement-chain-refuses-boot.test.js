@@ -9,6 +9,7 @@ import { Test } from '@nestjs/testing';
 import { SaaSiCatModule, StaticFeatureGuard } from '../dist/platform/index.js';
 import { FeatureGuard, RequireFeature } from '../dist/billing/index.js';
 import { EnforceQuota } from '../dist/discovery/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // Does the application actually fail to start?
 //
@@ -61,6 +62,7 @@ const MINIMAL_CATALOG = {
 /** The adapters the V3 entitlement stack needs, and nothing that resolves a plan. */
 const V3 = {
     mfa: new FakeMfaPort(),
+    secretSealer: storeSecretsInPlainText(),
     audit: new FakeAuditPort(),
     rlsBypass: new FakeRlsBypassPort(),
     subscriptionRepository: { findActiveByTenantId: async () => null },
@@ -78,6 +80,7 @@ function platformOptions(extra = {}) {
         // file; the tests are about the enforcement chain, not about discovery.
         discoverySnapshotPath: null,
         adapters: {
+            secretSealer: storeSecretsInPlainText(),
             mfa: new FakeMfaPort(),
             audit: new FakeAuditPort(),
             rlsBypass: new FakeRlsBypassPort(),

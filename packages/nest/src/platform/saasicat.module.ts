@@ -27,7 +27,7 @@
 // adapters, check the configuration, assemble.
 
 import { type DynamicModule, Logger, Module, type Provider } from '@nestjs/common';
-import type { AuditPort, MfaPort, PlanCatalog, RlsBypassPort } from '@saasicat/core';
+import type { AuditPort, MfaPort, PlanCatalog, RlsBypassPort, SecretSealer } from '@saasicat/core';
 
 import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
@@ -90,6 +90,7 @@ function enforcementChainState(state: EnforcementChainState): Provider {
  *     controller: { guards: [JwtAuthGuard] },
  *     imports: [AuthModule],
  *     persistence: prismaPersistence({ client: PrismaService }), // @saasicat/adapter-prisma
+ *     adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
  * })
  * ```
  *
@@ -112,6 +113,7 @@ export class SaaSiCatModule {
         // Explicit adapter entries override the bundle slices.
         const adapters: SaaSiCatAdapters = {
             mfa: explicit.mfa ?? persistence?.core.mfa,
+            secretSealer: explicit.secretSealer,
             audit: explicit.audit ?? persistence?.core.audit,
             rlsBypass: explicit.rlsBypass ?? persistence?.core.rlsBypass,
             appliedSettings: explicit.appliedSettings ?? persistence?.core.appliedSettings,
@@ -143,6 +145,7 @@ export class SaaSiCatModule {
 
         // Non-null after the check above — AdminModule requires them.
         const mfaPort = adapters.mfa as ProviderSpec<MfaPort>;
+        const secretSealer = adapters.secretSealer as ProviderSpec<SecretSealer>;
         const auditPort = adapters.audit as ProviderSpec<AuditPort>;
         const rlsBypassPort = adapters.rlsBypass as ProviderSpec<RlsBypassPort>;
         // And so is this: `catalog.identity-or-sink`,
@@ -159,6 +162,7 @@ export class SaaSiCatModule {
             composePlanCatalog(options, running, adapters.planCatalogReadSink),
             ...composeBaseModules(options, running, appInfo, {
                 mfaPort,
+                secretSealer,
                 auditPort,
                 rlsBypassPort,
                 appliedSettingsPort: adapters.appliedSettings,

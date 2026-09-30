@@ -8,6 +8,7 @@ import {
     buildTenantManifestController,
 } from '../dist/platform/index.js';
 import { givenPlanCatalogSource } from '../dist/billing/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 const CATALOG = {
     schemaVersion: 1,
@@ -134,6 +135,7 @@ describe('SaaSiCatModule + tenantManifest', () => {
                     planCatalog: CATALOG,
                     controller: { guards: [] },
                     adapters: {
+                        secretSealer: storeSecretsInPlainText(),
                         mfa: new FakeMfa(),
                         audit: new FakeAudit(),
                         rlsBypass: new FakeRls(),
@@ -149,6 +151,7 @@ describe('SaaSiCatModule + tenantManifest', () => {
             planCatalog: CATALOG,
             controller: { guards: [] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfa(),
                 audit: new FakeAudit(),
                 rlsBypass: new FakeRls(),

@@ -41,6 +41,10 @@ services:
         environment:
             DATABASE_URL: postgresql://notesapp:notesapp@db:5432/notesapp
             SETUP_TOKEN: demo-setup-token
+            # Seals the SuperAdmin's second factor in the database. A demo key,
+            # public in this file: generate your own for anything that is not
+            # a demo (see .env.example).
+            SECRET_SEALER_KEY: ZGVtby1rZXktZm9yLXRoZS1ub3Rlc2FwcC1zdGFjayE=
             PORT: '3000'
             # Set to false to keep data you changed through the UI across restarts.
             SEED_ON_START: 'true'

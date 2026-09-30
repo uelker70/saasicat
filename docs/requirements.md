@@ -125,14 +125,14 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 15      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 16      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 18      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 532 entries: 🟢 462 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 533 entries: 🟢 463 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 532 entries: 🟢 462 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 532 requirements. Do not edit by hand:
+Generated from `requirements/` — 533 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -13014,6 +13014,7 @@ _Tested by:_
         - the admin module is registered, not merely imported
         - nothing is imported that the inserted code does not use
         - every symbol the block uses is imported
+        - seals the administrator's second factor with a key from the environment
         - what was already in the array keeps its own line
         - the imports go after the last existing one
         - running it twice does nothing the second time
@@ -13152,6 +13153,7 @@ _Tested by:_
         - the admin module is registered, not merely imported
         - nothing is imported that the inserted code does not use
         - every symbol the block uses is imported
+        - seals the administrator's second factor with a key from the environment
         - what was already in the array keeps its own line
         - the imports go after the last existing one
         - running it twice does nothing the second time
@@ -14607,6 +14609,47 @@ _Tested by:_
     - where the handler of a route actually runs
         - an operator's route reads in the bypass
         - a tenant turned away from the operator route never reached a frame
+
+<!-- END proof -->
+
+### SC-SEC-016 — An administrator's second factor is stored sealed, keyed outside the database
+
+🟢 🔒 The TOTP secret of a SuperAdmin is sealed before it is stored and opened after it is read, with
+a sealer the installation binds and a key from its configuration: a dump, a backup or a replica of
+the database holds nothing that answers the second factor. The platform does not start without a
+sealer; plain text is stored only where an installation binds it on purpose. A stored secret the
+sealer cannot open — sealed under another key, altered, or stored before sealing — fails the check
+rather than passing it, and the administrator enrols again.
+
+_Source:_ #346
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/init.test.js`
+    - patching an existing app.module.ts
+        - seals the administrator's second factor with a key from the environment
+- `packages/nest/tests/a-second-factor-is-stored-sealed.test.js`
+    - the AES-256-GCM sealer
+        - opens what it sealed, and nothing of the secret shows in the sealed value
+        - seals one secret differently every time
+        - refuses a value sealed under another key
+        - refuses a sealed value that was altered
+        - refuses a secret stored before sealing
+        - refuses a key of the wrong length when it is made, and says its length
+        - refuses text that is not base64 at all
+        - refuses 32 bytes written URL-safe or unpadded, and names the form it takes
+        - refuses a missing, empty or blank key, and says how to make one
+        - takes a key with the line break a file leaves after it
+    - the MFA service
+        - stores a sealed secret, and the code from the authenticator still checks
+        - turns away a code where the stored secret cannot be opened, rather than failing open
+        - stores the secret as it is only where plain text is bound on purpose
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a second factor with nothing to seal it
+        - is a finding of its own, naming both ways to bind one
+        - stops the boot
 
 <!-- END proof -->
 

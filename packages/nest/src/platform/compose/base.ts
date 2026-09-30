@@ -11,6 +11,7 @@ import type {
     AuditPort,
     EmailPort,
     MfaPort,
+    SecretSealer,
     PlanCatalog,
     PlanCatalogReadSink,
     RlsBypassPort,
@@ -129,6 +130,7 @@ export function composePlanCatalog(
 
 export interface CorePorts {
     readonly mfaPort: ProviderSpec<MfaPort>;
+    readonly secretSealer: ProviderSpec<SecretSealer>;
     readonly auditPort: ProviderSpec<AuditPort>;
     readonly rlsBypassPort: ProviderSpec<RlsBypassPort>;
     /** Optional: without it the platform runs unrecorded, and says so once. */
