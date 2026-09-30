@@ -1,6 +1,6 @@
 ---
 '@saasicat/core': patch
-'@saasicat/cli': patch
+'@saasicat/cli': major
 '@saasicat/adapter-drizzle': patch
 '@saasicat/adapter-prisma': patch
 '@saasicat/persistence-testing': minor
@@ -21,6 +21,12 @@ case (`SC-AUD-018`).
 - `audit tail --actor` turns an address into `*:<email>:*`, so it lists that
   person's entries from the web and the command line alike. A value with a
   colon or a star is passed on as the tag or pattern it already is.
+- **If you implement `AuditQueryPort` yourself**, it now receives that
+  pattern: read the grammar on `AuditQuery.actorTag`, or `--actor` answers
+  with an empty list — no error, since nothing matched. An adapter that
+  searched the address as a substring, or knew only a trailing star, finds
+  nothing for `*:<email>:*`. The shipped adapters read it, and the persistence
+  contract now holds any adapter to it.
 - The Prisma adapter matches `%` and `_` in a searched value literally. Prisma
   hands `contains`, `startsWith` and `endsWith` to `LIKE` as they are, so an
   underscore stood for any character: a search for the promo code `BLACK_25`
