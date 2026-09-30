@@ -2042,6 +2042,9 @@ between reaches the customer as an offer, never through a change they confirmed 
   two fields of `ImmediatePlanChangeInput`: `keepsBoundVersion` keeps the version bound where the
   plan does not change, and `quotedPlanVersionId`, where it is set and nothing is kept, is the
   version to bind instead of the one in effect. The persistence contract holds yours to both.
+- **Code that builds `ImmediatePlanChangeInput` itself** — a test that calls `changePlanImmediate`
+  on a port — passes both; they are required. `keepsBoundVersion: false` and
+  `quotedPlanVersionId: null` sell at the version in effect, as a change of plan did before.
 - **`PlanChangePreviewDto.target`** carries `planVersionId`, the version the target is priced at.
 
 ### Money is rounded from the decimals it was written as
@@ -2106,6 +2109,166 @@ start, its end or both, matched without regard to case.
   by hand passes one.
 - **`createSaaSiCatTestModule`** binds `storeSecretsInPlainText()` unless `overrides.secretSealer`
   names another.
+
+### A contract is superseded or ended only by its own tenant
+
+`SupersedeSubscriptionContractData` and `TerminateSubscriptionContractData` carry `tenantId`, and
+the write matches it, so a wrong contract id cannot reach another tenant's contract even where no
+row policy stands in the way (`SC-SEC-001`). The field is required, so your build names every call
+that leaves it out.
+
+- **A `SubscriptionContractRepository` of your own** matches `tenantId` in the statement. `supersede`
+  answers `null` for another tenant's contract, and `terminate` refuses it with
+  `subscriptionContractGone` from `@saasicat/core` (`SUBSCRIPTION_CONTRACT_NOT_FOUND`). The
+  persistence contract supersedes and terminates under another tenant's id and expects nothing to
+  change.
+- **`SubscriptionContractService.terminate`** takes the tenant the caller acts for in `data`. A
+  contract of another tenant answers as one that does not exist, closed or not.
+
+### Negotiated limits have one shape
+
+A subscription's `customLimits` is read as `{ quotas?: { <quotaKey>: number }, features?: string[] }`
+(`SC-ENTL-024`). The subscription fragment documented a flat map — `maxUsers`, `maxVehicles`,
+`maxStorageGb` — which the entitlement never read, and `@saasicat/core` declared both.
+
+- **A stored value in any other shape** is left out and named in a warning, once per subscription,
+  and the tenant stays on its plan's limits. Rows written in the flat shape never took effect:
+  rewriting one into the shape above, under the quota keys your plans count by, makes it take
+  effect, so decide row by row rather than in one statement.
+- **`CustomLimitsShape`** is gone from `@saasicat/nest/entitlement`; use `CustomLimits` from
+  `@saasicat/core`. `Subscription.customLimits` has that type now.
+- **A `SubscriptionRepository` of your own** reads the column through `readCustomLimits` from
+  `@saasicat/core`, and your persistence contract harness writes `customLimits` in its
+  `createSubscription` seed: the contract reads negotiated limits back in the platform's shape and
+  in one it does not read.
+- **A subscription `PATCH` route of your own** that follows the normative admin API takes and
+  stores `customLimits` in this shape; the schema's `CustomLimits` replaces the flat map of integers.
+
+### A promo code keeps its name and the amounts entered
+
+A deleted code keeps its name, since contracts, offers and redemptions name a code by its text: a
+create under it answers `400 PROMO_CODE_ALREADY_EXISTS` with `params.deleted` (`SC-PROMO-028`). A
+discount and a minimum amount are stored as the operator wrote them, and the admin API refuses
+more than two decimal places, or more than the column holds, with `400` (`SC-PROMO-026`). A
+change saves every field it names (`SC-PROMO-027`).
+
+- **A `PromoCodeRepository` of your own** returns deleted codes from `findByCode`, refuses a taken
+  name in `create` with `promoCodeTaken` from `@saasicat/core` — also when two creates race past
+  the platform's check — leaves deleted codes out of `expireDueCodes`, stores amounts with
+  `toDecimalString` rather than `toFixed(2)`, which rounds the binary number, and writes every
+  field `update` is given. The persistence contract checks each of these.
+- **A promo code admin route of your own**, which does not use the platform's request types, checks
+  the amounts the same way. Otherwise a third decimal place is rounded by the database and an
+  amount beyond the column answers `500`.
+- **Code of your own that redeems a code it looked up** checks `deletedAt`, as the platform's
+  callers do: `findByCode` no longer hides a deleted one.
+
+### A store refuses by code where a request loses a race
+
+The platform checks before it writes, and where two requests pass that check together — two
+operators publishing one draft, a double click asking for a second draft, a cancellation arriving
+after another — the store decides. The request that loses now reads the status, code and
+parameters the check gives, not a `500` (`SC-OPS-016`, `SC-PLAN-019`).
+
+- **`PersistenceRefusal`** in `@saasicat/core` is what a store throws there, and `@saasicat/core`
+  exports a function that builds each case — `planKeyTaken`, `catalogDraftExists`,
+  `catalogVersionAlreadyPublished`, `noActivePlanVersion` and the rest.
+- **A plan or bundle repository, a booking repository or a `TenantSubscriptionWritePort` of your
+  own** throws it for a draft published twice or discarded after it was published, a version that
+  is gone, a key that is taken, a second draft, a booking that is gone or already cancelled, a plan
+  change for a tenant without a subscription or to a plan with no version in effect, and an
+  acceptance where no version is pending. The persistence contract checks these by code; a plan
+  repository that cannot yet declares the gaps `planDraftPublish` and `planDraftDiscard`.
+- **`FakePlanRepository`, `FakeBundleRepository`, `FakeMarketingProjectionRepository` and
+  `FakeSubscriptionBundleRepository`** from `@saasicat/nest/testing` refuse the same way. A test
+  that published one draft twice through them, or asserted the wording of an error — `No active
+PlanVersion` — now reads the code.
+- **The Prisma adapters create with `createManyAndReturn`**, which Prisma has had since 5.14, so a
+  refused create leaves the caller's transaction usable.
+
+### The platform's work across tenants runs inside the RLS bypass
+
+Every route the platform mounts behind its operator guard chain — the one holding
+`SuperAdminGuard` — runs inside your `RlsBypassPort` (`SC-SEC-015`), and so do the counts an
+operator's screens rest on, the materialisation of scheduled plan changes and the nightly promo
+sweep (`SC-SEC-003`). Under a forced row policy they read nothing before, which looks exactly like
+nothing: an empty tenant list, a version booked by nobody and therefore still editable, a sweep
+that expired nothing and reported success.
+
+- **The port is called.** An installation without row policies binds one that runs the work,
+  `{ runWithBypass: (work) => work() }`, not an empty object.
+- **A port that keeps more than the flag in its frame** — the user, the tenant — carries that over,
+  since the bypass is now the innermost frame of an operator's request:
+  `run({ ...getStore(), bypassRls: true }, fn)`.
+- **A guard chain you set** for a module the platform mounts — `adminResources.guards`,
+  `promoCodes.adminGuards`, `adminStats.guards` — keeps `SuperAdminGuard` in it, or its routes run
+  in the tenant's frame.
+- **`rlsIntegration: true` with a middleware of your own**: remove the middleware and give your
+  policies the `app.bypass_rls` clause. The Prisma bundle now lifts the policy itself for every
+  statement the platform runs inside the bypass; the recipe it replaces used `$use`, which Prisma 7
+  no longer has, and `row_security = off`, which makes a filtered query fail rather than see more.
+  The policy and the conditions are in [the adapter's README](../../packages/adapter-prisma/README.md#rls-bypass).
+- **A bypass of your own**, over your own tenant context, is bound as `RlsBypassPort` in `adapters`,
+  with `rlsIntegration` left out. The Drizzle bundle lifts no policy: with row policies, bind one of
+  your own there.
+- **A policy you lifted yourself for these routes** — around a repository, say — can go, and should:
+  a repository that reads across tenants on every call does so for a tenant's request as well.
+- **A `CatalogModule` or `AdminStatsModule` wired by hand** needs an `RlsBypassPort` in scope under
+  row-level security. `SaaSiCatModule` provides it.
+
+### Transactions can wait for a connection
+
+New and optional: a bound on how many of the platform's transactions hold a pooled connection at
+once (`SC-COMP-018`). The platform's transactions take row locks and then read further, so under a
+burst every connection could end up held by a transaction waiting for a read that needed one.
+
+- **`prismaPersistence({ transactions })`** takes `maxConcurrent`, `timeout` and `maxWait`, and
+  **`drizzlePersistence({ transactions })`** takes `maxConcurrent`. Transactions beyond the bound
+  wait in arrival order. Unset, nothing changes; how to size it is in
+  [the adapter's README](../../packages/adapter-prisma/README.md#transactions-under-load).
+- **Wired by hand**, the runners read the same options from `PRISMA_TRANSACTION_OPTIONS_TOKEN` and
+  `DRIZZLE_TRANSACTION_OPTIONS_TOKEN`.
+
+### The plan card shows what the subscriber pays
+
+The plan card showed the catalogue's price, which is what a new customer pays. It now shows the
+price of the version the subscription is bound to (`SC-SUB-019`).
+
+- **`GET billing/usage`** answers with `planPriceNet`, priced by the rules the contract freeze bills
+  by. It is `null` where the plan has no list price in the rhythm and where the version bound cannot
+  be read. Where the plan repository has no `findVersionById`, the catalogue's price stands in.
+- **`UsageSnapshotShape`** in `@saasicat/ui-vue` requires `planPriceNet`: a fixture or a usage
+  response of your own typed as that shape adds it.
+- **The plan-change preview** refuses a subscription whose version bound cannot be read with
+  `422 BOUND_PLAN_VERSION_UNREADABLE`, rather than quoting it from the catalogue.
+
+### A subscriber is offered a newer version of their plan
+
+A subscription keeps the version it is bound to. A newer version of the plan on sale is now an
+offer the tenant takes or leaves (`SC-SUB-020`, `SC-SUB-021`): `GET billing/version-offer` reads
+it, `POST billing/version-offer/accept` takes it, and `TenantPlanSection` shows it beside the plan
+card. An improvement is taken with one click and switches at once. One that costs more asks first
+and then switches at once; one that takes something away asks first and is scheduled for the end
+of the term. Taking an offer needs the tenant's administrator and writes an audit entry.
+
+Nothing to wire where the routes come with `tenantBilling`, and the offer appears as soon as the
+release runs — for every subscription whose plan has a newer version on sale, including a version
+published before the upgrade. A plan repository without `findVersionById` yields no offer.
+
+- **A `TenantSubscriptionWritePort` of your own** honours three optional fields.
+  `expectedPlanVersionId`, on both writes, claims the row only while it is bound to that version;
+  `expectedPendingPlan`, on `schedulePlanChange`, only while that change — `null` for none — is
+  what is scheduled; `quotedVersionOnly`, on `changePlanImmediate`, binds `quotedPlanVersionId` or
+  nothing. A write that finds one of them moved answers `claimed: false`. Where a change names a
+  version of the plan it keeps and that version no longer takes bookings, the write keeps the
+  version bound. The persistence contract asks for all of it; a port that ignores the fields lets a
+  switch overwrite a plan change made at the same moment.
+- **A `PendingPlanQueryPort` of your own** already returns `pendingChangeVersionId`, as
+  [a scheduled change needs](#a-plan-change-binds-the-version-the-customer-agreed-to); a switch
+  scheduled for the end of the term lands through it.
+- **`TenantPlanSectionI18n`** gains the `versionOffer*` strings and `pendingVersionSwitch`. A
+  catalogue you build whole adds them; one that overrides single strings needs nothing.
+- **An inventory of your own routes and their guards** gains the two routes.
 
 ## What the codemod leaves to you
 
