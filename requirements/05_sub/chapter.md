@@ -626,6 +626,14 @@ _Tested by:_
         - is open to every user of the tenant, not only its administrator
 - `packages/ui-vue/tests/use-tenant-billing-url.test.js`
     - the version offer is read under the same prefix and answered as the offer itself
+- `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`
+    - the offer beside the plan
+        - is not there where nothing is offered
+        - shows both versions side by side, with what is added and when a switch takes effect
+        - says a rhythm the new version is not sold in, and an unlimited quota
+        - says what one that takes something away removes, and the date it would take effect
+        - says so where the offer could not be read, rather than showing nothing
+        - is not shown on a subscription that has ended
 
 <!-- END proof -->
 
@@ -687,5 +695,14 @@ _Tested by:_
     - a scheduled switch to a newer version of the same plan binds that version
 - `packages/ui-vue/tests/use-tenant-billing-url.test.js`
     - an offer is taken by posting the version shown, and the usage reloaded after
+- `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`
+    - taking it
+        - an improvement is taken by one click, and the page says so
+        - more for more asks first, and closing the question takes nothing
+        - one that takes something away asks first with the date, and is recorded for the term end
+        - an offer that moved is replaced by the one that stands, and the refusal is in the app
+          language
+        - after a refusal the page shows the subscription as it now stands, not as it was read
+        - a refusal with no offer to show still says why
 
 <!-- END proof -->

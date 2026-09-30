@@ -149,6 +149,20 @@ function visualCase<T extends Component>(entry: TypedVisualCase<T>): VisualCase 
 /** The two locales the discovery page offers its translation panel for. */
 const discoveryProps = () => ({ activeLocales: ['de', 'en'] });
 
+/**
+ * What the plan section gets on both of its cases: they differ only in the
+ * prefix, which is where the fixture keeps a subscription with an offer apart
+ * from one without.
+ */
+const tenantPlanProps = (http: HttpClient, apiPrefix: string) => ({
+    http,
+    apiPrefix,
+    formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
+    formatDate: (iso: string | Date) => String(iso).slice(0, 10),
+    quotaLabel: (key: string) => key,
+    featureLabel: (key: string) => key,
+});
+
 export const VISUAL_CASES: readonly VisualCase[] = [
     visualCase({
         id: 'tenants',
@@ -337,14 +351,14 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     visualCase({
         id: 'tenant-plan',
         load: () => import('@saasicat/ui-vue-tenant/TenantPlanSection.vue'),
-        props: ({ http }) => ({
-            http,
-            apiPrefix: '/api/billing',
-            formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
-            formatDate: (iso: string | Date) => String(iso).slice(0, 10),
-            quotaLabel: (key: string) => key,
-            featureLabel: (key: string) => key,
-        }),
+        props: ({ http }) => tenantPlanProps(http, '/api/billing'),
+    }),
+    // The plan section with a newer version offered beside it: the comparison
+    // table, the kind of offer and the switch — a card no other case renders.
+    visualCase({
+        id: 'tenant-plan-offer',
+        load: () => import('@saasicat/ui-vue-tenant/TenantPlanSection.vue'),
+        props: ({ http }) => tenantPlanProps(http, '/api/offer-billing'),
     }),
     visualCase({
         id: 'tenant-bundles',
