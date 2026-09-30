@@ -4207,6 +4207,7 @@ _Tested by:_
         - one that takes something away asks first with the date, and is recorded for the term end
         - an offer that moved is replaced by the one that stands, and the refusal is in the app
           language
+        - after a refusal the page shows the subscription as it now stands, not as it was read
         - a refusal with no offer to show still says why
 
 <!-- END proof -->
