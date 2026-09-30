@@ -2131,8 +2131,10 @@ A subscription's `customLimits` is read as `{ quotas?: { <quotaKey>: number }, f
 (`SC-ENTL-024`). The subscription fragment documented a flat map — `maxUsers`, `maxVehicles`,
 `maxStorageGb` — which the entitlement never read, and `@saasicat/core` declared both.
 
-- **A stored value in any other shape** is left out and named in a warning, once per subscription,
-  and the tenant stays on its plan's limits. Rows written in the flat shape never took effect:
+- **What a stored value holds beyond that shape** — a key of the flat map, a quota value nothing
+  can count — is left out and named in a warning, once per subscription, and the tenant stays on
+  its plan's limits there; the parts in the shape above apply. Rows written in the flat shape
+  never took effect:
   rewriting one into the shape above, under the quota keys your plans count by, makes it take
   effect, so decide row by row rather than in one statement.
 - **`CustomLimitsShape`** is gone from `@saasicat/nest/entitlement`; use `CustomLimits` from
@@ -2172,7 +2174,9 @@ parameters the check gives, not a `500` (`SC-OPS-016`, `SC-PLAN-019`).
 
 - **`PersistenceRefusal`** in `@saasicat/core` is what a store throws there, and `@saasicat/core`
   exports a function that builds each case — `planKeyTaken`, `catalogDraftExists`,
-  `catalogVersionAlreadyPublished`, `noActivePlanVersion` and the rest.
+  `catalogVersionAlreadyPublished`, `noActivePlanVersion` and the rest. The shipped adapters throw
+  it for the cases below, where they threw a plain `Error` or let the database's error through, so a
+  test that matched the wording of one — `No active PlanVersion` — reads the code instead.
 - **A plan or bundle repository, a booking repository or a `TenantSubscriptionWritePort` of your
   own** throws it for a draft published twice or discarded after it was published, a version that
   is gone, a key that is taken, a second draft, a booking that is gone or already cancelled, a plan
@@ -2180,9 +2184,8 @@ parameters the check gives, not a `500` (`SC-OPS-016`, `SC-PLAN-019`).
   acceptance where no version is pending. The persistence contract checks these by code; a plan
   repository that cannot yet declares the gaps `planDraftPublish` and `planDraftDiscard`.
 - **`FakePlanRepository`, `FakeBundleRepository`, `FakeMarketingProjectionRepository` and
-  `FakeSubscriptionBundleRepository`** from `@saasicat/nest/testing` refuse the same way. A test
-  that published one draft twice through them, or asserted the wording of an error — `No active
-PlanVersion` — now reads the code.
+  `FakeSubscriptionBundleRepository`** from `@saasicat/nest/testing` refuse the same way: a test
+  that published one draft twice through them now sees the refusal.
 - **The Prisma adapters create with `createManyAndReturn`**, which Prisma has had since 5.14, so a
   refused create leaves the caller's transaction usable.
 
@@ -2236,7 +2239,8 @@ price of the version the subscription is bound to (`SC-SUB-019`).
 
 - **`GET billing/usage`** answers with `planPriceNet`, priced by the rules the contract freeze bills
   by. It is `null` where the plan has no list price in the rhythm and where the version bound cannot
-  be read. Where the plan repository has no `findVersionById`, the catalogue's price stands in.
+  be read. Where the plan repository has no `findVersionById`, or the subscription is bound to no
+  version, the catalogue's price stands in.
 - **`UsageSnapshotShape`** in `@saasicat/ui-vue` requires `planPriceNet`: a fixture or a usage
   response of your own typed as that shape adds it.
 - **The plan-change preview** refuses a subscription whose version bound cannot be read with
@@ -2247,13 +2251,18 @@ price of the version the subscription is bound to (`SC-SUB-019`).
 A subscription keeps the version it is bound to. A newer version of the plan on sale is now an
 offer the tenant takes or leaves (`SC-SUB-020`, `SC-SUB-021`): `GET billing/version-offer` reads
 it, `POST billing/version-offer/accept` takes it, and `TenantPlanSection` shows it beside the plan
-card. An improvement is taken with one click and switches at once. One that costs more asks first
-and then switches at once; one that takes something away asks first and is scheduled for the end
-of the term. Taking an offer needs the tenant's administrator and writes an audit entry.
+card. A version that takes something away — a feature missing, a quota lower — asks first and is
+scheduled for the end of the term, whatever it costs. Otherwise one that costs more in a rhythm,
+or is no longer sold in one — more for more — asks first and switches at once, and an improvement
+switches at once with one click. Taking an offer needs the tenant's administrator and writes an
+audit entry.
 
 Nothing to wire where the routes come with `tenantBilling`, and the offer appears as soon as the
-release runs — for every subscription whose plan has a newer version on sale, including a version
-published before the upgrade. A plan repository without `findVersionById` yields no offer.
+release runs, a version published before the upgrade included. A subscription is offered the
+version a booking made now would bind, where that version is newer than the one bound, sold in the
+subscription's rhythm and different from it; it is offered nothing once its cancellation has
+landed, while a change of plan or rhythm or a pending version is outstanding, or where its plan is
+in `selfServiceBlockedPlans`. A plan repository without `findVersionById` yields no offer.
 
 - **A `TenantSubscriptionWritePort` of your own** honours three optional fields.
   `expectedPlanVersionId`, on both writes, claims the row only while it is bound to that version;
