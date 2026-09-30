@@ -130,6 +130,31 @@ export type ActiveVersionWhere = ActivePlanVersionWhere;
 /** Model-neutral counterpart that additionally checks an `endsAt` timestamp. */
 export type ActiveVersionWhereWithEndsAt = ActivePlanVersionWhereWithEndsAt;
 
+/** The dates of a version that decide whether it takes bookings, as a row carries them. */
+export interface VersionWindow {
+    validFrom?: string | Date | null;
+    validUntil?: string | Date | null;
+    endsAt?: string | Date | null;
+}
+
+/**
+ * Whether a version that is published takes bookings at `asOf` — the same
+ * window {@link buildActivePlanVersionWhere} asks the database for, for a row
+ * already read: `validFrom` at or before `asOf`, `validUntil` not before the
+ * day of `asOf`, `endsAt` after `asOf`. A date that is absent does not close
+ * the window. Whether the row is published is the caller's to know.
+ */
+export function isVersionActiveAt(version: VersionWindow, asOf: Date): boolean {
+    const at = (value: string | Date | null | undefined): Date | null =>
+        value === null || value === undefined ? null : new Date(value);
+    const validFrom = at(version.validFrom);
+    const validUntil = at(version.validUntil);
+    const endsAt = at(version.endsAt);
+    if (validFrom && validFrom > asOf) return false;
+    if (validUntil && validUntil < startOfUtcDay(asOf)) return false;
+    return !(endsAt && endsAt <= asOf);
+}
+
 /**
  * Model-neutral alias for {@link buildActivePlanVersionWhere}. The original
  * export remains available for backwards compatibility.

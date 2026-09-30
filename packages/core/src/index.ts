@@ -26,6 +26,14 @@ export * from './entitlement-snapshot.types.js';
 export * from './feature-ui-registry.types.js';
 export { readQuotaRecord, readQuotaValue } from './quota-value.js';
 export { classifyBundleVersionDiff, classifyPlanDiff } from './version-diff.js';
+export {
+    classifyVersionOffer,
+    type VersionOffer,
+    type VersionOfferClass,
+    type VersionOfferFields,
+    type VersionOfferSide,
+    type VersionOfferView,
+} from './version-offer.js';
 export type {
     BundleVersionFields,
     ChangeDirection,

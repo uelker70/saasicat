@@ -30,6 +30,7 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { initialPeriodWindow } from './billing-period.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
+import { VersionOfferService } from './version-offer.service.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -53,7 +54,7 @@ import { ChangePlanDto, PreviewPlanChangeDto } from './dto/tenant-billing.dto.js
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
-import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
+import type { AdminActor, OnboardingSelectionResponse, VersionOfferView } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
@@ -68,6 +69,7 @@ import {
     type UserEmailResolver,
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
+import { subscriptionNotFound } from './subscription-not-found.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -216,6 +218,10 @@ export class TenantBillingController {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
+        // Appended last for the reason given above. Not optional:
+        // `TenantBillingModule` always registers it.
+        @Inject(VersionOfferService)
+        private readonly versionOffers: VersionOfferService,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -242,11 +248,7 @@ export class TenantBillingController {
         ]);
 
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
+            throw subscriptionNotFound(tenantId);
         }
 
         const usage: Record<string, number> = {};
@@ -300,6 +302,23 @@ export class TenantBillingController {
     }
 
     // ---------------------------------------------------------------------
+    // Version offer (read-only) — every tenant user
+    // ---------------------------------------------------------------------
+
+    /**
+     * A newer version of the tenant's plan, side by side with the one bound,
+     * classified against it (`SC-SUB-020`); `offer: null` where there is none
+     * the subscription could take. Open to every user of the tenant, as the
+     * account read is: a user who cannot see an offer cannot ask an
+     * administrator to take it.
+     */
+    @Get('version-offer')
+    async getVersionOffer(@Req() req: RequestLike): Promise<{ offer: VersionOfferView | null }> {
+        const tenantId = this.requireTenantId(req);
+        return { offer: await this.versionOffers.offerFor(tenantId) };
+    }
+
+    // ---------------------------------------------------------------------
     // Plan preview (Phase C, read-only) — TENANT_ADMIN
     // ---------------------------------------------------------------------
 
@@ -342,11 +361,7 @@ export class TenantBillingController {
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
+            throw subscriptionNotFound(tenantId);
         }
 
         // Where contracts are frozen, a plan change ends in one naming the
@@ -567,11 +582,7 @@ export class TenantBillingController {
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
+            throw subscriptionNotFound(tenantId);
         }
 
         // Onboarding is a first activation, and a subscription that has ended
@@ -838,11 +849,7 @@ export class TenantBillingController {
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
+            throw subscriptionNotFound(tenantId);
         }
         // Same reason the plan cannot be changed: there is no subscription left
         // to accept anything for, and a page that still offers the act turns a

@@ -56,6 +56,7 @@ import {
     TRANSACTION_RUNNER_TOKEN,
 } from './entitlement.tokens.js';
 import type { EffectiveLimits, SubscriptionBundleSnapshot } from './entitlement.types.js';
+import { subscriptionNotFound } from '../billing/subscription-not-found.js';
 
 const CACHE_TTL_MS = 60_000;
 const CACHE_MAX_ENTRIES = 1_000;
@@ -311,11 +312,7 @@ export class EntitlementService {
     private async requireSubscription(tenantId: string): Promise<SubscriptionRecord> {
         const sub = await this.subscriptions.findByTenantId(tenantId);
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
+            throw subscriptionNotFound(tenantId);
         }
         return sub;
     }
@@ -535,11 +532,7 @@ export class EntitlementService {
         return this.tx.run(async (tx) => {
             const sub = await this.subscriptions.findByTenantIdLocked(input.tenantId, tx);
             if (!sub) {
-                throw new NotFoundException({
-                    code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                    message: `No subscription for tenant ${input.tenantId}`,
-                    params: { tenantId: input.tenantId },
-                });
+                throw subscriptionNotFound(input.tenantId);
             }
 
             const { limits } = await this.answerFor(sub, now, catalog, tx);

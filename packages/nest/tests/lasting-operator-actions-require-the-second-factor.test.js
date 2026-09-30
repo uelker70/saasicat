@@ -14,6 +14,7 @@ import { SaaSiCatModule, SuperAdminGuard } from '../dist/platform/index.js';
 import {
     GUARDS,
     SignedInGuard,
+    bootable,
     controllersIn,
     everythingOnOptions,
     handlersOf,
@@ -56,30 +57,6 @@ class FakeMfaService {
 }
 
 const PORT = {};
-
-/**
- * A port that has every method, for services that check their repositories
- * when they are constructed. Nothing here calls them: only guards run.
- */
-const ANSWERS_EVERYTHING = new Proxy(
-    {},
-    { get: (_, key) => (typeof key === 'symbol' || key === 'then' ? undefined : async () => null) },
-);
-
-/** The fixture with every port able to construct its service. */
-function bootable(options = everythingOnOptions()) {
-    const persistence = Object.fromEntries(
-        Object.entries(options.persistence).map(([group, ports]) =>
-            group === 'capabilities'
-                ? [group, ports]
-                : [
-                      group,
-                      Object.fromEntries(Object.keys(ports).map((k) => [k, ANSWERS_EVERYTHING])),
-                  ],
-        ),
-    );
-    return { ...options, persistence };
-}
 
 function operatorHandlers(root) {
     return controllersIn(root).filter(isOperatorRoute).flatMap(handlersOf);
