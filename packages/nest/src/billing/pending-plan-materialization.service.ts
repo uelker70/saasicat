@@ -12,6 +12,7 @@ import {
     type PendingPlanQueryPort,
 } from './tenant-billing.tokens.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { freezeContractAfter } from './freeze-contract-after.js';
 
 // PendingPlanMaterializationService (#19) — materializes scheduled plan changes
 // at the effective date. A scheduled change (downgrade/cycle) only sets
@@ -83,10 +84,12 @@ export class PendingPlanMaterializationService {
                     // Status stays (ACTIVE/PAST_DUE etc.) — only the plan is materialized.
                     nextStatus: null,
                     expectedCanceledAt: change.canceledAt,
-                    // A change that leaves the plan as it is moves the rhythm,
-                    // not the version the subscriber agreed to; one to another
-                    // plan binds the version it was quoted at (`SC-CHG-022`).
-                    keepsBoundVersion: true,
+                    // A change binds the version it was quoted at — another
+                    // plan's (`SC-CHG-022`), or a newer one of the same plan
+                    // taken as an offer (`SC-SUB-021`). One that names none
+                    // leaves the plan as it is and moves the rhythm, not the
+                    // version the subscriber agreed to.
+                    keepsBoundVersion: (change.pendingChangeVersionId ?? null) === null,
                     quotedPlanVersionId: change.pendingChangeVersionId,
                 });
                 if (!result.claimed) {
@@ -105,12 +108,20 @@ export class PendingPlanMaterializationService {
                 continue;
             }
             // #18: freeze contract (non-fatal — the plan change is persisted).
-            await this.tryFreeze(
+            // The due change was declined above when the cancellation had
+            // landed, so anything reaching here is a subscription still running
+            // — with an ending the frozen contract has to carry.
+            await freezeContractAfter(
+                this.contractFreeze,
                 change.tenantId,
-                change.pendingPlan,
-                cycle,
-                now,
-                change.canceledEffectiveAt ?? change.canceledAt,
+                {
+                    plan: change.pendingPlan,
+                    cycle,
+                    effectiveFrom: now,
+                    endsAt: change.canceledEffectiveAt ?? change.canceledAt,
+                },
+                'materialisation',
+                this.logger,
             );
         }
 
@@ -128,25 +139,5 @@ export class PendingPlanMaterializationService {
             );
         }
         return { applied };
-    }
-
-    private async tryFreeze(
-        tenantId: string,
-        plan: string,
-        cycle: BillingCycle,
-        now: Date,
-        endsAt: Date | null,
-    ): Promise<void> {
-        if (!this.contractFreeze) return;
-        try {
-            // The due change was declined above when the cancellation had
-            // landed, so anything reaching here is a subscription still
-            // running — with an ending the frozen contract has to carry.
-            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, now, endsAt);
-        } catch (err) {
-            this.logger.error(
-                `Contract freeze after materialisation failed (tenant ${tenantId}): ${String(err)}`,
-            );
-        }
     }
 }

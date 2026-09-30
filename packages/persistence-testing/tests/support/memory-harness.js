@@ -135,6 +135,14 @@ export function createMemoryHarness() {
                 (subscription) => subscription.tenantId === tenantId,
             );
             if (!row) throw subscriptionGone(tenantId);
+            const unclaimed = { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
+            // The binding the caller decided from, where it named one.
+            if (
+                input.expectedPlanVersionId !== undefined &&
+                (row.planVersionId ?? null) !== input.expectedPlanVersionId
+            ) {
+                return unclaimed;
+            }
             // A change of rhythm keeps the version the subscriber agreed to.
             const keepsVersion =
                 input.keepsBoundVersion &&
@@ -153,17 +161,26 @@ export function createMemoryHarness() {
                 !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf)
                     ? { id: quotedRow.id }
                     : null;
-            const target = keepsVersion
-                ? { id: row.planVersionId }
-                : (quoted ??
-                  state.planVersions
-                      .filter(
-                          (version) =>
-                              version.planId === input.planId &&
-                              version.publishedAt &&
-                              !version.supersededAt,
-                      )
-                      .sort((a, b) => b.version - a.version)[0]);
+            if (!keepsVersion && input.quotedVersionOnly && !quoted) return unclaimed;
+            // A version of the plan kept, named but no longer bookable, keeps
+            // the version bound rather than one nobody was offered.
+            const namedVersionGone =
+                !quoted &&
+                (input.quotedPlanVersionId ?? null) !== null &&
+                row.plan === input.planId &&
+                (row.planVersionId ?? null) !== null;
+            const target =
+                keepsVersion || namedVersionGone
+                    ? { id: row.planVersionId }
+                    : (quoted ??
+                      state.planVersions
+                          .filter(
+                              (version) =>
+                                  version.planId === input.planId &&
+                                  version.publishedAt &&
+                                  !version.supersededAt,
+                          )
+                          .sort((a, b) => b.version - a.version)[0]);
             if (!target) throw noActivePlanVersion(input.planId, input.periodStart ?? new Date());
             // The contract's own claim: the write takes the row only while the
             // cancellation is what the caller read. This reference store keeps
@@ -204,7 +221,26 @@ export function createMemoryHarness() {
                 };
             });
         },
-        async schedulePlanChange() {},
+        async schedulePlanChange(tenantId, input) {
+            const row = state.subscriptions.find(
+                (subscription) => subscription.tenantId === tenantId,
+            );
+            if (!row) throw subscriptionGone(tenantId);
+            // The cancellation, and where the caller named them, the binding
+            // and the change already scheduled.
+            const holds =
+                (row.canceledAt ?? null) === (input.expectedCanceledAt ?? null) &&
+                (input.expectedPlanVersionId === undefined ||
+                    (row.planVersionId ?? null) === input.expectedPlanVersionId) &&
+                (input.expectedPendingPlan === undefined ||
+                    (row.pendingPlan ?? null) === input.expectedPendingPlan);
+            if (!holds) return { claimed: false };
+            row.pendingPlan = input.pendingPlan;
+            row.pendingBillingCycle = input.pendingBillingCycle;
+            row.pendingEffectiveAt = input.pendingEffectiveAt;
+            row.pendingChangeVersionId = input.pendingChangeVersionId;
+            return { claimed: true };
+        },
         async acceptPendingPlanVersion(tenantId, userId, now) {
             const row = state.subscriptions.find(
                 (subscription) => subscription.tenantId === tenantId,

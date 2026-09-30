@@ -180,19 +180,48 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 throw subscriptionGone(tenantId);
             }
             boundVersionId = current.planVersionId ?? null;
+            const unclaimed = {
+                plan: current.plan,
+                billingCycle: current.billingCycle,
+                claimed: false,
+            };
+            // The binding the caller decided from, where it named one. The
+            // claim below holds the row to this read, so the two agreeing here
+            // holds it to the caller's.
+            if (
+                input.expectedPlanVersionId !== undefined &&
+                boundVersionId !== input.expectedPlanVersionId
+            ) {
+                return unclaimed;
+            }
             const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
             const keepsVersion =
                 input.keepsBoundVersion && current.plan === input.planId && boundVersionId !== null;
             const asOf = input.periodStart ?? new Date();
-            data.planVersionId = keepsVersion
-                ? boundVersionId
-                : ((await this.stillBookable(
-                      client,
-                      input.quotedPlanVersionId,
-                      storagePlanId,
-                      asOf,
-                  )) ??
-                  (await this.findTargetPlanVersionId(client, input.planId, storagePlanId, asOf)));
+            const quoted = keepsVersion
+                ? null
+                : await this.stillBookable(client, input.quotedPlanVersionId, storagePlanId, asOf);
+            if (!keepsVersion && input.quotedVersionOnly && quoted === null) {
+                return unclaimed;
+            }
+            // A change that names a version of the plan it keeps, which no
+            // longer takes bookings when it lands, keeps the version bound: the
+            // one in effect by then is one nobody was offered or agreed to.
+            const namedVersionGone =
+                quoted === null &&
+                input.quotedPlanVersionId !== null &&
+                current.plan === input.planId &&
+                boundVersionId !== null;
+            data.planVersionId =
+                keepsVersion || namedVersionGone
+                    ? boundVersionId
+                    : (quoted ??
+                      (await this.findTargetPlanVersionId(
+                          client,
+                          input.planId,
+                          storagePlanId,
+                          asOf,
+                      )));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.
@@ -206,6 +235,12 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             ) {
                 Object.assign(data, clearedPendingVersionData());
             }
+        } else if (input.quotedVersionOnly) {
+            throw new Error(
+                `A change for tenant ${tenantId} asked for plan version ` +
+                    `${input.quotedPlanVersionId ?? '(none)'} to be bound, and this write binds no ` +
+                    'version: `tenantSubscription.synchronizePlanVersion` is false.',
+            );
         }
 
         // Claimed, not updated: the caller decided against a cancellation state,
@@ -237,8 +272,21 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         // Same claim as the immediate path: a change scheduled against a
         // subscription that has since been cancelled would sit in the row until
         // its date, and land inside — or past — a term that is already ending.
+        // And, where the caller named them, the binding and the change already
+        // scheduled it decided from. A write that binds no version has no
+        // binding to hold the row to.
+        const binds = this.schema.tenantSubscription.synchronizePlanVersion;
         const claim = await this.subscription(this.prisma).updateMany({
-            where: { tenantId, canceledAt: input.expectedCanceledAt },
+            where: {
+                tenantId,
+                canceledAt: input.expectedCanceledAt,
+                ...(binds && input.expectedPlanVersionId !== undefined
+                    ? { planVersionId: input.expectedPlanVersionId }
+                    : {}),
+                ...(input.expectedPendingPlan !== undefined
+                    ? { pendingPlan: input.expectedPendingPlan }
+                    : {}),
+            },
             data: {
                 pendingPlan: input.pendingPlan,
                 pendingBillingCycle: input.pendingBillingCycle,

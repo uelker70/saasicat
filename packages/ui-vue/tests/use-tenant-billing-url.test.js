@@ -111,6 +111,23 @@ test('the version offer is read under the same prefix and answered as the offer 
     assert.deepEqual(calls, ['GET /api/v1/billing/version-offer']);
 });
 
+// @requirement SC-SUB-021 — A newer version is taken by naming it, the way its kind says
+test('an offer is taken by posting the version shown, and the usage reloaded after', async () => {
+    const { client, calls } = makeRecordingHttp();
+    const billing = useTenantBilling({ http: client, autoLoad: false });
+
+    await billing.acceptVersionOffer('pv-2');
+
+    assert.deepEqual(
+        calls.map((c) => [c.method, c.url, c.body]),
+        [
+            ['POST', '/billing/version-offer/accept', { planVersionId: 'pv-2' }],
+            ['GET', '/billing/usage', undefined],
+            ['GET', '/billing/subscription-bundles', undefined],
+        ],
+    );
+});
+
 describe('useTenantBillingCatalog URL construction', () => {
     test('default apiPrefix is /billing — catalog endpoints land under /billing/{plans,bundles,feature-registry}', async () => {
         const { client, calls } = makeRecordingHttp();

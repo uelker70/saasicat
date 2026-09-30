@@ -31,6 +31,7 @@ import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { initialPeriodWindow } from './billing-period.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
+import { VersionSwitchService } from './version-switch.service.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -50,11 +51,20 @@ import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
     type SelfServiceBlockedPlans,
 } from './self-service-policy.js';
-import { ChangePlanDto, PreviewPlanChangeDto } from './dto/tenant-billing.dto.js';
+import {
+    AcceptVersionOfferDto,
+    ChangePlanDto,
+    PreviewPlanChangeDto,
+} from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
-import type { AdminActor, OnboardingSelectionResponse, VersionOfferView } from '@saasicat/core';
+import type {
+    AdminActor,
+    OnboardingSelectionResponse,
+    VersionOfferView,
+    VersionSwitchResult,
+} from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
@@ -70,6 +80,7 @@ import {
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import { freezeContractAfter } from './freeze-contract-after.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -222,6 +233,9 @@ export class TenantBillingController {
         // `TenantBillingModule` always registers it.
         @Inject(VersionOfferService)
         private readonly versionOffers: VersionOfferService,
+        // Appended last for the same reason.
+        @Inject(VersionSwitchService)
+        private readonly versionSwitches: VersionSwitchService,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -316,6 +330,38 @@ export class TenantBillingController {
     async getVersionOffer(@Req() req: RequestLike): Promise<{ offer: VersionOfferView | null }> {
         const tenantId = this.requireTenantId(req);
         return { offer: await this.versionOffers.offerFor(tenantId) };
+    }
+
+    /**
+     * Takes the version offer (`SC-SUB-021`): at once for an improvement and
+     * for more for more, at the end of the term for one that takes something
+     * away. The body names the version the page showed; the offer is read
+     * again, and a different one is refused with `VERSION_OFFER_CHANGED`.
+     * Changes what the tenant pays, so it asks for the tenant's administrator.
+     */
+    @Post('version-offer/accept')
+    @UseGuards(TenantAdminGuard)
+    async acceptVersionOffer(
+        @Req() req: RequestLike,
+        @Body() dto: AcceptVersionOfferDto,
+    ): Promise<VersionSwitchResult> {
+        const tenantId = this.requireTenantId(req);
+        const userId = this.requireUserId(req);
+        const result = await this.versionSwitches.take(tenantId, dto.planVersionId);
+        await this.auditLog(
+            req,
+            userId,
+            'Subscription',
+            tenantId,
+            result.immediate ? 'SWITCH_PLAN_VERSION' : 'SCHEDULE_PLAN_VERSION_SWITCH',
+            {
+                offerClass: result.class,
+                fromPlanVersionId: result.fromPlanVersionId,
+                toPlanVersionId: result.planVersionId,
+                takesEffectAt: result.takesEffectAt,
+            },
+        );
+        return result;
     }
 
     // ---------------------------------------------------------------------
@@ -1215,14 +1261,14 @@ export class TenantBillingController {
         wasTrial: boolean,
         endsAt: Date | null = null,
     ): Promise<void> {
-        if (wasTrial || !this.contractFreeze) return;
-        try {
-            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, new Date(), endsAt);
-        } catch (err) {
-            this.logger.error(
-                `Contract freeze after plan change failed (tenant ${tenantId}): ${String(err)}`,
-            );
-        }
+        if (wasTrial) return;
+        await freezeContractAfter(
+            this.contractFreeze,
+            tenantId,
+            { plan, cycle, effectiveFrom: new Date(), endsAt },
+            'plan change',
+            this.logger,
+        );
     }
 
     /**

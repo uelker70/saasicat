@@ -1,7 +1,7 @@
 // useTenantBilling — Vue composable for the tenant self-service endpoints
 // (`/billing/usage`, `/billing/entitlement`, `/billing/plan/preview`,
-// `/billing/plan`, `/billing/version-offer`, `/billing/subscription-bundles`,
-// `/billing/cancel`).
+// `/billing/plan`, `/billing/version-offer`, `/billing/version-offer/accept`,
+// `/billing/subscription-bundles`, `/billing/cancel`).
 //
 // The consumer supplies the HTTP adapter (axios wrapper with auth header) and
 // optionally an `apiPrefix`. **Convention**: `apiPrefix` is the sub-path UNDER
@@ -11,7 +11,11 @@
 // Do **NOT** set `apiPrefix='/api/billing'` when the HTTP adapter already
 // has `/api` as its baseURL — the result would be `/api/api/billing/...` (404).
 
-import { BUNDLE_PRICE_LOOKUP_LIMIT, type VersionOfferView } from '@saasicat/core';
+import {
+    BUNDLE_PRICE_LOOKUP_LIMIT,
+    type VersionOfferView,
+    type VersionSwitchResult,
+} from '@saasicat/core';
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { trimTrailingSlashes } from '../client/http-json.js';
@@ -415,6 +419,12 @@ export interface UseTenantBillingResult {
      */
     loadVersionOffer: () => Promise<VersionOfferView | null>;
     /**
+     * Takes the offer of `planVersionId` — the version the page showed — and
+     * reloads. Refused with `VERSION_OFFER_CHANGED` when that is no longer the
+     * version offered; the refusal carries the current offer.
+     */
+    acceptVersionOffer: (planVersionId: string) => Promise<VersionSwitchResult>;
+    /**
      * Declares a cancellation. Takes no argument, and that is the point.
      *
      * It used to take `immediately`, which the platform honoured — and a tenant
@@ -649,6 +659,15 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         return offer;
     }
 
+    async function acceptVersionOffer(planVersionId: string): Promise<VersionSwitchResult> {
+        const result = await fetchOrThrow<VersionSwitchResult>('/version-offer/accept', {
+            method: 'POST',
+            body: { planVersionId },
+        });
+        await reload();
+        return result;
+    }
+
     async function cancelSubscription(
         expectedEffectiveAt?: string,
     ): Promise<CancellationResultShape> {
@@ -681,6 +700,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         changePlan,
         acceptPendingPlanVersion,
         loadVersionOffer,
+        acceptVersionOffer,
         cancelSubscription,
         hasFeature,
         subscriptionBundles,

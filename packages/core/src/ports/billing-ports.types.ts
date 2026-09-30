@@ -566,6 +566,25 @@ export interface ImmediatePlanChangeInput {
      * `keepsBoundVersion` wins over it.
      */
     quotedPlanVersionId: string | null;
+    /**
+     * `true`: bind `quotedPlanVersionId` or nothing. Where that version no
+     * longer takes bookings by `periodStart` (or now), the write claims nothing
+     * and answers `claimed: false`, rather than binding the version in effect.
+     * A switch to a version offered passes it: the subscriber agreed to that
+     * version, and what the switch answers and records names it. Left out, a
+     * version that stopped taking bookings gives way to the one in effect.
+     */
+    quotedVersionOnly?: boolean;
+    /**
+     * The version the caller read the subscription bound to, where its
+     * decision rests on it: the write claims the row only while that binding
+     * still holds. A switch to a version offered passes it — it writes back the
+     * plan it read, and a change made in between would otherwise be undone.
+     * `null` claims a row bound to no version. Left out, the binding is not
+     * claimed — and a write that binds no version (`bindsPlanVersion: false`)
+     * has none to claim.
+     */
+    expectedPlanVersionId?: string | null;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */
@@ -582,6 +601,16 @@ export interface ScheduledPlanChangeInput {
     pendingChangeVersionId: string | null;
     /** See `ImmediatePlanChangeInput.expectedCanceledAt`. */
     expectedCanceledAt: Date | null;
+    /** See `ImmediatePlanChangeInput.expectedPlanVersionId`. */
+    expectedPlanVersionId?: string | null;
+    /**
+     * The change the caller read as scheduled, where its decision rests on it —
+     * `null` for nothing scheduled. The write claims the row only while that
+     * still holds. A switch to a version offered passes `null`: an offer is
+     * made only while nothing is scheduled, and a change scheduled in between
+     * would otherwise be written over. Left out, it is not claimed.
+     */
+    expectedPendingPlan?: string | null;
 }
 
 /**
@@ -689,7 +718,11 @@ export interface TenantSubscriptionWritePort {
     ): Promise<{
         plan: string;
         billingCycle: string;
-        /** False when the row's cancellation moved since the caller read it. */
+        /**
+         * False when what the caller claimed moved since it read it — the
+         * cancellation, and the binding where it passed one — or when the
+         * version it required no longer takes bookings.
+         */
         claimed: boolean;
     }>;
 

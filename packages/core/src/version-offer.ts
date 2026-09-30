@@ -43,6 +43,10 @@ export interface VersionOfferSide {
     readonly quotas: Readonly<Record<string, number>>;
     readonly monthlyNet: number | null;
     readonly yearlyNet: number | null;
+    /** The last day it is sold on, where a successor closes its window — ISO, the whole day included. */
+    readonly validUntil: string | null;
+    /** When an operator ended it, where one did — ISO; from then it is not sold. */
+    readonly endsAt: string | null;
 }
 
 /**
@@ -57,6 +61,20 @@ export interface VersionOfferView {
     readonly offered: VersionOfferSide;
     readonly class: Exclude<VersionOfferClass, 'same'>;
     readonly changes: readonly VersionChange[];
+    /** ISO instant. */
+    readonly takesEffectAt: string;
+}
+
+/**
+ * What taking an offer did: the version left and the one taken, and whether it
+ * applied at once or waits for `takesEffectAt`. `POST billing/version-offer/accept`
+ * answers with it.
+ */
+export interface VersionSwitchResult {
+    readonly class: Exclude<VersionOfferClass, 'same'>;
+    readonly fromPlanVersionId: string;
+    readonly planVersionId: string;
+    readonly immediate: boolean;
     /** ISO instant. */
     readonly takesEffectAt: string;
 }
