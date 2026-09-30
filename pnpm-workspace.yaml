@@ -13,7 +13,11 @@ overrides:
     # patched release — is lifted to minimatch@10 instead of patched in place.
     # GHSA-rgw5-rvv9-x895: the same class of input still grew unbounded
     # intermediate arrays past that fix; 5.0.9 closes it.
-    'brace-expansion@^5.0.0': '^5.0.9'
+    # GHSA-q2hr-2g5m-vwhr: quadratic time rewriting `{a},b}`, fixed in 5.0.12 and
+    # on the 1.x line in 1.1.21. The 1.x copy is minimatch@3's, reached only
+    # through ESLint's configuration loader.
+    'brace-expansion@^5.0.0': '^5.0.12'
+    'brace-expansion@^1.0.0': '^1.1.21'
     'minimatch@^9.0.0': '^10.2.5'
     # GHSA-g7r4-m6w7-qqqr: path traversal in the esbuild dev server. Pulled in
     # transitively by tsup, which still pins ^0.27.0.
@@ -47,9 +51,20 @@ overrides:
     smol-toml: '^1.7.1'
     # GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-qvfw-j98x-7q72 and
     # GHSA-535w-7cp7-47q4: denial of service and a file size limit bypass in
-    # multipart parsing. Reached through @nestjs/platform-express, which pins
-    # 2.2.0 exactly; here that is the test harness and examples/notesapp.
-    multer: '^2.3.0'
+    # multipart parsing. GHSA-3pph-fpjx-jg34: denial of service through disk
+    # writes an aborted upload leaves behind, fixed in 2.4.0. Reached through
+    # @nestjs/platform-express, which pins its version exactly; here that is the
+    # test harness and examples/notesapp.
+    multer: '^2.4.0'
+    # GHSA-rfgv-xxqx-mfg5, GHSA-w293-vg96-wgc3, GHSA-vp8m-p9jh-q5pm,
+    # GHSA-pmjh-fq2x-6v4x, GHSA-3xpg-4rpp-hhhm, GHSA-2jfj-6hjv-fm6j,
+    # GHSA-rx4f-c7p8-82vq, GHSA-3wwx-pv8p-q78v, GHSA-r53p-7pc4-xj5r,
+    # GHSA-2gqq-gqf2-x968 and GHSA-8436-99hf-9mmv: denial of service, a TLS
+    # certificate check dropped, cache poisoning and response splitting in the
+    # fetch client, all fixed in 8.10.2. Reached only through jsdom, the DOM of
+    # the component tests in @saasicat/ui-vue and @saasicat/ui-vue-tenant; no
+    # published package carries it. Dependabot's own update failed to lift it.
+    'undici@^8.0.0': '^8.10.2'
     # GHSA-w2qp-rph6-63g4: schema validation bypass through root primitive
     # coercion. GHSA-3m5p-2c4r-xxw2: X-Forwarded-* spoofing under a trustProxy
     # hop count. Reached only through @nestjs/platform-fastify, which pins
