@@ -518,6 +518,12 @@ _Tested by:_
         - startOfUtcDay normalizes to 00:00 UTC
         - without withEndsAt: no endsAt clause (CatalogPlanVersion)
         - withEndsAt: adds an endsAt clause (PlanVersion)
+    - isVersionActiveAt — the same window, for a row already read
+        - validFrom is inclusive to the millisecond
+        - validUntil is inclusive of its whole day
+        - endsAt is exclusive: a version ended at the moment takes nothing
+        - an absent date does not close the window, and dates may come as strings
+        - agrees with the WHERE clause on every combination around the boundaries
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
     - PublicMarketingCatalogService — Plans (validFrom tolerance)
         - live plan version with validFrom=NULL appears in the catalog
@@ -835,6 +841,12 @@ _Tested by:_
         - startOfUtcDay normalizes to 00:00 UTC
         - without withEndsAt: no endsAt clause (CatalogPlanVersion)
         - withEndsAt: adds an endsAt clause (PlanVersion)
+    - isVersionActiveAt — the same window, for a row already read
+        - validFrom is inclusive to the millisecond
+        - validUntil is inclusive of its whole day
+        - endsAt is exclusive: a version ended at the moment takes nothing
+        - an absent date does not close the window, and dates may come as strings
+        - agrees with the WHERE clause on every combination around the boundaries
 - `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
     - a bundle preview on a schema without validity windows
         - answers, using the newest live version for the redundancy hint

@@ -75,6 +75,7 @@ import {
     type TenantIdResolver,
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
+import { subscriptionNotFound } from './subscription-not-found.js';
 
 interface RequestLike {
     user?: { tenantId?: string | null } | null;
@@ -308,11 +309,7 @@ export function buildTenantSubscriptionBundlesController(
         private async requireSubscription(tenantId: string): Promise<SubscriptionUsageRecord> {
             const sub = await this.subscriptionUsage.findForTenant(tenantId);
             if (!sub) {
-                throw new NotFoundException({
-                    code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                    message: `No subscription for tenant ${tenantId}`,
-                    params: { tenantId },
-                });
+                throw subscriptionNotFound(tenantId);
             }
             return sub;
         }

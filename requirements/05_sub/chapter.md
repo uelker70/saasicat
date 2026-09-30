@@ -534,3 +534,96 @@ _Tested by:_
           lists
 
 <!-- END proof -->
+
+### SC-SUB-020 — A newer version is offered, classified against the version bound
+
+🟢 💰 A subscriber whose plan has a newer version than the one they are bound to can read it as an
+offer: both versions side by side — features, quotas and the price in each rhythm — with the kind of
+offer and when a switch taken now would take effect. The kind is decided by a rule against the
+version bound, not against the candidate's predecessor and not by a flag set at publish: a feature
+missing or a quota lower takes something away, whatever the price, and a switch would take effect at
+the end of the running term; otherwise a price higher in any rhythm is more for more, taking effect
+at once; otherwise it is an improvement, taking effect at once. The version offered is the one a
+booking made now would bind, by its validity window, and only when it is newer than the version
+bound; it is offered only where the subscription could take it — not ended, not on a plan kept for a
+special contract, sold in its rhythm, and with no change of plan or rhythm and no pending version still
+to land, since the offer is judged against what the subscriber will have. Every user of the tenant
+can read the offer.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/active-plan-version-query.test.js`
+    - isVersionActiveAt — the same window, for a row already read
+        - validFrom is inclusive to the millisecond
+        - validUntil is inclusive of its whole day
+        - endsAt is exclusive: a version ended at the moment takes nothing
+        - an absent date does not close the window, and dates may come as strings
+        - agrees with the WHERE clause on every combination around the boundaries
+- `packages/core/tests/version-offer.test.js`
+    - the worked examples of the operator's decision
+        - 49 €, 5 users, 150 vehicles is an improvement
+        - 59 €, 8 users, 200 vehicles is more for more
+        - 45 €, 3 users, 200 vehicles takes something away, although it is cheaper
+        - the same monthly price but a dearer yearly one is more for more
+        - one feature less takes something away, everything else equal
+    - prices
+        - equal in both rhythms, written differently, is no change
+        - lower in one rhythm and equal in the other is an improvement
+        - a cent more in one rhythm is more for more
+        - a rhythm the candidate no longer sells counts against it
+        - a rhythm the candidate sells and the bound version did not is an improvement
+        - dearer and a feature less takes something away: what is missing decides
+    - quotas
+        - equal is no change
+        - one more is an improvement
+        - one less takes something away
+        - unlimited instead of a number is an improvement
+        - a number instead of unlimited takes something away
+        - a quota the candidate no longer carries takes something away
+    - features
+        - the same set in another order is no change
+        - one more is an improvement
+        - one swapped for another takes something away
+    - an offer states every difference, bound to candidate
+- `packages/nest/tests/a-newer-version-is-offered.test.js`
+    - an offer
+        - shows both versions side by side, prices as numbers per rhythm
+        - that improves takes effect at once
+        - that costs more for more takes effect at once
+        - that takes something away takes effect at the end of the running term
+        - that takes something away waits for a minimum term that outlasts the period
+        - that takes something away from a trial waits for its end
+        - is made to a subscription whose cancellation has not landed yet
+    - the version offered is the one a booking made now would bind
+        - by its validity window, not the newest published
+        - and nothing where the window finds nothing on sale
+        - and nothing where the subscription is bound to a newer one than that
+    - no offer
+        - while the subscription is on the newest version
+        - where the newer version changes nothing compared
+        - for a version that does not take bookings yet
+        - for a version that has ended
+        - for a version not sold in the subscription's rhythm
+        - for a version not marketed
+        - while a change to another plan is scheduled
+        - while a change of rhythm is scheduled
+        - while a pending version has yet to land
+        - once the cancellation has landed
+        - on a plan kept for a special contract, either way round
+        - where the version bound cannot be read as a version of the plan
+        - where the newest version read is of another plan
+        - without a repository that reads versions
+        - where the subscription is bound to no version
+    - a tenant without a subscription is told so
+    - GET billing/version-offer
+        - reads the offer of the caller's own tenant, whatever the request names
+        - refuses a request that carries no tenant
+        - is open to every user of the tenant, not only its administrator
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - the version offer is read under the same prefix and answered as the offer itself
+
+<!-- END proof -->

@@ -53,6 +53,7 @@ import {
     discountOnPlan,
 } from './code-rules.js';
 import { computeIncludedVat, netFromGross } from './math.js';
+import { subscriptionNotFound } from '../billing/subscription-not-found.js';
 
 export const CODE_MIN_LENGTH = 4;
 export const CODE_MAX_LENGTH = 32;
@@ -568,11 +569,7 @@ export class PromoCodesService {
 
         const sub = await this.subscriptionLookup.findById(input.subscriptionId, tx);
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: 'Subscription not found',
-                params: { tenantId: input.tenantId },
-            });
+            throw subscriptionNotFound(input.tenantId);
         }
         if (sub.tenantId !== input.tenantId) {
             throw new BadRequestException({

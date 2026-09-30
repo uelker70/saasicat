@@ -31,7 +31,7 @@ import {
     listPriceNet,
     planNotSoldInCycle,
 } from './plan-helpers.js';
-import { periodEndAfter } from './billing-period.js';
+import { termEndOf } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
@@ -46,6 +46,7 @@ import {
     type SelfServiceBlockedPlans,
 } from './self-service-policy.js';
 import { computeNewPeriodCharge, computeProration, type ProrationDto } from './proration.js';
+import { subscriptionNotFound } from './subscription-not-found.js';
 
 // PlanChangePreviewService — platform variant (data-driven).
 //
@@ -249,11 +250,7 @@ export class PlanChangePreviewService {
     ): Promise<PlanChangePreviewDto> {
         const sub = await this.subscriptions.findForTenant(tenantId);
         if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
+            throw subscriptionNotFound(tenantId);
         }
 
         // One read for the whole preview: the target's existence, both prices
@@ -402,7 +399,7 @@ export class PlanChangePreviewService {
         const cycleDirection = this.cycleDirection(sub.billingCycle, targetCycle);
         const commits = ctx.status !== 'TRIAL';
         const isImmediate = planDirection === 'UP' && (!commits || cycleDirection !== 'SHORTER');
-        const effectiveAt = isImmediate ? null : this.resolveEffectiveAt(ctx, now);
+        const effectiveAt = isImmediate ? null : termEndOf(ctx, now);
 
         const proration =
             isImmediate && ctx.status !== 'TRIAL'
@@ -738,18 +735,6 @@ export class PlanChangePreviewService {
         const plan = plans[idx]!;
         if (plan.marketed === false) return Number.POSITIVE_INFINITY - plans.length + idx;
         return idx;
-    }
-
-    private resolveEffectiveAt(ctx: PlanChangeContext, now: Date): Date {
-        if (ctx.status === 'TRIAL' && ctx.trialEndsAt) return ctx.trialEndsAt;
-        const periodEnd =
-            ctx.currentPeriodEnd ??
-            periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
-        // The later of the two. A commitment that outlasts the period is what a
-        // notice period produces, and a change that landed at the period end
-        // would take effect inside it.
-        if (ctx.minimumTermUntil && ctx.minimumTermUntil > periodEnd) return ctx.minimumTermUntil;
-        return periodEnd;
     }
 
     private computeProration(

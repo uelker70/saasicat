@@ -1,6 +1,7 @@
 // useTenantBilling — Vue composable for the tenant self-service endpoints
 // (`/billing/usage`, `/billing/entitlement`, `/billing/plan/preview`,
-// `/billing/plan`, `/billing/subscription-bundles`, `/billing/cancel`).
+// `/billing/plan`, `/billing/version-offer`, `/billing/subscription-bundles`,
+// `/billing/cancel`).
 //
 // The consumer supplies the HTTP adapter (axios wrapper with auth header) and
 // optionally an `apiPrefix`. **Convention**: `apiPrefix` is the sub-path UNDER
@@ -10,7 +11,7 @@
 // Do **NOT** set `apiPrefix='/api/billing'` when the HTTP adapter already
 // has `/api` as its baseURL — the result would be `/api/api/billing/...` (404).
 
-import { BUNDLE_PRICE_LOOKUP_LIMIT } from '@saasicat/core';
+import { BUNDLE_PRICE_LOOKUP_LIMIT, type VersionOfferView } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { trimTrailingSlashes } from '../client/http-json.js';
@@ -408,6 +409,12 @@ export interface UseTenantBillingResult {
     changePlan: (plan: string, billingCycle: BillingCycleStr) => Promise<void>;
     acceptPendingPlanVersion: () => Promise<void>;
     /**
+     * A newer version of the tenant's plan, beside the one the subscription is
+     * bound to, or `null` where there is none it could take. Classified against
+     * the version bound, with the moment a switch taken now would take effect.
+     */
+    loadVersionOffer: () => Promise<VersionOfferView | null>;
+    /**
      * Declares a cancellation. Takes no argument, and that is the point.
      *
      * It used to take `immediately`, which the platform honoured — and a tenant
@@ -637,6 +644,11 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         await reload();
     }
 
+    async function loadVersionOffer(): Promise<VersionOfferView | null> {
+        const { offer } = await fetchOrThrow<{ offer: VersionOfferView | null }>('/version-offer');
+        return offer;
+    }
+
     async function cancelSubscription(
         expectedEffectiveAt?: string,
     ): Promise<CancellationResultShape> {
@@ -668,6 +680,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         previewPlanChange,
         changePlan,
         acceptPendingPlanVersion,
+        loadVersionOffer,
         cancelSubscription,
         hasFeature,
         subscriptionBundles,

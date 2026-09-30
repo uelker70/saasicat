@@ -1039,6 +1039,7 @@ _Tested by:_
         - custom apiPrefix /api/v1/billing is used 1:1 as sub-path (no /api adapter)
         - trailing slash in apiPrefix is normalized (no //billing)
         - plan preview, bundles and cancel all go under the same prefix
+    - the version offer is read under the same prefix and answered as the offer itself
     - useTenantBillingCatalog URL construction
         - default apiPrefix is /billing — catalog endpoints land under
           /billing/{plans,bundles,feature-registry}

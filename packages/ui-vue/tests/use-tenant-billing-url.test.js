@@ -94,6 +94,23 @@ describe('useTenantBilling URL construction', () => {
     });
 });
 
+// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+test('the version offer is read under the same prefix and answered as the offer itself', async () => {
+    const offer = { plan: 'STANDARD', class: 'improvement' };
+    const calls = [];
+    const billing = useTenantBilling({
+        http: async (url, init) => {
+            calls.push(`${init?.method ?? 'GET'} ${url}`);
+            return { status: 200, headers: { get: () => null }, json: async () => ({ offer }) };
+        },
+        apiPrefix: '/api/v1/billing',
+        autoLoad: false,
+    });
+
+    assert.deepEqual(await billing.loadVersionOffer(), offer);
+    assert.deepEqual(calls, ['GET /api/v1/billing/version-offer']);
+});
+
 describe('useTenantBillingCatalog URL construction', () => {
     test('default apiPrefix is /billing — catalog endpoints land under /billing/{plans,bundles,feature-registry}', async () => {
         const { client, calls } = makeRecordingHttp();

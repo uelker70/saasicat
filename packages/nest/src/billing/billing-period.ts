@@ -175,3 +175,28 @@ export function periodEndWithMinLead(
     }
     return candidate;
 }
+
+/** What decides when a change that waits for the end of the term takes effect. */
+export interface TermEndInput {
+    status: string;
+    trialEndsAt: Date | null;
+    currentPeriodEnd: Date | null;
+    minimumTermUntil: Date | null;
+    startedAt: Date | null;
+    currentBillingCycle: string;
+}
+
+/**
+ * When a change that waits for the end of the running term takes effect: the
+ * end of a trial, else the later of the period end and the minimum term. A
+ * commitment that outlasts the period is what a notice period produces, and a
+ * change that landed at the period end would take effect inside it.
+ */
+export function termEndOf(input: TermEndInput, now: Date): Date {
+    if (input.status === 'TRIAL' && input.trialEndsAt) return input.trialEndsAt;
+    const periodEnd =
+        input.currentPeriodEnd ??
+        periodEndAfter(input.startedAt, input.currentBillingCycle as BillingCycle, now);
+    if (input.minimumTermUntil && input.minimumTermUntil > periodEnd) return input.minimumTermUntil;
+    return periodEnd;
+}

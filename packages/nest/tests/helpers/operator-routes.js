@@ -116,6 +116,30 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
     };
 }
 
+/**
+ * A port that has every method, for services that check their repositories
+ * when they are constructed. A test that calls one binds its own in its place.
+ */
+const ANSWERS_EVERYTHING = new Proxy(
+    {},
+    { get: (_, key) => (typeof key === 'symbol' || key === 'then' ? undefined : async () => null) },
+);
+
+/** The fixture with every port able to construct its service, for a test that compiles it. */
+export function bootable(options = everythingOnOptions()) {
+    const persistence = Object.fromEntries(
+        Object.entries(options.persistence).map(([group, ports]) =>
+            group === 'capabilities'
+                ? [group, ports]
+                : [
+                      group,
+                      Object.fromEntries(Object.keys(ports).map((k) => [k, ANSWERS_EVERYTHING])),
+                  ],
+        ),
+    );
+    return { ...options, persistence };
+}
+
 /** Every optional feature on and every port bound, so every composer mounts what it can. */
 export function everythingOn(guards = [SignedInGuard]) {
     return SaaSiCatModule.forRoot(everythingOnOptions(guards));

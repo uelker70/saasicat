@@ -68,6 +68,7 @@ export * from './billing-permission.guard.js';
 export * from './self-service-policy.js';
 export * from './proration.js';
 export * from './plan-change-preview.service.js';
+export * from './version-offer.service.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';
