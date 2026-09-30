@@ -47,6 +47,7 @@ import {
 } from './self-service-policy.js';
 import { computeNewPeriodCharge, computeProration, type ProrationDto } from './proration.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import { exceedsTarget, quotaOverTargetBlockers } from './quota-over-target.js';
 
 // PlanChangePreviewService — platform variant (data-driven).
 //
@@ -372,8 +373,7 @@ export class PlanChangePreviewService {
             const used = usage[key] ?? 0;
             const currentMax = currentLimits.quotas[key] ?? 0;
             const targetMax = targetSnap.quotas[key] ?? 0;
-            // -1 = unlimited (catalog convention).
-            const exceeded = targetMax !== -1 && used > targetMax;
+            const exceeded = exceedsTarget(used, targetMax);
             limitsCheck[key] = { used, currentMax, targetMax, exceeded };
         }
 
@@ -465,20 +465,16 @@ export class PlanChangePreviewService {
         }
 
         // Downgrade pre-check per quotaKey
-        for (const [key, row] of Object.entries(limitsCheck)) {
-            if (!row.exceeded) continue;
-            const usedDisplay = isFloatQuota(key) ? row.used.toFixed(1) : row.used.toString();
-            blockers.push({
-                code: BILLING_ERROR_CODES.QUOTA_OVER_TARGET,
-                message: `Current usage ${usedDisplay} exceeds the target limit ${row.targetMax} (${key}) in the ${targetSnap.name} plan. Please reduce usage first.`,
-                params: {
-                    used: usedDisplay,
-                    targetMax: row.targetMax,
-                    quotaKey: key,
-                    planName: targetSnap.name,
-                },
-            });
-        }
+        blockers.push(
+            ...quotaOverTargetBlockers(
+                Object.entries(limitsCheck).map(([quotaKey, { used, targetMax }]) => ({
+                    quotaKey,
+                    used,
+                    targetMax,
+                })),
+                targetSnap.name,
+            ),
+        );
 
         if (featuresLost.length > 0) {
             // Two codes rather than a number in the sentence. A template
@@ -795,11 +791,6 @@ export class PlanChangePreviewService {
 
 function priceForCycle(snap: PlanSnapshotDto, cycle: string): number | null {
     return cycle === 'YEARLY' ? snap.yearlyNet : snap.monthlyNet;
-}
-
-function isFloatQuota(key: string): boolean {
-    // Storage values are GB floats; all others are integer counts.
-    return key.toLowerCase().includes('storage');
 }
 
 function boundPlanVersionUnreadable(

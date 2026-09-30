@@ -33,6 +33,7 @@ export {
     type VersionOfferFields,
     type VersionOfferSide,
     type VersionOfferView,
+    type VersionSwitchResult,
 } from './version-offer.js';
 export type {
     BundleVersionFields,

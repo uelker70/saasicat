@@ -982,6 +982,37 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.notEqual(after?.planVersionId, publishedSince.planVersionId);
             });
 
+            // @requirement SC-SUB-021
+            test('binds a newer version of the same plan taken as an offer, not one published since', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-version-switch');
+                if (!tenant) return;
+                const publishedSince = await harness.seed.createPlanVersion({
+                    planKey: 'LOYAL',
+                    version: 3,
+                    quotas: { users: 20 },
+                    features: [],
+                    published: true,
+                });
+
+                // The plan and the rhythm stay, and no window is opened: the
+                // switch keeps the term, and only the version moves.
+                const change = await tenant.writer.changePlanImmediate('tenant-version-switch', {
+                    ...toYearly(false),
+                    periodStart: null,
+                    periodEnd: null,
+                    quotedPlanVersionId: tenant.live,
+                });
+
+                assert.equal(change.claimed, true);
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-version-switch',
+                    );
+                assert.equal(after?.plan, 'LOYAL');
+                assert.equal(after?.planVersionId, tenant.live, 'the version taken');
+                assert.notEqual(after?.planVersionId, publishedSince.planVersionId);
+            });
+
             // @requirement SC-PLAN-016
             test('binds the version in effect where the version quoted has ended by the day it lands', async (t) => {
                 const tenant = await onASupersededVersion(t, 'tenant-quoted-ended');

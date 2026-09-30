@@ -142,6 +142,26 @@ test('a scheduled change to another plan binds the version it was quoted at', as
     assert.equal(calls.changePlan[0].input.quotedPlanVersionId, 'pv-quoted');
 });
 
+// @requirement SC-SUB-021 — A newer version is taken by naming it, the way its kind says
+test('a scheduled switch to a newer version of the same plan binds that version', async () => {
+    // The subscription is on STANDARD and stays there; what the change names is
+    // the version it takes, and keeping the version bound would drop it.
+    const { calls, service } = makeDeps([
+        {
+            tenantId: 't1',
+            pendingPlan: 'STANDARD',
+            pendingBillingCycle: 'MONTHLY',
+            pendingChangeVersionId: 'pv-2',
+        },
+    ]);
+
+    await service.materializeDuePlanChanges(new Date('2026-06-09T00:00:00.000Z'));
+
+    const [{ input }] = calls.changePlan;
+    assert.equal(input.keepsBoundVersion, false);
+    assert.equal(input.quotedPlanVersionId, 'pv-2');
+});
+
 // @requirement SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
 test("the run reads and writes every tenant's change inside the bypass", async () => {
     // A forced policy with no frame leaves the run nothing to find and nothing

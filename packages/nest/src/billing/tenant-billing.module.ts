@@ -31,6 +31,7 @@ import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
+import { VersionSwitchService } from './version-switch.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
@@ -297,6 +298,7 @@ export class TenantBillingModule {
             TenantAdminGuard,
             PlanChangePreviewService,
             VersionOfferService,
+            VersionSwitchService,
         ];
 
         assertNoMovedOptions(options);

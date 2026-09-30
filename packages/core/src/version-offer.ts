@@ -61,6 +61,20 @@ export interface VersionOfferView {
     readonly takesEffectAt: string;
 }
 
+/**
+ * What taking an offer did: the version left and the one taken, and whether it
+ * applied at once or waits for `takesEffectAt`. `POST billing/version-offer/accept`
+ * answers with it.
+ */
+export interface VersionSwitchResult {
+    readonly class: Exclude<VersionOfferClass, 'same'>;
+    readonly fromPlanVersionId: string;
+    readonly planVersionId: string;
+    readonly immediate: boolean;
+    /** ISO instant. */
+    readonly takesEffectAt: string;
+}
+
 /** A change that takes something the subscriber has away from them. */
 function takesSomethingAway(change: VersionChange): boolean {
     if (change.direction !== 'REGRESSION') return false;

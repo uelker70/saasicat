@@ -26,12 +26,15 @@ import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN } from '@saasicat/core';
 // file watched the plan change, the bundle preview shipped `REDUNDANT_FEATURES`
 // and `MINIMUM_TERM_BINDS` into a tenant's screen with no catalogue on either
 // side of the wire able to name them. A guard that covers one of two identical
-// surfaces reports on the half nobody was worried about.
+// surfaces reports on the half nobody was worried about. So is the quota
+// refusal the plan change shares with a version switch, where it is built.
 
 const BILLING_SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'billing');
-const SERVICES = ['plan-change-preview.service.ts', 'subscription-bundle-preview.service.ts'].map(
-    (file) => join(BILLING_SRC, file),
-);
+const SERVICES = [
+    'plan-change-preview.service.ts',
+    'subscription-bundle-preview.service.ts',
+    'quota-over-target.ts',
+].map((file) => join(BILLING_SRC, file));
 
 /**
  * The `blockers.push({…})` and `warnings.push({…})` object literals, as text.

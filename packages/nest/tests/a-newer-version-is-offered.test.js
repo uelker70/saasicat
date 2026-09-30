@@ -18,44 +18,15 @@ import {
 } from '../dist/billing/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { GUARDS, bootable } from './helpers/operator-routes.js';
-import { usageRecord } from './helpers/subscription-fixtures.js';
-
-const NOW = new Date('2026-10-15T09:00:00.000Z');
-const PERIOD_END = new Date('2027-01-01T00:00:00.000Z');
-
-/** A plan version row as the repository returns it. */
-function version(overrides = {}) {
-    return {
-        id: 'pv-1',
-        planId: 'STANDARD',
-        version: 1,
-        features: ['DASHBOARD', 'EXPORT'],
-        quotas: { users: 5, vehicles: 100 },
-        monthlyNet: '49.00',
-        yearlyNet: '490.00',
-        marketed: true,
-        publishedAt: '2026-01-01T00:00:00.000Z',
-        supersededAt: null,
-        validFrom: '2026-01-01T00:00:00.000Z',
-        validUntil: null,
-        endsAt: null,
-        ...overrides,
-    };
-}
-
-const BOUND = version();
-const V2 = (overrides = {}) => version({ id: 'pv-2', version: 2, ...overrides });
-
-function subscription(overrides = {}) {
-    return usageRecord({
-        plan: 'STANDARD',
-        billingCycle: 'MONTHLY',
-        currentPeriodStart: new Date('2026-10-01T00:00:00.000Z'),
-        currentPeriodEnd: PERIOD_END,
-        planVersion: { id: BOUND.id, planId: 'STANDARD', version: 1 },
-        ...overrides,
-    });
-}
+import {
+    BOUND,
+    NOW,
+    PERIOD_END,
+    V2,
+    repositoryWith,
+    subscription,
+    version,
+} from './helpers/version-offers.js';
 
 /** The service over one subscription, a bound row and a live row. */
 function serviceFor({
@@ -70,15 +41,6 @@ function serviceFor({
         plans ?? repositoryWith(rows, live),
         blocked,
     );
-}
-
-/** The repository `serviceFor` builds by default: the bound row and a newer one with more vehicles. */
-function repositoryWith(rows, live) {
-    return {
-        findVersionById: async (id) => rows.find((row) => row.id === id) ?? null,
-        findLatestLivePlanVersion: async (planKey) =>
-            live && live.planId === planKey ? live : null,
-    };
 }
 
 const offerOf = (options) => serviceFor(options).offerFor('t1', NOW);

@@ -176,6 +176,19 @@ export const BILLING_ERROR_CODES = {
      * Carries the recomputed dates, so the page can re-ask instead of guessing.
      */
     CANCELLATION_TERMS_CHANGED: 'CANCELLATION_TERMS_CHANGED',
+    /**
+     * The version the caller asked to switch to is no longer the one offered —
+     * another is on sale, the subscription moved, or there is no offer. Nothing
+     * was switched. Carries the current `offer`, or `null`, so the page can show
+     * it instead of guessing.
+     */
+    VERSION_OFFER_CHANGED: 'VERSION_OFFER_CHANGED',
+    /**
+     * A version that takes something away takes effect when the term ends, and
+     * the subscription's cancellation lands no later: the switch would never
+     * happen, so it is refused rather than recorded. Carries both dates.
+     */
+    VERSION_SWITCH_AFTER_CANCELLATION: 'VERSION_SWITCH_AFTER_CANCELLATION',
 
     // ── the preview routes' own blockers and warnings ──
     //

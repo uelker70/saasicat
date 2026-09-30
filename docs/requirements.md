@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 20      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 21      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 22      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 535 entries: 🟢 465 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 536 entries: 🟢 466 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 535 entries: 🟢 465 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 535 requirements. Do not edit by hand:
+Generated from `requirements/` — 536 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3893,6 +3893,7 @@ _Tested by:_
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
     - a scheduled change to another plan binds the version it was quoted at
+    - a scheduled switch to a newer version of the same plan binds that version
     - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
@@ -4134,6 +4135,61 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-021 — A newer version is taken by naming it, the way its kind says
+
+🟢 💰 The tenant's administrator takes the offered version by naming it. An improvement and more for
+more take effect at once, on the plan and in the rhythm the subscription has, with the term and the
+period kept, and cost what any contract taking effect inside a paid period costs: the difference for
+the rest of the period where the price in the subscriber's own rhythm is higher, nothing where it is
+not. One that takes something away takes effect at the end of the running term, bound to the version
+offered; it is refused like a downgrade while today's usage exceeds a quota it lowers, and refused
+where the subscription ends before it would take effect. The switch goes ahead only while the version
+named is still the one offered — otherwise nothing changes and the offer as it now stands comes back.
+Where contracts are frozen, a successor contract records the switch when it takes effect, and the
+audit trail records who took it.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - an improvement and more for more are taken at once
+        - an improvement binds the version offered on the plan and in the rhythm the subscription
+          has
+        - more for more is taken the same way
+        - the term and the period are kept: no window is opened and the status stays
+        - the successor contract is frozen from now and the account brought up to date
+        - a subscription cancelled for later is switched, and its contract still ends then
+        - in a trial nothing is frozen and nothing charged
+    - one that takes something away is taken at the end of the term
+        - scheduled for the term end and bound to the version offered
+        - usage up to the lower quota fits
+        - usage one above the lower quota is refused like a downgrade, with the numbers
+        - a quota the version offered no longer carries allows nothing
+        - an unlimited quota holds any usage
+        - refused while the cancellation lands at the term end, since it would never happen
+        - taken where the cancellation lands after the term end
+    - the switch goes ahead only while the version shown is still the offer
+        - another version named is refused, carrying the offer as it stands
+        - no offer at all is refused the same way, carrying none
+        - a subscription that moved before an immediate switch was written is told to reload
+        - and so is one that moved before a switch at the term end was recorded
+        - a tenant with no subscription is told so
+        - a tenant the contract freeze cannot name is refused before anything moves
+    - POST billing/version-offer/accept
+        - names the version shown, and nothing else is needed
+        - a missing, empty or non-text version is refused
+        - asks for the tenant administrator
+        - switches the caller's own tenant and records who did it
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - a scheduled switch to a newer version of the same plan binds that version
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - an offer is taken by posting the version shown, and the usage reloaded after
+
+<!-- END proof -->
+
 ## 6. Changing a plan
 
 A plan change is where a tenant's money and a tenant's expectations meet, and both can be lost
@@ -4302,6 +4358,7 @@ _Tested by:_
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
     - a scheduled change to another plan binds the version it was quoted at
+    - a scheduled switch to a newer version of the same plan binds that version
     - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
@@ -11296,6 +11353,7 @@ _Tested by:_
         - trailing slash in apiPrefix is normalized (no //billing)
         - plan preview, bundles and cancel all go under the same prefix
     - the version offer is read under the same prefix and answered as the offer itself
+    - an offer is taken by posting the version shown, and the usage reloaded after
     - useTenantBillingCatalog URL construction
         - default apiPrefix is /billing — catalog endpoints land under
           /billing/{plans,bundles,feature-registry}

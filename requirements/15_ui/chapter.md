@@ -1040,6 +1040,7 @@ _Tested by:_
         - trailing slash in apiPrefix is normalized (no //billing)
         - plan preview, bundles and cancel all go under the same prefix
     - the version offer is read under the same prefix and answered as the offer itself
+    - an offer is taken by posting the version shown, and the usage reloaded after
     - useTenantBillingCatalog URL construction
         - default apiPrefix is /billing — catalog endpoints land under
           /billing/{plans,bundles,feature-registry}

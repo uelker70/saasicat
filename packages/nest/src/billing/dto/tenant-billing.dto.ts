@@ -1,4 +1,4 @@
-import { IsISO8601, IsOptional, IsString, Matches } from 'class-validator';
+import { IsISO8601, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 
 // DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
 // strings (no hard enum), because the allowed values come from the consumer's
@@ -29,6 +29,17 @@ export class PreviewPlanChangeDto {
  * does not.
  */
 export class ChangePlanDto extends PreviewPlanChangeDto {}
+
+/**
+ * Taking a version offer names the version the page showed, and nothing else:
+ * the server reads the offer again and switches only while that version is
+ * still the one offered. How and when it is taken follows from the offer.
+ */
+export class AcceptVersionOfferDto {
+    @IsString()
+    @IsNotEmpty()
+    planVersionId!: string;
+}
 
 /**
  * A cancellation carries nothing.

@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 190 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 192 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -168,6 +168,8 @@ Subscriptions, plan changes, entitlements.
 | `SUBSCRIPTION_PK_MISSING`                    | The adapter returned a subscription usage record without an id. Pass the subscription primary key through (see SubscriptionUsageRecord.id).                 |
 | `SUBSCRIPTION_TENANT_MISMATCH`               | Subscription does not belong to the tenant                                                                                                                  |
 | `TENANT_NOT_FOUND`                           | Tenant {slug} not found                                                                                                                                     |
+| `VERSION_OFFER_CHANGED`                      | The offer changed since it was shown. Look at the current one before switching.                                                                             |
+| `VERSION_SWITCH_AFTER_CANCELLATION`          | This subscription ends before this version would take effect, so it cannot be switched to.                                                                  |
 
 ## Contracts
 

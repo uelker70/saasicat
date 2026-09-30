@@ -3,8 +3,8 @@
 // A subscription keeps the version it is bound to (`SC-SUB-019`); a version
 // published since is offered, never applied. What kind of offer it is decides
 // how it can be taken, and it is judged against the version bound — the one
-// the subscriber has — rather than against the candidate's predecessor. The
-// switch itself is the plan change's; this reads what it would be.
+// the subscriber has — rather than against the candidate's predecessor.
+// Taking it is `VersionSwitchService`'s; this reads what it would be.
 //
 // The version offered is the one a booking made now would bind — on sale by
 // its validity window, as checkout prices it — and only when it is newer than
@@ -119,6 +119,14 @@ export class VersionOfferService {
         if (!sub) {
             throw subscriptionNotFound(tenantId);
         }
+        return this.offerForSubscription(sub, now);
+    }
+
+    /** The same, for a subscription the caller has already read. */
+    async offerForSubscription(
+        sub: SubscriptionUsageRecord,
+        now: Date,
+    ): Promise<VersionOfferView | null> {
         if (!this.couldSwitch(sub, now)) return null;
 
         const read = await this.readVersions(sub, now);

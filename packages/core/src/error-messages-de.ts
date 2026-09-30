@@ -167,6 +167,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     NO_SUBSCRIPTION: 'Dieser Mandant hat kein Abonnement, das gekündigt werden kann.',
     CANCELLATION_TERMS_CHANGED:
         'Das Wirksamkeitsdatum hat sich seit der Anzeige geändert. Bitte bestätige das neue Datum.',
+    VERSION_OFFER_CHANGED:
+        'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
+    VERSION_SWITCH_AFTER_CANCELLATION:
+        'Dieses Abonnement endet, bevor diese Version wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     SUBSCRIPTION_ENDED:
         'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
     PLAN_LOCKED:
