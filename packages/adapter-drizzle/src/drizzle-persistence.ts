@@ -73,10 +73,11 @@ export interface DrizzlePersistenceOptions {
      */
     passwordHasher?: PasswordHasher | PersistenceInjectionToken;
     /**
-     * Set to true when the app's database layer really lifts RLS
-     * (`SET LOCAL row_security = off`) while
-     * `AsyncLocalRlsBypassAdapter.isBypassActive()`. Only toggles the
-     * declared `rowLevelSecurity` capability. Default false.
+     * Declares the `rowLevelSecurity` capability, and does nothing else: this
+     * bundle does not lift a row policy, unlike the Prisma one. An
+     * installation with row policies binds an `RlsBypassPort` of its own in
+     * `adapters` that runs the work in one transaction with the setting its
+     * policies read, and sets this beside it. Default false.
      */
     rlsIntegration?: boolean;
     /**

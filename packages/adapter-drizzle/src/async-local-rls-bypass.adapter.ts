@@ -3,21 +3,24 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { RlsBypassPort } from '@saasicat/core';
 
 /**
- * Default implementation of `RlsBypassPort` via `node:async_hooks` — sets
- * `bypass: true` for the duration of the given callback in the current
- * async context. Your database layer reads `isBypassActive()` and issues
- * `SET LOCAL row_security = off` in the current transaction when active.
+ * `RlsBypassPort` over `node:async_hooks`: `runWithBypass` marks the call it
+ * wraps, and `isBypassActive()` says whether the current async context is
+ * inside one. It lifts nothing — the Drizzle bundle does not lift a row
+ * policy — so without row policies it runs the work as it is, and with them
+ * an installation binds a port of its own.
  *
- * Identical to the adapter-prisma implementation — kept per-adapter instead
- * of a shared package because 15 stable, dependency-free lines do not
- * justify a cross-adapter dependency.
+ * The same class as the adapter-prisma one, kept per adapter because a few
+ * stable, dependency-free lines do not justify a cross-adapter dependency.
  */
 @Injectable()
 export class AsyncLocalRlsBypassAdapter implements RlsBypassPort {
     private readonly storage = new AsyncLocalStorage<{ bypass: true }>();
 
     async runWithBypass<T>(fn: () => Promise<T>): Promise<T> {
-        return this.storage.run({ bypass: true }, fn);
+        // Awaited inside the frame. A query builder's promise is lazy — it
+        // runs when it is awaited — and one handed back unawaited would run
+        // after the frame has closed, outside the bypass.
+        return this.storage.run({ bypass: true }, async () => await fn());
     }
 
     /** `true` during the execution of a `runWithBypass(...)` callback. */

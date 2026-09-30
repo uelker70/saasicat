@@ -50,8 +50,8 @@ Options:
 
 - `passwordHasher` — your `PasswordHasher` (token or instance). Enables
   `core.superAdminProvisioning` (setup wizard / `user create-super-admin`).
-- `rlsIntegration: true` — declare the `rowLevelSecurity` capability once
-  your Prisma middleware really applies the bypass (see below).
+- `rlsIntegration: true` — lift your row policies for what the platform does
+  across tenants (see [RLS bypass](#rls-bypass)).
 - `schema` — explicit plan identity, delegate and optional-field capabilities
   for schemas that differ from the 0.6 canonical layout.
 - `notAdopted` — the canonical models your schema leaves out, as
@@ -320,19 +320,63 @@ inclusive UTC-day boundaries and preferring the highest `validFrom`, then
 
 ## RLS bypass
 
-`AsyncLocalRlsBypassAdapter` only toggles an `AsyncLocalStorage` flag — your
-`PrismaService` must apply it:
+An operator's lists, the nightly sweeps and the platform's boot checks work
+across tenants. Under a row policy that filters on the tenant they see nothing
+of the others — an empty list, a count of 0, an update of no row — unless the
+policy is lifted for them. `rlsIntegration: true` does that for every statement
+the bundle's adapters run inside the platform's `runWithBypass`: a read, a
+write, a raw statement, a batch, and an interactive transaction the platform's
+runner or one of its repositories opens.
 
 ```ts
-this.$use(async (params, next) => {
-    if (rls.isBypassActive()) {
-        await this.$executeRawUnsafe('SET LOCAL row_security = off');
-    }
-    return next(params);
-});
+prismaPersistence({ client: PrismaService, rlsIntegration: true });
 ```
 
-Only then pass `rlsIntegration: true` to `prismaPersistence`.
+PostgreSQL has no per-statement switch for this. `SET row_security = off`
+makes a query the policy would filter fail rather than see more, and a role
+with `BYPASSRLS` skips every policy for every statement it runs. What the
+bundle does instead is set `app.bypass_rls` to `'true'` for one transaction —
+the statement's own, a batch's, or an interactive transaction's opened inside
+the bypass — and your policy accepts that setting beside the tenant:
+
+```sql
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rows ON subscriptions
+    USING ("tenantId" = current_setting('app.tenant_id', true)
+           OR current_setting('app.bypass_rls', true) = 'true')
+    WITH CHECK ("tenantId" = current_setting('app.tenant_id', true)
+           OR current_setting('app.bypass_rls', true) = 'true');
+```
+
+- **The application connects as a role the policy applies to**: not a
+  superuser, not a role with `BYPASSRLS`. The table owner is subject to it
+  only with `FORCE ROW LEVEL SECURITY`.
+- **`app.tenant_id` is yours.** Setting it for a tenant's request is your
+  application's tenant scoping; the bundle sets only the bypass.
+- **A transaction opened outside the bypass cannot enter it.** The setting
+  would outlast the bypass for the rest of that transaction, so a statement of
+  it that tries is refused with an error saying so. Open the transaction inside
+  `runWithBypass`; the platform's own code does. A statement on the client
+  itself, sent from inside a transaction's callback, runs on another connection
+  and is lifted on its own either way.
+- **Where a statement runs is Prisma's to say.** It hands every query extension
+  the transaction a statement belongs to, outside its public types; Prisma 6,
+  which the suites here run against, does. A client that does not say is
+  refused inside the bypass rather than guessed at, since a wrong guess breaks
+  either the lifting or the transaction.
+- **Another setting name**: `rlsIntegration: new PrismaRlsBypass('app.other')`.
+- **Statements of your own** inside the platform's bypass — a job of yours
+  that injects `RLS_BYPASS_PORT_TOKEN` — go through the same instance: build
+  one, pass it as `rlsIntegration`, and run them on `bypass.extend(prisma)`.
+  Batch and open transactions for them on that client too: a batch or a
+  transaction opened on another client carries no setting, and a lifted
+  statement in it is refused.
+
+An installation that keeps a bypass of its own, over its own tenant context,
+binds its `RlsBypassPort` in `adapters` and leaves `rlsIntegration` out.
+Without row policies, leave it out too: the bundle's port then runs the work
+as it is.
 
 ## Tests
 
@@ -346,7 +390,9 @@ The integration run builds its schema from the normative reference SQL,
 generates a client from the composed fragments and executes the
 `@saasicat/persistence-testing` contract — CI does the same against a
 postgres service. **The database is disposable: the harness drops and
-recreates its `public` schema.**
+recreates its `public` schema.** The RLS suite beside it creates the database
+`<name>_rls` and the role `saasicat_rls_probe`, puts the policy above on a
+table and runs the bundle as that role.
 
 ## Next
 

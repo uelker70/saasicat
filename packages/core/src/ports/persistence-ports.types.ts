@@ -94,9 +94,11 @@ export interface PersistenceCapabilities {
      */
     pessimisticLocking: boolean;
     /**
-     * The adapter stack integrates with Postgres row-level security (the
-     * `RlsBypassPort` frame actually lifts RLS for SuperAdmin reads).
-     * Informational — RLS policies themselves remain consumer-owned.
+     * The adapter stack integrates with Postgres row-level security: the
+     * `RlsBypassPort` frame lifts the installation's policies for what the
+     * platform does across tenants, reads and writes alike. Informational —
+     * nothing in the platform reads it, and the policies themselves remain
+     * the installation's.
      */
     rowLevelSecurity: boolean;
     /** Advisory-lock support (`pg_advisory_*`). No platform path requires it today. */

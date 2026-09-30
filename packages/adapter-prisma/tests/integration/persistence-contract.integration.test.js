@@ -15,11 +15,6 @@
 // @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
 // @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
 
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
@@ -48,78 +43,15 @@ import {
     PrismaTenantSubscriptionWriteAdapter,
     PrismaTransactionRunner,
 } from '../../dist/index.js';
+import { generatedPrismaClient, rebuildFromReferenceSchema, testDatabaseUrl } from './database.js';
 
-const databaseUrl = process.env.SAASICAT_TEST_DATABASE_URL;
-if (!databaseUrl) {
-    throw new Error(
-        'SAASICAT_TEST_DATABASE_URL is required for the integration tests — point it at a ' +
-            'disposable PostgreSQL database (see the header of this file).',
-    );
-}
-
-const require = createRequire(import.meta.url);
-const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const specRoot = dirname(require.resolve('@saasicat/spec/package.json'));
-const workDir = join(packageRoot, '.integration-tmp');
-
-function composeSchema() {
-    const fragmentsDir = join(specRoot, 'prisma-fragments');
-    const fragments = readdirSync(fragmentsDir)
-        .filter((file) => file.endsWith('.prisma'))
-        .sort()
-        .map((file) => readFileSync(join(fragmentsDir, file), 'utf8'));
-    const header = [
-        '// Composed from @saasicat/spec prisma-fragments — generated for the',
-        '// integration tests, do not edit.',
-        'datasource db {',
-        '    provider = "postgresql"',
-        '    url      = env("SAASICAT_TEST_DATABASE_URL")',
-        '}',
-        'generator client {',
-        '    provider = "prisma-client-js"',
-        '    output   = "./generated-client"',
-        '}',
-        '',
-    ].join('\n');
-    return `${header}\n${fragments.join('\n')}`;
-}
-
-function generateClient() {
-    rmSync(workDir, { recursive: true, force: true });
-    mkdirSync(workDir, { recursive: true });
-    const schemaPath = join(workDir, 'schema.prisma');
-    writeFileSync(schemaPath, composeSchema());
-    execFileSync('pnpm', ['exec', 'prisma', 'generate', `--schema=${schemaPath}`], {
-        cwd: packageRoot,
-        env: { ...process.env, PRISMA_HIDE_UPDATE_MESSAGE: '1' },
-        stdio: 'inherit',
-    });
-}
-
-function sqlStatements(file) {
-    return readFileSync(file, 'utf8')
-        .split(';')
-        .map((statement) =>
-            statement
-                .split('\n')
-                .filter((line) => !line.trim().startsWith('--'))
-                .join('\n')
-                .trim(),
-        )
-        .filter(Boolean);
-}
-
-generateClient();
-const { PrismaClient } = require(join(workDir, 'generated-client'));
+testDatabaseUrl();
+const PrismaClient = generatedPrismaClient('persistence-contract');
 const prisma = new PrismaClient();
 
 // Disposable-database contract: rebuild the schema from the normative
 // reference DDL on every run.
-await prisma.$executeRawUnsafe('DROP SCHEMA IF EXISTS public CASCADE');
-await prisma.$executeRawUnsafe('CREATE SCHEMA public');
-for (const statement of sqlStatements(join(specRoot, 'sql', 'reference-schema.postgres.sql'))) {
-    await prisma.$executeRawUnsafe(statement);
-}
+await rebuildFromReferenceSchema(prisma);
 
 const PLATFORM_TABLES = [
     'promo_code_redemptions',

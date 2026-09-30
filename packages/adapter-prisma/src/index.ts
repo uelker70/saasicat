@@ -49,6 +49,7 @@ export {
     type PrismaAdminResourcesOptions,
 } from './prisma-admin-resources.adapter.js';
 export { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
+export { DEFAULT_RLS_BYPASS_SETTING, PrismaRlsBypass } from './prisma-rls-bypass.js';
 export { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
 export { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 export { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';

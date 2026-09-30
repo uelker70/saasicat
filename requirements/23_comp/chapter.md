@@ -723,6 +723,9 @@ _Tested by:_
     - prismaPersistence()
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
+        - rlsIntegration binds the port its adapters answer to, on one extended client
+        - a client given as a token is extended where it is resolved
+        - without rlsIntegration the adapters get the client as it is
         - token client + hasher token → provisioning factory injecting both
     - PrismaSubscriptionContractRepository.listRunningIssuers
         - asks for the running ones, oldest first, four columns, capped
@@ -872,6 +875,9 @@ _Tested by:_
     - prismaPersistence()
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
+        - rlsIntegration binds the port its adapters answer to, on one extended client
+        - a client given as a token is extended where it is resolved
+        - without rlsIntegration the adapters get the client as it is
         - token client + hasher token → provisioning factory injecting both
     - PrismaSubscriptionContractRepository.listRunningIssuers
         - asks for the running ones, oldest first, four columns, capped
@@ -1213,5 +1219,66 @@ _Tested by:_
         - ${name}: a second, different bound for one pool is refused
         - ${name} without a bound opens as many as are asked for
         - Prisma's limits are handed over where they were set, and only those
+
+<!-- END proof -->
+
+### SC-COMP-019 — Under row-level security, the Prisma bundle lifts it for cross-tenant work
+
+🟢 🔒 An installation with tenant policies on the platform's tables that asks the Prisma persistence
+bundle for it has every statement the platform runs inside its bypass see across tenants — a read, a
+write, a raw statement, a transaction the platform opens — through a setting its policies read, and
+no statement outside the bypass does: the setting lasts one transaction. A statement that enters the
+bypass inside a transaction opened outside it is refused rather than run under the tenant's policy.
+The Drizzle bundle does not lift a policy; there an installation binds an `RlsBypassPort` of its own.
+
+_Source:_ #345
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/integration/rls-bypass.integration.test.js`
+    - the bundle lifts a forced tenant policy inside the bypass, and only there
+        - the port the platform calls is the one the adapters answer to
+        - outside the bypass the policy hides every row: the probe is subject to it
+        - a read inside the bypass sees every tenant
+        - a raw statement inside the bypass sees every tenant
+        - a shipped repository's write inside the bypass reaches every tenant
+        - a transaction the runner opens inside the bypass reads and writes every tenant
+        - a transaction a repository opens on the client itself is lifted, and stays one transaction
+        - a statement on the client from inside a lifted transaction is lifted on its own
+        - a statement on the client from inside a transaction opened outside the bypass is lifted,
+          not refused
+        - a batch inside the bypass carries the setting and answers with its own results
+        - a lifted statement in a batch opened on another client is refused, not run unlifted
+        - a batch inside the bypass stays one transaction: a failure rolls back what it wrote
+        - the setting ends with its transaction: the next statement on the same connection is
+          filtered again
+        - entering the bypass inside a transaction opened outside it is refused, and nothing is
+          written
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - prismaPersistence()
+        - rlsIntegration binds the port its adapters answer to, on one extended client
+- `packages/adapter-prisma/tests/the-bypass-holds-for-a-query-handed-back.test.js`
+    - a query handed back unawaited runs inside the bypass
+    - the bypass has ended once its work has
+- `packages/adapter-prisma/tests/the-bypass-lifts-each-statement.test.js`
+    - a statement on the client
+        - runs as it is outside the bypass
+        - runs in one batch with the setting inside the bypass
+        - is extended once per client, however often asked
+    - an interactive transaction on the lifted client
+        - opened by the platform's runner inside the bypass takes the setting, and its statements
+          run on it
+        - opened by a repository on its own inside the bypass takes the setting, and its statements
+          run on it
+        - a statement on the client itself from inside it goes out in a batch of its own
+        - opened outside the bypass refuses a statement of it that enters the bypass
+    - a batch
+        - opened on the lifted client inside the bypass carries the setting at its head, and its
+          statements run in it
+        - opened on another client refuses a lifted statement inside the bypass
+    - a client that does not say where a statement runs
+        - is refused inside the bypass rather than guessed at
 
 <!-- END proof -->

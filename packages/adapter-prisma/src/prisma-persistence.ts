@@ -10,6 +10,7 @@ import {
 import type { PrismaLike, PrismaTxLike } from './prisma-client-token.js';
 import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
+import { PrismaRlsBypass } from './prisma-rls-bypass.js';
 import { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
 import { PrismaAuditAdapter } from './prisma-audit.adapter.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
@@ -111,13 +112,22 @@ export interface PrismaPersistenceOptions<M extends OptionalCanonicalModel = nev
      */
     passwordHasher?: PasswordHasher | PersistenceInjectionToken;
     /**
-     * Set to true when the app's Prisma middleware really lifts RLS
-     * (`SET LOCAL row_security = off`) while
-     * `AsyncLocalRlsBypassAdapter.isBypassActive()`. Only toggles the
-     * declared `rowLevelSecurity` capability — the adapter cannot verify the
-     * middleware. Default false.
+     * Row-level security: the bundle lifts the installation's row policies
+     * for what the platform does across tenants. Every statement its adapters
+     * run inside the platform's `runWithBypass` — a read, a write or a raw
+     * statement — runs in one transaction with
+     * `set_config('app.bypass_rls', 'true', true)`, and a policy that accepts
+     * that setting lets it through. Your own tenant scoping stays yours; see
+     * the README for the policy.
+     *
+     * `true` builds the bypass. Pass a `PrismaRlsBypass` of your own to name
+     * another setting, or to lift statements of your own with the same port:
+     * `bypass.extend(prisma)`.
+     *
+     * Leave it out where the database has no row policies, or where you bind
+     * an `RlsBypassPort` of your own in `adapters`.
      */
-    rlsIntegration?: boolean;
+    rlsIntegration?: boolean | PrismaRlsBypass;
     /**
      * Optional plan-schema adaptations. Omitted means the exact 0.6 layout:
      * soft `planId === planKey`, one `planVersion` delegate, no validity or
@@ -189,16 +199,20 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
     const unless = <T>(member: OptionalBundleMember, value: T): T | undefined =>
         leftOut.has(member) ? undefined : value;
 
+    const rls = rlsBypassOf(options.rlsIntegration);
+    // Every adapter gets the client the bypass lifts, and all of them the same
+    // one, so a transaction the runner opens is the one they write through.
+    const lifted = (prisma: PrismaLike): PrismaLike => (rls ? rls.extend(prisma) : prisma);
     const provide = <T>(build: (prisma: PrismaLike) => T): PersistenceProvider<T> =>
         isInjectionToken(client)
-            ? { useFactory: (prisma: PrismaLike) => build(prisma), inject: [client] }
-            : build(client);
+            ? { useFactory: (prisma: PrismaLike) => build(lifted(prisma)), inject: [client] }
+            : build(lifted(client));
 
     const bundle: SaaSiCatPersistenceAdapter = {
         capabilities: {
             transactions: true,
             pessimisticLocking: true,
-            rowLevelSecurity: options.rlsIntegration ?? false,
+            rowLevelSecurity: rls !== undefined,
             advisoryLocks: false,
         },
         core: {
@@ -207,13 +221,13 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
                 provide((prisma) => new PrismaMfaAdapter(prisma)),
             ),
             audit: provide((prisma) => new PrismaAuditAdapter(prisma)),
-            rlsBypass: new AsyncLocalRlsBypassAdapter(),
+            rlsBypass: rls?.port ?? new AsyncLocalRlsBypassAdapter(),
             transactionRunner: provide(
                 (prisma) => new PrismaTransactionRunner(prisma, options.transactions),
             ),
             auditQuery: provide((prisma) => new PrismaAuditQueryAdapter(prisma)),
             auditStats: provide((prisma) => new PrismaAuditStatsAdapter(prisma)),
-            superAdminProvisioning: buildProvisioning(client, options.passwordHasher),
+            superAdminProvisioning: buildProvisioning(client, options.passwordHasher, lifted),
             appliedSettings: unless(
                 'core.appliedSettings',
                 provide((prisma) => new PrismaAppliedSettingsRepository(canonical(prisma))),
@@ -328,6 +342,7 @@ function isInjectionToken(value: unknown): value is PersistenceInjectionToken {
 function buildProvisioning(
     client: PrismaLike | PersistenceInjectionToken,
     hasher: PasswordHasher | PersistenceInjectionToken | undefined,
+    lifted: (prisma: PrismaLike) => PrismaLike,
 ): PersistenceProvider<PrismaSuperAdminBootstrapAdapter> | undefined {
     if (hasher === undefined) return undefined;
     const clientIsToken = isInjectionToken(client);
@@ -335,22 +350,31 @@ function buildProvisioning(
     if (clientIsToken && hasherIsToken) {
         return {
             useFactory: (prisma: PrismaLike, h: PasswordHasher) =>
-                new PrismaSuperAdminBootstrapAdapter(prisma, h),
+                new PrismaSuperAdminBootstrapAdapter(lifted(prisma), h),
             inject: [client, hasher],
         };
     }
     if (clientIsToken) {
         return {
             useFactory: (prisma: PrismaLike) =>
-                new PrismaSuperAdminBootstrapAdapter(prisma, hasher as PasswordHasher),
+                new PrismaSuperAdminBootstrapAdapter(lifted(prisma), hasher as PasswordHasher),
             inject: [client],
         };
     }
     if (hasherIsToken) {
         return {
-            useFactory: (h: PasswordHasher) => new PrismaSuperAdminBootstrapAdapter(client, h),
+            useFactory: (h: PasswordHasher) =>
+                new PrismaSuperAdminBootstrapAdapter(lifted(client), h),
             inject: [hasher],
         };
     }
-    return new PrismaSuperAdminBootstrapAdapter(client, hasher);
+    return new PrismaSuperAdminBootstrapAdapter(lifted(client), hasher);
+}
+
+/** The bypass `rlsIntegration` asks for, or none. */
+function rlsBypassOf(
+    option: PrismaPersistenceOptions<never>['rlsIntegration'],
+): PrismaRlsBypass | undefined {
+    if (option instanceof PrismaRlsBypass) return option;
+    return option ? new PrismaRlsBypass() : undefined;
 }
