@@ -5,7 +5,10 @@
 // rather than taken from the page: the caller names the version it was shown,
 // and the switch goes ahead only while that is still the version offered — a
 // version published, ended or taken in between, or a subscription that moved,
-// is refused with the offer as it now stands.
+// is refused with the offer as it now stands. The write holds the row to what
+// the decision was read from — the version bound, nothing scheduled, the
+// cancellation — and binds the version named or nothing, so a change landing
+// between the read and the write is refused rather than written over.
 //
 // What kind of offer it is decides how it is taken. An improvement and one
 // that costs more for more apply at once, on the plan and in the rhythm the
@@ -85,13 +88,7 @@ export class VersionSwitchService {
         }
         const offer = await this.offers.offerForSubscription(sub, now);
         if (offer?.offered.planVersionId !== planVersionId) {
-            throw new ConflictException({
-                code: BILLING_ERROR_CODES.VERSION_OFFER_CHANGED,
-                message:
-                    'The offer changed since it was shown. Look at the current one before switching.',
-                params: { planVersionId },
-                offer,
-            });
+            throw offerChanged(planVersionId, offer);
         }
 
         // Where contracts are frozen, a switch ends in one naming the tenant's
@@ -100,7 +97,7 @@ export class VersionSwitchService {
         await this.contractFreeze?.assertPartyFor(tenantId);
 
         return offer.class === 'takes-something-away'
-            ? this.scheduleAtTermEnd(tenantId, sub, offer)
+            ? this.scheduleAtTermEnd(tenantId, sub, offer, now)
             : this.switchNow(tenantId, sub, offer, now);
     }
 
@@ -122,11 +119,13 @@ export class VersionSwitchService {
                 periodEnd: null,
                 nextStatus: null,
                 expectedCanceledAt: sub.canceledAt ?? null,
+                expectedPlanVersionId: offer.bound.planVersionId,
                 keepsBoundVersion: false,
                 quotedPlanVersionId: offer.offered.planVersionId,
+                quotedVersionOnly: true,
             }),
         );
-        if (!result.claimed) throw subscriptionChanged();
+        if (!result.claimed) throw await this.refusedAfterTheRead(tenantId, offer, now);
         this.entitlements.invalidateTenant(tenantId);
 
         // A trial commits to no period and is charged nothing; its contract is
@@ -153,6 +152,7 @@ export class VersionSwitchService {
         tenantId: string,
         sub: SubscriptionUsageRecord,
         offer: VersionOfferView,
+        now: Date,
     ): Promise<VersionSwitchResult> {
         const takesEffectAt = new Date(offer.takesEffectAt);
         // A cancellation outstanding lands at the end of the term at the
@@ -178,11 +178,31 @@ export class VersionSwitchService {
             pendingBillingCycle: sub.billingCycle,
             pendingEffectiveAt: takesEffectAt,
             expectedCanceledAt: sub.canceledAt ?? null,
+            expectedPlanVersionId: offer.bound.planVersionId,
+            expectedPendingPlan: null,
             pendingChangeVersionId: offer.offered.planVersionId,
         });
-        if (!scheduled.claimed) throw subscriptionChanged();
+        if (!scheduled.claimed) throw await this.refusedAfterTheRead(tenantId, offer, now);
         this.entitlements.invalidateTenant(tenantId);
         return resultOf(offer, false, takesEffectAt);
+    }
+
+    /**
+     * Why a write claimed nothing, as far as can be told afterwards: where the
+     * version named is no longer the one offered, that is the answer, with the
+     * offer as it now stands; otherwise the subscription moved.
+     */
+    private async refusedAfterTheRead(
+        tenantId: string,
+        taken: VersionOfferView,
+        now: Date,
+    ): Promise<ConflictException> {
+        const sub = await this.subscriptions.findForTenant(tenantId);
+        const offer = sub ? await this.offers.offerForSubscription(sub, now) : null;
+        const named = taken.offered.planVersionId;
+        return offer?.offered.planVersionId === named
+            ? subscriptionChanged()
+            : offerChanged(named, offer);
     }
 
     /** Refused like a downgrade: usage today that the version offered would not hold. */
@@ -219,6 +239,15 @@ function resultOf(
         immediate,
         takesEffectAt: takesEffectAt.toISOString(),
     };
+}
+
+function offerChanged(planVersionId: string, offer: VersionOfferView | null): ConflictException {
+    return new ConflictException({
+        code: BILLING_ERROR_CODES.VERSION_OFFER_CHANGED,
+        message: 'The offer changed since it was shown. Look at the current one before switching.',
+        params: { planVersionId },
+        offer,
+    });
 }
 
 function subscriptionChanged(): ConflictException {

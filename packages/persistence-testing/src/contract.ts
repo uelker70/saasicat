@@ -21,6 +21,7 @@ import type {
     NewSubscriptionContractData,
     PaymentEventClaim,
     RecordSubscriberPaymentMethodData,
+    ScheduledPlanChangeInput,
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
@@ -1011,6 +1012,104 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.equal(after?.plan, 'LOYAL');
                 assert.equal(after?.planVersionId, tenant.live, 'the version taken');
                 assert.notEqual(after?.planVersionId, publishedSince.planVersionId);
+            });
+
+            // @requirement SC-SUB-021
+            test('claims nothing where the binding moved since the caller read it', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-binding-moved');
+                if (!tenant) return;
+
+                // The caller read the subscription bound to the newer version;
+                // it is on the older one, so the switch was decided from a
+                // state that is not there.
+                const change = await tenant.writer.changePlanImmediate('tenant-binding-moved', {
+                    ...toYearly(false),
+                    periodStart: null,
+                    periodEnd: null,
+                    quotedPlanVersionId: tenant.live,
+                    expectedPlanVersionId: tenant.live,
+                });
+
+                assert.equal(change.claimed, false);
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-binding-moved',
+                    );
+                assert.equal(after?.planVersionId, tenant.bound, 'nothing written');
+            });
+
+            // @requirement SC-SUB-021
+            test('binds the version quoted or nothing, where the change asks for that version alone', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-quoted-only');
+                if (!tenant) return;
+                const end = harness.adapter.planRepository?.terminate?.bind(
+                    harness.adapter.planRepository,
+                );
+                if (!end) {
+                    t.skip('the plan repository ends no versions');
+                    return;
+                }
+                // Ended after it was offered, before the switch is written.
+                await end(tenant.live, new Date('2026-04-15T00:00:00.000Z'));
+
+                const change = await tenant.writer.changePlanImmediate('tenant-quoted-only', {
+                    ...toYearly(false),
+                    periodStart: null,
+                    periodEnd: null,
+                    quotedPlanVersionId: tenant.live,
+                    quotedVersionOnly: true,
+                    expectedPlanVersionId: tenant.bound,
+                });
+
+                assert.equal(change.claimed, false);
+                const after =
+                    await harness.adapter.subscriptionRepository.findByTenantId(
+                        'tenant-quoted-only',
+                    );
+                assert.equal(after?.planVersionId, tenant.bound, 'nothing written');
+            });
+
+            // @requirement SC-SUB-021
+            test('a scheduled change claims the binding and the change already scheduled, where the caller names them', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-scheduled-claim');
+                if (!tenant) return;
+                const schedule = (
+                    pendingPlan: string,
+                    expected: Pick<
+                        ScheduledPlanChangeInput,
+                        'expectedPlanVersionId' | 'expectedPendingPlan'
+                    >,
+                ) =>
+                    tenant.writer.schedulePlanChange('tenant-scheduled-claim', {
+                        pendingPlan,
+                        pendingBillingCycle: 'YEARLY',
+                        pendingEffectiveAt: new Date('2027-05-01T00:00:00.000Z'),
+                        pendingChangeVersionId: tenant.live,
+                        expectedCanceledAt: null,
+                        ...expected,
+                    });
+
+                const first = await schedule('LOYAL', {
+                    expectedPlanVersionId: tenant.bound,
+                    expectedPendingPlan: null,
+                });
+                // Something is scheduled now, and the caller read nothing.
+                const overNothing = await schedule('OTHER', { expectedPendingPlan: null });
+                // The binding the caller read is not the one there.
+                const overAnotherBinding = await schedule('OTHER', {
+                    expectedPlanVersionId: tenant.live,
+                    expectedPendingPlan: 'LOYAL',
+                });
+                // What is there is what the first one wrote.
+                const overWhatIsThere = await schedule('LOYAL', {
+                    expectedPlanVersionId: tenant.bound,
+                    expectedPendingPlan: 'LOYAL',
+                });
+
+                assert.deepEqual(
+                    [first, overNothing, overAnotherBinding, overWhatIsThere].map((r) => r.claimed),
+                    [true, false, false, true],
+                );
             });
 
             // @requirement SC-PLAN-016

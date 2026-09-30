@@ -36,17 +36,26 @@ const MORE_FOR_MORE = V2({ monthlyNet: '59.00', quotas: { users: 8, vehicles: 20
 const TAKES_AWAY = V2({ monthlyNet: '45.00', quotas: { users: 3, vehicles: 200 } });
 
 /** The switch over one subscription of tenant t1, with every port it writes to recorded. */
-function aSwitch({ sub = subscription(), live = IMPROVEMENT, usage = {}, claimed = true } = {}) {
+function aSwitch({
+    sub = subscription(),
+    live = IMPROVEMENT,
+    plans = repositoryWith([BOUND], live),
+    usage = {},
+    claimed = true,
+    whileWriting = () => {},
+} = {}) {
     const calls = { immediate: [], scheduled: [], invalidated: [], frozen: [], charged: [] };
     const subscriptions = { findForTenant: async (id) => (id === 't1' ? sub : null) };
-    const offers = new VersionOfferService(subscriptions, repositoryWith([BOUND], live), null);
+    const offers = new VersionOfferService(subscriptions, plans, null);
     const write = {
         changePlanImmediate: async (tenantId, input) => {
             calls.immediate.push(input);
+            whileWriting();
             return { plan: input.planId, billingCycle: input.cycle, claimed };
         },
         schedulePlanChange: async (tenantId, input) => {
             calls.scheduled.push(input);
+            whileWriting();
             return { claimed };
         },
     };
@@ -70,18 +79,30 @@ function aSwitch({ sub = subscription(), live = IMPROVEMENT, usage = {}, claimed
 const refusedWith = (code) => (error) => error.response?.code === code;
 
 describe('an improvement and more for more are taken at once', () => {
-    /** The part of the write that says which version, on which plan and rhythm, is bound. */
-    const bindingOf = ({ planId, cycle, keepsBoundVersion, quotedPlanVersionId }) => ({
+    /** The part of the write that says which version is bound, and from which it was decided. */
+    const bindingOf = ({
         planId,
         cycle,
         keepsBoundVersion,
         quotedPlanVersionId,
+        quotedVersionOnly,
+        expectedPlanVersionId,
+    }) => ({
+        planId,
+        cycle,
+        keepsBoundVersion,
+        quotedPlanVersionId,
+        quotedVersionOnly,
+        expectedPlanVersionId,
     });
+    // The version offered or nothing, and only while the one read is still bound.
     const BINDS_THE_OFFER = {
         planId: 'STANDARD',
         cycle: 'MONTHLY',
         keepsBoundVersion: false,
         quotedPlanVersionId: 'pv-2',
+        quotedVersionOnly: true,
+        expectedPlanVersionId: 'pv-1',
     };
 
     test('an improvement binds the version offered on the plan and in the rhythm the subscription has', async () => {
@@ -166,6 +187,8 @@ describe('one that takes something away is taken at the end of the term', () => 
                 pendingBillingCycle: 'MONTHLY',
                 pendingEffectiveAt: PERIOD_END,
                 expectedCanceledAt: null,
+                expectedPlanVersionId: 'pv-1',
+                expectedPendingPlan: null,
                 pendingChangeVersionId: 'pv-2',
             },
         ]);
@@ -263,6 +286,28 @@ describe('the switch goes ahead only while the version shown is still the offer'
     test('a subscription that moved before an immediate switch was written is told to reload', async () => {
         const { take } = aSwitch({ live: IMPROVEMENT, claimed: false });
         await assert.rejects(take(), refusedWith('SUBSCRIPTION_CHANGED'));
+    });
+
+    test('a version no longer offered when the write came is answered with the offer as it stands', async () => {
+        // Published between the read and the write: the store bound nothing,
+        // and the version named is no longer the one offered.
+        let live = IMPROVEMENT;
+        const plans = {
+            findVersionById: async (id) => (id === BOUND.id ? BOUND : null),
+            findLatestLivePlanVersion: async () => live,
+        };
+        const { take } = aSwitch({
+            plans,
+            claimed: false,
+            whileWriting: () => {
+                live = V2({ id: 'pv-3', version: 3, quotas: { users: 5, vehicles: 300 } });
+            },
+        });
+        await assert.rejects(take(), (error) => {
+            assert.equal(error.response.code, 'VERSION_OFFER_CHANGED');
+            assert.equal(error.response.offer.offered.planVersionId, 'pv-3');
+            return true;
+        });
     });
 
     test('and so is one that moved before a switch at the term end was recorded', async () => {

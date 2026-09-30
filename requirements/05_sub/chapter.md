@@ -674,6 +674,7 @@ _Tested by:_
         - another version named is refused, carrying the offer as it stands
         - no offer at all is refused the same way, carrying none
         - a subscription that moved before an immediate switch was written is told to reload
+        - a version no longer offered when the write came is answered with the offer as it stands
         - and so is one that moved before a switch at the term end was recorded
         - a tenant with no subscription is told so
         - a tenant the contract freeze cannot name is refused before anything moves

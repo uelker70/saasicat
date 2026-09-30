@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, type Column, type SQL } from 'drizzle-orm';
 import type {
     ApplyOnboardingSelectionInput,
     CancelSubscriptionInput,
@@ -69,15 +69,34 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             // decision made on a row that then changes is applied to a state
             // nobody looked at. The lock makes read and write one moment.
             const current = await this.requireSubscription(db, tenantId, { lock: true });
+            const unclaimed = {
+                plan: current.plan,
+                billingCycle: current.billingCycle,
+                claimed: false,
+            };
+            // The binding the caller decided from, where it named one — read
+            // under the lock, so it holds until the write.
+            if (
+                input.expectedPlanVersionId !== undefined &&
+                current.planVersionId !== input.expectedPlanVersionId
+            ) {
+                return unclaimed;
+            }
             const keepsVersion = input.keepsBoundVersion && current.plan === input.planId;
-            const planVersionId = keepsVersion
-                ? current.planVersionId
-                : ((await this.stillBookable(
+            const quoted = keepsVersion
+                ? null
+                : await this.stillBookable(
                       input.quotedPlanVersionId,
                       input.planId,
                       input.periodStart ?? new Date(),
                       tx as unknown as TransactionContext,
-                  )) ??
+                  );
+            if (!keepsVersion && input.quotedVersionOnly && quoted === null) {
+                return unclaimed;
+            }
+            const planVersionId = keepsVersion
+                ? current.planVersionId
+                : (quoted ??
                   (await this.activeVersionId(
                       input.planId,
                       input.periodStart ?? new Date(),
@@ -124,12 +143,27 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         // The same claim as the immediate path: a change scheduled against a
         // subscription that has since been cancelled would sit in the row until
         // its date and then land inside a term that is already ending.
-        const claimed = await this.claim(this.db, tenantId, input.expectedCanceledAt, {
-            pendingPlan: input.pendingPlan,
-            pendingBillingCycle: input.pendingBillingCycle,
-            pendingEffectiveAt: input.pendingEffectiveAt,
-            pendingChangeVersionId: input.pendingChangeVersionId,
-        });
+        // And, where the caller named them, the binding and the change already
+        // scheduled it decided from.
+        const claimed = await this.claim(
+            this.db,
+            tenantId,
+            input.expectedCanceledAt,
+            {
+                pendingPlan: input.pendingPlan,
+                pendingBillingCycle: input.pendingBillingCycle,
+                pendingEffectiveAt: input.pendingEffectiveAt,
+                pendingChangeVersionId: input.pendingChangeVersionId,
+            },
+            [
+                ...(input.expectedPlanVersionId !== undefined
+                    ? [columnIs(subscriptions.planVersionId, input.expectedPlanVersionId)]
+                    : []),
+                ...(input.expectedPendingPlan !== undefined
+                    ? [columnIs(subscriptions.pendingPlan, input.expectedPendingPlan)]
+                    : []),
+            ],
+        );
         return { claimed: claimed > 0 };
     }
 
@@ -295,11 +329,18 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         tenantId: string,
         expectedCanceledAt: Date | null,
         values: Record<string, unknown>,
+        alsoExpected: readonly SQL[] = [],
     ): Promise<number> {
         const claimed = await db
             .update(subscriptions)
             .set({ ...values, updatedAt: new Date() })
-            .where(and(eq(subscriptions.tenantId, tenantId), canceledAtIs(expectedCanceledAt)))
+            .where(
+                and(
+                    eq(subscriptions.tenantId, tenantId),
+                    canceledAtIs(expectedCanceledAt),
+                    ...alsoExpected,
+                ),
+            )
             .returning({ id: subscriptions.id });
         return claimed.length;
     }
@@ -399,8 +440,11 @@ function clearedPendingVersion(): Record<string, null | false> {
 }
 
 /** `= NULL` is never true in SQL — an expected-null claim needs `IS NULL`. */
-function canceledAtIs(expected: Date | null): SQL | undefined {
-    return expected === null
-        ? isNull(subscriptions.canceledAt)
-        : eq(subscriptions.canceledAt, expected);
+function canceledAtIs(expected: Date | null): SQL {
+    return columnIs(subscriptions.canceledAt, expected);
+}
+
+/** A column as the caller read it: `null` claims a row where it is empty. */
+function columnIs(column: Column, expected: string | Date | null): SQL {
+    return expected === null ? isNull(column) : eq(column, expected);
 }
