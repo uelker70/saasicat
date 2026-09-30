@@ -25,6 +25,7 @@ Drizzle schema declares them. It does not create or migrate anything.
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { drizzlePersistence } from '@saasicat/adapter-drizzle';
+import { aesGcmSecretSealer } from '@saasicat/nest/platform';
 
 const db = drizzle(new Pool({ connectionString: process.env.DATABASE_URL }));
 
@@ -33,6 +34,8 @@ SaaSiCatModule.forRoot({
     controller: { guards: [JwtAuthGuard] },
     imports: [AuthModule],
     persistence: drizzlePersistence({ db }),
+    // Not the bundle's to supply: the key that seals the SuperAdmin's second factor.
+    adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
     entitlement: {},
 });
 ```

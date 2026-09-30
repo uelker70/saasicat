@@ -15,6 +15,7 @@ import {
     PromoCodeExpirer,
     RegistrationCleanupCron,
     SaaSiCatModule,
+    storeSecretsInPlainText,
 } from '../dist/index.js';
 import { findViolations } from '../dist/platform/index.js';
 import { FakeMaintenanceWindowPort, OPERATOR } from './helpers/maintenance-windows.js';
@@ -55,7 +56,7 @@ const persistenceWith = (core) => ({
 describe('the configuration maintenance needs', () => {
     const configuration = (options) => ({
         options: { planCatalog: CATALOG, controller: { guards: [] }, ...options },
-        adapters: CORE,
+        adapters: { ...CORE, secretSealer: storeSecretsInPlainText() },
     });
     const ids = (options) => findViolations(configuration(options)).map((v) => v.id);
 
@@ -86,6 +87,7 @@ async function boot(maintenance, port = new FakeMaintenanceWindowPort()) {
     const moduleRef = await Test.createTestingModule({
         imports: [
             SaaSiCatModule.forRoot({
+                adapters: { secretSealer: storeSecretsInPlainText() },
                 planCatalog: CATALOG,
                 controller: { guards: [PassGuard] },
                 discoverySnapshotPath: null,
@@ -237,6 +239,7 @@ describe('the platform’s own scheduled jobs', () => {
         const moduleRef = await Test.createTestingModule({
             imports: [
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog: CATALOG,
                     controller: { guards: [PassGuard] },
                     discoverySnapshotPath: null,

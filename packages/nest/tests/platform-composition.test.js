@@ -18,6 +18,7 @@ import { DISCOVERY_APP_INFO_TOKEN } from '../dist/discovery/index.js';
 import { PaymentGatewayRegistry } from '../dist/payments/index.js';
 import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
 import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../dist/subscription-contract/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
 //
@@ -207,7 +208,12 @@ describe('the assembled module is the same one as before', () => {
         const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
-            adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
+            adapters: {
+                secretSealer: storeSecretsInPlainText(),
+                mfa: PORT,
+                audit: PORT,
+                rlsBypass: PORT,
+            },
         });
         assert.equal(dyn.module.name, 'SaaSiCatModule');
         assert.equal(dyn.global, true);
@@ -226,7 +232,13 @@ describe('the base modules', () => {
         const dyn = SaaSiCatModule.forRoot({
             dbCatalog: { path: catalogFileNamed('TestApp') },
             controller: { guards: [] },
-            adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
+            adapters: {
+                secretSealer: storeSecretsInPlainText(),
+                mfa: PORT,
+                audit: PORT,
+                rlsBypass: PORT,
+                planCatalogReadSink: REPO,
+            },
         });
         assert.ok(dyn.imports.some((m) => m?.module?.name === 'PlanCatalogModule'));
     });
@@ -245,14 +257,25 @@ describe('the base modules', () => {
         const fromYaml = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
-            adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
+            adapters: {
+                secretSealer: storeSecretsInPlainText(),
+                mfa: PORT,
+                audit: PORT,
+                rlsBypass: PORT,
+            },
         });
         assert.deepEqual(identityOf(fromYaml), { key: 'TestApp', version: '0.0.1' });
 
         const fromDb = SaaSiCatModule.forRoot({
             dbCatalog: { path: catalogFileNamed('FromDb') },
             controller: { guards: [] },
-            adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
+            adapters: {
+                secretSealer: storeSecretsInPlainText(),
+                mfa: PORT,
+                audit: PORT,
+                rlsBypass: PORT,
+                planCatalogReadSink: REPO,
+            },
         });
         assert.deepEqual(identityOf(fromDb), { key: 'FromDb', version: '0.0.0' });
     });
@@ -262,7 +285,12 @@ describe('the base modules', () => {
             planCatalog: MINIMAL_CATALOG,
             app: { key: 'explicit', version: '9.9.9' },
             controller: { guards: [] },
-            adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
+            adapters: {
+                secretSealer: storeSecretsInPlainText(),
+                mfa: PORT,
+                audit: PORT,
+                rlsBypass: PORT,
+            },
         });
         assert.deepEqual(identityOf(dyn), { key: 'explicit', version: '9.9.9' });
     });

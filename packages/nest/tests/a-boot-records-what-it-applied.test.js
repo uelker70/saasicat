@@ -24,6 +24,7 @@ import {
     fingerprintOf,
     loadPlanCatalogFromFile,
     SETTINGS_SOURCE_TOKEN,
+    storeSecretsInPlainText,
 } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
@@ -69,6 +70,7 @@ async function boot(catalog, persistence) {
     const app = await Test.createTestingModule({
         imports: [
             SaaSiCatModule.forRoot({
+                adapters: { secretSealer: storeSecretsInPlainText() },
                 planCatalog: catalog,
                 controller: { guards: [FakeJwtGuard] },
                 discoverySnapshotPath: null,
@@ -320,6 +322,7 @@ describe('an app that serves the route itself', () => {
         app = await Test.createTestingModule({
             imports: [
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog: catalogWith(),
                     controller: { guards: [FakeJwtGuard] },
                     discoverySnapshotPath: null,
@@ -405,6 +408,7 @@ describe('the record is a mirror, never a source', () => {
         app = await Test.createTestingModule({
             imports: [
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog: catalogWith(),
                     controller: { guards: [FakeJwtGuard] },
                     discoverySnapshotPath: null,

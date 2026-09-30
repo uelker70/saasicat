@@ -434,3 +434,44 @@ _Tested by:_
         - a tenant turned away from the operator route never reached a frame
 
 <!-- END proof -->
+
+### SC-SEC-016 — An administrator's second factor is stored sealed, keyed outside the database
+
+🟢 🔒 The TOTP secret of a SuperAdmin is sealed before it is stored and opened after it is read, with
+a sealer the installation binds and a key from its configuration: a dump, a backup or a replica of
+the database holds nothing that answers the second factor. The platform does not start without a
+sealer; plain text is stored only where an installation binds it on purpose. A stored secret the
+sealer cannot open — sealed under another key, altered, or stored before sealing — fails the check
+rather than passing it, and the administrator enrols again.
+
+_Source:_ #346
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/init.test.js`
+    - patching an existing app.module.ts
+        - seals the administrator's second factor with a key from the environment
+- `packages/nest/tests/a-second-factor-is-stored-sealed.test.js`
+    - the AES-256-GCM sealer
+        - opens what it sealed, and nothing of the secret shows in the sealed value
+        - seals one secret differently every time
+        - refuses a value sealed under another key
+        - refuses a sealed value that was altered
+        - refuses a secret stored before sealing
+        - refuses a key of the wrong length when it is made, and says its length
+        - refuses text that is not base64 at all
+        - refuses 32 bytes written URL-safe or unpadded, and names the form it takes
+        - refuses a missing, empty or blank key, and says how to make one
+        - takes a key with the line break a file leaves after it
+    - the MFA service
+        - stores a sealed secret, and the code from the authenticator still checks
+        - turns away a code where the stored secret cannot be opened, rather than failing open
+        - stores the secret as it is only where plain text is bound on purpose
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a second factor with nothing to seal it
+        - is a finding of its own, naming both ways to bind one
+        - stops the boot
+
+<!-- END proof -->

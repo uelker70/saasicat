@@ -18,7 +18,7 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
-import { SaaSiCatModule } from '../dist/platform/index.js';
+import { SaaSiCatModule, storeSecretsInPlainText } from '../dist/platform/index.js';
 import { AppliedSettingsRecorder, fingerprintOf } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
@@ -99,7 +99,7 @@ async function boot(catalog, port, email) {
                 controller: { guards: [FakeJwtGuard] },
                 discoverySnapshotPath: null,
                 persistence: persistenceWith(port),
-                adapters: email ? { email } : {},
+                adapters: { secretSealer: storeSecretsInPlainText(), ...(email ? { email } : {}) },
                 defaultPlanId: 'PRO',
             }),
         ],

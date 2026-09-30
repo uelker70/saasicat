@@ -2,7 +2,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import * as platformEntry from '../dist/platform/index.js';
-import { SaaSiCatModule, StaticFeatureGuard } from '../dist/platform/index.js';
+import {
+    SaaSiCatModule,
+    StaticFeatureGuard,
+    storeSecretsInPlainText,
+} from '../dist/platform/index.js';
 import * as rootEntry from '../dist/index.js';
 
 // The mega-module composes a lot for the app. These tests cover the seams an
@@ -48,6 +52,7 @@ const baseOptions = () => ({
     controller: { guards: [FakeJwtGuard] },
     adapters: {
         mfa: new FakeMfaPort(),
+        secretSealer: storeSecretsInPlainText(),
         audit: new FakeAuditPort(),
         rlsBypass: new FakeRlsBypassPort(),
     },

@@ -420,7 +420,7 @@ public; the bundle does not remove the extension points.
 ## Wiring the Standard AppModule
 
 ```ts
-import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
+import { aesGcmSecretSealer, defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 
 @Module({
     imports: [
@@ -433,6 +433,7 @@ import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
                 controller: { guards: [JwtAuthGuard] },
                 imports: [PrismaModule, AuthModule],
                 persistence,
+                adapters: { secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY) },
                 entitlement: {
                     resolutionConfig: { defaultTrialEntitlementPlan: 'STARTER' },
                 },
@@ -465,6 +466,37 @@ small quickstart. `AppModule` then contains only
 `SaaSiCatModule.forRoot(MY_APP_SAASICAT_CONFIG)`. The library owns module
 composition; the client file contains only auth, branding and adapter choices
 that are inherently application-specific.
+
+### The SuperAdmin's second factor is sealed
+
+The TOTP secret behind a SuperAdmin's second factor guards the accounts that can
+change every tenant's plan, codes and contracts. Stored as it is, whoever holds a
+dump, a backup or a replica of the database holds it too, and the second factor
+adds nothing against them. So the platform seals it before `MfaPort` stores it
+and opens it after it is read (`SC-SEC-016`), under a key your installation keeps
+outside that database. The boot stops while no sealer is bound
+(`core.secret-sealer-bound`).
+
+- **`aesGcmSecretSealer(key)`** seals with AES-256-GCM. The key is 32 random
+  bytes, base64 —
+  `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`.
+  Pass `process.env.…` as it is: a key that is unset, or of any other length,
+  stops the boot with a message saying which.
+- **`storeSecretsInPlainText()`** stores the secret as it is, for an
+  installation that decides so on purpose — a development database, or a store
+  that encrypts the column itself.
+- **A sealer of your own** implements `SecretSealer` from `@saasicat/core`:
+  `seal(plain)` and `open(sealed)`, where `open` throws for anything it did not
+  seal. A key management service fits here, or the field encryption your
+  application already has.
+
+The persistence bundle does not supply one: the bundle is the database, and the
+key is the one thing that must not come from there. A CLI that wires
+`AdminModule.forRoot` itself binds the same sealer under the same key, since
+`admin mfa-setup` seals there and the application opens. A changed or lost key leaves
+every stored secret unreadable. The platform then turns the code away rather than
+accepting it, logs which user it could not check, and that administrator enrols
+again with `<app> admin mfa-setup --force`.
 
 `resolutionConfig` answers which plan's entitlements apply when the
 subscription's own plan is not the whole story: during a trial, during a pilot,

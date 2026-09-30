@@ -36,7 +36,7 @@ import the platform modules and register their own commands.
 ```ts
 // backend/src/cli/cli.module.ts
 import { Module } from '@nestjs/common';
-import { AdminModule, PlanCatalogModule } from '@saasicat/nest';
+import { AdminModule, PlanCatalogModule, aesGcmSecretSealer } from '@saasicat/nest';
 import { CliContextModule } from '@saasicat/cli';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
@@ -66,6 +66,9 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
         }),
         AdminModule.forRoot({
             mfaPort: { useFactory: (p) => new PrismaMfaAdapter(p), inject: [PrismaService] },
+            // The application's sealer and key: `admin mfa-setup` seals here,
+            // the application opens what it wrote.
+            secretSealer: aesGcmSecretSealer(process.env.SECRET_SEALER_KEY),
             auditPort: { useFactory: (p) => new PrismaAuditAdapter(p), inject: [PrismaService] },
             rlsBypassPort: new AsyncLocalRlsBypassAdapter(),
         }),

@@ -121,7 +121,13 @@ see [wire the backend](guides/wire-the-backend.md).
 
 ## 5 — Start it, and create the first SuperAdmin
 
+The platform seals the SuperAdmin's second factor with a key only your
+installation holds, and the first start stops until there is one. Set it to
+32 random bytes, base64, and keep it with your other secrets — a changed key
+means every SuperAdmin enrols their second factor again:
+
 ```bash
+export SECRET_SEALER_KEY=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))")
 pnpm start:dev
 jq '.capabilities[].capabilityKey' var/discovery-snapshot.json   # → "notes.create"
 ```
@@ -236,6 +242,7 @@ Add these in this order:
 | `@RequireFeature('NOTES')` throws 403                   | The tenant has no active/trial subscription, or its plan does not include `NOTES`.                  |
 | Discovery tabs stay empty                               | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                          |
 | Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).          |
+| Boot stops with `The secret sealer needs a key`         | `SECRET_SEALER_KEY` is unset, or is not 32 bytes of base64 — see step 5.                            |
 | `tenantManifest` throws at boot                         | Enable `tenantBilling`, or provide `defaultPlanId`/`adapters.planResolver`.                         |
 
 For deeper troubleshooting, see [troubleshooting](guides/troubleshooting.md).

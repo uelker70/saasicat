@@ -27,7 +27,7 @@ import {
     PLAN_CATALOG_SOURCE_TOKEN,
     loadPlanCatalogFromFile,
 } from '../dist/billing/index.js';
-import { SETTINGS_SOURCE_TOKEN } from '../dist/index.js';
+import { SETTINGS_SOURCE_TOKEN, storeSecretsInPlainText } from '../dist/index.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 
 // Every settings block the schema declares, so that a block the chain dropped
@@ -116,7 +116,7 @@ function forRootWith(dbCatalog, port = new FakeAppliedSettingsPort()) {
         controller: { guards: [FakeJwtGuard] },
         discoverySnapshotPath: null,
         persistence: persistenceWith(port),
-        adapters: { planCatalogReadSink: fakeSink() },
+        adapters: { secretSealer: storeSecretsInPlainText(), planCatalogReadSink: fakeSink() },
         defaultPlanId: 'PRO',
     });
 }
@@ -265,6 +265,7 @@ describe('a file that does not load', () => {
         assert.throws(
             () =>
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     dbCatalog: { path: join(scratchDir(), 'missing.yaml') },
                     controller: { guards: [FakeJwtGuard] },
                     discoverySnapshotPath: null,

@@ -25,6 +25,7 @@ import {
     MaintenanceService,
     RequireFeature,
     SaaSiCatModule,
+    storeSecretsInPlainText,
 } from '../dist/index.js';
 import { FakeMaintenanceWindowPort, OPERATOR, inMinutes } from './helpers/maintenance-windows.js';
 
@@ -122,6 +123,7 @@ function appModule(port, resolverCalls) {
                         },
                     },
                     adapters: {
+                        secretSealer: storeSecretsInPlainText(),
                         planResolver: {
                             async getPlanIdForTenant(tenantId) {
                                 resolverCalls.push(tenantId);

@@ -173,11 +173,11 @@ Sends a plain-text mail to an operator.
 
 Adapter for MFA secret persistence.
 
-| Member                                                             | What it does                                          |
-| ------------------------------------------------------------------ | ----------------------------------------------------- |
-| `getSecret(userId: string): Promise<string \| null>`               | Returns the stored TOTP secret or null.               |
-| `setSecret(userId: string, secret: string \| null): Promise<void>` | Persists or deletes (null) the TOTP secret.           |
-| `isEnabled(userId: string): Promise<boolean>`                      | The platform calls this during the mfa-setup command. |
+| Member                                                             | What it does                                                  |
+| ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `getSecret(userId: string): Promise<string \| null>`               | Returns the stored secret or null.                            |
+| `setSecret(userId: string, secret: string \| null): Promise<void>` | Persists or deletes (null) the sealed secret, as it is given. |
+| `isEnabled(userId: string): Promise<boolean>`                      | The platform calls this during the mfa-setup command.         |
 
 ## Maintenance
 

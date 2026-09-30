@@ -23,6 +23,7 @@ import {
     PLAN_CATALOG_SETTINGS_TOKEN,
     noticeDaysFor,
 } from '../dist/billing/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] };
@@ -63,6 +64,7 @@ async function boot(catalog, tenantBillingExtras = {}) {
     return Test.createTestingModule({
         imports: [
             SaaSiCatModule.forRoot({
+                adapters: { secretSealer: storeSecretsInPlainText() },
                 planCatalog: catalog,
                 controller: { guards: [FakeJwtGuard] },
                 discoverySnapshotPath: null,

@@ -994,6 +994,7 @@ _Tested by:_
         - the admin module is registered, not merely imported
         - nothing is imported that the inserted code does not use
         - every symbol the block uses is imported
+        - seals the administrator's second factor with a key from the environment
         - what was already in the array keeps its own line
         - the imports go after the last existing one
         - running it twice does nothing the second time
@@ -1132,6 +1133,7 @@ _Tested by:_
         - the admin module is registered, not merely imported
         - nothing is imported that the inserted code does not use
         - every symbol the block uses is imported
+        - seals the administrator's second factor with a key from the environment
         - what was already in the array keeps its own line
         - the imports go after the last existing one
         - running it twice does nothing the second time

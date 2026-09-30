@@ -18,6 +18,7 @@ import { SubscriberAccountModule, SubscriberAccountService } from '../dist/billi
 import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
 import { ARCHIVE, anAccount, discountLine, line, utc } from './helpers/charge-journal.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49, { titleSnapshot: 'Standard' });
 const WELCOME = () => ({
@@ -258,6 +259,7 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
         listSubscriptions: async () => [],
     };
     const root = SaaSiCatModule.forRoot({
+        adapters: { secretSealer: storeSecretsInPlainText() },
         planCatalog: PLAN_CATALOG,
         controller: { guards: [] },
         discoverySnapshotPath: null,

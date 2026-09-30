@@ -16,6 +16,7 @@ import {
     defineSaaSiCat,
 } from '../dist/platform/index.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../dist/billing/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -60,6 +61,7 @@ function fakeBundle(capabilityOverrides = {}) {
 describe('SaaSiCatModule persistence bundle', () => {
     test('forRoot wires from a bundle without individual adapters', () => {
         const mod = SaaSiCatModule.forRoot({
+            adapters: { secretSealer: storeSecretsInPlainText() },
             planCatalog,
             controller: { guards: [] },
             persistence: fakeBundle(),
@@ -70,13 +72,19 @@ describe('SaaSiCatModule persistence bundle', () => {
 
     test('missing core adapters are reported by name', () => {
         assert.throws(
-            () => SaaSiCatModule.forRoot({ planCatalog, controller: { guards: [] } }),
+            () =>
+                SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
+                    planCatalog,
+                    controller: { guards: [] },
+                }),
             /mfa, audit, rlsBypass/,
         );
     });
 
     test('entitlement pulls repositories + transaction runner from the bundle', () => {
         const mod = SaaSiCatModule.forRoot({
+            adapters: { secretSealer: storeSecretsInPlainText() },
             planCatalog,
             controller: { guards: [] },
             persistence: fakeBundle(),
@@ -89,6 +97,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         assert.throws(
             () =>
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog,
                     controller: { guards: [] },
                     persistence: fakeBundle({ pessimisticLocking: false }),
@@ -109,7 +118,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             planCatalog,
             controller: { guards: [] },
             persistence: fakeBundle(),
-            adapters: { mfa: explicitMfa },
+            adapters: { secretSealer: storeSecretsInPlainText(), mfa: explicitMfa },
         });
         assert.ok(mod.module);
     });
@@ -140,7 +149,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             const mod = SaaSiCatModule.forRoot({
                 controller: { guards: [] },
                 persistence: fakeBundle(),
-                adapters: { planCatalogReadSink: sink },
+                adapters: { secretSealer: storeSecretsInPlainText(), planCatalogReadSink: sink },
                 dbCatalog: { path },
             });
 
@@ -165,6 +174,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         assert.throws(
             () =>
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     controller: { guards: [] },
                     persistence: fakeBundle(), // provides a read sink, but no identity
                 }),
@@ -176,6 +186,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         assert.throws(
             () =>
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     controller: { guards: [] },
                     persistence: fakeBundle(),
                     dbCatalog: { app: { name: 'NotesApp' }, currency: 'EUR', vatRate: 19 },
@@ -208,6 +219,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         const moduleRef = await Test.createTestingModule({
             imports: [
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog: {
                         ...planCatalog,
                         plans: [{ id: 'STARTER', features: ['NOTES'], quotas: { notesMax: 25 } }],
@@ -232,6 +244,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         assert.throws(
             () =>
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog,
                     controller: { guards: [] },
                     persistence: bundle,
@@ -271,6 +284,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                 planCatalog,
                 controller: { guards: [] },
                 persistence: bundle,
+                adapters: { secretSealer: storeSecretsInPlainText() },
                 catalog: {
                     featureUiRegistry: {},
                     autoSyncDiscoveryAtBoot: false,
@@ -385,6 +399,7 @@ describe('SaaSiCatModule persistence bundle', () => {
         const moduleRef = await Test.createTestingModule({
             imports: [
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog,
                     controller: { guards: [] },
                     imports: [LocalClientModule],

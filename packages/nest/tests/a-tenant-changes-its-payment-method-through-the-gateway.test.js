@@ -10,7 +10,11 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 
 import { BillingPermissionGuard, ComposedTenantAuthGuard } from '../dist/billing/index.js';
-import { RLS_BYPASS_PORT_TOKEN, SAASICAT_PUBLIC_ROUTE_KEY } from '../dist/index.js';
+import {
+    RLS_BYPASS_PORT_TOKEN,
+    SAASICAT_PUBLIC_ROUTE_KEY,
+    storeSecretsInPlainText,
+} from '../dist/index.js';
 import {
     DevPaymentGateway,
     PaymentWebhookController,
@@ -925,6 +929,7 @@ describe('SaaSiCatModule composes payments', () => {
 
     test('with tenant billing: the webhook route and the tenant routes, behind the tenant guards', () => {
         const dyn = SaaSiCatModule.forRoot({
+            adapters: { secretSealer: storeSecretsInPlainText() },
             planCatalog: catalog,
             controller: { guards: [AllowAll] },
             persistence,
@@ -943,6 +948,7 @@ describe('SaaSiCatModule composes payments', () => {
 
     test('without tenant billing: the webhook route alone', () => {
         const dyn = SaaSiCatModule.forRoot({
+            adapters: { secretSealer: storeSecretsInPlainText() },
             planCatalog: catalog,
             controller: { guards: [AllowAll] },
             persistence,
@@ -956,6 +962,7 @@ describe('SaaSiCatModule composes payments', () => {
         assert.throws(
             () =>
                 SaaSiCatModule.forRoot({
+                    adapters: { secretSealer: storeSecretsInPlainText() },
                     planCatalog: catalog,
                     controller: { guards: [AllowAll] },
                     persistence: { ...persistence, payments: undefined },

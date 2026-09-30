@@ -177,6 +177,16 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'through `adapters`.',
     },
     {
+        id: 'core.secret-sealer-bound',
+        when: () => true,
+        assert: (c) => Boolean(c.adapters.secretSealer),
+        message:
+            "no secret sealer is bound, and a SuperAdmin's TOTP secret would be stored as it " +
+            'is. Bind `adapters.secretSealer: aesGcmSecretSealer(<32-byte key, base64>)` with ' +
+            'a key from your configuration, or `storeSecretsInPlainText()` if plain text is ' +
+            'what you mean.',
+    },
+    {
         id: 'catalog.identity-or-sink',
         when: (c) => !c.options.planCatalog,
         assert: (c) => Boolean(c.adapters.planCatalogReadSink && c.options.dbCatalog),

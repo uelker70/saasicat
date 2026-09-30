@@ -13,17 +13,24 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/core';
+import type { AuditPort, MfaPort, RlsBypassPort, SecretSealer } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { AdminBypassRlsInterceptor } from './admin-bypass-rls.interceptor.js';
 import { MfaService } from './mfa.service.js';
 import { MfaGuard } from './mfa.guard.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
-import { AUDIT_PORT_TOKEN, MFA_PORT_TOKEN, RLS_BYPASS_PORT_TOKEN } from './admin.tokens.js';
+import {
+    AUDIT_PORT_TOKEN,
+    MFA_PORT_TOKEN,
+    RLS_BYPASS_PORT_TOKEN,
+    SECRET_SEALER_TOKEN,
+} from './admin.tokens.js';
 
 export interface AdminModuleOptions {
     mfaPort: ProviderSpec<MfaPort>;
+    /** Seals the TOTP secret before `mfaPort` stores it; see `SecretSealer`. */
+    secretSealer: ProviderSpec<SecretSealer>;
     auditPort: ProviderSpec<AuditPort>;
     rlsBypassPort: ProviderSpec<RlsBypassPort>;
     /** Modules required by adapter factory `inject` tokens. */
@@ -37,6 +44,7 @@ export class AdminModule {
     static forRoot(options: AdminModuleOptions): DynamicModule {
         const providers: Provider[] = [
             asProvider(MFA_PORT_TOKEN, options.mfaPort),
+            asProvider(SECRET_SEALER_TOKEN, options.secretSealer),
             asProvider(AUDIT_PORT_TOKEN, options.auditPort),
             asProvider(RLS_BYPASS_PORT_TOKEN, options.rlsBypassPort),
             MfaService,
@@ -53,6 +61,7 @@ export class AdminModule {
             providers,
             exports: [
                 MFA_PORT_TOKEN,
+                SECRET_SEALER_TOKEN,
                 AUDIT_PORT_TOKEN,
                 RLS_BYPASS_PORT_TOKEN,
                 MfaService,

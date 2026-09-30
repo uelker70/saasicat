@@ -1025,11 +1025,16 @@ async function cmdInit(args, argv) {
     console.log('       The platform module resolves its providers from that list;');
     console.log('       without it the first boot stops at "Nest can\'t resolve');
     console.log('       dependencies of … (PrismaService)".');
+    console.log('  3. Set SECRET_SEALER_KEY in the environment — 32 random bytes, base64:');
+    console.log(
+        "       node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64'))\"",
+    );
+    console.log('     It seals the SuperAdmin second factor; the boot stops while it is unset.');
     if (plan.quotaProviders.length > 0) {
-        console.log('  3. Check each quota provider counts the right thing');
-        console.log('  4. saasicat schema migrate --name=add_saasicat');
+        console.log('  4. Check each quota provider counts the right thing');
+        console.log('  5. saasicat schema migrate --name=add_saasicat');
     } else {
-        console.log('  3. saasicat schema migrate --name=add_saasicat');
+        console.log('  4. saasicat schema migrate --name=add_saasicat');
     }
 }
 

@@ -7,8 +7,8 @@
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { generateSecret, generateURI, verify as verifyTotpCode } from 'otplib';
-import type { MfaPort } from '@saasicat/core';
-import { MFA_PORT_TOKEN } from './admin.tokens.js';
+import type { MfaPort, SecretSealer } from '@saasicat/core';
+import { MFA_PORT_TOKEN, SECRET_SEALER_TOKEN } from './admin.tokens.js';
 
 /**
  * Allows a 30-second tolerance before and after the current time window
@@ -44,7 +44,12 @@ export interface VerifyTotpInput {
 export class MfaService {
     private readonly logger = new Logger(MfaService.name);
 
-    constructor(@Inject(MFA_PORT_TOKEN) private readonly mfa: MfaPort) {}
+    constructor(
+        @Inject(MFA_PORT_TOKEN) private readonly mfa: MfaPort,
+        // Required: a secret is sealed before the port sees it. An installation
+        // that wants plain text binds `storeSecretsInPlainText()` on purpose.
+        @Inject(SECRET_SEALER_TOKEN) private readonly sealer: SecretSealer,
+    ) {}
 
     /**
      * Generates a new TOTP secret, persists it via `MfaPort.setSecret`
@@ -56,7 +61,7 @@ export class MfaService {
     async setup(userId: string, label: string, issuer: string): Promise<TotpSetupResult> {
         const secret = generateSecret();
         const otpauthUri = generateURI({ issuer, label, secret });
-        await this.mfa.setSecret(userId, secret);
+        await this.mfa.setSecret(userId, await this.sealer.seal(secret));
         return { secret, otpauthUri };
     }
 
@@ -65,8 +70,22 @@ export class MfaService {
      * clock-drift-tolerant by ±1 time step.
      */
     async verify(input: VerifyTotpInput): Promise<boolean> {
-        const secret = await this.mfa.getSecret(input.userId);
-        if (!secret) return false;
+        const stored = await this.mfa.getSecret(input.userId);
+        if (!stored) return false;
+        let secret: string;
+        try {
+            secret = await this.sealer.open(stored);
+        } catch (error) {
+            // Fail closed, and say why: a secret sealed under another key, or
+            // stored before secrets were sealed, can only be replaced by
+            // enrolling again.
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.warn(
+                `The second factor of user ${input.userId} cannot be checked: ${message} ` +
+                    'Enrol again with `admin mfa-setup` to replace it.',
+            );
+            return false;
+        }
         try {
             const result = await verifyTotpCode({
                 secret,

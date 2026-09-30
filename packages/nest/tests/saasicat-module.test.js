@@ -18,6 +18,7 @@ import {
     StaticPlanResolver,
 } from '../dist/platform/index.js';
 import { givenPlanCatalogSource } from '../dist/billing/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // Platform safety tests for the quickstart mega-module.
 
@@ -87,6 +88,7 @@ describe('SaaSiCatModule.forRoot', () => {
                 SaaSiCatModule.forRoot({
                     controller: { guards: [FakeJwtGuard] },
                     adapters: {
+                        secretSealer: storeSecretsInPlainText(),
                         mfa: new FakeMfaPort(),
                         audit: new FakeAuditPort(),
                         rlsBypass: new FakeRlsBypassPort(),
@@ -101,6 +103,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),
@@ -128,6 +131,7 @@ describe('SaaSiCatModule.forRoot', () => {
                     planCatalog: MINIMAL_CATALOG,
                     controller: { guards: [FakeJwtGuard] },
                     adapters: {
+                        secretSealer: storeSecretsInPlainText(),
                         mfa: new FakeMfaPort(),
                         audit: new FakeAuditPort(),
                         rlsBypass: new FakeRlsBypassPort(),
@@ -143,6 +147,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),
@@ -160,6 +165,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),
@@ -173,6 +179,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),
@@ -217,6 +224,7 @@ describe('SaaSiCatModule.forRoot', () => {
         const provisioning = {};
         const contractRepository = {};
         const dyn = SaaSiCatModule.forRoot({
+            adapters: { secretSealer: storeSecretsInPlainText() },
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             persistence: {
@@ -257,6 +265,7 @@ describe('SaaSiCatModule.forRoot', () => {
                     controller: { guards: [FakeJwtGuard] },
                     discoverySnapshotPath: null,
                     adapters: {
+                        secretSealer: storeSecretsInPlainText(),
                         mfa: new FakeMfaPort(),
                         audit: new FakeAuditPort(),
                         rlsBypass: new FakeRlsBypassPort(),
@@ -290,6 +299,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),
@@ -335,6 +345,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),
@@ -375,6 +386,7 @@ describe('SaaSiCatModule.forRoot', () => {
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
+                secretSealer: storeSecretsInPlainText(),
                 mfa: new FakeMfaPort(),
                 audit: new FakeAuditPort(),
                 rlsBypass: new FakeRlsBypassPort(),

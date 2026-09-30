@@ -7,6 +7,7 @@ import { Logger } from '@nestjs/common';
 import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
+import { storeSecretsInPlainText } from '../dist/index.js';
 
 // A configuration that leaves `@RequireFeature`/`@EnforceQuota` inert breaks
 // nothing visibly: annotated routes keep answering, quotas read as unlimited,
@@ -55,6 +56,7 @@ function baseOptions(extra = {}) {
         planCatalog: MINIMAL_CATALOG,
         controller: { guards: [FakeJwtGuard] },
         adapters: {
+            secretSealer: storeSecretsInPlainText(),
             mfa: new FakeMfaPort(),
             audit: new FakeAuditPort(),
             rlsBypass: new FakeRlsBypassPort(),

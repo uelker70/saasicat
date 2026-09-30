@@ -18,6 +18,7 @@ export * from './admin.tokens.js';
 export * from './super-admin.guard.js';
 export * from './mfa.guard.js';
 export * from './mfa.service.js';
+export * from './secret-sealers.js';
 export * from './admin-audit.service.js';
 export * from './admin-bypass-rls.interceptor.js';
 export * from './admin.module.js';

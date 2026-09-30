@@ -114,6 +114,12 @@ export { AdminBypassRlsInterceptor } from '../admin/admin-bypass-rls.interceptor
 export { AdminResourcesService } from '../admin/admin-resources.module.js';
 export { MfaGuard } from '../admin/mfa.guard.js';
 export { MfaService } from '../admin/mfa.service.js';
+export {
+    UnreadableSealedSecretError,
+    aesGcmSecretSealer,
+    storeSecretsInPlainText,
+} from '../admin/secret-sealers.js';
+export { SECRET_SEALER_TOKEN } from '../admin/admin.tokens.js';
 export { SuperAdminGuard } from '../admin/super-admin.guard.js';
 
 export { EntitlementService } from '../entitlement/entitlement.service.js';
