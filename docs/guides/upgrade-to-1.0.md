@@ -2058,10 +2058,16 @@ cent can come out a cent higher than before: 5 % of 20.10 is 1.01, not 1.00.
 - **Arithmetic of your own** that rounds money with `Math.round(n * 100) / 100` has the same flaw on
   the half cent. Where it should agree with the platform's figures — an invoice total beside a
   contract's — compute it with these.
-- **An offer priced before the upgrade** keeps the gross it was written with. Where that gross came
-  out a cent short, concluding it is refused with `CHECKOUT_OFFER_PRICE_NOT_CURRENT`, the answer to
-  an offer whose amounts are not what the pricing makes of them: the customer asks for a new offer,
-  priced by this rule, and a contract never states other totals than its offer.
+- **An offer priced before the upgrade** keeps the amounts it was written with. Where one of them
+  lands on a half cent — its gross, or the discount a percentage promotion took off, 5 % of 20.10 —
+  concluding it is refused with `CHECKOUT_OFFER_PRICE_NOT_CURRENT`, the answer to an offer whose
+  amounts are not what the pricing makes of them: the customer asks for a new offer, priced by this
+  rule, and a contract never states other totals than its offer.
+- **A contract written before the upgrade** keeps its money too. Refreshed with `--full`, one whose
+  gross or line tax lands on a half cent re-freezes a cent apart — 11.50 net at 19 % was 13.68 and is
+  now 13.69 — and the preview reports that as a money change and refuses with `MONEY_WOULD_CHANGE`,
+  although the catalogue did not change. The default refresh, features only, carries the money over
+  as written and is not affected.
 
 ## What the codemod leaves to you
 

@@ -14,9 +14,10 @@ calculation of the same agreement — a cent off what an accountant or an import
 into the bookkeeping arrives at (`SC-PRIC-061`).
 
 - `@saasicat/core` computes money exactly: `percentOf`, `prorate`,
-  `grossFromNet`, `netFromGross`, `computeIncludedVat`, `roundToCents` and
-  `toCents` read each amount and rate as the decimal it prints as, multiply
-  and divide as integers, and round once to the cent, half away from zero.
+  `grossFromNet`, `netFromGross`, `computeIncludedVat`, `roundToCents`,
+  `sumToCents` and `toCents` read each amount and rate as the decimal it
+  prints as, add, multiply and divide as integers, and round once to the cent,
+  half away from zero.
 - Every place the platform rounded money goes through them: a promo code's
   percentage and fixed discounts, gross and net, the tax a gross amount holds,
   proration, the offer's sums, the configurator's prices, a contract line's
@@ -24,10 +25,15 @@ into the bookkeeping arrives at (`SC-PRIC-061`).
 - A percentage promotion now takes off the discount rounded, as a promo code
   does, rather than rounding the reduced price: 5 % off 20.10 is 19.09 either
   way. The two rules differed by a cent on a half.
-- An offer priced before the upgrade keeps the gross it was written with.
-  Where that gross is a cent short, concluding it is refused with
-  `CHECKOUT_OFFER_PRICE_NOT_CURRENT` and the customer asks for a new offer; a
-  contract never states other totals than its offer.
+- An offer priced before the upgrade keeps the amounts it was written with.
+  Where its gross, or the discount a percentage promotion took off, lands on a
+  half cent, concluding it is refused with `CHECKOUT_OFFER_PRICE_NOT_CURRENT`
+  and the customer asks for a new offer; a contract never states other totals
+  than its offer.
+- A contract written before the upgrade keeps its money. A `--full` refresh of
+  one whose gross or line tax lands on a half cent reports a money change and
+  is refused with `MONEY_WOULD_CHANGE`; the default refresh, features only,
+  carries the money over as written.
 - `grossFromNet`, `netFromGross` and `computeIncludedVat` from
   `@saasicat/nest` are the core functions under the same names. `round2` is
   gone: import `roundToCents` from `@saasicat/core`.
