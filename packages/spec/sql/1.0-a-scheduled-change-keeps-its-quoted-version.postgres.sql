@@ -19,9 +19,15 @@
 -- left out; the change then binds the version in effect when it comes due, as
 -- it did before this file. A change that stays on its plan is left empty: it keeps the
 -- version bound, whatever that is by the day it comes due. A plan with no live
--- version is left empty too, and binds the version in effect when it comes due,
--- and so is every change on a schema whose "plan_versions"."planId" holds the
--- plan's row id rather than its key: the match below is by key.
+-- version is left empty too, and binds the version in effect when it comes due.
+--
+-- The plan is found the way the Prisma adapter's `planBinding` stores it: by
+-- its key in "plan_versions"."planId" (`legacy-plan-key`), or — where the
+-- column holds the plan's row id (`normalized-plan-id`) — through the row of
+-- "plans" that carries the key. The fragment generates that row id as a UUID,
+-- so it does not coincide with a key and at most one of the two matches. The
+-- second is left out where "plans" has no "planKey", which includes a schema
+-- with no "plans" at all.
 --
 -- Safe to run again: the column, its index and its foreign key are added only
 -- where they are missing, and the backfill runs only in the run that adds the
@@ -59,7 +65,7 @@ BEGIN
             SET "pendingChangeVersionId" = (
                 SELECT v."id"
                 FROM "plan_versions" AS v
-                WHERE v."planId" = s."pendingPlan"
+                WHERE (v."planId" = s."pendingPlan" %s)
                   AND v."publishedAt" IS NOT NULL
                   AND v."supersededAt" IS NULL
                   %s
@@ -70,6 +76,17 @@ BEGIN
             WHERE s."pendingPlan" IS NOT NULL
               AND s."pendingPlan" <> s."plan"
             $backfill$,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'plans'
+                      AND column_name = 'planKey'
+                )
+                THEN 'OR v."planId" IN (SELECT p."id" FROM "plans" AS p WHERE p."planKey" = s."pendingPlan")'
+                ELSE ''
+            END,
             CASE
                 WHEN EXISTS (
                     SELECT 1

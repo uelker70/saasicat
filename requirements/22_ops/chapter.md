@@ -224,6 +224,9 @@ _Tested by:_
         - and the constraints applied again move a sequence that has handed numbers out nowhere
     - a scheduled change learns the version it was quoted at
         - a change to another plan is given the version live now; the rest are left empty
+        - a plan stored by its row id is found through its key, as the Prisma adapter's
+          normalized-plan-id binding stores it
+        - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
 
 <!-- END proof -->
@@ -319,6 +322,9 @@ _Tested by:_
         - and the constraints applied again move a sequence that has handed numbers out nowhere
     - a scheduled change learns the version it was quoted at
         - a change to another plan is given the version live now; the rest are left empty
+        - a plan stored by its row id is found through its key, as the Prisma adapter's
+          normalized-plan-id binding stores it
+        - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
 - `tests/build-stamp.test.js`
     - the build stamp
