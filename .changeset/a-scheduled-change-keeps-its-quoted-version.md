@@ -21,7 +21,9 @@ reached the customer through a change they had confirmed at another price
   subscriptions table gains the column, with a foreign key to `plan_versions`.
   `1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql` adds it to an
   existing installation and gives a change already scheduled to another plan
-  the version live and in effect when it runs.
+  the version live and in effect when it runs. It finds that plan by its key
+  in `plan_versions."planId"`, or — under the Prisma adapter's
+  `normalized-plan-id` binding — through the row of `plans` carrying the key.
 - `ImmediatePlanChangeInput` takes `quotedPlanVersionId`: where set, and no
   version is kept by `keepsBoundVersion`, the write binds it rather than the
   version in effect — while it can still be booked for that plan on the day
