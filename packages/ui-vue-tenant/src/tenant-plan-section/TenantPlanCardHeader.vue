@@ -24,7 +24,20 @@
             <p v-if="usage.isPilot && usage.pilotEndsAt" class="sp-plan-section__sub">
                 {{ i18n.pilotEndsAt }}: {{ formatDate(usage.pilotEndsAt) }}
             </p>
-            <p v-if="usage.pendingPlan" class="sp-plan-section__sub">
+            <!--
+                A change scheduled on the plan and the rhythm the subscription
+                already has changes neither, so it can only be a newer version
+                taken for the end of the term. Naming the plan it keeps would read
+                as a change to the same plan.
+            -->
+            <p v-if="usage.pendingPlan && movesOnlyTheVersion" class="sp-plan-section__sub">
+                {{ i18n.pendingVersionSwitch }}
+                <template v-if="usage.pendingEffectiveAt">
+                    — {{ i18n.changeEffectiveAt }}
+                    {{ formatDate(usage.pendingEffectiveAt) }}
+                </template>
+            </p>
+            <p v-else-if="usage.pendingPlan" class="sp-plan-section__sub">
                 {{ i18n.pendingChange }}:
                 {{ i18n.changeFromTo }}
                 <strong>{{ usage.pendingPlan }}</strong>
@@ -118,4 +131,11 @@ const landsAt = computed(() => cancellationLandsAt(props.usage));
  * "running" and keep offering a plan change the route refuses.
  */
 const hasEnded = useSubscriptionHasEnded(() => props.usage);
+
+/** A scheduled change that keeps the plan and the rhythm moves the version alone. */
+const movesOnlyTheVersion = computed(
+    () =>
+        props.usage.pendingPlan === props.usage.plan &&
+        props.usage.pendingBillingCycle === props.usage.billingCycle,
+);
 </script>

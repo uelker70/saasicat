@@ -316,6 +316,7 @@ import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
 import { resolveErrorMessage } from '@saasicat/core';
+import { defaultQuotaValue } from './plan/quota-value.js';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
 import type {
     BillingCycleStr,
@@ -606,12 +607,9 @@ function isFractionalQuotaSafe(key: string): boolean {
 
 function formatQuotaValueResolved(key: string, value: number | null | undefined): string {
     if (props.formatQuotaValue) return props.formatQuotaValue(key, value as number);
-    // Plans may omit individual quota keys; the default renderer must
-    // cope with `undefined` instead of crashing (.toLocaleString).
-    if (value === null || value === undefined || Number.isNaN(value)) return '–';
-    if (value < 0) return '∞';
-    if (key.toLowerCase().includes('storage')) return `${value} GB`;
-    return value.toLocaleString(intlLocale.value);
+    // Plans may omit individual quota keys; the default renderer copes with
+    // `undefined` instead of crashing.
+    return defaultQuotaValue(key, value, intlLocale.value);
 }
 
 const cycleI18n = computed(() => ({

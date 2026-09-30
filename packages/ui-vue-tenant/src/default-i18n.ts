@@ -113,6 +113,37 @@ export interface TenantPlanSectionI18n {
     pendingVersionAcceptAction: string;
     pendingVersionAcceptInProgress: string;
     pendingVersionAcceptedAt: string;
+    /** The offer's heading; `{version}` is the version offered. */
+    versionOfferTitle: string;
+    versionOfferKindImprovement: string;
+    versionOfferKindMoreForMore: string;
+    versionOfferKindTakesAway: string;
+    versionOfferLeadImprovement: string;
+    versionOfferLeadMoreForMore: string;
+    versionOfferLeadTakesAway: string;
+    /** Said beside every offer: an offer has no deadline and nothing to decline. */
+    versionOfferNoAction: string;
+    versionOfferCaption: string;
+    versionOfferColumnItem: string;
+    versionOfferColumnBound: string;
+    versionOfferColumnOffered: string;
+    versionOfferPriceMonthly: string;
+    versionOfferPriceYearly: string;
+    /** A rhythm a version is not sold in. */
+    versionOfferNotSold: string;
+    versionOfferFeaturesAdded: string;
+    versionOfferFeaturesRemoved: string;
+    versionOfferEffectiveNow: string;
+    versionOfferEffectiveAt: string;
+    versionOfferTakeAction: string;
+    versionOfferConfirmTitle: string;
+    versionOfferConfirmMoreForMore: string;
+    versionOfferConfirmTakesAway: string;
+    versionOfferConfirmAction: string;
+    versionOfferSwitchedNow: string;
+    versionOfferSwitchScheduled: string;
+    /** A scheduled change that keeps the plan and the rhythm: a newer version taken for the end of the term. */
+    pendingVersionSwitch: string;
     wizardTitle: string;
     wizardClose: string;
     wizardCurrent: string;
@@ -380,6 +411,39 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     pendingVersionAcceptAction: 'Änderungen akzeptieren',
     pendingVersionAcceptInProgress: 'Akzeptiere …',
     pendingVersionAcceptedAt: 'Akzeptiert am',
+    versionOfferTitle: 'Version {version} Ihres Pakets',
+    versionOfferKindImprovement: 'Verbesserung',
+    versionOfferKindMoreForMore: 'Mehr Leistung, höherer Preis',
+    versionOfferKindTakesAway: 'Schränkt ein',
+    versionOfferLeadImprovement:
+        'Diese Version bietet mehr und kostet nicht mehr. Ein Wechsel gilt sofort, kostet nichts, und Ihre Laufzeit bleibt.',
+    versionOfferLeadMoreForMore:
+        'Diese Version bietet mehr und kostet mehr. Ein Wechsel gilt sofort; für den Rest der laufenden Periode wird die anteilige Differenz berechnet, wenn Ihr Abrechnungsrhythmus teurer wird.',
+    versionOfferLeadTakesAway:
+        'Diese Version enthält weniger als Ihre jetzige. Ein Wechsel gilt erst zum Ende Ihrer Laufzeit; bis dahin bleibt alles, wie es ist.',
+    versionOfferNoAction:
+        'Sie müssen nichts tun: Ihre jetzige Version bleibt, solange Sie nicht wechseln.',
+    versionOfferCaption: 'Ihre Version und die neue im Vergleich',
+    versionOfferColumnItem: 'Leistung',
+    versionOfferColumnBound: 'Ihre Version ({version})',
+    versionOfferColumnOffered: 'Neue Version ({version})',
+    versionOfferPriceMonthly: 'Preis monatlich (netto)',
+    versionOfferPriceYearly: 'Preis jährlich (netto)',
+    versionOfferNotSold: 'nicht angeboten',
+    versionOfferFeaturesAdded: 'Kommt hinzu',
+    versionOfferFeaturesRemoved: 'Fällt weg',
+    versionOfferEffectiveNow: 'Wirksam: sofort nach dem Wechsel',
+    versionOfferEffectiveAt: 'Wirksam: zum {date}',
+    versionOfferTakeAction: 'Zu Version {version} wechseln',
+    versionOfferConfirmTitle: 'Zu Version {version} wechseln?',
+    versionOfferConfirmMoreForMore:
+        'Der Wechsel gilt sofort. Für den Rest der laufenden Periode wird die anteilige Differenz berechnet, wenn Ihr Abrechnungsrhythmus teurer wird; ab der nächsten Periode gilt der neue Preis.',
+    versionOfferConfirmTakesAway:
+        'Der Wechsel gilt zum {date}. Ab dann enthält Ihr Paket, was die Spalte „Neue Version“ zeigt — was dort fehlt oder niedriger ist, entfällt. Bis dahin bleibt alles, wie es ist.',
+    versionOfferConfirmAction: 'Wechsel bestätigen',
+    versionOfferSwitchedNow: 'Sie nutzen jetzt Version {version}.',
+    versionOfferSwitchScheduled: 'Der Wechsel zu Version {version} ist zum {date} vorgemerkt.',
+    pendingVersionSwitch: 'Neue Version vorgemerkt',
     wizardTitle: 'Paket wechseln',
     wizardClose: 'Schließen',
     wizardCurrent: 'Aktuell',
@@ -621,6 +685,39 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     pendingVersionAcceptAction: 'Accept changes',
     pendingVersionAcceptInProgress: 'Accepting …',
     pendingVersionAcceptedAt: 'Accepted on',
+    versionOfferTitle: 'Version {version} of your plan',
+    versionOfferKindImprovement: 'Improvement',
+    versionOfferKindMoreForMore: 'More for more',
+    versionOfferKindTakesAway: 'Takes something away',
+    versionOfferLeadImprovement:
+        'This version offers more and costs no more. A switch applies at once, costs nothing, and keeps your term.',
+    versionOfferLeadMoreForMore:
+        'This version offers more and costs more. A switch applies at once; for the rest of the current period the prorated difference is charged where your billing rhythm gets dearer.',
+    versionOfferLeadTakesAway:
+        'This version includes less than yours. A switch applies at the end of your term; until then nothing changes.',
+    versionOfferNoAction:
+        'There is nothing you need to do: your current version stays as long as you do not switch.',
+    versionOfferCaption: 'Your version and the new one compared',
+    versionOfferColumnItem: 'Item',
+    versionOfferColumnBound: 'Your version ({version})',
+    versionOfferColumnOffered: 'New version ({version})',
+    versionOfferPriceMonthly: 'Price per month (net)',
+    versionOfferPriceYearly: 'Price per year (net)',
+    versionOfferNotSold: 'not sold',
+    versionOfferFeaturesAdded: 'Added',
+    versionOfferFeaturesRemoved: 'Removed',
+    versionOfferEffectiveNow: 'Takes effect: at once',
+    versionOfferEffectiveAt: 'Takes effect: on {date}',
+    versionOfferTakeAction: 'Switch to version {version}',
+    versionOfferConfirmTitle: 'Switch to version {version}?',
+    versionOfferConfirmMoreForMore:
+        'The switch applies at once. For the rest of the current period the prorated difference is charged where your billing rhythm gets dearer; from the next period the new price applies.',
+    versionOfferConfirmTakesAway:
+        'The switch applies on {date}. From then your plan includes what the “New version” column shows — whatever is missing or lower there is gone. Until then nothing changes.',
+    versionOfferConfirmAction: 'Confirm the switch',
+    versionOfferSwitchedNow: 'You are on version {version} now.',
+    versionOfferSwitchScheduled: 'The switch to version {version} is scheduled for {date}.',
+    pendingVersionSwitch: 'New version scheduled',
     wizardTitle: 'Change plan',
     wizardClose: 'Close',
     wizardCurrent: 'Current',

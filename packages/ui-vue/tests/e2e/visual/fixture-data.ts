@@ -18,6 +18,7 @@ import type {
     PlanRow,
     PlanVersionRow,
     QuotaCatalogEntryRow,
+    VersionOfferView,
 } from '@saasicat/core';
 
 import type {
@@ -671,6 +672,48 @@ const TENANT_USAGE: UsageSnapshotShape = {
     checkoutOfferId: null,
 };
 
+/** The same subscription running, with nothing outstanding — an offer is made only then. */
+const TENANT_USAGE_WITH_AN_OFFER: UsageSnapshotShape = {
+    ...TENANT_USAGE,
+    status: 'ACTIVE',
+    trialEndsAt: null,
+    planPriceNet: 49,
+    pendingPlanVersion: null,
+    pendingPlanVersionEffectiveAt: null,
+};
+
+/**
+ * A newer version that takes something away — one feature and some users — so
+ * the card shows its warning badge, what is removed, and the date the switch
+ * would take effect, besides the comparison every offer has.
+ */
+const TENANT_VERSION_OFFER: VersionOfferView = {
+    plan: 'PRO',
+    bound: {
+        planVersionId: 'pv-1',
+        version: 3,
+        features: ['export', 'sso'],
+        quotas: { users: 25, storage: 50, projects: 10 },
+        monthlyNet: 49,
+        yearlyNet: 490,
+        validUntil: null,
+        endsAt: null,
+    },
+    offered: {
+        planVersionId: 'pv-5',
+        version: 5,
+        features: ['export'],
+        quotas: { users: 20, storage: 100, projects: 10 },
+        monthlyNet: 45,
+        yearlyNet: 450,
+        validUntil: null,
+        endsAt: null,
+    },
+    class: 'takes-something-away',
+    changes: [],
+    takesEffectAt: '2026-12-31T00:00:00.000Z',
+};
+
 const TENANT_BUNDLES: SubscriptionBundleShape[] = [
     {
         id: 'sb-1',
@@ -1104,6 +1147,45 @@ const MAINTENANCE_OVERVIEW = {
 };
 
 /** Routing table. Matched EXACTLY — see `respondTo` for why. */
+/** The tenant billing routes under `prefix`, for one subscription and the offer it is made. */
+function tenantRoutes(
+    prefix: string,
+    usage: UsageSnapshotShape,
+    offer: VersionOfferView | null,
+): ReadonlyArray<readonly [string, unknown]> {
+    return [
+        [`${prefix}/usage`, usage],
+        [`${prefix}/subscription-bundles`, TENANT_BUNDLES],
+        [`${prefix}/plans`, TENANT_CATALOG_PLANS],
+        [`${prefix}/feature-registry`, { features: {}, quotas: {} }],
+        [`${prefix}/bundles`, TENANT_CATALOG_BUNDLES],
+        // Prices resolved for the tenant's plan. The public catalogue above cannot
+        // answer this — it has no plan to resolve an override against — so the
+        // section asks separately and overlays what comes back. Matching the
+        // catalogue's own figures here keeps the baseline's wording; the case where
+        // they differ is a component test, not a screenshot.
+        [`${prefix}/subscription-bundles/prices`, TENANT_RESOLVED_BUNDLE_PRICES],
+        // The payment method card, shown as a user holding the billing permission
+        // sees it. A direct debit rather than a card, so the mandate line renders.
+        [
+            `${prefix}/payment-method`,
+            {
+                paymentMethod: {
+                    type: 'sepa_debit',
+                    brand: null,
+                    last4: '3000',
+                    expiryMonth: null,
+                    expiryYear: null,
+                    country: 'DE',
+                    mandateReference: 'MANDATE-1001',
+                    confirmedAt: '2026-01-10T09:00:00.000Z',
+                },
+            },
+        ],
+        [`${prefix}/version-offer`, { offer }],
+    ];
+}
+
 const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/boot', BOOT],
     ['/api/admin/manifest', FIXTURE_MANIFEST],
@@ -1157,34 +1239,11 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/dashboard/last-scan', { value: 128, timestamp: '2026-01-15T09:00:00.000Z' }],
     // Tenant-facing. `apiPrefix` is the sub-path under the adapter's base, so
     // the fixture's cases pass `/api/billing` and these are the full paths.
-    ['/api/billing/usage', TENANT_USAGE],
-    ['/api/billing/subscription-bundles', TENANT_BUNDLES],
-    ['/api/billing/plans', TENANT_CATALOG_PLANS],
-    ['/api/billing/feature-registry', { features: {}, quotas: {} }],
-    ['/api/billing/bundles', TENANT_CATALOG_BUNDLES],
-    // Prices resolved for the tenant's plan. The public catalogue above cannot
-    // answer this — it has no plan to resolve an override against — so the
-    // section asks separately and overlays what comes back. Matching the
-    // catalogue's own figures here keeps the baseline's wording; the case where
-    // they differ is a component test, not a screenshot.
-    ['/api/billing/subscription-bundles/prices', TENANT_RESOLVED_BUNDLE_PRICES],
-    // The payment method card, shown as a user holding the billing permission
-    // sees it. A direct debit rather than a card, so the mandate line renders.
-    [
-        '/api/billing/payment-method',
-        {
-            paymentMethod: {
-                type: 'sepa_debit',
-                brand: null,
-                last4: '3000',
-                expiryMonth: null,
-                expiryYear: null,
-                country: 'DE',
-                mandateReference: 'MANDATE-1001',
-                confirmedAt: '2026-01-10T09:00:00.000Z',
-            },
-        },
-    ],
+    ...tenantRoutes('/api/billing', TENANT_USAGE, null),
+    // A newer version of the plan, offered: the subscription runs, and nothing
+    // is outstanding — while a pending version is, no offer is made, so this
+    // case cannot share the first one's subscription.
+    ...tenantRoutes('/api/offer-billing', TENANT_USAGE_WITH_AN_OFFER, TENANT_VERSION_OFFER),
 ];
 
 /**

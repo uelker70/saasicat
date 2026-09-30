@@ -89,6 +89,14 @@ import TenantPlanSection from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';
 </template>
 ```
 
+Where the plan has a newer version than the one the subscription is bound to,
+the plan section offers it beside the plan: both versions side by side, what
+kind of offer it is and when a switch would take effect — then the switch, by
+one click for an improvement and after a question for anything that costs more
+or takes something away. Taking it needs the tenant's administrator; anyone
+else of the tenant sees the offer, and a switch they try is refused with the
+reason in their language. The offer has no deadline and nothing to decline.
+
 Both read the billing routes under `apiPrefix` (default `/billing`) through the
 `http` adapter you pass. The billing section shows itself only to a user the
 server lets see it — the billing permission, which your

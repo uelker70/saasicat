@@ -44,6 +44,29 @@
                 @accept="onAcceptPending"
             />
 
+            <!--
+                What taking an offer did, and why it was refused, said here
+                rather than in the card: a switch that went through, or an offer
+                that is gone, takes the card away with it.
+            -->
+            <p v-if="versionSwitchNote" class="sp-plan-section__note" role="status">
+                {{ versionSwitchNote }}
+            </p>
+            <p v-if="offerError" class="sp-plan-section__warn" role="alert">{{ offerError }}</p>
+
+            <!-- A newer version of the plan, offered beside it (#357). -->
+            <VersionOfferCard
+                v-if="versionOffer && !hasEnded"
+                :offer="versionOffer"
+                :busy="takingOffer"
+                :format-currency="formatCurrency"
+                :format-date="formatDate"
+                :quota-label="quotaLabelResolved"
+                :feature-label="featureLabelResolved"
+                :format-quota-value="quotaValueResolved"
+                @take="onTakeVersionOffer"
+            />
+
             <!-- Current plan card + actions -->
             <TenantCard class="sp-plan-section__card">
                 <TenantPlanCardHeader
@@ -296,6 +319,13 @@ import {
 } from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
+import {
+    resolveErrorMessage,
+    type ResolvableErrorBody,
+    type VersionOfferView,
+} from '@saasicat/core';
+import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
+import { defaultQuotaValue } from './plan/quota-value.js';
 
 // TenantPlanSection — main component for the tenant plan/bundle self-service
 // UI. The consumer (app) embeds it in its settings page and passes through
@@ -354,7 +384,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { showPaymentMethod: true });
 
-const { locale } = useSuperAdminI18n();
+const { locale, intlLocale } = useSuperAdminI18n();
 
 const billing = useTenantBilling({
     http: props.http,
@@ -654,6 +684,10 @@ function isFractionalQuotaResolved(key: string): boolean {
     return props.isFractionalQuota?.(key) ?? key.toLowerCase().includes('storage');
 }
 
+function quotaValueResolved(key: string, value: number): string {
+    return props.formatQuotaValue?.(key, value) ?? defaultQuotaValue(key, value, intlLocale.value);
+}
+
 function formatQuotaLabelResolved(key: string, value: number): string {
     if (props.formatQuotaLabel) return props.formatQuotaLabel(key, value);
     if (value === -1) return `${quotaLabelResolved(key)}: ∞`;
@@ -759,6 +793,97 @@ async function onConfirmBundlePreview() {
 // precedence, then the consumer hook, and finally the raw key.
 function featureLabelResolved(key: string): string {
     return catalog.featureRegistry.value?.[key]?.label ?? featureLabelFromProps(key);
+}
+
+// ── The version offer (#357) ─────────────────────────────────────────────
+
+const versionOffer = ref<VersionOfferView | null>(null);
+const takingOffer = ref(false);
+const offerError = ref<string | null>(null);
+const versionSwitchNote = ref<string | null>(null);
+
+/** The coded body a refused request carried, where it carried one. */
+function refusalOf(err: unknown): (ResolvableErrorBody & { offer?: unknown }) | null {
+    const body = (err as { body?: unknown } | null)?.body;
+    return body !== null && typeof body === 'object'
+        ? (body as ResolvableErrorBody & { offer?: unknown })
+        : null;
+}
+
+/** A refusal in the reader's language, from its code; the thrown text only where there is none. */
+function refusalText(err: unknown): string {
+    const body = refusalOf(err);
+    if (!body) return err instanceof Error ? err.message : String(err);
+    return resolveErrorMessage(body, effectiveI18n.value.issueMessages);
+}
+
+/**
+ * An offer is read against the subscription as it stands, so an answer for a
+ * state the page has since left is about a different question.
+ */
+const commitVersionOffer = latestAnswerWins(
+    async () => {
+        try {
+            return { offer: await billing.loadVersionOffer(), failure: null };
+        } catch (err) {
+            return { offer: null, failure: refusalText(err) };
+        }
+    },
+    ({ offer, failure }) => {
+        versionOffer.value = offer;
+        offerError.value = failure;
+    },
+);
+
+// Read again whenever what the offer is judged against moves: the plan, the
+// version bound, the rhythm, or a change scheduled or taken back.
+watch(
+    () =>
+        usage.value
+            ? [
+                  usage.value.plan,
+                  usage.value.planVersion?.id ?? '',
+                  usage.value.billingCycle,
+                  usage.value.pendingPlan ?? '',
+                  usage.value.pendingPlanVersion?.id ?? '',
+                  usage.value.canceledAt ?? '',
+              ].join('|')
+            : '',
+    async (key) => {
+        if (!key) {
+            versionOffer.value = null;
+            return;
+        }
+        await commitVersionOffer();
+    },
+    { immediate: true },
+);
+
+async function onTakeVersionOffer(planVersionId: string): Promise<void> {
+    const taken = versionOffer.value;
+    if (!taken) return;
+    takingOffer.value = true;
+    offerError.value = null;
+    versionSwitchNote.value = null;
+    try {
+        const result = await billing.acceptVersionOffer(planVersionId);
+        const version = String(taken.offered.version);
+        versionSwitchNote.value = result.immediate
+            ? effectiveI18n.value.versionOfferSwitchedNow.replace('{version}', version)
+            : effectiveI18n.value.versionOfferSwitchScheduled
+                  .replace('{version}', version)
+                  .replace('{date}', props.formatDate(result.takesEffectAt));
+    } catch (err) {
+        // The offer as it now stands travels with this refusal, so the card
+        // shows it at once rather than the one that was refused.
+        const body = refusalOf(err);
+        if (body?.code === 'VERSION_OFFER_CHANGED') {
+            versionOffer.value = (body.offer as VersionOfferView | null | undefined) ?? null;
+        }
+        offerError.value = refusalText(err);
+    } finally {
+        takingOffer.value = false;
+    }
 }
 
 // Mutation handlers
@@ -890,6 +1015,14 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
 .sp-plan-section__canceled {
     margin: var(--sa-space-2) 0 0;
     color: var(--sa-color-fg-secondary);
+    font-size: var(--sa-text-sm);
+}
+.sp-plan-section__note {
+    margin: 0;
+    padding: var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive);
     font-size: var(--sa-text-sm);
 }
 .sp-plan-section__warn {
