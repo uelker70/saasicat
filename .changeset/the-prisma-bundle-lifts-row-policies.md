@@ -18,7 +18,10 @@ filtered query fail rather than lift a policy (`SC-COMP-019`).
   and a policy that accepts that setting beside the tenant lets it through.
   The setting ends with the transaction. The README gives the policy.
 - A statement that enters the bypass inside a transaction opened outside it is
-  refused with an error, since the setting would outlast the bypass there.
+  refused with an error, since the setting would outlast the bypass there. A
+  statement on the client itself, sent from inside a transaction, runs on
+  another connection and is lifted on its own; a batch carries the setting at
+  its head.
 - `PrismaRlsBypass` is the building block: pass one as `rlsIntegration` to name
   another setting, or to run statements of your own through the same port with
   `bypass.extend(prisma)`.

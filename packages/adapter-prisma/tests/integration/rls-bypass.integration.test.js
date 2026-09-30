@@ -210,14 +210,75 @@ describe('the bundle lifts a forced tenant policy inside the bypass, and only th
         assert.equal(await reversed(), before, 'the write went back with its transaction');
     });
 
-    test('the setting ends with its transaction: after the bypass the policy holds again', async () => {
-        await bypass.runWithBypass(() => lifted.promoCodeRedemption.count());
-        // Every connection of the pool has run a lifted statement by now; none
-        // of them may still carry the setting.
-        const counts = await Promise.all(
-            Array.from({ length: 8 }, () => lifted.promoCodeRedemption.count()),
+    test('a statement on the client from inside a lifted transaction is lifted on its own', async () => {
+        // It runs on another connection than the transaction's, where the
+        // transaction's setting does not reach.
+        const { viaTransaction, viaClient } = await bypass.runWithBypass(() =>
+            lifted.$transaction(async (tx) => ({
+                viaTransaction: await tx.promoCodeRedemption.count(),
+                viaClient: await lifted.promoCodeRedemption.count(),
+            })),
         );
-        assert.deepEqual(new Set(counts), new Set([0]));
+        assert.equal(viaTransaction, TENANTS.length);
+        assert.equal(viaClient, TENANTS.length);
+    });
+
+    test('a statement on the client from inside a transaction opened outside the bypass is lifted, not refused', async () => {
+        const count = await lifted.$transaction(() =>
+            bypass.runWithBypass(() => lifted.promoCodeRedemption.count()),
+        );
+        assert.equal(count, TENANTS.length);
+    });
+
+    test('a batch inside the bypass carries the setting and answers with its own results', async () => {
+        const [count, [row]] = await bypass.runWithBypass(() =>
+            lifted.$transaction([
+                lifted.promoCodeRedemption.count(),
+                lifted.$queryRaw`SELECT count(*)::int AS n FROM promo_code_redemptions`,
+            ]),
+        );
+        assert.equal(count, TENANTS.length);
+        assert.equal(row.n, TENANTS.length);
+    });
+
+    test('a batch inside the bypass stays one transaction: a failure rolls back what it wrote', async () => {
+        const reversed = () =>
+            bypass.runWithBypass(() =>
+                lifted.promoCodeRedemption.count({ where: { status: 'REVERSED' } }),
+            );
+        const before = await reversed();
+
+        await assert.rejects(() =>
+            bypass.runWithBypass(() =>
+                lifted.$transaction([
+                    lifted.promoCodeRedemption.updateMany({ data: { status: 'ACTIVE' } }),
+                    lifted.$executeRaw`SELECT 1 / 0`,
+                ]),
+            ),
+        );
+
+        assert.equal(before, TENANTS.length);
+        assert.equal(await reversed(), before, 'the write went back with its batch');
+    });
+
+    test('the setting ends with its transaction: the next statement on the same connection is filtered again', async () => {
+        // One connection, so the statement after the bypass meets the very
+        // connection that carried the setting.
+        const single = new URL(probeUrl);
+        single.searchParams.set('connection_limit', '1');
+        const one = new PrismaClient({ datasourceUrl: single.toString() });
+        const rlsOfOne = new PrismaRlsBypass();
+        const liftedOne = rlsOfOne.extend(one);
+        try {
+            const inside = await rlsOfOne.port.runWithBypass(() =>
+                liftedOne.promoCodeRedemption.count(),
+            );
+            const after = await liftedOne.promoCodeRedemption.count();
+            assert.equal(inside, TENANTS.length);
+            assert.equal(after, 0);
+        } finally {
+            await one.$disconnect();
+        }
     });
 
     test('entering the bypass inside a transaction opened outside it is refused, and nothing is written', async () => {

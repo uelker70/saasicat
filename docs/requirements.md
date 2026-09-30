@@ -17042,7 +17042,13 @@ _Tested by:_
         - a shipped repository's write inside the bypass reaches every tenant
         - a transaction the runner opens inside the bypass reads and writes every tenant
         - a transaction a repository opens on the client itself is lifted, and stays one transaction
-        - the setting ends with its transaction: after the bypass the policy holds again
+        - a statement on the client from inside a lifted transaction is lifted on its own
+        - a statement on the client from inside a transaction opened outside the bypass is lifted,
+          not refused
+        - a batch inside the bypass carries the setting and answers with its own results
+        - a batch inside the bypass stays one transaction: a failure rolls back what it wrote
+        - the setting ends with its transaction: the next statement on the same connection is
+          filtered again
         - entering the bypass inside a transaction opened outside it is refused, and nothing is
           written
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
@@ -17052,14 +17058,21 @@ _Tested by:_
     - a query handed back unawaited runs inside the bypass
     - the bypass has ended once its work has
 - `packages/adapter-prisma/tests/the-bypass-lifts-each-statement.test.js`
-    - each statement
+    - a statement on the client
         - runs as it is outside the bypass
         - runs in one batch with the setting inside the bypass
         - is extended once per client, however often asked
     - an interactive transaction on the lifted client
-        - opened by the platform's runner inside the bypass is lifted for its length
-        - opened by a repository on its own inside the bypass is lifted for its length
-        - opened outside the bypass refuses a statement that enters it
+        - opened by the platform's runner inside the bypass takes the setting, and its statements
+          run on it
+        - opened by a repository on its own inside the bypass takes the setting, and its statements
+          run on it
+        - a statement on the client itself from inside it goes out in a batch of its own
+        - opened outside the bypass refuses a statement of it that enters the bypass
+    - a batch on the lifted client
+        - inside the bypass carries the setting at its head and answers with its own results
+    - a client that does not say where a statement runs
+        - is refused inside the bypass rather than guessed at
 
 <!-- END proof -->
 

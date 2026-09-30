@@ -11,15 +11,20 @@
 //            OR current_setting('app.bypass_rls', true) = 'true')
 //
 // `set_config(…, true)` lasts until the transaction ends, so the statement it
-// is meant for has to run in that transaction. A statement outside an
-// interactive transaction therefore runs as a batch of two, the setting and
-// then the statement. An interactive transaction opened on the client takes
-// the setting when it opens inside the bypass — the runner's and one a
-// repository opens for itself alike — and its statements then run as they
-// are, on it. A transaction opened outside the bypass cannot take the setting
-// later without keeping it for the rest of the transaction, after the bypass
-// has ended, so a statement that enters the bypass inside one is refused
-// rather than run under a policy that hides what it looks for.
+// is meant for has to run in that transaction, and where a statement runs is
+// decided by the client that sends it, not by the code around it. Prisma tells
+// an extension which: none, an interactive transaction by its id, or a batch.
+//
+// - A statement on the client itself runs as a batch of two, the setting and
+//   the statement — also when it is sent from inside a transaction's
+//   callback, since it then runs on another connection.
+// - An interactive transaction opened on the client inside the bypass — by
+//   the runner or by a repository for itself — takes the setting when it
+//   opens, and its statements run on it as they are. One opened outside the
+//   bypass cannot take the setting later without keeping it for the rest of
+//   the transaction, after the bypass has ended, so a statement of it that
+//   enters the bypass is refused rather than run under the tenant's policy.
+// - A batch opened inside the bypass carries the setting at its head.
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -31,40 +36,56 @@ export const DEFAULT_RLS_BYPASS_SETTING = 'app.bypass_rls';
 /** The value the setting holds inside the bypass. */
 const LIFTED = 'true';
 
-/** What the extension needs of a Prisma client: a batch transaction and a raw statement. */
-interface BatchingClient {
-    $extends(extension: unknown): unknown;
-    $transaction(statements: readonly unknown[]): Promise<unknown[]>;
+/** A client that can send the setting as a raw statement. */
+interface RawClient {
     $executeRaw(query: TemplateStringsArray, ...values: unknown[]): unknown;
 }
 
-/** What the setting needs of a transaction just opened. */
-interface TransactionClient {
-    $executeRaw(query: TemplateStringsArray, ...values: unknown[]): PromiseLike<unknown>;
+/** What the extension needs of a Prisma client: a batch transaction and a raw statement. */
+interface BatchingClient extends RawClient {
+    $extends(extension: unknown): unknown;
+    $transaction(statements: readonly unknown[]): Promise<unknown[]>;
 }
 
-type InteractiveTransaction = (
-    work: (tx: TransactionClient) => Promise<unknown>,
-    options?: unknown,
-) => Promise<unknown>;
+type TransactionMethod = (work: unknown, options?: unknown) => Promise<unknown>;
+
+/** Where Prisma says a statement runs. Not in its public types; see `run`. */
+interface StatementTransaction {
+    kind: 'itx' | 'batch';
+    id?: unknown;
+}
 
 interface OperationCall {
     args: unknown;
     query: (args: unknown) => PromiseLike<unknown>;
+    __internalParams?: { transaction?: StatementTransaction };
 }
+
+const REFUSED_INSIDE_A_TRANSACTION =
+    'A statement entered the RLS bypass inside a transaction opened outside it. The setting ' +
+    'would outlast the bypass for the rest of that transaction, so the statement is refused ' +
+    'rather than run under the tenant policy. Open the transaction inside runWithBypass.';
+
+const TRANSACTION_NOT_TOLD =
+    'This Prisma client does not tell a query extension which transaction a statement runs ' +
+    'in, which PrismaRlsBypass needs to lift a row policy. Bind an RlsBypassPort of your own ' +
+    'instead.';
 
 /**
  * The RLS bypass for a Prisma client, in one piece: the port the platform
  * calls, and the client whose statements and transactions it lifts.
  *
- * `prismaPersistence({ rlsIntegration: true })` builds one and wires all
- * three. Build one yourself only to lift your own statements with the same
- * port: `bypass.extend(prisma)` is your client with the platform's bypass.
+ * `prismaPersistence({ rlsIntegration: true })` builds one and wires both.
+ * Build one yourself only to lift your own statements with the same port:
+ * `bypass.extend(prisma)` is your client with the platform's bypass.
  */
 export class PrismaRlsBypass {
     /** The port the platform calls. `prismaPersistence` binds it as `rlsBypass`. */
     readonly port = new AsyncLocalRlsBypassAdapter();
-    private readonly transactions = new AsyncLocalStorage<{ lifted: boolean }>();
+    /** The interactive transactions that took the setting, by the id Prisma gives them. */
+    private readonly liftedTransactions = new Set<unknown>();
+    /** Set while the setting of a transaction just opened is sent, to learn its id. */
+    private readonly opening = new AsyncLocalStorage<{ id?: unknown }>();
     private readonly extended = new WeakMap<object, object>();
 
     /** @param setting The setting the installation's policies read. */
@@ -72,10 +93,9 @@ export class PrismaRlsBypass {
 
     /**
      * `client` with every statement run inside the bypass — a model
-     * operation or a raw one — lifted, and every interactive transaction
-     * opened on it inside the bypass lifted for its whole length. Outside the
-     * bypass both run as they are. The same client for the same client,
-     * however often asked.
+     * operation or a raw one, on the client, in an interactive transaction or
+     * in a batch — lifted. Outside the bypass everything runs as it is. The
+     * same client for the same client, however often asked.
      */
     extend<C extends object>(client: C): C {
         const known = this.extended.get(client);
@@ -84,68 +104,80 @@ export class PrismaRlsBypass {
         const extension = {
             name: 'saasicat-rls-bypass',
             query: {
-                $allOperations: ({ args, query }: OperationCall) => this.run(base, args, query),
+                $allOperations: (call: OperationCall) => this.run(base, call),
             },
         };
         const extended = base.$extends(extension) as object;
-        // An extension sees each statement but not the transaction it belongs
-        // to, so the interactive form of `$transaction` is taken here, on the
-        // one client every adapter shares. The batch form passes as it is.
+        // An extension sees each statement but not the transaction being
+        // opened, so `$transaction` is taken here, on the one client every
+        // adapter shares.
         const lifted = new Proxy(extended, {
             get: (target, property) => {
                 const value: unknown = Reflect.get(target, property, target);
                 if (property !== '$transaction' || typeof value !== 'function') return value;
-                const open = value as InteractiveTransaction;
+                const open = value as TransactionMethod;
                 return (work: unknown, options?: unknown) =>
-                    typeof work === 'function'
-                        ? open.call(
-                              target,
-                              (tx) =>
-                                  this.opened(tx, () =>
-                                      (work as InteractiveTransaction)(tx as never),
-                                  ),
-                              options,
-                          )
-                        : (value as (work: unknown, options?: unknown) => unknown).call(
-                              target,
-                              work,
-                              options,
-                          );
+                    this.opened(base, (next) => open.call(target, next, options), work);
             },
         }) as C;
         this.extended.set(client, lifted);
         return lifted;
     }
 
-    /** Runs `work` on a transaction just opened, lifted when it was opened inside the bypass. */
-    private async opened<T>(tx: TransactionClient, work: () => Promise<T>): Promise<T> {
-        const lifted = this.port.isBypassActive();
-        return this.transactions.run({ lifted }, async () => {
-            if (lifted) await tx.$executeRaw`SELECT set_config(${this.setting}, ${LIFTED}, true)`;
-            return work();
+    /**
+     * Opens a transaction through `open`, lifted where the bypass is active:
+     * an interactive one takes the setting first, a batch carries it at its
+     * head.
+     */
+    private async opened(
+        base: BatchingClient,
+        open: (work: unknown) => Promise<unknown>,
+        work: unknown,
+    ): Promise<unknown> {
+        if (!this.port.isBypassActive()) return open(work);
+        if (Array.isArray(work)) {
+            const results = (await open([this.settingOn(base), ...work])) as unknown[];
+            return results.slice(1);
+        }
+        const interactive = work as (tx: RawClient) => Promise<unknown>;
+        return open(async (tx: RawClient) => {
+            const learned: { id?: unknown } = {};
+            // Awaited inside: the statement is lazy and runs where it is awaited.
+            await this.opening.run(learned, async () => await this.settingOn(tx));
+            if (learned.id === undefined) throw new Error(TRANSACTION_NOT_TOLD);
+            this.liftedTransactions.add(learned.id);
+            try {
+                return await interactive(tx);
+            } finally {
+                this.liftedTransactions.delete(learned.id);
+            }
         });
     }
 
-    private async run(
-        base: BatchingClient,
-        args: unknown,
-        query: OperationCall['query'],
-    ): Promise<unknown> {
-        if (!this.port.isBypassActive()) return query(args);
-        const transaction = this.transactions.getStore();
-        if (transaction?.lifted) return query(args);
-        if (transaction) {
-            throw new Error(
-                'A statement entered the RLS bypass inside a transaction opened outside it. ' +
-                    'The setting would outlast the bypass for the rest of that transaction, so ' +
-                    'the statement is refused rather than run under the tenant policy. Open the ' +
-                    'transaction inside runWithBypass.',
-            );
+    private settingOn(client: RawClient): PromiseLike<unknown> {
+        return client.$executeRaw`SELECT set_config(${this.setting}, ${LIFTED}, true)` as PromiseLike<unknown>;
+    }
+
+    private async run(base: BatchingClient, call: OperationCall): Promise<unknown> {
+        const { args, query } = call;
+        const learning = this.opening.getStore();
+        if (learning) {
+            learning.id = call.__internalParams?.transaction?.id;
+            return query(args);
         }
-        const [, result] = await base.$transaction([
-            base.$executeRaw`SELECT set_config(${this.setting}, ${LIFTED}, true)`,
-            query(args),
-        ]);
+        if (!this.port.isBypassActive()) return query(args);
+        // Prisma hands every query extension `__internalParams`, and in it the
+        // transaction a statement runs in. Without it the client cannot be
+        // told apart from a transaction, and guessing would break one or the
+        // other, so a client that does not say is refused.
+        if (!call.__internalParams) throw new Error(TRANSACTION_NOT_TOLD);
+        const transaction = call.__internalParams.transaction;
+        if (transaction?.kind === 'batch') return query(args);
+        if (transaction?.kind === 'itx') {
+            if (this.liftedTransactions.has(transaction.id)) return query(args);
+            throw new Error(REFUSED_INSIDE_A_TRANSACTION);
+        }
+        const [, result] = await base.$transaction([this.settingOn(base), query(args)]);
         return result;
     }
 }
