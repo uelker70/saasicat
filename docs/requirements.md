@@ -17041,6 +17041,7 @@ _Tested by:_
         - a raw statement inside the bypass sees every tenant
         - a shipped repository's write inside the bypass reaches every tenant
         - a transaction the runner opens inside the bypass reads and writes every tenant
+        - a transaction a repository opens on the client itself is lifted, and stays one transaction
         - the setting ends with its transaction: after the bypass the policy holds again
         - entering the bypass inside a transaction opened outside it is refused, and nothing is
           written
@@ -17055,9 +17056,10 @@ _Tested by:_
         - runs as it is outside the bypass
         - runs in one batch with the setting inside the bypass
         - is extended once per client, however often asked
-    - a transaction the runner opens
-        - inside the bypass takes the setting first, and its statements run as they are
-        - outside the bypass refuses a statement that enters it
+    - an interactive transaction on the lifted client
+        - opened by the platform's runner inside the bypass is lifted for its length
+        - opened by a repository on its own inside the bypass is lifted for its length
+        - opened outside the bypass refuses a statement that enters it
 
 <!-- END proof -->
 

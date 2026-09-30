@@ -223,7 +223,7 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             audit: provide((prisma) => new PrismaAuditAdapter(prisma)),
             rlsBypass: rls?.port ?? new AsyncLocalRlsBypassAdapter(),
             transactionRunner: provide(
-                (prisma) => new PrismaTransactionRunner(prisma, options.transactions, rls),
+                (prisma) => new PrismaTransactionRunner(prisma, options.transactions),
             ),
             auditQuery: provide((prisma) => new PrismaAuditQueryAdapter(prisma)),
             auditStats: provide((prisma) => new PrismaAuditStatsAdapter(prisma)),

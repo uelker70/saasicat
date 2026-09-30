@@ -182,6 +182,34 @@ describe('the bundle lifts a forced tenant policy inside the bypass, and only th
         assert.equal(reversed, TENANTS.length);
     });
 
+    test('a transaction a repository opens on the client itself is lifted, and stays one transaction', async () => {
+        // Seen from inside, every tenant's rows; and a failure rolls back what
+        // it wrote, which it would not if its statements had each gone out as
+        // a batch of their own.
+        const reversed = () =>
+            bypass.runWithBypass(() =>
+                lifted.promoCodeRedemption.count({ where: { status: 'REVERSED' } }),
+            );
+        const before = await reversed();
+
+        await assert.rejects(
+            () =>
+                bypass.runWithBypass(() =>
+                    lifted.$transaction(async (tx) => {
+                        const { count } = await tx.promoCodeRedemption.updateMany({
+                            data: { status: 'ACTIVE' },
+                        });
+                        assert.equal(count, TENANTS.length, 'it wrote every tenant');
+                        throw new Error('roll back');
+                    }),
+                ),
+            /roll back/,
+        );
+
+        assert.equal(before, TENANTS.length);
+        assert.equal(await reversed(), before, 'the write went back with its transaction');
+    });
+
     test('the setting ends with its transaction: after the bypass the policy holds again', async () => {
         await bypass.runWithBypass(() => lifted.promoCodeRedemption.count());
         // Every connection of the pool has run a lifted statement by now; none

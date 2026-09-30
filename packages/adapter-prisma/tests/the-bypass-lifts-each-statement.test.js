@@ -81,30 +81,44 @@ describe('each statement', () => {
     });
 });
 
-describe('a transaction the runner opens', () => {
-    test('inside the bypass takes the setting first, and its statements run as they are', async () => {
+describe('an interactive transaction on the lifted client', () => {
+    /** Opens a transaction with `open` inside the bypass and runs one statement in it. */
+    async function liftedThrough(open) {
         const client = recordingClient();
         const rls = new PrismaRlsBypass();
-        rls.extend(client);
-        const runner = new PrismaTransactionRunner(client, undefined, rls);
-
+        const lifted = rls.extend(client);
         await rls.port.runWithBypass(() =>
-            runner.run(async () => {
+            open(lifted)(async () => {
                 await statementOn(client, 'update');
             }),
         );
+        return client;
+    }
 
+    /** The setting first, then the statement as it is: no batch of its own inside the transaction. */
+    function assertLiftedOnce(client) {
         assert.equal(client.sent[0], 'begin');
         assert.deepEqual(client.raw, ['SELECT set_config(?, ?, true)']);
         assert.equal(client.sent.filter(Array.isArray).length, 0, 'no batch inside it');
         assert.ok(client.sent.includes('update'));
+    }
+
+    test("opened by the platform's runner inside the bypass is lifted for its length", async () => {
+        const client = await liftedThrough(
+            (lifted) => (work) => new PrismaTransactionRunner(lifted).run(work),
+        );
+        assertLiftedOnce(client);
     });
 
-    test('outside the bypass refuses a statement that enters it', async () => {
+    test('opened by a repository on its own inside the bypass is lifted for its length', async () => {
+        const client = await liftedThrough((lifted) => (work) => lifted.$transaction(work));
+        assertLiftedOnce(client);
+    });
+
+    test('opened outside the bypass refuses a statement that enters it', async () => {
         const client = recordingClient();
         const rls = new PrismaRlsBypass();
-        rls.extend(client);
-        const runner = new PrismaTransactionRunner(client, undefined, rls);
+        const runner = new PrismaTransactionRunner(rls.extend(client));
 
         await assert.rejects(
             () => runner.run(() => rls.port.runWithBypass(() => statementOn(client, 'update'))),

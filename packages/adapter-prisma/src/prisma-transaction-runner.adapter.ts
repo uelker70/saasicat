@@ -1,11 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { concurrencyGateOf, type TransactionContext, type TransactionRunner } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN } from './prisma-client-token.js';
-import {
-    PRISMA_RLS_BYPASS_TOKEN,
-    type PrismaRlsBypass,
-    type RlsTransactionClient,
-} from './prisma-rls-bypass.js';
 
 /** How the platform's interactive transactions run against the pool. */
 export interface PrismaTransactionOptions {
@@ -46,9 +41,6 @@ type TransactionMethod = <T>(
  * `TransactionRunner` over `prisma.$transaction`. The interactive transaction
  * client is passed through as the opaque `TransactionContext`; every
  * repository in this package resolves it back via `resolveClient`.
- *
- * With a `PrismaRlsBypass`, a transaction opened inside the bypass lifts the
- * row policy for everything it runs, and one opened outside it does not.
  */
 @Injectable()
 export class PrismaTransactionRunner implements TransactionRunner {
@@ -61,9 +53,6 @@ export class PrismaTransactionRunner implements TransactionRunner {
         @Optional()
         @Inject(PRISMA_TRANSACTION_OPTIONS_TOKEN)
         options?: PrismaTransactionOptions,
-        @Optional()
-        @Inject(PRISMA_RLS_BYPASS_TOKEN)
-        private readonly rls?: PrismaRlsBypass,
     ) {
         this.admit =
             options?.maxConcurrent === undefined
@@ -82,13 +71,6 @@ export class PrismaTransactionRunner implements TransactionRunner {
         const transaction = (this.prisma.$transaction as TransactionMethod).bind(
             this.prisma,
         ) as TransactionMethod;
-        const rls = this.rls;
-        const work = rls
-            ? (tx: unknown) =>
-                  rls.openedTransaction(tx as RlsTransactionClient, () =>
-                      fn(tx as TransactionContext),
-                  )
-            : (tx: unknown) => fn(tx as TransactionContext);
-        return this.admit(() => transaction(work, this.limits));
+        return this.admit(() => transaction((tx) => fn(tx as TransactionContext), this.limits));
     }
 }

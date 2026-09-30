@@ -325,7 +325,8 @@ across tenants. Under a row policy that filters on the tenant they see nothing
 of the others — an empty list, a count of 0, an update of no row — unless the
 policy is lifted for them. `rlsIntegration: true` does that for every statement
 the bundle's adapters run inside the platform's `runWithBypass`: a read, a
-write, a raw statement, and a transaction the platform's runner opens.
+write, a raw statement, and an interactive transaction the platform's runner or
+one of its repositories opens.
 
 ```ts
 prismaPersistence({ client: PrismaService, rlsIntegration: true });
@@ -335,7 +336,7 @@ PostgreSQL has no per-statement switch for this. `SET row_security = off`
 makes a query the policy would filter fail rather than see more, and a role
 with `BYPASSRLS` skips every policy for every statement it runs. What the
 bundle does instead is set `app.bypass_rls` to `'true'` for one transaction —
-the statement's own, or the transaction the runner opens inside the bypass —
+the statement's own, or an interactive transaction opened inside the bypass —
 and your policy accepts that setting beside the tenant:
 
 ```sql

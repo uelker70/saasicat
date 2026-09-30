@@ -13,16 +13,15 @@ filtered query fail rather than lift a policy (`SC-COMP-019`).
 
 - `rlsIntegration: true` now does the lifting. Every statement the bundle's
   adapters run inside the platform's `runWithBypass` — a read, a write, a raw
-  statement, and a transaction the platform's runner opens — runs in one
-  transaction with `set_config('app.bypass_rls', 'true', true)`, and a policy
-  that accepts that setting beside the tenant lets it through. The setting
-  ends with the transaction. The README gives the policy.
+  statement, and an interactive transaction the runner or a repository opens —
+  runs in one transaction with `set_config('app.bypass_rls', 'true', true)`,
+  and a policy that accepts that setting beside the tenant lets it through.
+  The setting ends with the transaction. The README gives the policy.
 - A statement that enters the bypass inside a transaction opened outside it is
   refused with an error, since the setting would outlast the bypass there.
 - `PrismaRlsBypass` is the building block: pass one as `rlsIntegration` to name
   another setting, or to run statements of your own through the same port with
-  `bypass.extend(prisma)`. `PrismaTransactionRunner` takes one as its third
-  argument.
+  `bypass.extend(prisma)`.
 - `runWithBypass` in both shipped ports awaits the work inside the frame. A
   query builder's promise runs when it is awaited, so a query handed back
   unawaited ran after the frame had closed — outside the bypass.

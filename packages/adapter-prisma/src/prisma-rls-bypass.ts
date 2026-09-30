@@ -13,12 +13,13 @@
 // `set_config(…, true)` lasts until the transaction ends, so the statement it
 // is meant for has to run in that transaction. A statement outside an
 // interactive transaction therefore runs as a batch of two, the setting and
-// then the statement. One inside a transaction the platform's runner opened
-// runs as it is: the runner made the setting when it opened the transaction
-// inside the bypass. A transaction opened outside the bypass cannot take the
-// setting later without keeping it for the rest of the transaction, after the
-// bypass has ended, so a statement that enters the bypass inside one is
-// refused rather than run under a policy that hides what it looks for.
+// then the statement. An interactive transaction opened on the client takes
+// the setting when it opens inside the bypass — the runner's and one a
+// repository opens for itself alike — and its statements then run as they
+// are, on it. A transaction opened outside the bypass cannot take the setting
+// later without keeping it for the rest of the transaction, after the bypass
+// has ended, so a statement that enters the bypass inside one is refused
+// rather than run under a policy that hides what it looks for.
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -30,12 +31,6 @@ export const DEFAULT_RLS_BYPASS_SETTING = 'app.bypass_rls';
 /** The value the setting holds inside the bypass. */
 const LIFTED = 'true';
 
-/**
- * DI token for registering a `PrismaTransactionRunner` through Nest directly
- * with the bypass; `prismaPersistence({ rlsIntegration })` passes it itself.
- */
-export const PRISMA_RLS_BYPASS_TOKEN = Symbol.for('saasicat/adapter-prisma/PrismaRlsBypass');
-
 /** What the extension needs of a Prisma client: a batch transaction and a raw statement. */
 interface BatchingClient {
     $extends(extension: unknown): unknown;
@@ -43,10 +38,15 @@ interface BatchingClient {
     $executeRaw(query: TemplateStringsArray, ...values: unknown[]): unknown;
 }
 
-/** What the runner needs of the transaction it opened. */
-export interface RlsTransactionClient {
+/** What the setting needs of a transaction just opened. */
+interface TransactionClient {
     $executeRaw(query: TemplateStringsArray, ...values: unknown[]): PromiseLike<unknown>;
 }
+
+type InteractiveTransaction = (
+    work: (tx: TransactionClient) => Promise<unknown>,
+    options?: unknown,
+) => Promise<unknown>;
 
 interface OperationCall {
     args: unknown;
@@ -55,8 +55,7 @@ interface OperationCall {
 
 /**
  * The RLS bypass for a Prisma client, in one piece: the port the platform
- * calls, the client whose statements it lifts, and the transactions the
- * platform's runner opens on that client.
+ * calls, and the client whose statements and transactions it lifts.
  *
  * `prismaPersistence({ rlsIntegration: true })` builds one and wires all
  * three. Build one yourself only to lift your own statements with the same
@@ -73,8 +72,10 @@ export class PrismaRlsBypass {
 
     /**
      * `client` with every statement run inside the bypass — a model
-     * operation or a raw one — lifted. Outside the bypass a statement runs as
-     * it is. The same extended client for the same client, however often asked.
+     * operation or a raw one — lifted, and every interactive transaction
+     * opened on it inside the bypass lifted for its whole length. Outside the
+     * bypass both run as they are. The same client for the same client,
+     * however often asked.
      */
     extend<C extends object>(client: C): C {
         const known = this.extended.get(client);
@@ -86,17 +87,38 @@ export class PrismaRlsBypass {
                 $allOperations: ({ args, query }: OperationCall) => this.run(base, args, query),
             },
         };
-        const extended = base.$extends(extension) as C;
-        this.extended.set(client, extended);
-        return extended;
+        const extended = base.$extends(extension) as object;
+        // An extension sees each statement but not the transaction it belongs
+        // to, so the interactive form of `$transaction` is taken here, on the
+        // one client every adapter shares. The batch form passes as it is.
+        const lifted = new Proxy(extended, {
+            get: (target, property) => {
+                const value: unknown = Reflect.get(target, property, target);
+                if (property !== '$transaction' || typeof value !== 'function') return value;
+                const open = value as InteractiveTransaction;
+                return (work: unknown, options?: unknown) =>
+                    typeof work === 'function'
+                        ? open.call(
+                              target,
+                              (tx) =>
+                                  this.opened(tx, () =>
+                                      (work as InteractiveTransaction)(tx as never),
+                                  ),
+                              options,
+                          )
+                        : (value as (work: unknown, options?: unknown) => unknown).call(
+                              target,
+                              work,
+                              options,
+                          );
+            },
+        }) as C;
+        this.extended.set(client, lifted);
+        return lifted;
     }
 
-    /**
-     * Runs `work` on a transaction just opened, lifted when it was opened
-     * inside the bypass. The platform's runner calls this; a statement of
-     * `work` then runs as it is, and the setting ends with the transaction.
-     */
-    async openedTransaction<T>(tx: RlsTransactionClient, work: () => Promise<T>): Promise<T> {
+    /** Runs `work` on a transaction just opened, lifted when it was opened inside the bypass. */
+    private async opened<T>(tx: TransactionClient, work: () => Promise<T>): Promise<T> {
         const lifted = this.port.isBypassActive();
         return this.transactions.run({ lifted }, async () => {
             if (lifted) await tx.$executeRaw`SELECT set_config(${this.setting}, ${LIFTED}, true)`;
