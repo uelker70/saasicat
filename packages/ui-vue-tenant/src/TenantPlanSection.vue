@@ -881,6 +881,11 @@ async function onTakeVersionOffer(planVersionId: string): Promise<void> {
             versionOffer.value = (body.offer as VersionOfferView | null | undefined) ?? null;
         }
         offerError.value = refusalText(err);
+        // A refusal usually means the subscription moved under the page, and
+        // an offer beside a plan card that still shows the old state would be
+        // decided on a screen that never existed. Reloaded like a success is,
+        // and the offer is then read against what came back.
+        await billing.reload();
     } finally {
         takingOffer.value = false;
     }

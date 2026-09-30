@@ -113,6 +113,8 @@ function aServer(options: {
     offer: VersionOfferView | null;
     accept?: Answer;
     subscription?: Record<string, unknown>;
+    /** What another administrator changed while this one was deciding. */
+    movedMeanwhile?: Record<string, unknown>;
 }) {
     // Widened to what the server may answer, since taking the offer moves it.
     const state: { offer: VersionOfferView | null; subscription: Record<string, unknown> } = {
@@ -130,6 +132,9 @@ function aServer(options: {
         const method = init?.method ?? 'GET';
         calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
         if (url.endsWith('/version-offer/accept')) {
+            if (options.movedMeanwhile) {
+                state.subscription = { ...state.subscription, ...options.movedMeanwhile };
+            }
             if (options.accept) return reply(options.accept);
             const taken = state.offer!;
             const immediate = taken.class !== 'takes-something-away';
@@ -351,6 +356,35 @@ describe('taking it', () => {
         expect(document.body.querySelector('[role="alert"]')!.textContent!.trim()).toBe(
             ERROR_MESSAGES_DE.VERSION_OFFER_CHANGED,
         );
+    });
+
+    test('after a refusal the page shows the subscription as it now stands, not as it was read', async () => {
+        const standing = anOffer('improvement', { yearlyNet: 470 });
+        const server = aServer({
+            offer: IMPROVEMENT,
+            movedMeanwhile: { billingCycle: 'YEARLY' },
+            accept: {
+                status: 409,
+                body: {
+                    code: 'VERSION_OFFER_CHANGED',
+                    message: 'The offer changed since it was shown.',
+                    offer: standing,
+                },
+            },
+        });
+        const wrapper = await aSection(server);
+        expect(wrapper.find('.sp-plan-section__cycle').text()).toBe('Monatlich');
+
+        takeButton().click();
+        await flushPromises();
+
+        const accepted = server.calls.findIndex((call) =>
+            call.url.endsWith('/version-offer/accept'),
+        );
+        expect(server.calls.slice(accepted + 1).some((call) => call.url.endsWith('/usage'))).toBe(
+            true,
+        );
+        expect(wrapper.find('.sp-plan-section__cycle').text()).toBe('Jährlich');
     });
 
     test('a refusal with no offer to show still says why', async () => {
