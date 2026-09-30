@@ -2044,6 +2044,31 @@ between reaches the customer as an offer, never through a change they confirmed 
   version to bind instead of the one in effect. The persistence contract holds yours to both.
 - **`PlanChangePreviewDto.target`** carries `planVersionId`, the version the target is priced at.
 
+### Money is rounded from the decimals it was written as
+
+Every amount the platform derives — a percentage discount, gross from net and back, the tax a gross
+amount holds, a prorated charge — is computed from the decimals the amounts and rates were written
+as and rounded once, to the cent, half away from zero (`SC-PRIC-061`). A result that ends on half a
+cent can come out a cent higher than before: 5 % of 20.10 is 1.01, not 1.00.
+
+- **`round2` from `@saasicat/nest`** is gone; use `roundToCents` from `@saasicat/core`. It rounds the
+  amount as written, where `round2` rounded its binary form.
+- **`grossFromNet`, `netFromGross` and `computeIncludedVat`** keep their names and now round as
+  above; `@saasicat/core` exports them too, with `percentOf`, `prorate` and `toCents`.
+- **Arithmetic of your own** that rounds money with `Math.round(n * 100) / 100` has the same flaw on
+  the half cent. Where it should agree with the platform's figures — an invoice total beside a
+  contract's — compute it with these.
+- **An offer priced before the upgrade** keeps the amounts it was written with. Where one of them
+  lands on a half cent — its gross, or the discount a percentage promotion took off, 5 % of 20.10 —
+  concluding it is refused with `CHECKOUT_OFFER_PRICE_NOT_CURRENT`, the answer to an offer whose
+  amounts are not what the pricing makes of them: the customer asks for a new offer, priced by this
+  rule, and a contract never states other totals than its offer.
+- **A contract written before the upgrade** keeps its money too. Refreshed with `--full`, one whose
+  gross or line tax lands on a half cent re-freezes a cent apart — 11.50 net at 19 % was 13.68 and is
+  now 13.69 — and the preview reports that as a money change and refuses with `MONEY_WOULD_CHANGE`,
+  although the catalogue did not change. The default refresh, features only, carries the money over
+  as written and is not affected.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

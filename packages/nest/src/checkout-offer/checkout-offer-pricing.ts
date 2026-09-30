@@ -38,7 +38,8 @@ import {
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { promoCodeDiscountNet } from '../promo/calculator.js';
-import { grossFromNet, round2 } from '../promo/math.js';
+import { sumToCents } from '@saasicat/core';
+import { grossFromNet } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
@@ -173,20 +174,23 @@ export class CheckoutOfferPricing {
             .filter((promotion): promotion is CheckoutOfferPromotionSnapshot => promotion !== null);
 
         const planNet = planLine.line.priceNet;
-        const bundlesNet = round2(
-            bundleLines.reduce((sum, priced) => sum + priced.line.priceNet, 0),
+        const bundlesNet = sumToCents(...bundleLines.map((priced) => priced.line.priceNet));
+        const regularNet = sumToCents(planNet, bundlesNet);
+        const promotionDiscount = sumToCents(
+            ...promotionSnapshots.map((promotion) => promotion.resolvedAmountNet),
         );
-        const regularNet = round2(planNet + bundlesNet);
-        const promotionDiscount = round2(
-            promotionSnapshots.reduce((sum, promotion) => sum + promotion.resolvedAmountNet, 0),
-        );
-        const planNetAfterPromotion = round2(
-            planNet - (planLine.promotion?.resolvedAmountNet ?? 0),
+        const planNetAfterPromotion = sumToCents(
+            planNet,
+            -(planLine.promotion?.resolvedAmountNet ?? 0),
         );
         const promoCodeSnapshot = await this.pricePromoCode(input, planNetAfterPromotion, vatRate);
         const effectiveNet = Math.max(
             0,
-            round2(regularNet - promotionDiscount - (promoCodeSnapshot?.resolvedAmountNet ?? 0)),
+            sumToCents(
+                regularNet,
+                -promotionDiscount,
+                -(promoCodeSnapshot?.resolvedAmountNet ?? 0),
+            ),
         );
 
         const priceBreakdown: CheckoutOfferPriceBreakdown = {
@@ -412,7 +416,7 @@ function promotionFor(
     );
     if (!shown) return null;
     const { promotion } = shown;
-    const resolvedAmountNet = round2(Math.max(0, priceNet - shown.result.discounted));
+    const resolvedAmountNet = Math.max(0, sumToCents(priceNet, -shown.result.discounted));
     if (resolvedAmountNet <= 0) return null;
     const texts = promotion.i18n?.[input.locale] ?? promotion.i18n?.[DEFAULT_LOCALE] ?? {};
     return {

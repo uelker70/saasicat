@@ -589,6 +589,7 @@ _Tested by:_
         - undoes all of it when the application’s own write fails, and can be concluded again
         - refuses a contract the offer cannot become before anything is written
         - refuses an offer whose amounts no longer match before anything is written
+        - refuses an offer whose gross was rounded a cent short, rather than conclude another total
         - answers an offer concluded already with its contract, without running the application
           again
         - gives a caller that loses the race the conclusion that stands

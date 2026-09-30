@@ -2,15 +2,17 @@
 
 // Guard: arithmetic on a tax rate lives in one file.
 //
-// Every tax rate is a percentage, and `packages/nest/src/promo/math.ts` holds
-// the only code that turns one into a factor: `grossFromNet`, `netFromGross`,
-// `computeIncludedVat`, and `isTaxRatePercent`, which refuses anything else. A
-// second place writing `1 + vatRate` is where a second unit can come in
-// unnoticed: nothing tells a fraction written there from the percentage the
+// Every tax rate is a percentage, and `packages/core/src/money.ts` holds the
+// only code that turns one into a factor: `grossFromNet`, `netFromGross` and
+// `computeIncludedVat`, computed there in exact decimals. `isTaxRatePercent`
+// in the nest package refuses anything that is not a percentage, and computes
+// nothing. A second place writing `1 + vatRate` is where a second unit can come
+// in unnoticed: nothing tells a fraction written there from the percentage the
 // rest of the system states.
 //
 // Read as text: a line of shipped source that names a rate and also carries a
-// factor marker — `1 +`, `100 +`, `100 -`, `/ 100` or `* 100` — is arithmetic on the rate. A
+// factor marker — `1 +`, `100 +`, `100 -`, `/ 100`, `* 100`, or the exact
+// arithmetic's `HUNDRED` — is arithmetic on the rate. A
 // comment line is prose about it and is not counted. What this does not see is
 // a rate copied into a variable with another name first and multiplied there;
 // that stays a review question.
@@ -25,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The one file allowed to compute with a rate. */
-const THE_PLACE = 'packages/nest/src/promo/math.ts';
+const THE_PLACE = 'packages/core/src/money.ts';
 
 const RATE_NAMES = ['vatRate', 'taxRate', 'vatPercent'];
 const FACTOR_MARKERS = [
@@ -39,6 +41,7 @@ const FACTOR_MARKERS = [
     '/100',
     '* 100',
     '*100',
+    'HUNDRED',
 ];
 
 /** Whether a line of source computes with a tax rate. */
@@ -93,6 +96,7 @@ describe('arithmetic on a tax rate', () => {
         );
         assert.equal(computesWithRate('    taxRate: round2(rate * 100),'), true);
         assert.equal(computesWithRate('const net = gross / (100 + vatRate);'), true);
+        assert.equal(computesWithRate('    sum(HUNDRED, exactDecimal(vatRate)),'), true);
         assert.equal(computesWithRate(' * Gross = net * (1 + vatRate/100).'), false);
         assert.equal(computesWithRate('// net * (1 + vatRate)'), false);
         assert.equal(computesWithRate('const total = net * (1 + surcharge / 100);'), false);

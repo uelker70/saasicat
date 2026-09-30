@@ -20,6 +20,7 @@ import type {
 import { advanceOneCycle, retreatOneCycle } from '../billing-period.js';
 import { bundleFirstPeriodStart } from '../bundle-period.js';
 import { computeNewPeriodCharge, computeProration } from '../proration.js';
+import { toCents } from '@saasicat/core';
 
 /** A billing period, start inclusive, end exclusive. */
 export interface ChargePeriod {
@@ -935,10 +936,6 @@ function lineById(
         if (line) return line;
     }
     return null;
-}
-
-function toCents(amount: number): number {
-    return Math.round(amount * CENTS);
 }
 
 function numberOr0(value: unknown): number {

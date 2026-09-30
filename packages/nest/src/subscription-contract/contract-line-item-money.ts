@@ -23,6 +23,7 @@
 
 import type { NewContractLineItemData } from '@saasicat/core';
 
+import { toCents } from '@saasicat/core';
 import { grossFromNet } from '../promo/math.js';
 
 type Cycle = 'monthly' | 'yearly';
@@ -147,10 +148,6 @@ function timesDueInOnePeriod(contractCycle: Cycle, lineCycle: Cycle): number {
 /** Through `grossFromNet`, so a rhythm's total is the one every other place computes. */
 function grossCents(netCents: number, taxRate: number): number {
     return toCents(grossFromNet(fromCents(netCents), taxRate));
-}
-
-function toCents(amount: number): number {
-    return Math.round(amount * 100);
 }
 
 /** Never `-0`: a total of nothing is stored and compared as 0. */

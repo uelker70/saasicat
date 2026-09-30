@@ -27,7 +27,7 @@ composition — see [ADR 0003](../../docs/explanation/adr/0003-one-bundle-many-e
 for why that is safe and what it costs.
 
 ```ts
-import { computeDiscountGross, buildLabel, round2 } from '@saasicat/nest/promo';
+import { computeDiscountGross, buildLabel, computeIncludedVat } from '@saasicat/nest/promo';
 ```
 
 | Entry                     | What is in it                                                                                 | When you take it                                      |
@@ -60,7 +60,7 @@ export {
     computeRegularStartsAt,
     addCycles,
     buildLabel,
-    round2,
+    computeIncludedVat,
 } from '@saasicat/nest/promo';
 ```
 

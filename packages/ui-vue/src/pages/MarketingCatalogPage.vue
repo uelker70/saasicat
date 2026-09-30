@@ -154,6 +154,7 @@ import {
     type PlanVersionRow,
     type PromotionResult,
     type PromotionRow,
+    roundToCents,
 } from '@saasicat/core';
 import { reorderedPriorities } from '../client/reorder-priorities.js';
 import { usePlans } from '../vue/use-plans.js';
@@ -648,7 +649,7 @@ function yearlyOf(row: MarketingRow): number {
     return row.liveVersion ? Number.parseFloat(row.liveVersion.yearlyNet) || 0 : 0;
 }
 function formatEuro(value: number): string {
-    return formatCurrency(Math.round(value * 100) / 100, locale.value);
+    return formatCurrency(roundToCents(value), locale.value);
 }
 
 // ─── Promo application in the preview ───

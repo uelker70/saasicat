@@ -15,6 +15,7 @@ import {
     PlanChangePreviewService,
     TenantBillingController,
     computeNewPeriodCharge,
+    computeProration,
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
 
@@ -324,6 +325,32 @@ describe('the unused rest at its edges', () => {
         const dto = charge(JAN_1, 490, 490);
         assert.equal(dto.prorataDeltaNet, 0);
         assert.equal(dto.isFree, false);
+    });
+});
+
+// @requirement SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
+describe('half of a price that ends on an odd cent', () => {
+    // 1.15 for 15 of 30 days is 0.575. The decimal rounds to 0.58; its binary
+    // form lies just below and rounded to 0.57.
+    const period = {
+        periodStart: new Date('2026-04-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-05-01T00:00:00.000Z'),
+        now: new Date('2026-04-16T00:00:00.000Z'),
+    };
+
+    test('is charged as 0.58 for the rest of the period', () => {
+        const dto = computeProration({ ...period, currentPriceNet: 0, targetPriceNet: 1.15 });
+        assert.equal(dto.rawDeltaNet, 0.58);
+    });
+
+    test('and is 0.58 of rest a new period is reduced by', () => {
+        const dto = computeNewPeriodCharge({
+            ...period,
+            currentPriceNet: 1.15,
+            targetPriceNet: 20,
+        });
+        assert.equal(dto.remainderNet, 0.58);
+        assert.equal(dto.rawDeltaNet, 19.42);
     });
 });
 

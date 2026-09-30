@@ -11,11 +11,8 @@ import type {
     RegistrationConfigSelection,
 } from '@saasicat/core';
 
+import { prorate, roundToCents, sumToCents } from '@saasicat/core';
 import { grossFromNet, netFromGross } from '../promo/math.js';
-
-function round2(value: number): number {
-    return Math.round(value * 100) / 100;
-}
 
 export interface PromoEvaluation {
     /**
@@ -43,7 +40,7 @@ export function computeBreakdown(
         throw new Error(`Unknown model: ${selection.modelId}`);
     }
 
-    const modelMonthlyNet = round2(model.monthlyNet);
+    const modelMonthlyNet = roundToCents(model.monthlyNet);
     const effectiveQuotas: Record<string, number> = { ...model.quotaBase };
 
     const subtotalMonthlyNet = modelMonthlyNet;
@@ -52,20 +49,22 @@ export function computeBreakdown(
     // the monthly one: the offer and the contract charge that figure, and a
     // configurator that derived its own showed a price nobody was charged.
     const subtotalNet =
-        selection.billingCycle === 'YEARLY' ? round2(model.yearlyNet) : subtotalMonthlyNet;
+        selection.billingCycle === 'YEARLY' ? roundToCents(model.yearlyNet) : subtotalMonthlyNet;
 
     // The preview answers in gross. Taken off the net subtotal as it stands, the
     // tax on it would be granted a second time once VAT is added back, and the
     // offer and the contract convert it before they take it off.
     const discountAmount = promo
-        ? Math.min(netFromGross(round2(promo.discountAmount), catalog.vatRate), subtotalNet)
+        ? Math.min(netFromGross(roundToCents(promo.discountAmount), catalog.vatRate), subtotalNet)
         : 0;
-    const totalNet = Math.max(0, round2(subtotalNet - discountAmount));
+    const totalNet = Math.max(0, sumToCents(subtotalNet, -discountAmount));
     const totalGross = grossFromNet(totalNet, catalog.vatRate);
 
+    // Twelve months against the yearly price. `prorate` with a whole of 1 is
+    // the exact product: twelve times the monthly price, rounded once.
     const yearlySavings =
         selection.billingCycle === 'YEARLY'
-            ? Math.max(0, round2(subtotalMonthlyNet * 12 - subtotalNet))
+            ? Math.max(0, sumToCents(prorate(subtotalMonthlyNet, 12, 1), -subtotalNet))
             : 0;
 
     return {

@@ -1,10 +1,8 @@
-// Pure math helpers for gross/net calculation. Must be bit-identical to the
-// consumer implementations so that backend, tenant frontend and admin UI
-// produce consistent results.
-
-export function round2(n: number): number {
-    return Math.round(n * 100) / 100;
-}
+// Tax rates, and the gross/net conversions the platform prices with. The
+// arithmetic is `@saasicat/core`'s: an amount is computed from the decimal it
+// was written as and rounded once, to the cent, half away from zero
+// (`SC-PRIC-061`) — here and in every consumer that imports these.
+export { computeIncludedVat, grossFromNet, netFromGross } from '@saasicat/core';
 
 /**
  * Whether a tax rate is one SaaSiCat accepts. Every tax rate in SaaSiCat is a
@@ -17,19 +15,4 @@ export function round2(n: number): number {
  */
 export function isTaxRatePercent(rate: number): boolean {
     return Number.isFinite(rate) && rate >= 0 && rate <= 100 && !(rate > 0 && rate < 1);
-}
-
-/** Gross = net * (1 + vatRate/100), with `vatRate` a percentage. */
-export function grossFromNet(net: number, vatRate: number): number {
-    return round2(net * (1 + vatRate / 100));
-}
-
-/** Net = gross * 100 / (100 + vatRate), with `vatRate` a percentage. */
-export function netFromGross(gross: number, vatRate: number): number {
-    return round2((gross * 100) / (100 + vatRate));
-}
-
-/** VAT included in the gross amount: gross * vatRate / (100 + vatRate). */
-export function computeIncludedVat(grossAmount: number, vatRate: number): number {
-    return round2((grossAmount * vatRate) / (100 + vatRate));
 }

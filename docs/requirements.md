@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 22      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 60      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 61      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 529 entries: 🟢 459 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 530 entries: 🟢 460 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 529 entries: 🟢 459 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 529 requirements. Do not edit by hand:
+Generated from `requirements/` — 530 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -6680,6 +6680,59 @@ a tenant is meant to see. This entry supersedes `SC-PRIC-019` in the change that
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+### SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
+
+🟢 💰 A discount taken as a percentage, gross from net and net from gross, the tax a gross amount
+includes, and the share of a price a part of a period costs are each computed from the decimals the
+amounts and rates were written as, and rounded once, to the cent, half away from zero. 5 % of 20.10
+is 1.01, and 11.50 net at 19 % is 13.69 gross — what an accountant, an import into the bookkeeping
+and a customer with a calculator arrive at, not a cent less because a binary fraction lay just
+below the half. A percentage discount rounds the discount and takes it off, the same way for a promo
+code and for a promotion.
+
+_Source:_ #370
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/money-is-rounded-as-written.test.js`
+    - the cases a binary double gets wrong
+        - 5 % of 20.10 is 1.01
+        - 25 % of 9.54 is 2.39
+        - 11.50 net at 19 % is 13.69 gross
+        - 13.50 net at 19 % is 16.07 gross
+    - a half cent
+        - rounds up
+        - and the value just below it rounds down
+        - a credit rounds away from zero, mirrored
+        - zero stays zero
+    - against whole-number arithmetic
+        - a percentage of a price
+        - gross from net, net from gross, and the tax a gross amount holds
+        - a share of a price for part of a period
+    - a sum, and a difference
+        - is taken from the decimals, not from their binary difference
+        - of any number of cent amounts is their sum in cents
+        - of nothing is 0
+    - an amount that is not a number of any kind
+        - NaN is refused rather than rounded
+        - Infinity, either sign, is refused rather than rounded
+- `packages/core/tests/promotion-helpers.test.js`
+    - applyPromo
+        - a percentage takes off its discount rounded, as a promo code does
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - concluding an offer
+        - refuses an offer whose gross was rounded a cent short, rather than conclude another total
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - half of a price that ends on an odd cent
+        - is charged as 0.58 for the rest of the period
+        - and is 0.58 of rest a new period is reduced by
+- `packages/nest/tests/promo-calculator.test.js`
+    - a percentage discount on a half cent rounds the way a person computing it rounds
+
+<!-- END proof -->
+
 ## 10. What a tenant may do at runtime
 
 Everything above decides what was sold. This chapter is about the moment it is applied: a request
@@ -7708,13 +7761,14 @@ _Tested by:_
         - targetType filters bundle promotions separately from plan promotions
     - applyPromo
         - percent
+        - a percentage takes off its discount rounded, as a promo code does
         - amount
         - amount clamps at 0
         - intro
         - freeMonths
         - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
-    - round2 rounds to two decimal places
+    - a percentage discount on a half cent rounds the way a person computing it rounds
     - grossFromNet adds VAT
     - computeIncludedVat extracts VAT from gross
     - computeDiscountGross PERCENT 25%
@@ -7767,13 +7821,14 @@ _Tested by:_
         - targetType filters bundle promotions separately from plan promotions
     - applyPromo
         - percent
+        - a percentage takes off its discount rounded, as a promo code does
         - amount
         - amount clamps at 0
         - intro
         - freeMonths
         - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
-    - round2 rounds to two decimal places
+    - a percentage discount on a half cent rounds the way a person computing it rounds
     - grossFromNet adds VAT
     - computeIncludedVat extracts VAT from gross
     - computeDiscountGross PERCENT 25%
@@ -7813,7 +7868,7 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/nest/tests/promo-calculator.test.js`
-    - round2 rounds to two decimal places
+    - a percentage discount on a half cent rounds the way a person computing it rounds
     - grossFromNet adds VAT
     - computeIncludedVat extracts VAT from gross
     - computeDiscountGross PERCENT 25%
@@ -9072,6 +9127,7 @@ _Tested by:_
         - undoes all of it when the application’s own write fails, and can be concluded again
         - refuses a contract the offer cannot become before anything is written
         - refuses an offer whose amounts no longer match before anything is written
+        - refuses an offer whose gross was rounded a cent short, rather than conclude another total
         - answers an offer concluded already with its contract, without running the application
           again
         - gives a caller that loses the race the conclusion that stands

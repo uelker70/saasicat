@@ -2,7 +2,7 @@
 //
 // Contents:
 //   - calculator: pure functions (computeDiscountGross, buildLabel, ...)
-//   - math:       round2, computeIncludedVat
+//   - math:       grossFromNet, netFromGross, computeIncludedVat (from @saasicat/core)
 //   - service:    PromoCodesService (CRUD, preview, redeem, reverse, stats)
 //   - expirer:    PromoCodeExpirer (cron @ 3am Europe/Berlin)
 //   - rate-limit.guard: PromoCodeRateLimitGuard + ipFingerprint/hashIp
