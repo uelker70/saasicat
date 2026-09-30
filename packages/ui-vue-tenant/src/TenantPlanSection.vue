@@ -53,6 +53,9 @@
                 {{ versionSwitchNote }}
             </p>
             <p v-if="offerError" class="sp-plan-section__warn" role="alert">{{ offerError }}</p>
+            <p v-if="offerReadError" class="sp-plan-section__warn" role="alert">
+                {{ offerReadError }}
+            </p>
 
             <!-- A newer version of the plan, offered beside it (#357). -->
             <VersionOfferCard
@@ -799,7 +802,14 @@ function featureLabelResolved(key: string): string {
 
 const versionOffer = ref<VersionOfferView | null>(null);
 const takingOffer = ref(false);
+/** Why taking the offer was refused. Stays until the next attempt. */
 const offerError = ref<string | null>(null);
+/**
+ * Why the offer could not be read. Kept apart from a refused switch: a refusal
+ * reloads the page, the reload reads the offer again, and a read that
+ * succeeds must not clear the sentence saying why the click did nothing.
+ */
+const offerReadError = ref<string | null>(null);
 const versionSwitchNote = ref<string | null>(null);
 
 /** The coded body a refused request carried, where it carried one. */
@@ -831,7 +841,7 @@ const commitVersionOffer = latestAnswerWins(
     },
     ({ offer, failure }) => {
         versionOffer.value = offer;
-        offerError.value = failure;
+        offerReadError.value = failure;
     },
 );
 

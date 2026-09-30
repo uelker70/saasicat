@@ -111,6 +111,8 @@ type Answer = { status: number; body: unknown };
  */
 function aServer(options: {
     offer: VersionOfferView | null;
+    /** What the offer read answers instead of the offer, where it fails. */
+    offerRead?: Answer;
     accept?: Answer;
     subscription?: Record<string, unknown>;
     /** What another administrator changed while this one was deciding. */
@@ -165,8 +167,9 @@ function aServer(options: {
                 },
             });
         }
-        if (url.endsWith('/version-offer'))
-            return reply({ status: 200, body: { offer: state.offer } });
+        if (url.endsWith('/version-offer')) {
+            return reply(options.offerRead ?? { status: 200, body: { offer: state.offer } });
+        }
         if (url.endsWith('/usage')) return reply({ status: 200, body: state.subscription });
         if (url.endsWith('/plans')) return reply({ status: 200, body: [CATALOGUE_STANDARD] });
         return reply({ status: 200, body: [] });
@@ -256,6 +259,19 @@ describe('the offer beside the plan', () => {
         expect(card()!.querySelector('.sp-badge')!.textContent!.trim()).toBe('Schränkt ein');
         expect(card()!.textContent).toContain('Fällt weg: EXPORT');
         expect(card()!.textContent).toContain('Wirksam: zum 2027-01-01');
+    });
+
+    test('says so where the offer could not be read, rather than showing nothing', async () => {
+        await aSection(
+            aServer({
+                offer: null,
+                offerRead: { status: 503, body: { code: 'SUBSCRIPTION_CHANGED', message: 'x' } },
+            }),
+        );
+        expect(card()).toBeNull();
+        expect(document.body.querySelector('[role="alert"]')!.textContent!.trim()).toBe(
+            ERROR_MESSAGES_DE.SUBSCRIPTION_CHANGED,
+        );
     });
 
     test('is not shown on a subscription that has ended', async () => {
@@ -385,6 +401,11 @@ describe('taking it', () => {
             true,
         );
         expect(wrapper.find('.sp-plan-section__cycle').text()).toBe('Jährlich');
+        // And it still says why the click did nothing: the offer read again
+        // after the reload succeeds, and must not clear the refusal.
+        expect(document.body.querySelector('[role="alert"]')!.textContent!.trim()).toBe(
+            ERROR_MESSAGES_DE.VERSION_OFFER_CHANGED,
+        );
     });
 
     test('a refusal with no offer to show still says why', async () => {

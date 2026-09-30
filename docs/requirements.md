@@ -4138,6 +4138,7 @@ _Tested by:_
         - shows both versions side by side, with what is added and when a switch takes effect
         - says a rhythm the new version is not sold in, and an unlimited quota
         - says what one that takes something away removes, and the date it would take effect
+        - says so where the offer could not be read, rather than showing nothing
         - is not shown on a subscription that has ended
 
 <!-- END proof -->
