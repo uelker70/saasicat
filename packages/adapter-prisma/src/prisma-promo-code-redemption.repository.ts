@@ -58,13 +58,18 @@ export class PrismaPromoCodeRedemptionRepository implements PromoCodeRedemptionR
         return toRecord(row);
     }
 
-    async setReversed(id: string, tx?: TransactionContext): Promise<PromoCodeRedemptionRecord> {
+    async setReversed(
+        id: string,
+        tx?: TransactionContext,
+    ): Promise<PromoCodeRedemptionRecord | null> {
         const db = resolveClient(this.prisma, tx);
-        const row = await db.promoCodeRedemption.update({
-            where: { id },
+        const claim = await db.promoCodeRedemption.updateMany({
+            where: { id, status: { not: 'REVERSED' } },
             data: { status: 'REVERSED', reversedAt: new Date() },
         });
-        return toRecord(row);
+        if (claim.count === 0) return null;
+        const row = await db.promoCodeRedemption.findUnique({ where: { id } });
+        return row ? toRecord(row) : null;
     }
 
     async countByPromoCode(

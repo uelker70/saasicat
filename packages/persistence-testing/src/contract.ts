@@ -2185,6 +2185,64 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-PROMO-001 — A code is redeemed at most once per subscription
+        test('a redemption is reversed once, whichever of two reversals writes first', async (t) => {
+            const { seed, adapter } = harness;
+            if (!adapter.promoCodeRedemptionRepository) {
+                missing(t, 'promoCodeRedemptions');
+                return;
+            }
+            const redemptions = adapter.promoCodeRedemptionRepository;
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-reversed-once',
+                plan: 'STARTER',
+                planVersionId,
+            });
+            const { promoCodeId } = await seed.createPromoCode({
+                code: 'ONCE10',
+                maxRedemptions: null,
+            });
+            const redemption = await redemptions.create({
+                promoCodeId,
+                subscriptionId,
+                tenantId: 'tenant-reversed-once',
+                appliedValueType: 'PERCENT',
+                appliedValue: '10.00',
+                appliedDurationType: 'ONCE',
+                appliedDurationValue: null,
+                startsAt: new Date('2026-01-01T00:00:00.000Z'),
+                endsAt: new Date('2026-02-01T00:00:00.000Z'),
+            });
+
+            const both = await Promise.all([
+                redemptions.setReversed(redemption.id),
+                redemptions.setReversed(redemption.id),
+            ]);
+
+            assert.equal(
+                both.filter((answer) => answer !== null).length,
+                1,
+                'both reversals claimed the redemption, and both would give its slot back',
+            );
+            assert.equal(both.find((answer) => answer !== null)?.status, 'REVERSED');
+            assert.equal(
+                (await redemptions.findBySubscription(subscriptionId))?.status,
+                'REVERSED',
+            );
+            assert.equal(
+                await redemptions.setReversed(redemption.id),
+                null,
+                'a third reversal of a reversed redemption claims nothing',
+            );
+        });
+
         test('findByTenantIdLocked serializes concurrent transactions on the same tenant', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {

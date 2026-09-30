@@ -2009,6 +2009,14 @@ better answer: [Change the feature vocabulary](change-the-feature-vocabulary.md)
 - **`PLATFORM_DOCTOR_CHECK_PROVIDERS`** gains `ContractFeaturesDoctorCheck`. Where contracts are not
   frozen it says so and passes.
 
+### A promo code redemption is reversed once
+
+`PromoCodeRedemptionRepository.setReversed` answers `PromoCodeRedemptionRecord | null`. A repository
+of your own reverses the redemption only while it is not reversed yet, in one conditional statement,
+and answers `null` where it already was — the reversal that gets `null` gives no slot back. The
+persistence contract runs two reversals of one redemption at once against it. `reverse` now rolls
+back an expired redemption as well as an active one.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

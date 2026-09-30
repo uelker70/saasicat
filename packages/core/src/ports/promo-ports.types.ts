@@ -270,7 +270,14 @@ export interface PromoCodeRedemptionRepository {
         data: Omit<PromoCodeRedemptionRecord, 'id' | 'redeemedAt' | 'status' | 'reversedAt'>,
         tx?: TransactionContext,
     ): Promise<PromoCodeRedemptionRecord>;
-    setReversed(id: string, tx?: TransactionContext): Promise<PromoCodeRedemptionRecord>;
+    /**
+     * Marks the redemption reversed while it is not reversed yet, in one
+     * conditional statement, and answers with it; `null` where it already was.
+     * Two reversals of one redemption at the same moment then find one winner,
+     * and only the winner gives the slot back — without the claim both would,
+     * and a limited code would gain a slot it never issued.
+     */
+    setReversed(id: string, tx?: TransactionContext): Promise<PromoCodeRedemptionRecord | null>;
     countByPromoCode(promoCodeId: string, status?: PromoCodeRedemptionStatus): Promise<number>;
     listByPromoCode(promoCodeId: string): Promise<PromoCodeRedemptionListItem[]>;
     expireDueRedemptions(now: Date): Promise<number>;

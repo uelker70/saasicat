@@ -653,14 +653,27 @@ export class PromoCodesService {
         };
     }
 
+    /**
+     * Rolls a redemption back and gives its slot to the code again
+     * (`SC-PROMO-001`). Any redemption not reversed yet is reversed, an
+     * expired one included: an ordinary end never calls this — a redemption
+     * simply runs out — so a call here is a withdrawal or a rollback, and the
+     * code did not stay used by it. The answer therefore no longer depends on
+     * whether the nightly sweep has marked the redemption yet.
+     *
+     * The slot goes back once. The write claims the redemption only while it
+     * is not reversed, so of two reversals at the same moment one wins, and
+     * the other answers with the redemption as the winner left it.
+     */
     async reverse(subscriptionId: string): Promise<PromoCodeRedemptionRecord | null> {
         return this.transactionRunner.run(async (tx: TransactionContext) => {
             const redemption = await this.redemptionRepo.findBySubscription(subscriptionId, tx);
-            if (!redemption || redemption.status !== 'ACTIVE') return redemption;
+            if (!redemption || redemption.status === 'REVERSED') return redemption;
 
-            const updated = await this.redemptionRepo.setReversed(redemption.id, tx);
+            const reversed = await this.redemptionRepo.setReversed(redemption.id, tx);
+            if (!reversed) return this.redemptionRepo.findBySubscription(subscriptionId, tx);
             await this.promoRepo.releaseSlot(redemption.promoCodeId, tx);
-            return updated;
+            return reversed;
         });
     }
 

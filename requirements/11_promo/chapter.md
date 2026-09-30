@@ -17,6 +17,15 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-redemption-is-reversed-once.test.js`
+    - reversing a redemption
+        - rolls an active one back and gives the code its slot
+        - rolls one back that has run out and been marked so, the same way
+        - rolls one back that has run out and is not marked yet, the same way
+        - leaves one reversed already as it is, and gives nothing back twice
+        - answers null for a subscription that redeemed nothing
+    - two reversals of one redemption at the same moment
+        - give the slot back once
 - `packages/nest/tests/promo-admin-controller.test.js`
     - standard promo Admin controller exposes list, create, edit and delete
 - `packages/nest/tests/promo-service.test.js`
