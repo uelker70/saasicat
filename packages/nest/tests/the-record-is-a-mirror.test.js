@@ -110,8 +110,11 @@ describe('the applied-settings port', () => {
         //     acknowledgement to the trail through an `@Optional()` service,
         //     and reads nothing back;
         //   - the mark that keeps the screen reachable while the application
-        //     is locked for maintenance, which is metadata and reads nothing.
+        //     is locked for maintenance, which is metadata and reads nothing;
+        //   - the decorator that attaches the operator's guards and the frame
+        //     an operator's route runs in, which is metadata too.
         const ALLOWED = [
+            '/admin/use-route-guards.decorator.js',
             '/billing/plan-catalog.module.js',
             '/core/di.js',
             '/core/email.tokens.js',

@@ -22,7 +22,6 @@ import {
     Post,
     Req,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 import {
     MAINTENANCE_ERROR_CODES,
@@ -47,6 +46,7 @@ import {
     UnlockMaintenanceDto,
 } from './dto/maintenance.dto.js';
 import { MaintenanceService } from './maintenance.service.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 /** A time the operator typed, read with its zone, or refused naming the field. */
 function instantOf(value: string, field: string): Date {
@@ -69,7 +69,7 @@ const viewOf = (window: MaintenanceWindowRecord): MaintenanceWindowView =>
 
 export function buildMaintenanceAdminController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     @AllowDuringMaintenance()
     class GeneratedMaintenanceAdminController {
         // Explicit @Inject: tsup/esbuild emit no `design:paramtypes`.

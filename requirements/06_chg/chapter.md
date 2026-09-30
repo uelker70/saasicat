@@ -168,6 +168,7 @@ _Tested by:_
     - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
       is
     - a scheduled change to another plan binds the version it was quoted at
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
 

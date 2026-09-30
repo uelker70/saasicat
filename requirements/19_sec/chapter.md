@@ -75,6 +75,8 @@ _Tested by:_
 - `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
     - the platform’s own scheduled jobs
         - the promotional code sweep runs under the RLS bypass, every step of it
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the run reads and writes every tenant's change inside the bypass
 
 <!-- END proof -->
 
@@ -405,5 +407,30 @@ _Tested by:_
         - a refused code keeps the dialog open, says so, and a second code goes through
         - a package error carrying the status counts as a refusal, not only an AdminError
         - any other failure closes the dialog and reaches the caller
+
+<!-- END proof -->
+
+### SC-SEC-015 — An operator's route runs across tenants, and no other route does
+
+🟢 🔒 Every route the platform mounts behind its operator guard chain runs inside the installation's
+row-level-security bypass, so an operator's lists and counts are not empty under a tenant's policy.
+Every other route — a tenant's, a public one — runs in whatever frame the installation opened for the
+request. The frame follows from the guard chain rather than from a list of routes, and the check that
+the administrator is calling runs before it opens. This is the exception `SC-SEC-003` names. A chain
+an integrator sets for a module the platform mounts frames its routes where it holds `SuperAdminGuard`,
+and a route an integrator builds itself chooses its frame with `AdminBypassRlsInterceptor`.
+
+_Source:_ #344
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
+    - the frame a route runs in follows its guard chain
+        - every route behind the administrator runs in the bypass, and no other does
+    - where the handler of a route actually runs
+        - an operator's route reads in the bypass
+        - a tenant turned away from the operator route never reached a frame
 
 <!-- END proof -->

@@ -14,7 +14,6 @@ import {
     Query,
     Req,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import type {
@@ -35,6 +34,7 @@ import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { EnforceMfa } from './enforce-mfa.decorator.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from './use-route-guards.decorator.js';
 
 export const ADMIN_RESOURCES_PORT_TOKEN = Symbol.for('saasicat/nest/AdminResourcesPort');
 
@@ -155,7 +155,7 @@ function actorFromRequest(request: AdminRequest): AdminActor {
 function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedAdminResourcesController {
         constructor(
             @Inject(AdminResourcesService)

@@ -251,5 +251,13 @@ export interface ManifestAccessPort {
  * good at boot as it is in a request.
  */
 export interface RlsBypassPort {
+    /**
+     * Runs `fn` with the policy lifted. Where the installation keeps more than
+     * the flag in the frame — the user, the tenant, an audit actor — the bypass
+     * frame carries it over rather than replacing it: an operator's route runs
+     * inside it, and what the request's own frame held is still read there.
+     * `store.run({ ...store.getStore(), bypassRls: true }, fn)` rather than
+     * `store.run({ bypassRls: true }, fn)`.
+     */
     runWithBypass<T>(fn: () => Promise<T>): Promise<T>;
 }

@@ -18,7 +18,6 @@ import {
     Query,
     Req,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 
 import { WebAuditLogger } from '../core/web-audit.js';
@@ -31,11 +30,12 @@ import {
     UpdateCatalogEntryI18nDto,
 } from './dto/catalog-entries.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedCatalogEntriesController {
         constructor(
             @Inject(CatalogEntriesService)

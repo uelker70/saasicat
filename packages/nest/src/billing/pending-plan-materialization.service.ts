@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { BillingCycle, TenantSubscriptionWritePort } from '@saasicat/core';
+import type { BillingCycle, RlsBypassPort, TenantSubscriptionWritePort } from '@saasicat/core';
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { initialPeriodWindow } from './billing-period.js';
@@ -43,9 +45,20 @@ export class PendingPlanMaterializationService {
         @Optional()
         @Inject(CONTRACT_FREEZE_PORT_TOKEN)
         private readonly contractFreeze: ContractFreezePort | null = null,
+        // The run applies every tenant's due change, reads and writes, so under
+        // row-level security it works inside the bypass: without the frame a
+        // forced policy leaves it nothing to see and nothing to write, and it
+        // reports that as a quiet night.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     async materializeDuePlanChanges(now: Date = new Date()): Promise<{ applied: number }> {
+        return readAcrossTenants(this.rlsBypass, () => this.materializeAll(now));
+    }
+
+    private async materializeAll(now: Date): Promise<{ applied: number }> {
         const due = await this.query.findDuePendingPlanChanges(now);
 
         let applied = 0;

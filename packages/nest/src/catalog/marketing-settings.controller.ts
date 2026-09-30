@@ -1,25 +1,17 @@
 // MarketingSettingsController — `/admin/catalog/marketing-settings`
 //. Built at boot time, like BundlesController.
 
-import {
-    Body,
-    type CanActivate,
-    Controller,
-    Get,
-    Inject,
-    Put,
-    type Type,
-    UseGuards,
-} from '@nestjs/common';
+import { Body, type CanActivate, Controller, Get, Inject, Put, type Type } from '@nestjs/common';
 
 import { MarketingSettingsService } from './marketing-settings.service.js';
 import { UpdateMarketingSettingsDto } from './dto/marketing-settings.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export function buildMarketingSettingsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/marketing-settings')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedMarketingSettingsController {
         constructor(
             @Inject(MarketingSettingsService)

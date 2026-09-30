@@ -16,17 +16,17 @@ import {
     Patch,
     Post,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 
 import { PromotionsService } from './promotions.service.js';
 import { CreatePromotionDto, UpdatePromotionDto } from './dto/promotions.dto.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 export function buildPromotionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/promotions')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedPromotionsController {
         constructor(
             @Inject(PromotionsService)

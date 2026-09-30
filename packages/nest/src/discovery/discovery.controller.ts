@@ -16,12 +16,12 @@ import {
     Post,
     Res,
     type Type,
-    UseGuards,
 } from '@nestjs/common';
 
 import { DiscoveryScanner } from './discovery.scanner.js';
 import type { DiscoverySnapshot } from './discovery.types.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
+import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 
 interface HttpResponseLike {
     header(name: string, value: string): unknown;
@@ -36,7 +36,7 @@ interface HttpResponseLike {
 export function buildDiscoveryController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
     @AllowDuringMaintenance()
-    @UseGuards(...guards)
+    @UseRouteGuards(...guards)
     class GeneratedDiscoveryController {
         // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
         // any `design:paramtypes` metadata, so otherwise Nest cannot resolve the

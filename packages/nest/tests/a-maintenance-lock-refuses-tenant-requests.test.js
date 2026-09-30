@@ -114,7 +114,9 @@ function appModule(port, resolverCalls) {
                         core: {
                             mfa: {},
                             audit: NOOP,
-                            rlsBypass: {},
+                            // What an installation without row policies binds: the
+                            // operator's routes run through it.
+                            rlsBypass: { runWithBypass: (work) => work() },
                             transactionRunner: {},
                             maintenanceWindows: port,
                         },
