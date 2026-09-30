@@ -1015,6 +1015,43 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
 
             // @requirement SC-SUB-021
+            test('keeps the version bound where a newer version of the same plan it names has ended by the day it lands', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-named-version-gone');
+                if (!tenant) return;
+                const end = harness.adapter.planRepository?.terminate?.bind(
+                    harness.adapter.planRepository,
+                );
+                if (!end) {
+                    t.skip('the plan repository ends no versions');
+                    return;
+                }
+                const publishedSince = await harness.seed.createPlanVersion({
+                    planKey: 'LOYAL',
+                    version: 3,
+                    quotas: { users: 20 },
+                    features: [],
+                    published: true,
+                });
+                // Taken while it was sold, ended before the term it was taken for.
+                await end(tenant.live, new Date('2026-04-15T00:00:00.000Z'));
+
+                const change = await tenant.writer.changePlanImmediate(
+                    'tenant-named-version-gone',
+                    {
+                        ...toYearly(false),
+                        quotedPlanVersionId: tenant.live,
+                    },
+                );
+
+                assert.equal(change.claimed, true);
+                const after = await harness.adapter.subscriptionRepository.findByTenantId(
+                    'tenant-named-version-gone',
+                );
+                assert.equal(after?.planVersionId, tenant.bound, 'the version bought');
+                assert.notEqual(after?.planVersionId, publishedSince.planVersionId);
+            });
+
+            // @requirement SC-SUB-021
             test('claims nothing where the binding moved since the caller read it', async (t) => {
                 const tenant = await onASupersededVersion(t, 'tenant-binding-moved');
                 if (!tenant) return;

@@ -43,6 +43,10 @@ export interface VersionOfferSide {
     readonly quotas: Readonly<Record<string, number>>;
     readonly monthlyNet: number | null;
     readonly yearlyNet: number | null;
+    /** The last day it is sold on, where a successor closes its window — ISO, the whole day included. */
+    readonly validUntil: string | null;
+    /** When an operator ended it, where one did — ISO; from then it is not sold. */
+    readonly endsAt: string | null;
 }
 
 /**

@@ -93,7 +93,14 @@ function sideOf(row: PlanVersionRow, plan: PlanDef): VersionOfferSide {
         quotas: { ...plan.quotas },
         monthlyNet: plan.monthlyNet ?? null,
         yearlyNet: plan.yearlyNet ?? null,
+        validUntil: isoOrNull(row.validUntil),
+        endsAt: isoOrNull(row.endsAt),
     };
+}
+
+/** A date as a store hands it over — a string, or a `Date` from a driver that parses — as ISO. */
+function isoOrNull(value: string | Date | null | undefined): string | null {
+    return value === null || value === undefined ? null : new Date(value).toISOString();
 }
 
 @Injectable()

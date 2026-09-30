@@ -251,6 +251,41 @@ describe('one that takes something away is taken at the end of the term', () => 
         assert.equal(calls.scheduled.length, 0);
     });
 
+    test('refused where the version offered stops being sold at the term end', async () => {
+        const ending = V2({ ...TAKES_AWAY, id: 'pv-2', endsAt: PERIOD_END.toISOString() });
+        const { calls, take } = aSwitch({ live: ending, usage: { users: 3 } });
+        await assert.rejects(take(), (error) => {
+            assert.equal(error.response.code, 'VERSION_ENDS_BEFORE_SWITCH');
+            assert.deepEqual(error.response.params, {
+                takesEffectAt: PERIOD_END.toISOString(),
+                validUntil: null,
+                endsAt: PERIOD_END.toISOString(),
+            });
+            return true;
+        });
+        assert.equal(calls.scheduled.length, 0);
+    });
+
+    test('taken where it is ended a moment after the term end', async () => {
+        const later = new Date(PERIOD_END.getTime() + 1).toISOString();
+        const ending = V2({ ...TAKES_AWAY, id: 'pv-2', endsAt: later });
+        const { calls, take } = aSwitch({ live: ending, usage: { users: 3 } });
+        await take();
+        assert.equal(calls.scheduled.length, 1);
+    });
+
+    test('refused where its window closes the day before the term end, taken where it closes that day', async () => {
+        const closesBefore = V2({ ...TAKES_AWAY, id: 'pv-2', validUntil: '2026-12-31' });
+        const closesThatDay = V2({ ...TAKES_AWAY, id: 'pv-2', validUntil: '2027-01-01' });
+        await assert.rejects(
+            aSwitch({ live: closesBefore, usage: { users: 3 } }).take(),
+            refusedWith('VERSION_ENDS_BEFORE_SWITCH'),
+        );
+        const { calls, take } = aSwitch({ live: closesThatDay, usage: { users: 3 } });
+        await take();
+        assert.equal(calls.scheduled.length, 1);
+    });
+
     test('taken where the cancellation lands after the term end', async () => {
         const later = new Date(PERIOD_END.getTime() + 1);
         const { calls, take } = aSwitch({

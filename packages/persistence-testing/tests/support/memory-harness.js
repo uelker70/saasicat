@@ -162,17 +162,25 @@ export function createMemoryHarness() {
                     ? { id: quotedRow.id }
                     : null;
             if (!keepsVersion && input.quotedVersionOnly && !quoted) return unclaimed;
-            const target = keepsVersion
-                ? { id: row.planVersionId }
-                : (quoted ??
-                  state.planVersions
-                      .filter(
-                          (version) =>
-                              version.planId === input.planId &&
-                              version.publishedAt &&
-                              !version.supersededAt,
-                      )
-                      .sort((a, b) => b.version - a.version)[0]);
+            // A version of the plan kept, named but no longer bookable, keeps
+            // the version bound rather than one nobody was offered.
+            const namedVersionGone =
+                !quoted &&
+                (input.quotedPlanVersionId ?? null) !== null &&
+                row.plan === input.planId &&
+                (row.planVersionId ?? null) !== null;
+            const target =
+                keepsVersion || namedVersionGone
+                    ? { id: row.planVersionId }
+                    : (quoted ??
+                      state.planVersions
+                          .filter(
+                              (version) =>
+                                  version.planId === input.planId &&
+                                  version.publishedAt &&
+                                  !version.supersededAt,
+                          )
+                          .sort((a, b) => b.version - a.version)[0]);
             if (!target) throw noActivePlanVersion(input.planId, input.periodStart ?? new Date());
             // The contract's own claim: the write takes the row only while the
             // cancellation is what the caller read. This reference store keeps

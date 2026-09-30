@@ -26,8 +26,14 @@ entry (`SWITCH_PLAN_VERSION`, or `SCHEDULE_PLAN_VERSION_SWITCH`).
 - **One that takes something away** is scheduled for the end of the term,
   bound to the version offered, and written when it comes due. It is refused
   with `400 PLAN_CHANGE_BLOCKED` (`QUOTA_OVER_TARGET`) while today's usage
-  exceeds a quota it lowers, and with `409 VERSION_SWITCH_AFTER_CANCELLATION`
-  where a cancellation lands before it would take effect.
+  exceeds a quota it lowers, with `409 VERSION_SWITCH_AFTER_CANCELLATION`
+  where a cancellation lands before it would take effect, and with
+  `409 VERSION_ENDS_BEFORE_SWITCH` where the version stops being sold — its
+  window closes, or an operator ended it — before then. Each side of the offer
+  now carries `validUntil` and `endsAt` for that.
+- A change that names a version of the plan it keeps, and finds that version
+  no longer taking bookings when it lands, keeps the version bound rather than
+  binding one nobody was offered — in both adapters, held by the contract.
 - `PendingPlanMaterializationService` binds the version a due change names,
   also where the plan stays; a change that names none keeps the version bound,
   as before.

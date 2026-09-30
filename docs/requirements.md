@@ -4143,10 +4143,11 @@ period kept, and cost what any contract taking effect inside a paid period costs
 the rest of the period where the price in the subscriber's own rhythm is higher, nothing where it is
 not. One that takes something away takes effect at the end of the running term, bound to the version
 offered; it is refused like a downgrade while today's usage exceeds a quota it lowers, and refused
-where the subscription ends before it would take effect. The switch goes ahead only while the version
-named is still the one offered — otherwise nothing changes and the offer as it now stands comes back.
-Where contracts are frozen, a successor contract records the switch when it takes effect, and the
-audit trail records who took it.
+where the subscription ends, or the version stops being sold, before it would take effect. A version
+ended after it was taken keeps the subscription on the version it has. The switch goes ahead only
+while the version named is still the one offered — otherwise nothing changes and the offer as it now
+stands comes back. Where contracts are frozen, a successor contract records the switch when it takes
+effect, and the audit trail records who took it.
 
 _Source:_ #357
 
@@ -4170,6 +4171,10 @@ _Tested by:_
         - a quota the version offered no longer carries allows nothing
         - an unlimited quota holds any usage
         - refused while the cancellation lands at the term end, since it would never happen
+        - refused where the version offered stops being sold at the term end
+        - taken where it is ended a moment after the term end
+        - refused where its window closes the day before the term end, taken where it closes that
+          day
         - taken where the cancellation lands after the term end
     - the switch goes ahead only while the version shown is still the offer
         - another version named is refused, carrying the offer as it stands

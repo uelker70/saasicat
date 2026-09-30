@@ -171,6 +171,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The offer changed since it was shown. Look at the current one before switching.',
     VERSION_SWITCH_AFTER_CANCELLATION:
         'This subscription ends before this version would take effect, so it cannot be switched to.',
+    VERSION_ENDS_BEFORE_SWITCH:
+        'This version stops being sold before it would take effect, so it cannot be switched to.',
     SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
     PLAN_LOCKED:
         'Active {planName} special contract — please contact the contract manager to change plans.',

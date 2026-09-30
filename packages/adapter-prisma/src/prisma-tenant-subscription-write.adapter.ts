@@ -204,10 +204,24 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             if (!keepsVersion && input.quotedVersionOnly && quoted === null) {
                 return unclaimed;
             }
-            data.planVersionId = keepsVersion
-                ? boundVersionId
-                : (quoted ??
-                  (await this.findTargetPlanVersionId(client, input.planId, storagePlanId, asOf)));
+            // A change that names a version of the plan it keeps, which no
+            // longer takes bookings when it lands, keeps the version bound: the
+            // one in effect by then is one nobody was offered or agreed to.
+            const namedVersionGone =
+                quoted === null &&
+                input.quotedPlanVersionId !== null &&
+                current.plan === input.planId &&
+                boundVersionId !== null;
+            data.planVersionId =
+                keepsVersion || namedVersionGone
+                    ? boundVersionId
+                    : (quoted ??
+                      (await this.findTargetPlanVersionId(
+                          client,
+                          input.planId,
+                          storagePlanId,
+                          asOf,
+                      )));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.

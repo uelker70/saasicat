@@ -94,14 +94,23 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             if (!keepsVersion && input.quotedVersionOnly && quoted === null) {
                 return unclaimed;
             }
-            const planVersionId = keepsVersion
-                ? current.planVersionId
-                : (quoted ??
-                  (await this.activeVersionId(
-                      input.planId,
-                      input.periodStart ?? new Date(),
-                      tx as unknown as TransactionContext,
-                  )));
+            // A change that names a version of the plan it keeps, which no
+            // longer takes bookings when it lands, keeps the version bound: the
+            // one in effect by then is one nobody was offered or agreed to.
+            const namedVersionGone =
+                quoted === null &&
+                input.quotedPlanVersionId !== null &&
+                current.plan === input.planId &&
+                current.planVersionId !== null;
+            const planVersionId =
+                keepsVersion || namedVersionGone
+                    ? current.planVersionId
+                    : (quoted ??
+                      (await this.activeVersionId(
+                          input.planId,
+                          input.periodStart ?? new Date(),
+                          tx as unknown as TransactionContext,
+                      )));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.

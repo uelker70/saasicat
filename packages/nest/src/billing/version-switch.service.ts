@@ -19,7 +19,9 @@
 // improvement is free, and a version dearer only in the rhythm the subscriber
 // does not pay in costs them nothing either. One that takes something away is
 // scheduled for the end of the term like a downgrade, bound to the version
-// offered, and refused like one while today's usage would not fit.
+// offered, and refused like one while today's usage would not fit — and where
+// that version stops being sold before the term ends, since it could not be
+// bound then.
 
 import {
     BadRequestException,
@@ -38,7 +40,7 @@ import type {
     VersionOfferView,
     VersionSwitchResult,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES } from '@saasicat/core';
+import { BILLING_ERROR_CODES, isVersionActiveAt } from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -168,6 +170,19 @@ export class VersionSwitchService {
                 params: {
                     canceledEffectiveAt: endsAt.toISOString(),
                     takesEffectAt: offer.takesEffectAt,
+                },
+            });
+        }
+        // Bound when the change comes due, so it has to be sold then.
+        if (!isVersionActiveAt(offer.offered, takesEffectAt)) {
+            throw new ConflictException({
+                code: BILLING_ERROR_CODES.VERSION_ENDS_BEFORE_SWITCH,
+                message:
+                    'This version stops being sold before it would take effect, so it cannot be switched to.',
+                params: {
+                    takesEffectAt: offer.takesEffectAt,
+                    validUntil: offer.offered.validUntil,
+                    endsAt: offer.offered.endsAt,
                 },
             });
         }

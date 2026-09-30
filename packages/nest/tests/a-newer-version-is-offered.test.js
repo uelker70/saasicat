@@ -57,6 +57,8 @@ describe('an offer', () => {
             quotas: { users: 5, vehicles: 100 },
             monthlyNet: 49,
             yearlyNet: 490,
+            validUntil: null,
+            endsAt: null,
         });
         assert.equal(offer.offered.planVersionId, 'pv-2');
         assert.deepEqual(offer.offered.quotas, { users: 5, vehicles: 150 });

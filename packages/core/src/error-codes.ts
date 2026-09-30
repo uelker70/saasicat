@@ -189,6 +189,13 @@ export const BILLING_ERROR_CODES = {
      * happen, so it is refused rather than recorded. Carries both dates.
      */
     VERSION_SWITCH_AFTER_CANCELLATION: 'VERSION_SWITCH_AFTER_CANCELLATION',
+    /**
+     * A version that takes something away takes effect when the term ends, and
+     * it stops being sold before then — by its window or because an operator
+     * ended it — so it could not be bound when the change comes due. Refused
+     * rather than recorded; carries the dates.
+     */
+    VERSION_ENDS_BEFORE_SWITCH: 'VERSION_ENDS_BEFORE_SWITCH',
 
     // ── the preview routes' own blockers and warnings ──
     //
