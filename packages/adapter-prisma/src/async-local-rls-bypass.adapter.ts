@@ -3,34 +3,26 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { RlsBypassPort } from '@saasicat/core';
 
 /**
- * Default implementation of `RlsBypassPort` via `node:async_hooks`.
+ * `RlsBypassPort` over `node:async_hooks`: `runWithBypass` marks the call it
+ * wraps, and `isBypassActive()` says whether the current async context is
+ * inside one.
  *
- * Sets `bypass: true` for the duration of the given callback in the current
- * async context. Your PrismaService reads `isBypassActive()` (e.g. in a
- * Prisma middleware or an interceptor) and issues `SET LOCAL row_security
- * = off` in the current transaction when active.
- *
- * Example middleware:
- *
- * ```ts
- * constructor(private readonly rls: AsyncLocalRlsBypassAdapter) {
- *     super();
- *     this.$use(async (params, next) => {
- *         if (this.rls.isBypassActive() && params.action.startsWith('find')) {
- *             // Bypass mode active — disable RLS for this query.
- *             await this.$executeRawUnsafe('SET LOCAL row_security = off');
- *         }
- *         return next(params);
- *     });
- * }
- * ```
+ * On its own it lifts nothing — it only knows. What lifts a row policy is a
+ * statement run in one transaction with the setting the policy reads, which
+ * `PrismaRlsBypass` does for a Prisma client and
+ * `prismaPersistence({ rlsIntegration: true })` does for the platform's own
+ * statements. Without row policies this is the port to bind, and it runs the
+ * work as it is.
  */
 @Injectable()
 export class AsyncLocalRlsBypassAdapter implements RlsBypassPort {
     private readonly storage = new AsyncLocalStorage<{ bypass: true }>();
 
     async runWithBypass<T>(fn: () => Promise<T>): Promise<T> {
-        return this.storage.run({ bypass: true }, fn);
+        // Awaited inside the frame. A query builder's promise is lazy — it
+        // runs when it is awaited — and one handed back unawaited would run
+        // after the frame has closed, outside the bypass.
+        return this.storage.run({ bypass: true }, async () => await fn());
     }
 
     /**

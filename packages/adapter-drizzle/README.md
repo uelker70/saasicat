@@ -44,8 +44,10 @@ SaaSiCatModule.forRoot({
 driver — node-postgres, postgres.js) or an injection token, and returns the
 same `SaaSiCatPersistenceAdapter` bundle shape as `prismaPersistence()`.
 Options: `passwordHasher` (enables `core.superAdminProvisioning`),
-`rlsIntegration` (declares the `rowLevelSecurity` capability once your db
-layer applies the bypass), `notAdopted` (the canonical models your schema
+`rlsIntegration` (declares the `rowLevelSecurity` capability — this bundle
+does not lift a row policy itself, unlike the Prisma one; with row policies,
+bind an `RlsBypassPort` of your own in `adapters` that sets the setting your
+policies read inside one transaction), `notAdopted` (the canonical models your schema
 leaves out, as `saasicat schema check` prints them; the bundle leaves out what
 needs them) and `transactions`.
 

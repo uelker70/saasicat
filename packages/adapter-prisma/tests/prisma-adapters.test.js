@@ -14,6 +14,7 @@ import {
     PrismaPlanVersionRepository,
     PrismaPromoCodeRepository,
     PrismaPromoCodeRedemptionRepository,
+    PrismaRlsBypass,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaSubscriptionUsageAdapter,
@@ -44,6 +45,7 @@ function fakePrisma() {
         planVersionCreate: [],
         auditLogFindMany: [],
         promoCodeUpdateMany: [],
+        extends: [],
     };
     const state = {
         mfa: new Map(),
@@ -66,6 +68,10 @@ function fakePrisma() {
         state,
         $transaction(fn) {
             return fn(prisma);
+        },
+        $extends(extension) {
+            calls.extends.push(extension);
+            return prisma;
         },
         async $queryRaw(strings, ...values) {
             recordingRaw(calls.queryRaw)(strings, ...values);
@@ -881,6 +887,36 @@ describe('prismaPersistence()', () => {
         assert.equal(bundle.capabilities.rowLevelSecurity, true);
         assert.ok(bundle.core.transactionRunner instanceof PrismaTransactionRunner);
         assert.ok(bundle.core.appliedSettings instanceof PrismaAppliedSettingsRepository);
+    });
+
+    // @requirement SC-COMP-019 — Under row-level security, the Prisma bundle lifts it for cross-tenant work
+    test('rlsIntegration binds the port its adapters answer to, on one extended client', () => {
+        const p = fakePrisma();
+        const rls = new PrismaRlsBypass();
+        const bundle = prismaPersistence({ client: p, rlsIntegration: rls });
+
+        assert.equal(bundle.core.rlsBypass, rls.port);
+        assert.equal(bundle.capabilities.rowLevelSecurity, true);
+        assert.equal(p.calls.extends.length, 1, 'every adapter shares one extended client');
+    });
+
+    test('a client given as a token is extended where it is resolved', () => {
+        const token = Symbol('PRISMA');
+        const bundle = prismaPersistence({ client: token, rlsIntegration: true });
+        const p = fakePrisma();
+        bundle.core.audit.useFactory(p);
+        bundle.core.transactionRunner.useFactory(p);
+
+        assert.equal(p.calls.extends.length, 1);
+    });
+
+    test('without rlsIntegration the adapters get the client as it is', () => {
+        const p = fakePrisma();
+        const bundle = prismaPersistence({ client: p });
+
+        assert.equal(p.calls.extends.length, 0);
+        assert.equal(bundle.capabilities.rowLevelSecurity, false);
+        assert.ok(bundle.core.rlsBypass instanceof AsyncLocalRlsBypassAdapter);
     });
 
     test('token client + hasher token → provisioning factory injecting both', () => {

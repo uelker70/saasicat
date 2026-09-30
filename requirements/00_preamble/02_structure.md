@@ -97,10 +97,10 @@ properties it has while doing it.
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 18      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
-| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 533 entries: 🟢 463 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 534 entries: 🟢 464 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
