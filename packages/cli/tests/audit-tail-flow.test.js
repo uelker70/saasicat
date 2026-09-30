@@ -35,10 +35,19 @@ describe('AuditTailFlow.run — filter mapping', () => {
         assert.deepEqual(calls[0], {});
     });
 
-    test('actor → actorTag', async () => {
+    // @requirement SC-AUD-018 — An operator finds what one person did by their e-mail, whatever they acted through
+    test('an e-mail is looked for between the source and the context', async () => {
         const { flow, calls } = buildHarness();
         await flow.run({ actor: 'taci@example.com' });
-        assert.equal(calls[0].actorTag, 'taci@example.com');
+        assert.equal(calls[0].actorTag, '*:taci@example.com:*');
+    });
+
+    test('a tag or a pattern is passed on as it is', async () => {
+        const { flow, calls } = buildHarness();
+        await flow.run({ actor: 'cli:*' });
+        await flow.run({ actor: 'web:taci@example.com:sess1' });
+        assert.equal(calls[0].actorTag, 'cli:*');
+        assert.equal(calls[1].actorTag, 'web:taci@example.com:sess1');
     });
 
     test('action + entity', async () => {

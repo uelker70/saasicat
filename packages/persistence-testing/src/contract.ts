@@ -2530,6 +2530,26 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(released?.redemptionsCount, 0);
         });
 
+        // @requirement SC-PROMO-014 — A code is 4 to 32 characters of upper-case letters, digits, hyphen and underscore
+        test('a search for a code finds the underscore it types, not any character there', async (t) => {
+            // An underscore is part of a code, and in SQL's LIKE it stands for
+            // any one character: searched for unescaped, BLACK_ finds BLACKX25.
+            const { seed, adapter } = harness;
+            if (!adapter.promoCodeRepository) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            await seed.createPromoCode({ code: 'BLACK_25', maxRedemptions: null });
+            await seed.createPromoCode({ code: 'BLACKX25', maxRedemptions: null });
+
+            const found = await adapter.promoCodeRepository.findMany({ search: 'black_' });
+
+            assert.deepEqual(
+                found.map((code) => code.code),
+                ['BLACK_25'],
+            );
+        });
+
         test("a promo code keeps the amounts it was given, to the column's rule", async (t) => {
             // `(2.675).toFixed(2)` is '2.67' and `(1.005).toFixed(2)` is '1.00':
             // rounding the binary double before the column sees it sends a value
@@ -3127,6 +3147,49 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const cliOnly = await adapter.auditQuery.list({ actorTag: 'cli:*' });
             assert.equal(cliOnly.length, 1);
             assert.equal(cliOnly[0].action, 'TENANT_SUSPEND');
+        });
+
+        // @requirement SC-AUD-018
+        test('an actor pattern finds a person whatever they acted through, and ignores case', async (t) => {
+            const { adapter } = harness;
+            if (!adapter.audit || !adapter.auditQuery) {
+                missing(t, 'audit');
+                return;
+            }
+            const write = (email: string, source: 'cli' | 'web', context: string) =>
+                adapter.audit!.write({
+                    actor: { userId: 'admin-1', email, source, context },
+                    entity: 'Tenant',
+                    entityId: 'tenant-a',
+                    action: 'TENANT_SUSPEND',
+                });
+            await write('ops@example.com', 'cli', 'host1');
+            await write('ops@example.com', 'web', 'sess1');
+            await write('someone@example.com', 'cli', 'host1');
+
+            const tagsFor = async (actorTag: string) =>
+                (await adapter.auditQuery!.list({ actorTag }))
+                    .map((entry) => entry.actorTag)
+                    .sort();
+
+            assert.deepEqual(await tagsFor('*:ops@example.com:*'), [
+                'cli:ops@example.com:host1',
+                'web:ops@example.com:sess1',
+            ]);
+            assert.deepEqual(await tagsFor('*:OPS@EXAMPLE.COM:*'), [
+                'cli:ops@example.com:host1',
+                'web:ops@example.com:sess1',
+            ]);
+            assert.deepEqual(await tagsFor('*:host1'), [
+                'cli:ops@example.com:host1',
+                'cli:someone@example.com:host1',
+            ]);
+            assert.deepEqual(
+                await tagsFor('ops@example.com'),
+                [],
+                'a value with no star is a whole tag, and an e-mail alone is not one',
+            );
+            assert.deepEqual(await tagsFor('*:ops_example.com:*'), [], 'an underscore is literal');
         });
 
         test('MFA secret roundtrip', async (t) => {

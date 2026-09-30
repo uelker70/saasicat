@@ -7,7 +7,10 @@ Cross-cutting helpers for consumer CLIs. Provides:
 - `CliContextService` — identity / MFA / production-confirm / audit-tag
 - `MfaSetupFlow` — `<app> admin mfa-setup`
 - `WhoAmIFlow` — `<app> admin whoami`
-- `AuditTailFlow` — `<app> audit tail` (via `AuditQueryPort`)
+- `AuditTailFlow` — `<app> audit tail` (via `AuditQueryPort`). `--actor <email>` asks the
+  port for `*:<email>:*`, so an `AuditQueryPort` of your own reads the pattern grammar stated
+  on `AuditQuery.actorTag` — a star at the start, the end or both, matched without regard to
+  case — or `--actor` finds nothing
 - `DoctorFlow` — `<app> doctor` with pluggable `DoctorCheck` list
 - `ManifestCliFlow` + `DEFAULT_MANIFEST_CHECKS` (12 platform checks) —
   `<app> manifest dump|validate|hash|diff|check`

@@ -20,6 +20,7 @@ import {
     assertDelegatesExist,
     resolveAdminResourcesSchema,
 } from './admin-resources-schema.js';
+import { literalInLike } from './like-pattern.js';
 
 const DEFAULT_LIST_LIMIT = 200;
 const DEFAULT_AUDIT_LIMIT = 100;
@@ -128,8 +129,8 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
         if (active !== undefined) where[t.isActive] = active;
         if (filter.search) {
             where.OR = [
-                { [t.slug]: { contains: filter.search, mode: 'insensitive' } },
-                { [t.name]: { contains: filter.search, mode: 'insensitive' } },
+                { [t.slug]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
+                { [t.name]: { contains: literalInLike(filter.search), mode: 'insensitive' } },
             ];
         }
         if (filter.plan) where[t.subscription] = { plan: filter.plan };
@@ -226,7 +227,7 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
         const u = this.schema.user;
         const tenantSlug = this.schema.tenant.slug;
         const where: Record<string, unknown> = {};
-        if (filter.q) where[u.email] = { contains: filter.q, mode: 'insensitive' };
+        if (filter.q) where[u.email] = { contains: literalInLike(filter.q), mode: 'insensitive' };
         if (filter.tenant) where[u.tenant] = { [tenantSlug]: filter.tenant };
 
         const rows = await this.users().findMany({

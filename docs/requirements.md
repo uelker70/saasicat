@@ -127,12 +127,12 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 18      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 18      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 530 entries: 🟢 460 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 531 entries: 🟢 461 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 530 entries: 🟢 460 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 530 requirements. Do not edit by hand:
+Generated from `requirements/` — 531 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15039,6 +15039,25 @@ German law asks for the terms of a contract concluded online, general terms incl
 retrievable and storable when it is concluded.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-018 — An operator finds what one person did by their e-mail, whatever they acted through
+
+🟢 `<app> audit tail --actor <email>` lists the entries of that person from the web and the command
+line alike, and so does a pattern with a star at its start, its end or both, matched without regard
+to case, through every shipped adapter the same way. A value with a colon or a star is taken as the
+tag or pattern it already is.
+
+_Source:_ #371
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/audit-tail-flow.test.js`
+    - AuditTailFlow.run — filter mapping
+        - an e-mail is looked for between the source and the context
+
+<!-- END proof -->
 
 ## 22. Repeating an operation safely
 

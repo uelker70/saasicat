@@ -2069,6 +2069,19 @@ cent can come out a cent higher than before: 5 % of 20.10 is 1.01, not 1.00.
   although the catalogue did not change. The default refresh, features only, carries the money over
   as written and is not affected.
 
+### `audit tail --actor` finds a person by their e-mail
+
+`<app> audit tail --actor <email>` asks the audit port for `*:<email>:*`, which covers the tags the
+platform writes for that person from the web and from the command line (`SC-AUD-018`).
+`AuditQuery.actorTag` states the grammar: a tag, matched exactly, or a pattern with a star at its
+start, its end or both, matched without regard to case.
+
+- **An `AuditQueryPort` of your own** reads that grammar, or `--actor` answers with an empty list
+  and no error. An adapter that searched the address as a substring, or knew only a trailing star,
+  finds nothing for `*:<email>:*`. The persistence contract holds yours to it.
+- **The Prisma adapter matches `%` and `_` literally** in a searched value — a promo code, a tenant,
+  a user, an audit tag. Before, an underscore stood for any one character.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

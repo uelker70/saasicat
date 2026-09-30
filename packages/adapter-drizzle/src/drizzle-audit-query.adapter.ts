@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gte, like, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, lte } from 'drizzle-orm';
 import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, escapeLikePattern, type DrizzleClient } from './client.js';
 import { auditLogs } from './schema.js';
@@ -42,12 +42,17 @@ export class DrizzleAuditQueryAdapter implements AuditQueryPort {
     }
 }
 
+/** The pattern `AuditQuery.actorTag` describes: a star at the start, the end or both. */
 function toActorTagCondition(actorTag?: string) {
     if (!actorTag) return undefined;
-    if (actorTag.endsWith('*')) {
-        return like(auditLogs.actorTag, `${escapeLikePattern(actorTag.slice(0, -1))}%`);
-    }
-    return eq(auditLogs.actorTag, actorTag);
+    const leading = actorTag.startsWith('*');
+    const trailing = actorTag.length > 1 && actorTag.endsWith('*');
+    if (!leading && !trailing) return eq(auditLogs.actorTag, actorTag);
+    const literal = actorTag.slice(leading ? 1 : 0, trailing ? -1 : undefined);
+    return ilike(
+        auditLogs.actorTag,
+        `${leading ? '%' : ''}${escapeLikePattern(literal)}${trailing ? '%' : ''}`,
+    );
 }
 
 function toAuditEntry(row: AuditLogRow): AuditEntry {

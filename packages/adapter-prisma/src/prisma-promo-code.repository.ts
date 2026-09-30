@@ -18,6 +18,7 @@ import {
     type PromoCodeRowLike,
 } from './prisma-client-token.js';
 import { resolveClient } from './tx.js';
+import { literalInLike } from './like-pattern.js';
 
 /**
  * `PromoCodeRepository` against the canonical `promo_codes` table.
@@ -57,7 +58,9 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
                 deletedAt: null,
                 status: filter.status,
                 campaignTag: filter.campaignTag,
-                code: filter.search ? { contains: normalizeCode(filter.search) } : undefined,
+                code: filter.search
+                    ? { contains: literalInLike(normalizeCode(filter.search)) }
+                    : undefined,
             },
             orderBy: { createdAt: 'desc' },
         });
