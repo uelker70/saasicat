@@ -1250,6 +1250,7 @@ _Tested by:_
         - a statement on the client from inside a transaction opened outside the bypass is lifted,
           not refused
         - a batch inside the bypass carries the setting and answers with its own results
+        - a lifted statement in a batch opened on another client is refused, not run unlifted
         - a batch inside the bypass stays one transaction: a failure rolls back what it wrote
         - the setting ends with its transaction: the next statement on the same connection is
           filtered again
@@ -1273,8 +1274,10 @@ _Tested by:_
           run on it
         - a statement on the client itself from inside it goes out in a batch of its own
         - opened outside the bypass refuses a statement of it that enters the bypass
-    - a batch on the lifted client
-        - inside the bypass carries the setting at its head and answers with its own results
+    - a batch
+        - opened on the lifted client inside the bypass carries the setting at its head, and its
+          statements run in it
+        - opened on another client refuses a lifted statement inside the bypass
     - a client that does not say where a statement runs
         - is refused inside the bypass rather than guessed at
 

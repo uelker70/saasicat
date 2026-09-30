@@ -24,7 +24,9 @@
 //   bypass cannot take the setting later without keeping it for the rest of
 //   the transaction, after the bypass has ended, so a statement of it that
 //   enters the bypass is refused rather than run under the tenant's policy.
-// - A batch opened inside the bypass carries the setting at its head.
+// - A batch opened on the client inside the bypass carries the setting at its
+//   head, and its statements run in it as they are. A batch opened on another
+//   client carries no setting, so a lifted statement in it is refused.
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -66,6 +68,11 @@ const REFUSED_INSIDE_A_TRANSACTION =
     'would outlast the bypass for the rest of that transaction, so the statement is refused ' +
     'rather than run under the tenant policy. Open the transaction inside runWithBypass.';
 
+const BATCH_NOT_LIFTED =
+    'A lifted statement entered the RLS bypass in a batch opened on another client, which ' +
+    'carries no setting, so the statement is refused rather than run under the tenant policy. ' +
+    'Open the batch with $transaction on the lifted client.';
+
 const TRANSACTION_NOT_TOLD =
     'This Prisma client does not tell a query extension which transaction a statement runs ' +
     'in, which PrismaRlsBypass needs to lift a row policy. Bind an RlsBypassPort of your own ' +
@@ -86,6 +93,8 @@ export class PrismaRlsBypass {
     private readonly liftedTransactions = new Set<unknown>();
     /** Set while the setting of a transaction just opened is sent, to learn its id. */
     private readonly opening = new AsyncLocalStorage<{ id?: unknown }>();
+    /** Set while a batch that carries the setting at its head runs. */
+    private readonly liftedBatch = new AsyncLocalStorage<true>();
     private readonly extended = new WeakMap<object, object>();
 
     /** @param setting The setting the installation's policies read. */
@@ -136,7 +145,11 @@ export class PrismaRlsBypass {
     ): Promise<unknown> {
         if (!this.port.isBypassActive()) return open(work);
         if (Array.isArray(work)) {
-            const results = (await open([this.settingOn(base), ...work])) as unknown[];
+            // Prisma sends a batch's statements from the call that opens it, so
+            // the store reaches them and nothing else.
+            const results = (await this.liftedBatch.run(true, () =>
+                open([this.settingOn(base), ...work]),
+            )) as unknown[];
             return results.slice(1);
         }
         const interactive = work as (tx: RawClient) => Promise<unknown>;
@@ -172,7 +185,10 @@ export class PrismaRlsBypass {
         // other, so a client that does not say is refused.
         if (!call.__internalParams) throw new Error(TRANSACTION_NOT_TOLD);
         const transaction = call.__internalParams.transaction;
-        if (transaction?.kind === 'batch') return query(args);
+        if (transaction?.kind === 'batch') {
+            if (this.liftedBatch.getStore()) return query(args);
+            throw new Error(BATCH_NOT_LIFTED);
+        }
         if (transaction?.kind === 'itx') {
             if (this.liftedTransactions.has(transaction.id)) return query(args);
             throw new Error(REFUSED_INSIDE_A_TRANSACTION);

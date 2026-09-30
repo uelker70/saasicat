@@ -21,7 +21,8 @@ filtered query fail rather than lift a policy (`SC-COMP-019`).
   refused with an error, since the setting would outlast the bypass there. A
   statement on the client itself, sent from inside a transaction, runs on
   another connection and is lifted on its own; a batch carries the setting at
-  its head.
+  its head, and a lifted statement in a batch opened on another client is
+  refused.
 - `PrismaRlsBypass` is the building block: pass one as `rlsIntegration` to name
   another setting, or to run statements of your own through the same port with
   `bypass.extend(prisma)`.

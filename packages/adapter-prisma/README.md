@@ -369,6 +369,9 @@ CREATE POLICY tenant_rows ON subscriptions
 - **Statements of your own** inside the platform's bypass — a job of yours
   that injects `RLS_BYPASS_PORT_TOKEN` — go through the same instance: build
   one, pass it as `rlsIntegration`, and run them on `bypass.extend(prisma)`.
+  Batch and open transactions for them on that client too: a batch or a
+  transaction opened on another client carries no setting, and a lifted
+  statement in it is refused.
 
 An installation that keeps a bypass of its own, over its own tenant context,
 binds its `RlsBypassPort` in `adapters` and leaves `rlsIntegration` out.

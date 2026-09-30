@@ -48,8 +48,11 @@ function recordingClient() {
         $executeRaw: (strings) => lazy(record(strings.join('?'))),
         $extends(extension) {
             hook = extension.query.$allOperations;
-            // A new client every time, as Prisma's is.
-            return Object.assign(Object.create(client), extendedOn(undefined));
+            // A new client every time, as Prisma's is. `inBatch` builds the
+            // statements a batch runs, which Prisma reports as the batch's.
+            return Object.assign(Object.create(client), extendedOn(undefined), {
+                inBatch: extendedOn({ kind: 'batch', id: 'batch-1' }),
+            });
         },
         async $transaction(work) {
             if (typeof work === 'function') {
@@ -146,18 +149,31 @@ describe('an interactive transaction on the lifted client', () => {
     });
 });
 
-describe('a batch on the lifted client', () => {
-    test('inside the bypass carries the setting at its head and answers with its own results', async () => {
+describe('a batch', () => {
+    test('opened on the lifted client inside the bypass carries the setting at its head, and its statements run in it', async () => {
         const client = recordingClient();
         const rls = new PrismaRlsBypass();
         const lifted = rls.extend(client);
 
         const results = await rls.port.runWithBypass(() =>
-            lifted.$transaction([Promise.resolve('a'), Promise.resolve('b')]),
+            lifted.$transaction([lifted.inBatch.statement('a'), lifted.inBatch.statement('b')]),
         );
 
-        assert.deepEqual(results, ['a', 'b']);
-        assert.deepEqual(client.sent, ['batch', SETTING]);
+        assert.deepEqual(results, ['a:done', 'b:done']);
+        assert.deepEqual(client.sent, ['batch', SETTING, 'a@batch', 'b@batch']);
+    });
+
+    test('opened on another client refuses a lifted statement inside the bypass', async () => {
+        const client = recordingClient();
+        const rls = new PrismaRlsBypass();
+        const lifted = rls.extend(client);
+
+        await assert.rejects(
+            () =>
+                rls.port.runWithBypass(() => client.$transaction([lifted.inBatch.statement('a')])),
+            /batch opened on another client/,
+        );
+        assert.deepEqual(client.sent, ['batch'], 'no setting, and the statement never ran');
     });
 });
 

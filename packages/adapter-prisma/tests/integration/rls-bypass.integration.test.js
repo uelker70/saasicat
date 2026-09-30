@@ -241,6 +241,18 @@ describe('the bundle lifts a forced tenant policy inside the bypass, and only th
         assert.equal(row.n, TENANTS.length);
     });
 
+    test('a lifted statement in a batch opened on another client is refused, not run unlifted', async () => {
+        // The batch is the probe's own client's: nothing puts the setting at
+        // its head, and the policy would hide every row without a word.
+        await assert.rejects(
+            () =>
+                bypass.runWithBypass(() =>
+                    probe.$transaction([lifted.promoCodeRedemption.count()]),
+                ),
+            /batch opened on another client/,
+        );
+    });
+
     test('a batch inside the bypass stays one transaction: a failure rolls back what it wrote', async () => {
         const reversed = () =>
             bypass.runWithBypass(() =>
