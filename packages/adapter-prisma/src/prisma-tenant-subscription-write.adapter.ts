@@ -49,6 +49,22 @@ interface SubscriptionDbRow {
 interface PlanVersionIdentityDbRow {
     id: string;
     planId: string;
+    /** Present only where the schema can end a version. */
+    endsAt?: Date | null;
+    /** Present only where the schema has validity windows. */
+    validFrom?: Date | null;
+}
+
+/**
+ * Whether a quoted version can be booked for `planId` on `asOf`: it belongs to
+ * that plan, it has begun, and it has not ended. A version whose window has
+ * closed because a successor was published is still bookable — that is the
+ * version a customer was quoted before the successor, which is the point.
+ */
+function bookableOn(version: PlanVersionIdentityDbRow, planId: string, asOf: Date): boolean {
+    if (version.planId !== planId) return false;
+    if (version.validFrom && version.validFrom > asOf) return false;
+    return !(version.endsAt && version.endsAt <= asOf);
 }
 
 /** Structural minimum of the root client; model delegates are configurable. */
@@ -131,6 +147,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             pendingPlan: null,
             pendingBillingCycle: null,
             pendingEffectiveAt: null,
+            pendingChangeVersionId: null,
             ...(input.nextStatus ? { status: input.nextStatus } : {}),
             // Opening a window sets the day the subscription is billed on, and
             // that day IS the window's start — derived rather than passed,
@@ -166,14 +183,16 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             const storagePlanId = await this.planBinding.toStoragePlanId(client, input.planId);
             const keepsVersion =
                 input.keepsBoundVersion && current.plan === input.planId && boundVersionId !== null;
+            const asOf = input.periodStart ?? new Date();
             data.planVersionId = keepsVersion
                 ? boundVersionId
-                : await this.findTargetPlanVersionId(
+                : ((await this.stillBookable(
                       client,
-                      input.planId,
+                      input.quotedPlanVersionId,
                       storagePlanId,
-                      input.periodStart ?? new Date(),
-                  );
+                      asOf,
+                  )) ??
+                  (await this.findTargetPlanVersionId(client, input.planId, storagePlanId, asOf)));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.
@@ -224,6 +243,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingPlan: input.pendingPlan,
                 pendingBillingCycle: input.pendingBillingCycle,
                 pendingEffectiveAt: input.pendingEffectiveAt,
+                pendingChangeVersionId: input.pendingChangeVersionId,
             },
         });
         return { claimed: claim.count > 0 };
@@ -297,6 +317,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingPlan: null,
                 pendingBillingCycle: null,
                 pendingEffectiveAt: null,
+                pendingChangeVersionId: null,
                 ...clearedPendingVersionData(),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 // Same derivation as the immediate path: the billing day is
@@ -482,6 +503,27 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         });
         if (!target) throw noActivePlanVersion(planKey, asOf);
         return target.id;
+    }
+
+    /**
+     * The version a change was quoted at, while it can still be booked for its
+     * plan on the day the change takes effect (`bookableOn`); null otherwise,
+     * and the version in effect is bound. A version ended by then takes no new
+     * bookings (`SC-PLAN-016`). The row is read whole, so a schema without
+     * `endsAt` or `validFrom` hands none back, and there nothing ends or
+     * begins later.
+     */
+    private async stillBookable(
+        client: unknown,
+        quotedVersionId: string | null,
+        storagePlanId: string,
+        asOf: Date,
+    ): Promise<string | null> {
+        if (!quotedVersionId) return null;
+        const quoted = await this.planVersions(client).findUnique({
+            where: { id: quotedVersionId },
+        });
+        return quoted && bookableOn(quoted, storagePlanId, asOf) ? quotedVersionId : null;
     }
 
     private async pendingVersionBelongsToAnotherPlan(

@@ -555,6 +555,17 @@ export interface ImmediatePlanChangeInput {
      * subscription is bound to no version at all: it has none to keep.
      */
     keepsBoundVersion: boolean;
+    /**
+     * The version of `planId` the change was quoted at: a scheduled change to
+     * another plan passes the version its preview showed when it was
+     * scheduled, recorded as `pendingChangeVersionId`. The write binds it
+     * rather than the version in effect, so a version published in between
+     * does not reach the customer by a change they already agreed to. `null`
+     * binds the version in effect — a sale, onboarding, and a change quoted
+     * where no repository reads versions. A version kept by
+     * `keepsBoundVersion` wins over it.
+     */
+    quotedPlanVersionId: string | null;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */
@@ -562,6 +573,13 @@ export interface ScheduledPlanChangeInput {
     pendingPlan: string;
     pendingBillingCycle: string;
     pendingEffectiveAt: Date;
+    /**
+     * The version of `pendingPlan` the preview quoted, where the change moves
+     * to another plan; stored as `pendingChangeVersionId` and bound when the
+     * change comes due. `null` where the plan stays — the version bound then is
+     * kept, whatever it is by that day — or where no repository reads versions.
+     */
+    pendingChangeVersionId: string | null;
     /** See `ImmediatePlanChangeInput.expectedCanceledAt`. */
     expectedCanceledAt: Date | null;
 }

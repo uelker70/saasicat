@@ -71,8 +71,10 @@ export class PendingPlanMaterializationService {
                     nextStatus: null,
                     expectedCanceledAt: change.canceledAt,
                     // A change that leaves the plan as it is moves the rhythm,
-                    // not the version the subscriber agreed to.
+                    // not the version the subscriber agreed to; one to another
+                    // plan binds the version it was quoted at (`SC-CHG-022`).
                     keepsBoundVersion: true,
+                    quotedPlanVersionId: change.pendingChangeVersionId,
                 });
                 if (!result.claimed) {
                     // A cancellation arrived between the query and this write.

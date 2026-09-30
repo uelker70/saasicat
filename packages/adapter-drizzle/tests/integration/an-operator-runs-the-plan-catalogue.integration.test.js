@@ -404,6 +404,7 @@ describe("a tenant's own writes", () => {
             nextStatus: null,
             expectedCanceledAt: null,
             keepsBoundVersion,
+            quotedPlanVersionId: null,
         });
 
         async function stored() {
@@ -433,6 +434,37 @@ describe("a tenant's own writes", () => {
             const row = await stored();
             assert.equal(row.planVersionId, v2.id);
             assert.equal(row.pendingPlanVersionId, null);
+        });
+
+        // @requirement SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
+        test('a change to another plan is scheduled with the version it was quoted at, and bound to it', async () => {
+            const { version: here } = await livePlan('LEAVING');
+            const { version: quoted } = await livePlan('ARRIVING');
+            await seedSubscription('LEAVING', here.id);
+            await tenantWrite.schedulePlanChange(TENANT, {
+                pendingPlan: 'ARRIVING',
+                pendingBillingCycle: 'YEARLY',
+                pendingEffectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+                expectedCanceledAt: null,
+                pendingChangeVersionId: quoted.id,
+            });
+            assert.equal((await stored()).pendingChangeVersionId, quoted.id);
+            // Published after the change was confirmed, in effect when it comes due.
+            const since = await publish(
+                (await draftFor('ARRIVING')).id,
+                new Date('2026-05-01T00:00:00.000Z'),
+            );
+
+            await tenantWrite.changePlanImmediate(TENANT, {
+                ...toYearly('ARRIVING', true),
+                quotedPlanVersionId: quoted.id,
+            });
+
+            const row = await stored();
+            assert.equal(row.planVersionId, quoted.id, 'the version quoted');
+            assert.notEqual(row.planVersionId, since.id);
+            assert.equal(row.pendingChangeVersionId, null);
+            assert.equal(row.pendingPlan, null);
         });
     });
 

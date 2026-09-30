@@ -72,11 +72,17 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             const keepsVersion = input.keepsBoundVersion && current.plan === input.planId;
             const planVersionId = keepsVersion
                 ? current.planVersionId
-                : await this.activeVersionId(
+                : ((await this.stillBookable(
+                      input.quotedPlanVersionId,
                       input.planId,
                       input.periodStart ?? new Date(),
                       tx as unknown as TransactionContext,
-                  );
+                  )) ??
+                  (await this.activeVersionId(
+                      input.planId,
+                      input.periodStart ?? new Date(),
+                      tx as unknown as TransactionContext,
+                  )));
             // A pending version of another plan has nothing left to be
             // accepted for, and one the write binds is accepted by being bound:
             // the subscriber is not asked for a version they are already on.
@@ -94,6 +100,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 pendingPlan: null,
                 pendingBillingCycle: null,
                 pendingEffectiveAt: null,
+                pendingChangeVersionId: null,
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 ...periodFields(input.periodStart, input.periodEnd),
                 // Null and undefined both mean "leave the trial as it is" — the
@@ -121,6 +128,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             pendingPlan: input.pendingPlan,
             pendingBillingCycle: input.pendingBillingCycle,
             pendingEffectiveAt: input.pendingEffectiveAt,
+            pendingChangeVersionId: input.pendingChangeVersionId,
         });
         return { claimed: claimed > 0 };
     }
@@ -241,6 +249,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 pendingPlan: null,
                 pendingBillingCycle: null,
                 pendingEffectiveAt: null,
+                pendingChangeVersionId: null,
                 ...clearedPendingVersion(),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 ...periodFields(input.periodStart, input.periodEnd),
@@ -320,6 +329,27 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         const active = await this.plans.findActivePlanVersion?.(planKey, asOf, tx);
         if (!active) throw noActivePlanVersion(planKey, asOf);
         return active.id;
+    }
+
+    /**
+     * The version a change was quoted at, while it can still be booked for its
+     * plan on the day the change takes effect: it belongs to that plan, it has
+     * begun, and it has not ended (`SC-PLAN-016`). Null otherwise, and the
+     * version in effect is bound. A window closed by a successor's publication
+     * does not count against it — that is the version quoted before the
+     * successor. On the caller's transaction, for the reason given below.
+     */
+    private async stillBookable(
+        quotedVersionId: string | null,
+        planKey: string,
+        asOf: Date,
+        tx: TransactionContext,
+    ): Promise<string | null> {
+        if (!quotedVersionId) return null;
+        const quoted = await this.plans.findVersionById(quotedVersionId, tx);
+        if (!quoted || quoted.planId !== planKey) return null;
+        if (quoted.validFrom && new Date(quoted.validFrom) > asOf) return null;
+        return quoted.endsAt && new Date(quoted.endsAt) <= asOf ? null : quotedVersionId;
     }
 
     /**

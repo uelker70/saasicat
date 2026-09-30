@@ -91,6 +91,7 @@ model PlanVersion {
     derivedVersions      PlanVersion[]  @relation("PlanVersionLineage")
     subscriptionsCurrent Subscription[] @relation("SubscriptionPlanVersion")
     subscriptionsPending Subscription[] @relation("SubscriptionPendingPlanVersion")
+    subscriptionsPendingChange Subscription[] @relation("SubscriptionPendingChangeVersion")
 
     @@unique([planId, version])
     @@index([planId, supersededAt])

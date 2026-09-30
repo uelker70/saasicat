@@ -344,7 +344,12 @@ describe('a cancellation arriving while a plan change is being decided', () => {
 
     test('and so is the scheduled one', async () => {
         const port = writePort({ canceledAtInStore: new Date() });
-        const deferred = { isImmediate: false, effectiveAt: new Date(), blockers: [] };
+        const deferred = {
+            isImmediate: false,
+            effectiveAt: new Date(),
+            blockers: [],
+            target: { planVersionId: 'pv-quoted' },
+        };
 
         await assert.rejects(
             changeTo(buildController(SUBSCRIPTION, port, deferred)),

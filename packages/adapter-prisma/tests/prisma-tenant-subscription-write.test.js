@@ -384,6 +384,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             nextStatus: null,
             expectedCanceledAt: null,
             keepsBoundVersion,
+            quotedPlanVersionId: null,
         });
         const inNormalizedMode = (prisma) =>
             new PrismaTenantSubscriptionWriteAdapter(prisma, {
@@ -436,6 +437,60 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
 
             assert.equal(change.claimed, false);
             assert.equal(prisma.state.subscription.billingCycle, 'YEARLY', 'nothing was written');
+        });
+    });
+
+    // @requirement SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
+    describe('a change to another plan', () => {
+        const adapterOver = (prisma) =>
+            new PrismaTenantSubscriptionWriteAdapter(prisma, {
+                planBinding: { mode: 'normalized-plan-id' },
+                tenantSubscription: { synchronizePlanVersion: true },
+            });
+
+        test('is scheduled with the version it was quoted at, and bound to it when it comes due', async () => {
+            const prisma = fakePrisma({
+                subscription: subscriptionRow({
+                    plan: 'STARTER',
+                    planVersionId: 'version-starter',
+                }),
+                planVersions: [
+                    { id: 'version-starter', planId: 'plan-starter' },
+                    // Live now, and what the write binds without a quote.
+                    { id: 'version-pro', planId: 'plan-pro' },
+                    // Quoted earlier, superseded since, and not ended.
+                    { id: 'version-pro-quoted', planId: 'plan-pro', endsAt: null },
+                ],
+            });
+            const adapter = adapterOver(prisma);
+
+            await adapter.schedulePlanChange('tenant-1', {
+                pendingPlan: 'PRO',
+                pendingBillingCycle: 'MONTHLY',
+                pendingEffectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+                expectedCanceledAt: null,
+                pendingChangeVersionId: 'version-pro-quoted',
+            });
+            assert.equal(prisma.state.subscription.pendingChangeVersionId, 'version-pro-quoted');
+
+            await adapter.changePlanImmediate('tenant-1', {
+                planId: 'PRO',
+                cycle: 'MONTHLY',
+                periodStart: null,
+                periodEnd: null,
+                nextStatus: null,
+                expectedCanceledAt: null,
+                keepsBoundVersion: true,
+                quotedPlanVersionId: 'version-pro-quoted',
+            });
+
+            assert.equal(
+                prisma.state.subscription.planVersionId,
+                'version-pro-quoted',
+                'the version quoted, not the one in effect',
+            );
+            assert.equal(prisma.state.subscription.pendingChangeVersionId, null);
+            assert.equal(prisma.state.subscription.pendingPlan, null);
         });
     });
 

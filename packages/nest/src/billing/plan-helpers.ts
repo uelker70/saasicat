@@ -39,13 +39,14 @@ export function getPlanOrThrow(catalog: PlanCatalog, planId: PlanId): PlanDef {
 }
 
 /**
- * A plan as the version a subscription is bound to defines it, under the name
- * the catalogue sells it by. Features, quotas and prices come from the version
- * alone: the catalogue's entry is the version on sale now, which need not be
- * the one bought. Whatever bills, quotes or shows a bound subscription reads
- * the plan through this, so the three cannot disagree.
+ * A plan as one of its versions defines it, under the name the catalogue sells
+ * it by. Features, quotas and prices come from the version alone: the
+ * catalogue's entry is the version on sale now, which need not be the one a
+ * subscription bought or a change was quoted at. Whatever bills, quotes or
+ * shows a particular version reads the plan through this, so they cannot
+ * disagree.
  */
-export function boundPlanDef(
+export function planDefOfVersion(
     catalog: PlanCatalog,
     planId: PlanId,
     version: PlanVersionRow,

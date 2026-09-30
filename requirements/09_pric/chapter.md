@@ -135,6 +135,12 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
+        - is quoted a change at a version the change can name › another plan at the version live
+          now, priced from that version and named by it
+        - is quoted a change at a version the change can name › the plan it stays on at the version
+          kept
+        - is quoted a change at a version the change can name › none where nothing reads versions,
+          priced from the catalogue
         - is shown the price they pay › at the version they keep, in either rhythm, not the
           catalogue's
         - is shown the price they pay › as none in a rhythm the version they keep is not sold in,

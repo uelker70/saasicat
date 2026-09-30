@@ -108,6 +108,13 @@ export interface DuePendingPlanChange {
     /** Target cycle (`pendingBillingCycle`); `null` → default MONTHLY. */
     pendingBillingCycle: string | null;
     /**
+     * The version of `pendingPlan` the change was quoted at
+     * (`pendingChangeVersionId`), bound when it comes due. Required: a query
+     * that leaves it out would bind whatever version is in effect that day,
+     * which is the price the customer did not confirm.
+     */
+    pendingChangeVersionId: string | null;
+    /**
      * The subscription's cancellation, so materialization can decline.
      *
      * A change scheduled before the customer cancelled comes due anyway, and

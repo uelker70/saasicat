@@ -140,16 +140,30 @@ export function createMemoryHarness() {
                 input.keepsBoundVersion &&
                 row.plan === input.planId &&
                 (row.planVersionId ?? null) !== null;
+            // A change that names the version it was quoted at is bound to it,
+            // while that version still takes bookings on the day it lands.
+            const asOf = input.periodStart ?? new Date();
+            const quotedRow = state.planVersions.find(
+                (version) => version.id === input.quotedPlanVersionId,
+            );
+            const quoted =
+                quotedRow &&
+                quotedRow.planId === input.planId &&
+                !(quotedRow.validFrom && new Date(quotedRow.validFrom) > asOf) &&
+                !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf)
+                    ? { id: quotedRow.id }
+                    : null;
             const target = keepsVersion
                 ? { id: row.planVersionId }
-                : state.planVersions
+                : (quoted ??
+                  state.planVersions
                       .filter(
                           (version) =>
                               version.planId === input.planId &&
                               version.publishedAt &&
                               !version.supersededAt,
                       )
-                      .sort((a, b) => b.version - a.version)[0];
+                      .sort((a, b) => b.version - a.version)[0]);
             if (!target) throw noActivePlanVersion(input.planId, input.periodStart ?? new Date());
             // The contract's own claim: the write takes the row only while the
             // cancellation is what the caller read. This reference store keeps
@@ -177,6 +191,7 @@ export function createMemoryHarness() {
                     trialEndsAt: null,
                     expectedCanceledAt: null,
                     keepsBoundVersion: false,
+                    quotedPlanVersionId: null,
                 });
                 const row = state.subscriptions.find(
                     (subscription) => subscription.tenantId === tenantId,
