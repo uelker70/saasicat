@@ -30,14 +30,10 @@ function reference(numerator, denominator) {
 }
 
 describe('the cases a binary double gets wrong', () => {
-    for (const [what, actual, expected] of [
-        ['5 % of 20.10', () => percentOf(20.1, 5), 1.01],
-        ['25 % of 9.54', () => percentOf(9.54, 25), 2.39],
-        ['11.50 net at 19 %', () => grossFromNet(11.5, 19), 13.69],
-        ['13.50 net at 19 %', () => grossFromNet(13.5, 19), 16.07],
-    ]) {
-        test(what, () => assert.equal(actual(), expected));
-    }
+    test('5 % of 20.10 is 1.01', () => assert.equal(percentOf(20.1, 5), 1.01));
+    test('25 % of 9.54 is 2.39', () => assert.equal(percentOf(9.54, 25), 2.39));
+    test('11.50 net at 19 % is 13.69 gross', () => assert.equal(grossFromNet(11.5, 19), 13.69));
+    test('13.50 net at 19 % is 16.07 gross', () => assert.equal(grossFromNet(13.5, 19), 16.07));
 });
 
 describe('a half cent', () => {
@@ -128,9 +124,11 @@ describe('a sum, and a difference', () => {
 });
 
 describe('an amount that is not a number of any kind', () => {
-    for (const value of [Number.NaN, Number.POSITIVE_INFINITY]) {
-        test(`${value} is refused rather than rounded`, () => {
-            assert.throws(() => roundToCents(value), RangeError);
-        });
-    }
+    test('NaN is refused rather than rounded', () => {
+        assert.throws(() => roundToCents(Number.NaN), RangeError);
+    });
+    test('Infinity, either sign, is refused rather than rounded', () => {
+        assert.throws(() => roundToCents(Number.POSITIVE_INFINITY), RangeError);
+        assert.throws(() => roundToCents(Number.NEGATIVE_INFINITY), RangeError);
+    });
 });

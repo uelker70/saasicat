@@ -60,6 +60,8 @@ export function computeBreakdown(
     const totalNet = Math.max(0, sumToCents(subtotalNet, -discountAmount));
     const totalGross = grossFromNet(totalNet, catalog.vatRate);
 
+    // Twelve months against the yearly price. `prorate` with a whole of 1 is
+    // the exact product: twelve times the monthly price, rounded once.
     const yearlySavings =
         selection.billingCycle === 'YEARLY'
             ? Math.max(0, sumToCents(prorate(subtotalMonthlyNet, 12, 1), -subtotalNet))

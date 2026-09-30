@@ -24,6 +24,10 @@ into the bookkeeping arrives at (`SC-PRIC-061`).
 - A percentage promotion now takes off the discount rounded, as a promo code
   does, rather than rounding the reduced price: 5 % off 20.10 is 19.09 either
   way. The two rules differed by a cent on a half.
+- An offer priced before the upgrade keeps the gross it was written with.
+  Where that gross is a cent short, concluding it is refused with
+  `CHECKOUT_OFFER_PRICE_NOT_CURRENT` and the customer asks for a new offer; a
+  contract never states other totals than its offer.
 - `grossFromNet`, `netFromGross` and `computeIncludedVat` from
   `@saasicat/nest` are the core functions under the same names. `round2` is
   gone: import `roundToCents` from `@saasicat/core`.

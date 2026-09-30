@@ -2058,6 +2058,10 @@ cent can come out a cent higher than before: 5 % of 20.10 is 1.01, not 1.00.
 - **Arithmetic of your own** that rounds money with `Math.round(n * 100) / 100` has the same flaw on
   the half cent. Where it should agree with the platform's figures — an invoice total beside a
   contract's — compute it with these.
+- **An offer priced before the upgrade** keeps the gross it was written with. Where that gross came
+  out a cent short, concluding it is refused with `CHECKOUT_OFFER_PRICE_NOT_CURRENT`, the answer to
+  an offer whose amounts are not what the pricing makes of them: the customer asks for a new offer,
+  priced by this rule, and a contract never states other totals than its offer.
 
 ## What the codemod leaves to you
 

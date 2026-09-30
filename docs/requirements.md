@@ -6698,7 +6698,10 @@ _Tested by:_
 
 - `packages/core/tests/money-is-rounded-as-written.test.js`
     - the cases a binary double gets wrong
-        - what
+        - 5 % of 20.10 is 1.01
+        - 25 % of 9.54 is 2.39
+        - 11.50 net at 19 % is 13.69 gross
+        - 13.50 net at 19 % is 16.07 gross
     - a half cent
         - rounds up
         - and the value just below it rounds down
@@ -6713,10 +6716,14 @@ _Tested by:_
         - of any number of cent amounts is their sum in cents
         - of nothing is 0
     - an amount that is not a number of any kind
-        - ${value} is refused rather than rounded
+        - NaN is refused rather than rounded
+        - Infinity, either sign, is refused rather than rounded
 - `packages/core/tests/promotion-helpers.test.js`
     - applyPromo
         - a percentage takes off its discount rounded, as a promo code does
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - concluding an offer
+        - refuses an offer whose gross was rounded a cent short, rather than conclude another total
 - `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
     - half of a price that ends on an odd cent
         - is charged as 0.58 for the rest of the period
@@ -9120,6 +9127,7 @@ _Tested by:_
         - undoes all of it when the application’s own write fails, and can be concluded again
         - refuses a contract the offer cannot become before anything is written
         - refuses an offer whose amounts no longer match before anything is written
+        - refuses an offer whose gross was rounded a cent short, rather than conclude another total
         - answers an offer concluded already with its contract, without running the application
           again
         - gives a caller that loses the race the conclusion that stands

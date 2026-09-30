@@ -17,8 +17,10 @@ import { SubscriptionContractService } from '../dist/subscription-contract/index
 
 import {
     CATALOG,
+    PLAN_VERSION,
     START10,
     buildOfferService,
+    fakePlanRepo,
     fakePromoCodes,
 } from './helpers/checkout-catalogue.js';
 import { fakeContractRepo, fakeSubscriberRepo } from './helpers/conclusion.js';
@@ -73,9 +75,10 @@ async function concluding({
     afterRollback,
     promoCodes,
     promoCode,
+    plans,
     subscribedTenants = ['tenant-meier', 'tenant-other'],
 } = {}) {
-    const built = buildOfferService();
+    const built = buildOfferService(plans ? { plans } : {});
     const contractRepo = fakeContractRepo();
     const subscriberRepo = fakeSubscriberRepo(subscribedTenants);
     const transactions = fakeTransactions(built.repo, contractRepo, {
@@ -91,6 +94,7 @@ async function concluding({
         transactions,
         subscribers,
         ...(promoCodes ? { promoCodes } : {}),
+        ...(plans ? { plans } : {}),
     });
     const offer = await service.create({
         planKey: 'STANDARD',
@@ -207,6 +211,30 @@ describe('concluding an offer', () => {
         );
         assert.deepEqual(transactions.runs, []);
         assert.equal(offers.rows.get(offer.id).status, 'open');
+    });
+
+    // @requirement SC-PRIC-061 — A derived amount is rounded the way a person computing it by hand rounds
+    test('refuses an offer whose gross was rounded a cent short, rather than conclude another total', async () => {
+        // 11.50 net at 19 % is 13.685. Rounded from its binary form it was
+        // written as 13.68, which is what an offer priced before the rule
+        // carries; the lines of its contract come to 13.69. The customer is
+        // asked for a new offer, and a contract never states other totals
+        // than the offer it was concluded from.
+        const { service, offers, transactions, contractRepo, offer } = await concluding({
+            plans: fakePlanRepo({ versions: [{ ...PLAN_VERSION, monthlyNet: '11.50' }] }),
+        });
+        const row = offers.rows.get(offer.id);
+        assert.equal(row.priceBreakdown.effectiveGross, 13.69, 'priced by the rule');
+        row.priceBreakdown.effectiveGross = 13.68;
+        row.lineItems[0].priceGross = 13.68;
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            refusedWith('CHECKOUT_OFFER_PRICE_NOT_CURRENT'),
+        );
+        assert.deepEqual(transactions.runs, []);
+        assert.equal(row.status, 'open');
+        assert.deepEqual(contractRepo.rows, []);
     });
 
     test('answers an offer concluded already with its contract, without running the application again', async () => {
