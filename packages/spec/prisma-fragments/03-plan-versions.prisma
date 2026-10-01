@@ -90,7 +90,6 @@ model PlanVersion {
     baseVersion          PlanVersion?   @relation("PlanVersionLineage", fields: [baseVersionId], references: [id])
     derivedVersions      PlanVersion[]  @relation("PlanVersionLineage")
     subscriptionsCurrent Subscription[] @relation("SubscriptionPlanVersion")
-    subscriptionsPending Subscription[] @relation("SubscriptionPendingPlanVersion")
     subscriptionsPendingChange Subscription[] @relation("SubscriptionPendingChangeVersion")
 
     @@unique([planId, version])

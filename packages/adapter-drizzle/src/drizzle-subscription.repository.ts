@@ -52,14 +52,15 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
     }
 
     async countByPlanVersionId(planVersionId: string): Promise<number> {
-        // Single query over both FK columns — two separate counts would race.
+        // Single query over both FK columns — two separate counts would race. A
+        // version a scheduled change will bind is booked as much as one bound.
         const rows = await this.db
             .select({ id: subscriptions.id })
             .from(subscriptions)
             .where(
                 or(
                     eq(subscriptions.planVersionId, planVersionId),
-                    eq(subscriptions.pendingPlanVersionId, planVersionId),
+                    eq(subscriptions.pendingChangeVersionId, planVersionId),
                 ),
             );
         return rows.length;

@@ -45,8 +45,7 @@ server, and verifies `setup` → `when` → `then` sequentially.
 | `promo/`        | Allow-zero-invoice false blocks a 100% discount                                                     | 🔴      |
 | `promo/`        | Code with `valueType=PERCENT, value>100` is rejected                                                | 🔴      |
 | `plan-version/` | Publish does not touch `Subscription.planVersionId` of existing tenants (P1 guarantee from SPEC §6) | 🟡 stub |
-| `plan-version/` | Regressive version requires tenant opt-in                                                           | 🔴      |
-| `plan-version/` | 6-week notification cron sends mail to affected subscriptions                                       | 🔴      |
+| `plan-version/` | A newer version reaches an existing subscription only as an offer it takes                          | 🔴      |
 | `tenant/`       | Suspend → 403 for tenant login + audit entry with reason                                            | 🟡 stub |
 | `tenant/`       | Suspend without MFA header → 401 MFA_REQUIRED                                                       | 🔴      |
 | `mfa/`          | TOTP verify with a good code → 200, with a bad one → 401                                            | 🟡 stub |

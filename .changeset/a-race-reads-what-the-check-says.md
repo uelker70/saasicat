@@ -19,19 +19,18 @@ moment later.
 - `@saasicat/core` builds the refusals: `planKeyTaken`, `bundleKeyTaken`,
   `marketingProjectionTaken`, `catalogDraftExists`, `subscriptionBundleGone`,
   `subscriptionBundleAlreadyCancelled`, `subscriptionGone`,
-  `subscriptionChanged`, `noPendingPlanVersion`, `noActivePlanVersion` and
-  `planNotInCatalog`, each worded by the shipped English catalogue.
+  `noActivePlanVersion` and `planNotInCatalog`, each worded by the shipped
+  English catalogue.
 - Both adapters create catalogue keys, drafts and marketing projections with
   `ON CONFLICT DO NOTHING`, so a refused create leaves a caller's transaction
   usable. `PrismaModelDelegateLike` declares `createManyAndReturn`, which
   Prisma has had since 5.14. A conflict on a unique index of your own is not
   reported as a key taken: Drizzle aims the conflict at the key, and Prisma,
   which cannot, looks the key up and otherwise fails with an error of its own.
-- The Prisma and Drizzle subscription writes refuse a missing subscription, a
-  pending version cleared or replaced meanwhile and a plan with no version in
-  effect by code; a booking cancellation tells a booking that is gone from one
-  cancelled first. The three configuration checks the Prisma write makes when
-  it is constructed stay plain errors.
+- The Prisma and Drizzle subscription writes refuse a missing subscription and
+  a plan with no version in effect by code; a booking cancellation tells a
+  booking that is gone from one cancelled first. The three configuration
+  checks the Prisma write makes when it is constructed stay plain errors.
 - Onboarding answers a refusal of the store the same way on both of its
   paths; the atomic one reported it as `ONBOARDING_CREATE_FAILED` before.
 - `FakePlanRepository`, `FakeBundleRepository`,
@@ -40,7 +39,7 @@ moment later.
   a second draft as the stores do.
 - The persistence contract checks these refusals by code: a taken plan or
   bundle key, a second plan or bundle draft — also two asked for at once — a
-  booking that is not there or already cancelled, a plan change for a tenant
-  without a subscription or to a plan with no version in effect, and accepting
-  where nothing is pending. A store of your own throws `PersistenceRefusal`
-  for these, built with the functions above.
+  booking that is not there or already cancelled, and a plan change for a
+  tenant without a subscription or to a plan with no version in effect. A
+  store of your own throws `PersistenceRefusal` for these, built with the
+  functions above.

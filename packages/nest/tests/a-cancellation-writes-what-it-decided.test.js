@@ -43,10 +43,6 @@ const SUBSCRIPTION = {
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     planVersion: null,
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 };
 
 function recordingWritePort() {

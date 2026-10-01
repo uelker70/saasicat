@@ -694,12 +694,12 @@ _Tested by:_
     - PrismaSubscriptionRepository
         - findByTenantId maps row + plan version to SubscriptionRecord
         - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
-        - countByPlanVersionId uses a single OR count
+        - countByPlanVersionId counts the version bound and the one a scheduled change binds, in one
+          count
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
-        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
-          reads
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads
         - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record
@@ -857,12 +857,12 @@ _Tested by:_
     - PrismaSubscriptionRepository
         - findByTenantId maps row + plan version to SubscriptionRecord
         - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
-        - countByPlanVersionId uses a single OR count
+        - countByPlanVersionId counts the version bound and the one a scheduled change binds, in one
+          count
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
-        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
-          reads
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads
         - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record

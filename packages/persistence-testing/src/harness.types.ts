@@ -94,8 +94,8 @@ export interface ContractAdapterInstances {
     checkoutOfferRepository?: CheckoutOfferRepository;
     /**
      * Enables the atomic plan-binding scenarios. Adapters should expose this
-     * member only for a mode that promises to keep `plan`,
-     * `planVersionId` and pending-version state consistent.
+     * member only for a mode that promises to keep `plan` and
+     * `planVersionId` consistent.
      */
     tenantSubscriptionWrite?: TenantSubscriptionWritePort;
     /** Enables BundleVersion validity-window and auto-succession scenarios. */
@@ -164,7 +164,8 @@ export interface ContractSeed {
         tenantId: string;
         plan: string;
         planVersionId: string;
-        pendingPlanVersionId?: string;
+        /** The version a scheduled change will bind. */
+        pendingChangeVersionId?: string;
         status?: string;
         /** Defaults to the column default; set it where a scenario reads it. */
         billingCycle?: string;

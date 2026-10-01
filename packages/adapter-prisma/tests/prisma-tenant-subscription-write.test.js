@@ -22,10 +22,6 @@ function subscriptionRow(overrides = {}) {
         status: 'ACTIVE',
         canceledAt: null,
         currentPeriodEnd: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionId: null,
         ...overrides,
     };
 }
@@ -295,10 +291,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
 
     test('normalized mode binds semantic plan and active version atomically with named delegates', async () => {
         const prisma = fakePrisma({
-            subscription: subscriptionRow({
-                pendingPlanVersionId: 'version-starter',
-                pendingPlanVersionAccepted: true,
-            }),
+            subscription: subscriptionRow(),
             subscriptionDelegate: 'membership',
             planVersionDelegate: 'billingPlanVersion',
         });
@@ -333,47 +326,15 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         });
         assert.equal(planWrite(prisma).plan, 'PRO');
         assert.equal(planWrite(prisma).planVersionId, 'version-pro');
-        assert.equal(planWrite(prisma).pendingPlanVersionId, null);
-        assert.equal(planWrite(prisma).pendingPlanVersionAccepted, false);
     });
 
-    test('a pending version of the same target plan is retained', async () => {
-        const prisma = fakePrisma({
-            subscription: subscriptionRow({
-                plan: 'PRO',
-                pendingPlanVersionId: 'version-pro-next',
-            }),
-            planVersions: [
-                { id: 'version-pro', planId: 'plan-pro' },
-                { id: 'version-pro-next', planId: 'plan-pro' },
-            ],
-        });
-        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
-            planBinding: { mode: 'normalized-plan-id' },
-            tenantSubscription: { synchronizePlanVersion: true },
-        });
-
-        await adapter.changePlanImmediate('tenant-1', {
-            planId: 'PRO',
-            cycle: 'MONTHLY',
-            periodStart: null,
-            periodEnd: null,
-            nextStatus: null,
-            expectedCanceledAt: null,
-            keepsBoundVersion: false,
-        });
-
-        assert.equal('pendingPlanVersionId' in planWrite(prisma), false);
-    });
-
-    // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+    // @requirement SC-SUB-024 — A subscription keeps its plan version until the subscriber takes another
     describe('a change that leaves the plan as it is', () => {
         const onProV1 = () =>
             fakePrisma({
                 subscription: subscriptionRow({
                     plan: 'PRO',
                     planVersionId: 'version-pro-v1',
-                    pendingPlanVersionId: 'version-pro',
                 }),
             });
         const toMonthly = (keepsBoundVersion) => ({
@@ -392,23 +353,21 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
                 tenantSubscription: { synchronizePlanVersion: true },
             });
 
-        test('keeps the bound version, and the offer of the newer one, when it moves only the rhythm', async () => {
+        test('keeps the bound version when it moves only the rhythm', async () => {
             const prisma = onProV1();
 
             await inNormalizedMode(prisma).changePlanImmediate('tenant-1', toMonthly(true));
 
             assert.equal(prisma.state.subscription.planVersionId, 'version-pro-v1');
-            assert.equal(prisma.state.subscription.pendingPlanVersionId, 'version-pro');
             assert.equal(prisma.state.subscription.billingCycle, 'MONTHLY');
         });
 
-        test('a sale binds the version in effect, and no longer offers it as pending', async () => {
+        test('a sale binds the version in effect', async () => {
             const prisma = onProV1();
 
             await inNormalizedMode(prisma).changePlanImmediate('tenant-1', toMonthly(false));
 
             assert.equal(prisma.state.subscription.planVersionId, 'version-pro');
-            assert.equal(prisma.state.subscription.pendingPlanVersionId, null);
         });
 
         test('binds the version in effect where the subscription is bound to none', async () => {
@@ -425,7 +384,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             const prisma = onProV1();
             const updateMany = prisma.subscription.updateMany.bind(prisma.subscription);
             prisma.subscription.updateMany = async (args) => {
-                // The subscriber's acceptance lands first and moves the binding.
+                // A switch to a newer version lands first and moves the binding.
                 prisma.state.subscription.planVersionId = 'version-pro';
                 return updateMany(args);
             };
@@ -534,78 +493,6 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         assert.equal(prisma.state.subscription.plan, 'STARTER');
         assert.equal(prisma.state.subscription.planVersionId, undefined);
         assert.equal(prisma.state.redemptions.length, 0);
-    });
-
-    test('pending PlanVersion acceptance uses a CAS and reports the concurrent loser', async () => {
-        const prisma = fakePrisma({
-            subscription: subscriptionRow({
-                pendingPlanVersionId: 'version-pro',
-                pendingPlanVersionEffectiveAt: new Date('2026-08-01T00:00:00.000Z'),
-            }),
-        });
-        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
-        const firstNow = new Date('2026-07-24T10:00:00.000Z');
-        const secondNow = new Date('2026-07-24T10:00:01.000Z');
-
-        const results = await Promise.all([
-            adapter.acceptPendingPlanVersion('tenant-1', 'user-1', firstNow),
-            adapter.acceptPendingPlanVersion('tenant-1', 'user-2', secondNow),
-        ]);
-
-        assert.deepEqual(results.map((result) => result.alreadyAccepted).sort(), [false, true]);
-        assert.equal(prisma.calls.subscriptionUpdateMany.length, 2);
-        assert.deepEqual(prisma.calls.subscriptionUpdateMany[0].where, {
-            id: 'subscription-1',
-            pendingPlanVersionId: 'version-pro',
-            pendingPlanVersionAccepted: false,
-        });
-        assert.equal(prisma.state.subscription.pendingPlanVersionAccepted, true);
-        assert.equal(prisma.state.subscription.pendingPlanVersionAcceptedByUserId, 'user-1');
-        assert.equal(results[0].acceptedAt.toISOString(), firstNow.toISOString());
-        assert.equal(results[1].acceptedAt.toISOString(), firstNow.toISOString());
-    });
-
-    test('pending PlanVersion acceptance rejects a changed CAS target and a missing target', async () => {
-        const prisma = fakePrisma({
-            subscription: subscriptionRow({ pendingPlanVersionId: 'version-pro' }),
-        });
-        const updateMany = prisma.subscription.updateMany.bind(prisma.subscription);
-        prisma.subscription.updateMany = async (args) => {
-            prisma.state.subscription.pendingPlanVersionId = 'version-replaced';
-            return updateMany(args);
-        };
-        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
-
-        await assert.rejects(
-            adapter.acceptPendingPlanVersion('tenant-1', 'user-1', new Date()),
-            refusedAs(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED, { tenantId: 'tenant-1' }),
-        );
-        assert.equal(prisma.state.subscription.pendingPlanVersionAccepted, false);
-
-        const withoutPending = new PrismaTenantSubscriptionWriteAdapter(
-            fakePrisma({ subscription: subscriptionRow({ pendingPlanVersionId: null }) }),
-        );
-        await assert.rejects(
-            withoutPending.acceptPendingPlanVersion('tenant-1', 'user-1', new Date()),
-            refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, { tenantId: 'tenant-1' }),
-        );
-    });
-
-    test('a pending PlanVersion cleared while accepting it answers as nothing pending', async () => {
-        const prisma = fakePrisma({
-            subscription: subscriptionRow({ pendingPlanVersionId: 'version-pro' }),
-        });
-        const updateMany = prisma.subscription.updateMany.bind(prisma.subscription);
-        prisma.subscription.updateMany = async (args) => {
-            prisma.state.subscription.pendingPlanVersionId = null;
-            return updateMany(args);
-        };
-        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
-
-        await assert.rejects(
-            adapter.acceptPendingPlanVersion('tenant-1', 'user-1', new Date()),
-            refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, { tenantId: 'tenant-1' }),
-        );
     });
 
     test('invalid validity capability combinations fail at construction', () => {

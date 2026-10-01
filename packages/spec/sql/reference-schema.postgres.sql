@@ -69,13 +69,6 @@ CREATE TABLE "subscriptions" (
     "minimumTermUntil" TIMESTAMP(3),
     "billingAnchorDay" INTEGER,
     "planVersionId" TEXT NOT NULL,
-    "pendingPlanVersionId" TEXT,
-    "pendingPlanVersionEffectiveAt" TIMESTAMP(3),
-    "pendingPlanVersionAccepted" BOOLEAN NOT NULL DEFAULT false,
-    "pendingPlanVersionAcceptedAt" TIMESTAMP(3),
-    "pendingPlanVersionAcceptedByUserId" TEXT,
-    "pendingPlanVersionNotifiedAt" TIMESTAMP(3),
-    "pendingPlanVersionReminderSentAt" TIMESTAMP(3),
     "trialEntitlementPlan" TEXT,
     "postTrialPlan" TEXT,
     "pendingPlan" TEXT,
@@ -752,9 +745,6 @@ CREATE INDEX "subscriptions_tenantId_idx" ON "subscriptions"("tenantId");
 CREATE INDEX "subscriptions_planVersionId_idx" ON "subscriptions"("planVersionId");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_pendingPlanVersionId_idx" ON "subscriptions"("pendingPlanVersionId");
-
--- CreateIndex
 CREATE INDEX "subscriptions_pendingChangeVersionId_idx" ON "subscriptions"("pendingChangeVersionId");
 
 -- CreateIndex
@@ -990,9 +980,6 @@ CREATE UNIQUE INDEX "subscription_notices_subscriptionId_kind_subject_key" ON "s
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingPlanVersionId_fkey" FOREIGN KEY ("pendingPlanVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingChangeVersionId_fkey" FOREIGN KEY ("pendingChangeVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

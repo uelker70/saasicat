@@ -61,18 +61,12 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             );
         }
 
-        const pendingPlanVersion = subscription.pendingPlanVersionId
-            ? await this.planVersions().findUnique({
-                  where: { id: subscription.pendingPlanVersionId },
-              })
-            : null;
-        return this.toRecord(subscription, planVersion, pendingPlanVersion);
+        return this.toRecord(subscription, planVersion);
     }
 
     /**
-     * Three reads whatever the number of subscriptions: the plan's earlier
-     * versions, the subscriptions bound to them, and the pending versions those
-     * name.
+     * Two reads whatever the number of subscriptions: the plan's earlier
+     * versions, and the subscriptions bound to them.
      */
     async listBoundToEarlierVersions(
         planKey: string,
@@ -89,25 +83,12 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             where: { planVersionId: { in: [...bound.keys()] } },
             orderBy: { id: 'asc' },
         });
-        const pendingIds = subscriptions.flatMap((row) =>
-            row.pendingPlanVersionId ? [row.pendingPlanVersionId] : [],
-        );
-        const pending = new Map(
-            pendingIds.length === 0
-                ? []
-                : (await this.planVersions().findMany({ where: { id: { in: pendingIds } } })).map(
-                      (row) => [row.id, row],
-                  ),
-        );
         return Promise.all(
             subscriptions.map(async (subscription) => ({
                 tenantId: subscription.tenantId,
                 subscription: await this.toRecord(
                     subscription,
                     bound.get(subscription.planVersionId)!,
-                    subscription.pendingPlanVersionId
-                        ? (pending.get(subscription.pendingPlanVersionId) ?? null)
-                        : null,
                 ),
             })),
         );
@@ -116,7 +97,6 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
     private async toRecord(
         subscription: SubscriptionRowLike,
         planVersion: PlanVersionRowLike,
-        pendingPlanVersion: PlanVersionRowLike | null,
     ): Promise<SubscriptionUsageRecord & { id: string }> {
         const planVersionRecord = await this.toPlanVersion(planVersion);
 
@@ -145,16 +125,6 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             pendingBillingCycle: subscription.pendingBillingCycle ?? null,
             pendingEffectiveAt: subscription.pendingEffectiveAt,
             planVersion: planVersionRecord,
-            pendingPlanVersion: pendingPlanVersion
-                ? {
-                      ...(await this.toPlanVersion(pendingPlanVersion)),
-                      nonRegressive: pendingPlanVersion.nonRegressive,
-                      publishedChanges: pendingPlanVersion.publishedChanges,
-                  }
-                : null,
-            pendingPlanVersionEffectiveAt: subscription.pendingPlanVersionEffectiveAt ?? null,
-            pendingPlanVersionAccepted: subscription.pendingPlanVersionAccepted ?? false,
-            pendingPlanVersionAcceptedAt: subscription.pendingPlanVersionAcceptedAt ?? null,
             packageSnapshot: subscription.packageSnapshot ?? null,
             checkoutOfferId: subscription.checkoutOfferId ?? null,
         };

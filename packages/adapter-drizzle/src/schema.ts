@@ -49,7 +49,6 @@ export const subscriptions = pgTable('subscriptions', {
     pendingEffectiveAt: ts('pendingEffectiveAt'),
     customLimits: jsonb('customLimits'),
     planVersionId: text('planVersionId').notNull(),
-    pendingPlanVersionId: text('pendingPlanVersionId'),
     isPilot: boolean('isPilot').notNull().default(false),
     startedAt: ts('startedAt'),
     // Entitlement resolution ends a subscription by reading these two, so the
@@ -67,14 +66,6 @@ export const subscriptions = pgTable('subscriptions', {
     currentPeriodEnd: ts('currentPeriodEnd'),
     minimumTermUntil: ts('minimumTermUntil'),
     billingAnchorDay: integer('billingAnchorDay'),
-    // A pending version change and how far it has got: announced, reminded
-    // about, accepted, and the date it lands.
-    pendingPlanVersionEffectiveAt: ts('pendingPlanVersionEffectiveAt'),
-    pendingPlanVersionAccepted: boolean('pendingPlanVersionAccepted').notNull().default(false),
-    pendingPlanVersionAcceptedAt: ts('pendingPlanVersionAcceptedAt'),
-    pendingPlanVersionAcceptedByUserId: text('pendingPlanVersionAcceptedByUserId'),
-    pendingPlanVersionNotifiedAt: ts('pendingPlanVersionNotifiedAt'),
-    pendingPlanVersionReminderSentAt: ts('pendingPlanVersionReminderSentAt'),
     postTrialPlan: text('postTrialPlan'),
     pendingBillingCycle: text('pendingBillingCycle'),
     pendingChangeVersionId: text('pendingChangeVersionId'),

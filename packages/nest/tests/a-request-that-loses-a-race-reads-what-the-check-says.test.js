@@ -6,12 +6,10 @@ import {
     catalogDraftExists,
     marketingProjectionTaken,
     noActivePlanVersion,
-    noPendingPlanVersion,
     planKeyTaken,
     planNotInCatalog,
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
-    subscriptionChanged,
     subscriptionGone,
 } from '@saasicat/core';
 import { SubscriptionBundlesService, TenantBillingController } from '../dist/billing/index.js';
@@ -224,10 +222,6 @@ const SUBSCRIPTION = {
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     planVersion: null,
-    pendingPlanVersion: { id: 'pv-2', version: 2 },
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 };
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
@@ -258,30 +252,6 @@ function billingOver(
 
 // @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error
 describe('a tenant whose subscription moves while the request is decided', () => {
-    test('accepting a pending version cleared meanwhile answers as the check does', async () => {
-        const port = {
-            acceptPendingPlanVersion: async (tenantId) => {
-                throw noPendingPlanVersion(tenantId);
-            },
-        };
-        await assert.rejects(
-            billingOver(port).acceptPendingPlanVersion(request),
-            answeredWith(400, 'NO_PENDING_PLAN_VERSION'),
-        );
-    });
-
-    test('accepting a pending version replaced meanwhile is told to reload', async () => {
-        const port = {
-            acceptPendingPlanVersion: async (tenantId) => {
-                throw subscriptionChanged(tenantId);
-            },
-        };
-        await assert.rejects(
-            billingOver(port).acceptPendingPlanVersion(request),
-            answeredWith(409, 'SUBSCRIPTION_CHANGED'),
-        );
-    });
-
     test('cancelling a subscription gone meanwhile answers as the check does', async () => {
         const port = {
             cancelSubscription: async (tenantId) => {

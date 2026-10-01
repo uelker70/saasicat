@@ -14,12 +14,10 @@
 // is not changed by self-service, and a version not sold in the subscription's
 // rhythm cannot be switched to without changing the rhythm too.
 //
-// Nor while a decision the subscription already carries is still to land — a
-// scheduled change of plan or rhythm, or a pending version. An offer is judged
-// against what the subscriber has, and until that decision lands it is not
-// known what they will have: a version that takes something away would take
-// effect on the day they leave the plan anyway, and a pending version would be
-// offered a second time, to be taken another way.
+// Nor while a scheduled change of plan or rhythm is still to land. An offer is
+// judged against what the subscriber has, and until that change lands it is
+// not known what they will have: a version that takes something away would
+// take effect on the day they leave the plan anyway.
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
@@ -64,11 +62,11 @@ function fieldsOf(plan: PlanDef): VersionOfferFields {
 }
 
 /**
- * A scheduled change or a pending version that has not landed yet. A change of
- * rhythm alone is scheduled with the plan it keeps, so `pendingPlan` names both.
+ * A scheduled change that has not landed yet. A change of rhythm alone is
+ * scheduled with the plan it keeps, so `pendingPlan` names both.
  */
 function awaitsAChange(sub: SubscriptionUsageRecord): boolean {
-    return Boolean(sub.pendingPlan) || Boolean(sub.pendingPlanVersion);
+    return Boolean(sub.pendingPlan);
 }
 
 function sideOf(row: PlanVersionRow, plan: PlanDef): VersionOfferSide {

@@ -12,19 +12,14 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
-import {
-    noActivePlanVersion,
-    noPendingPlanVersion,
-    subscriptionChanged,
-    subscriptionGone,
-} from '@saasicat/core';
+import { noActivePlanVersion, subscriptionGone } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { subscriptions } from './schema.js';
 
 /**
  * The tenant's own writes to their subscription: changing plan, scheduling a
- * change, accepting a pending version, and cancelling.
+ * change, and cancelling.
  *
  * Every one of them is a **conditional claim** rather than an update. The
  * caller reads the row, decides, and writes — three moments during which a
@@ -65,9 +60,9 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         return this.db.transaction(async (tx) => {
             const db = tx as unknown as DrizzleClient;
             // Locked, not merely read: everything below decides from this row —
-            // whether the pending version belongs elsewhere, above all — and a
-            // decision made on a row that then changes is applied to a state
-            // nobody looked at. The lock makes read and write one moment.
+            // which version stays bound, above all — and a decision made on a
+            // row that then changes is applied to a state nobody looked at. The
+            // lock makes read and write one moment.
             const current = await this.requireSubscription(db, tenantId, { lock: true });
             const unclaimed = {
                 plan: current.plan,
@@ -111,16 +106,6 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                           input.periodStart ?? new Date(),
                           tx as unknown as TransactionContext,
                       )));
-            // A pending version of another plan has nothing left to be
-            // accepted for, and one the write binds is accepted by being bound:
-            // the subscriber is not asked for a version they are already on.
-            const pendingMovedAway =
-                planVersionId === current.pendingPlanVersionId ||
-                (await this.pendingVersionBelongsToAnotherPlan(
-                    tx as unknown as TransactionContext,
-                    current.pendingPlanVersionId,
-                    input.planId,
-                ));
             const claimed = await this.claim(db, tenantId, input.expectedCanceledAt, {
                 plan: input.planId,
                 billingCycle: input.cycle,
@@ -134,7 +119,6 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 // Null and undefined both mean "leave the trial as it is" — the
                 // platform passes a carried-over end date or nothing at all.
                 ...(input.trialEndsAt ? { trialEndsAt: input.trialEndsAt } : {}),
-                ...(pendingMovedAway ? clearedPendingVersion() : {}),
             });
             const after = await this.requireSubscription(db, tenantId);
             return {
@@ -174,59 +158,6 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             ],
         );
         return { claimed: claimed > 0 };
-    }
-
-    async acceptPendingPlanVersion(
-        tenantId: string,
-        userId: string,
-        now: Date,
-    ): Promise<{
-        accepted: boolean;
-        acceptedAt: Date | null;
-        effectiveAt: Date | null;
-        alreadyAccepted: boolean;
-    }> {
-        const sub = await this.requireSubscription(this.db, tenantId);
-        if (!sub.pendingPlanVersionId) throw noPendingPlanVersion(tenantId);
-        const pendingPlanVersionId = sub.pendingPlanVersionId;
-        const claimed = await this.db
-            .update(subscriptions)
-            .set({
-                pendingPlanVersionAccepted: true,
-                pendingPlanVersionAcceptedAt: now,
-                pendingPlanVersionAcceptedByUserId: userId,
-                updatedAt: now,
-            })
-            // Named in the WHERE so a version that moved between read and write
-            // is not accepted under the previous one's name.
-            .where(
-                and(
-                    eq(subscriptions.id, sub.id),
-                    eq(subscriptions.pendingPlanVersionId, pendingPlanVersionId),
-                    eq(subscriptions.pendingPlanVersionAccepted, false),
-                ),
-            )
-            .returning({ id: subscriptions.id });
-        const updated = await this.requireSubscription(this.db, tenantId);
-        // Nothing claimed and the row is not in the accepted state either: the
-        // pending version was cleared underneath this request — which the
-        // check answers as nothing pending — or replaced by another one.
-        if (claimed.length === 0 && updated.pendingPlanVersionId === null) {
-            throw noPendingPlanVersion(tenantId);
-        }
-        if (
-            claimed.length === 0 &&
-            (updated.pendingPlanVersionId !== pendingPlanVersionId ||
-                !updated.pendingPlanVersionAccepted)
-        ) {
-            throw subscriptionChanged(tenantId);
-        }
-        return {
-            accepted: true,
-            acceptedAt: updated.pendingPlanVersionAcceptedAt,
-            effectiveAt: updated.pendingPlanVersionEffectiveAt,
-            alreadyAccepted: claimed.length === 0,
-        };
     }
 
     async cancelSubscription(
@@ -293,7 +224,6 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 pendingBillingCycle: null,
                 pendingEffectiveAt: null,
                 pendingChangeVersionId: null,
-                ...clearedPendingVersion(),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 ...periodFields(input.periodStart, input.periodEnd),
             });
@@ -401,22 +331,6 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         if (quoted.validFrom && new Date(quoted.validFrom) > asOf) return null;
         return quoted.endsAt && new Date(quoted.endsAt) <= asOf ? null : quotedVersionId;
     }
-
-    /**
-     * On the caller's transaction, not beside it. The change already holds a
-     * connection for its whole length; asking for a second one waits for the
-     * connection this transaction is holding, and a one-connection pool then
-     * never gets past here.
-     */
-    private async pendingVersionBelongsToAnotherPlan(
-        tx: TransactionContext,
-        pendingPlanVersionId: string | null,
-        targetPlanKey: string,
-    ): Promise<boolean> {
-        if (!pendingPlanVersionId) return false;
-        const pending = await this.plans.findVersionById(pendingPlanVersionId, tx);
-        return !pending || pending.planId !== targetPlanKey;
-    }
 }
 
 /**
@@ -432,19 +346,6 @@ function periodFields(periodStart: Date | null, periodEnd: Date | null): Record<
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
         billingAnchorDay: periodStart.getUTCDate(),
-    };
-}
-
-/** Everything a pending version change consists of, back to "none pending". */
-function clearedPendingVersion(): Record<string, null | false> {
-    return {
-        pendingPlanVersionId: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
-        pendingPlanVersionAcceptedByUserId: null,
-        pendingPlanVersionNotifiedAt: null,
-        pendingPlanVersionReminderSentAt: null,
     };
 }
 

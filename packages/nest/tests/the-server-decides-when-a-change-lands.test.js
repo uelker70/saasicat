@@ -31,10 +31,6 @@ const SUBSCRIPTION = {
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     planVersion: null,
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 };
 
 /** A preview that answers what the rules say, whatever the caller asked for. */
@@ -66,7 +62,6 @@ function buildWritePort() {
             this.scheduledCalls.push({ tenantId, input });
             return { claimed: true };
         },
-        async acceptPendingPlanVersion() {},
         async cancelSubscription() {
             return { canceledAt: null, canceledEffectiveAt: null, status: 'ACTIVE' };
         },

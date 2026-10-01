@@ -43,10 +43,6 @@ const SUBSCRIPTION = {
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     planVersion: null,
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 };
 
 /**
@@ -121,7 +117,6 @@ const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 const changeTo = (controller) =>
     controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
 
-// @requirement SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
 // @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
 describe('a subscription that has ended', () => {
     const ended = {

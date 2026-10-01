@@ -352,8 +352,6 @@ _Tested by:_
     - the page around the card
         - shows an ended subscription as cancelled, whatever its status column says
         - and a running one keeps its badge and its billing date
-        - offers no pending version to accept once the contract is over
-        - while a running subscription is asked about it
     - a cancellation that arrives after the page did
         - is measured from now, not from when the card was created
 
@@ -403,8 +401,6 @@ _Tested by:_
     - the page around the card
         - shows an ended subscription as cancelled, whatever its status column says
         - and a running one keeps its badge and its billing date
-        - offers no pending version to accept once the contract is over
-        - while a running subscription is asked about it
     - a cancellation that arrives after the page did
         - is measured from now, not from when the card was created
 

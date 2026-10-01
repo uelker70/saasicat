@@ -51,17 +51,6 @@ export interface UsageSnapshotShape {
      * no list price in this rhythm.
      */
     planPriceNet: number | null;
-    pendingPlanVersion: {
-        id: string;
-        planId: string;
-        version: number;
-        nonRegressive: boolean;
-        changeNote: string | null;
-        publishedChanges: unknown;
-    } | null;
-    pendingPlanVersionEffectiveAt: string | null;
-    pendingPlanVersionAccepted: boolean;
-    pendingPlanVersionAcceptedAt: string | null;
     /** When a cancellation was declared. Null while none was. */
     canceledAt: string | null;
     /**
@@ -411,7 +400,6 @@ export interface UseTenantBillingResult {
         billingCycle: BillingCycleStr,
     ) => Promise<PlanChangePreviewShape>;
     changePlan: (plan: string, billingCycle: BillingCycleStr) => Promise<void>;
-    acceptPendingPlanVersion: () => Promise<void>;
     /**
      * A newer version of the tenant's plan, beside the one the subscription is
      * bound to, or `null` where there is none it could take. Classified against
@@ -649,11 +637,6 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         await reload();
     }
 
-    async function acceptPendingPlanVersion() {
-        await fetchOrThrow('/subscription/accept-pending-version', { method: 'POST' });
-        await reload();
-    }
-
     async function loadVersionOffer(): Promise<VersionOfferView | null> {
         const { offer } = await fetchOrThrow<{ offer: VersionOfferView | null }>('/version-offer');
         return offer;
@@ -698,7 +681,6 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         reload,
         previewPlanChange,
         changePlan,
-        acceptPendingPlanVersion,
         loadVersionOffer,
         acceptVersionOffer,
         cancelSubscription,

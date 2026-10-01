@@ -269,7 +269,7 @@ and optional promo callback share one Prisma transaction.
 
 Immediate changes and onboarding bind the subscription to the version they
 sell: they resolve the target plan's live PlanVersion and update `plan`,
-`planVersionId`, cycle and stale pending-version fields together. That is what
+`planVersionId` and cycle together. That is what
 the entitlements read and what a contract freeze records, and it is the
 default. It needs a schema that carries it — a `planVersionId` column on the
 subscription model, the plan-version model (`schema.delegates.entitlementPlanVersion`,

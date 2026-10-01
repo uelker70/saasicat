@@ -530,7 +530,7 @@ _Tested by:_
 for a later date records it. When the change comes due, that version is bound, not whichever is in
 effect that day: a version published in between reaches the customer as an offer, never through a
 change they already confirmed at another price. A change that keeps the plan keeps the version bound
-(`SC-SUB-012`). Where no repository reads plan versions there is nothing to record, and the version
+(`SC-SUB-024`). Where no repository reads plan versions there is nothing to record, and the version
 in effect when the change comes due is bound.
 
 _Source:_ #348

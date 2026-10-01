@@ -2261,7 +2261,7 @@ Nothing to wire where the routes come with `tenantBilling`, and the offer appear
 release runs, a version published before the upgrade included. A subscription is offered the
 version a booking made now would bind, where that version is newer than the one bound, sold in the
 subscription's rhythm and different from it; it is offered nothing once its cancellation has
-landed, while a change of plan or rhythm or a pending version is outstanding, or where its plan is
+landed, while a change of plan or rhythm is outstanding, or where its plan is
 in `selfServiceBlockedPlans`. A plan repository without `findVersionById` yields no offer.
 
 - **A `TenantSubscriptionWritePort` of your own** honours three optional fields.
@@ -2307,6 +2307,45 @@ replaces — stops that job before it turns this on, or they hear twice.
   version notices need; both shipped adapters have it.
 - **A persistence contract harness** gains the `subscriptionNotices` member; a harness without it
   declares `gaps: ['subscriptionNotices']`.
+
+### A newer version is only offered
+
+A subscription keeps its plan version across every renewal until the subscriber takes another
+(`SC-SUB-024`); a newer version is an offer beside the plan (`SC-SUB-020`). The pending version —
+set by a notice job, accepted by the tenant, rolled forward at the end of the term — is gone with
+everything that carried it:
+
+- **`POST billing/subscription/accept-pending-version`** is gone, and so are
+  `TenantSubscriptionWritePort.acceptPendingPlanVersion`, `useTenantBilling().acceptPendingPlanVersion`,
+  `PendingVersionBanner` and the error code `NO_PENDING_PLAN_VERSION` with its refusal
+  `noPendingPlanVersion`. A switch is taken through `POST billing/version-offer/accept`.
+- **`decideRenewal`** and `clearPendingPlanVersionFields` are gone from `@saasicat/nest/billing`; a
+  renewal keeps the version, and `computeNextPeriod` stays the decision behind it. A renewal job of
+  your own that rolled a pending version forward drops that step.
+- **`GET billing/usage`** and `SubscriptionUsageRecord` carry no `pendingPlanVersion*` fields, and
+  `Subscription` none of the seven columns. A `SubscriptionUsagePort` of your own stops returning
+  them.
+- **`TenantPlanSectionI18n`** loses the seven `pendingVersion*` strings of the banner; a catalogue you
+  build whole drops them. `pendingVersionSwitch`, which names a switch scheduled to a newer version,
+  stays.
+- **`countByPlanVersionId`** counts the version a scheduled change will bind
+  (`pendingChangeVersionId`) beside the version bound, so a version somebody's switch is waiting for
+  is not edited underneath them. A `SubscriptionRepository` of your own counts the same.
+- **A persistence contract harness** seeds a scheduled change's version as `pendingChangeVersionId`
+  in `createSubscription`; `pendingPlanVersionId` is gone.
+
+Drop the columns once nothing reads them any more — no running version of the application, and no
+job of your own such as a notice or renewal job that set or rolled forward a pending version. The
+file discards every pending version still recorded, accepted ones included; a newer version then
+reaches those subscriptions as an offer:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-newer-version-is-only-offered.postgres.sql
+```
+
+Remove the seven columns, their relation and the back-relation `subscriptionsPending` from your
+schema as `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma` show;
+`saasicat schema check` names what is left.
 
 ## What the codemod leaves to you
 

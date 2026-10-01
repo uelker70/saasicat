@@ -30,16 +30,7 @@ export interface Subscription {
     currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
 
-    /** Plan version migration (see ROADMAP §6). */
-    pendingPlanVersionId: string | null;
-    pendingPlanVersionEffectiveAt: string | null;
-    pendingPlanVersionAccepted: boolean;
-    pendingPlanVersionAcceptedAt: string | null;
-    pendingPlanVersionAcceptedByUserId: string | null;
-    pendingPlanVersionNotifiedAt: string | null;
-    pendingPlanVersionReminderSentAt: string | null;
-
-    /** Plan change at period end (orthogonal to pendingPlanVersionId). */
+    /** Plan change at period end. */
     pendingPlanId: PlanId | null;
     pendingBillingCycle: BillingCycle | null;
     pendingEffectiveAt: string | null;
@@ -113,7 +104,7 @@ export interface VersionedEntityBase {
      * has become part of the contract. Optional for backwards-compat reasons;
      * the helper defensively interprets `undefined` as `>0` (= frozen). How the
      * adapter counts depends on the version type: PlanVersion via
-     * `Subscription.planVersionId` (+ `pendingPlanVersionId`), BundleVersion
+     * `Subscription.planVersionId` (+ `pendingChangeVersionId`), BundleVersion
      * via the respective app-specific Subscription→Bundle binding.
      */
     subscriptionCount?: number;

@@ -19,32 +19,6 @@
 
         <template v-else>
             <!--
-                Pending plan version banner. Not on a subscription that has
-                ended: the route refuses the acceptance, so the banner would
-                offer a button that answers with an error.
-            -->
-            <PendingVersionBanner
-                v-if="usage.pendingPlanVersion && !hasEnded"
-                :pending="usage.pendingPlanVersion"
-                :effective-at="usage.pendingPlanVersionEffectiveAt"
-                :accepted="usage.pendingPlanVersionAccepted"
-                :accepted-at="usage.pendingPlanVersionAcceptedAt"
-                :busy="acceptingPending"
-                :format-date="formatDate"
-                :i18n="{
-                    title: effectiveI18n.pendingVersionTitle,
-                    chipNonRegressive: effectiveI18n.pendingVersionChipNonRegressive,
-                    chipRegressive: effectiveI18n.pendingVersionChipRegressive,
-                    effectiveAt: effectiveI18n.pendingVersionEffectiveAt,
-                    acceptAction: effectiveI18n.pendingVersionAcceptAction,
-                    acceptInProgress: effectiveI18n.pendingVersionAcceptInProgress,
-                    acceptedAt: effectiveI18n.pendingVersionAcceptedAt,
-                }"
-                class="sp-plan-section__banner"
-                @accept="onAcceptPending"
-            />
-
-            <!--
                 What taking an offer did, and why it was refused, said here
                 rather than in the card: a switch that went through, or an offer
                 that is gone, takes the card away with it.
@@ -289,7 +263,6 @@
 import { computed, ref, watch } from 'vue';
 import { provideTenantI18n } from './tenant-i18n.js';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
-import PendingVersionBanner from './PendingVersionBanner.vue';
 import PlanChangeWizard from './PlanChangeWizard.vue';
 import {
     defaultTenantPlanSectionI18n,
@@ -400,7 +373,6 @@ const catalog = useTenantBillingCatalog({
 });
 
 const showWizard = ref(false);
-const acceptingPending = ref(false);
 
 // Bundle store state (#15)
 const buyingBundleId = ref<string | null>(null);
@@ -855,7 +827,6 @@ watch(
                   usage.value.planVersion?.id ?? '',
                   usage.value.billingCycle,
                   usage.value.pendingPlan ?? '',
-                  usage.value.pendingPlanVersion?.id ?? '',
                   usage.value.canceledAt ?? '',
               ].join('|')
             : '',
@@ -901,16 +872,6 @@ async function onTakeVersionOffer(planVersionId: string): Promise<void> {
     }
 }
 
-// Mutation handlers
-async function onAcceptPending() {
-    acceptingPending.value = true;
-    try {
-        await billing.acceptPendingPlanVersion();
-    } finally {
-        acceptingPending.value = false;
-    }
-}
-
 function onWizardSubmitted() {
     // After a successful plan change the composable's `reload()` is enough —
     // the wizard closes itself (internal reset logic).
@@ -950,9 +911,6 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
     background: var(--sa-color-negative-surface);
     padding: var(--sa-space-4) var(--sa-space-5);
     border-radius: var(--sa-radius-badge);
-}
-.sp-plan-section__banner {
-    margin-bottom: var(--sa-space-5);
 }
 .sp-plan-section__card-head {
     display: flex;

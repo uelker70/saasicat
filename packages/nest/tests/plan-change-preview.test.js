@@ -84,10 +84,6 @@ function buildSubPort(overrides = {}) {
                 supersededAt: null,
                 changeNote: null,
             },
-            pendingPlanVersion: null,
-            pendingPlanVersionEffectiveAt: null,
-            pendingPlanVersionAccepted: false,
-            pendingPlanVersionAcceptedAt: null,
             ...overrides,
         }),
     };
@@ -381,7 +377,7 @@ describe('a plan without a price for the rhythm asked for', () => {
     });
 });
 
-// @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+// @requirement SC-SUB-024 — A subscription keeps its plan version until the subscriber takes another
 describe('a subscriber on an older version of the plan', () => {
     // Bound to STARTER v1 at 15 € a month and 150 € a year, while the
     // catalogue sells STARTER at 19 € and 190 € to new customers.

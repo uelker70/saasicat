@@ -89,20 +89,10 @@ model Subscription {
     // which is the old behaviour for one step and correct for that step.
     billingAnchorDay Int?
 
-    // Plan versioning — binds to a published PlanVersion.
-    // `pendingPlanVersion*` concern a version change within the
-    // same plan; `pendingPlan` the change to a different plan. Both
-    // can coexist.
-    //
-    // Every subscription binds a concrete published PlanVersion.
-    planVersionId                      String
-    pendingPlanVersionId               String?
-    pendingPlanVersionEffectiveAt      DateTime?
-    pendingPlanVersionAccepted         Boolean   @default(false)
-    pendingPlanVersionAcceptedAt       DateTime?
-    pendingPlanVersionAcceptedByUserId String?
-    pendingPlanVersionNotifiedAt       DateTime?
-    pendingPlanVersionReminderSentAt   DateTime?
+    // Plan versioning — binds to a published PlanVersion, and keeps it across
+    // renewals: a newer version reaches the subscription as an offer, and a
+    // switch to it is a change like any other (`pendingPlan` below).
+    planVersionId String
 
     // Trial / scheduled plan changes
     trialEntitlementPlan String? // Default entitlement during TRIAL
@@ -137,14 +127,12 @@ model Subscription {
     // tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
     promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
     planVersion         PlanVersion                 @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
-    pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
     pendingChangeVersion PlanVersion?               @relation("SubscriptionPendingChangeVersion", fields: [pendingChangeVersionId], references: [id], onDelete: Restrict)
     // Standalone add-on bookings (see 11-subscription-bundle.prisma).
     bundles             SubscriptionBundle[]
 
     @@index([tenantId])
     @@index([planVersionId])
-    @@index([pendingPlanVersionId])
     @@index([pendingChangeVersionId])
     @@index([currentPeriodEnd])
     @@map("subscriptions")

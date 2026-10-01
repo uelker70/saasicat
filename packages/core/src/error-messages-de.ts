@@ -196,7 +196,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Mindestlaufzeit reicht über das Ende der Periode hinaus — die Kündigung wird erst zum Ende der Mindestlaufzeit wirksam.',
     BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED:
         'Das Bundle setzt [{features}] voraus — weder im Plan noch in den aktiven Bundles vorhanden.',
-    NO_PENDING_PLAN_VERSION: 'Es wartet keine Planversion auf eine Bestätigung.',
     ONBOARDING_CREATE_FAILED:
         'Das Konto konnte nicht angelegt werden. Bitte versuche es noch einmal.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:

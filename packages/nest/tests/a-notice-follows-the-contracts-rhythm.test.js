@@ -38,10 +38,6 @@ const subscription = (billingCycle) => ({
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     planVersion: null,
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 });
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };

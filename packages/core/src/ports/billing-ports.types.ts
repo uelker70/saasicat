@@ -91,7 +91,8 @@ export interface SubscriptionRepository {
 
     /**
      * Counts subscriptions that bind a specific PlanVersion — both
-     * via the active `planVersionId` and via the scheduled `pendingPlanVersionId`.
+     * via the active `planVersionId` and via the version a scheduled change will
+     * bind (`pendingChangeVersionId`).
      * Needed by the `PlanVersionsService` for the editability decision:
      * a published-but-future PlanVersion stays correctable only as long
      * as no booking references it.
@@ -388,7 +389,7 @@ export interface SubscriberLedgerRepository {
  *
  * The platform controller `GET /billing/usage` maps this form 1:1 into the
  * response body. The consumer adapter loads from its own subscription
- * table (Prisma include planVersion + pendingPlanVersion).
+ * table (Prisma include planVersion).
  */
 export interface SubscriptionUsageRecord {
     /**
@@ -455,18 +456,6 @@ export interface SubscriptionUsageRecord {
         supersededAt: Date | null;
         changeNote: string | null;
     };
-    pendingPlanVersion: {
-        id: string;
-        planId: string;
-        version: number;
-        nonRegressive: boolean;
-        changeNote: string | null;
-        /** Catalog diff form from version-publish; free-form JSON structure. */
-        publishedChanges: unknown;
-    } | null;
-    pendingPlanVersionEffectiveAt: Date | null;
-    pendingPlanVersionAccepted: boolean;
-    pendingPlanVersionAcceptedAt: Date | null;
     /**
      * P11.4: frozen package snapshot from the
      * `CheckoutOffer` that was activated during onboarding. Read-only —
@@ -565,9 +554,9 @@ export interface ImmediatePlanChangeInput {
      *
      * A scheduled change that only moves the rhythm passes `true`: the
      * subscriber agreed to the version they are on, and moving them to a newer
-     * one is what accepting a pending version is for. A sale passes `false` —
-     * a change of plan, or onboarding, where the customer chose at the version
-     * in effect — and the write binds the version of `planId` in effect at
+     * one is theirs to decide, by taking it when it is offered. A sale passes
+     * `false` — a change of plan, or onboarding, where the customer chose at
+     * the version in effect — and the write binds the version of `planId` in effect at
      * `periodStart`. Where `planId` is another plan than the one bound, the
      * version in effect is bound either way, and so it is where the
      * subscription is bound to no version at all: it has none to keep.
@@ -749,22 +738,6 @@ export interface TenantSubscriptionWritePort {
         tenantId: string,
         input: ScheduledPlanChangeInput,
     ): Promise<{ claimed: boolean }>;
-
-    /**
-     * Marks the pending PlanVersion as accepted. Idempotent — a duplicate
-     * accept is a no-op. Returns `alreadyAccepted: true` if the status was
-     * already set.
-     */
-    acceptPendingPlanVersion(
-        tenantId: string,
-        userId: string,
-        now: Date,
-    ): Promise<{
-        accepted: boolean;
-        acceptedAt: Date | null;
-        effectiveAt: Date | null;
-        alreadyAccepted: boolean;
-    }>;
 
     /**
      * Record a cancellation. The dates are decided above this port.

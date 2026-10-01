@@ -19,7 +19,7 @@ function buildEntitlement(stub) {
 /** The price the plan preview reads; what it reads is its own suite's subject. */
 const PRICING = { planPriceNet: async () => 49 };
 
-function buildSub({ plan = 'STANDARD', status = 'ACTIVE', pendingPlanVersion = null } = {}) {
+function buildSub({ plan = 'STANDARD', status = 'ACTIVE' } = {}) {
     return {
         plan,
         billingCycle: 'MONTHLY',
@@ -38,10 +38,6 @@ function buildSub({ plan = 'STANDARD', status = 'ACTIVE', pendingPlanVersion = n
             supersededAt: null,
             changeNote: 'initial',
         },
-        pendingPlanVersion,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
     };
 }
 
@@ -85,7 +81,7 @@ test('getUsage joins Subscription + Limits + Usage and fills missing quotaKeys w
     assert.equal(result.billingCycle, 'MONTHLY');
     assert.deepEqual(result.usage, { users: 4, members: 850, storageGb: 0, resources: 0 });
     assert.equal(result.planVersion.id, 'pv-1');
-    assert.equal(result.pendingPlanVersion, null);
+    assert.equal('pendingPlanVersion' in result, false, 'the answer carries no pending version');
     assert.deepEqual(result.limits.features.sort(), ['CORE_IDENTITY']);
 });
 

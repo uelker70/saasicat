@@ -69,10 +69,6 @@ function starterMonthly(periodStart, periodEnd, overrides = {}) {
         pendingBillingCycle: null,
         pendingEffectiveAt: null,
         planVersion: null,
-        pendingPlanVersion: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
         ...overrides,
     };
 }

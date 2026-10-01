@@ -228,6 +228,9 @@ _Tested by:_
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
+    - the pending version is dropped
+        - the seven columns go, and their index and foreign key with them
+        - a second run finds nothing to drop and changes nothing
 
 <!-- END proof -->
 
@@ -326,6 +329,9 @@ _Tested by:_
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
+    - the pending version is dropped
+        - the seven columns go, and their index and foreign key with them
+        - a second run finds nothing to drop and changes nothing
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -372,8 +378,8 @@ _Tested by:_
 
 ### SC-OPS-007 — Repeating an action a person took changes nothing either
 
-🟢 Cancelling twice, accepting the same pending version twice, ending an already-ended contract —
-each reports the state that already holds instead of creating a second effect.
+🟢 Cancelling twice, ending an already-ended contract — each reports the state that already holds
+instead of creating a second effect.
 
 _Source:_ release 1.0.0-rc.6
 
@@ -384,8 +390,8 @@ after another: the platform checks before it writes, and where two requests pass
 together the store decides. The one that loses is answered with the status, code and parameters a
 request arriving a moment later gets from the check, rather than a 500 that reads like a crash in
 the log. That holds for the writes the shipped stores guard this way — catalogue keys and drafts,
-add-on cancellations, and the subscription's plan, pending version and cancellation — and for a
-store of an integrator's own where it refuses with a `PersistenceRefusal`.
+add-on cancellations, and the subscription's plan and cancellation — and for a store of an
+integrator's own where it refuses with a `PersistenceRefusal`.
 
 _Source:_ #352
 
@@ -414,8 +420,6 @@ _Tested by:_
         - is told it is already cancelled, as the check says it
         - is told it is not found where it went
     - a tenant whose subscription moves while the request is decided
-        - accepting a pending version cleared meanwhile answers as the check does
-        - accepting a pending version replaced meanwhile is told to reload
         - cancelling a subscription gone meanwhile answers as the check does
         - an onboarding whose subscription went meanwhile answers as the check does, on the atomic
           path too
