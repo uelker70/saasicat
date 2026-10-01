@@ -300,11 +300,17 @@ describe('a tenant whose subscription moves while the request is decided', () =>
                 throw noActivePlanVersion(input.planId, new Date('2026-05-01T00:00:00.000Z'));
             },
         };
-        const immediate = { isImmediate: true, effectiveAt: new Date(), blockers: [] };
+        const immediate = {
+            isImmediate: true,
+            effectiveAt: new Date(),
+            blockers: [],
+            target: { planVersionId: 'pv-quoted' },
+        };
         await assert.rejects(
             billingOver(port, immediate).changePlan(request, {
                 plan: 'PRO',
                 billingCycle: 'MONTHLY',
+                planVersionId: 'pv-quoted',
             }),
             answeredWith(404, 'NO_ACTIVE_PLAN_VERSION', { planId: 'PRO', asOf: '2026-05-01' }),
         );

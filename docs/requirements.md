@@ -112,7 +112,7 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 27      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 24      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 22      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 61      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 540 entries: 🟢 467 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 541 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 5 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -211,7 +211,7 @@ Of 540 entries: 🟢 467 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 540 requirements. Do not edit by hand:
+Generated from `requirements/` — 541 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -4542,6 +4542,9 @@ _Tested by:_
         - a refused move leaves focus alone
     - the progress list says where the tenant is without relying on colour
         - exactly one step is marked current, and it carries a word
+    - the confirmation binds the version it showed
+        - it sends the version of the preview on screen
+        - refused because the plan changed, it shows the plan as it stands and says why
 
 <!-- END proof -->
 
@@ -4576,6 +4579,9 @@ _Tested by:_
         - a refused move leaves focus alone
     - the progress list says where the tenant is without relying on colour
         - exactly one step is marked current, and it carries a word
+    - the confirmation binds the version it showed
+        - it sends the version of the preview on screen
+        - refused because the plan changed, it shows the plan as it stands and says why
 
 <!-- END proof -->
 
@@ -4874,7 +4880,7 @@ _Tested by:_
     - a scheduled change records the version it was quoted at
         - another plan: the version the preview priced
         - the same plan: none, so the version bound by the day it comes due is kept
-        - an immediate change is a sale, and binds the version in effect
+        - an immediate change binds the version its preview showed, and no other
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a scheduled change learns the version it was quoted at
         - a change to another plan is given the version live now; the rest are left empty
@@ -4882,6 +4888,43 @@ _Tested by:_
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
+
+<!-- END proof -->
+
+### SC-CHG-023 — A plan change binds the version its preview showed, or nothing
+
+🟢 💰 A change to another plan names the version its preview showed, and the platform reads the
+preview again when the change is submitted: it changes only while that version is still the one on
+sale, and binds that version and no other. Where another went on sale in between — a successor
+whose start passed while the page was open — the change is refused and carries the preview as it
+now stands, so nobody is bound to a price or terms they were not shown. A change scheduled for the
+end of the term is held to the same (`SC-CHG-022`). A change that keeps the plan keeps its version
+and names none.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-change-binds-the-version-its-preview-showed.test.js`
+    - a change to another plan
+        - naming the version on sale is made, at that version and no other
+        - naming a version no longer on sale is refused, and shown the preview as it stands
+        - naming no version is refused where the preview names one
+        - scheduled for the term end is refused the same way, and recorded at the version named
+        - whose version stops selling between the check and the write changes nothing
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records the version it was quoted at
+        - an immediate change binds the version its preview showed, and no other
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - a plan change names the version its preview showed
+        - the version goes into the body beside the plan and the rhythm
+        - a change with no version to name sends none, rather than a null
+- `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
+    - the confirmation binds the version it showed
+        - it sends the version of the preview on screen
+        - refused because the plan changed, it shows the plan as it stands and says why
 
 <!-- END proof -->
 
@@ -11488,6 +11531,9 @@ _Tested by:_
         - an explicit cycle is sent by both the preview and the booking
         - omitting it sends no field at all, so the plan’s rhythm decides
         - a minimum term still travels, alone or beside a cycle
+    - a plan change names the version its preview showed
+        - the version goes into the body beside the plan and the rhythm
+        - a change with no version to name sends none, rather than a null
 - `packages/ui-vue-tenant/tests/component/tenant-primitives.test.ts`
     - the tenant button is a button
         - it renders a native button that does not submit

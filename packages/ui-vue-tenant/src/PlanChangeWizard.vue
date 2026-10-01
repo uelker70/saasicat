@@ -317,6 +317,7 @@ import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
 import { resolveErrorMessage } from '@saasicat/core';
 import { defaultQuotaValue } from './plan/quota-value.js';
+import { refusalOf } from './refusal-of.js';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
 import type {
     BillingCycleStr,
@@ -367,7 +368,12 @@ interface Props {
     isFractionalQuota?: (key: string) => boolean;
     /** Preview caller (passed through from the consumer composable). */
     previewPlanChange: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>;
-    changePlan: (plan: string, cycle: BillingCycleStr) => Promise<void>;
+    /** `planVersionId` is the shown preview's `target.planVersionId`. */
+    changePlan: (
+        plan: string,
+        cycle: BillingCycleStr,
+        planVersionId: string | null,
+    ) => Promise<void>;
     i18n: PlanChangeWizardI18n;
 }
 
@@ -690,11 +696,26 @@ async function submit() {
     submitting.value = true;
     submitError.value = null;
     try {
-        await props.changePlan(targetPlan.value, targetCycle.value);
+        await props.changePlan(
+            targetPlan.value,
+            targetCycle.value,
+            preview.value.target.planVersionId ?? null,
+        );
         emit('submitted');
         close();
     } catch (err) {
-        submitError.value = err instanceof Error ? err.message : String(err);
+        const body = refusalOf(err);
+        // The plan as it stands now travels with this refusal: shown in place
+        // of the one that was refused, so the next confirmation is of what
+        // the change binds today.
+        if (body?.code === 'PLAN_CHANGE_QUOTE_CHANGED' && body.preview) {
+            preview.value = body.preview as PlanChangePreviewShape;
+        }
+        submitError.value = body
+            ? resolveErrorMessage(body, props.i18n.issueMessages)
+            : err instanceof Error
+              ? err.message
+              : String(err);
     } finally {
         submitting.value = false;
     }

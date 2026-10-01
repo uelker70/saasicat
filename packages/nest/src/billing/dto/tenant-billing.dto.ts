@@ -27,8 +27,20 @@ export class PreviewPlanChangeDto {
  * inside. When a change lands follows from the plan direction, the cycle
  * direction and the minimum term, all of which the server knows and the caller
  * does not.
+ *
+ * What it does carry is the version its preview showed (`planVersionId`, the
+ * preview's `target.planVersionId`). The server reads the preview again and
+ * changes only while that is still the version on sale, so nobody is bound to
+ * a price they were not shown. A change to another plan has to name it where
+ * the preview names one; a change that keeps the plan keeps its version and
+ * names none.
  */
-export class ChangePlanDto extends PreviewPlanChangeDto {}
+export class ChangePlanDto extends PreviewPlanChangeDto {
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    planVersionId?: string;
+}
 
 /**
  * Taking a version offer names the version the page showed, and nothing else:

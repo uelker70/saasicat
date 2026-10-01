@@ -463,6 +463,32 @@ export class TenantBillingController {
             });
         }
 
+        // The version a change to another plan binds is the one its preview
+        // showed (`SC-CHG-023`). The preview is read again here, at the moment
+        // the change is submitted; a version that went on sale since — a
+        // successor whose start passed while the page was open — is not bound
+        // at a price nobody saw. The caller is shown the preview as it stands.
+        // A change that keeps the plan keeps the version bound and names none.
+        const quotedVersionId = dto.plan !== sub.plan ? decision.target.planVersionId : null;
+        if (quotedVersionId !== null) {
+            if (!dto.planVersionId) {
+                throw new BadRequestException({
+                    code: BILLING_ERROR_CODES.PLAN_CHANGE_VERSION_NOT_NAMED,
+                    message: 'A change to another plan has to name the version its preview showed.',
+                    params: { planKey: dto.plan },
+                });
+            }
+            if (dto.planVersionId !== quotedVersionId) {
+                throw new ConflictException({
+                    code: BILLING_ERROR_CODES.PLAN_CHANGE_QUOTE_CHANGED,
+                    message:
+                        'This plan changed since it was shown. Look at it again before changing to it.',
+                    params: { planVersionId: dto.planVersionId },
+                    preview: decision,
+                });
+            }
+        }
+
         // The decisions above were taken against the cancellation as it stood
         // when this route read it, and the write claims the row only while that
         // still holds. A cancellation declared in between loses nothing and
@@ -527,10 +553,14 @@ export class TenantBillingController {
                     nextStatus: wasTrial ? null : 'ACTIVE',
                     trialEndsAt,
                     expectedCanceledAt: sub.canceledAt ?? null,
-                    // A change of plan binds the version in effect: quote and
-                    // write are one request apart, not a period.
                     keepsBoundVersion: false,
-                    quotedPlanVersionId: null,
+                    // The version checked above, and no other: one that stops
+                    // taking bookings between the check and the write leaves
+                    // the row unclaimed rather than binding its successor.
+                    quotedPlanVersionId: quotedVersionId,
+                    quotedVersionOnly:
+                        quotedVersionId !== null &&
+                        this.subscriptionWrite.bindsPlanVersion !== false,
                 }),
             );
             if (!result.claimed) {
@@ -565,10 +595,10 @@ export class TenantBillingController {
             pendingBillingCycle: dto.billingCycle,
             pendingEffectiveAt: effectiveAt,
             expectedCanceledAt: sub.canceledAt ?? null,
-            // The version the preview priced, bound when the change comes due
-            // (`SC-CHG-022`). A change that keeps the plan records none: it
-            // keeps whatever version is bound by that day.
-            pendingChangeVersionId: dto.plan !== sub.plan ? decision.target.planVersionId : null,
+            // The version the preview priced and the caller named, bound when
+            // the change comes due (`SC-CHG-022`). A change that keeps the plan
+            // records none: it keeps whatever version is bound by that day.
+            pendingChangeVersionId: quotedVersionId,
         });
         if (!scheduled.claimed) {
             throw new ConflictException(changedUnderneath);
