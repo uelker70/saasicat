@@ -230,32 +230,10 @@ const publishMeta = {
     validUntil: new Date('2026-12-31T00:00:00.000Z'),
 };
 
-describe('PrismaBundleRepository validity-window schema mode', () => {
-    test('legacy default never requires, writes or exposes validity columns', async () => {
+describe('PrismaBundleRepository validity windows', () => {
+    test('validity dates round-trip on create and update', async () => {
         const prisma = fakePrisma();
         const repo = new PrismaBundleRepository(prisma);
-
-        assert.equal(repo.findActiveBundleVersion, undefined);
-        const draft = await repo.createDraft(draftInput);
-        assert.equal(draft.validFrom, null);
-        assert.equal(draft.validUntil, null);
-        assert.equal('validFrom' in prisma.calls.creates[0], false);
-        assert.equal('validUntil' in prisma.calls.creates[0], false);
-
-        await repo.publishDraft(draft.id, publishMeta);
-        // Claiming the draft and closing its predecessor are one step in every
-        // mode: apart, a failure between them leaves the bundle with no live
-        // version or with two.
-        assert.equal(prisma.calls.transactions, 1, 'published in one transaction');
-        const [claim, supersede] = prisma.calls.updateMany;
-        assert.equal('validFrom' in claim.data, false);
-        assert.equal('validUntil' in claim.data, false);
-        assert.equal('validUntil' in supersede.data, false);
-    });
-
-    test('enabled mode round-trips validity dates on create and update', async () => {
-        const prisma = fakePrisma();
-        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
 
         const draft = await repo.createDraft(draftInput);
         assert.equal(draft.validFrom, '2026-08-10T00:00:00.000Z');
@@ -276,7 +254,7 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         assert.equal(prisma.calls.updates.at(-1).data.validUntil, null);
     });
 
-    test('enabled mode resolves the active version with inclusive days and deterministic priority', async () => {
+    test('the version on sale is resolved with inclusive days and deterministic priority', async () => {
         const publishedAt = new Date('2026-01-01T00:00:00.000Z');
         const prisma = fakePrisma([
             bundleVersionRow({
@@ -316,7 +294,7 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
                 validUntil: null,
             }),
         ]);
-        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
+        const repo = new PrismaBundleRepository(prisma);
         const asOf = new Date('2026-06-03T23:59:59.999Z');
 
         assert.equal(typeof repo.findActiveBundleVersion, 'function');
@@ -358,7 +336,7 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
                 validUntil: new Date('2026-03-10T00:00:00.000Z'),
             }),
         ]);
-        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
+        const repo = new PrismaBundleRepository(prisma);
 
         const active = await repo.findActiveBundleVersion(
             'bundle-1',
@@ -367,10 +345,10 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         assert.equal(active, null);
     });
 
-    test('enabled publish is internally atomic and applies auto-succession', async () => {
+    test('publishing is internally atomic and applies auto-succession', async () => {
         const draft = bundleVersionRow({ id: 'draft-2', version: 2 });
         const prisma = fakePrisma([draft]);
-        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
+        const repo = new PrismaBundleRepository(prisma);
 
         const published = await repo.publishDraft(draft.id, publishMeta);
 
@@ -401,7 +379,7 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         assert.equal(published.validUntil, '2026-12-31T00:00:00.000Z');
     });
 
-    test('enabled publish refuses a version somebody else published first', async () => {
+    test('publishing refuses a version somebody else published first', async () => {
         // The claim matched nothing, so this request wrote nothing — and saying
         // so is what stops it from going on to move the predecessor's window.
         const published = bundleVersionRow({
@@ -410,7 +388,7 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
             publishedAt: new Date('2026-01-01T00:00:00.000Z'),
         });
         const prisma = fakePrisma([published]);
-        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
+        const repo = new PrismaBundleRepository(prisma);
 
         await assert.rejects(
             () => repo.publishDraft(published.id, publishMeta),
@@ -423,11 +401,11 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         );
     });
 
-    test('enabled publish reuses a caller transaction instead of nesting one', async () => {
+    test('publishing reuses a caller transaction instead of nesting one', async () => {
         const draft = bundleVersionRow({ id: 'draft-2', version: 2 });
         const root = fakePrisma();
         const transaction = fakePrisma([draft]);
-        const repo = new PrismaBundleRepository(root, { validityWindows: true });
+        const repo = new PrismaBundleRepository(root);
 
         await repo.publishDraft(draft.id, publishMeta, transaction);
 

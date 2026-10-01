@@ -104,9 +104,7 @@ function createHarness() {
             tenantSubscriptionWrite: new PrismaTenantSubscriptionWriteAdapter(prisma, {
                 tenantSubscription: { atomicOnboardingSelection: true },
             }),
-            bundleRepository: new PrismaBundleRepository(prisma, {
-                validityWindows: true,
-            }),
+            bundleRepository: new PrismaBundleRepository(prisma),
             subscriptionBundleRepository: new PrismaSubscriptionBundleRepository(prisma),
             planRepository: new PrismaPlanRepository(prisma),
             planCatalogReadSink: new PrismaPlanCatalogReadSink(prisma),

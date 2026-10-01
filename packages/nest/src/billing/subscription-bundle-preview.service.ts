@@ -51,6 +51,7 @@ import {
 } from '../catalog/catalog.tokens.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { versionOnSale } from './version-on-sale.js';
+import { bundleVersionNotOnSale } from './bundle-version-not-on-sale.js';
 import {
     bundleCycleFitsPlan,
     bundleFirstPeriodEnd,
@@ -255,7 +256,7 @@ export class SubscriptionBundlePreviewService {
             });
         }
 
-        this.collectBookabilityBlockers(bundleVersion, ctx.currentPlanKey, blockers);
+        this.collectBookabilityBlockers(bundleVersion, ctx.currentPlanKey, blockers, now);
 
         const activeBundleVersions = await this.loadActiveBundleVersions(ctx.subscriptionId);
         if (activeBundleVersions.some((bv) => bv.id === bundleVersion.id)) {
@@ -461,21 +462,10 @@ export class SubscriptionBundlePreviewService {
         bundleVersion: BundleVersionRow,
         currentPlanKey: string,
         blockers: SubscriptionBundlePreviewIssue[],
+        asOf: Date,
     ): void {
-        if (bundleVersion.publishedAt === null) {
-            blockers.push({
-                code: 'BUNDLE_VERSION_NOT_PUBLISHED',
-                message: 'This bundle version is not published and cannot be booked.',
-                params: { bundleVersionId: bundleVersion.id },
-            });
-        }
-        if (bundleVersion.supersededAt !== null) {
-            blockers.push({
-                code: 'BUNDLE_VERSION_SUPERSEDED',
-                message: 'This bundle version has been superseded by a newer one.',
-                params: { bundleVersionId: bundleVersion.id },
-            });
-        }
+        const notOnSale = bundleVersionNotOnSale(bundleVersion, asOf);
+        if (notOnSale) blockers.push(notOnSale);
         const planIds = bundleVersion.compatibility?.planIds ?? [];
         if (planIds.length > 0 && !planIds.includes(currentPlanKey)) {
             blockers.push({

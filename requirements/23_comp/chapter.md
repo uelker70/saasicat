@@ -719,10 +719,8 @@ _Tested by:_
         - upsertPlanVersion is idempotent and supersedes older live versions on publish
     - PrismaPlanCatalogReadSink
         - loadSnapshot maps rows to wire formats with ISO dates and defaults
-    - prismaPersistence() bundle options
-        - bundle.validityWindows reaches the catalog bundle repository
-        - bundle.validityWindows reaches the entitlement bundle repository too
-        - defaults to the 0.6-compatible behavior when omitted
+    - prismaPersistence() bundle repositories
+        - the catalogue and the entitlement slice both answer the version on sale
     - prismaPersistence()
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
@@ -881,10 +879,8 @@ _Tested by:_
         - upsertPlanVersion is idempotent and supersedes older live versions on publish
     - PrismaPlanCatalogReadSink
         - loadSnapshot maps rows to wire formats with ISO dates and defaults
-    - prismaPersistence() bundle options
-        - bundle.validityWindows reaches the catalog bundle repository
-        - bundle.validityWindows reaches the entitlement bundle repository too
-        - defaults to the 0.6-compatible behavior when omitted
+    - prismaPersistence() bundle repositories
+        - the catalogue and the entitlement slice both answer the version on sale
     - prismaPersistence()
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning

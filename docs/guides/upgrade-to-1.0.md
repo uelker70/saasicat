@@ -1089,12 +1089,10 @@ whole group unchecked. That group now fails and names the part. Groups that the 
 `capabilities` rule out, such as the lock scenarios with `pessimisticLocking: false`, still skip.
 
 - **A harness that wires every port its adapter ships** changes nothing. What a port ships can
-  follow its options: `@saasicat/adapter-prisma` adds `findActiveBundleVersion` only with the
-  bundle repository's `validityWindows`, and `applyOnboardingSelection` only with
-  `tenantSubscription.atomicOnboardingSelection` — both off by default. Without them
-  `bundleValidity` and `atomicOnboarding` are gaps, and with them they are not, so derive `gaps`
-  from the same options instead of writing a constant:
-  `gaps: validityWindows ? [] : ['bundleValidity']`.
+  follow its options: `@saasicat/adapter-prisma` adds `applyOnboardingSelection` only with
+  `tenantSubscription.atomicOnboardingSelection`, off by default. Without it `atomicOnboarding` is
+  a gap, and with it it is not, so derive `gaps` from the same option instead of writing a constant:
+  `gaps: atomicOnboardingSelection ? [] : ['atomicOnboarding']`.
 - **A gap name that is not a part of the contract** fails the suite as unknown.
 - **A harness that leaves a part out on purpose** lists it in the new `gaps` option:
   `gaps: ['appliedSettings']`. Its scenarios report as skipped, as before. `ContractGap` lists the
@@ -1650,9 +1648,7 @@ Four more things moved with it:
             where: { tenantId },
             include: { planVersion: true },
         });
-        // The fields your schema carries for the version's validity, as in your read sink.
-        const fields = { validityWindows: false, endsAt: false };
-        return sub ? toPlanVersionRow(sub.planVersion, sub.plan, fields) : null;
+        return sub ? toPlanVersionRow(sub.planVersion, sub.plan) : null;
     }
     ```
 
@@ -2361,7 +2357,7 @@ predecessor. The dates now always apply, and the switches are gone:
   `validUntil` and `endsAt`, as `prisma-fragments/03-plan-versions.prisma` does.
 - **`@saasicat/adapter-drizzle`**: delete `plan: { validityWindows }` from `drizzlePersistence()` and
   the second argument of `new DrizzlePlanRepository(db, …)`; `DrizzlePlanRepositoryOptions` is
-  gone. The add-on switches (`bundle: { validityWindows }`) stay for now.
+  gone.
 - **A `PlanRepository` of your own** that reads versions implements `findActivePlanVersion`, built
   with `buildActivePlanVersionWhere(asOf, { withEndsAt: true })`; the plan editor and checkout
   refuse to start without it. `findLatestLivePlanVersion` stays — it is the version a publish chains
@@ -2380,6 +2376,36 @@ sale since it was published, and the next version published with a start date cl
 before. A version that has been superseded without a last day — every predecessor from that time,
 and every one a catalogue import replaces — is not on sale, so ending its successor leaves nothing on
 sale rather than the old price.
+
+### An add-on is on sale by its dates, too
+
+Add-on versions follow the rule plans follow (`SC-BUN-035`): which one is on sale is decided by its
+dates, and the public catalogue, the upsell, the add-on preview, checkout and a tenant's booking all
+read it the same way. The public catalogue and the upsell showed the newest published version, and
+a booking refused every superseded one — so an add-on whose successor starts next month could not
+be sold at all until then, while a version whose start was still to come could be booked at once.
+The switches that decided whether the dates were kept go:
+
+- **`@saasicat/adapter-prisma`**: delete `bundle` from `prismaPersistence()` and the second argument
+  of `new PrismaBundleRepository(prisma, …)`; `PrismaBundleRepositoryOptions` and
+  `PRISMA_BUNDLE_REPOSITORY_OPTIONS` are gone. The bundle-version model carries `validFrom` and
+  `validUntil`, as `prisma-fragments/05-bundle.prisma` does — a schema that left them out while the
+  switch was off adds them now, and `saasicat schema check` names them if it has not.
+- **`@saasicat/adapter-drizzle`**: delete `bundle: { validityWindows }` from `drizzlePersistence()`
+  and the second argument of `new DrizzleBundleRepository(db, …)`.
+- **A `BundleRepository` of your own** implements `findActiveBundleVersion`, which is now required,
+  with `buildActiveVersionWhere(asOf)`. `findLatestLive` stays — it is the version a publish chains
+  to, not the one on sale.
+- **A booking** of a version whose start is still to come is refused with
+  `BUNDLE_VERSION_NOT_YET_ON_SALE`, carrying `validFrom`; a version whose successor has taken over
+  is refused with `BUNDLE_VERSION_SUPERSEDED`, as before. A superseded version is booked until its
+  successor starts.
+- **A persistence contract harness** no longer has a `bundleValidity` gap to declare for either
+  shipped adapter.
+
+No data to migrate, for the reason given for plans above: an add-on version published while the
+dates were not kept is on sale since it was published, the next one published closes it on the day
+before, and a predecessor superseded without a last day is not on sale.
 
 ### A plan change names the version its preview showed
 

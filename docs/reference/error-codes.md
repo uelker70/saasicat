@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 194 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 195 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -75,6 +75,7 @@ Plans, versions, bundles, marketing entries.
 | `BUNDLE_VERSION_NOT_FOUND`                     | BundleVersion '{bundleVersionId}' not found                                                                                                                                                                                                             |
 | `BUNDLE_VERSION_NOT_PRICED_FOR_PLAN`           | This bundle is offered to plan '{planKey}', which is sold {billingCycle}, and no {billingCycle} price resolves for it — neither a base price nor a plan override.                                                                                       |
 | `BUNDLE_VERSION_NOT_PUBLISHED`                 | BundleVersion '{bundleVersionId}' is not published and cannot be booked.                                                                                                                                                                                |
+| `BUNDLE_VERSION_NOT_YET_ON_SALE`               | BundleVersion '{bundleVersionId}' goes on sale on {validFrom} and cannot be booked before.                                                                                                                                                              |
 | `BUNDLE_VERSION_NO_PRICE`                      | This bundle version cannot be published without a price: neither a base price nor any plan override resolves one.                                                                                                                                       |
 | `BUNDLE_VERSION_REGRESSION`                    | This bundle version is regressive (feature removed / quota lowered / price raised). Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).                                                                          |
 | `BUNDLE_VERSION_SUPERSEDED`                    | BundleVersion '{bundleVersionId}' has been superseded by a newer version.                                                                                                                                                                               |

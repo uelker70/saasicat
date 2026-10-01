@@ -1,4 +1,3 @@
-// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
 // @requirement SC-BUN-025 — An add-on may be restricted to particular plans
 
 import { describe, test } from 'node:test';

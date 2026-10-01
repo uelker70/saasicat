@@ -107,7 +107,6 @@ describe('BundlesService — Master operations', () => {
 // ─────────────────────────────────────────────────────────────────
 
 // @requirement SC-BUN-024 — An add-on version somebody has already booked cannot be edited
-// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
 describe('BundlesService — Version lifecycle', () => {
     test('createBundleDraft creates v1 with baseVersionId=null', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
@@ -465,6 +464,7 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
         );
     });
 
+    // @requirement SC-BUN-035 — An add-on is on sale by its dates, in the catalogue and at booking alike
     test('publishBundleVersion: second version sets previous to supersededAt + auto-succession validUntil', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({

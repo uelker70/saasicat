@@ -22,7 +22,7 @@ let repository;
 
 before(async () => {
     ({ pool, db } = await openDisposableDatabase({ max: 4 }));
-    repository = new DrizzleBundleRepository(db, { validityWindows: true });
+    repository = new DrizzleBundleRepository(db);
 });
 
 after(async () => {
@@ -312,7 +312,7 @@ describe('reading inside a transaction stays on its connection', () => {
     test('every transaction-aware read answers with a pool of one', async () => {
         const { pool: single, db: singleDb } = await openDisposableDatabase({ max: 1 });
         try {
-            const repo = new DrizzleBundleRepository(singleDb, { validityWindows: true });
+            const repo = new DrizzleBundleRepository(singleDb);
             const bundle = await repo.create({ bundleKey: 'SOLO', label: 'Solo' });
             const draft = await repo.createDraft({ bundleId: bundle.id, features: ['A'] });
             await repo.publishDraft(draft.id, {

@@ -81,6 +81,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "BundleVersion '{bundleVersionId}' is not published and cannot be booked.",
     BUNDLE_VERSION_SUPERSEDED:
         "BundleVersion '{bundleVersionId}' has been superseded by a newer version.",
+    BUNDLE_VERSION_NOT_YET_ON_SALE:
+        "BundleVersion '{bundleVersionId}' goes on sale on {validFrom} and cannot be booked before.",
     BUNDLE_VERSION_REGRESSION:
         'This bundle version is regressive (feature removed / quota lowered / price raised). Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
     BUNDLE_VERSION_ZERO_PRICE:

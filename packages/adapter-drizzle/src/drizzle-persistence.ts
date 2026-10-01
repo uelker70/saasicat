@@ -44,16 +44,6 @@ import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggreg
 
 export interface DrizzlePersistenceOptions {
     /**
-     * Bundle-repository behaviour, mirroring `adapter-prisma`'s `bundle`
-     * option. `validityWindows: true` opts into booking windows: a draft's
-     * `validFrom`/`validUntil` are written and read, publishing closes the
-     * predecessor's window, and `findActiveBundleVersion` is offered. Without
-     * it the adapter says so by not exposing that method, rather than
-     * answering with dates it does not maintain.
-     */
-    bundle?: { validityWindows?: boolean };
-
-    /**
      * The app's Drizzle database: either a ready instance
      * (`drizzle(pool)` — typical, since Drizzle setups rarely wrap the db in
      * a Nest provider) or its injection token when the app registers one.
@@ -179,9 +169,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             ),
             // The catalogue behind those bookings: entitlement resolves a
             // booking's features by reading the pinned version.
-            bundleRepository: provide(
-                (client) => new DrizzleBundleRepository(client, options.bundle),
-            ),
+            bundleRepository: provide((client) => new DrizzleBundleRepository(client)),
         },
         // The editable catalogue: which plans a project sells and in which
         // versions. Present since 2026-08-27 — before that this adapter could
@@ -190,9 +178,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
         // otherwise complete for.
         catalog: {
             planRepository: provide((client) => new DrizzlePlanRepository(client)),
-            bundleRepository: provide(
-                (client) => new DrizzleBundleRepository(client, options.bundle),
-            ),
+            bundleRepository: provide((client) => new DrizzleBundleRepository(client)),
         },
         // The tenant's own billing page and the writes behind its buttons.
         // Both members are required, and until 2026-08-27 neither existed —

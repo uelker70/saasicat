@@ -292,24 +292,15 @@ is absent and the catalog service remains fail-closed.
 
 ### Bundle validity windows
 
-`PrismaBundleRepository` keeps its 0.6-compatible behavior by default and does
-not require `bundle_versions.validFrom` / `validUntil`. After applying the
-additive columns from the current `@saasicat/spec` bundle fragment, enable them
-explicitly:
-
-```ts
-const bundles = new PrismaBundleRepository(prisma, {
-    validityWindows: true,
-});
-```
-
-The enabled mode persists and returns both dates. Publishing also sets the
-predecessor's `validUntil` to one UTC calendar day before the successor starts,
-and wraps supersede + publish in a transaction when the caller did not already
-provide one. It also exposes the optional
-`BundleRepository.findActiveBundleVersion(bundleId, asOf?)` capability, using
-inclusive UTC-day boundaries and preferring the highest `validFrom`, then
-`version`. In the default legacy mode that optional capability is `undefined`.
+`PrismaBundleRepository` writes and reads `bundle_versions.validFrom` and
+`validUntil`, as the canonical schema carries them: they decide which add-on
+version is on sale, as they do for plans. Publishing sets the predecessor's
+`validUntil` to one UTC calendar day before the successor starts, and wraps
+supersede + publish in a transaction when the caller did not already provide
+one. `BundleRepository.findActiveBundleVersion(bundleId, asOf?)` answers the
+version on sale, using inclusive UTC-day boundaries and preferring the highest
+`validFrom`, then `version`; a version superseded without a last day is not on
+sale.
 
 ## RLS bypass
 

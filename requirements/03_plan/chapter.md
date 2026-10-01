@@ -508,9 +508,8 @@ _Tested by:_
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens
         - a bundle with no published version at all answers null, not an error
-    - an adapter that does not promise windows
-        - does not offer the method, rather than answering from columns it ignores
-        - and hands back no window on a version that has one stored
+    - a version read back
+        - carries the window it has stored
 - `packages/core/tests/active-plan-version-query.test.js`
     - buildActivePlanVersionWhere
         - requires publishedAt IS NOT NULL

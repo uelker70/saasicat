@@ -1,8 +1,10 @@
-// Whether a bundle version can be booked by a new customer at a moment.
+// Whether a bundle version can be booked at a moment — the window
+// `findActiveBundleVersion` asks the database for, for a row already read.
 //
 // Asked twice about an offer: when it is priced, so an add-on no longer on sale
 // is not put into it, and when it is consumed, so one that went off sale in
-// between does not become part of a contract.
+// between does not become part of a contract. A tenant booking an add-on and
+// its preview ask the same.
 
 import type { BundleVersionRow } from '@saasicat/core';
 import { startOfUtcDay } from '@saasicat/core';
@@ -13,9 +15,13 @@ export function bundleVersionNotBookableReason(
     nowMs: number,
 ): 'not_published' | 'superseded' | 'not_yet_valid' | 'expired' | null {
     if (version.publishedAt === null) return 'not_published';
-    if (version.supersededAt !== null) return 'superseded';
     if (dateIsAfter(version.validFrom, nowMs)) return 'not_yet_valid';
     if (isValidUntilExpired(version.validUntil, nowMs)) return 'expired';
+    // A superseded version keeps selling until its window closes — a successor
+    // published today may start next month — but only within a last day it
+    // carries: one superseded without, as a row from before the dates were
+    // kept is, never closes (`buildActiveVersionWhere`).
+    if (version.supersededAt !== null && !version.validUntil) return 'superseded';
     return null;
 }
 

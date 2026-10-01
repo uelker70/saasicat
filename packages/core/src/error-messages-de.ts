@@ -80,6 +80,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         "BundleVersion '{bundleVersionId}' ist nicht veröffentlicht und lässt sich nicht buchen.",
     BUNDLE_VERSION_SUPERSEDED:
         "BundleVersion '{bundleVersionId}' wurde durch eine neuere Version abgelöst.",
+    BUNDLE_VERSION_NOT_YET_ON_SALE:
+        "BundleVersion '{bundleVersionId}' ist ab {validFrom} im Verkauf und kann vorher nicht gebucht werden.",
     BUNDLE_VERSION_REGRESSION:
         'Diese Bundle-Version ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Das Veröffentlichen erfordert ein ausdrückliches `forceRegressive: true` (Bestätigungsdialog in der UI mit MFA).',
     BUNDLE_VERSION_ZERO_PRICE:

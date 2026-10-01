@@ -99,7 +99,7 @@ function createHarness() {
             audit: new DrizzleAuditAdapter(db),
             auditQuery: new DrizzleAuditQueryAdapter(db),
             subscriptionBundleRepository: new DrizzleSubscriptionBundleRepository(db),
-            bundleRepository: new DrizzleBundleRepository(db, { validityWindows: true }),
+            bundleRepository: new DrizzleBundleRepository(db),
             planRepository: new DrizzlePlanRepository(db),
             planCatalogReadSink: new DrizzlePlanCatalogReadSink(db),
             tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),

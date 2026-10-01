@@ -110,7 +110,7 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 27      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 24      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 541 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
-🔵 5 superseded, 🔴 3 withdrawn.
+Of 542 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+🔵 6 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -201,7 +201,8 @@ Of 541 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
-🔵 **Superseded** — [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+🔵 **Superseded** — [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
+[SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
@@ -211,7 +212,7 @@ Of 541 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 541 requirements. Do not edit by hand:
+Generated from `requirements/` — 542 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -1510,9 +1511,8 @@ _Tested by:_
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens
         - a bundle with no published version at all answers null, not an error
-    - an adapter that does not promise windows
-        - does not offer the method, rather than answering from columns it ignores
-        - and hands back no window on a version that has one stored
+    - a version read back
+        - carries the window it has stored
 - `packages/core/tests/active-plan-version-query.test.js`
     - buildActivePlanVersionWhere
         - requires publishedAt IS NOT NULL
@@ -3059,72 +3059,10 @@ _Tested by:_
 
 ### SC-BUN-023 — Only a published, current version of an add-on can be booked
 
-🟢 A draft, a superseded version and one whose validity has not started are not on offer.
+🔵 _(Superseded on 2026-10-01 by `SC-BUN-035`.)_ A draft, a superseded version and one whose validity
+has not started are not on offer.
 
 _Source:_ `docs/reference/error-codes.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/core/tests/bundle-availability.test.js`
-    - missingRequiresFor
-        - returns uncovered requires sorted + deduplicated
-        - empty when all requires are covered
-        - empty when the bundle has no requires
-    - resolveBundleAvailability
-        - bookable when requires covered and features are new
-        - missing-requires grays out bundle on uncovered prerequisite
-        - covered when all bundle features are already covered (already included)
-        - covered beats missing-requires (fully covered bundle never bookable)
-        - partial coverage stays bookable (not covered)
-        - bundle without features is never covered
-    - coverageExcludingSelf
-        - plan ∪ features of the other selected bundles, without the bundle itself
-        - excludes own features (otherwise every bundle would be trivially covered)
-    - isBundleRedundant
-        - Y is redundant when C is already covered by Z
-        - Z is not redundant — D is not covered elsewhere
-        - redundant when the plan already contains the features
-        - single selected bundle is not redundant (self-exclusion)
-    - selectChargeableBundles
-        - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
-        - input order irrelevant — sorting determines the kept one (z remains)
-        - sortOrder controls which bundle is kept
-        - 3-cycle of identical bundles → exactly ONE remains
-        - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
-        - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
-        - bundles covered by the plan are discarded
-        - disjoint bundles are all kept
-        - empty selection → empty result
-        - does not mutate the input
-- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - which bundles a tenant may ask the price of
-        - a draft is not priced, because it was never on offer
-        - a superseded version is not priced either
-        - a live version among dead ones still answers
-    - a bundle the operator retired
-        - is not priced, though its version is still live
-- `packages/nest/tests/bundles-service.test.js`
-    - BundlesService — Version lifecycle
-        - createBundleDraft creates v1 with baseVersionId=null
-        - createBundleDraft throws 422 if a draft already exists
-        - updateBundleDraft throws 422 on published version
-        - publishBundleVersion classifies diff (feature added = IMPROVEMENT)
-        - publishBundleVersion blocks regressive version without forceRegressive
-        - publishBundleVersion lets regressive version through with forceRegressive
-- `packages/nest/tests/subscription-bundles-service.test.js`
-    - SubscriptionBundlesService — addBundleToSubscription
-        - a booking commits the tenant to nothing unless somebody says so
-        - an operator who wants a commitment still gets one
-        - minimumTermMonths=0 → null (no minimum term)
-        - plan compatibility check: 422 BUNDLE_INCOMPATIBLE_WITH_PLAN on the wrong plan
-        - plan compatibility: empty planIds array = all plans allowed
-        - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
-        - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
-        - custom defaultMinimumTermMonths from the config token takes effect
-
-<!-- END proof -->
 
 ### SC-BUN-024 — An add-on version somebody has already booked cannot be edited
 
@@ -3146,9 +3084,8 @@ _Tested by:_
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens
         - a bundle with no published version at all answers null, not an error
-    - an adapter that does not promise windows
-        - does not offer the method, rather than answering from columns it ignores
-        - and hands back no window on a version that has one stored
+    - a version read back
+        - carries the window it has stored
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - a bundle the operator retired
         - is not priced, though its version is still live
@@ -3313,14 +3250,13 @@ _Tested by:_
         - a booking whose cancellation has landed is not counted
         - a version nobody booked counts zero
 - `packages/adapter-prisma/tests/prisma-bundle.repository.test.js`
-    - PrismaBundleRepository validity-window schema mode
-        - legacy default never requires, writes or exposes validity columns
-        - enabled mode round-trips validity dates on create and update
-        - enabled mode resolves the active version with inclusive days and deterministic priority
+    - PrismaBundleRepository validity windows
+        - validity dates round-trip on create and update
+        - the version on sale is resolved with inclusive days and deterministic priority
         - a superseded version without a last day does not come back when its successor closes
-        - enabled publish is internally atomic and applies auto-succession
-        - enabled publish refuses a version somebody else published first
-        - enabled publish reuses a caller transaction instead of nesting one
+        - publishing is internally atomic and applies auto-succession
+        - publishing refuses a version somebody else published first
+        - publishing reuses a caller transaction instead of nesting one
 - `packages/nest/tests/subscription-bundle-repo.test.js`
     - SubscriptionBundleRepository — lifecycle
         - add + listBySubscription returns the new booking
@@ -3553,6 +3489,60 @@ _Tested by:_
         - a contract frozen beside it leaves the add-on out, and names it
     - a remembered answer and a cancelled add-on
         - an answer computed before the date is not served on it
+
+<!-- END proof -->
+
+### SC-BUN-035 — An add-on is on sale by its dates, in the catalogue and at booking alike
+
+🟢 💰 Which version of an add-on is on sale is decided by its dates, as for a plan (`SC-PLAN-027`):
+published, begun, not past its last day, and — once superseded — only within a last day it carries.
+A draft, a version whose start is still to come and one whose successor has taken over are not on
+offer, and a predecessor stays on offer until the day its successor starts. The public catalogue,
+the upsell, the add-on preview, checkout and a booking all read it the same way, so the add-on a
+tenant is shown is the one they can book. The dates always apply: no setting leaves them out.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - which bundles a tenant may ask the price of
+        - a draft is not priced, because it was never on offer
+        - a version whose successor has taken over is not priced either
+        - a live version among dead ones still answers
+- `packages/nest/tests/an-add-on-is-on-sale-by-its-dates.test.js`
+    - a tenant booking an add-on
+        - takes the predecessor until its successor starts, though it is superseded
+        - is refused a version whose start is still to come, and told when it starts
+        - takes the successor from its first day
+        - is refused the predecessor once its successor has taken over
+        - is refused a version superseded without a last day
+        - is refused a draft
+    - the preview of an add-on booking
+        - says what the booking would say: the successor is not on sale before June
+        - and has no word against the superseded predecessor while its window is open
+    - the public catalogue
+        - shows the add-on version on sale at the moment it is read
+    - the bundle list of the public catalogue
+        - lists the add-on version on sale now, not the newest published
+    - the upsell
+        - offers the add-on version on sale now, not the newest published
+- `packages/nest/tests/bundles-service.test.js`
+    - BundlesService — Editability annotation (Pack 2c)
+        - publishBundleVersion: second version sets previous to supersededAt + auto-succession
+          validUntil
+- `packages/nest/tests/subscription-bundles-service.test.js`
+    - SubscriptionBundlesService — addBundleToSubscription
+        - a booking commits the tenant to nothing unless somebody says so
+        - an operator who wants a commitment still gets one
+        - minimumTermMonths=0 → null (no minimum term)
+        - plan compatibility check: 422 BUNDLE_INCOMPATIBLE_WITH_PLAN on the wrong plan
+        - plan compatibility: empty planIds array = all plans allowed
+        - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
+        - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
+        - custom defaultMinimumTermMonths from the config token takes effect
 
 <!-- END proof -->
 
@@ -16872,10 +16862,8 @@ _Tested by:_
         - upsertPlanVersion is idempotent and supersedes older live versions on publish
     - PrismaPlanCatalogReadSink
         - loadSnapshot maps rows to wire formats with ISO dates and defaults
-    - prismaPersistence() bundle options
-        - bundle.validityWindows reaches the catalog bundle repository
-        - bundle.validityWindows reaches the entitlement bundle repository too
-        - defaults to the 0.6-compatible behavior when omitted
+    - prismaPersistence() bundle repositories
+        - the catalogue and the entitlement slice both answer the version on sale
     - prismaPersistence()
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
@@ -17034,10 +17022,8 @@ _Tested by:_
         - upsertPlanVersion is idempotent and supersedes older live versions on publish
     - PrismaPlanCatalogReadSink
         - loadSnapshot maps rows to wire formats with ISO dates and defaults
-    - prismaPersistence() bundle options
-        - bundle.validityWindows reaches the catalog bundle repository
-        - bundle.validityWindows reaches the entitlement bundle repository too
-        - defaults to the 0.6-compatible behavior when omitted
+    - prismaPersistence() bundle repositories
+        - the catalogue and the entitlement slice both answer the version on sale
     - prismaPersistence()
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning

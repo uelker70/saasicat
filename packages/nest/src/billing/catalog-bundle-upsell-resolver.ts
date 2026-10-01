@@ -84,12 +84,13 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
         return collectUnsatisfiedRequires(featureKeys, buildFeatureRequiresIndex(rows));
     }
 
-    /** Only published-and-live AND marketed — non-marketed bundles are not an offer. */
+    /** Only the version on sale now, AND marketed — non-marketed bundles are not an offer. */
     private async listLiveMarketedBundles(): Promise<BundleVersionRow[]> {
         const stems = await this.bundleRepo.list({ excludeDeleted: true });
         const out: BundleVersionRow[] = [];
+        const now = new Date();
         for (const stem of stems) {
-            const live = await this.bundleRepo.findLatestLive(stem.id);
+            const live = await this.bundleRepo.findActiveBundleVersion(stem.id, now);
             if (live?.marketed) out.push(live);
         }
         return out;
