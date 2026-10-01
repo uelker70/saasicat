@@ -132,7 +132,15 @@ export interface PlanChangePreviewShape {
     planDirection: 'UP' | 'DOWN' | 'SAME';
     cycleDirection: 'LONGER' | 'SHORTER' | 'SAME';
     current: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
-    target: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
+    /**
+     * `planVersionId` is the version the target is priced at — what a change
+     * names when it is submitted. `null` where nothing reads versions.
+     */
+    target: {
+        plan: PlanSnapshotShape;
+        billingCycle: BillingCycleStr;
+        planVersionId: string | null;
+    };
     effectiveAt: string | null;
     isImmediate: boolean;
     /** Projected new trial end (ISO) after the change, otherwise null. */
@@ -399,7 +407,17 @@ export interface UseTenantBillingResult {
         plan: string,
         billingCycle: BillingCycleStr,
     ) => Promise<PlanChangePreviewShape>;
-    changePlan: (plan: string, billingCycle: BillingCycleStr) => Promise<void>;
+    /**
+     * Changes the plan. `planVersionId` is the preview's `target.planVersionId`:
+     * the server changes only while that is still the version on sale, and
+     * refuses with `PLAN_CHANGE_QUOTE_CHANGED`, carrying the current
+     * `preview`, when it is not.
+     */
+    changePlan: (
+        plan: string,
+        billingCycle: BillingCycleStr,
+        planVersionId: string | null,
+    ) => Promise<void>;
     /**
      * A newer version of the tenant's plan, beside the one the subscription is
      * bound to, or `null` where there is none it could take. Classified against
@@ -627,13 +645,23 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         });
     }
 
-    async function changePlan(plan: string, billingCycle: BillingCycleStr) {
+    async function changePlan(
+        plan: string,
+        billingCycle: BillingCycleStr,
+        planVersionId: string | null,
+    ) {
         // No timing in the body. The server decides when a change lands from
         // the plan direction, the cycle direction and the minimum term — none
         // of which a browser can see, and all of which it used to be trusted to
         // report back. A caller that sent `effectiveImmediately: true` could
         // end a term it was inside.
-        await fetchOrThrow('/plan', { method: 'POST', body: { plan, billingCycle } });
+        await fetchOrThrow('/plan', {
+            method: 'POST',
+            body:
+                planVersionId === null
+                    ? { plan, billingCycle }
+                    : { plan, billingCycle, planVersionId },
+        });
         await reload();
     }
 

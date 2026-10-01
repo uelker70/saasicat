@@ -48,7 +48,12 @@ function buildController(audit, subscription = ACTIVE) {
         },
         {
             async preview() {
-                return { isImmediate: true, effectiveAt: null, blockers: [] };
+                return {
+                    isImmediate: true,
+                    effectiveAt: null,
+                    blockers: [],
+                    target: { planVersionId: 'pv-quoted' },
+                };
             },
         },
         { findForTenant: async () => subscription },
@@ -72,7 +77,11 @@ describe('a plan change is recorded with what it was before and after', () => {
         const audit = auditService();
         const controller = buildController(audit);
 
-        await controller.changePlan(request, { plan: 'PRO', billingCycle: 'MONTHLY' });
+        await controller.changePlan(request, {
+            plan: 'PRO',
+            billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
+        });
 
         const [entry] = audit.entries.filter((one) => one.action === 'CHANGE_PLAN');
         assert.ok(entry, 'a plan change went unrecorded');
@@ -97,7 +106,11 @@ describe('a plan change is recorded with what it was before and after', () => {
             billingCycle: 'MONTHLY',
         });
 
-        await controller.changePlan(request, { plan: 'PRO', billingCycle: 'MONTHLY' });
+        await controller.changePlan(request, {
+            plan: 'PRO',
+            billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
+        });
 
         const [entry] = audit.entries.filter((one) => one.action === 'CHANGE_PLAN');
         assert.equal(entry.changes.fromPlan, 'ENTERPRISE');
@@ -111,6 +124,7 @@ describe('a plan change is recorded with what it was before and after', () => {
         const result = await controller.changePlan(request, {
             plan: 'PRO',
             billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
         });
         assert.equal(result.plan, 'PRO');
     });

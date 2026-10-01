@@ -184,6 +184,19 @@ export const BILLING_ERROR_CODES = {
      */
     VERSION_OFFER_CHANGED: 'VERSION_OFFER_CHANGED',
     /**
+     * The version a change to another plan named is not the one on sale when
+     * the change was submitted: its preview was shown at another moment.
+     * Nothing was changed. Carries the current `preview`, so the page shows
+     * what the change binds now instead of what it would have.
+     */
+    PLAN_CHANGE_QUOTE_CHANGED: 'PLAN_CHANGE_QUOTE_CHANGED',
+    /**
+     * A change to another plan named no version, where its preview names one:
+     * nothing says which price and terms the customer was shown, so nothing
+     * is changed.
+     */
+    PLAN_CHANGE_VERSION_NOT_NAMED: 'PLAN_CHANGE_VERSION_NOT_NAMED',
+    /**
      * A version that takes something away takes effect when the term ends, and
      * the subscription's cancellation lands no later: the switch would never
      * happen, so it is refused rather than recorded. Carries both dates.

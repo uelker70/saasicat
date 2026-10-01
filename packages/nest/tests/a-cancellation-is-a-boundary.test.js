@@ -110,12 +110,21 @@ function buildController(subscription, port, preview) {
     );
 }
 
-const IMMEDIATE_UPGRADE = { isImmediate: true, effectiveAt: null, blockers: [] };
+const IMMEDIATE_UPGRADE = {
+    isImmediate: true,
+    effectiveAt: null,
+    blockers: [],
+    target: { planVersionId: 'pv-quoted' },
+};
 /** An immediate upgrade the preview priced as a period of its own that starts today. */
 const IMMEDIATE_NEW_PERIOD = { ...IMMEDIATE_UPGRADE, proration: { basis: 'newPeriod' } };
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 const changeTo = (controller) =>
-    controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
+    controller.changePlan(request, {
+        plan: 'STANDARD',
+        billingCycle: 'YEARLY',
+        planVersionId: 'pv-quoted',
+    });
 
 // @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
 describe('a subscription that has ended', () => {
@@ -284,6 +293,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
             buildController(ending, port, IMMEDIATE_UPGRADE).changePlan(request, {
                 plan: 'STANDARD',
                 billingCycle: 'YEARLY',
+                planVersionId: 'pv-quoted',
             }),
             (err) => err.getResponse?.().code === 'CANCELLATION_LOCKS_THE_CYCLE',
         );
@@ -297,6 +307,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
         await buildController(ending, port, IMMEDIATE_NEW_PERIOD).changePlan(request, {
             plan: 'STANDARD',
             billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
         });
 
         assert.equal(port.immediate.length, 1);
@@ -310,7 +321,11 @@ describe('a cycle change while a cancellation is outstanding', () => {
             { ...SUBSCRIPTION, billingCycle: 'MONTHLY' },
             port,
             IMMEDIATE_NEW_PERIOD,
-        ).changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
+        ).changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'YEARLY',
+            planVersionId: 'pv-quoted',
+        });
 
         assert.equal(port.immediate.length, 1);
         assert.notEqual(port.immediate[0].periodEnd, null);

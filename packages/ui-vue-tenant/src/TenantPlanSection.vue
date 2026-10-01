@@ -295,11 +295,8 @@ import {
 } from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
-import {
-    resolveErrorMessage,
-    type ResolvableErrorBody,
-    type VersionOfferView,
-} from '@saasicat/core';
+import type { VersionOfferView } from '@saasicat/core';
+import { refusalMessage, refusalOf } from './refusal-of.js';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import { defaultQuotaValue } from './plan/quota-value.js';
 
@@ -784,19 +781,9 @@ const offerError = ref<string | null>(null);
 const offerReadError = ref<string | null>(null);
 const versionSwitchNote = ref<string | null>(null);
 
-/** The coded body a refused request carried, where it carried one. */
-function refusalOf(err: unknown): (ResolvableErrorBody & { offer?: unknown }) | null {
-    const body = (err as { body?: unknown } | null)?.body;
-    return body !== null && typeof body === 'object'
-        ? (body as ResolvableErrorBody & { offer?: unknown })
-        : null;
-}
-
 /** A refusal in the reader's language, from its code; the thrown text only where there is none. */
 function refusalText(err: unknown): string {
-    const body = refusalOf(err);
-    if (!body) return err instanceof Error ? err.message : String(err);
-    return resolveErrorMessage(body, effectiveI18n.value.issueMessages);
+    return refusalMessage(err, effectiveI18n.value.issueMessages);
 }
 
 /**
@@ -880,8 +867,8 @@ function onWizardSubmitted() {
 async function previewPlanChange(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
     return billing.previewPlanChange(plan, cycle);
 }
-async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
-    return billing.changePlan(plan, cycle);
+async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', planVersionId: string | null) {
+    return billing.changePlan(plan, cycle, planVersionId);
 }
 </script>
 

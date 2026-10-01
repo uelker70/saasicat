@@ -183,3 +183,27 @@ describe('the rhythm a bundle is booked in reaches the wire', () => {
         assert.equal(bodies[1].billingCycle, 'YEARLY');
     });
 });
+
+// @requirement SC-CHG-023 — A plan change binds the version its preview showed, or nothing
+describe('a plan change names the version its preview showed', () => {
+    test('the version goes into the body beside the plan and the rhythm', async () => {
+        const { client, calls } = makeRecordingHttp();
+        const billing = useTenantBilling({ http: client, autoLoad: false });
+        await billing.changePlan('PRO', 'MONTHLY', 'plv-2');
+        const change = calls.find((c) => c.method === 'POST');
+        assert.equal(change.url, '/billing/plan');
+        assert.deepEqual(change.body, {
+            plan: 'PRO',
+            billingCycle: 'MONTHLY',
+            planVersionId: 'plv-2',
+        });
+    });
+
+    test('a change with no version to name sends none, rather than a null', async () => {
+        const { client, calls } = makeRecordingHttp();
+        const billing = useTenantBilling({ http: client, autoLoad: false });
+        await billing.changePlan('STARTER', 'YEARLY', null);
+        const change = calls.find((c) => c.method === 'POST');
+        assert.deepEqual(change.body, { plan: 'STARTER', billingCycle: 'YEARLY' });
+    });
+});

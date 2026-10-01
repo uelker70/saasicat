@@ -229,6 +229,11 @@ _Tested by:_
         - a refused move leaves focus alone
     - the progress list says where the tenant is without relying on colour
         - exactly one step is marked current, and it carries a word
+    - the confirmation binds the version it showed
+        - it sends the version of the preview on screen
+        - refused because the plan changed, it shows the plan as it stands and says why
+    - a refused change always says why
+        - a body with no code and a list of messages falls back to the thrown text
 
 <!-- END proof -->
 
@@ -263,6 +268,11 @@ _Tested by:_
         - a refused move leaves focus alone
     - the progress list says where the tenant is without relying on colour
         - exactly one step is marked current, and it carries a word
+    - the confirmation binds the version it showed
+        - it sends the version of the preview on screen
+        - refused because the plan changed, it shows the plan as it stands and says why
+    - a refused change always says why
+        - a body with no code and a list of messages falls back to the thrown text
 
 <!-- END proof -->
 
@@ -561,7 +571,8 @@ _Tested by:_
     - a scheduled change records the version it was quoted at
         - another plan: the version the preview priced
         - the same plan: none, so the version bound by the day it comes due is kept
-        - an immediate change is a sale, and binds the version in effect
+        - the same plan bound to no version: the version on sale it was quoted at
+        - an immediate change binds the version its preview showed, and no other
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a scheduled change learns the version it was quoted at
         - a change to another plan is given the version live now; the rest are left empty
@@ -569,5 +580,47 @@ _Tested by:_
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
+
+<!-- END proof -->
+
+### SC-CHG-023 — A plan change binds the version its preview showed, or nothing
+
+🟢 💰 A plan change names the version its preview showed, and the platform reads the preview
+again when the change is submitted: it changes only while that version is still the one on
+sale, and binds that version and no other. Where another went on sale in between — a successor
+whose start passed while the page was open — the change is refused and carries the preview as it
+now stands, so nobody is bound to a price or terms they were not shown. A change scheduled for the
+end of the term is held to the same (`SC-CHG-022`). A change that keeps the plan on a subscription
+bound to a version keeps that version and names none; one bound to no version names the version on
+sale like any other.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-change-binds-the-version-its-preview-showed.test.js`
+    - a change to another plan
+        - naming the version on sale is made, at that version and no other
+        - naming a version no longer on sale is refused, and shown the preview as it stands
+        - naming no version is refused where the preview names one
+        - scheduled for the term end is refused the same way, and recorded at the version named
+        - whose version stops selling between the check and the write changes nothing
+    - a change of rhythm on a subscription bound to no version
+        - names the version on sale, and binds that one and no other
+        - naming none is refused
+        - naming a version no longer on sale is refused
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records the version it was quoted at
+        - an immediate change binds the version its preview showed, and no other
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - a plan change names the version its preview showed
+        - the version goes into the body beside the plan and the rhythm
+        - a change with no version to name sends none, rather than a null
+- `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
+    - the confirmation binds the version it showed
+        - it sends the version of the preview on screen
+        - refused because the plan changed, it shows the plan as it stands and says why
 
 <!-- END proof -->

@@ -1048,6 +1048,9 @@ _Tested by:_
         - an explicit cycle is sent by both the preview and the booking
         - omitting it sends no field at all, so the plan’s rhythm decides
         - a minimum term still travels, alone or beside a cycle
+    - a plan change names the version its preview showed
+        - the version goes into the body beside the plan and the rhythm
+        - a change with no version to name sends none, rather than a null
 - `packages/ui-vue-tenant/tests/component/tenant-primitives.test.ts`
     - the tenant button is a button
         - it renders a native button that does not submit

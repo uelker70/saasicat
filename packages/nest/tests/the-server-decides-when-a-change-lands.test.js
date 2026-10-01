@@ -34,14 +34,18 @@ const SUBSCRIPTION = {
 };
 
 /** A preview that answers what the rules say, whatever the caller asked for. */
-function previewSaying({ isImmediate, effectiveAt = new Date('2027-01-01') }) {
+function previewSaying({
+    isImmediate,
+    effectiveAt = new Date('2027-01-01'),
+    planVersionId = 'pv-quoted',
+}) {
     return {
         async preview() {
             return {
                 isImmediate,
                 effectiveAt: isImmediate ? null : effectiveAt,
                 blockers: [],
-                target: { planVersionId: 'pv-quoted' },
+                target: { planVersionId },
             };
         },
         async assertChangeAllowed() {
@@ -68,14 +72,14 @@ function buildWritePort() {
     };
 }
 
-function buildController(planPreview, writePort) {
+function buildController(planPreview, writePort, subscription = SUBSCRIPTION) {
     return new TenantBillingController(
         {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
         planPreview,
-        { findForTenant: async () => SUBSCRIPTION },
+        { findForTenant: async () => subscription },
         { snapshot: async () => ({}) },
         writePort,
         () => 't1',
@@ -97,6 +101,7 @@ describe('a plan change is timed by the rules, not by the request', () => {
         await controller.changePlan(request, {
             plan: 'STANDARD',
             billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
             effectiveImmediately: true,
         });
 
@@ -114,7 +119,11 @@ describe('a plan change is timed by the rules, not by the request', () => {
         const writePort = buildWritePort();
         const controller = buildController(previewSaying({ isImmediate: true }), writePort);
 
-        await controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
+        await controller.changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'YEARLY',
+            planVersionId: 'pv-quoted',
+        });
 
         assert.equal(writePort.immediateCalls.length, 1);
         assert.equal(writePort.scheduledCalls.length, 0);
@@ -131,7 +140,11 @@ describe('a plan change is timed by the rules, not by the request', () => {
             writePort,
         );
 
-        await controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'MONTHLY' });
+        await controller.changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
+        });
 
         assert.deepEqual(
             writePort.scheduledCalls[0].input.pendingEffectiveAt,
@@ -146,26 +159,55 @@ describe('a scheduled change records the version it was quoted at', () => {
         const writePort = buildWritePort();
         const controller = buildController(previewSaying({ isImmediate: false }), writePort);
 
-        await controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'MONTHLY' });
+        await controller.changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
+        });
 
         assert.equal(writePort.scheduledCalls[0].input.pendingChangeVersionId, 'pv-quoted');
     });
 
     test('the same plan: none, so the version bound by the day it comes due is kept', async () => {
+        // The preview kept the version bound, and the change names none.
         const writePort = buildWritePort();
-        const controller = buildController(previewSaying({ isImmediate: false }), writePort);
+        const controller = buildController(
+            previewSaying({ isImmediate: false, planVersionId: 'pv-starter-1' }),
+            writePort,
+            { ...SUBSCRIPTION, planVersion: { id: 'pv-starter-1', planId: 'STARTER' } },
+        );
 
         await controller.changePlan(request, { plan: 'STARTER', billingCycle: 'MONTHLY' });
 
         assert.equal(writePort.scheduledCalls[0].input.pendingChangeVersionId, null);
     });
 
-    test('an immediate change is a sale, and binds the version in effect', async () => {
+    test('the same plan bound to no version: the version on sale it was quoted at', async () => {
+        const writePort = buildWritePort();
+        const controller = buildController(previewSaying({ isImmediate: false }), writePort);
+
+        await controller.changePlan(request, {
+            plan: 'STARTER',
+            billingCycle: 'MONTHLY',
+            planVersionId: 'pv-quoted',
+        });
+
+        assert.equal(writePort.scheduledCalls[0].input.pendingChangeVersionId, 'pv-quoted');
+    });
+
+    // @requirement SC-CHG-023 — A plan change binds the version its preview showed, or nothing
+    test('an immediate change binds the version its preview showed, and no other', async () => {
         const writePort = buildWritePort();
         const controller = buildController(previewSaying({ isImmediate: true }), writePort);
 
-        await controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
+        await controller.changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'YEARLY',
+            planVersionId: 'pv-quoted',
+        });
 
-        assert.equal(writePort.immediateCalls[0].input.quotedPlanVersionId, null);
+        const { input } = writePort.immediateCalls[0];
+        assert.equal(input.quotedPlanVersionId, 'pv-quoted');
+        assert.equal(input.quotedVersionOnly, true, 'not its successor, should it stop selling');
     });
 });

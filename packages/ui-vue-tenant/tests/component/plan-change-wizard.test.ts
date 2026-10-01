@@ -49,7 +49,7 @@ const PREVIEW: PlanChangePreviewShape = {
     featuresLost: [],
     blockers: [],
     warnings: [],
-    target: { plan: { monthlyNet: 20, yearlyNet: 200 } },
+    target: { plan: { monthlyNet: 20, yearlyNet: 200 }, planVersionId: 'plv-2' },
     projectedTrialEndsAt: null,
 } as unknown as PlanChangePreviewShape;
 
@@ -219,3 +219,88 @@ async function pickPlan(wrapper: VueWrapper, planId: string) {
     wrapper.findComponent({ name: 'PlanGrid' }).vm.$emit('update:modelValue', planId);
     await nextTick();
 }
+
+/** Walks from the plan grid to the confirmation, the way a tenant does. */
+async function reachConfirmation(wrapper: VueWrapper) {
+    await nextTick();
+    await pickPlan(wrapper, 'pl-2');
+    nextButton().click();
+    await flush();
+    nextButton().click();
+    await flush();
+}
+
+const confirmButton = () =>
+    [...panel().querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === i18n.confirmAction,
+    )!;
+
+// @requirement SC-CHG-023 — A plan change binds the version its preview showed, or nothing
+describe('the confirmation binds the version it showed', () => {
+    test('it sends the version of the preview on screen', async () => {
+        const sent: unknown[][] = [];
+        const wrapper = openWizard({
+            changePlan: (...args: unknown[]) => {
+                sent.push(args);
+                return Promise.resolve();
+            },
+        });
+        await reachConfirmation(wrapper);
+        confirmButton().click();
+        await flush();
+
+        expect(sent).toEqual([['pl-2', 'MONTHLY', 'plv-2']]);
+    });
+
+    test('refused because the plan changed, it shows the plan as it stands and says why', async () => {
+        // A successor went on sale while the page was open. The refusal
+        // carries the preview as it now stands; the confirmation shows that
+        // price, and the next confirmation names its version.
+        const now = {
+            ...PREVIEW,
+            target: { plan: { monthlyNet: 25, yearlyNet: 250 }, planVersionId: 'plv-3' },
+        } as unknown as PlanChangePreviewShape;
+        const sent: unknown[][] = [];
+        const refusal = Object.assign(new Error('409'), {
+            body: {
+                code: 'PLAN_CHANGE_QUOTE_CHANGED',
+                message: 'This plan changed since it was shown.',
+                params: { planVersionId: 'plv-2' },
+                preview: now,
+            },
+        });
+        const wrapper = openWizard({
+            changePlan: (...args: unknown[]) => {
+                sent.push(args);
+                return sent.length === 1 ? Promise.reject(refusal) : Promise.resolve();
+            },
+        });
+        await reachConfirmation(wrapper);
+        confirmButton().click();
+        await flush();
+
+        expect(panel().textContent).toContain(i18n.issueMessages.PLAN_CHANGE_QUOTE_CHANGED);
+        expect(panel().textContent).toContain('€ 25.00');
+
+        confirmButton().click();
+        await flush();
+        expect(sent[1]).toEqual(['pl-2', 'MONTHLY', 'plv-3']);
+    });
+});
+
+describe('a refused change always says why', () => {
+    test('a body with no code and a list of messages falls back to the thrown text', async () => {
+        // The shape a validation pipe answers with: nothing a catalogue can
+        // resolve, so the reader is shown the error rather than an empty line.
+        const refusal = Object.assign(new Error('Bad Request'), {
+            body: { statusCode: 400, message: ['plan must be a string'], error: 'Bad Request' },
+        });
+        const wrapper = openWizard({ changePlan: () => Promise.reject(refusal) });
+        await reachConfirmation(wrapper);
+        confirmButton().click();
+        await flush();
+
+        const error = panel().querySelector('.sp-wizard__error--spaced');
+        expect(error?.textContent?.trim()).toBe('Bad Request');
+    });
+});

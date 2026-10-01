@@ -600,10 +600,12 @@ export interface ScheduledPlanChangeInput {
     pendingBillingCycle: string;
     pendingEffectiveAt: Date;
     /**
-     * The version of `pendingPlan` the preview quoted, where the change moves
-     * to another plan; stored as `pendingChangeVersionId` and bound when the
-     * change comes due. `null` where the plan stays — the version bound then is
-     * kept, whatever it is by that day — or where no repository reads versions.
+     * The version of `pendingPlan` the preview quoted, where the change does
+     * not keep the version bound — a change to another plan, or one on a
+     * subscription bound to none; stored as `pendingChangeVersionId` and bound
+     * when the change comes due. `null` where the plan stays on a bound
+     * version — the version bound then is kept, whatever it is by that day — or
+     * where no repository reads versions.
      */
     pendingChangeVersionId: string | null;
     /** See `ImmediatePlanChangeInput.expectedCanceledAt`. */

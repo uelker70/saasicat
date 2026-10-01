@@ -818,6 +818,7 @@ export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
             features: ['export', 'audit'],
         },
         billingCycle: 'MONTHLY',
+        planVersionId: 'plv-2',
     },
     effectiveAt: '2026-02-01T00:00:00.000Z',
     isImmediate: false,
