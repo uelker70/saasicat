@@ -24,23 +24,6 @@ export interface PrismaPlanDelegateOptions {
     entitlementPlanVersion?: string;
 }
 
-export interface PrismaPlanVersionFieldCapabilities {
-    /** The delegate carries `validFrom` and `validUntil` columns. */
-    validityWindows?: boolean;
-    /** The delegate carries the optional, precise `endsAt` timestamp. */
-    endsAt?: boolean;
-}
-
-/**
- * Shared field defaults plus optional per-slice overrides. A consumer with
- * one plan-version model can set the top-level flags; split schemas can
- * configure catalog and entitlement independently.
- */
-export interface PrismaPlanVersionFieldOptions extends PrismaPlanVersionFieldCapabilities {
-    catalog?: PrismaPlanVersionFieldCapabilities;
-    entitlement?: PrismaPlanVersionFieldCapabilities;
-}
-
 export interface PrismaTenantSubscriptionOptions {
     /**
      * Prisma model delegate used for every Subscription ORM operation.
@@ -57,15 +40,18 @@ export interface PrismaTenantSubscriptionOptions {
     synchronizePlanVersion?: boolean;
     /** Expose the optional atomic onboarding + promo callback capability. */
     atomicOnboardingSelection?: boolean;
-    activeVersionSelection?: 'latest-live' | 'validity-window';
-    withEndsAt?: boolean;
 }
 
-/** Schema differences understood by the plan-related Prisma adapters. */
+/**
+ * Schema differences understood by the plan-related Prisma adapters.
+ *
+ * Every plan-version model carries `validFrom`, `validUntil` and `endsAt`, as
+ * the canonical schema does: which version is on sale is decided by those
+ * dates everywhere, so there is no setting that leaves them out.
+ */
 export interface PrismaSchemaOptions {
     planBinding?: PrismaPlanBindingOptions;
     delegates?: PrismaPlanDelegateOptions;
-    planVersionFields?: PrismaPlanVersionFieldOptions;
     tenantSubscription?: PrismaTenantSubscriptionOptions;
 }
 
@@ -76,10 +62,6 @@ export interface ResolvedPrismaSchemaOptions {
     delegates: {
         catalogPlanVersion: string;
         entitlementPlanVersion: string;
-    };
-    planVersionFields: {
-        catalog: Required<PrismaPlanVersionFieldCapabilities>;
-        entitlement: Required<PrismaPlanVersionFieldCapabilities>;
     };
     tenantSubscription: Required<PrismaTenantSubscriptionOptions>;
 }
@@ -120,17 +102,11 @@ const DEFAULT_SCHEMA_OPTIONS: ResolvedPrismaSchemaOptions = {
         catalogPlanVersion: 'planVersion',
         entitlementPlanVersion: 'planVersion',
     },
-    planVersionFields: {
-        catalog: { validityWindows: false, endsAt: false },
-        entitlement: { validityWindows: false, endsAt: false },
-    },
     tenantSubscription: {
         delegate: 'subscription',
         subscriptionBundleDelegate: false,
         synchronizePlanVersion: true,
         atomicOnboardingSelection: false,
-        activeVersionSelection: 'latest-live',
-        withEndsAt: false,
     },
 };
 
@@ -138,9 +114,6 @@ export function resolvePrismaSchemaOptions(
     options?: PrismaSchemaOptions,
 ): ResolvedPrismaSchemaOptions {
     const mode = options?.planBinding?.mode ?? 'legacy-plan-key';
-    const sharedFields = options?.planVersionFields;
-    const catalogFields = sharedFields?.catalog;
-    const entitlementFields = sharedFields?.entitlement;
 
     return {
         planBinding: { mode },
@@ -151,18 +124,6 @@ export function resolvePrismaSchemaOptions(
             entitlementPlanVersion:
                 options?.delegates?.entitlementPlanVersion ??
                 DEFAULT_SCHEMA_OPTIONS.delegates.entitlementPlanVersion,
-        },
-        planVersionFields: {
-            catalog: {
-                validityWindows:
-                    catalogFields?.validityWindows ?? sharedFields?.validityWindows ?? false,
-                endsAt: catalogFields?.endsAt ?? sharedFields?.endsAt ?? false,
-            },
-            entitlement: {
-                validityWindows:
-                    entitlementFields?.validityWindows ?? sharedFields?.validityWindows ?? false,
-                endsAt: entitlementFields?.endsAt ?? sharedFields?.endsAt ?? false,
-            },
         },
         tenantSubscription: {
             delegate:
@@ -177,12 +138,6 @@ export function resolvePrismaSchemaOptions(
             atomicOnboardingSelection:
                 options?.tenantSubscription?.atomicOnboardingSelection ??
                 DEFAULT_SCHEMA_OPTIONS.tenantSubscription.atomicOnboardingSelection,
-            activeVersionSelection:
-                options?.tenantSubscription?.activeVersionSelection ??
-                DEFAULT_SCHEMA_OPTIONS.tenantSubscription.activeVersionSelection,
-            withEndsAt:
-                options?.tenantSubscription?.withEndsAt ??
-                DEFAULT_SCHEMA_OPTIONS.tenantSubscription.withEndsAt,
         },
     };
 }

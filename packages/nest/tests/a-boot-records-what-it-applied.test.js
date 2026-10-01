@@ -417,7 +417,7 @@ describe('the record is a mirror, never a source', () => {
                         entitlement: {
                             subscriptionRepository: { findByTenantId: async () => null },
                             planVersionRepository: {
-                                findLatestLive: async () => null,
+                                findActive: async () => null,
                                 findById: async () => null,
                             },
                         },

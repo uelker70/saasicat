@@ -14,6 +14,7 @@ import type {
     MfaPort,
     PaymentEventLog,
     PersistenceCapabilities,
+    PlanCatalogReadSink,
     PlanRepository,
     PlanVersionRepository,
     PromoCodeHoldRepository,
@@ -110,6 +111,12 @@ export interface ContractAdapterInstances {
     subscriptionBundleRepository?: SubscriptionBundleRepository;
     /** Enables PlanVersion lifecycle, identity and validity-window scenarios. */
     planRepository?: PlanRepository;
+    /**
+     * Enables the catalogue-read scenario: which version of each plan the
+     * catalogue names at a moment. Needs `planRepository` to publish and end
+     * the versions it reads.
+     */
+    planCatalogReadSink?: PlanCatalogReadSink;
     /**
      * Enables the promo subscription lookup scenarios.
      *
@@ -252,6 +259,7 @@ export type ContractGap =
     | 'promoSubscriptionLookup'
     | 'planRepository'
     | 'planLifecycle'
+    | 'planCatalogRead'
     | 'planRetirement'
     | 'planVersionReads'
     | 'planVersionRetirement'

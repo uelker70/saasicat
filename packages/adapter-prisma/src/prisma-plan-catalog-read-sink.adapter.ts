@@ -6,7 +6,7 @@ import type {
     PlanCatalogReadSink,
     PlanCatalogReadSnapshot,
 } from '@saasicat/core';
-import { toPlanRow, toPlanVersionRow } from '@saasicat/core';
+import { buildActivePlanVersionWhere, toPlanRow, toPlanVersionRow } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type FeatureCatalogEntryRowLike,
@@ -20,7 +20,6 @@ import {
     getPrismaDelegate,
     resolvePrismaSchemaOptions,
     type PrismaPlanBindingResolver,
-    type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
 
@@ -38,18 +37,14 @@ interface PlanCatalogReadPrisma {
 
 /**
  * `PlanCatalogReadSink` against the canonical `plans`, `plan_versions` and
- * `feature_catalog_entries` tables — DB hydration of the plan catalog at
- * boot (`PlanCatalogModule.forRoot({ sink })`).
- *
- * The canonical 0.6 defaults report validity fields as null. Extended schemas
- * can opt into validity/termination fields and can point this sink at a
- * catalog-specific plan-version delegate.
+ * `feature_catalog_entries` tables — the plan catalogue as it stands at the
+ * moment asked for, read each time an operation needs it. A schema can point
+ * this sink at a catalogue-specific plan-version delegate.
  */
 @Injectable()
 export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
     private readonly binding: PrismaPlanBindingResolver;
     private readonly delegateName: string;
-    private readonly fields: Required<PrismaPlanVersionFieldCapabilities>;
 
     constructor(
         @Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PlanCatalogReadClient,
@@ -60,14 +55,13 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
         const schema = resolvePrismaSchemaOptions(options);
         this.binding = createPrismaPlanBindingResolver(options?.planBinding);
         this.delegateName = schema.delegates.catalogPlanVersion;
-        this.fields = schema.planVersionFields.catalog;
     }
 
     private db(): PlanCatalogReadPrisma {
         return this.prisma as unknown as PlanCatalogReadPrisma;
     }
 
-    async loadSnapshot(): Promise<PlanCatalogReadSnapshot> {
+    async loadSnapshot(asOf: Date): Promise<PlanCatalogReadSnapshot> {
         const db = this.db();
         // `sortOrder` alone is not a total order — rows sharing a value come
         // back in whatever order Postgres picks, which differs between reads.
@@ -84,24 +78,34 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
             ]),
         );
         const storedPlanIds = [...planKeysByStoredId.keys()];
-        const livePlanVersions =
+        // Every version on sale at `asOf`, in one read, in the order
+        // `findActivePlanVersion` picks from: the first row of each plan is
+        // the one a booking at that moment binds.
+        const candidates =
             storedPlanIds.length === 0
                 ? []
                 : await this.planVersions().findMany({
                       where: {
                           planId: { in: storedPlanIds },
-                          publishedAt: { not: null },
-                          supersededAt: null,
+                          ...buildActivePlanVersionWhere(asOf, { withEndsAt: true }),
                       },
-                      orderBy: [{ planId: 'asc' }, { version: 'asc' }],
+                      orderBy: [
+                          { planId: 'asc' },
+                          { validFrom: { sort: 'desc', nulls: 'last' } },
+                          { version: 'desc' },
+                      ],
                   });
+        const onSale = new Map<string, PlanVersionRowLike>();
+        for (const row of candidates) {
+            if (!onSale.has(row.planId)) onSale.set(row.planId, row);
+        }
         const featureEntries = await db.featureCatalogEntry.findMany({
             where: { deletedAt: null },
             orderBy: [{ sortOrder: 'asc' }, { featureKey: 'asc' }],
         });
         return {
             plans: plans.map(toPlanRow),
-            livePlanVersions: livePlanVersions.map((row) => {
+            versionsOnSale: [...onSale.values()].map((row) => {
                 const planKey = planKeysByStoredId.get(row.planId);
                 if (!planKey) {
                     throw new Error(
@@ -109,7 +113,7 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
                             `'${row.planId}'.`,
                     );
                 }
-                return toPlanVersionRow(row, planKey, this.fields);
+                return toPlanVersionRow(row, planKey);
             }),
             featureEntries: featureEntries.map(toFeatureCatalogEntryRow),
         };

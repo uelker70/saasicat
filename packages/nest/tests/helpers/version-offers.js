@@ -43,11 +43,11 @@ export function subscription(overrides = {}) {
     });
 }
 
-/** A repository without validity windows, holding `rows` and serving `live` as the newest. */
-export function repositoryWith(rows, live) {
+/** A repository holding `rows` and serving `onSale` as the version on sale. */
+export function repositoryWith(rows, onSale) {
     return {
         findVersionById: async (id) => rows.find((row) => row.id === id) ?? null,
-        findLatestLivePlanVersion: async (planKey) =>
-            live && live.planId === planKey ? live : null,
+        findActivePlanVersion: async (planKey) =>
+            onSale && onSale.planId === planKey ? onSale : null,
     };
 }

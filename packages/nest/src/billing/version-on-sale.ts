@@ -1,16 +1,21 @@
 import type { PlanRepository, PlanVersionRow } from '@saasicat/core';
 
 /**
- * The version a booking made now would bind: the one active by its validity
- * window, and the newest live one only where the repository reads no windows.
- * An active lookup that finds nothing means nothing is on sale — falling back
- * past it would offer a version whose window has not opened.
+ * The version of a plan on sale at `asOf`: the one a booking made then binds,
+ * by its validity window. Every read that names what is on sale — the
+ * plan-change preview, checkout, the public marketing catalogue, the add-on
+ * preview, the offer to existing subscribers and its notice — asks here, so
+ * they cannot name different versions at the same moment.
+ *
+ * `null` where nothing is on sale, and where the repository reads no versions
+ * at all (a catalogue given as a file). A repository that reads versions but
+ * not by window is refused at start-up rather than answered with its newest
+ * one, which would sell a version before the day it applies from.
  */
 export async function versionOnSale(
     plans: PlanRepository,
     planKey: string,
-    now: Date,
+    asOf: Date,
 ): Promise<PlanVersionRow | null> {
-    if (plans.findActivePlanVersion) return plans.findActivePlanVersion(planKey, now);
-    return (await plans.findLatestLivePlanVersion?.(planKey)) ?? null;
+    return (await plans.findActivePlanVersion?.(planKey, asOf)) ?? null;
 }

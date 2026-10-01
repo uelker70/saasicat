@@ -70,9 +70,9 @@ export interface PlanCatalogImportReport {
 }
 
 // =============================================================================
-// PlanCatalogReadSink — read counterpart to the importer.
-// Called by DB-PlanCatalogModule.forRoot at boot to assemble the
-// PlanCatalog from the DB.
+// PlanCatalogReadSink — read counterpart to the importer. The database
+// catalogue source asks it each time an operation needs the plans, with the
+// moment it asks for.
 // =============================================================================
 
 import type { FeatureCatalogEntryRow } from './catalog-entry.types.js';
@@ -83,12 +83,12 @@ export interface PlanCatalogReadSnapshot {
     /** Plan stems (deletedAt IS NULL). */
     plans: PlanRow[];
     /**
-     * Live PlanVersions: per `planId` (= planKey) the currently published
-     * version (publishedAt IS NOT NULL AND supersededAt IS NULL).
-     * Apps with plans without a live version take over the plan, but without
-     * pricing/quotas — the importer probably emitted a warning.
+     * Per `planId` (= planKey) the version on sale at the moment the snapshot
+     * was asked for — the rule of `PlanRepository.findActivePlanVersion`, so
+     * the catalogue names the version a booking made at that moment binds.
+     * A plan with nothing on sale is taken over without pricing or quotas.
      */
-    livePlanVersions: PlanVersionRow[];
+    versionsOnSale: PlanVersionRow[];
     /** Feature catalog entries (deletedAt IS NULL). */
     featureEntries: FeatureCatalogEntryRow[];
 }
@@ -98,5 +98,6 @@ export interface PlanCatalogReadSnapshot {
  * implement it against their Prisma tables.
  */
 export interface PlanCatalogReadSink {
-    loadSnapshot(): Promise<PlanCatalogReadSnapshot>;
+    /** The catalogue as it stands at `asOf`. */
+    loadSnapshot(asOf: Date): Promise<PlanCatalogReadSnapshot>;
 }

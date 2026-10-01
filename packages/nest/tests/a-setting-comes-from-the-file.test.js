@@ -54,7 +54,7 @@ const PERSISTENCE = {
     core: { mfa: spec, audit: spec, rlsBypass: spec, transactionRunner: spec },
     entitlement: {
         subscriptionRepository: { findByTenantId: async () => null },
-        planVersionRepository: { findLatestLive: async () => null, findById: async () => null },
+        planVersionRepository: { findActive: async () => null, findById: async () => null },
     },
     catalog: { bundleRepository: spec },
 };

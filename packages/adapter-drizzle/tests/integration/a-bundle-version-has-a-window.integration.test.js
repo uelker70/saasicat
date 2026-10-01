@@ -46,15 +46,15 @@ beforeEach(async () => {
 });
 
 /** A published version with the window it should carry, without going through publish. */
-async function seedVersion({ version, validFrom, validUntil }) {
+async function seedVersion({ version, validFrom, validUntil, supersededAt = null }) {
     const id = randomUUID();
     await pool.query(
         `INSERT INTO bundle_versions
            ("id","bundleId","version","features","quotas","compatibility","pricingOverrides",
             "marketed","changeNote","nonRegressive","publishedAt","validFrom","validUntil",
-            "createdAt","updatedAt")
-         VALUES ($1,$2,$3,'[]','{}','{}','[]',true,'seed',true,NOW(),$4,$5,NOW(),NOW())`,
-        [id, bundleId, version, validFrom, validUntil],
+            "supersededAt","createdAt","updatedAt")
+         VALUES ($1,$2,$3,'[]','{}','{}','[]',true,'seed',true,NOW(),$4,$5,$6,NOW(),NOW())`,
+        [id, bundleId, version, validFrom, validUntil, supersededAt],
     );
     return id;
 }
@@ -111,6 +111,25 @@ describe('two versions inside the same moment', () => {
 
         const active = await repository.findActiveBundleVersion(bundleId, at('2026-03-15'));
         assert.equal(active.id, open, 'a version past its validUntil must not be returned');
+    });
+
+    test('a superseded version without a last day does not come back when its successor closes', async () => {
+        // Superseded without a window — as an import leaves it — it has nothing
+        // that would ever end its window, and the successor's closing must not
+        // put it back on sale at its old terms.
+        await seedVersion({
+            version: 1,
+            validFrom: null,
+            validUntil: null,
+            supersededAt: at('2026-01-01'),
+        });
+        await seedVersion({
+            version: 2,
+            validFrom: at('2026-01-01'),
+            validUntil: at('2026-03-10'),
+        });
+
+        assert.equal(await repository.findActiveBundleVersion(bundleId, at('2026-03-15')), null);
     });
 });
 

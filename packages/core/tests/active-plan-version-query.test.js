@@ -38,15 +38,27 @@ describe('buildActivePlanVersionWhere', () => {
         assert.deepEqual(startOfUtcDay(new Date('2026-06-03T23:59:59Z')), ASOF_DAY_START);
     });
 
+    // @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+    test('a superseded version only within a last day it carries', () => {
+        // A catalogue import supersedes without closing the window; without
+        // this clause such a version would sell again once its successor ends.
+        const where = buildActivePlanVersionWhere(ASOF);
+        const supersededClause = where.AND.find((c) => c.OR.some((o) => 'supersededAt' in o));
+        assert.deepEqual(supersededClause.OR, [
+            { supersededAt: null },
+            { validUntil: { not: null } },
+        ]);
+    });
+
     test('without withEndsAt: no endsAt clause (CatalogPlanVersion)', () => {
         const where = buildActivePlanVersionWhere(ASOF);
-        assert.equal(where.AND.length, 2);
+        assert.equal(where.AND.length, 3);
         assert.ok(!where.AND.some((c) => c.OR.some((o) => 'endsAt' in o)));
     });
 
     test('withEndsAt: adds an endsAt clause (PlanVersion)', () => {
         const where = buildActivePlanVersionWhere(ASOF, { withEndsAt: true });
-        assert.equal(where.AND.length, 3);
+        assert.equal(where.AND.length, 4);
         const endsAtClause = where.AND.find((c) => c.OR.some((o) => 'endsAt' in o));
         assert.deepEqual(endsAtClause.OR, [{ endsAt: null }, { endsAt: { gt: ASOF } }]);
     });
@@ -70,6 +82,16 @@ describe('isVersionActiveAt — the same window, for a row already read', () => 
         assert.equal(isVersionActiveAt({ endsAt: new Date(ASOF.getTime() + 1) }, ASOF), true);
     });
 
+    // @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+    test('a superseded version takes bookings only within a last day it carries', () => {
+        const superseded = new Date('2026-05-01T00:00:00Z');
+        assert.equal(isVersionActiveAt({ supersededAt: superseded }, ASOF), false);
+        assert.equal(
+            isVersionActiveAt({ supersededAt: superseded, validUntil: ASOF_DAY_START }, ASOF),
+            true,
+        );
+    });
+
     test('an absent date does not close the window, and dates may come as strings', () => {
         assert.equal(isVersionActiveAt({}, ASOF), true);
         assert.equal(isVersionActiveAt({ validFrom: '2026-06-03', endsAt: null }, ASOF), true);
@@ -82,6 +104,7 @@ describe('isVersionActiveAt — the same window, for a row already read', () => 
         const holds = (row, clause) => {
             const [[field, bound]] = Object.entries(clause);
             if (bound === null) return row[field] === null;
+            if ('not' in bound) return row[field] !== null;
             if (row[field] === null) return false;
             if (bound.lte) return row[field] <= bound.lte;
             if (bound.gte) return row[field] >= bound.gte;
@@ -92,8 +115,14 @@ describe('isVersionActiveAt — the same window, for a row already read', () => 
         for (const validFrom of around(ASOF)) {
             for (const validUntil of around(ASOF_DAY_START)) {
                 for (const endsAt of around(ASOF)) {
-                    const row = { validFrom, validUntil, endsAt };
-                    assert.equal(isVersionActiveAt(row, ASOF), matches(row), JSON.stringify(row));
+                    for (const supersededAt of [null, ASOF_DAY_START]) {
+                        const row = { validFrom, validUntil, endsAt, supersededAt };
+                        assert.equal(
+                            isVersionActiveAt(row, ASOF),
+                            matches(row),
+                            JSON.stringify(row),
+                        );
+                    }
                 }
             }
         }

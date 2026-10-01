@@ -25,6 +25,7 @@ import {
     PrismaBundleRepository,
     PrismaSubscriptionBundleRepository,
     PrismaMfaAdapter,
+    PrismaPlanCatalogReadSink,
     PrismaPlanRepository,
     PrismaPlanVersionRepository,
     PrismaPromoCodeHoldRepository,
@@ -107,11 +108,8 @@ function createHarness() {
                 validityWindows: true,
             }),
             subscriptionBundleRepository: new PrismaSubscriptionBundleRepository(prisma),
-            planRepository: new PrismaPlanRepository(prisma, {
-                planVersionFields: {
-                    catalog: { validityWindows: true, endsAt: true },
-                },
-            }),
+            planRepository: new PrismaPlanRepository(prisma),
+            planCatalogReadSink: new PrismaPlanCatalogReadSink(prisma),
             subscriptionContractRepository: new PrismaSubscriptionContractRepository(prisma),
             subscriberRepository: new PrismaSubscriberRepository(prisma),
             paymentEventLog: new PrismaPaymentEventLog(prisma),

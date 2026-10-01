@@ -19,6 +19,13 @@
 // compared against the start of day of `asOf` (`>= startOfUtcDay(asOf)`), not
 // `> asOf` — otherwise a version would already be dark on its own last day.
 //
+// A superseded version stays on sale only within a last day it carries. Every
+// publish closes its predecessor's window, but a catalogue import supersedes
+// without one, and so did every publish on an installation that did not keep
+// the dates. Such a version has nothing that would ever end its window: let
+// through, it would be on sale again the moment its successor ends, at its
+// old price. So "superseded" counts wherever no `validUntil` says otherwise.
+//
 // `withEndsAt` is typed separately: the `endsAt` clause only appears in the
 // return type when a model has the column (e.g. `PlanVersion`). Models without
 // `endsAt` (e.g. `CatalogPlanVersion`) must not have the variant in the type,
@@ -62,9 +69,12 @@ interface DateAfter {
     gt: Date;
 }
 
-/** `OR` block of the validity window; exactly one date field per variant. */
+/** `OR` block of the validity window; exactly one field per variant. */
 type ValidityWindowClause =
-    { validFrom: DateAtOrBefore | null } | { validUntil: DateAtOrAfter | null };
+    | { validFrom: DateAtOrBefore | null }
+    | { validUntil: DateAtOrAfter | null }
+    | { supersededAt: null }
+    | { validUntil: { not: null } };
 
 /** Optional `OR` block for models with `endsAt` (precise admin termination). */
 type EndsAtClause = { endsAt: DateAfter | null };
@@ -89,6 +99,7 @@ export interface ActivePlanVersionWhereWithEndsAt {
  *   `publishedAt IS NOT NULL`
  *   `(validFrom IS NULL OR validFrom <= asOf)`
  *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  // day-inclusive
+ *   `(supersededAt IS NULL OR validUntil IS NOT NULL)`  // superseded: only with a last day
  *   with `withEndsAt`: additionally `(endsAt IS NULL OR endsAt > asOf)`.  // precise
  *
  * `planId` stays with the caller (repo-specific type). Matching Prisma
@@ -111,6 +122,7 @@ export function buildActivePlanVersionWhere(
     const validityWindow: Array<{ OR: ValidityWindowClause[] }> = [
         { OR: [{ validFrom: null }, { validFrom: { lte: asOf } }] },
         { OR: [{ validUntil: null }, { validUntil: { gte: asOfDayStart } }] },
+        { OR: [{ supersededAt: null }, { validUntil: { not: null } }] },
     ];
     if (!options.withEndsAt) {
         return { publishedAt: { not: null }, AND: validityWindow };
@@ -135,14 +147,16 @@ export interface VersionWindow {
     validFrom?: string | Date | null;
     validUntil?: string | Date | null;
     endsAt?: string | Date | null;
+    supersededAt?: string | Date | null;
 }
 
 /**
  * Whether a version that is published takes bookings at `asOf` — the same
  * window {@link buildActivePlanVersionWhere} asks the database for, for a row
  * already read: `validFrom` at or before `asOf`, `validUntil` not before the
- * day of `asOf`, `endsAt` after `asOf`. A date that is absent does not close
- * the window. Whether the row is published is the caller's to know.
+ * day of `asOf`, `endsAt` after `asOf`, and a superseded version only within
+ * a last day it carries. A date that is absent does not close the window.
+ * Whether the row is published is the caller's to know.
  */
 export function isVersionActiveAt(version: VersionWindow, asOf: Date): boolean {
     const at = (value: string | Date | null | undefined): Date | null =>
@@ -152,6 +166,7 @@ export function isVersionActiveAt(version: VersionWindow, asOf: Date): boolean {
     const endsAt = at(version.endsAt);
     if (validFrom && validFrom > asOf) return false;
     if (validUntil && validUntil < startOfUtcDay(asOf)) return false;
+    if (version.supersededAt && !validUntil) return false;
     return !(endsAt && endsAt <= asOf);
 }
 

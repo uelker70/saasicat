@@ -145,7 +145,7 @@ Subscriptions, plan changes, entitlements.
 | `FEATURE_NOT_LICENSED`                       | Feature {featureKeys} is not included in the current plan.                                                                                                  |
 | `LIMIT_EXCEEDED`                             | The limit for {dimension} has been reached: {used} of {max}.                                                                                                |
 | `MINIMUM_TERM_BINDS`                         | The minimum term extends beyond the end of the period — the cancellation only takes effect when the minimum term ends.                                      |
-| `NO_ACTIVE_PLAN_VERSION`                     | No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.                        |
+| `NO_ACTIVE_PLAN_VERSION`                     | No version of plan {planId} is on sale as of {asOf}.                                                                                                        |
 | `NO_CHANGE`                                  | Target plan and billing cycle already match the current state.                                                                                              |
 | `NO_SUBSCRIPTION`                            | This tenant has no subscription to cancel.                                                                                                                  |
 | `ONBOARDING_CREATE_FAILED`                   | The account could not be created. Please try again.                                                                                                         |

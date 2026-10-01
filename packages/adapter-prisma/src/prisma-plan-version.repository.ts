@@ -16,7 +16,6 @@ import {
     getPrismaDelegate,
     resolvePrismaSchemaOptions,
     type PrismaPlanBindingResolver,
-    type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
 import { toQuotaMap, toStringArray } from './tx.js';
@@ -30,23 +29,14 @@ interface PlanVersionRepositoryClient {
 }
 
 /**
- * `PlanVersionRepository` against the canonical `plan_versions` table.
- *
- * `findActive` remains absent with the canonical 0.6 defaults. Extended
- * schemas enable it through `schema.planVersionFields.entitlement`; its query
- * then uses the shared day-inclusive validity semantics.
+ * `PlanVersionRepository` against the canonical `plan_versions` table: the
+ * version of a plan on sale at a moment, by the shared day-inclusive validity
+ * semantics.
  */
 @Injectable()
 export class PrismaPlanVersionRepository implements PlanVersionRepository {
-    readonly findActive?: (
-        planId: string,
-        asOf?: Date,
-        tx?: TransactionContext,
-    ) => Promise<PlanVersionRecord | null>;
-
     private readonly binding: PrismaPlanBindingResolver;
     private readonly delegateName: string;
-    private readonly fields: Required<PrismaPlanVersionFieldCapabilities>;
 
     constructor(
         @Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PlanVersionRepositoryClient,
@@ -57,43 +47,21 @@ export class PrismaPlanVersionRepository implements PlanVersionRepository {
         const schema = resolvePrismaSchemaOptions(options);
         this.binding = createPrismaPlanBindingResolver(options?.planBinding);
         this.delegateName = schema.delegates.entitlementPlanVersion;
-        this.fields = schema.planVersionFields.entitlement;
-        if (this.fields.validityWindows) {
-            this.findActive = (planId, asOf = new Date(), tx) =>
-                this.findActivePlanVersion(planId, asOf, tx);
-        }
     }
 
     private db(tx?: TransactionContext): PlanVersionRepositoryClient {
         return (tx ?? this.prisma) as unknown as PlanVersionRepositoryClient;
     }
 
-    async findLatestLive(
+    async findActive(
         planId: string,
+        asOf: Date = new Date(),
         tx?: TransactionContext,
     ): Promise<PlanVersionRecord | null> {
         const db = this.db(tx);
         const storedPlanId = await this.binding.findStoragePlanId(db, planId);
         if (storedPlanId === null) return null;
-        const row = await this.versions(db).findFirst({
-            where: { planId: storedPlanId, publishedAt: { not: null }, supersededAt: null },
-            orderBy: { version: 'desc' },
-        });
-        if (!row) return null;
-        return this.toRecord(db, row);
-    }
-
-    private async findActivePlanVersion(
-        planId: string,
-        asOf: Date,
-        tx?: TransactionContext,
-    ): Promise<PlanVersionRecord | null> {
-        const db = this.db(tx);
-        const storedPlanId = await this.binding.findStoragePlanId(db, planId);
-        if (storedPlanId === null) return null;
-        const activeWhere = this.fields.endsAt
-            ? buildActivePlanVersionWhere(asOf, { withEndsAt: true })
-            : buildActivePlanVersionWhere(asOf);
+        const activeWhere = buildActivePlanVersionWhere(asOf, { withEndsAt: true });
         const row = await this.versions(db).findFirst({
             where: {
                 planId: storedPlanId,

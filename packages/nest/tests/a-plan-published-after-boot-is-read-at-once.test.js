@@ -38,7 +38,7 @@ const SETTINGS = {
 
 /** The rows a database holds, which the test publishes into as an operator would. */
 function database() {
-    let rows = { plans: [], livePlanVersions: [], featureEntries: [] };
+    let rows = { plans: [], versionsOnSale: [], featureEntries: [] };
     return {
         sink: {
             async loadSnapshot() {
@@ -59,8 +59,8 @@ function database() {
             rows = {
                 ...rows,
                 plans: [...others, { ...stem, sortOrder: others.length }],
-                livePlanVersions: [
-                    ...rows.livePlanVersions.filter((live) => live.planId !== planKey),
+                versionsOnSale: [
+                    ...rows.versionsOnSale.filter((live) => live.planId !== planKey),
                     version,
                 ],
             };
@@ -123,6 +123,30 @@ describe('the plans a running application reads', () => {
 
         db.retire('LEGACY');
         assert.deepEqual(planIds(await app.get(PLAN_CATALOG_SOURCE_TOKEN).current()), ['BASIC']);
+    });
+
+    // @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+    test('each read asks for the versions on sale at the moment it is made', async () => {
+        const db = database();
+        db.publish('BASIC', { monthlyNet: 10 });
+        const app = await boot(db);
+        const asked = [];
+        const read = db.sink.loadSnapshot;
+        db.sink.loadSnapshot = async (asOf) => {
+            asked.push(asOf);
+            return read();
+        };
+
+        const before = Date.now();
+        await app.get(PLAN_CATALOG_SOURCE_TOKEN).current();
+        const after = Date.now();
+
+        assert.equal(asked.length, 1);
+        assert.ok(asked[0] instanceof Date, 'the moment is handed to the sink');
+        assert.ok(
+            asked[0].getTime() >= before && asked[0].getTime() <= after,
+            'the moment of the read, not one fixed at the start',
+        );
     });
 
     test('a sink that cannot read stops the start, rather than the first customer', async () => {
@@ -224,7 +248,7 @@ describe('the order the plans are read in', () => {
                 sortOrder: 1,
                 deletedAt: null,
             })),
-            livePlanVersions: keys.map((planId) => ({
+            versionsOnSale: keys.map((planId) => ({
                 planId,
                 marketed: true,
                 monthlyNet: '1',

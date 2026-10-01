@@ -35,7 +35,7 @@ let usage;
 
 before(async () => {
     ({ pool, db } = await openDisposableDatabase({ max: 4 }));
-    plans = new DrizzlePlanRepository(db, { validityWindows: true });
+    plans = new DrizzlePlanRepository(db);
     tenantWrite = new DrizzleTenantSubscriptionWrite(db);
     usage = new DrizzleSubscriptionUsageAdapter(db);
 });

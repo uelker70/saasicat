@@ -1089,13 +1089,12 @@ whole group unchecked. That group now fails and names the part. Groups that the 
 `capabilities` rule out, such as the lock scenarios with `pessimisticLocking: false`, still skip.
 
 - **A harness that wires every port its adapter ships** changes nothing. What a port ships can
-  follow its options: `@saasicat/adapter-prisma` adds `findActivePlanVersion` only with
-  `planVersionFields.catalog.validityWindows`, `findActiveBundleVersion` only with the bundle
-  repository's `validityWindows`, and `applyOnboardingSelection` only with
-  `tenantSubscription.atomicOnboardingSelection` — all off by default, for a 0.6 schema. Without
-  them `planLifecycle`, `bundleValidity` and `atomicOnboarding` are gaps, and with them they are
-  not, so derive `gaps` from the same options instead of writing a constant:
-  `gaps: validityWindows ? [] : ['planLifecycle', 'bundleValidity']`.
+  follow its options: `@saasicat/adapter-prisma` adds `findActiveBundleVersion` only with the
+  bundle repository's `validityWindows`, and `applyOnboardingSelection` only with
+  `tenantSubscription.atomicOnboardingSelection` — both off by default. Without them
+  `bundleValidity` and `atomicOnboarding` are gaps, and with them they are not, so derive `gaps`
+  from the same options instead of writing a constant:
+  `gaps: validityWindows ? [] : ['bundleValidity']`.
 - **A gap name that is not a part of the contract** fails the suite as unknown.
 - **A harness that leaves a part out on purpose** lists it in the new `gaps` option:
   `gaps: ['appliedSettings']`. Its scenarios report as skipped, as before. `ContractGap` lists the
@@ -1203,9 +1202,7 @@ written into `config/saas.yaml`.
 
 `@saasicat/persistence-testing` checks two reads of `PlanRepository` it did not check before. A key
 no plan row has answers `listVersions`, `findCurrentDraft`, `findLatestLivePlanVersion`,
-`findActivePlanVersion`, `PlanVersionRepository.findLatestLive` and
-`PlanVersionRepository.findActive`
-with an empty list or `null`,
+`findActivePlanVersion` and `PlanVersionRepository.findActive` with an empty list or `null`,
 not an error: a plan can go between listing the catalogue and reading its versions. A retired plan
 keeps its versions readable, because the guard that decides whether a plan may be deleted counts
 them.
@@ -2346,6 +2343,43 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-newer-version-is-o
 Remove the seven columns, their relation and the back-relation `subscriptionsPending` from your
 schema as `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma` show;
 `saasicat schema check` names what is left.
+
+### A version is on sale by its dates, everywhere
+
+Which version of a plan is on sale is decided once, by its dates — published, begun, not past its
+last day, not ended — and the tenant's plan list, the plan-change preview, the public catalogue,
+checkout, the add-on preview, every booking, the offer to existing subscribers and the entitlement
+fallback all ask that question (`SC-PLAN-027`). Switches used to decide whether the dates were kept
+at all. They were off by default, so a version published with a later start was sold at once; with
+them on, the plan list and the preview showed the newest version while a booking bound its
+predecessor. The dates now always apply, and the switches are gone:
+
+- **`@saasicat/adapter-prisma`**: delete `schema.planVersionFields` (with its `catalog` and
+  `entitlement` overrides), `tenantSubscription.activeVersionSelection` and
+  `tenantSubscription.withEndsAt`; the types `PrismaPlanVersionFieldOptions` and
+  `PrismaPlanVersionFieldCapabilities` are gone. Every plan-version model carries `validFrom`,
+  `validUntil` and `endsAt`, as `prisma-fragments/03-plan-versions.prisma` does.
+- **`@saasicat/adapter-drizzle`**: delete `plan: { validityWindows }` from `drizzlePersistence()` and
+  the second argument of `new DrizzlePlanRepository(db, …)`; `DrizzlePlanRepositoryOptions` is
+  gone. The add-on switches (`bundle: { validityWindows }`) stay for now.
+- **A `PlanRepository` of your own** that reads versions implements `findActivePlanVersion`, built
+  with `buildActivePlanVersionWhere(asOf, { withEndsAt: true })`; the plan editor and checkout
+  refuse to start without it. `findLatestLivePlanVersion` stays — it is the version a publish chains
+  to, not the one on sale.
+- **A `PlanVersionRepository` of your own** drops `findLatestLive` and implements `findActive`,
+  which is now required.
+- **A `PlanCatalogReadSink` of your own** receives the moment in `loadSnapshot(asOf)` and answers
+  `versionsOnSale` — the version on sale per plan — instead of `livePlanVersions`.
+- **`toPlanVersionRow(row, planKey)`** takes no third argument, `PlanVersionMappingFields` is gone,
+  and `PlanVersionRow.endsAt` is always there (`null` for a version that does not end).
+- **A persistence contract harness** gains the part `planCatalogRead`: wire `planCatalogReadSink`
+  beside the plan repository, or name it in `gaps`.
+
+Nothing to migrate. A version without dates — one published while they were dropped — counts as on
+sale since it was published, and the next version published with a start date closes it on the day
+before. A version that has been superseded without a last day — every predecessor from that time,
+and every one a catalogue import replaces — is not on sale, so ending its successor leaves nothing on
+sale rather than the old price.
 
 ## What the codemod leaves to you
 

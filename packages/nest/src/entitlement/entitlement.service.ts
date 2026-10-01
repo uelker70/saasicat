@@ -354,7 +354,7 @@ export class EntitlementService {
                     leftOutBundleVersionIds: [],
                 };
             }
-            const floorVersion = await this.findActivePlanVersionOrFallback(floor, now, tx);
+            const floorVersion = await this.findPlanVersionOnSale(floor, now, tx);
             const limits = this.asGrantable(
                 catalog,
                 aggregateLimits(
@@ -407,7 +407,7 @@ export class EntitlementService {
         const planVersion =
             effectivePlan === sub.plan
                 ? sub.planVersion
-                : await this.findActivePlanVersionOrFallback(effectivePlan, now, tx);
+                : await this.findPlanVersionOnSale(effectivePlan, now, tx);
 
         const limits = this.asGrantable(
             catalog,
@@ -563,26 +563,16 @@ export class EntitlementService {
     // ---------------------------------------------------------------------
 
     /**
-     * Plan fallback for TRIAL/PENDING_SALES: returns the PlanVersion active
-     * as of `asOf`. If the repo does not implement
-     * `findActive`, we fall back to `findLatestLive` (backward compat for
-     * adapters without `validFrom` columns).
+     * Plan fallback for TRIAL/PENDING_SALES: the version of the plan on sale
+     * at `asOf`, as a booking made then would bind it.
      */
-    private async findActivePlanVersionOrFallback(
-        planId: string,
-        asOf: Date,
-        tx?: TransactionContext,
-    ) {
-        const v = this.planVersions.findActive
-            ? await this.planVersions.findActive(planId, asOf, tx)
-            : await this.planVersions.findLatestLive(planId, tx);
+    private async findPlanVersionOnSale(planId: string, asOf: Date, tx?: TransactionContext) {
+        const v = await this.planVersions.findActive(planId, asOf, tx);
         if (!v) {
             const asOfDate = asOf.toISOString().slice(0, 10);
             throw new NotFoundException({
                 code: BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
-                message:
-                    `No plan version for ${planId} active as of ${asOfDate} — ` +
-                    `neither the validFrom window is satisfied nor is a latest-live version available.`,
+                message: `No version of plan ${planId} is on sale as of ${asOfDate}.`,
                 params: { planId, asOf: asOfDate },
             });
         }

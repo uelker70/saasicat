@@ -54,14 +54,6 @@ export interface DrizzlePersistenceOptions {
     bundle?: { validityWindows?: boolean };
 
     /**
-     * Plan-repository behaviour, the same opt-in one level up: with
-     * `validityWindows: true` a plan version's `validFrom`/`validUntil` are
-     * written and read, publishing closes the predecessor's window on the day
-     * before the successor opens, and `findActivePlanVersion` is offered.
-     */
-    plan?: { validityWindows?: boolean };
-
-    /**
      * The app's Drizzle database: either a ready instance
      * (`drizzle(pool)` — typical, since Drizzle setups rarely wrap the db in
      * a Nest provider) or its injection token when the app registers one.
@@ -197,7 +189,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
         // bring their own `CatalogModule` wiring for a slice the adapter was
         // otherwise complete for.
         catalog: {
-            planRepository: provide((client) => new DrizzlePlanRepository(client, options.plan)),
+            planRepository: provide((client) => new DrizzlePlanRepository(client)),
             bundleRepository: provide(
                 (client) => new DrizzleBundleRepository(client, options.bundle),
             ),

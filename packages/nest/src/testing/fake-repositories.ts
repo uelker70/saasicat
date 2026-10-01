@@ -539,8 +539,10 @@ export class FakeSubscriberRepository implements SubscriberRepository {
 }
 
 /**
- * In-memory FakePlanVersionRepository — stores PlanVersions per `planId`
- * and returns the most recently set one as "latest live".
+ * In-memory FakePlanVersionRepository — stores one PlanVersion per `planId`,
+ * the most recently set, and answers it as the version on sale whatever the
+ * moment. Real window semantics are tested against an adapter or against
+ * `FakePlanRepository`, which keeps several versions per plan key.
  */
 export class FakePlanVersionRepository implements PlanVersionRepository {
     private readonly byPlanId = new Map<string, PlanVersionRecord>();
@@ -553,17 +555,6 @@ export class FakePlanVersionRepository implements PlanVersionRepository {
         this.byPlanId.clear();
     }
 
-    async findLatestLive(
-        planId: string,
-        _tx?: TransactionContext,
-    ): Promise<PlanVersionRecord | null> {
-        return this.byPlanId.get(planId) ?? null;
-    }
-
-    // The fake keeps only one record per planId — `findActive` returns the
-    // same as `findLatestLive`. Consumers test real time-window semantics
-    // against the Prisma implementation or against `FakePlanRepository`
-    // (which supports multiple versions per planKey).
     async findActive(
         planId: string,
         _asOf?: Date,

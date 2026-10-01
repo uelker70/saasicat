@@ -131,6 +131,7 @@ describe('the version offered is the one a booking made now would bind', () => {
         };
     }
 
+    // @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
     test('by its validity window, not the newest published', async () => {
         const plans = windowed(V2({ quotas: { users: 5, vehicles: 150 } }));
         const offer = await offerOf({ plans });
@@ -219,11 +220,11 @@ describe('no offer', () => {
         assert.equal(await offerOf({ rows: [version({ planId: 'OTHER' })] }), null);
     });
 
-    test('where the newest version read is of another plan', async () => {
-        const live = V2({ planId: 'OTHER', quotas: { users: 9, vehicles: 100 } });
+    test('where the version on sale read is of another plan', async () => {
+        const onSale = V2({ planId: 'OTHER', quotas: { users: 9, vehicles: 100 } });
         const plans = {
             findVersionById: async () => BOUND,
-            findLatestLivePlanVersion: async () => live,
+            findActivePlanVersion: async () => onSale,
         };
         assert.equal(await offerOf({ plans }), null);
     });

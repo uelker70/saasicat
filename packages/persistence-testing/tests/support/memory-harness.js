@@ -13,6 +13,7 @@ import {
     catalogVersionGone,
     formatCustomerNumber,
     identityCorrectionDelta,
+    isVersionActiveAt,
     noActivePlanVersion,
     planKeyTaken,
     promoCodeTaken,
@@ -42,6 +43,7 @@ const FIRST_CUSTOMER_NUMBER = 10001;
  */
 export const MEMORY_HARNESS_GAPS = [
     'planLifecycle',
+    'planCatalogRead',
     'bundleValidity',
     'planVersionReads',
     'planVersionRetirement',
@@ -119,12 +121,15 @@ export function createMemoryHarness() {
     };
 
     const planVersionRepository = {
-        async findLatestLive(planId) {
-            const live = state.planVersions
-                .filter((v) => v.planId === planId && v.publishedAt && !v.supersededAt)
-                .sort((a, b) => b.version - a.version)[0];
-            return live
-                ? { planId: live.planId, quotas: live.quotas, features: live.features }
+        async findActive(planId, asOf = new Date()) {
+            // The latest start first, a version without one last, then the
+            // highest number — the order the adapters ask the database for.
+            const startOf = (v) => (v.validFrom ? new Date(v.validFrom).getTime() : -Infinity);
+            const onSale = state.planVersions
+                .filter((v) => v.planId === planId && v.publishedAt && isVersionActiveAt(v, asOf))
+                .sort((a, b) => startOf(b) - startOf(a) || b.version - a.version)[0];
+            return onSale
+                ? { planId: onSale.planId, quotas: onSale.quotas, features: onSale.features }
                 : null;
         },
     };

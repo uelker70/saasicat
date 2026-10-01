@@ -28,7 +28,6 @@ import {
     getPrismaDelegate,
     resolvePrismaSchemaOptions,
     type PrismaPlanBindingResolver,
-    type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
 import { refusalOfSkippedInsert } from './skipped-insert.js';
@@ -64,9 +63,9 @@ interface PlanVersionDbRow {
     nonRegressive: boolean;
     createdByUserId: string | null;
     publishedByUserId: string | null;
-    validFrom?: Date | null;
-    validUntil?: Date | null;
-    endsAt?: Date | null;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    endsAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -90,16 +89,13 @@ interface PlanRepositoryClient {
  * `PlanVersion.planId === Plan.planKey`. The opt-in normalized binding resolves
  * that key to `Plan.id` for every database operation.
  *
- * The canonical 0.6 schema has neither validity-window nor `endsAt` columns.
- * Both capabilities therefore default off for rolling compatibility; apps
- * that applied the current additive schema opt in through
- * `schema.planVersionFields.catalog`.
+ * A version's `validFrom`, `validUntil` and `endsAt` are always written and
+ * read: they decide which version is on sale (`findActivePlanVersion`).
  */
 @Injectable()
 export class PrismaPlanRepository implements PlanRepository {
     private readonly binding: PrismaPlanBindingResolver;
     private readonly delegateName: string;
-    private readonly fields: Required<PrismaPlanVersionFieldCapabilities>;
 
     constructor(
         @Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PlanRepositoryClient,
@@ -110,45 +106,7 @@ export class PrismaPlanRepository implements PlanRepository {
         const schema = resolvePrismaSchemaOptions(options);
         this.binding = createPrismaPlanBindingResolver(options?.planBinding);
         this.delegateName = schema.delegates.catalogPlanVersion;
-        this.fields = schema.planVersionFields.catalog;
-        if (this.fields.validityWindows) {
-            this.findActivePlanVersion = (planKey, asOf, tx) =>
-                this.findActivePlanVersionWithValidity(planKey, asOf ?? new Date(), tx);
-        }
-        if (this.fields.endsAt) {
-            this.terminate = (versionId, endsAt) => this.terminateWithEndsAt(versionId, endsAt);
-        }
     }
-
-    /**
-     * Present only when the schema carries `endsAt`.
-     *
-     * `PlanVersionsService` already asks `typeof this.repo.terminate !==
-     * 'function'` and answers `PLAN_TERMINATE_NOT_IMPLEMENTED` when it is
-     * missing — a guard this adapter defeated by defining the method and
-     * throwing inside it. The operator got a raw 500 where the service had a
-     * sentence ready for them.
-     */
-    readonly terminate?: (versionId: string, endsAt: Date) => Promise<PlanVersionRow>;
-
-    /**
-     * Present only when validity-window mode is enabled, mirroring
-     * `PrismaBundleRepository.findActiveBundleVersion` and the optional port
-     * capability itself.
-     *
-     * It used to be declared unconditionally and throw when the schema could
-     * not answer. That is worse than absent, because every caller guards the
-     * same way the port invites — `findActivePlanVersion?.(…) ?? findLatestLive…`
-     * — and `?.` tests for presence, not for willingness. The guard therefore
-     * passed, the throw escaped, and the tenant bundle preview answered 500 on
-     * a 0.6-schema consumer rather than falling back to the newest-live lookup
-     * the error message itself recommended.
-     */
-    readonly findActivePlanVersion?: (
-        planKey: string,
-        asOf?: Date,
-        tx?: TransactionContext,
-    ) => Promise<PlanVersionRow | null>;
 
     private db(tx?: TransactionContext): PlanPrisma {
         return (tx ?? this.prisma) as unknown as PlanPrisma;
@@ -312,26 +270,22 @@ export class PrismaPlanRepository implements PlanRepository {
                 planId: storedPlanId,
                 publishedAt: { not: null },
                 supersededAt: null,
-                ...(this.fields.endsAt
-                    ? { OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] }
-                    : {}),
+                OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
             },
             orderBy: { version: 'desc' },
         });
         return row ? this.toPlanVersionRow(row, planKey) : null;
     }
 
-    private async findActivePlanVersionWithValidity(
+    async findActivePlanVersion(
         planKey: string,
-        asOf: Date,
+        asOf: Date = new Date(),
         tx?: TransactionContext,
     ): Promise<PlanVersionRow | null> {
         const db = this.db(tx);
         const storedPlanId = await this.binding.findStoragePlanId(db, planKey);
         if (storedPlanId === null) return null;
-        const activeWhere = this.fields.endsAt
-            ? buildActivePlanVersionWhere(asOf, { withEndsAt: true })
-            : buildActivePlanVersionWhere(asOf);
+        const activeWhere = buildActivePlanVersionWhere(asOf, { withEndsAt: true });
         const row = await this.versions(db).findFirst({
             where: { planId: storedPlanId, ...activeWhere },
             orderBy: [{ validFrom: { sort: 'desc', nulls: 'last' } }, { version: 'desc' }],
@@ -365,12 +319,8 @@ export class PrismaPlanRepository implements PlanRepository {
                     marketed: data.marketed ?? true,
                     changeNote: data.changeNote ?? '',
                     createdByUserId: data.createdByUserId ?? null,
-                    ...(this.fields.validityWindows
-                        ? {
-                              validFrom: data.validFrom ? new Date(data.validFrom) : null,
-                              validUntil: data.validUntil ? new Date(data.validUntil) : null,
-                          }
-                        : {}),
+                    validFrom: data.validFrom ? new Date(data.validFrom) : null,
+                    validUntil: data.validUntil ? new Date(data.validUntil) : null,
                     // publishedAt defaults to null (draft). `bundles` remains
                     // app-specific and is intentionally not persisted here.
                 },
@@ -401,10 +351,10 @@ export class PrismaPlanRepository implements PlanRepository {
                 ...(data.yearlyNet !== undefined ? { yearlyNet: data.yearlyNet } : {}),
                 ...(data.marketed !== undefined ? { marketed: data.marketed } : {}),
                 ...(data.changeNote !== undefined ? { changeNote: data.changeNote } : {}),
-                ...(this.fields.validityWindows && data.validFrom !== undefined
+                ...(data.validFrom !== undefined
                     ? { validFrom: data.validFrom ? new Date(data.validFrom) : null }
                     : {}),
-                ...(this.fields.validityWindows && data.validUntil !== undefined
+                ...(data.validUntil !== undefined
                     ? { validUntil: data.validUntil ? new Date(data.validUntil) : null }
                     : {}),
                 // `bundles` remains app-specific and is intentionally ignored.
@@ -440,12 +390,8 @@ export class PrismaPlanRepository implements PlanRepository {
                     publishedChanges: publishMeta.publishedChanges,
                     nonRegressive: publishMeta.nonRegressive,
                     publishedByUserId: publishMeta.publishedByUserId,
-                    ...(this.fields.validityWindows
-                        ? {
-                              validFrom: publishMeta.validFrom,
-                              validUntil: publishMeta.validUntil,
-                          }
-                        : {}),
+                    validFrom: publishMeta.validFrom,
+                    validUntil: publishMeta.validUntil,
                 },
             });
             const published = await planVersion.findUnique({ where: { id: versionId } });
@@ -461,9 +407,7 @@ export class PrismaPlanRepository implements PlanRepository {
                 },
                 data: {
                     supersededAt: now,
-                    ...(this.fields.validityWindows
-                        ? { validUntil: previousUtcDay(publishMeta.validFrom) }
-                        : {}),
+                    validUntil: previousUtcDay(publishMeta.validFrom),
                 },
             });
             return published;
@@ -494,7 +438,7 @@ export class PrismaPlanRepository implements PlanRepository {
         if (remaining) throw catalogVersionAlreadyPublished('PlanVersion', versionId);
     }
 
-    private async terminateWithEndsAt(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
+    async terminate(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
         const db = this.db();
         const updated = await this.versions(db).update({
             where: { id: versionId },
@@ -505,6 +449,6 @@ export class PrismaPlanRepository implements PlanRepository {
     }
 
     private toPlanVersionRow(row: PlanVersionDbRow, planKey: string): PlanVersionRow {
-        return toPlanVersionRow(row, planKey, this.fields);
+        return toPlanVersionRow(row, planKey);
     }
 }

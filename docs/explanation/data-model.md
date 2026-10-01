@@ -94,17 +94,24 @@ has always required anyway.
 - At most **one draft** per lineage (`publishedAt IS NULL`) — partial unique
   indexes `*_draft_per_*` (SQL-only, see constraints file).
 - `version` is monotonically increasing per lineage.
-- At most **one live** version per lineage
-  (`publishedAt IS NOT NULL AND supersededAt IS NULL`). Publishing a successor
-  supersedes the predecessor **in the same transaction**
-  (publish-and-supersede atomicity).
+- At most **one newest** published version per lineage
+  (`publishedAt IS NOT NULL AND supersededAt IS NULL`) — the one the next
+  publish chains to. Publishing a successor supersedes the predecessor **in
+  the same transaction** (publish-and-supersede atomicity).
 - A superseded version stays billing-valid for the subscriptions bound to it
   (contract protection P1) — versions are never deleted once published.
-- Nullable `validFrom`/`validUntil` columns form the day-inclusive booking
-  window for new subscriptions. A null `validFrom` is a legacy fallback and
-  must be ordered with explicit `NULLS LAST` behind dated versions.
-- `PlanVersion.endsAt` is an optional precise administrative termination
-  timestamp; it is separate from the day-based auto-succession window.
+- Which version is **on sale** is decided by its dates, not by `supersededAt`:
+  published, `validFrom` reached, `validUntil` not passed (day-inclusive),
+  `endsAt` not reached, and — once superseded — only with a `validUntil`, so a
+  replaced version without a last day (as a catalogue import leaves it) does
+  not sell again when its successor ends. The catalogue, every price and every
+  booking read it
+  the same way (`SC-PLAN-027`), so a predecessor stays on sale until the day
+  before its successor starts. A null `validFrom` counts as "since
+  publication" and is ordered with explicit `NULLS LAST` behind dated versions.
+- `PlanVersion.endsAt` is a precise administrative end; a version past it
+  takes no new booking. It is separate from the day-based auto-succession
+  window.
 
 ### Promo codes
 

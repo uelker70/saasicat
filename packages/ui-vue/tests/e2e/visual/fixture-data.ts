@@ -535,6 +535,7 @@ export const FIXTURE_PLAN_VERSIONS: PlanVersionRow[] = [
         nonRegressive: true,
         validFrom: '2026-03-01T00:00:00.000Z',
         validUntil: null,
+        endsAt: null,
         createdByUserId: 'u-1',
         publishedByUserId: 'u-1',
         createdAt: '2026-01-05T09:00:00.000Z',

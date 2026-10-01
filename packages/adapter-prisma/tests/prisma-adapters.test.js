@@ -22,6 +22,7 @@ import {
     PrismaTransactionRunner,
     prismaPersistence,
 } from '../dist/index.js';
+import { buildActivePlanVersionWhere } from '@saasicat/core';
 
 // Fake PrismaLike — structural sub-interface that the adapters expect.
 // Mapping/wiring is verified here; real database semantics (locks, atomic
@@ -608,21 +609,23 @@ describe('PrismaSubscriptionUsageAdapter', () => {
 });
 
 describe('PrismaPlanVersionRepository', () => {
-    test('findLatestLive filters live versions and maps the record', async () => {
+    test('findActive reads the version on sale at the moment asked and maps the record', async () => {
         const p = fakePrisma();
         p.state.planVersionFindFirstResult = planVersionRow({ version: 2, quotas: { users: 9 } });
         const repo = new PrismaPlanVersionRepository(p);
+        const asOf = new Date('2026-05-17T10:00:00.000Z');
 
-        const record = await repo.findLatestLive('STARTER');
+        const record = await repo.findActive('STARTER', asOf);
         assert.deepEqual(record, { planId: 'STARTER', quotas: { users: 9 }, features: ['CORE'] });
         const args = p.calls.planVersionFindFirst[0];
         assert.deepEqual(args.where, {
             planId: 'STARTER',
-            publishedAt: { not: null },
-            supersededAt: null,
+            ...buildActivePlanVersionWhere(asOf, { withEndsAt: true }),
         });
-        assert.deepEqual(args.orderBy, { version: 'desc' });
-        assert.equal(repo.findActive, undefined, 'no validFrom columns → no findActive');
+        assert.deepEqual(args.orderBy, [
+            { validFrom: { sort: 'desc', nulls: 'last' } },
+            { version: 'desc' },
+        ]);
     });
 });
 
@@ -881,10 +884,10 @@ describe('PrismaPlanCatalogReadSink', () => {
         });
         const sink = new PrismaPlanCatalogReadSink(p);
 
-        const snapshot = await sink.loadSnapshot();
+        const snapshot = await sink.loadSnapshot(new Date('2026-05-17T00:00:00.000Z'));
         assert.equal(snapshot.plans[0].createdAt, '2026-01-01T00:00:00.000Z');
-        assert.equal(snapshot.livePlanVersions[0].monthlyNet, '9.90');
-        assert.equal(snapshot.livePlanVersions[0].validFrom, null);
+        assert.equal(snapshot.versionsOnSale[0].monthlyNet, '9.90');
+        assert.equal(snapshot.versionsOnSale[0].validFrom, null);
         assert.equal(snapshot.featureEntries[0].core, true);
     });
 });

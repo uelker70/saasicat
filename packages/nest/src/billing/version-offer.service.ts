@@ -124,8 +124,8 @@ export class VersionOfferService {
         if (!read) return null;
         const { boundRow, offeredRow } = read;
         if (offeredRow.version <= boundRow.version) return null;
-        // The repository's own lookup already reads the window; the fallback
-        // for one without it does not.
+        // The repository answers by window already; this holds a repository
+        // of the application's own to the same rule, on the row it returned.
         if (!isVersionActiveAt(offeredRow, now)) return null;
 
         const boundPlan = planOf(sub.plan, boundRow);

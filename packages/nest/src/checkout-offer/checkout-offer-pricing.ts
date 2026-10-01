@@ -43,6 +43,7 @@ import { grossFromNet } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
+import { versionOnSale } from '../billing/version-on-sale.js';
 
 /** The language a promotion's texts fall back to, as the public catalogue reads them. */
 const DEFAULT_LOCALE = 'de';
@@ -101,7 +102,17 @@ export class CheckoutOfferPricing {
         @Optional()
         @Inject(PromoCodesService)
         private readonly promoCodes: PromoCodesService | null = null,
-    ) {}
+    ) {
+        // Checkout prices the version on sale and nothing else; a repository
+        // that cannot name it would refuse every checkout as not offered.
+        if (typeof plans.findActivePlanVersion !== 'function') {
+            throw new Error(
+                'CheckoutOfferPricing: PlanRepository.findActivePlanVersion is missing — checkout ' +
+                    'prices the version of a plan on sale at the moment of asking, and the ' +
+                    'repository cannot say which one that is.',
+            );
+        }
+    }
 
     /** Prices a selection against the plan version on sale now. */
     async price(
@@ -230,11 +241,7 @@ export class CheckoutOfferPricing {
         billingCycle: Cycle,
         asOf: Date,
     ): Promise<PlanVersionRow> {
-        const version =
-            (await this.plans.findActivePlanVersion?.(planKey, asOf)) ??
-            (this.plans.findActivePlanVersion
-                ? null
-                : await this.plans.findLatestLivePlanVersion?.(planKey));
+        const version = await versionOnSale(this.plans, planKey, asOf);
         if (!version) throw planNotOffered(planKey, billingCycle);
         this.assertPlanPriced(version, billingCycle);
         return version;

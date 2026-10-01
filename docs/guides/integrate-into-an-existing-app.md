@@ -47,7 +47,7 @@ everything below it is a deliberate deviation that must carry its reason.
 ```ts
 const base = prismaPersistence({
     client: PrismaService,
-    schema: YOUR_PRISMA_SCHEMA_OPTIONS, // plan binding, validity windows, delegates
+    schema: YOUR_PRISMA_SCHEMA_OPTIONS, // plan binding, delegates
     bundle: { validityWindows: true }, // reaches BOTH bundle repositories
     adminResources: false, // see step 5
 });

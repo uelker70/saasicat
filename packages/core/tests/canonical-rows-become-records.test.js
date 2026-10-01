@@ -62,8 +62,6 @@ function versionRow(overrides = {}) {
     };
 }
 
-const WINDOWS = { validityWindows: true, endsAt: true };
-
 describe('a plan row becomes a plan record', () => {
     test('dates leave as ISO strings, and an undeleted plan says so', () => {
         const row = toPlanRow(planRow());
@@ -82,7 +80,7 @@ describe('a plan version row becomes a version record', () => {
     test('the plan key is the one passed, not the one on the row', () => {
         // The canonical schema stores the key in `planId`, but an adapter
         // translating a schema with a real foreign key resolves it first.
-        const row = toPlanVersionRow(versionRow(), 'PRO', WINDOWS);
+        const row = toPlanVersionRow(versionRow(), 'PRO');
         assert.equal(row.planId, 'PRO');
     });
 
@@ -93,38 +91,29 @@ describe('a plan version row becomes a version record', () => {
         const row = toPlanVersionRow(
             versionRow({ monthlyNet: asDecimal, yearlyNet: asDecimal }),
             'STANDARD',
-            WINDOWS,
         );
         assert.equal(row.monthlyNet, '19.90');
         assert.equal(row.yearlyNet, '19.90');
     });
 
-    test('a schema without validity windows reads them as null, not as dates', () => {
-        // The columns may hold values from an adapter that does not maintain
-        // them. Reporting those would state a booking window nobody keeps.
-        const row = toPlanVersionRow(versionRow(), 'STANDARD', {
-            validityWindows: false,
-            endsAt: false,
-        });
-        assert.equal(row.validFrom, null);
-        assert.equal(row.validUntil, null);
-    });
-
-    test('a schema without endsAt omits the field rather than saying null', () => {
-        // Absent and null are different answers: "cannot say" against "not
-        // terminated".
-        const without = toPlanVersionRow(versionRow(), 'STANDARD', {
-            validityWindows: true,
-            endsAt: false,
-        });
-        assert.equal('endsAt' in without, false);
-        const with_ = toPlanVersionRow(versionRow(), 'STANDARD', WINDOWS);
-        assert.equal(with_.endsAt, null);
+    test('the dates that decide what is on sale leave as ISO strings, and an absent one as null', () => {
+        const row = toPlanVersionRow(
+            versionRow({ endsAt: new Date('2026-03-01T12:00:00.000Z') }),
+            'STANDARD',
+        );
+        assert.equal(row.validFrom, '2026-01-01T00:00:00.000Z');
+        assert.equal(row.validUntil, '2026-02-01T00:00:00.000Z');
+        assert.equal(row.endsAt, '2026-03-01T12:00:00.000Z');
+        const open = toPlanVersionRow(
+            versionRow({ validFrom: null, validUntil: null, endsAt: null }),
+            'STANDARD',
+        );
+        assert.deepEqual([open.validFrom, open.validUntil, open.endsAt], [null, null, null]);
     });
 
     test('publishedChanges that is not an array reads as null', () => {
         assert.equal(
-            toPlanVersionRow(versionRow({ publishedChanges: { not: 'an array' } }), 'X', WINDOWS)
+            toPlanVersionRow(versionRow({ publishedChanges: { not: 'an array' } }), 'X')
                 .publishedChanges,
             null,
         );
@@ -138,13 +127,12 @@ describe('a plan version row becomes a version record', () => {
         const row = toPlanVersionRow(
             versionRow({ quotas: { users: '100', storageGb: '-1', notesMax: 5 } }),
             'X',
-            WINDOWS,
         );
         assert.deepEqual(row.quotas, { users: 100, storageGb: -1, notesMax: 5 });
     });
 
     test('and one nothing can read stays, so the diff can tell it from absent', () => {
-        const row = toPlanVersionRow(versionRow({ quotas: { seats: 'many' } }), 'X', WINDOWS);
+        const row = toPlanVersionRow(versionRow({ quotas: { seats: 'many' } }), 'X');
         assert.ok('seats' in row.quotas, 'the key must survive');
         assert.ok(Number.isNaN(row.quotas.seats));
     });
@@ -153,7 +141,6 @@ describe('a plan version row becomes a version record', () => {
         const row = toPlanVersionRow(
             versionRow({ features: ['CORE', 7, null], quotas: { users: 5, seats: 'many' } }),
             'X',
-            WINDOWS,
         );
         assert.deepEqual(row.features, ['CORE']);
         assert.equal(row.quotas.users, 5);
@@ -161,7 +148,7 @@ describe('a plan version row becomes a version record', () => {
     });
 
     test('a JSON column holding nothing usable reads as empty, not as a crash', () => {
-        const row = toPlanVersionRow(versionRow({ features: null, quotas: null }), 'X', WINDOWS);
+        const row = toPlanVersionRow(versionRow({ features: null, quotas: null }), 'X');
         assert.deepEqual(row.features, []);
         assert.deepEqual(row.quotas, {});
     });

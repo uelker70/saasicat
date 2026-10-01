@@ -54,6 +54,7 @@ import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { codedError } from '../errors/coded-error.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
+import { versionOnSale } from '../billing/version-on-sale.js';
 import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
     CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
@@ -536,9 +537,7 @@ export class CheckoutOfferService {
                 ? await this.plans.findVersionById?.(input.planVersionId)
                 : null;
             const resolved =
-                version ??
-                (await this.plans.findActivePlanVersion?.(input.planKey)) ??
-                (await this.plans.findLatestLivePlanVersion?.(input.planKey));
+                version ?? (await versionOnSale(this.plans, input.planKey, new Date()));
             if (resolved) return resolved.features ?? [];
         }
         return input.lineItems

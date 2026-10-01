@@ -48,6 +48,7 @@ import {
 import { computeNewPeriodCharge, computeProration, type ProrationDto } from './proration.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import { exceedsTarget, quotaOverTargetBlockers } from './quota-over-target.js';
+import { versionOnSale } from './version-on-sale.js';
 
 // PlanChangePreviewService — platform variant (data-driven).
 //
@@ -55,7 +56,7 @@ import { exceedsTarget, quotaOverTargetBlockers } from './quota-over-target.js';
 //   - LimitsCheck iterates over the union of quota keys from the current
 //     entitlement, target plan and usage snapshot.
 //   - Prices come from the version the subscription is bound to where the
-//     plan stays, and from the version of another plan live now, read as a
+//     plan stays, and from the version of another plan on sale now, read as a
 //     row, where it moves — the version a scheduled change then records.
 //     The PlanCatalog stands in where no repository reads versions.
 //   - Plan rank is derived from the catalog order; non-marketed plans
@@ -331,11 +332,11 @@ export class PlanChangePreviewService {
         // price, and what the tenant may use does not change with it — not at
         // the version the catalogue sells to new customers now.
         const keptDef = boundDef && targetPlan === sub.plan ? boundDef : null;
-        // Another plan is quoted at the version live now, read as a row, so the
-        // version a scheduled change records is the one priced here
-        // (`SC-CHG-022`). The catalogue is built from the same live versions,
-        // and stands in where no repository reads them.
-        const quoted = keptDef ? null : await this.readLiveVersion(catalog, targetPlan);
+        // Another plan is quoted at the version on sale now, read as a row, so
+        // the version a scheduled change records is the one priced here
+        // (`SC-CHG-022`). The catalogue is built by the same rule, and stands
+        // in where no repository reads versions.
+        const quoted = keptDef ? null : await this.readVersionOnSale(catalog, targetPlan, now);
         const quotedDef = quoted?.plan ?? targetPlanDef;
         const targetSnap: PlanSnapshotDto = keptDef
             ? {
@@ -699,14 +700,17 @@ export class PlanChangePreviewService {
         return { kind: 'read', plan: planDefOfVersion(catalog, sub.plan, bound) };
     }
 
-    /** The version of a plan live now, as a plan and with its id; null where nothing reads versions. */
-    private async readLiveVersion(
+    /** The version of a plan on sale at `asOf`, as a plan and with its id; null where nothing reads versions. */
+    private async readVersionOnSale(
         catalog: PlanCatalog,
         planKey: string,
+        asOf: Date,
     ): Promise<{ versionId: string; plan: PlanDef } | null> {
-        if (!this.plans?.findLatestLivePlanVersion) return null;
-        const live = await this.plans.findLatestLivePlanVersion(planKey);
-        return live ? { versionId: live.id, plan: planDefOfVersion(catalog, planKey, live) } : null;
+        if (!this.plans) return null;
+        const onSale = await versionOnSale(this.plans, planKey, asOf);
+        return onSale
+            ? { versionId: onSale.id, plan: planDefOfVersion(catalog, planKey, onSale) }
+            : null;
     }
 
     private classify(

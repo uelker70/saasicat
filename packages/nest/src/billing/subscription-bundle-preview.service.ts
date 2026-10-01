@@ -50,6 +50,7 @@ import {
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
+import { versionOnSale } from './version-on-sale.js';
 import {
     bundleCycleFitsPlan,
     bundleFirstPeriodEnd,
@@ -509,13 +510,11 @@ export class SubscriptionBundlePreviewService {
         return versions.filter((bv): bv is BundleVersionRow => bv !== null);
     }
 
-    /** Features of the currently live PlanVersion state; empty without PlanRepository. */
+    /** Features of the plan's version on sale at `asOf`; empty without PlanRepository. */
     private async resolvePlanFeatures(planKey: string, asOf: Date): Promise<string[]> {
         if (!this.plans) return [];
-        const live =
-            (await this.plans.findActivePlanVersion?.(planKey, asOf)) ??
-            (await this.plans.findLatestLivePlanVersion?.(planKey));
-        return live?.features ?? [];
+        const onSale = await versionOnSale(this.plans, planKey, asOf);
+        return onSale?.features ?? [];
     }
 
     private collectRedundantFeatures(
