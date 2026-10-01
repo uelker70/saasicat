@@ -333,3 +333,39 @@ describe('an offer becomes a contract only with the amounts the catalogue gave i
         assert.equal((await service.consume(offer.id)).status, 'consumed');
     });
 });
+
+// @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+describe('the plan version checkout prices', () => {
+    test('is the one on sale at the moment the offer is priced', async () => {
+        const asked = [];
+        const plans = {
+            ...fakePlanRepo(),
+            async findActivePlanVersion(planKey, asOf) {
+                asked.push([planKey, asOf]);
+                return PLAN_VERSION;
+            },
+        };
+        const { service } = buildOfferService({ plans });
+
+        const before = Date.now();
+        await service.create(select());
+        const after = Date.now();
+
+        assert.equal(asked.length > 0, true);
+        for (const [planKey, asOf] of asked) {
+            assert.equal(planKey, 'STANDARD');
+            assert.ok(
+                asOf instanceof Date && asOf.getTime() >= before && asOf.getTime() <= after,
+                'asked for the moment of pricing, not left to the repository',
+            );
+        }
+    });
+
+    test('a repository that cannot say which version is on sale stops the start', () => {
+        const { findActivePlanVersion: _left, ...withoutIt } = fakePlanRepo();
+        assert.throws(
+            () => buildOfferService({ plans: withoutIt }),
+            /findActivePlanVersion is missing/,
+        );
+    });
+});

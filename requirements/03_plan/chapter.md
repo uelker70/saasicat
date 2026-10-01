@@ -516,12 +516,14 @@ _Tested by:_
         - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
         - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
         - startOfUtcDay normalizes to 00:00 UTC
+        - a superseded version only within a last day it carries
         - without withEndsAt: no endsAt clause (CatalogPlanVersion)
         - withEndsAt: adds an endsAt clause (PlanVersion)
     - isVersionActiveAt — the same window, for a row already read
         - validFrom is inclusive to the millisecond
         - validUntil is inclusive of its whole day
         - endsAt is exclusive: a version ended at the moment takes nothing
+        - a superseded version takes bookings only within a last day it carries
         - an absent date does not close the window, and dates may come as strings
         - agrees with the WHERE clause on every combination around the boundaries
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
@@ -818,11 +820,11 @@ _Tested by:_
         - a subscription that has ended is not an active tenant
         - all subscription operations honor tenantSubscription.delegate, including tx reads
         - bundle booking count is opt-in and uses active cancellation semantics
-        - findActive is opt-in, day-inclusive and can include endsAt
+        - findActive is day-inclusive and leaves out an ended version
         - active lookups prefer a dated version over a legacy NULL validFrom
     - PrismaPlanRepository normalized lifecycle
         - draft fields, active lookup, atomic publish, succession and termination round-trip
-        - legacy constructor keeps planKey storage and drops unsupported fields
+        - the default constructor keeps planKey storage and writes the dates
         - latest live lookup excludes a version whose explicit endsAt elapsed
         - legacy onlyPublished reads the live versions, and a key names one plan
         - legacy onlyPublished omits a plan whose only version is a draft
@@ -834,21 +836,23 @@ _Tested by:_
         - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
         - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
         - startOfUtcDay normalizes to 00:00 UTC
+        - a superseded version only within a last day it carries
         - without withEndsAt: no endsAt clause (CatalogPlanVersion)
         - withEndsAt: adds an endsAt clause (PlanVersion)
     - isVersionActiveAt — the same window, for a row already read
         - validFrom is inclusive to the millisecond
         - validUntil is inclusive of its whole day
         - endsAt is exclusive: a version ended at the moment takes nothing
+        - a superseded version takes bookings only within a last day it carries
         - an absent date does not close the window, and dates may come as strings
         - agrees with the WHERE clause on every combination around the boundaries
-- `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
-    - a bundle preview on a schema without validity windows
-        - answers, using the newest live version for the redundancy hint
-        - and the same answer as a schema that does offer the lookup
-        - a bundle the plan does not cover gets no redundancy warning either way
+- `packages/nest/tests/a-bundle-preview-reads-the-plan-on-sale.test.js`
+    - the plan a bundle preview compares with
+        - is the version on sale at the moment of the preview, not the newest published
+        - warns where the version on sale already includes a feature of the bundle
+        - a bundle the plan does not cover gets no redundancy warning
+        - a plan with nothing on sale leaves the hint out and still answers
         - with no plan repository at all it still answers
-        - a repository that offers the lookup and throws inside it is the bug itself
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
     - PublicMarketingCatalogService — Plans (validFrom tolerance)
         - live plan version with validFrom=NULL appears in the catalog
@@ -1181,6 +1185,7 @@ _Tested by:_
         - a plan published after the start is there on the next read
         - a price changed after the start is the price read
         - a plan retired after the start is gone from the next read
+        - each read asks for the versions on sale at the moment it is made
         - a sink that cannot read stops the start, rather than the first customer
     - the two halves of the catalogue
         - the settings carry no plans and no features, so nobody reads the start-time ones
@@ -1216,5 +1221,54 @@ _Tested by:_
     - a plan the operator publishes after the service was built
         - is recorded under the name it is sold under, at the price it was bound at
         - its entitlement snapshot is filtered against the same reading
+
+<!-- END proof -->
+
+### SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+
+🟢 💰 Which version of a plan is on sale is decided once, by its dates: published, begun, not past its
+last day, not ended, and — once superseded — only within a last day it carries, so a version that
+has been replaced never comes back on sale when its successor ends. The tenant's plan list, the
+plan-change preview, the public catalogue, checkout, the add-on preview, a booking and the offer to
+existing subscribers all ask that one question, so the version a customer is shown is the one they
+are bound to. A version published today that starts next month goes on sale on that day — without a
+restart, like everything published while the application runs (`SC-PLAN-026`) — and until then its
+predecessor stays on sale. The dates always apply: no setting leaves them out.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/active-plan-version-query.test.js`
+    - buildActivePlanVersionWhere
+        - a superseded version only within a last day it carries
+    - isVersionActiveAt — the same window, for a row already read
+        - a superseded version takes bookings only within a last day it carries
+- `packages/nest/tests/a-bundle-preview-reads-the-plan-on-sale.test.js`
+    - the plan a bundle preview compares with
+        - is the version on sale at the moment of the preview, not the newest published
+        - warns where the version on sale already includes a feature of the bundle
+        - a bundle the plan does not cover gets no redundancy warning
+        - a plan with nothing on sale leaves the hint out and still answers
+        - with no plan repository at all it still answers
+- `packages/nest/tests/a-newer-version-is-offered.test.js`
+    - the version offered is the one a booking made now would bind
+        - by its validity window, not the newest published
+- `packages/nest/tests/a-plan-published-after-boot-is-read-at-once.test.js`
+    - the plans a running application reads
+        - each read asks for the versions on sale at the moment it is made
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - the plan version checkout prices
+        - is the one on sale at the moment the offer is priced
+        - a repository that cannot say which version is on sale stops the start
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — deriveLimits + Resolution
+        - TRIAL: the plan the trial grants is read at its version on sale at that moment
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is quoted a change at a version the change can name › another plan at the version on sale
+          now, priced from that version and named by it
 
 <!-- END proof -->

@@ -152,8 +152,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_TENANT_MISMATCH: 'Subscription does not belong to the tenant',
     SUBSCRIPTION_BUNDLE_NOT_FOUND: "SubscriptionBundle '{subscriptionBundleId}' not found",
     TENANT_NOT_FOUND: 'Tenant {slug} not found',
-    NO_ACTIVE_PLAN_VERSION:
-        'No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.',
+    NO_ACTIVE_PLAN_VERSION: 'No version of plan {planId} is on sale as of {asOf}.',
     BOUND_PLAN_VERSION_UNREADABLE:
         'The plan version this subscription is bound to ({planVersionId}) cannot be read for plan "{planKey}", so no change can be quoted.',
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" is not in the catalog',

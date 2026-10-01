@@ -54,11 +54,8 @@ export interface PlanVersionRow extends VersionedEntityBase {
      * `endsAt` is user-initiated: `POST /admin/catalog/plan-versions/:id/terminate`
      * sets the field. When `endsAt < NOW()` the version is no longer live for
      * new bookings — existing subscriptions (P1) stay bound.
-     *
-     * Optional, because consumer backends add the column additively — if it
-     * is missing, there is no end date.
      */
-    endsAt?: string | null;
+    endsAt: string | null;
 
     /** @deprecated Read from `quotas['users']` once available. */
     maxUsers?: number;

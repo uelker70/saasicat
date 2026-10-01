@@ -276,7 +276,10 @@ describe('SaaSiCatModule.forRoot', () => {
                         promoCodeStatsPort: {},
                         auditStatsPort: {},
                     },
-                    checkoutOffer: { checkoutOfferRepository: {}, planRepository: {} },
+                    checkoutOffer: {
+                        checkoutOfferRepository: {},
+                        planRepository: { findActivePlanVersion: async () => null },
+                    },
                     subscriptionContract: {
                         subscriptionContractRepository: {},
                         subscriberRepository: {},

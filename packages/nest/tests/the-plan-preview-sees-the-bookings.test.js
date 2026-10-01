@@ -146,7 +146,7 @@ function persistenceWith(repo) {
                 }),
             },
             planVersionRepository: {
-                findLatestLive: async () => ({
+                findActive: async () => ({
                     id: 'pv1',
                     planId: 'PRO',
                     version: 1,

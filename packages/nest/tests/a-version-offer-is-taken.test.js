@@ -329,7 +329,7 @@ describe('the switch goes ahead only while the version shown is still the offer'
         let live = IMPROVEMENT;
         const plans = {
             findVersionById: async (id) => (id === BOUND.id ? BOUND : null),
-            findLatestLivePlanVersion: async () => live,
+            findActivePlanVersion: async () => live,
         };
         const { take } = aSwitch({
             plans,

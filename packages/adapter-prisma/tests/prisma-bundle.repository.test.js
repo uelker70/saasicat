@@ -125,8 +125,12 @@ function fakePrisma(seedVersions = []) {
                                     row.validFrom <= alternative.validFrom.lte
                                 );
                             }
+                            if ('supersededAt' in alternative) return row.supersededAt == null;
                             if ('validUntil' in alternative) {
                                 if (alternative.validUntil === null) return row.validUntil == null;
+                                if (alternative.validUntil.not === null) {
+                                    return row.validUntil != null;
+                                }
                                 return (
                                     row.validUntil instanceof Date &&
                                     row.validUntil >= alternative.validUntil.gte

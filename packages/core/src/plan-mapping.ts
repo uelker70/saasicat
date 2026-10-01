@@ -15,14 +15,6 @@ import type { PlanRow } from './plan-stem.types.js';
 import type { PlanVersionRow } from './plan-version-row.types.js';
 import type { VersionChange } from './subscription.types.js';
 
-/** What the adapter's schema can actually answer about a version's dates. */
-export interface PlanVersionMappingFields {
-    /** `validFrom`/`validUntil` are maintained; otherwise both read as null. */
-    validityWindows: boolean;
-    /** `endsAt` exists; otherwise the field is left off the record entirely. */
-    endsAt: boolean;
-}
-
 /** A `plans` row as either adapter reads it back. */
 export interface CanonicalPlanRow {
     id: string;
@@ -51,9 +43,9 @@ export interface CanonicalPlanVersionRow {
     publishedChanges: unknown;
     changeNote: string;
     nonRegressive: boolean;
-    validFrom?: Date | null;
-    validUntil?: Date | null;
-    endsAt?: Date | null;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    endsAt: Date | null;
     createdByUserId: string | null;
     publishedByUserId: string | null;
     createdAt: Date;
@@ -80,12 +72,8 @@ export function toPlanRow(row: CanonicalPlanRow): PlanRow {
  * real foreign key has to resolve it first, and only the adapter knows which
  * shape it is looking at.
  */
-export function toPlanVersionRow(
-    row: CanonicalPlanVersionRow,
-    planKey: string,
-    fields: PlanVersionMappingFields,
-): PlanVersionRow {
-    const mapped: PlanVersionRow = {
+export function toPlanVersionRow(row: CanonicalPlanVersionRow, planKey: string): PlanVersionRow {
+    return {
         id: row.id,
         version: row.version,
         baseVersionId: row.baseVersionId,
@@ -102,19 +90,14 @@ export function toPlanVersionRow(
             : null,
         changeNote: row.changeNote,
         nonRegressive: row.nonRegressive,
-        validFrom: fields.validityWindows ? toIsoOrNull(row.validFrom) : null,
-        validUntil: fields.validityWindows ? toIsoOrNull(row.validUntil) : null,
+        validFrom: toIsoOrNull(row.validFrom),
+        validUntil: toIsoOrNull(row.validUntil),
+        endsAt: toIsoOrNull(row.endsAt),
         createdByUserId: row.createdByUserId,
         publishedByUserId: row.publishedByUserId,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     };
-    // Absent rather than null when the schema has no column: a reader
-    // distinguishing "not terminated" from "cannot say" needs the difference.
-    if (fields.endsAt) {
-        mapped.endsAt = toIsoOrNull(row.endsAt);
-    }
-    return mapped;
 }
 
 function toIsoOrNull(value: Date | null | undefined): string | null {

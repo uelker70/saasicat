@@ -39,10 +39,8 @@ interface SubscriptionDbRow {
 interface PlanVersionIdentityDbRow {
     id: string;
     planId: string;
-    /** Present only where the schema can end a version. */
-    endsAt?: Date | null;
-    /** Present only where the schema has validity windows. */
-    validFrom?: Date | null;
+    endsAt: Date | null;
+    validFrom: Date | null;
 }
 
 /**
@@ -67,7 +65,7 @@ interface TransactionalPrismaClient {
  * delegate.
  *
  * `changePlanImmediate` resolves the target plan through the configured plan
- * binding, selects its live/active PlanVersion, and writes `plan` +
+ * binding, selects its PlanVersion on sale, and writes `plan` +
  * `planVersionId` in one transaction: the subscription is bound to the version
  * it was sold, which is what the entitlements and a frozen contract read.
  * `tenantSubscription.synchronizePlanVersion: false` opts out and writes the
@@ -442,31 +440,14 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         storagePlanId: string,
         asOf: Date,
     ): Promise<string> {
-        const activeWindow =
-            this.schema.tenantSubscription.activeVersionSelection === 'validity-window';
-        const activeVersionWhere = this.schema.tenantSubscription.withEndsAt
-            ? buildActivePlanVersionWhere(asOf, { withEndsAt: true })
-            : buildActivePlanVersionWhere(asOf);
-        const where: Record<string, unknown> = activeWindow
-            ? {
-                  planId: storagePlanId,
-                  ...activeVersionWhere,
-              }
-            : {
-                  planId: storagePlanId,
-                  publishedAt: { not: null },
-                  supersededAt: null,
-                  ...(this.schema.tenantSubscription.withEndsAt
-                      ? {
-                            OR: [{ endsAt: null }, { endsAt: { gt: asOf } }],
-                        }
-                      : {}),
-              };
+        // The version on sale at `asOf`, by the rule every price and catalogue
+        // reads (`PlanRepository.findActivePlanVersion`).
         const target = await this.planVersions(client).findFirst({
-            where,
-            orderBy: activeWindow
-                ? [{ validFrom: { sort: 'desc', nulls: 'last' } }, { version: 'desc' }]
-                : { version: 'desc' },
+            where: {
+                planId: storagePlanId,
+                ...buildActivePlanVersionWhere(asOf, { withEndsAt: true }),
+            },
+            orderBy: [{ validFrom: { sort: 'desc', nulls: 'last' } }, { version: 'desc' }],
         });
         if (!target) throw noActivePlanVersion(planKey, asOf);
         return target.id;
@@ -476,9 +457,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
      * The version a change was quoted at, while it can still be booked for its
      * plan on the day the change takes effect (`bookableOn`); null otherwise,
      * and the version in effect is bound. A version ended by then takes no new
-     * bookings (`SC-PLAN-016`). The row is read whole, so a schema without
-     * `endsAt` or `validFrom` hands none back, and there nothing ends or
-     * begins later.
+     * bookings (`SC-PLAN-016`).
      */
     private async stillBookable(
         client: unknown,
@@ -506,22 +485,6 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                     'the plan version by default; a schema without a plan-version model sets ' +
                     '`tenantSubscription.synchronizePlanVersion: false`.',
                 { cause: error },
-            );
-        }
-        const entitlementFields = this.schema.planVersionFields.entitlement;
-        if (
-            this.schema.tenantSubscription.activeVersionSelection === 'validity-window' &&
-            !entitlementFields.validityWindows
-        ) {
-            throw new Error(
-                "tenantSubscription.activeVersionSelection='validity-window' requires " +
-                    'planVersionFields.entitlement.validityWindows=true.',
-            );
-        }
-        if (this.schema.tenantSubscription.withEndsAt && !entitlementFields.endsAt) {
-            throw new Error(
-                'tenantSubscription.withEndsAt=true requires ' +
-                    'planVersionFields.entitlement.endsAt=true.',
             );
         }
     }

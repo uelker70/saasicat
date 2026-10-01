@@ -702,7 +702,7 @@ _Tested by:_
         - lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads
         - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
-        - findLatestLive filters live versions and maps the record
+        - findActive reads the version on sale at the moment asked and maps the record
     - PrismaPromoCodeRepository
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
@@ -768,8 +768,7 @@ _Tested by:_
     - a plan version row becomes a version record
         - the plan key is the one passed, not the one on the row
         - prices survive as strings, whatever the driver handed over
-        - a schema without validity windows reads them as null, not as dates
-        - a schema without endsAt omits the field rather than saying null
+        - the dates that decide what is on sale leave as ISO strings, and an absent one as null
         - publishedChanges that is not an array reads as null
         - a quota written as a string is the number it says
         - and one nothing can read stays, so the diff can tell it from absent
@@ -865,7 +864,7 @@ _Tested by:_
         - lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads
         - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
-        - findLatestLive filters live versions and maps the record
+        - findActive reads the version on sale at the moment asked and maps the record
     - PrismaPromoCodeRepository
         - claimSlot issues the atomic guarded UPDATE
         - releaseSlot floors at 0 and reactivates EXHAUSTED
@@ -928,8 +927,7 @@ _Tested by:_
     - a plan version row becomes a version record
         - the plan key is the one passed, not the one on the row
         - prices survive as strings, whatever the driver handed over
-        - a schema without validity windows reads them as null, not as dates
-        - a schema without endsAt omits the field rather than saying null
+        - the dates that decide what is on sale leave as ISO strings, and an absent one as null
         - publishedChanges that is not an array reads as null
         - a quota written as a string is the number it says
         - and one nothing can read stays, so the diff can tell it from absent
@@ -1094,13 +1092,6 @@ _Tested by:_
         - and the same through hasBackRelation directly
         - a field name with an alternation does not match a different field
         - an ordinary name still works, so the escaping did not break matching
-- `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
-    - a bundle preview on a schema without validity windows
-        - answers, using the newest live version for the redundancy hint
-        - and the same answer as a schema that does offer the lookup
-        - a bundle the plan does not cover gets no redundancy warning either way
-        - with no plan repository at all it still answers
-        - a repository that offers the lookup and throws inside it is the bug itself
 
 <!-- END proof -->
 

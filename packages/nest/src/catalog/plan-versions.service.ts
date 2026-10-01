@@ -101,6 +101,10 @@ export class PlanVersionsService {
             'findVersionById',
             'findCurrentDraft',
             'findLatestLivePlanVersion',
+            // Every price, catalogue, booking and offer asks for the version
+            // on sale; a repository that only knows the newest one would sell
+            // a version before the day it applies from.
+            'findActivePlanVersion',
             'createPlanVersionDraft',
             'updatePlanVersionDraft',
             'publishPlanVersionDraft',

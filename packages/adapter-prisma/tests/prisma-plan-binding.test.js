@@ -30,10 +30,6 @@ const APP_SCHEMA = {
         catalogPlanVersion: 'catalogPlanVersion',
         entitlementPlanVersion: 'entitlementPlanVersion',
     },
-    planVersionFields: {
-        catalog: { validityWindows: true, endsAt: true },
-        entitlement: { validityWindows: true, endsAt: true },
-    },
 };
 
 describe('Prisma plan binding options', () => {
@@ -44,17 +40,11 @@ describe('Prisma plan binding options', () => {
             catalogPlanVersion: 'planVersion',
             entitlementPlanVersion: 'planVersion',
         });
-        assert.deepEqual(schema.planVersionFields, {
-            catalog: { validityWindows: false, endsAt: false },
-            entitlement: { validityWindows: false, endsAt: false },
-        });
         assert.deepEqual(schema.tenantSubscription, {
             delegate: 'subscription',
             subscriptionBundleDelegate: false,
             synchronizePlanVersion: true,
             atomicOnboardingSelection: false,
-            activeVersionSelection: 'latest-live',
-            withEndsAt: false,
         });
 
         const resolver = createPrismaPlanBindingResolver();
@@ -105,7 +95,6 @@ describe('Prisma plan binding options', () => {
         assert.equal(await plans.findCurrentDraft('NO_SUCH_KEY'), null);
         assert.equal(await plans.findLatestLivePlanVersion('NO_SUCH_KEY'), null);
         assert.equal(await plans.findActivePlanVersion('NO_SUCH_KEY', new Date()), null);
-        assert.equal(await versions.findLatestLive('NO_SUCH_KEY'), null);
         assert.equal(await versions.findActive('NO_SUCH_KEY', new Date()), null);
     });
 });
@@ -122,16 +111,18 @@ describe('normalized plan identity across Prisma adapters', () => {
                 endsAt: new Date('2026-08-01T12:00:00.000Z'),
             }),
         );
-        const snapshot = await new PrismaPlanCatalogReadSink(client, APP_SCHEMA).loadSnapshot();
+        const snapshot = await new PrismaPlanCatalogReadSink(client, APP_SCHEMA).loadSnapshot(
+            new Date('2026-07-15T00:00:00.000Z'),
+        );
 
         assert.deepEqual(client.catalogPlanVersion.calls.findMany[0].where.planId, {
             in: ['plan-basic', 'plan-pro'],
         });
         assert.equal(client.planVersion.calls.findMany.length, 0);
-        assert.equal(snapshot.livePlanVersions[0].planId, 'BASIC');
-        assert.equal(snapshot.livePlanVersions[0].validFrom, '2026-07-01T00:00:00.000Z');
-        assert.equal(snapshot.livePlanVersions[0].validUntil, '2026-07-31T00:00:00.000Z');
-        assert.equal(snapshot.livePlanVersions[0].endsAt, '2026-08-01T12:00:00.000Z');
+        assert.equal(snapshot.versionsOnSale[0].planId, 'BASIC');
+        assert.equal(snapshot.versionsOnSale[0].validFrom, '2026-07-01T00:00:00.000Z');
+        assert.equal(snapshot.versionsOnSale[0].validUntil, '2026-07-31T00:00:00.000Z');
+        assert.equal(snapshot.versionsOnSale[0].endsAt, '2026-08-01T12:00:00.000Z');
     });
 
     test('catalog import resolves planKey to UUID and writes only the catalog delegate', async () => {
@@ -168,7 +159,7 @@ describe('normalized plan identity across Prisma adapters', () => {
         );
 
         const versions = new PrismaPlanVersionRepository(client, APP_SCHEMA);
-        assert.deepEqual(await versions.findLatestLive('BASIC'), {
+        assert.deepEqual(await versions.findActive('BASIC', new Date()), {
             planId: 'BASIC',
             quotas: { users: 25 },
             features: ['CORE'],
@@ -328,7 +319,7 @@ describe('normalized plan identity across Prisma adapters', () => {
         assert.ok(where.OR[1].canceledEffectiveAt.gt instanceof Date);
     });
 
-    test('findActive is opt-in, day-inclusive and can include endsAt', async () => {
+    test('findActive is day-inclusive and leaves out an ended version', async () => {
         const client = fakePrisma();
         client.entitlementPlanVersion.rows.push(
             versionRow({
@@ -353,11 +344,11 @@ describe('normalized plan identity across Prisma adapters', () => {
             ],
         });
         assert.deepEqual(where.AND[2], {
+            OR: [{ supersededAt: null }, { validUntil: { not: null } }],
+        });
+        assert.deepEqual(where.AND[3], {
             OR: [{ endsAt: null }, { endsAt: { gt: asOf } }],
         });
-
-        const legacy = new PrismaPlanVersionRepository(client);
-        assert.equal(legacy.findActive, undefined);
     });
 
     test('active lookups prefer a dated version over a legacy NULL validFrom', async () => {
@@ -450,7 +441,7 @@ describe('PrismaPlanRepository normalized lifecycle', () => {
         assert.equal(terminated.endsAt, '2026-12-31T23:00:00.000Z');
     });
 
-    test('legacy constructor keeps planKey storage and drops unsupported fields', async () => {
+    test('the default constructor keeps planKey storage and writes the dates', async () => {
         const client = fakePrisma();
         const repo = new PrismaPlanRepository(client);
         const draft = await repo.createPlanVersionDraft({
@@ -464,17 +455,10 @@ describe('PrismaPlanRepository normalized lifecycle', () => {
 
         const data = client.planVersion.calls.create[0].data;
         assert.equal(data.planId, 'BASIC');
-        assert.equal('validFrom' in data, false);
-        assert.equal(draft.validFrom, null);
-        // Not offered rather than offered-and-throwing. Every caller guards the
-        // way the port invites — `findActivePlanVersion?.(…) ?? findLatestLive…`,
-        // and `typeof repo.terminate !== 'function'` in `PlanVersionsService` —
-        // and both of those test presence, not willingness. Defining the methods
-        // and throwing inside them made those guards useless: the tenant bundle
-        // preview answered 500 on a 0.6-schema consumer instead of falling back,
-        // and an operator hit a raw 500 where the service had a sentence ready.
-        assert.equal(repo.findActivePlanVersion, undefined);
-        assert.equal(repo.terminate, undefined);
+        assert.equal(data.validFrom.toISOString(), '2026-08-01T00:00:00.000Z');
+        assert.equal(draft.validFrom, '2026-08-01T00:00:00.000Z');
+        assert.equal(typeof repo.findActivePlanVersion, 'function');
+        assert.equal(typeof repo.terminate, 'function');
     });
 
     test('latest live lookup excludes a version whose explicit endsAt elapsed', async () => {
@@ -532,7 +516,7 @@ describe('prismaPersistence schema forwarding', () => {
         );
 
         const repo = bundle.entitlement.planVersionRepository.useFactory(client);
-        const result = await repo.findLatestLive('BASIC');
+        const result = await repo.findActive('BASIC', new Date());
         assert.equal(result.planId, 'BASIC');
         assert.equal(client.entitlementPlanVersion.calls.findFirst.length, 1);
     });

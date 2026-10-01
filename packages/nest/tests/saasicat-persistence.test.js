@@ -143,7 +143,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             const sink = {
                 loadSnapshot: async () => {
                     loads++;
-                    return { plans: [], livePlanVersions: [], featureEntries: [] };
+                    return { plans: [], versionsOnSale: [], featureEntries: [] };
                 },
             };
             const mod = SaaSiCatModule.forRoot({
@@ -333,6 +333,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             findVersionById: async () => null,
             findCurrentDraft: async () => null,
             findLatestLivePlanVersion: async () => null,
+            findActivePlanVersion: async () => null,
             createPlanVersionDraft: async () => null,
             updatePlanVersionDraft: async () => null,
             publishPlanVersionDraft: async () => null,

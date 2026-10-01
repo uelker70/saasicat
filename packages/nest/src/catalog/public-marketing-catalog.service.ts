@@ -38,6 +38,7 @@ import {
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
+import { versionOnSale } from '../billing/version-on-sale.js';
 
 const DEFAULT_LOCALE = 'de';
 
@@ -115,12 +116,8 @@ export class PublicMarketingCatalogService {
         asOf: Date = new Date(),
     ): Promise<PublicMarketingCatalogResponse> {
         const empty = { features: [], quotas: [] };
-        // `findActivePlanVersion` is time-aware (validFrom/validUntil);
-        // falls back to `findLatestLivePlanVersion` for adapters not yet
-        // raised to (validity period).
-        const findActive = this.planRepo.findActivePlanVersion?.bind(this.planRepo);
-        const findLatest = this.planRepo.findLatestLivePlanVersion?.bind(this.planRepo);
-        if (!findActive && !findLatest) {
+        // A repository that reads no versions has nothing on sale to show.
+        if (!this.planRepo.findActivePlanVersion) {
             return {
                 locale,
                 currency,
@@ -131,10 +128,6 @@ export class PublicMarketingCatalogService {
                 comparison: empty,
             };
         }
-        const resolveVersion = findActive
-            ? (planKey: string) => findActive(planKey, asOf)
-            : (planKey: string) => findLatest!(planKey);
-
         const [plans, promotions, labelMeta, marketedBundles] = await Promise.all([
             this.planRepo.list({}),
             this.promotionRepo.list(),
@@ -149,7 +142,7 @@ export class PublicMarketingCatalogService {
         const inRequestedLocale = new Set<string>();
 
         for (const plan of plans) {
-            const live = await resolveVersion(plan.planKey);
+            const live = await versionOnSale(this.planRepo, plan.planKey, asOf);
             if (!live) continue;
 
             const own = await this.marketingRepo.findByTarget('PLAN', live.id, locale);

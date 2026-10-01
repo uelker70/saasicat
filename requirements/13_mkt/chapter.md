@@ -553,6 +553,9 @@ _Tested by:_
         - a promotion that starts after the offer was priced does not unsettle it
         - a promo code the promo module no longer accepts is refused at consumption
         - an add-on renamed after the offer keeps the offer valid
+    - the plan version checkout prices
+        - is the one on sale at the moment the offer is priced
+        - a repository that cannot say which version is on sale stops the start
 
 <!-- END proof -->
 

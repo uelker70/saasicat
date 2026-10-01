@@ -1229,6 +1229,7 @@ function stageDraft(payload: EditorFormPayload, editingId: string | null): void 
         nonRegressive: true,
         validFrom: payload.validFrom,
         validUntil: payload.validUntil,
+        endsAt: null,
         createdByUserId: null,
         publishedByUserId: null,
         createdAt: nowIso,

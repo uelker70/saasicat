@@ -198,8 +198,10 @@ the platform ports stay identical.
 ### Plan identity and split PlanVersion delegates
 
 The default is the SaaSiCat 0.6 layout: `PlanVersion.planId` stores the
-semantic `planKey`, both catalog and entitlement reads use the `planVersion`
-delegate, and optional validity columns are not queried. There is no schema
+semantic `planKey`, and both catalog and entitlement reads use the `planVersion`
+delegate. Every plan-version model carries `validFrom`, `validUntil` and
+`endsAt`, as the canonical schema does: they decide which version is on sale,
+for a catalogue, a price and a booking alike. There is no schema
 auto-detection.
 
 An app with a normalized UUID foreign key opts in explicitly. Port inputs and
@@ -208,16 +210,10 @@ outputs still use the semantic key:
 ```ts
 const schema = {
     planBinding: { mode: 'normalized-plan-id' },
-    planVersionFields: {
-        validityWindows: true,
-        endsAt: true,
-    },
     tenantSubscription: {
         subscriptionBundleDelegate: 'subscriptionBundle',
         synchronizePlanVersion: true,
         atomicOnboardingSelection: true,
-        activeVersionSelection: 'validity-window',
-        withEndsAt: true,
     },
 } satisfies PrismaSchemaOptions;
 
@@ -239,18 +235,14 @@ providers: [
 ```
 
 Split schemas can name catalog and entitlement delegates independently. This
-keeps, for example, `catalogPlanVersion` with validity columns separate from a
-legacy billing `planVersion`:
+keeps, for example, `catalogPlanVersion` separate from a billing `planVersion`;
+both carry the date columns:
 
 ```ts
 const schema = {
     delegates: {
         catalogPlanVersion: 'catalogPlanVersion',
         entitlementPlanVersion: 'planVersion',
-    },
-    planVersionFields: {
-        catalog: { validityWindows: true },
-        entitlement: { validityWindows: false },
     },
 } satisfies PrismaSchemaOptions;
 ```

@@ -300,7 +300,7 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
-        - is quoted a change at a version the change can name › another plan at the version live
+        - is quoted a change at a version the change can name › another plan at the version on sale
           now, priced from that version and named by it
         - is quoted a change at a version the change can name › the plan it stays on at the version
           kept
@@ -387,7 +387,7 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
-        - is quoted a change at a version the change can name › another plan at the version live
+        - is quoted a change at a version the change can name › another plan at the version on sale
           now, priced from that version and named by it
         - is quoted a change at a version the change can name › the plan it stays on at the version
           kept
@@ -551,7 +551,7 @@ _Tested by:_
     - a scheduled change to another plan binds the version it was quoted at
 - `packages/nest/tests/plan-change-preview.test.js`
     - a subscriber on an older version of the plan
-        - is quoted a change at a version the change can name › another plan at the version live
+        - is quoted a change at a version the change can name › another plan at the version on sale
           now, priced from that version and named by it
         - is quoted a change at a version the change can name › the plan it stays on at the version
           kept

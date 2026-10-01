@@ -463,6 +463,7 @@ _Tested by:_
         - validFrom is inclusive to the millisecond
         - validUntil is inclusive of its whole day
         - endsAt is exclusive: a version ended at the moment takes nothing
+        - a superseded version takes bookings only within a last day it carries
         - an absent date does not close the window, and dates may come as strings
         - agrees with the WHERE clause on every combination around the boundaries
 - `packages/core/tests/version-offer.test.js`
@@ -516,7 +517,7 @@ _Tested by:_
         - once the cancellation has landed
         - on a plan kept for a special contract, either way round
         - where the version bound cannot be read as a version of the plan
-        - where the newest version read is of another plan
+        - where the version on sale read is of another plan
         - without a repository that reads versions
         - where the subscription is bound to no version
     - a tenant without a subscription is told so
@@ -730,7 +731,7 @@ _Tested by:_
         - sees the price they pay as their current one when changing plan
         - is refused a rhythm the version they keep is not sold in, rather than quoted it free
         - is quoted from the catalogue where no repository reads versions
-        - is quoted a change at a version the change can name › another plan at the version live
+        - is quoted a change at a version the change can name › another plan at the version on sale
           now, priced from that version and named by it
         - is quoted a change at a version the change can name › the plan it stays on at the version
           kept

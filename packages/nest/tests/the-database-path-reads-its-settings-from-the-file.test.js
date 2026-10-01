@@ -65,7 +65,7 @@ class FakeJwtGuard {
 const fakeSink = () => ({
     loadSnapshot: async () => ({
         plans: [{ planKey: 'PRO', label: 'Pro', description: null, sortOrder: 1, deletedAt: null }],
-        livePlanVersions: [
+        versionsOnSale: [
             {
                 planId: 'PRO',
                 marketed: true,

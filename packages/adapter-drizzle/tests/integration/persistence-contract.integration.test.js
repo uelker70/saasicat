@@ -40,6 +40,7 @@ import {
     DrizzleSubscriptionNoticeRepository,
 } from '../../dist/index.js';
 import {
+    DrizzlePlanCatalogReadSink,
     DrizzlePlanRepository,
     DrizzlePaymentEventLog,
     DrizzleSubscriberPaymentMethodRepository,
@@ -99,7 +100,8 @@ function createHarness() {
             auditQuery: new DrizzleAuditQueryAdapter(db),
             subscriptionBundleRepository: new DrizzleSubscriptionBundleRepository(db),
             bundleRepository: new DrizzleBundleRepository(db, { validityWindows: true }),
-            planRepository: new DrizzlePlanRepository(db, { validityWindows: true }),
+            planRepository: new DrizzlePlanRepository(db),
+            planCatalogReadSink: new DrizzlePlanCatalogReadSink(db),
             tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),
             subscriptionContractRepository: new DrizzleSubscriptionContractRepository(db),
             subscriberRepository: new DrizzleSubscriberRepository(db),

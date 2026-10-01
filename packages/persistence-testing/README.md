@@ -80,6 +80,7 @@ persistenceAdapterContract({
             subscriptionRepository,
             planVersionRepository,
             planRepository,
+            planCatalogReadSink,
             bundleRepository,
             subscriptionBundleRepository,
             tenantSubscriptionWrite,

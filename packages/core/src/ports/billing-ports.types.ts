@@ -789,31 +789,22 @@ export interface TenantSubscriptionWritePort {
 /** Read adapter for PlanVersions. */
 export interface PlanVersionRepository {
     /**
-     * Currently published (= live) PlanVersion of a plan:
-     * `publishedAt IS NOT NULL AND supersededAt IS NULL`. Optionally within a
-     * transaction.
-     *
-     * Note: ignores `validFrom`/`validUntil`. For time-aware
-     * resolution (onboarding, plan fallback for TRIAL) use `findActive`.
-     *
-     * A plan key no plan has finds `null`, not an error.
-     */
-    findLatestLive(planId: string, tx?: TransactionContext): Promise<PlanVersionRecord | null>;
-
-    /**
-     * PlanVersion of a plan active at `asOf`:
+     * The version of a plan on sale at `asOf` — what a booking made then
+     * binds — by the same rule as `PlanRepository.findActivePlanVersion`:
      *   `publishedAt IS NOT NULL`
      *   `(validFrom IS NULL OR validFrom <= asOf)`
      *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`
+     *   `(endsAt IS NULL OR endsAt > asOf)`
      *
      * `validUntil` is day-inclusive. If multiple versions match, adapters
-     * return the highest `validFrom`, explicitly ordering null start dates
-     * last as a legacy fallback. Adapters without validity columns may omit
-     * the method (consumers fall back to `findLatestLive`).
+     * return the highest `validFrom`, ordering null start dates last, then the
+     * highest version. Adapters build the WHERE with
+     * `buildActivePlanVersionWhere(asOf, { withEndsAt: true })`. Optionally
+     * within a transaction.
      *
      * A plan key no plan has finds `null`, not an error.
      */
-    findActive?(
+    findActive(
         planId: string,
         asOf?: Date,
         tx?: TransactionContext,

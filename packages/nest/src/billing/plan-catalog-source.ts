@@ -36,7 +36,8 @@ export function databasePlanCatalogSource(
 ): PlanCatalogSource {
     return {
         origin: 'database',
-        current: async () => buildPlanCatalogFromSnapshot(settings, await sink.loadSnapshot()),
+        current: async () =>
+            buildPlanCatalogFromSnapshot(settings, await sink.loadSnapshot(new Date())),
     };
 }
 

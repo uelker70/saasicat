@@ -289,6 +289,19 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no PlanRepository',
         present: ({ adapter }) => Boolean(adapter.planRepository),
     },
+    planCatalogRead: {
+        reason: 'adapter provides no PlanCatalogReadSink beside a PlanRepository that publishes and ends versions',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                adapter.planCatalogReadSink &&
+                repository?.createPlanVersionDraft &&
+                repository.publishPlanVersionDraft &&
+                repository.findActivePlanVersion &&
+                repository.terminate,
+            );
+        },
+    },
     planLifecycle: {
         reason: 'adapter provides no time-aware PlanRepository lifecycle',
         present: ({ adapter }) => {
@@ -638,7 +651,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await adapter.subscriptionRepository.findByTenantId('tenant-b'), null);
         });
 
-        test('findLatestLive resolves the live version, not superseded or draft', async () => {
+        test('the entitlement read resolves the version on sale, not a draft, and the newest of several without dates', async () => {
             const { seed, adapter } = harness;
             await seed.createPlanVersion({
                 planKey: 'PRO',
@@ -663,8 +676,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 published: false,
             });
 
-            const live = await adapter.planVersionRepository.findLatestLive('PRO');
-            assert.ok(live, 'live version expected');
+            const live = await adapter.planVersionRepository.findActive('PRO', new Date());
+            assert.ok(live, 'a version on sale expected');
             assert.equal(
                 live.planId,
                 'PRO',
@@ -728,6 +741,74 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 false,
                 'the write binds the version it sells but declares that it does not',
             );
+        });
+
+        test('a plan change binds the version on sale on the day it takes effect, not the newest published', async (t) => {
+            const { seed, adapter } = harness;
+            const repository = adapter.planRepository;
+            if (!adapter.tenantSubscriptionWrite) {
+                missing(t, 'atomicPlanBinding');
+                return;
+            }
+            if (
+                !repository?.createPlanVersionDraft ||
+                !repository.publishPlanVersionDraft ||
+                !repository.findActivePlanVersion
+            ) {
+                missing(t, 'planLifecycle');
+                return;
+            }
+            const publish = async (
+                draft: ReturnType<typeof planDraft> & { baseVersionId?: string },
+                validFrom: string,
+            ) =>
+                repository.publishPlanVersionDraft!(
+                    (await repository.createPlanVersionDraft!(draft)).id,
+                    publishedOn(validFrom, null),
+                );
+            const current = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            await repository.create({ planKey: 'SCHEDULED', label: 'Scheduled' });
+            const onSale = await publish(planDraft('SCHEDULED', '2026-01-01'), '2026-01-01');
+            // Published as well, and the newest — but it starts in June.
+            const fromJune = await publish(
+                { ...planDraft('SCHEDULED', '2026-06-01'), baseVersionId: onSale.id },
+                '2026-06-01',
+            );
+
+            const cases: Array<[string, string, string]> = [
+                ['tenant-before-june', '2026-03-01', onSale.id],
+                ['tenant-from-june', '2026-06-01', fromJune.id],
+            ];
+            for (const [tenantId, day, expected] of cases) {
+                await seed.createSubscription({
+                    tenantId,
+                    plan: 'STARTER',
+                    planVersionId: current.planVersionId,
+                });
+                const periodStart = new Date(`${day}T00:00:00.000Z`);
+                const change = await adapter.tenantSubscriptionWrite.changePlanImmediate(tenantId, {
+                    planId: 'SCHEDULED',
+                    cycle: 'MONTHLY',
+                    periodStart,
+                    periodEnd: new Date(periodStart.getTime() + 30 * 24 * 60 * 60 * 1000),
+                    nextStatus: null,
+                    expectedCanceledAt: null,
+                    keepsBoundVersion: false,
+                    quotedPlanVersionId: null,
+                });
+                assert.equal(change.claimed, true, `the change for ${tenantId} claimed nothing`);
+                assert.equal(
+                    (await adapter.subscriptionRepository.findByTenantId(tenantId))?.planVersionId,
+                    expected,
+                    `a change taking effect on ${day} binds the version on sale that day`,
+                );
+            }
         });
 
         test('a plan change for a tenant without a subscription is refused as gone', async (t) => {
@@ -1491,6 +1572,91 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     )
                 )?.id,
                 second.id,
+            );
+        });
+
+        // @requirement SC-PLAN-027
+        test('the catalogue names the version on sale at the moment it is read, as a booking does', async (t) => {
+            const repository = harness.adapter.planRepository;
+            const sink = harness.adapter.planCatalogReadSink;
+            if (
+                !sink ||
+                !repository?.createPlanVersionDraft ||
+                !repository.publishPlanVersionDraft ||
+                !repository.findActivePlanVersion ||
+                !repository.terminate
+            ) {
+                missing(t, 'planCatalogRead');
+                return;
+            }
+            const scenarioPlans = ['WINDOWED', 'ENDING', 'DRAFTED', 'LEGACY'];
+            const onSaleAt = async (asOf: Date) =>
+                Object.fromEntries(
+                    (await sink.loadSnapshot(asOf)).versionsOnSale
+                        .filter((row) => scenarioPlans.includes(row.planId))
+                        .map((row) => [row.planId, row.id]),
+                );
+            const publish = async (
+                draft: ReturnType<typeof planDraft> & { baseVersionId?: string },
+                validFrom: string,
+            ) =>
+                repository.publishPlanVersionDraft!(
+                    (await repository.createPlanVersionDraft!(draft)).id,
+                    publishedOn(validFrom, null),
+                );
+
+            await repository.create({ planKey: 'WINDOWED', label: 'Windowed' });
+            const first = await publish(planDraft('WINDOWED', '2026-01-01'), '2026-01-01');
+            const second = await publish(
+                { ...planDraft('WINDOWED', '2026-06-01'), baseVersionId: first.id },
+                '2026-06-01',
+            );
+            await repository.create({ planKey: 'ENDING', label: 'Ending' });
+            const ending = await publish(planDraft('ENDING', '2026-01-01'), '2026-01-01');
+            await repository.terminate(ending.id, new Date('2026-04-01T00:00:00.000Z'));
+            await repository.create({ planKey: 'DRAFTED', label: 'Drafted' });
+            await repository.createPlanVersionDraft(planDraft('DRAFTED', '2026-01-01'));
+            // Versions published while the dates were not kept carry none: the
+            // newest of them is on sale until a dated successor starts.
+            await repository.create({ planKey: 'LEGACY', label: 'Legacy' });
+            const legacy = { planKey: 'LEGACY', quotas: {}, features: [], published: true };
+            await harness.seed.createPlanVersion({ ...legacy, version: 1, superseded: true });
+            const undated = await harness.seed.createPlanVersion({ ...legacy, version: 2 });
+            const dated = await publish(planDraft('LEGACY', '2026-06-01'), '2026-06-01');
+
+            const spring = new Date('2026-03-01T00:00:00.000Z');
+            const summer = new Date('2026-06-01T00:00:00.000Z');
+            assert.deepEqual(
+                await onSaleAt(spring),
+                { WINDOWED: first.id, ENDING: ending.id, LEGACY: undated.planVersionId },
+                'the predecessor is on sale until the day its successor starts, and a draft never',
+            );
+            assert.deepEqual(
+                await onSaleAt(summer),
+                { WINDOWED: second.id, LEGACY: dated.id },
+                'the successor from its first day, and an ended version no longer',
+            );
+            for (const asOf of [spring, summer]) {
+                const catalogue = await onSaleAt(asOf);
+                for (const planKey of ['WINDOWED', 'LEGACY']) {
+                    assert.equal(
+                        catalogue[planKey],
+                        (await repository.findActivePlanVersion(planKey, asOf))?.id,
+                        'the catalogue names the version a booking binds',
+                    );
+                }
+            }
+
+            // Ended, the newest version leaves nothing on sale: a superseded
+            // version without a last day — as an import or an installation
+            // without dates left it — does not come back at its old price.
+            await repository.terminate(dated.id, new Date('2026-09-01T00:00:00.000Z'));
+            const autumn = new Date('2026-10-01T00:00:00.000Z');
+            assert.equal((await onSaleAt(autumn)).LEGACY, undefined, 'the catalogue names none');
+            assert.equal(
+                await repository.findActivePlanVersion('LEGACY', autumn),
+                null,
+                'and a booking finds none',
             );
         });
 
@@ -2280,13 +2446,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     null,
                 );
             }
-            assert.equal(await entitlementVersions.findLatestLive('NO_SUCH_PLAN'), null);
-            if (entitlementVersions.findActive) {
-                assert.equal(
-                    await entitlementVersions.findActive('NO_SUCH_PLAN', new Date()),
-                    null,
-                );
-            }
+            assert.equal(await entitlementVersions.findActive('NO_SUCH_PLAN', new Date()), null);
         });
 
         test('retiring a plan hides none of its versions', async (t) => {
@@ -2305,6 +2465,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 missing(t, 'planVersionRetirement');
                 return;
             }
+            const whileOnSale = new Date('2026-03-01T00:00:00.000Z');
             const listVersions = repository.listVersions.bind(repository);
             const findCurrentDraft = repository.findCurrentDraft.bind(repository);
             const findLatestLive = repository.findLatestLivePlanVersion.bind(repository);
@@ -2340,7 +2501,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 draft: (await findCurrentDraft('RETIRING'))?.id ?? null,
                 latestLive: (await findLatestLive('RETIRING'))?.id ?? null,
                 entitlementFeatures:
-                    (await entitlementVersions.findLatestLive('RETIRING'))?.features ?? null,
+                    (await entitlementVersions.findActive('RETIRING', whileOnSale))?.features ??
+                    null,
             });
             const beforeRetiring = await reads();
             // The entitlement read goes through a slice an adapter may keep in a

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { Inject, Injectable } from '@nestjs/common';
+import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type {
     CreatePlanData,
     CreatePlanVersionDraftData,
@@ -19,26 +19,14 @@ import {
     catalogVersionGone,
     planKeyTaken,
     previousUtcDay,
-    startOfUtcDay,
     toPlanRow,
     toPlanVersionRow,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
+import { ON_SALE_ORDER, onSaleAt } from './plan-version-on-sale.js';
 import { plans, planVersions } from './schema.js';
 
 type PlanVersionTableRow = typeof planVersions.$inferSelect;
-
-/** Whether this adapter answers validity-window questions at all. */
-export interface DrizzlePlanRepositoryOptions {
-    /**
-     * Opt-in, mirroring `adapter-prisma` and `DrizzleBundleRepository`. Without
-     * it a draft's `validFrom`/`validUntil` are neither written nor returned and
-     * `findActivePlanVersion` is not offered, so a consumer whose schema
-     * predates the columns gets a capability that is absent rather than one
-     * that answers from columns nobody maintains.
-     */
-    validityWindows?: boolean;
-}
 
 /**
  * `PlanRepository` against the canonical `plans` and `plan_versions`.
@@ -55,27 +43,7 @@ export interface DrizzlePlanRepositoryOptions {
  */
 @Injectable()
 export class DrizzlePlanRepository implements PlanRepository {
-    private readonly validityWindows: boolean;
-
-    constructor(
-        @Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient,
-        @Optional() options: DrizzlePlanRepositoryOptions = {},
-    ) {
-        this.validityWindows = options.validityWindows ?? false;
-        // Assigned rather than declared, and only when promised — see the same
-        // constructor in `DrizzleBundleRepository` for why a method that exists
-        // and cannot answer is worse than one that is absent.
-        if (this.validityWindows) {
-            this.findActivePlanVersion = (planKey, asOf, tx) =>
-                this.activeVersionAt(planKey, asOf ?? new Date(), tx);
-        }
-    }
-
-    readonly findActivePlanVersion?: (
-        planKey: string,
-        asOf?: Date,
-        tx?: TransactionContext,
-    ) => Promise<PlanVersionRow | null>;
+    constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {}
 
     // ─── Stem operations ───
 
@@ -243,39 +211,17 @@ export class DrizzlePlanRepository implements PlanRepository {
         return rows[0] ? this.versionRow(rows[0]) : null;
     }
 
-    /**
-     * The version bookable at `asOf`: published, inside its validity window,
-     * not terminated.
-     *
-     * `validUntil` is day-inclusive — a window that closes on the 28th is still
-     * open at 23:59 on the 28th — which is why the comparison is against
-     * `startOfUtcDay(asOf)` and not against `asOf`. The reading half of the
-     * rule `previousUtcDay` writes in `publishWithin`; both come from
-     * `@saasicat/core` so the two halves cannot drift apart.
-     */
-    private async activeVersionAt(
+    /** The version on sale at `asOf`: published, inside its validity window, not ended. */
+    async findActivePlanVersion(
         planKey: string,
-        asOf: Date,
+        asOf: Date = new Date(),
         tx?: TransactionContext,
     ): Promise<PlanVersionRow | null> {
         const rows = await resolveDb(this.db, tx)
             .select()
             .from(planVersions)
-            .where(
-                and(
-                    eq(planVersions.planId, planKey),
-                    sql`${planVersions.publishedAt} IS NOT NULL`,
-                    or(isNull(planVersions.validFrom), lte(planVersions.validFrom, asOf)),
-                    or(
-                        isNull(planVersions.validUntil),
-                        gte(planVersions.validUntil, startOfUtcDay(asOf)),
-                    ),
-                    or(isNull(planVersions.endsAt), gt(planVersions.endsAt, asOf)),
-                ),
-            )
-            // `nulls last` so a version with no window loses to one that has a
-            // window it is inside — the order adapter-prisma uses.
-            .orderBy(sql`"validFrom" DESC NULLS LAST`, desc(planVersions.version))
+            .where(and(eq(planVersions.planId, planKey), onSaleAt(asOf)))
+            .orderBy(...ON_SALE_ORDER)
             .limit(1);
         return rows[0] ? this.versionRow(rows[0]) : null;
     }
@@ -307,12 +253,8 @@ export class DrizzlePlanRepository implements PlanRepository {
                 updatedAt: now,
                 // publishedAt stays null — this is a draft. `bundles` is
                 // app-specific and has no column here, as in adapter-prisma.
-                ...(this.validityWindows
-                    ? {
-                          validFrom: toNullableDate(data.validFrom),
-                          validUntil: toNullableDate(data.validUntil),
-                      }
-                    : {}),
+                validFrom: toNullableDate(data.validFrom),
+                validUntil: toNullableDate(data.validUntil),
             })
             // On the one-draft-per-plan index and on the version number: a
             // draft created in the meantime is refused.
@@ -341,10 +283,10 @@ export class DrizzlePlanRepository implements PlanRepository {
                 ...(data.yearlyNet !== undefined ? { yearlyNet: data.yearlyNet } : {}),
                 ...(data.marketed !== undefined ? { marketed: data.marketed } : {}),
                 ...(data.changeNote !== undefined ? { changeNote: data.changeNote } : {}),
-                ...(this.validityWindows && data.validFrom !== undefined
+                ...(data.validFrom !== undefined
                     ? { validFrom: toNullableDate(data.validFrom) }
                     : {}),
-                ...(this.validityWindows && data.validUntil !== undefined
+                ...(data.validUntil !== undefined
                     ? { validUntil: toNullableDate(data.validUntil) }
                     : {}),
                 updatedAt: new Date(),
@@ -409,9 +351,8 @@ export class DrizzlePlanRepository implements PlanRepository {
                 publishedChanges: publishMeta.publishedChanges,
                 nonRegressive: publishMeta.nonRegressive,
                 updatedAt: now,
-                ...(this.validityWindows
-                    ? { validFrom: publishMeta.validFrom, validUntil: publishMeta.validUntil }
-                    : {}),
+                validFrom: publishMeta.validFrom,
+                validUntil: publishMeta.validUntil,
             })
             .where(and(eq(planVersions.id, versionId), isNull(planVersions.publishedAt)))
             .returning();
@@ -430,15 +371,11 @@ export class DrizzlePlanRepository implements PlanRepository {
 
         await db
             .update(planVersions)
-            .set(
-                this.validityWindows
-                    ? {
-                          supersededAt: now,
-                          validUntil: previousUtcDay(publishMeta.validFrom),
-                          updatedAt: now,
-                      }
-                    : { supersededAt: now, updatedAt: now },
-            )
+            .set({
+                supersededAt: now,
+                validUntil: previousUtcDay(publishMeta.validFrom),
+                updatedAt: now,
+            })
             .where(
                 and(
                     eq(planVersions.planId, publishedRows[0].planId),
@@ -481,13 +418,7 @@ export class DrizzlePlanRepository implements PlanRepository {
     }
 
     private versionRow(row: PlanVersionTableRow): PlanVersionRow {
-        return toPlanVersionRow(row, row.planId, {
-            validityWindows: this.validityWindows,
-            // The canonical schema always has the column, so this adapter can
-            // always answer the question — unlike a Prisma consumer whose
-            // schema may predate it.
-            endsAt: true,
-        });
+        return toPlanVersionRow(row, row.planId);
     }
 }
 

@@ -61,6 +61,7 @@ const reviewVersion = computed(() => {
         nonRegressive: true,
         validFrom: form?.validFrom ?? null,
         validUntil: form?.validUntil ?? null,
+        endsAt: null,
         createdByUserId: null,
         publishedByUserId: null,
         createdAt: nowIso,

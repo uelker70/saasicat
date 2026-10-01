@@ -4,12 +4,12 @@
 // Inputs:
 //  - The settings of `config/saas.yaml` — every block that is not the
 //    catalogue, handed on whole.
-//  - DB snapshot with Plans + live PlanVersions + FeatureCatalogEntries.
+//  - DB snapshot with Plans + the version of each on sale + FeatureCatalogEntries.
 //
 // Output: `PlanCatalog` (same wire format as the YAML loader).
 //
 // Mapping:
-//  - PlanDef ← Plan + matching live PlanVersion (via planKey === planId)
+//  - PlanDef ← Plan + its version on sale (via planKey === planId)
 //  - FeatureDef ← FeatureCatalogEntry
 
 import type {
@@ -34,16 +34,15 @@ export function buildPlanCatalogFromSnapshot(
     settings: PlanCatalogBuildSettings,
     snapshot: PlanCatalogReadSnapshot,
 ): PlanCatalog {
-    // Index live PlanVersions by planKey for O(1) lookup
-    const liveByPlanKey = new Map(snapshot.livePlanVersions.map((v) => [v.planId, v]));
+    const onSaleByPlanKey = new Map(snapshot.versionsOnSale.map((v) => [v.planId, v]));
 
     const plans: PlanDef[] = snapshot.plans
         .filter((p) => p.deletedAt === null)
         .sort((a, b) => a.sortOrder - b.sortOrder || byKey(a.planKey, b.planKey))
         .map((stem) => {
-            const live = liveByPlanKey.get(stem.planKey);
-            if (!live) {
-                // Plan without a live version — minimal stub so the catalog
+            const onSale = onSaleByPlanKey.get(stem.planKey);
+            if (!onSale) {
+                // Plan with nothing on sale — minimal stub so the catalog
                 // is structurally complete (getPlan() still finds it).
                 // marketed: false, otherwise unpublished plans appear
                 // as "on request" in self-service lists (getMarketedPlans
@@ -61,7 +60,7 @@ export function buildPlanCatalogFromSnapshot(
             }
             return planDefFromVersion(
                 { id: stem.planKey, name: stem.label, tagline: stem.description ?? undefined },
-                live,
+                onSale,
             );
         });
 
@@ -86,7 +85,7 @@ export function buildPlanCatalogFromSnapshot(
 
 /**
  * A plan as the catalogue describes it: its identity, and what one version of
- * it costs and includes. The catalogue builds it from the live version; the
+ * it costs and includes. The catalogue builds it from the version on sale; the
  * contract freeze from the version a subscription is bound to.
  */
 export function planDefFromVersion(

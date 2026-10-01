@@ -476,17 +476,34 @@ describe('a subscriber on an older version of the plan', () => {
             features: ['CORE_IDENTITY'],
             quotas: { users: 8, members: 1000, storageGb: 10 },
         };
+        /** Published today, starting next month: the newest, and not yet on sale. */
+        const STANDARD_NEXT_MONTH = {
+            ...STANDARD_LIVE,
+            id: 'pv-standard-4',
+            version: 4,
+            monthlyNet: '69.00',
+            yearlyNet: '690.00',
+        };
+        const asked = [];
         const reading = {
             ...plans,
-            findLatestLivePlanVersion: async (key) => (key === 'STANDARD' ? STANDARD_LIVE : null),
+            findActivePlanVersion: async (key, asOf) => {
+                asked.push([key, asOf]);
+                return key === 'STANDARD' ? STANDARD_LIVE : null;
+            },
+            findLatestLivePlanVersion: async (key) =>
+                key === 'STANDARD' ? STANDARD_NEXT_MONTH : null,
         };
         const at = new Date('2026-05-15');
 
-        test('another plan at the version live now, priced from that version and named by it', async () => {
+        // @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+        test('another plan at the version on sale now, priced from that version and named by it', async () => {
+            asked.length = 0;
             const dto = await previewFor(reading).preview('t1', 'STANDARD', 'MONTHLY', at);
 
-            assert.equal(dto.target.planVersionId, 'pv-standard-3');
+            assert.equal(dto.target.planVersionId, 'pv-standard-3', 'not the newest published');
             assert.equal(dto.target.plan.monthlyNet, 59, 'the price of the version named');
+            assert.deepEqual(asked, [['STANDARD', at]], 'asked at the moment of the preview');
         });
 
         test('the plan it stays on at the version kept', async () => {

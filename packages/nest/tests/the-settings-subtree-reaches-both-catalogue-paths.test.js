@@ -22,7 +22,7 @@ import { CATALOGUE_KEYS, settingsSubtreeOf } from '@saasicat/core';
 
 import { buildPlanCatalogFromSnapshot } from '../dist/billing/index.js';
 
-const EMPTY_SNAPSHOT = { plans: [], livePlanVersions: [], featureEntries: [] };
+const EMPTY_SNAPSHOT = { plans: [], versionsOnSale: [], featureEntries: [] };
 
 describe('the database path carries every setting the schema declares', () => {
     const settingKeys = Object.keys(planCatalogSchema.properties).filter(

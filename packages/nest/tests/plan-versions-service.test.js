@@ -934,3 +934,14 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
         );
     });
 });
+
+describe('a plan repository that cannot say which version is on sale', () => {
+    test('stops the plan editor at the start', () => {
+        const repo = new FakePlanRepository();
+        repo.findActivePlanVersion = undefined;
+        assert.throws(
+            () => new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' }, null),
+            /PlanRepository\.findActivePlanVersion is missing/,
+        );
+    });
+});

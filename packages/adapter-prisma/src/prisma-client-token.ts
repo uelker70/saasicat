@@ -71,9 +71,9 @@ export interface PlanVersionRowLike {
     nonRegressive: boolean;
     createdByUserId: string | null;
     publishedByUserId: string | null;
-    validFrom?: Date | null;
-    validUntil?: Date | null;
-    endsAt?: Date | null;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    endsAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }

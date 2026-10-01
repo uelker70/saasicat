@@ -208,6 +208,23 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
         assert.equal(limits.features.has('DMS'), true);
     });
 
+    // @requirement SC-PLAN-027 — The catalogue, every price and every booking name the same version at the same moment
+    test('TRIAL: the plan the trial grants is read at its version on sale at that moment', async () => {
+        const { svc, subRepo, pvRepo } = buildHarness({
+            defaultTrialEntitlementPlan: 'PROFESSIONAL',
+        });
+        const asked = [];
+        const read = pvRepo.findActive.bind(pvRepo);
+        pvRepo.findActive = async (planId, asOf, tx) => {
+            asked.push([planId, asOf]);
+            return read(planId, asOf, tx);
+        };
+        subRepo.set(buildSub({ status: 'TRIAL', trialEntitlementPlan: 'PROFESSIONAL' }));
+
+        await svc.computeLimits('t1', NOW);
+        assert.deepEqual(asked, [['PROFESSIONAL', NOW]]);
+    });
+
     test('Pilot with config: pilotEntitlementPlan overrides', async () => {
         const { svc, subRepo } = buildHarness({
             pilotEntitlementPlan: 'PROFESSIONAL',

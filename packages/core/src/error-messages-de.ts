@@ -152,8 +152,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_TENANT_MISMATCH: 'Das Abonnement gehört nicht zu diesem Mandanten',
     SUBSCRIPTION_BUNDLE_NOT_FOUND: "SubscriptionBundle '{subscriptionBundleId}' nicht gefunden",
     TENANT_NOT_FOUND: 'Mandant {slug} nicht gefunden',
-    NO_ACTIVE_PLAN_VERSION:
-        'Zum {asOf} ist keine Planversion für {planId} aktiv — weder ist das validFrom-Fenster erfüllt, noch steht eine jüngste Live-Version bereit.',
+    NO_ACTIVE_PLAN_VERSION: 'Zum {asOf} ist keine Version des Plans {planId} im Verkauf.',
     BOUND_PLAN_VERSION_UNREADABLE:
         'Die Planversion, an die dieses Abonnement gebunden ist ({planVersionId}), ist für den Plan "{planKey}" nicht lesbar; deshalb kann kein Wechsel berechnet werden.',
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog',

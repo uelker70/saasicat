@@ -29,6 +29,7 @@ _Tested by:_
 - `packages/nest/tests/entitlement-service.test.js`
     - EntitlementService — deriveLimits + Resolution
         - TRIAL: uses trialEntitlementPlan via DB lookup
+        - TRIAL: the plan the trial grants is read at its version on sale at that moment
         - Pilot with config: pilotEntitlementPlan overrides
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
     - SubscriptionBundle aggregation (P11.7.3)
@@ -133,6 +134,7 @@ _Tested by:_
 - `packages/nest/tests/entitlement-service.test.js`
     - EntitlementService — deriveLimits + Resolution
         - TRIAL: uses trialEntitlementPlan via DB lookup
+        - TRIAL: the plan the trial grants is read at its version on sale at that moment
         - Pilot with config: pilotEntitlementPlan overrides
     - EntitlementService — V3 ContractLineItems
         - reads entitlements from active contract snapshot without catalog join

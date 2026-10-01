@@ -114,14 +114,13 @@ export interface PlanRepository {
     findVersionById?(versionId: string): Promise<PlanVersionRow | null>;
     findCurrentDraft?(planKey: string): Promise<PlanVersionRow | null>;
     /**
-     * Currently published (= live) PlanVersion of a plan:
+     * The newest published version of a plan:
      * `publishedAt IS NOT NULL AND supersededAt IS NULL`.
      *
-     * Note: returns the *newest* published version by
-     * `version` number and ignores `validFrom`/`validUntil`. For
-     * time-aware reads (onboarding, marketing catalog, entitlement
-     * fallback) use `findActivePlanVersion(planKey, asOf)`, which returns
-     * the version *active at a point in time*.
+     * The version a publish chains to, not the version on sale: a successor
+     * published today with a start next month is the newest at once, and its
+     * predecessor goes on selling until then. What is on sale — for a booking,
+     * a price, a catalogue, an offer — is `findActivePlanVersion`.
      */
     findLatestLivePlanVersion?(
         planKey: string,
@@ -129,26 +128,31 @@ export interface PlanRepository {
     ): Promise<PlanVersionRow | null>;
 
     /**
-     * PlanVersion of a plan active at `asOf` ( extended):
+     * The version of a plan on sale at `asOf` — the one a booking made then
+     * binds:
      *   `publishedAt IS NOT NULL`
      *   `(validFrom IS NULL OR validFrom <= asOf)`
      *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  — day-inclusive
+     *   `(endsAt IS NULL OR endsAt > asOf)`
      *
-     * `validFrom IS NULL` is treated like "valid since forever" so that legacy data
-     * without a start date (published before the §4.2 publish requirement) does not
-     * fall out of the catalog. `validUntil` is day-inclusive (calendar day): the version
-     * is valid until the end of its validUntil day, not just until midnight.
-     * Adapters build the WHERE via `buildActivePlanVersionWhere`.
+     * `validFrom IS NULL` is treated like "valid since forever" so that a
+     * version published without a start date does not fall out of the
+     * catalogue. `validUntil` is day-inclusive (calendar day): the version is
+     * valid until the end of its validUntil day, not just until midnight.
+     * Adapters build the WHERE via
+     * `buildActivePlanVersionWhere(asOf, { withEndsAt: true })`.
      *
      * If multiple match: the one with the highest `validFrom` (= the
-     * "last active"). Adapters must request `NULLS LAST` explicitly so a
-     * null start date remains a genuine fallback. Default `asOf` is the call
-     * time.
+     * "last active"), then the highest version. Adapters must request
+     * `NULLS LAST` explicitly so a null start date remains a genuine fallback.
+     * Default `asOf` is the call time.
      *
-     * Usage: everything that concerns *new* bookings/plan changes
-     * (onboarding, public marketing, entitlement fallback on TRIAL).
-     * Existing subscriptions stay on their bound `planVersionId`
-     * (P1 contract protection).
+     * Every read of what is on sale goes through this — the catalogue, the
+     * plan-change preview, checkout, the public marketing catalogue, every
+     * booking and the offer to existing subscriptions — so all of them name
+     * the same version at the same moment. Existing subscriptions stay on
+     * their bound `planVersionId`. A repository that reads versions and
+     * leaves this out is refused at start-up.
      */
     findActivePlanVersion?(
         planKey: string,

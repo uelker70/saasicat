@@ -46,7 +46,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         // terminated, newest window first — and the catalogue already owns it.
         // Writing the same predicate a second time here is how two readings of
         // one rule start to disagree.
-        this.plans = new DrizzlePlanRepository(this.db, { validityWindows: true });
+        this.plans = new DrizzlePlanRepository(this.db);
     }
 
     async changePlanImmediate(
@@ -306,7 +306,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         asOf: Date,
         tx: TransactionContext,
     ): Promise<string> {
-        const active = await this.plans.findActivePlanVersion?.(planKey, asOf, tx);
+        const active = await this.plans.findActivePlanVersion(planKey, asOf, tx);
         if (!active) throw noActivePlanVersion(planKey, asOf);
         return active.id;
     }

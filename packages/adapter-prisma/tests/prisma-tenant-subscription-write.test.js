@@ -298,14 +298,9 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
             planBinding: { mode: 'normalized-plan-id' },
             delegates: { entitlementPlanVersion: 'billingPlanVersion' },
-            planVersionFields: {
-                entitlement: { validityWindows: true, endsAt: true },
-            },
             tenantSubscription: {
                 delegate: 'membership',
                 synchronizePlanVersion: true,
-                activeVersionSelection: 'validity-window',
-                withEndsAt: true,
             },
         });
 
@@ -320,7 +315,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         assert.deepEqual(result, { plan: 'PRO', billingCycle: 'YEARLY', claimed: true });
         assert.equal(prisma.calls.transactions, 1);
         assert.equal(prisma.calls.planVersionFindFirst[0].where.planId, 'plan-pro');
-        assert.equal(prisma.calls.planVersionFindFirst[0].where.AND.length, 3);
+        assert.equal(prisma.calls.planVersionFindFirst[0].where.AND.length, 4);
         assert.deepEqual(prisma.calls.planVersionFindFirst[0].orderBy[0], {
             validFrom: { sort: 'desc', nulls: 'last' },
         });
@@ -493,20 +488,6 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         assert.equal(prisma.state.subscription.plan, 'STARTER');
         assert.equal(prisma.state.subscription.planVersionId, undefined);
         assert.equal(prisma.state.redemptions.length, 0);
-    });
-
-    test('invalid validity capability combinations fail at construction', () => {
-        const prisma = fakePrisma();
-        assert.throws(
-            () =>
-                new PrismaTenantSubscriptionWriteAdapter(prisma, {
-                    tenantSubscription: {
-                        synchronizePlanVersion: true,
-                        activeVersionSelection: 'validity-window',
-                    },
-                }),
-            /validityWindows=true/,
-        );
     });
 });
 

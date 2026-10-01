@@ -29,8 +29,6 @@ export {
     type PrismaPlanBindingOptions,
     type PrismaPlanBindingResolver,
     type PrismaPlanDelegateOptions,
-    type PrismaPlanVersionFieldCapabilities,
-    type PrismaPlanVersionFieldOptions,
     type PrismaSchemaOptions,
     type PrismaTenantSubscriptionOptions,
     type ResolvedPrismaSchemaOptions,

@@ -152,7 +152,7 @@ describe('a terminated plan version ends when it ends, not hours before', () => 
 
     test('a version is bookable at a moment before it ends', async () => {
         const endsAt = await endingIn('ENDS-LATER', 60 * 60 * 1000);
-        const repository = new DrizzlePlanRepository(drizzle(berlin), { validityWindows: true });
+        const repository = new DrizzlePlanRepository(drizzle(berlin));
 
         const bookable = await repository.findActivePlanVersion(
             'ENDS-LATER',
