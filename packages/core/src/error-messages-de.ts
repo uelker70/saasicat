@@ -60,12 +60,12 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         "Die PlanVersion '{versionId}' wurde bereits von einer Nachfolgeversion abgelöst und kann nicht beendet werden.",
     PLAN_VERSION_VALID_FROM_REQUIRED:
         'validFrom muss beim Veröffentlichen gesetzt sein (am Entwurf oder im Publish-Aufruf)..',
-    PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein gültiges Datum",
+    PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein Tag (JJJJ-MM-TT)",
     PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) muss strikt nach dem validFrom der Vorgängerversion ({previousValidFrom}) liegen.',
     PLAN_VERSION_VALID_FROM_NOT_GAPLESS:
         'Der Vorgänger hat validUntil={previousValidUntil} — der Nachfolger muss lückenlos am Folgetag ({requiredValidFrom}) beginnen. Erhalten: {received}.',
-    PLAN_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' ist kein gültiges Datum",
+    PLAN_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' ist kein Tag (JJJJ-MM-TT)",
     PLAN_VERSION_VALID_UNTIL_BEFORE_FROM:
         'validUntil ({validUntil}) muss strikt nach validFrom ({validFrom}) liegen.',
     PLAN_TERMINATE_INVALID_DATE: 'endsAt ist kein gültiges Datum.',
@@ -94,14 +94,14 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementiere BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:
         'Veröffentlichte Bundle-Versionen müssen ein validFrom behalten. Setze ein neues Datum in der Zukunft, oder bearbeite den Entwurf vor dem Veröffentlichen.',
-    BUNDLE_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein gültiges Datum",
+    BUNDLE_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein Tag (JJJJ-MM-TT)",
     BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) muss strikt nach dem validFrom der Vorgängerversion ({previousValidFrom}) liegen.',
     BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS:
         'Der Vorgänger hat validUntil={previousValidUntil} — der Nachfolger muss lückenlos am Folgetag ({requiredValidFrom}) beginnen. Erhalten: {received}.',
     BUNDLE_VERSION_VALID_FROM_NOT_FUTURE:
         'validFrom ({validFrom}) muss bei einer veröffentlichten, aber zukünftigen Bundle-Version weiterhin in der Zukunft liegen.',
-    BUNDLE_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' ist kein gültiges Datum",
+    BUNDLE_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' ist kein Tag (JJJJ-MM-TT)",
     BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM:
         'validUntil ({validUntil}) muss strikt nach validFrom ({validFrom}) liegen.',
     STRICT_MODE_VIOLATIONS:

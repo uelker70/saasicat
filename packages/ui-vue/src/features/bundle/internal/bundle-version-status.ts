@@ -4,7 +4,7 @@
 // API calls — so it can be consumed 1:1 by the inline editor + strip +
 // status banner + compat picker and called purely in tests.
 
-import type { BundleVersionRow, PlanVersionRow } from '@saasicat/core';
+import { isVersionActiveAt, type BundleVersionRow, type PlanVersionRow } from '@saasicat/core';
 
 import {
     SA_INTL_LOCALES,
@@ -20,35 +20,26 @@ export type BundleVersionUiStatus = 'draft' | 'live' | 'scheduled' | 'superseded
 export type BundleAggregateStatus = BundleVersionUiStatus | 'retired';
 
 /**
- * Status of a BundleVersion at a given date. Mapping:
- *   - draft     : publishedAt === null
- *   - superseded: supersededAt !== null  OR  validUntil < today
- *   - scheduled : published, validFrom > today, supersededAt === null
- *   - live      : otherwise (published, validFrom ≤ today ≤ validUntil)
+ * Status of a BundleVersion at a given date, by the window the platform sells
+ * by (`isVersionActiveAt`):
+ *   - draft     : not published
+ *   - live      : on sale — including a predecessor whose successor starts
+ *                 later, until its last day has passed in full
+ *   - scheduled : not on sale yet, and on sale from its own first day
+ *   - superseded: anything else — its window has closed, or it was superseded
+ *                 without a last day, or before it ever started
  *
- * When `validFrom` is null (legacy version without lifecycle backfill),
- * the version is interpreted as "live" — this is the pragmatic
- * transitional behavior until the backfill migration.
+ * A version without `validFrom` counts as on sale since it was published.
  */
 export function bundleVersionStatus(
     v: BundleVersionRow,
     now: Date = new Date(),
 ): BundleVersionUiStatus {
     if (v.publishedAt === null) return 'draft';
-    if (v.supersededAt !== null) return 'superseded';
-    if (v.validUntil) {
-        const until = new Date(v.validUntil);
-        if (!Number.isNaN(until.getTime()) && until.getTime() < now.getTime()) {
-            return 'superseded';
-        }
-    }
-    if (v.validFrom) {
-        const from = new Date(v.validFrom);
-        if (!Number.isNaN(from.getTime()) && from.getTime() > now.getTime()) {
-            return 'scheduled';
-        }
-    }
-    return 'live';
+    if (isVersionActiveAt(v, now)) return 'live';
+    const start = v.validFrom ? new Date(v.validFrom) : null;
+    if (start && start > now && isVersionActiveAt(v, start)) return 'scheduled';
+    return 'superseded';
 }
 
 /** UI metadata for a status (label, CSS class, tooltip). */

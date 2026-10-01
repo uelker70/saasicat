@@ -87,6 +87,25 @@ describe('the window a version is refused for', () => {
         assert.equal(refusalOf({ validFrom: 'someday' }, {}, null), CODES.validFromInvalid);
     });
 
+    test('a start with a time of day', () => {
+        // Published with 09:00, the predecessor's last day would end the evening
+        // before and the morning would sell neither version.
+        assert.equal(
+            refusalOf({ validFrom: '2026-11-01T09:00:00Z' }, {}, null),
+            CODES.validFromInvalid,
+        );
+        // Midnight somewhere else is a time of day in UTC, and rounding it would
+        // start the version a day early.
+        assert.equal(
+            refusalOf({ validFrom: '2026-11-01T00:00:00+10:00' }, {}, null),
+            CODES.validFromInvalid,
+        );
+    });
+
+    test('but not the first moment of the day, as a stored draft gives it back', () => {
+        assert.equal(refusalOf({}, { validFrom: '2026-11-01T00:00:00.000Z' }, null), null);
+    });
+
     test('a start on or before the predecessor’s', () => {
         const previous = { validFrom: '2026-03-01' };
 
@@ -130,6 +149,13 @@ describe('the window a version is refused for', () => {
     test('an end that is not a date', () => {
         assert.equal(
             refusalOf({ validFrom: '2026-01-01', validUntil: 'someday' }, {}, null),
+            CODES.validUntilInvalid,
+        );
+    });
+
+    test('an end with a time of day', () => {
+        assert.equal(
+            refusalOf({ validFrom: '2026-01-01', validUntil: '2026-06-30T18:00:00Z' }, {}, null),
             CODES.validUntilInvalid,
         );
     });

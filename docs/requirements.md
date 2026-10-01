@@ -1698,10 +1698,13 @@ _Tested by:_
     - the window a version is refused for
         - no start at all
         - a start that is not a date
+        - a start with a time of day
+        - but not the first moment of the day, as a stored draft gives it back
         - a start on or before the predecessor’s
         - a start that leaves a gap after a predecessor that ends
         - a predecessor without an end imposes no seam
         - an end that is not a date
+        - an end with a time of day
         - an end on or before the start
         - the codes come from the caller, so a plan refuses as a plan
         - the gapless refusal says which day it wanted
@@ -6041,10 +6044,13 @@ _Tested by:_
     - the window a version is refused for
         - no start at all
         - a start that is not a date
+        - a start with a time of day
+        - but not the first moment of the day, as a stored draft gives it back
         - a start on or before the predecessor’s
         - a start that leaves a gap after a predecessor that ends
         - a predecessor without an end imposes no seam
         - an end that is not a date
+        - an end with a time of day
         - an end on or before the start
         - the codes come from the caller, so a plan refuses as a plan
         - the gapless refusal says which day it wanted

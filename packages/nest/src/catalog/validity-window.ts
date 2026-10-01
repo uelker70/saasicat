@@ -1,6 +1,6 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 
-import { CATALOG_ERROR_CODES } from '@saasicat/core';
+import { CATALOG_ERROR_CODES, startOfUtcDay } from '@saasicat/core';
 
 // When is a version of a catalog entity valid, and what makes a succession
 // sound?
@@ -17,13 +17,17 @@ import { CATALOG_ERROR_CODES } from '@saasicat/core';
 //
 // 1. A published version has a start. It may come from the publish call or
 //    from the draft, and the call wins.
-// 2. That start is a date.
+// 2. That start is a day: the beginning of a UTC day. The sale reads a last
+//    day as the whole of that day and a start from its first moment, so a
+//    start at 09:00 would leave the morning between predecessor and successor
+//    with neither on sale. Refused rather than rounded, because rounding reads
+//    a midnight given in another zone as the day before.
 // 3. It is strictly after the predecessor's start — otherwise the two are in
 //    the wrong order, or the same day carries two versions.
 // 4. If the predecessor has an END, the successor starts on the day after it.
 //    Anything else is a gap (a day with no valid version) or an overlap (a day
 //    with two).
-// 5. An end, if given, is a date strictly after the start.
+// 5. An end, if given, is a day strictly after the start.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -90,10 +94,10 @@ export function resolveValidityWindow(
     }
 
     const validFrom = new Date(validFromInput);
-    if (Number.isNaN(validFrom.getTime())) {
+    if (!isUtcDay(validFrom)) {
         throw new UnprocessableEntityException({
             code: codes.validFromInvalid,
-            message: `validFrom '${validFromInput}' is not a valid date`,
+            message: `validFrom '${validFromInput}' is not a day (YYYY-MM-DD, the beginning of a UTC day)`,
             params: { validFrom: validFromInput },
         });
     }
@@ -131,10 +135,10 @@ export function resolveValidityWindow(
     const validUntilInput =
         publishMeta.validUntil !== undefined ? publishMeta.validUntil : draft.validUntil;
     const validUntil = validUntilInput ? new Date(validUntilInput) : null;
-    if (validUntil && Number.isNaN(validUntil.getTime())) {
+    if (validUntil && !isUtcDay(validUntil)) {
         throw new UnprocessableEntityException({
             code: codes.validUntilInvalid,
-            message: `validUntil '${validUntilInput}' is not a valid date`,
+            message: `validUntil '${validUntilInput}' is not a day (YYYY-MM-DD, the beginning of a UTC day)`,
             params: { validUntil: validUntilInput },
         });
     }
@@ -150,4 +154,9 @@ export function resolveValidityWindow(
     }
 
     return { validFrom, validUntil };
+}
+
+/** A valid date at the first moment of its UTC day. */
+function isUtcDay(date: Date): boolean {
+    return !Number.isNaN(date.getTime()) && date.getTime() === startOfUtcDay(date).getTime();
 }

@@ -3,6 +3,7 @@
 '@saasicat/nest': major
 '@saasicat/adapter-prisma': major
 '@saasicat/adapter-drizzle': major
+'@saasicat/ui-vue': patch
 ---
 
 Sell an add-on version by its dates, as a plan version is
@@ -29,4 +30,10 @@ preview, checkout and a tenant's booking now read it the same way.
 - `@saasicat/nest`: a superseded add-on version is booked until its successor
   starts. `FakePlanRepository` and `FakeBundleRepository` answer the version on
   sale by the adapters' rule, including the one for a superseded version
-  without a last day.
+  without a last day. A version's start and end are days: publishing a plan or
+  an add-on version with a time of day is refused with its `…_VALID_FROM_INVALID`
+  or `…_VALID_UNTIL_INVALID`, which would otherwise leave the hours before it
+  with neither the predecessor nor the successor on sale.
+- `@saasicat/ui-vue`: the add-on admin calls a version live while it is on
+  sale — a predecessor until its successor starts, for the whole of its last
+  day — rather than superseded from the moment a successor is published.

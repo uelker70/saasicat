@@ -2400,6 +2400,10 @@ The switches that decided whether the dates were kept go:
   `BUNDLE_VERSION_NOT_YET_ON_SALE`, carrying `validFrom`; a version whose successor has taken over
   is refused with `BUNDLE_VERSION_SUPERSEDED`, as before. A superseded version is booked until its
   successor starts.
+- **A start or an end with a time of day** is refused, for plan versions as for add-on versions, with
+  `…_VALID_FROM_INVALID` or `…_VALID_UNTIL_INVALID`. A version is sold from the first moment of its
+  start day to the end of its last day, so a start at 09:00 would leave the morning with nothing on
+  sale. The admin sends days; a caller of the API that sends a timestamp sends midnight UTC.
 - **A persistence contract harness** no longer has a `bundleValidity` gap to declare for either
   shipped adapter.
 
