@@ -96,8 +96,8 @@
                     <AdminStatistics :columns="4">
                         <AdminKpi :label="msg.list.statPlans" :value="planCounts.plans" />
                         <AdminKpi
-                            :label="msg.list.statLive"
-                            :value="planCounts.live"
+                            :label="msg.list.statOnSale"
+                            :value="planCounts.onSale"
                             tone="positive"
                         />
                         <AdminKpi
@@ -231,6 +231,8 @@ import { useSuperAdminEndpoints, useSuperAdminHttp } from '../vue/use-super-admi
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import { countPlans, resolvePlans } from '../client/resolve-plans.js';
+import { versionOnSale } from '../client/version-sale.js';
+import { availableBundle, type AvailableBundle } from '../client/available-bundle.js';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
@@ -626,15 +628,14 @@ async function loadAuditFor(plan: PlanRow): Promise<void> {
 // ─── Impact per version (heuristic from Tenant counts) ───
 const impactByVersion = computed<Record<number, number>>(() => {
     // We only know the Tenant total per Plan. Without a dedicated
-    // "Tenants per version" endpoint we show the total on the active
-    // live version and 0 otherwise. Consumers can replace this later via a
-    // prop once the data is available.
+    // "Tenants per version" endpoint we show the total on the version on
+    // sale and 0 otherwise. Consumers can replace this later via a prop once
+    // the data is available.
     const result: Record<number, number> = {};
     if (!selectedPlan.value) return result;
-    const liveVersion =
-        versions.value.find((v) => v.publishedAt !== null && v.supersededAt === null) ?? null;
-    if (liveVersion) {
-        result[liveVersion.version] = tenantCountsByPlanKey.value[selectedPlan.value.planKey] ?? 0;
+    const onSale = versionOnSale(versions.value, new Date());
+    if (onSale) {
+        result[onSale.version] = tenantCountsByPlanKey.value[selectedPlan.value.planKey] ?? 0;
     }
     return result;
 });
@@ -761,22 +762,15 @@ async function loadEditorSources(): Promise<void> {
                             compatibility?: { planIds?: string[] | null } | null;
                             publishedAt: string | null;
                             supersededAt: string | null;
+                            validFrom?: string | null;
+                            validUntil?: string | null;
                         }>;
                     } | null;
                     if (!body) return null;
-                    const live = body.versions?.find(
-                        (v) => v.publishedAt !== null && v.supersededAt === null,
-                    );
-                    return {
-                        bundleKey: body.bundle.bundleKey,
-                        label: body.bundle.label,
-                        features: live?.features ?? [],
-                        // compatibility.planIds contains plan KEYS (see public-marketing-catalog).
-                        compatiblePlanKeys: live?.compatibility?.planIds ?? [],
-                    } as BundleEntry;
+                    return availableBundle(body.bundle, body.versions ?? [], new Date());
                 }),
             );
-            availableBundles.value = detailed.filter((b): b is BundleEntry => b !== null);
+            availableBundles.value = detailed.filter((b): b is AvailableBundle => b !== null);
         }
     } catch {
         // best-effort

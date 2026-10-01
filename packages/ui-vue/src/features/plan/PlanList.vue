@@ -66,13 +66,13 @@
                         </div>
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--status">
-                            <template v-if="p.currentLive">
+                            <template v-if="p.onSale">
                                 <span
                                     class="sa-plan-list-chip sa-plan-list-chip--live sa-plan-list-chip--dot"
-                                    >{{ msg.list.chipLive }}</span
+                                    >{{ saleText(p.onSale) }}</span
                                 >
                                 <span
-                                    v-if="!p.currentLive.marketed"
+                                    v-if="!p.onSale.marketed"
                                     class="sa-plan-list-chip sa-plan-list-chip--supersed sa-plan-list-chip--tiny"
                                     >{{ msg.list.chipPrivate }}</span
                                 >
@@ -81,13 +81,13 @@
                                 <span
                                     class="sa-plan-list-chip sa-plan-list-chip--scheduled sa-plan-list-chip--dot"
                                 >
-                                    {{ validFromLabel(p.primary.validFrom) }}
+                                    {{ saleText(p.primary) }}
                                 </span>
                             </template>
                             <template v-else>
                                 <span
                                     class="sa-plan-list-chip sa-plan-list-chip--supersed sa-plan-list-chip--dot"
-                                    >{{ msg.list.chipNoLive }}</span
+                                    >{{ msg.list.chipNothingOnSale }}</span
                                 >
                             </template>
                         </div>
@@ -105,7 +105,7 @@
                             <div v-if="p.primary?.validFrom" class="sa-plan-list-version-sub">
                                 {{
                                     validityRange(
-                                        p.currentLive ? msg.list.since : msg.list.from,
+                                        p.onSale ? msg.list.since : msg.list.from,
                                         p.primary.validFrom,
                                         p.primary.validUntil,
                                     )
@@ -222,21 +222,7 @@
                                 <span class="sa-plan-list-sub-tree-elbow" />
                             </div>
                             <div class="sa-plan-list-sub-titles">
-                                <div class="sa-plan-list-sub-title">
-                                    v{{ sub.version }}
-                                    <template v-if="sub.publishedAt === null">
-                                        <span
-                                            class="sa-plan-list-chip sa-plan-list-chip--draft sa-plan-list-chip--dot sa-plan-list-chip--tiny"
-                                            >{{ msg.list.chipDraft }}</span
-                                        >
-                                    </template>
-                                    <template v-else>
-                                        <span
-                                            class="sa-plan-list-chip sa-plan-list-chip--scheduled sa-plan-list-chip--dot sa-plan-list-chip--tiny"
-                                            >{{ msg.list.chipScheduled }}</span
-                                        >
-                                    </template>
-                                </div>
+                                <div class="sa-plan-list-sub-title">v{{ sub.version }}</div>
                                 <div class="sa-plan-list-sub-desc">
                                     {{ sub.changeNote || msg.list.noChangeNote }}
                                 </div>
@@ -245,14 +231,15 @@
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--status">
                             <span
-                                v-if="sub.publishedAt === null"
-                                class="sa-plan-list-chip sa-plan-list-chip--draft sa-plan-list-chip--dot sa-plan-list-chip--tiny"
-                                >{{ msg.list.chipDraft }}</span
-                            >
-                            <span
-                                v-else
-                                class="sa-plan-list-chip sa-plan-list-chip--scheduled sa-plan-list-chip--dot sa-plan-list-chip--tiny"
-                                >{{ validFromLabel(sub.validFrom) }}</span
+                                :class="[
+                                    'sa-plan-list-chip',
+                                    sub.publishedAt === null
+                                        ? 'sa-plan-list-chip--draft'
+                                        : 'sa-plan-list-chip--scheduled',
+                                    'sa-plan-list-chip--dot',
+                                    'sa-plan-list-chip--tiny',
+                                ]"
+                                >{{ saleText(sub) }}</span
                             >
                         </div>
 
@@ -337,9 +324,10 @@ import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
-import { formatMessage } from '../../client/i18n/format.js';
+import { formatDay, formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { useVersionSaleText } from '../../vue/use-version-sale-text.js';
 
 // PlanList — list view of all plans (default view in PlansPage,
 // corresponds to the ListScreen from the plan simulation). One row per
@@ -374,6 +362,7 @@ const emit = defineEmits<{
 const msg = useSaMessages('plans');
 const { locale, intlLocale } = useSuperAdminI18n();
 const common = useSaMessages('common');
+const saleText = useVersionSaleText();
 
 // `clearable` emits null, not '' — see Quasar's use-field clearValue().
 const search = ref<string | null>('');
@@ -395,8 +384,8 @@ const resolvedPlans = computed(() =>
 );
 
 const filteredPlans = computed(() => {
-    // Plans with only expired versions are hidden entirely
-    // — only currently-valid and future ones stay visible in the admin listing.
+    // A plan with nothing on sale, nothing scheduled and no draft is hidden —
+    // the admin listing shows what is sold now or will be.
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
     const q = (search.value ?? '').trim().toLocaleLowerCase(intlLocale.value);
     if (!q) return base;
@@ -411,14 +400,10 @@ const emptyNoMatch = computed(() =>
     formatMessage(msg.value.list.emptyNoMatch, { query: search.value ?? '' }),
 );
 
-function validFromLabel(validFrom: string | null | undefined): string {
-    return formatMessage(msg.value.list.validFrom, { date: validFrom?.slice(0, 10) ?? '' });
-}
-
 function validityRange(prefix: string, validFrom: string, validUntil: string | null): string {
-    const range = `${prefix} ${validFrom.slice(0, 10)}`;
+    const range = `${prefix} ${formatDay(validFrom, intlLocale.value)}`;
     if (!validUntil) return range;
-    return `${range} ${msg.value.list.until} ${validUntil.slice(0, 10)}`;
+    return `${range} ${msg.value.list.until} ${formatDay(validUntil, intlLocale.value)}`;
 }
 
 function tenantCountLabel(count: number): string {
@@ -442,9 +427,9 @@ function tenantBarWidth(count: number): string {
 
 function onNewVersion(row: ResolvedPlan<PlanRow, PlanVersionRow>): void {
     if (row.draft) return; // already an open draft → no new one
-    const basis = row.currentLive;
+    const basis = row.onSale;
     if (!basis) {
-        // without a live version: via the cockpit path
+        // nothing on sale: via the cockpit path
         emit('openPlan', row.plan);
         return;
     }
@@ -684,6 +669,9 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 /* Chips */
 .sa-plan-list-chip {
     display: inline-flex;
+    /* A state carries its day ("on sale from …"); the grid scrolls rather than
+     * folding the chip onto two lines. */
+    white-space: nowrap;
     align-items: center;
     gap: var(--sa-space-2);
     padding: var(--sa-space-1) var(--sa-space-3);

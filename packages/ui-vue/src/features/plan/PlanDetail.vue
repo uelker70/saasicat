@@ -2,7 +2,7 @@
     <div>
         <AdminSection class="q-mb-md">
             <PlanDetailKpis
-                :live-version="liveVersion"
+                :on-sale-version="onSaleVersion"
                 :draft-version="draftVersion"
                 :tenant-total="tenantTotal"
                 :version-count="versions.length"
@@ -68,6 +68,8 @@
 import { computed, ref, watch } from 'vue';
 import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/core';
 import { formatCurrency } from '../../client/i18n/currency.js';
+import { formatDay } from '../../client/i18n/format.js';
+import { versionOnSale, versionSale } from '../../client/version-sale.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './internal/PlanAuditLog.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
@@ -133,9 +135,7 @@ const { locale, intlLocale } = useSuperAdminI18n();
 
 // ── Status / Selection ──────────────────────────────────────────────
 function statusOf(v: PlanVersionRow): PlanVersionStatus {
-    if (v.publishedAt === null) return 'draft';
-    if (v.supersededAt !== null) return 'superseded';
-    return 'live';
+    return versionSale(v, new Date()).kind;
 }
 
 /**
@@ -146,17 +146,20 @@ function statusOf(v: PlanVersionRow): PlanVersionStatus {
 function editabilityOf(v: PlanVersionRow): PlanVersionEditability {
     return isVersionEditable(v);
 }
+const STATUS_CLASS: Record<PlanVersionStatus, string> = {
+    draft: 'draft',
+    scheduled: 'scheduled',
+    'on-sale': 'live',
+    'off-sale': 'supersed',
+};
 function statusChip(v: PlanVersionRow): string {
-    const s = statusOf(v);
-    return s === 'live' ? 'live' : s === 'draft' ? 'draft' : 'supersed';
+    return STATUS_CLASS[statusOf(v)];
 }
 
 const chronological = computed(() => [...props.versions].sort((a, b) => a.version - b.version));
 const tableRows = computed(() => [...props.versions].sort((a, b) => b.version - a.version));
 
-const liveVersion = computed(
-    () => props.versions.find((v) => v.publishedAt !== null && v.supersededAt === null) ?? null,
-);
+const onSaleVersion = computed(() => versionOnSale(props.versions, new Date()));
 const draftVersion = computed(() => props.versions.find((v) => v.publishedAt === null) ?? null);
 const publishedCount = computed(() => props.versions.filter((v) => v.publishedAt !== null).length);
 const nextDraftVersion = computed(
@@ -357,14 +360,7 @@ function openTerminateDialog(v: PlanVersionRow): void {
 }
 
 function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(intlLocale.value, {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
+    return iso ? formatDay(iso, intlLocale.value) : '—';
 }
 
 async function executeTerminate(): Promise<void> {
@@ -406,10 +402,6 @@ async function executeTerminate(): Promise<void> {
 </script>
 
 <style>
-.pd-code {
-    font: 500 var(--sa-text-xs) var(--sa-font-mono);
-}
-
 /* buttons + chips (1:1 styles.css) */
 .btn {
     display: inline-flex;
@@ -463,6 +455,11 @@ async function executeTerminate(): Promise<void> {
     background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
+}
+.chip.scheduled {
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border-color: var(--sa-color-scheduled-border);
 }
 .chip.supersed {
     background: var(--sa-color-border-soft);
@@ -550,13 +547,18 @@ async function executeTerminate(): Promise<void> {
 .pd-timeline-seg:active {
     transform: translateY(0);
 }
-.pd-timeline-seg.superseded {
+.pd-timeline-seg.supersed {
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
 }
 .pd-timeline-seg.live {
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
+    font-weight: 700;
+}
+.pd-timeline-seg.scheduled {
+    background: var(--sa-color-scheduled-surface-strong);
+    color: var(--sa-color-scheduled-fg);
     font-weight: 700;
 }
 .pd-timeline-seg.draft {
@@ -581,11 +583,15 @@ async function executeTerminate(): Promise<void> {
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
     font-weight: 700;
 }
-.pd-timeline-seg.is-selected.superseded {
+.pd-timeline-seg.is-selected.supersed {
     color: var(--sa-color-fg-heading);
 }
 .pd-timeline-seg.is-selected.live {
     outline-color: var(--sa-color-positive);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-4);
+}
+.pd-timeline-seg.is-selected.scheduled {
+    outline-color: var(--sa-color-scheduled-fg);
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-4);
 }
 .pd-timeline-seg.is-selected.draft {

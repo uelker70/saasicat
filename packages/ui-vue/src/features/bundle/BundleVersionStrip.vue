@@ -10,19 +10,20 @@
                 :key="v.id"
                 type="button"
                 class="bv-vtab"
-                :class="[`bv-vtab-${statusOf(v)}`, { 'bv-vtab-current': v.id === modelValue }]"
+                :class="[
+                    `bv-vtab-${statusMetaOf(v).cls}`,
+                    { 'bv-vtab-current': v.id === modelValue },
+                ]"
                 :title="statusMetaOf(v).tooltip"
                 @click="$emit('update:modelValue', v.id)"
             >
                 <span class="bv-vtab-name">v{{ v.version }}</span>
-                <span :class="['bv-vtab-status', statusOf(v)]">
+                <span :class="['bv-vtab-status', statusMetaOf(v).cls]">
                     {{ statusMetaOf(v).label }}
                 </span>
                 <span class="bv-vtab-dates">
-                    {{ formatDate(v.validFrom, locale) }}
-                    <template v-if="v.validUntil">
-                        – {{ formatDate(v.validUntil, locale) }}</template
-                    >
+                    {{ dayOf(v.validFrom) }}
+                    <template v-if="v.validUntil"> – {{ dayOf(v.validUntil) }}</template>
                     <template v-else> – {{ msg.fields.validUntilOpen }}</template>
                 </span>
                 <span class="bv-vtab-price">
@@ -56,9 +57,9 @@ import {
     bundleStatusMeta,
     bundleVersionStatus,
     bundleVersionsSorted,
-    formatDate,
     type BundleStatusMeta,
 } from './internal/bundle-version-status';
+import { formatDay } from '../../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionStrip — tab bar across all versions of a bundle, modeled on
@@ -82,7 +83,8 @@ defineEmits<{
 }>();
 
 const msg = useSaMessages('bundles');
-const { locale } = useSuperAdminI18n();
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
 
 const sortedVersions = computed(() => bundleVersionsSorted(props.versions));
 
@@ -93,7 +95,16 @@ function statusOf(v: BundleVersionRow) {
 }
 
 function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
-    return bundleStatusMeta(statusOf(v), msg.value);
+    return bundleStatusMeta(
+        statusOf(v),
+        v,
+        { bundles: msg.value, common: common.value, intlLocale: intlLocale.value },
+        props.now,
+    );
+}
+
+function dayOf(iso: string | null): string {
+    return iso ? formatDay(iso, intlLocale.value) : '—';
 }
 </script>
 
@@ -171,7 +182,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     background: var(--sa-color-warning-surface-strong);
     color: var(--sa-color-warning-fg);
 }
-.bv-vtab-status.superseded {
+.bv-vtab-status.supersed {
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
 }

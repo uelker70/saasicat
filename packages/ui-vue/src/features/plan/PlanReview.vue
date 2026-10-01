@@ -66,7 +66,7 @@
                             <div class="pr-label">{{ msg.review.labelValidFrom }}</div>
                             <div class="pr-val">
                                 <template v-if="version.validFrom">{{
-                                    version.validFrom.slice(0, 10)
+                                    formatDay(version.validFrom, intlLocale)
                                 }}</template>
                                 <i v-else class="pr-missing">{{
                                     msg.review.missingRequiredOnPublish
@@ -77,7 +77,7 @@
                             <div class="pr-label">{{ msg.review.labelValidUntil }}</div>
                             <div class="pr-val">
                                 <template v-if="version.validUntil">{{
-                                    version.validUntil.slice(0, 10)
+                                    formatDay(version.validUntil, intlLocale)
                                 }}</template>
                                 <span v-else class="pr-inf">{{ msg.review.unlimited }}</span>
                             </div>
@@ -222,7 +222,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/core';
-import { formatMessage } from '../../client/i18n/format.js';
+import { formatDay, formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 // This view replaces the page hero while it is open: its actions hang on the
@@ -287,7 +287,7 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('plans');
-const { locale } = useSuperAdminI18n();
+const { locale, intlLocale } = useSuperAdminI18n();
 const common = useSaMessages('common');
 
 const forceRegressive = ref(false);

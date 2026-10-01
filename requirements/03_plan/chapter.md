@@ -863,11 +863,15 @@ _Tested by:_
         - dated version wins over NULL-validFrom (fallback, not an override)
 - `packages/ui-vue/tests/resolve-plans.test.js`
     - resolvePlans
-        - picks the currently valid version as the live one
-        - falls back to the next scheduled version when nothing is live
+        - picks the version on sale
+        - falls back to the next scheduled version when nothing is on sale
         - gives a plan with only drafts a row without a version
         - marks a plan expired only when nothing is left to come
         - lists sub-rows without repeating the parent
+        - sells a superseded predecessor until its successor starts
+        - sells a version on the whole of its last day
+        - does not sell a version superseded without a last day
+        - does not sell a version that has ended, and hides a plan with nothing else
         - sorts by sortOrder, then by key
     - countPlans
         - counts what the tiles above the list show
@@ -1273,5 +1277,60 @@ _Tested by:_
     - a subscriber on an older version of the plan
         - is quoted a change at a version the change can name › another plan at the version on sale
           now, priced from that version and named by it
+
+<!-- END proof -->
+
+### SC-PLAN-028 — The admin says whether a version is on sale by the rule a booking follows
+
+🟢 Every admin screen that shows where a plan or add-on version stands says it by the rule the
+platform sells by (`SC-PLAN-027`, `SC-BUN-035`): a draft, on sale from a day, on sale — until its
+last day where one is known — or off sale since a day. A predecessor whose successor starts next
+month reads as on sale until then, not as superseded, and the plan list, the plan detail, the
+matrix, the marketing page and the add-on pages give the same answer for the same version at the
+same moment, with the day in the reader's language.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/available-bundle.test.js`
+    - an add-on offered beside the plans
+        - is offered at its version on sale, on the plans that version allows
+        - is offered at its next version where none is on sale yet
+        - is not offered once its last version has ended
+        - is not offered with only a draft
+        - keeps an empty list of plans meaning every plan where the version says so
+- `packages/ui-vue/tests/component/a-bundle-version-is-on-sale-by-its-dates.test.ts`
+    - a bundle version in the admin
+        - is on sale, though a successor has superseded it
+        - stays on sale for the whole of its last day
+        - is off sale once its successor has started
+        - is off sale when it was superseded without a last day
+        - is not scheduled when it was superseded before it ever started
+        - is a draft until it is published
+        - names the bundle by the version that decides its state
+- `packages/ui-vue/tests/version-sale.test.js`
+    - the sale state of a version
+        - is on sale until its last day, though a successor has superseded it
+        - stays on sale for the whole of its last day
+        - is off sale from the day after its last day
+        - is on sale from its first day before it starts
+        - is off sale, with no day, when it was superseded without a last day
+        - is not announced when it was superseded before it ever started
+        - ends at its end moment, and is on sale until the day before a midnight end
+        - reads an end at the close of a day as that day sold in full
+        - takes the earlier of a last day and an end
+        - is a draft until it is published
+    - the version on sale among several
+        - is the superseded predecessor until its successor starts, then the successor
+        - prefers the latest start, a version without one last, then the highest number
+        - is nobody when nothing is on sale
+        - is, for a listing, the next one scheduled where nothing is on sale yet
+    - the words for it
+        - names the day where the state has one
+        - says it without a day where there is none
+        - formats the UTC day, so a day stored at midnight does not slip back
 
 <!-- END proof -->

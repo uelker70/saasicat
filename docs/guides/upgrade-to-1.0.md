@@ -2433,6 +2433,29 @@ successor whose start passed while the page was open — is no longer bound at a
 - **A frontend of your own** sends the `target.planVersionId` of the preview it showed. On 409 it
   shows the `preview` that came with the refusal and asks again, rather than retrying the request.
 
+### The admin says whether a version is on sale
+
+Every admin screen that shows where a plan or add-on version stands now asks the rule the platform
+sells by (`SC-PLAN-028`) and says it the same way: a draft, on sale from a day, on sale (until its
+last day where one is known), or off sale since a day. "Live" reads "on sale" throughout, and
+"superseded" is no longer a state — a predecessor whose successor starts next month is on sale
+until then. Nothing changes for an application that mounts the shipped pages and overrides no
+catalogue key. Otherwise:
+
+- **`@saasicat/ui-vue/client`** adds `versionSale`, `versionOnSale`, `versionOnSaleOrNext`,
+  `describeVersionSale`, `formatDay` and `availableBundle`. `resolvePlans` takes `now` (a `Date`)
+  instead of `today` and resolves `onSale` instead of `currentLive`; `countPlans` answers `onSale`
+  instead of `live`. `isCurrentlyValid`, `isFutureScheduled`, `isExpired` and `todayIsoDate` are
+  removed — ask `versionSale` instead.
+- **Catalogue overrides** follow the renamed keys: the state labels live in `common.versionSale`;
+  `plans.list.statLive` is `statOnSale`, `plans.list.chipNoLive` and `plans.matrix.chipNoLive` are
+  `chipNothingOnSale`, `plans.matrix.chipLiveVersion` and `chipDraftVersion` are one `chipVersion`,
+  `plans.publishDialog.supersededNoteLead`/`supersededNoteTail` are one `predecessorNote`, and
+  `marketing.admin.noLiveVersion` is `noVersion`. `bundles.status` keeps tooltips under `draft`,
+  `scheduled`, `onSale` and `offSale` and a label only for `retired`; `bundles.filter.live` and
+  `superseded` are `onSale` and `offSale`; `bundles.kpis.totalSub` takes `{onSale}`. Keys that
+  were removed are named in the changeset.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

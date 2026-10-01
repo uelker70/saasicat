@@ -100,7 +100,7 @@ _Tested by:_
     - helper modules reach app-supplied languages
         - discovery status labels follow an app language
         - relative-date wording follows an app language
-        - bundle status labels follow an app language
+        - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
 - `packages/ui-vue-tenant/tests/component/tenant-i18n-provider.test.ts`
@@ -243,7 +243,7 @@ _Tested by:_
     - helper modules reach app-supplied languages
         - discovery status labels follow an app language
         - relative-date wording follows an app language
-        - bundle status labels follow an app language
+        - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
 
@@ -334,7 +334,7 @@ _Tested by:_
     - helper modules reach app-supplied languages
         - discovery status labels follow an app language
         - relative-date wording follows an app language
-        - bundle status labels follow an app language
+        - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
 

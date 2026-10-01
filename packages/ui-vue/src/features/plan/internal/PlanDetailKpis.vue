@@ -2,9 +2,9 @@
     <AdminStatistics :columns="4">
         <AdminKpi :label="msg.kpis.activeVersion" :sub="activeVersionSub">
             <template #value>
-                <template v-if="liveVersion">
-                    v{{ liveVersion.version }}
-                    <span class="chip live dot">live</span>
+                <template v-if="onSaleVersion">
+                    v{{ onSaleVersion.version }}
+                    <span class="chip live dot">{{ common.versionSale.onSale }}</span>
                 </template>
                 <template v-else>—</template>
             </template>
@@ -34,11 +34,12 @@ import { computed } from 'vue';
 import AdminKpi from '../../../ui/data/AdminKpi.vue';
 import AdminStatistics from '../../../ui/data/AdminStatistics.vue';
 import type { PlanVersionRow } from '@saasicat/core';
-import { formatMessage } from '../../../client/i18n/format.js';
-import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
+import { formatDay, formatMessage } from '../../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
-    liveVersion: PlanVersionRow | null;
+    /** The version on sale now. */
+    onSaleVersion: PlanVersionRow | null;
     draftVersion: PlanVersionRow | null;
     tenantTotal: number;
     versionCount: number;
@@ -46,11 +47,15 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('planDetail');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
 
 const activeVersionSub = computed(() => {
-    const validFrom = props.liveVersion?.validFrom;
+    const validFrom = props.onSaleVersion?.validFrom;
     return validFrom
-        ? formatMessage(msg.value.kpis.activeSince, { date: validFrom.slice(0, 10) })
+        ? formatMessage(msg.value.kpis.activeSince, {
+              date: formatDay(validFrom, intlLocale.value),
+          })
         : msg.value.kpis.noPublishedVersion;
 });
 

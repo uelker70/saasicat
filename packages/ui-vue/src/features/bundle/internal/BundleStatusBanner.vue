@@ -1,30 +1,24 @@
 <template>
     <div :class="['bv-status-banner', `bv-status-${status}`]">
         <span class="bv-status-icon" aria-hidden="true">
-            <q-icon v-if="status === 'live'" name="bolt" size="16px" />
+            <q-icon v-if="status === 'on-sale'" name="bolt" size="16px" />
             <q-icon v-else-if="status === 'scheduled'" name="schedule" size="16px" />
-            <q-icon v-else-if="status === 'superseded'" name="delete" size="16px" />
+            <q-icon v-else-if="status === 'off-sale'" name="delete" size="16px" />
             <q-icon v-else name="edit" size="16px" />
         </span>
         <div class="bv-status-text">
-            <template v-if="status === 'live'">
-                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
-                <b>{{ msg.statusBanner.live }}</b> {{ liveTail }}
-                <span class="bv-status-warn">{{ msg.statusBanner.liveWarning }}</span>
+            <b>v{{ version.version }}</b> · <b>{{ saleText(version) }}</b> —
+            <template v-if="status === 'on-sale'">
+                {{ msg.statusBanner.onSaleTail }}
+                <span class="bv-status-warn">{{ msg.statusBanner.onSaleWarning }}</span>
             </template>
-            <template v-else-if="status === 'scheduled'">
-                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
-                <b>{{ msg.statusBanner.scheduled }}</b> {{ scheduledTail }}
-                <span class="bv-status-ok">{{ msg.statusBanner.scheduledOk }}</span>
+            <span v-else-if="status === 'scheduled'" class="bv-status-ok">{{
+                msg.statusBanner.scheduledOk
+            }}</span>
+            <template v-else-if="status === 'off-sale'">
+                {{ msg.statusBanner.offSaleTail }}
             </template>
-            <template v-else-if="status === 'superseded'">
-                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
-                <b>{{ msg.statusBanner.superseded }}</b> {{ supersededTail }}
-            </template>
-            <template v-else>
-                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
-                <b>{{ msg.statusBanner.draft }}</b> {{ msg.statusBanner.draftTail }}
-            </template>
+            <template v-else>{{ msg.statusBanner.draftTail }}</template>
         </div>
         <q-btn
             v-if="status === 'scheduled' || status === 'draft'"
@@ -43,13 +37,13 @@
 import { computed } from 'vue';
 import type { BundleVersionRow } from '@saasicat/core';
 
-import { bundleVersionStatus, formatDate } from './bundle-version-status';
-import { formatMessage } from '../../../client/i18n/format.js';
+import { bundleVersionStatus } from './bundle-version-status';
+import { describeVersionSale, versionSale } from '../../../client/version-sale.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 
-// BundleStatusBanner — inline hint per bundle version with plain-text info on
-// editability (after plan simulation). Shows the status + the business
-// consequence (live = read-only, scheduled = editable).
+// BundleStatusBanner — inline hint per bundle version: where it stands, with
+// its day, and what that means for editing (on sale = read-only, scheduled =
+// editable until it starts).
 
 const props = defineProps<{
     version: BundleVersionRow;
@@ -63,26 +57,17 @@ defineEmits<{
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
-const { locale } = useSuperAdminI18n();
+const { intlLocale } = useSuperAdminI18n();
 
 const status = computed(() => bundleVersionStatus(props.version, props.now));
 
-const liveTail = computed(() =>
-    formatMessage(msg.value.statusBanner.liveTail, {
-        date: formatDate(props.version.validFrom, locale.value),
-    }),
-);
-const scheduledTail = computed(() =>
-    formatMessage(msg.value.statusBanner.scheduledTail, {
-        date: formatDate(props.version.validFrom, locale.value),
-    }),
-);
-const supersededTail = computed(() =>
-    formatMessage(msg.value.statusBanner.supersededTail, {
-        from: formatDate(props.version.validFrom, locale.value),
-        until: formatDate(props.version.validUntil, locale.value),
-    }),
-);
+function saleText(version: BundleVersionRow): string {
+    return describeVersionSale(
+        versionSale(version, props.now ?? new Date()),
+        common.value.versionSale,
+        intlLocale.value,
+    );
+}
 </script>
 
 <style scoped>
@@ -96,7 +81,7 @@ const supersededTail = computed(() =>
     font-size: var(--sa-text-md);
     line-height: 1.4;
 }
-.bv-status-live {
+.bv-status-on-sale {
     background: var(--sa-color-positive-surface);
     border-color: var(--sa-color-positive-border);
     color: var(--sa-color-positive-fg);
@@ -106,7 +91,7 @@ const supersededTail = computed(() =>
     border-color: var(--sa-color-warning-border);
     color: var(--sa-color-warning-fg);
 }
-.bv-status-superseded {
+.bv-status-off-sale {
     background: var(--sa-color-border-soft);
     border-color: var(--sa-color-border-strong);
     color: var(--sa-color-fg-secondary);

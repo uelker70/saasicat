@@ -77,16 +77,16 @@ import type { BundleRow } from '@saasicat/core';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import {
     bundleStatusMeta,
-    type BundleAggregateStatus,
+    type BundleAggregate,
 } from '../../features/bundle/internal/bundle-version-status.js';
 import { formatMessage } from '../../client/i18n/format.js';
-import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     filteredBundles: BundleRow[];
     bundlesTotal: number;
     openKey: string | null;
-    aggregateStatusOf: (bundle: BundleRow) => BundleAggregateStatus;
+    aggregateOf: (bundle: BundleRow) => BundleAggregate;
     i18nLocaleCount: (bundle: BundleRow) => number;
 }>();
 
@@ -100,9 +100,16 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
 
 function statusMetaOf(bundle: BundleRow) {
-    return bundleStatusMeta(props.aggregateStatusOf(bundle), msg.value);
+    const { status, version } = props.aggregateOf(bundle);
+    return bundleStatusMeta(status, version, {
+        bundles: msg.value,
+        common: common.value,
+        intlLocale: intlLocale.value,
+    });
 }
 
 function statusClass(bundle: BundleRow): string {

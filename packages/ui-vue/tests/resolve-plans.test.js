@@ -9,10 +9,10 @@ import { countPlans, resolvePlans } from '../dist/client/index.js';
 // rule that changes here changes both at once. That is the point: they used to
 // be the same sixty lines in two components, free to drift.
 //
-// `today` is injected so the validity rules can be tested at all — with the
-// real date, every assertion about "scheduled" or "expired" would rot.
+// `now` is injected so the sale rules can be tested at all — with the real
+// date, every assertion about "scheduled" or "expired" would rot.
 
-const TODAY = '2026-06-15';
+const NOW = new Date('2026-06-15T12:00:00Z');
 
 function plan(planKey, sortOrder = 0) {
     return { id: `p-${planKey}`, planKey, label: planKey, sortOrder };
@@ -23,11 +23,11 @@ function version(id, over = {}) {
 }
 
 function resolve(plans, versionsByPlanId, tenantCountsByPlanKey = {}) {
-    return resolvePlans({ plans, versionsByPlanId, tenantCountsByPlanKey, today: TODAY });
+    return resolvePlans({ plans, versionsByPlanId, tenantCountsByPlanKey, now: NOW });
 }
 
 describe('resolvePlans', () => {
-    it('picks the currently valid version as the live one', () => {
+    it('picks the version on sale', () => {
         const [row] = resolve([plan('PRO')], {
             'p-PRO': [
                 version('v1', { validFrom: '2026-01-01', validUntil: '2026-06-01' }),
@@ -35,11 +35,11 @@ describe('resolvePlans', () => {
             ],
         });
 
-        assert.equal(row.currentLive.id, 'v2');
+        assert.equal(row.onSale.id, 'v2');
         assert.equal(row.primary.id, 'v2');
     });
 
-    it('falls back to the next scheduled version when nothing is live', () => {
+    it('falls back to the next scheduled version when nothing is on sale', () => {
         const [row] = resolve([plan('PRO')], {
             'p-PRO': [
                 version('later', { validFrom: '2026-09-01' }),
@@ -47,7 +47,7 @@ describe('resolvePlans', () => {
             ],
         });
 
-        assert.equal(row.currentLive, null);
+        assert.equal(row.onSale, null);
         assert.equal(row.primary.id, 'sooner', 'the nearer date wins');
     });
 
@@ -95,6 +95,54 @@ describe('resolvePlans', () => {
         );
     });
 
+    it('sells a superseded predecessor until its successor starts', () => {
+        // Published on 10 June with a start on 1 July: the predecessor is
+        // superseded and carries 30 June as its last day, so it is still the
+        // version on sale today.
+        const [row] = resolve([plan('PRO')], {
+            'p-PRO': [
+                version('v1', {
+                    validFrom: '2026-01-01',
+                    validUntil: '2026-06-30',
+                    supersededAt: '2026-06-10',
+                }),
+                version('v2', { validFrom: '2026-07-01' }),
+            ],
+        });
+
+        assert.equal(row.onSale.id, 'v1');
+        assert.deepEqual(
+            row.subRows.map((v) => v.id),
+            ['v2'],
+        );
+    });
+
+    it('sells a version on the whole of its last day', () => {
+        const [row] = resolve([plan('PRO')], {
+            'p-PRO': [version('v1', { validFrom: '2026-01-01', validUntil: '2026-06-15' })],
+        });
+
+        assert.equal(row.onSale.id, 'v1');
+    });
+
+    it('does not sell a version superseded without a last day', () => {
+        const [row] = resolve([plan('OLD')], {
+            'p-OLD': [version('v0', { supersededAt: '2026-03-01' })],
+        });
+
+        assert.equal(row.onSale, null);
+        assert.equal(row.allExpired, true, 'nothing left: hidden from the listing');
+    });
+
+    it('does not sell a version that has ended, and hides a plan with nothing else', () => {
+        const [row] = resolve([plan('OLD')], {
+            'p-OLD': [version('v1', { validFrom: '2026-01-01', endsAt: '2026-06-01T00:00:00Z' })],
+        });
+
+        assert.equal(row.onSale, null);
+        assert.equal(row.allExpired, true);
+    });
+
     it('sorts by sortOrder, then by key', () => {
         const rows = resolve([plan('B', 2), plan('A', 2), plan('C', 1)], {});
 
@@ -118,7 +166,7 @@ describe('countPlans', () => {
 
         assert.deepEqual(countPlans(resolved), {
             plans: 3,
-            live: 1,
+            onSale: 1,
             drafts: 1,
             tenants: 4,
         });

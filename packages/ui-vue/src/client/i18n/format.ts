@@ -13,3 +13,17 @@ export type MessageParams = Record<string, string | number>;
 export function formatMessage(template: string, params: MessageParams): string {
     return formatErrorMessage(template, params);
 }
+
+/**
+ * A calendar day (`YYYY-MM-DD`, or an ISO timestamp whose day is meant) as the
+ * reader writes it. Formatted as the UTC day, so a day stored at midnight UTC
+ * does not show as the day before west of Greenwich.
+ */
+export function formatDay(day: string, intlLocale: string): string {
+    return new Date(`${day.slice(0, 10)}T00:00:00Z`).toLocaleDateString(intlLocale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+    });
+}

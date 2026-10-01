@@ -164,7 +164,8 @@ import { useCatalogEntries } from '../vue/use-catalog-entries.js';
 import { adminErrorMessage } from '../client/admin-error.js';
 import { formatCurrency } from '../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
-import { formatMessage } from '../client/i18n/format.js';
+import { formatDay, formatMessage } from '../client/i18n/format.js';
+import { versionOnSaleOrNext } from '../client/version-sale.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import MarketingPromotionsTab from '../features/marketing/MarketingPromotionsTab.vue';
 import MarketingCatalogAdmin from '../internal/marketing-catalog-page/MarketingCatalogAdmin.vue';
@@ -441,41 +442,19 @@ function publishedVersionsOf(plan: PlanRow): PlanVersionRow[] {
 }
 
 /**
- * Version active as of `asOf`: `validFrom <= asOf` and
- * (`validUntil == null OR validUntil > asOf`). Default is the version
- * active today. Fallback when no `validFrom` data is maintained:
- * highest version.
+ * The version a plan's marketing entry opens at: the one on sale (the
+ * platform's rule), otherwise the next one scheduled, otherwise the newest
+ * published, otherwise the newest draft — so a plan seeded with drafts only is
+ * still curatable.
  */
-function activeVersionOf(plan: PlanRow, asOf: Date = new Date()): PlanVersionRow | null {
+function activeVersionOf(plan: PlanRow, now: Date = new Date()): PlanVersionRow | null {
+    const versions = versionsByPlanId.value[plan.id] ?? [];
+    const shown = versionOnSaleOrNext(versions, now);
+    if (shown) return shown;
     const published = publishedVersionsOf(plan);
-    if (published.length === 0) {
-        // Effective version = live ?? draft (same principle as the
-        // plan matrix): otherwise initial-seed drafts are not
-        // curatable and provide no top-feature suggestions.
-        const drafts = (versionsByPlanId.value[plan.id] ?? []).filter((v) => !v.publishedAt);
-        return drafts.sort((a, b) => b.version - a.version)[0] ?? null;
-    }
-    const t = asOf.getTime();
-    const active = published.filter((v) => {
-        if (!v.validFrom) return false;
-        const from = new Date(v.validFrom).getTime();
-        if (Number.isNaN(from) || from > t) return false;
-        if (v.validUntil) {
-            const until = new Date(v.validUntil).getTime();
-            if (!Number.isNaN(until) && until <= t) return false;
-        }
-        return true;
-    });
-    if (active.length > 0) {
-        // Highest validFrom wins (= "most recent active").
-        return active[active.length - 1];
-    }
-    // No match (validFrom all in the future OR all expired)
-    // → fall back to the last non-superseded version.
-    return (
-        [...published].reverse().find((v) => v.supersededAt === null) ??
-        published[published.length - 1]
-    );
+    if (published.length > 0) return published[published.length - 1];
+    const drafts = versions.filter((v) => !v.publishedAt);
+    return drafts.sort((a, b) => b.version - a.version)[0] ?? null;
 }
 
 /** Per-plan state: which version is currently selected in the UI (tab). */
@@ -498,16 +477,16 @@ function selectVersion(plan: PlanRow, versionId: string): void {
 }
 
 function formatVersionTab(v: PlanVersionRow): string {
-    const from = v.validFrom ? formatDateShort(v.validFrom) : '?';
-    const until = v.validUntil ? formatDateShort(v.validUntil) : '∞';
+    const from = v.validFrom ? formatDay(v.validFrom, intlLocale.value) : '?';
+    const until = v.validUntil ? formatDay(v.validUntil, intlLocale.value) : '∞';
     return `v${v.version} · ${from}–${until}`;
 }
 
 function formatVersionTitle(v: PlanVersionRow): string {
     const from = v.validFrom
-        ? formatDateLong(v.validFrom)
+        ? formatDay(v.validFrom, intlLocale.value)
         : msg.value.admin.versionValidFromUnknown;
-    const until = v.validUntil ? formatDateLong(v.validUntil) : common.value.unlimited;
+    const until = v.validUntil ? formatDay(v.validUntil, intlLocale.value) : common.value.unlimited;
     const changeNote = v.changeNote ? ` — ${v.changeNote}` : '';
     return formatMessage(msg.value.admin.versionTitle, {
         version: v.version,
@@ -515,29 +494,6 @@ function formatVersionTitle(v: PlanVersionRow): string {
         until,
         changeNote,
     });
-}
-
-function formatDateShort(iso: string): string {
-    try {
-        return new Date(iso).toLocaleDateString(intlLocale.value, {
-            day: '2-digit',
-            month: '2-digit',
-        });
-    } catch {
-        return iso.slice(0, 10);
-    }
-}
-
-function formatDateLong(iso: string): string {
-    try {
-        return new Date(iso).toLocaleDateString(intlLocale.value, {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    } catch {
-        return iso.slice(0, 10);
-    }
 }
 
 function resolveMarketing(
@@ -1535,6 +1491,11 @@ async function onLocaleChange(loc: string): Promise<void> {
     background: var(--sa-color-accent-surface-strong);
     color: var(--sa-color-accent-strong);
     border-color: var(--sa-color-info-border);
+}
+.sa-marketing-chip--scheduled {
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border-color: var(--sa-color-scheduled-border);
 }
 .sa-marketing-chip--live {
     background: var(--sa-color-positive-surface);

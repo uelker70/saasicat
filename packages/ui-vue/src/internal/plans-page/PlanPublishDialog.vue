@@ -12,8 +12,7 @@
                 >{{ bodyTail }}
             </div>
             <div class="text-caption text-grey-7 q-mt-sm">
-                {{ msg.publishDialog.supersededNoteLead }} <code>supersededAt</code>
-                {{ msg.publishDialog.supersededNoteTail }}
+                {{ msg.publishDialog.predecessorNote }}
             </div>
             <q-checkbox
                 :model-value="forceRegressive"
