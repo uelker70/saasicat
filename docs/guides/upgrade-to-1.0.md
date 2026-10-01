@@ -2021,7 +2021,7 @@ back an expired redemption as well as an active one.
 
 A scheduled change to another plan binds the version its preview showed when it was scheduled, not
 whichever version is in effect the day it comes due (`SC-CHG-022`), and a change that only moves the
-rhythm keeps the version the subscription is bound to (`SC-SUB-012`). A version published in
+rhythm keeps the version the subscription is bound to (`SC-SUB-024`). A version published in
 between reaches the customer as an offer, never through a change they confirmed at another price.
 
 1. Add `pendingChangeVersionId` to `Subscription`, with its relation, and the back-relation to

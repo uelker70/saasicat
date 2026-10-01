@@ -100,7 +100,7 @@ export interface ContractFreezeSourcePort {
      *
      * The contract records this version's price, features and quotas. Not the
      * version on sale now: a tenant who books an add-on after the operator
-     * published a successor keeps the version they bought (`SC-SUB-012`), and
+     * published a successor keeps the version they bought (`SC-SUB-024`), and
      * after a plan change the write has already bound the version it sold.
      */
     findBoundPlanVersion(tenantId: string): Promise<PlanVersionRow | null>;
