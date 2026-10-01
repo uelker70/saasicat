@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { and, asc, desc, eq, gte, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type {
     BundleCompatibility,
     BundleListFilter,
@@ -234,10 +234,13 @@ export class DrizzleBundleRepository implements BundleRepository {
     /**
      * The version bookable at `asOf`: published, inside its validity window.
      *
-     * Deliberately not filtered by `supersededAt` — a superseded predecessor is
-     * still the bookable one until its window closes, which is the whole point
-     * of auto-succession. `validUntil` is day-inclusive, so a version is active
-     * throughout its last day.
+     * A superseded predecessor is still the bookable one until its window
+     * closes, which is the whole point of auto-succession — but only within a
+     * last day it carries. One superseded without a `validUntil` has nothing
+     * that would ever close its window, and would sell again once its
+     * successor's does: the rule `buildActiveVersionWhere` gives adapter-prisma.
+     * `validUntil` is day-inclusive, so a version is active throughout its
+     * last day.
      */
     private async activeVersionAt(
         bundleId: string,
@@ -255,6 +258,7 @@ export class DrizzleBundleRepository implements BundleRepository {
                     sql`${bundleVersions.publishedAt} IS NOT NULL`,
                     or(isNull(bundleVersions.validFrom), lte(bundleVersions.validFrom, asOf)),
                     or(isNull(bundleVersions.validUntil), gte(bundleVersions.validUntil, dayStart)),
+                    or(isNull(bundleVersions.supersededAt), isNotNull(bundleVersions.validUntil)),
                 ),
             )
             // `nulls last` so a version with no window loses to one that has a

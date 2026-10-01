@@ -337,6 +337,36 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         ]);
     });
 
+    test('a superseded version without a last day does not come back when its successor closes', async () => {
+        // Superseded without a window — as an import leaves it — it has nothing
+        // that would ever end its window.
+        const publishedAt = new Date('2026-01-01T00:00:00.000Z');
+        const prisma = fakePrisma([
+            bundleVersionRow({
+                id: 'superseded-undated',
+                version: 1,
+                publishedAt,
+                supersededAt: publishedAt,
+                validFrom: null,
+                validUntil: null,
+            }),
+            bundleVersionRow({
+                id: 'closed-successor',
+                version: 2,
+                publishedAt,
+                validFrom: publishedAt,
+                validUntil: new Date('2026-03-10T00:00:00.000Z'),
+            }),
+        ]);
+        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
+
+        const active = await repo.findActiveBundleVersion(
+            'bundle-1',
+            new Date('2026-03-15T00:00:00.000Z'),
+        );
+        assert.equal(active, null);
+    });
+
     test('enabled publish is internally atomic and applies auto-succession', async () => {
         const draft = bundleVersionRow({ id: 'draft-2', version: 2 });
         const prisma = fakePrisma([draft]);

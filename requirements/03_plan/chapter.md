@@ -503,6 +503,7 @@ _Tested by:_
         - the one whose window opened later wins
         - a version with no window at all loses to one that has a window it is inside
         - a closed window is excluded even when it is the later one
+        - a superseded version without a last day does not come back when its successor closes
     - the edges of one window
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens

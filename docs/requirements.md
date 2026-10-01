@@ -1505,6 +1505,7 @@ _Tested by:_
         - the one whose window opened later wins
         - a version with no window at all loses to one that has a window it is inside
         - a closed window is excluded even when it is the later one
+        - a superseded version without a last day does not come back when its successor closes
     - the edges of one window
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens
@@ -3140,6 +3141,7 @@ _Tested by:_
         - the one whose window opened later wins
         - a version with no window at all loses to one that has a window it is inside
         - a closed window is excluded even when it is the later one
+        - a superseded version without a last day does not come back when its successor closes
     - the edges of one window
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens
@@ -3315,6 +3317,7 @@ _Tested by:_
         - legacy default never requires, writes or exposes validity columns
         - enabled mode round-trips validity dates on create and update
         - enabled mode resolves the active version with inclusive days and deterministic priority
+        - a superseded version without a last day does not come back when its successor closes
         - enabled publish is internally atomic and applies auto-succession
         - enabled publish refuses a version somebody else published first
         - enabled publish reuses a caller transaction instead of nesting one
