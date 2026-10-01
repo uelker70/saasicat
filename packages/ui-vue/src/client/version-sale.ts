@@ -122,7 +122,9 @@ function firstDayOffSale(version: VersionSaleDates, now: Date): string | null {
         days.push(dayOf(new Date(validUntil.getTime() + DAY_MS)));
     }
     const endsAt = dateOf(version.endsAt);
-    if (endsAt && endsAt <= now) days.push(dayOf(endsAt));
+    // The day after the last day on sale, read as `lastDayOnSale` reads it: an
+    // end at 23:59:59 still sold that day.
+    if (endsAt && endsAt <= now) days.push(dayOf(new Date(endsAt.getTime() - 1 + DAY_MS)));
     return earliest(days);
 }
 

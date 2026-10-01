@@ -15,8 +15,11 @@ one is known), or off sale since a day. "Live" reads "on sale" throughout, and
 "superseded" is no longer a state. Days are shown in the reader's language.
 
 - New in `@saasicat/ui-vue/client`: `versionSale`, `versionOnSale`,
-  `versionOnSaleOrNext`, `describeVersionSale` and `formatDay`, and the
-  catalogue group `common.versionSale`.
+  `versionOnSaleOrNext`, `describeVersionSale`, `formatDay` and
+  `availableBundle`, and the catalogue group `common.versionSale`.
+- The plan pages offer an add-on beside the plans at its version on sale,
+  otherwise its next one, and no longer offer one with neither — its empty list
+  of plans read as every plan, so the matrix showed it as bookable everywhere.
 - `resolvePlans` takes `now` (a `Date`) instead of `today`, resolves `onSale`
   instead of `currentLive`, and `countPlans` answers `onSale` instead of
   `live`. `isCurrentlyValid`, `isFutureScheduled`, `isExpired` and

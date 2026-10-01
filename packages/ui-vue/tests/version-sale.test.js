@@ -96,6 +96,19 @@ describe('the sale state of a version', () => {
         });
     });
 
+    it('reads an end at the close of a day as that day sold in full', () => {
+        // How the admin's terminate dialog writes an end.
+        const ending = { publishedAt: '2026-01-01', endsAt: '2026-06-30T23:59:59.000Z' };
+        assert.deepEqual(versionSale(ending, at('2026-06-30T12:00:00Z')), {
+            kind: 'on-sale',
+            until: '2026-06-30',
+        });
+        assert.deepEqual(versionSale(ending, at('2026-07-01T12:00:00Z')), {
+            kind: 'off-sale',
+            since: '2026-07-01',
+        });
+    });
+
     it('takes the earlier of a last day and an end', () => {
         const both = {
             publishedAt: '2026-01-01',

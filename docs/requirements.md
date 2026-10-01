@@ -2298,6 +2298,13 @@ _Source:_ #357
 
 _Tested by:_
 
+- `packages/ui-vue/tests/available-bundle.test.js`
+    - an add-on offered beside the plans
+        - is offered at its version on sale, on the plans that version allows
+        - is offered at its next version where none is on sale yet
+        - is not offered once its last version has ended
+        - is not offered with only a draft
+        - keeps an empty list of plans meaning every plan where the version says so
 - `packages/ui-vue/tests/component/a-bundle-version-is-on-sale-by-its-dates.test.ts`
     - a bundle version in the admin
         - is on sale, though a successor has superseded it
@@ -2316,6 +2323,7 @@ _Tested by:_
         - is off sale, with no day, when it was superseded without a last day
         - is not announced when it was superseded before it ever started
         - ends at its end moment, and is on sale until the day before a midnight end
+        - reads an end at the close of a day as that day sold in full
         - takes the earlier of a last day and an end
         - is a draft until it is published
     - the version on sale among several

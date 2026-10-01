@@ -231,7 +231,8 @@ import { useSuperAdminEndpoints, useSuperAdminHttp } from '../vue/use-super-admi
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import { countPlans, resolvePlans } from '../client/resolve-plans.js';
-import { versionOnSale, versionOnSaleOrNext } from '../client/version-sale.js';
+import { versionOnSale } from '../client/version-sale.js';
+import { availableBundle, type AvailableBundle } from '../client/available-bundle.js';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
@@ -766,19 +767,10 @@ async function loadEditorSources(): Promise<void> {
                         }>;
                     } | null;
                     if (!body) return null;
-                    // The add-on as the matrix shows a plan: the version on
-                    // sale, otherwise the next one scheduled.
-                    const live = versionOnSaleOrNext(body.versions ?? [], new Date());
-                    return {
-                        bundleKey: body.bundle.bundleKey,
-                        label: body.bundle.label,
-                        features: live?.features ?? [],
-                        // compatibility.planIds contains plan KEYS (see public-marketing-catalog).
-                        compatiblePlanKeys: live?.compatibility?.planIds ?? [],
-                    } as BundleEntry;
+                    return availableBundle(body.bundle, body.versions ?? [], new Date());
                 }),
             );
-            availableBundles.value = detailed.filter((b): b is BundleEntry => b !== null);
+            availableBundles.value = detailed.filter((b): b is AvailableBundle => b !== null);
         }
     } catch {
         // best-effort

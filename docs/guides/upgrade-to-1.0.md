@@ -2443,10 +2443,10 @@ until then. Nothing changes for an application that mounts the shipped pages and
 catalogue key. Otherwise:
 
 - **`@saasicat/ui-vue/client`** adds `versionSale`, `versionOnSale`, `versionOnSaleOrNext`,
-  `describeVersionSale` and `formatDay`. `resolvePlans` takes `now` (a `Date`) instead of `today`
-  and resolves `onSale` instead of `currentLive`; `countPlans` answers `onSale` instead of `live`.
-  `isCurrentlyValid`, `isFutureScheduled`, `isExpired` and `todayIsoDate` are removed — ask
-  `versionSale` instead.
+  `describeVersionSale`, `formatDay` and `availableBundle`. `resolvePlans` takes `now` (a `Date`)
+  instead of `today` and resolves `onSale` instead of `currentLive`; `countPlans` answers `onSale`
+  instead of `live`. `isCurrentlyValid`, `isFutureScheduled`, `isExpired` and `todayIsoDate` are
+  removed — ask `versionSale` instead.
 - **Catalogue overrides** follow the renamed keys: the state labels live in `common.versionSale`;
   `plans.list.statLive` is `statOnSale`, `plans.list.chipNoLive` and `plans.matrix.chipNoLive` are
   `chipNothingOnSale`, `plans.matrix.chipLiveVersion` and `chipDraftVersion` are one `chipVersion`,
