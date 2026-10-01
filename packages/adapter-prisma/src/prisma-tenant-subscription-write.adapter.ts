@@ -11,13 +11,7 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
-import {
-    buildActivePlanVersionWhere,
-    noActivePlanVersion,
-    noPendingPlanVersion,
-    subscriptionChanged,
-    subscriptionGone,
-} from '@saasicat/core';
+import { buildActivePlanVersionWhere, noActivePlanVersion, subscriptionGone } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import {
     createPrismaPlanBindingResolver,
@@ -38,10 +32,6 @@ interface SubscriptionDbRow {
     canceledAt: Date | null;
     canceledEffectiveAt: Date | null;
     currentPeriodEnd: Date | null;
-    pendingPlanVersionAccepted: boolean;
-    pendingPlanVersionAcceptedAt: Date | null;
-    pendingPlanVersionEffectiveAt: Date | null;
-    pendingPlanVersionId: string | null;
     /** Present where plan versions are synchronized. */
     planVersionId?: string | null;
 }
@@ -92,8 +82,7 @@ interface TransactionalPrismaClient {
  * `applyOnboardingSelection` is an explicit opt-in capability. When
  * `tenantSubscription.atomicOnboardingSelection` is true it uses one
  * interactive transaction for the subscription write and optional promo
- * callback. In synchronized mode it also binds the concrete PlanVersion and
- * clears stale pending-version state.
+ * callback. In synchronized mode it also binds the concrete PlanVersion.
  */
 @Injectable()
 export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionWritePort {
@@ -171,8 +160,8 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         };
 
         // The binding this write decided from. The claim takes the row only
-        // while it still holds, so a rebinding in between — a pending version
-        // taken over, another change — is not written over.
+        // while it still holds, so a rebinding in between — a newer version
+        // taken, another change — is not written over.
         let boundVersionId: string | null | undefined;
         if (this.schema.tenantSubscription.synchronizePlanVersion) {
             const current = await subscription.findUnique({ where: { tenantId } });
@@ -222,19 +211,6 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                           storagePlanId,
                           asOf,
                       )));
-            // A pending version of another plan has nothing left to be
-            // accepted for, and one the write binds is accepted by being bound:
-            // the subscriber is not asked for a version they are already on.
-            if (
-                data.planVersionId === current.pendingPlanVersionId ||
-                (await this.pendingVersionBelongsToAnotherPlan(
-                    client,
-                    current.pendingPlanVersionId,
-                    storagePlanId,
-                ))
-            ) {
-                Object.assign(data, clearedPendingVersionData());
-            }
         } else if (input.quotedVersionOnly) {
             throw new Error(
                 `A change for tenant ${tenantId} asked for plan version ` +
@@ -297,62 +273,6 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         return { claimed: claim.count > 0 };
     }
 
-    async acceptPendingPlanVersion(
-        tenantId: string,
-        userId: string,
-        now: Date,
-    ): Promise<{
-        accepted: boolean;
-        acceptedAt: Date | null;
-        effectiveAt: Date | null;
-        alreadyAccepted: boolean;
-    }> {
-        const subscription = this.subscription(this.prisma);
-        const sub = await subscription.findUnique({ where: { tenantId } });
-        if (!sub) {
-            throw subscriptionGone(tenantId);
-        }
-        if (!sub.pendingPlanVersionId) {
-            throw noPendingPlanVersion(tenantId);
-        }
-        const pendingPlanVersionId = sub.pendingPlanVersionId;
-        const claimed = await subscription.updateMany({
-            where: {
-                id: sub.id,
-                pendingPlanVersionId,
-                pendingPlanVersionAccepted: false,
-            },
-            data: {
-                pendingPlanVersionAccepted: true,
-                pendingPlanVersionAcceptedAt: now,
-                pendingPlanVersionAcceptedByUserId: userId,
-            },
-        });
-        const updated = await subscription.findUnique({ where: { id: sub.id } });
-        if (!updated) {
-            throw subscriptionGone(tenantId);
-        }
-        // Nothing claimed and the row is not in the accepted state either: the
-        // pending version was cleared underneath this request — which the
-        // check answers as nothing pending — or replaced by another one.
-        if (claimed.count === 0 && updated.pendingPlanVersionId === null) {
-            throw noPendingPlanVersion(tenantId);
-        }
-        if (
-            claimed.count === 0 &&
-            (updated.pendingPlanVersionId !== pendingPlanVersionId ||
-                !updated.pendingPlanVersionAccepted)
-        ) {
-            throw subscriptionChanged(tenantId);
-        }
-        return {
-            accepted: true,
-            acceptedAt: updated.pendingPlanVersionAcceptedAt,
-            effectiveAt: updated.pendingPlanVersionEffectiveAt,
-            alreadyAccepted: claimed.count === 0,
-        };
-    }
-
     private async applyOnboardingSelectionAtomic(
         tenantId: string,
         input: ApplyOnboardingSelectionInput,
@@ -366,7 +286,6 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingBillingCycle: null,
                 pendingEffectiveAt: null,
                 pendingChangeVersionId: null,
-                ...clearedPendingVersionData(),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 // Same derivation as the immediate path: the billing day is
                 // the day the window opens.
@@ -574,18 +493,6 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         return quoted && bookableOn(quoted, storagePlanId, asOf) ? quotedVersionId : null;
     }
 
-    private async pendingVersionBelongsToAnotherPlan(
-        client: unknown,
-        pendingPlanVersionId: string | null,
-        targetStoragePlanId: string,
-    ): Promise<boolean> {
-        if (!pendingPlanVersionId) return false;
-        const pending = await this.planVersions(client).findUnique({
-            where: { id: pendingPlanVersionId },
-        });
-        return !pending || pending.planId !== targetStoragePlanId;
-    }
-
     private assertConfiguration(): void {
         if (!this.schema.tenantSubscription.synchronizePlanVersion) return;
         // Binding reads the plan-version model on every plan change. Resolved
@@ -618,16 +525,4 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             );
         }
     }
-}
-
-function clearedPendingVersionData(): Record<string, null | false> {
-    return {
-        pendingPlanVersionId: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
-        pendingPlanVersionAcceptedByUserId: null,
-        pendingPlanVersionNotifiedAt: null,
-        pendingPlanVersionReminderSentAt: null,
-    };
 }

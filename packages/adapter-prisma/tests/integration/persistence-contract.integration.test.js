@@ -146,7 +146,7 @@ function createHarness() {
                         plan: input.plan,
                         status: input.status ?? 'ACTIVE',
                         planVersionId: input.planVersionId,
-                        pendingPlanVersionId: input.pendingPlanVersionId ?? null,
+                        pendingChangeVersionId: input.pendingChangeVersionId ?? null,
                         ...(input.billingCycle ? { billingCycle: input.billingCycle } : {}),
                         ...(input.startedAt ? { startedAt: input.startedAt } : {}),
                         ...(input.customLimits !== undefined

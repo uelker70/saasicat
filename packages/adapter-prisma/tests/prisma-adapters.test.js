@@ -324,7 +324,6 @@ const subscriptionRow = (overrides = {}) => ({
     pendingEffectiveAt: null,
     customLimits: null,
     planVersionId: 'pv-1',
-    pendingPlanVersionId: null,
     startedAt: null,
     ...overrides,
 });
@@ -468,12 +467,12 @@ describe('PrismaSubscriptionRepository', () => {
         assert.deepEqual(p.calls.queryRaw[0].values, ['t1']);
     });
 
-    test('countByPlanVersionId uses a single OR count', async () => {
+    test('countByPlanVersionId counts the version bound and the one a scheduled change binds, in one count', async () => {
         const p = fakePrisma();
         const repo = new PrismaSubscriptionRepository(p);
         assert.equal(await repo.countByPlanVersionId('pv-9'), 7);
         assert.deepEqual(p.calls.subscriptionCount[0].where, {
-            OR: [{ planVersionId: 'pv-9' }, { pendingPlanVersionId: 'pv-9' }],
+            OR: [{ planVersionId: 'pv-9' }, { pendingChangeVersionId: 'pv-9' }],
         });
     });
 
@@ -531,8 +530,7 @@ describe('PrismaSubscriptionUsageAdapter', () => {
 
     /**
      * A client that answers the reads a cross-tenant list makes and records
-     * them: the plan's earlier versions, the subscriptions on them, the pending
-     * versions those name.
+     * them: the plan's earlier versions, and the subscriptions on them.
      */
     function listingClient({ plans = [] } = {}) {
         const reads = [];
@@ -549,15 +547,7 @@ describe('PrismaSubscriptionUsageAdapter', () => {
             planVersion: {
                 async findMany(args) {
                     reads.push(['planVersion', args.where]);
-                    return 'version' in args.where
-                        ? [planVersionRow({ id: 'pv-1', planId: args.where.planId, version: 1 })]
-                        : [
-                              planVersionRow({
-                                  id: 'pv-pending',
-                                  planId: plans[0]?.id ?? 'STARTER',
-                                  version: 3,
-                              }),
-                          ];
+                    return [planVersionRow({ id: 'pv-1', planId: args.where.planId, version: 1 })];
                 },
             },
             subscription: {
@@ -565,18 +555,14 @@ describe('PrismaSubscriptionUsageAdapter', () => {
                     reads.push(['subscription', args.where]);
                     return [
                         subscriptionRow({ id: 'sub-1', tenantId: 't1' }),
-                        subscriptionRow({
-                            id: 'sub-2',
-                            tenantId: 't2',
-                            pendingPlanVersionId: 'pv-pending',
-                        }),
+                        subscriptionRow({ id: 'sub-2', tenantId: 't2' }),
                     ];
                 },
             },
         };
     }
 
-    test('lists the subscriptions on earlier versions of a plan, each with its tenant, in three reads', async () => {
+    test('lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads', async () => {
         const client = listingClient();
         const listed = await new PrismaSubscriptionUsageAdapter(client).listBoundToEarlierVersions(
             'STARTER',
@@ -590,12 +576,13 @@ describe('PrismaSubscriptionUsageAdapter', () => {
                 ['t2', 'sub-2'],
             ],
         );
-        assert.equal(listed[0].subscription.planVersion.id, 'pv-1');
-        assert.equal(listed[1].subscription.pendingPlanVersion.id, 'pv-pending');
+        assert.deepEqual(
+            listed.map((entry) => entry.subscription.planVersion.id),
+            ['pv-1', 'pv-1'],
+        );
         assert.deepEqual(client.reads, [
             ['planVersion', { planId: 'STARTER', version: { lt: 2 } }],
             ['subscription', { planVersionId: { in: ['pv-1'] } }],
-            ['planVersion', { id: { in: ['pv-pending'] } }],
         ]);
     });
 

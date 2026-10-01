@@ -35,7 +35,7 @@ export interface SubscriptionRowLike {
     pendingEffectiveAt: Date | null;
     customLimits: unknown;
     planVersionId: string;
-    pendingPlanVersionId: string | null;
+    pendingChangeVersionId?: string | null;
     startedAt: Date | null;
     /** Rich tenant-billing fields present in the canonical schema. */
     trialEndsAt?: Date | null;
@@ -50,9 +50,6 @@ export interface SubscriptionRowLike {
     canceledAt?: Date | null;
     canceledEffectiveAt?: Date | null;
     pendingBillingCycle?: string | null;
-    pendingPlanVersionEffectiveAt?: Date | null;
-    pendingPlanVersionAccepted?: boolean;
-    pendingPlanVersionAcceptedAt?: Date | null;
     packageSnapshot?: unknown | null;
     checkoutOfferId?: string | null;
 }
@@ -203,7 +200,7 @@ export interface SubscriptionDelegateLike {
     }): Promise<SubscriptionRowLike | null>;
     findMany(args?: { where?: { status?: { in: string[] } } }): Promise<SubscriptionRowLike[]>;
     count(args?: {
-        where?: { OR?: Array<{ planVersionId?: string; pendingPlanVersionId?: string }> };
+        where?: { OR?: Array<{ planVersionId?: string; pendingChangeVersionId?: string }> };
     }): Promise<number>;
 }
 

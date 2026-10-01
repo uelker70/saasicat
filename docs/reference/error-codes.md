@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 193 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 192 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -147,7 +147,6 @@ Subscriptions, plan changes, entitlements.
 | `MINIMUM_TERM_BINDS`                         | The minimum term extends beyond the end of the period — the cancellation only takes effect when the minimum term ends.                                      |
 | `NO_ACTIVE_PLAN_VERSION`                     | No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.                        |
 | `NO_CHANGE`                                  | Target plan and billing cycle already match the current state.                                                                                              |
-| `NO_PENDING_PLAN_VERSION`                    | There is no pending plan version awaiting confirmation.                                                                                                     |
 | `NO_SUBSCRIPTION`                            | This tenant has no subscription to cancel.                                                                                                                  |
 | `ONBOARDING_CREATE_FAILED`                   | The account could not be created. Please try again.                                                                                                         |
 | `PLAN_CHANGE_BLOCKED`                        | Plan change during onboarding is blocked.                                                                                                                   |

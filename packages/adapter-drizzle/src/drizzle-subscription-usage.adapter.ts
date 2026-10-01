@@ -13,7 +13,7 @@ type SubscriptionTableRow = typeof subscriptions.$inferSelect;
 
 /**
  * What the tenant's own billing page reads: the subscription in display form,
- * with the plan version it is bound to and the one waiting to take over.
+ * with the plan version it is bound to.
  *
  * Richer than `SubscriptionRecord`, which is the aggregation form entitlement
  * uses. This one carries the dates and the pending-change state a person is
@@ -54,21 +54,12 @@ export class DrizzleSubscriptionUsageAdapter implements SubscriptionUsagePort {
             );
         }
 
-        const [pendingPlanVersion] = subscription.pendingPlanVersionId
-            ? await this.db
-                  .select()
-                  .from(planVersions)
-                  .where(eq(planVersions.id, subscription.pendingPlanVersionId))
-                  .limit(1)
-            : [];
-
-        return toRecord(subscription, planVersion, pendingPlanVersion ?? null);
+        return toRecord(subscription, planVersion);
     }
 
     /**
-     * Three reads whatever the number of subscriptions: the plan's earlier
-     * versions, the subscriptions bound to them, and the pending versions those
-     * name.
+     * Two reads whatever the number of subscriptions: the plan's earlier
+     * versions, and the subscriptions bound to them.
      */
     async listBoundToEarlierVersions(
         planKey: string,
@@ -85,28 +76,9 @@ export class DrizzleSubscriptionUsageAdapter implements SubscriptionUsagePort {
             .from(subscriptions)
             .where(inArray(subscriptions.planVersionId, [...bound.keys()]))
             .orderBy(asc(subscriptions.id));
-        const pendingIds = rows.flatMap((row) =>
-            row.pendingPlanVersionId ? [row.pendingPlanVersionId] : [],
-        );
-        const pending = new Map(
-            pendingIds.length === 0
-                ? []
-                : (
-                      await this.db
-                          .select()
-                          .from(planVersions)
-                          .where(inArray(planVersions.id, pendingIds))
-                  ).map((row) => [row.id, row]),
-        );
         return rows.map((subscription) => ({
             tenantId: subscription.tenantId,
-            subscription: toRecord(
-                subscription,
-                bound.get(subscription.planVersionId)!,
-                subscription.pendingPlanVersionId
-                    ? (pending.get(subscription.pendingPlanVersionId) ?? null)
-                    : null,
-            ),
+            subscription: toRecord(subscription, bound.get(subscription.planVersionId)!),
         }));
     }
 }
@@ -114,7 +86,6 @@ export class DrizzleSubscriptionUsageAdapter implements SubscriptionUsagePort {
 function toRecord(
     subscription: SubscriptionTableRow,
     planVersion: PlanVersionTableRow,
-    pendingPlanVersion: PlanVersionTableRow | null,
 ): SubscriptionUsageRecord & { id: string } {
     return {
         id: subscription.id,
@@ -135,18 +106,6 @@ function toRecord(
         pendingBillingCycle: subscription.pendingBillingCycle,
         pendingEffectiveAt: subscription.pendingEffectiveAt,
         planVersion: toUsagePlanVersion(planVersion),
-        pendingPlanVersion: pendingPlanVersion
-            ? {
-                  ...toUsagePlanVersion(pendingPlanVersion),
-                  // The two fields a tenant is shown before accepting: does
-                  // the change take anything away, and what changed.
-                  nonRegressive: pendingPlanVersion.nonRegressive,
-                  publishedChanges: pendingPlanVersion.publishedChanges,
-              }
-            : null,
-        pendingPlanVersionEffectiveAt: subscription.pendingPlanVersionEffectiveAt,
-        pendingPlanVersionAccepted: subscription.pendingPlanVersionAccepted,
-        pendingPlanVersionAcceptedAt: subscription.pendingPlanVersionAcceptedAt,
         packageSnapshot: subscription.packageSnapshot,
         checkoutOfferId: subscription.checkoutOfferId,
     };

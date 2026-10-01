@@ -27,8 +27,8 @@ this release.
   newest live one where it does not. It is offered only when it is newer than
   the version bound, sold in the subscription's rhythm, and not on a plan in
   `selfServiceBlockedPlans`; not once a cancellation has landed, and not while
-  a scheduled change of plan or rhythm or a pending version has yet to land —
-  the offer is judged against what the subscriber will have.
+  a scheduled change of plan or rhythm has yet to land — the offer is judged
+  against what the subscriber will have.
 - `classifyVersionOffer(bound, candidate)` in `@saasicat/core` is the rule, and
   `isVersionActiveAt(version, asOf)` the validity window of
   `buildActivePlanVersionWhere` for a row already read.

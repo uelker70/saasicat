@@ -217,17 +217,15 @@ describe('a card left open across the moment', () => {
 
 // The page around the header, because three of the things that change when a
 // subscription ends are decided there rather than in the card: the status
-// badge, its tone, and whether a next billing date is shown at all. And one
-// more act the page offers — accepting a pending plan version — whose route
-// refuses on a subscription that has ended, so the banner has to go with it.
+// badge, its tone, and whether a next billing date is shown at all.
 
-const PENDING_VERSION = {
-    id: 'pv-2',
+const BOUND_VERSION = {
+    id: 'pv-1',
     planId: 'PRO',
-    version: 2,
+    version: 1,
     publishedAt: iso(-10),
     supersededAt: null,
-    changeNote: 'More storage',
+    changeNote: null,
 };
 
 function sectionUsage(overrides: Record<string, unknown>) {
@@ -245,11 +243,7 @@ function sectionUsage(overrides: Record<string, unknown>) {
         pendingPlan: null,
         pendingBillingCycle: null,
         pendingEffectiveAt: null,
-        planVersion: { ...PENDING_VERSION, version: 1, changeNote: null },
-        pendingPlanVersion: PENDING_VERSION,
-        pendingPlanVersionEffectiveAt: iso(5),
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
+        planVersion: BOUND_VERSION,
         canceledAt: null,
         canceledEffectiveAt: null,
         cancellation: {
@@ -327,22 +321,6 @@ describe('the page around the card', () => {
 
         expect(wrapper.text()).toContain(i18n.statusActive);
         expect(wrapper.text()).toContain(i18n.nextBillingDate);
-    });
-
-    test('offers no pending version to accept once the contract is over', async () => {
-        // The route answers SUBSCRIPTION_ENDED; a banner offering the act would
-        // turn a state the page could show into an error dialog.
-        const wrapper = await mountSection(ended);
-
-        expect(wrapper.findComponent({ name: 'PendingVersionBanner' }).exists()).toBe(false);
-    });
-
-    test('while a running subscription is asked about it', async () => {
-        // The premise: the banner is hidden by the ending, not missing from the
-        // fixture.
-        const wrapper = await mountSection(running);
-
-        expect(wrapper.findComponent({ name: 'PendingVersionBanner' }).exists()).toBe(true);
     });
 });
 

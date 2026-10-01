@@ -69,7 +69,6 @@ import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { answerRefusal, answeringRefusals } from '../errors/answering-refusals.js';
-import { codedError } from '../errors/coded-error.js';
 import { NO_NOTICE_PERIOD, noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
@@ -117,10 +116,6 @@ interface UsageResponse {
      * Null where the plan has no list price in this rhythm.
      */
     planPriceNet: number | null;
-    pendingPlanVersion: SubscriptionUsageRecord['pendingPlanVersion'];
-    pendingPlanVersionEffectiveAt: Date | null;
-    pendingPlanVersionAccepted: boolean;
-    pendingPlanVersionAcceptedAt: Date | null;
     /** When a cancellation was declared. Null while none was. */
     canceledAt: Date | null;
     /** When it lands. A tenant keeps everything until then. */
@@ -287,10 +282,6 @@ export class TenantBillingController {
             pendingEffectiveAt: sub.pendingEffectiveAt,
             planVersion: sub.planVersion,
             planPriceNet,
-            pendingPlanVersion: sub.pendingPlanVersion,
-            pendingPlanVersionEffectiveAt: sub.pendingPlanVersionEffectiveAt,
-            pendingPlanVersionAccepted: sub.pendingPlanVersionAccepted,
-            pendingPlanVersionAcceptedAt: sub.pendingPlanVersionAcceptedAt,
             canceledAt: sub.canceledAt ?? null,
             // The same fallback the renewal and the cancel route apply, for the
             // same reason: on a row written before the two fields separated,
@@ -880,71 +871,6 @@ export class TenantBillingController {
             bundlesAdded,
             promoRedemption,
             warnings,
-        };
-    }
-
-    // ---------------------------------------------------------------------
-    // Accept pending plan version — TENANT_ADMIN
-    // ---------------------------------------------------------------------
-
-    @Post('subscription/accept-pending-version')
-    @UseGuards(TenantAdminGuard)
-    async acceptPendingPlanVersion(@Req() req: RequestLike) {
-        const tenantId = this.requireTenantId(req);
-        const userId = this.requireUserId(req);
-
-        const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) {
-            throw subscriptionNotFound(tenantId);
-        }
-        // Same reason the plan cannot be changed: there is no subscription left
-        // to accept anything for, and a page that still offers the act turns a
-        // state it could have shown into an error.
-        if (cancellationHasLanded(sub, new Date())) {
-            throw new ConflictException({
-                code: 'SUBSCRIPTION_ENDED',
-                message: 'This subscription has ended. There is nothing left to accept.',
-                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
-            });
-        }
-        const noPendingVersion = () =>
-            new BadRequestException({
-                code: BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
-                message: 'There is no pending plan version awaiting confirmation.',
-            });
-        if (!sub.pendingPlanVersion) throw noPendingVersion();
-
-        // The pending version cleared or replaced since the checks above is
-        // refused by the store; the caller gets the answer those checks give.
-        const result = await answeringRefusals(
-            () => this.subscriptionWrite.acceptPendingPlanVersion(tenantId, userId, new Date()),
-            {
-                [BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION]: noPendingVersion,
-                [BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED]: () =>
-                    new ConflictException(codedError(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED)),
-            },
-        );
-        if (!result.alreadyAccepted) {
-            this.entitlements.invalidateTenant(tenantId);
-            await this.auditLog(
-                req,
-                userId,
-                'Subscription',
-                tenantId,
-                'ACCEPT_PENDING_PLAN_VERSION',
-                {
-                    pendingPlanVersionId: sub.pendingPlanVersion.id,
-                    pendingPlanId: sub.pendingPlanVersion.planId,
-                    pendingPlanVersion: sub.pendingPlanVersion.version,
-                    effectiveAt: result.effectiveAt?.toISOString() ?? null,
-                },
-            );
-        }
-        return {
-            accepted: true,
-            acceptedAt: result.acceptedAt,
-            effectiveAt: result.effectiveAt,
-            idempotent: result.alreadyAccepted,
         };
     }
 

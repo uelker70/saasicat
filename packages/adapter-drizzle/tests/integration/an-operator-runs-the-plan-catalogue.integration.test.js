@@ -3,10 +3,9 @@
 // The shared persistence contract publishes twice and checks the validity
 // window. That leaves most of both repositories unvisited: listing what is on
 // sale, renaming a plan, retiring one, numbering the next draft, refusing to
-// edit a version somebody already published, scheduling a change, accepting a
-// pending version twice, and cancelling twice. Every one of those is something
-// a person does, and each has a wrong answer worth pinning as well as a right
-// one.
+// edit a version somebody already published, scheduling a change, and
+// cancelling twice. Every one of those is something a person does, and each has
+// a wrong answer worth pinning as well as a right one.
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
@@ -380,19 +379,16 @@ describe("a tenant's own writes", () => {
         assert.equal(refused.plan, 'IMM_B', 'and the stored plan is untouched');
     });
 
-    // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+    // @requirement SC-SUB-024 — A subscription keeps its plan version until the subscriber takes another
     describe('a change that leaves the plan as it is', () => {
-        /** A tenant on v1, with v2 in effect from May and offered to them as pending. */
-        async function onV1WithV2Pending(planKey) {
+        /** A tenant on v1, with v2 in effect from May. */
+        async function onV1WhileV2IsInEffect(planKey) {
             const { version: v1 } = await livePlan(planKey);
             const v2 = await publish(
                 (await draftFor(planKey)).id,
                 new Date('2026-05-01T00:00:00.000Z'),
             );
-            await seedSubscription(planKey, v1.id, {
-                pendingPlanVersionId: v2.id,
-                pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
-            });
+            await seedSubscription(planKey, v1.id);
             return { v1, v2 };
         }
 
@@ -415,25 +411,23 @@ describe("a tenant's own writes", () => {
             return row;
         }
 
-        test('keeps the bound version, and the offer of the newer one, when it moves only the rhythm', async () => {
-            const { v1, v2 } = await onV1WithV2Pending('RHYTHM_ONLY');
+        test('keeps the bound version when it moves only the rhythm', async () => {
+            const { v1 } = await onV1WhileV2IsInEffect('RHYTHM_ONLY');
 
             await tenantWrite.changePlanImmediate(TENANT, toYearly('RHYTHM_ONLY', true));
 
             const row = await stored();
             assert.equal(row.billingCycle, 'YEARLY');
             assert.equal(row.planVersionId, v1.id);
-            assert.equal(row.pendingPlanVersionId, v2.id);
         });
 
-        test('a sale binds the version in effect, and no longer offers it as pending', async () => {
-            const { v2 } = await onV1WithV2Pending('SOLD_AGAIN');
+        test('a sale binds the version in effect', async () => {
+            const { v2 } = await onV1WhileV2IsInEffect('SOLD_AGAIN');
 
             await tenantWrite.changePlanImmediate(TENANT, toYearly('SOLD_AGAIN', false));
 
             const row = await stored();
             assert.equal(row.planVersionId, v2.id);
-            assert.equal(row.pendingPlanVersionId, null);
         });
 
         // @requirement SC-CHG-022 — A scheduled change to another plan binds the version it was quoted at
@@ -486,11 +480,11 @@ describe("a tenant's own writes", () => {
         );
     });
 
-    test('an immediate change stays on its own connection when a version is pending', async () => {
+    test('an immediate change stays on its own connection', async () => {
         // The change runs in a transaction, so it holds a connection for its
-        // whole length. Any lookup it makes on the way — here: does the pending
-        // version still belong to the plan being moved to — has to run on that
-        // same connection. Drawing a second one waits for a connection the
+        // whole length. Any lookup it makes on the way — here: the version in
+        // effect of the plan being moved to — has to run on that same
+        // connection. Drawing a second one waits for a connection the
         // transaction itself is holding, and on a one-connection pool that wait
         // never ends.
         //
@@ -505,17 +499,12 @@ describe("a tenant's own writes", () => {
         });
         try {
             const { version } = await livePlan('PEND_A');
-            const other = await livePlan('PEND_B');
-            await seedSubscription('PEND_A', version.id, {
-                // Pending, and belonging to a different plan than the one being
-                // moved to — the branch that makes the lookup happen at all.
-                pendingPlanVersionId: other.version.id,
-                pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
-            });
+            await livePlan('PEND_B');
+            await seedSubscription('PEND_A', version.id);
 
             const writer = new DrizzleTenantSubscriptionWrite(singleDb);
             const changed = await writer.changePlanImmediate(TENANT, {
-                planId: 'PEND_A',
+                planId: 'PEND_B',
                 cycle: 'MONTHLY',
                 periodStart: null,
                 periodEnd: null,
@@ -523,117 +512,10 @@ describe("a tenant's own writes", () => {
                 expectedCanceledAt: null,
             });
             assert.equal(changed.claimed, true);
-
-            const [row] = await db
-                .select()
-                .from(saasicatSchema.subscriptions)
-                .where(eq(saasicatSchema.subscriptions.tenantId, TENANT));
-            assert.equal(
-                row.pendingPlanVersionId,
-                null,
-                'a pending version belonging to another plan is cleared by the move',
-            );
+            assert.equal(changed.plan, 'PEND_B');
         } finally {
             await singlePool.end();
         }
-    });
-
-    test('accepting a pending version is idempotent, and reports the second call as such', async () => {
-        const { version } = await livePlan('ACC_A');
-        const pending = await livePlan('ACC_B', new Date('2026-05-01T00:00:00.000Z'));
-        await seedSubscription('ACC_A', version.id, {
-            pendingPlanVersionId: pending.version.id,
-            pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
-        });
-
-        const first = await tenantWrite.acceptPendingPlanVersion(
-            TENANT,
-            'user-1',
-            new Date('2026-04-01T00:00:00.000Z'),
-        );
-        assert.equal(first.accepted, true);
-        assert.equal(first.alreadyAccepted, false);
-        assert.equal(first.effectiveAt?.getTime(), new Date('2026-05-01T00:00:00.000Z').getTime());
-
-        // A double click is not a second acceptance.
-        const second = await tenantWrite.acceptPendingPlanVersion(
-            TENANT,
-            'user-1',
-            new Date('2026-04-02T00:00:00.000Z'),
-        );
-        assert.equal(second.alreadyAccepted, true);
-        assert.equal(
-            second.acceptedAt?.getTime(),
-            new Date('2026-04-01T00:00:00.000Z').getTime(),
-            'the first acceptance is the one that stands',
-        );
-    });
-
-    test('accepting when nothing is pending says so', async () => {
-        const { version } = await livePlan('ACC_NONE');
-        await seedSubscription('ACC_NONE', version.id);
-        await assert.rejects(
-            tenantWrite.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
-            (error) => error.code === BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
-        );
-    });
-
-    /**
-     * The write adapter over a pool that runs `meanwhile` just before the
-     * statement that claims the acceptance: a request of somebody else's
-     * landing between this write's read and its claim.
-     */
-    function writerWhere(meanwhile) {
-        const interleaving = {
-            async query(...args) {
-                const text = typeof args[0] === 'string' ? args[0] : args[0].text;
-                if (/^update "subscriptions" set "pendingPlanVersionAccepted"/i.test(text)) {
-                    await meanwhile();
-                }
-                return pool.query(...args);
-            },
-            connect: (...args) => pool.connect(...args),
-            end: () => {},
-        };
-        return new DrizzleTenantSubscriptionWrite(drizzle(interleaving));
-    }
-
-    async function subscriptionWithPending(planKey) {
-        const { version } = await livePlan(planKey);
-        const pending = await livePlan(`${planKey}_NEXT`, new Date('2026-05-01T00:00:00.000Z'));
-        await seedSubscription(planKey, version.id, {
-            pendingPlanVersionId: pending.version.id,
-            pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
-        });
-        return { version, pending };
-    }
-
-    test('a pending version cleared while accepting it answers as nothing pending', async () => {
-        await subscriptionWithPending('ACC_CLEARED');
-        const writer = writerWhere(() =>
-            pool.query(
-                'UPDATE subscriptions SET "pendingPlanVersionId" = NULL WHERE "tenantId" = $1',
-                [TENANT],
-            ),
-        );
-        await assert.rejects(
-            writer.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
-            (error) => error.code === BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
-        );
-    });
-
-    test('a pending version replaced while accepting it answers that the subscription changed', async () => {
-        const { version } = await subscriptionWithPending('ACC_REPLACED');
-        const writer = writerWhere(() =>
-            pool.query(
-                'UPDATE subscriptions SET "pendingPlanVersionId" = $2 WHERE "tenantId" = $1',
-                [TENANT, version.id],
-            ),
-        );
-        await assert.rejects(
-            writer.acceptPendingPlanVersion(TENANT, 'user-1', new Date()),
-            (error) => error.code === BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
-        );
     });
 
     test('a second cancellation returns the first one instead of replacing it', async () => {
@@ -843,41 +725,6 @@ describe('the subscription a tenant is shown', () => {
         );
         assert.equal(record.planVersion.id, version.id);
         assert.equal(record.planVersion.planId, 'USAGE_A');
-        // Nothing pending, and that reads as nothing rather than as a shape
-        // full of nulls.
-        assert.equal(record.pendingPlanVersion, null);
-        assert.equal(record.pendingPlanVersionEffectiveAt, null);
-        assert.equal(record.pendingPlanVersionAccepted, false);
-    });
-
-    test('a pending version comes with what a person needs to decide', async () => {
-        const current = await livePlanVersion('USAGE_FROM');
-        const pending = await livePlanVersion('USAGE_TO', new Date('2026-06-01T00:00:00.000Z'));
-        await db.insert(saasicatSchema.subscriptions).values({
-            id: randomUUID(),
-            tenantId: TENANT,
-            plan: 'USAGE_FROM',
-            planVersionId: current.id,
-            billingCycle: 'MONTHLY',
-            status: 'ACTIVE',
-            startedAt: new Date('2026-01-01T00:00:00.000Z'),
-            isPilot: false,
-            pendingPlanVersionId: pending.id,
-            pendingPlanVersionEffectiveAt: new Date('2026-06-01T00:00:00.000Z'),
-            updatedAt: new Date(),
-        });
-
-        const record = await usage.findForTenant(TENANT);
-        assert.equal(record?.pendingPlanVersion?.id, pending.id);
-        assert.equal(
-            record?.pendingPlanVersion?.nonRegressive,
-            true,
-            'whether the change takes anything away is the question being answered',
-        );
-        assert.equal(
-            record?.pendingPlanVersionEffectiveAt?.getTime(),
-            new Date('2026-06-01T00:00:00.000Z').getTime(),
-        );
     });
 
     test('the version a subscription is billed for cannot be deleted underneath it', async () => {

@@ -1726,3 +1726,71 @@ describe('a scheduled change learns the version it was quoted at', () => {
         assert.deepEqual(await quoted(), afterFirst);
     });
 });
+
+describe('the pending version is dropped', () => {
+    // A database from before the pending version was retired carries its seven
+    // columns, an index and a foreign key to the plan versions. The file drops
+    // the columns, which takes the index and the key with them, and on a second
+    // run finds nothing left to drop.
+    const MIGRATION = '1.0-a-newer-version-is-only-offered.postgres.sql';
+    const COLUMNS = [
+        '"pendingPlanVersionId" TEXT',
+        '"pendingPlanVersionEffectiveAt" TIMESTAMP(3)',
+        '"pendingPlanVersionAccepted" BOOLEAN NOT NULL DEFAULT false',
+        '"pendingPlanVersionAcceptedAt" TIMESTAMP(3)',
+        '"pendingPlanVersionAcceptedByUserId" TEXT',
+        '"pendingPlanVersionNotifiedAt" TIMESTAMP(3)',
+        '"pendingPlanVersionReminderSentAt" TIMESTAMP(3)',
+    ];
+
+    async function asBeforeTheRetirement() {
+        await freshGround();
+        await client.query(
+            `ALTER TABLE "subscriptions" ${COLUMNS.map((column) => `ADD COLUMN ${column}`).join(', ')}`,
+        );
+        await client.query(
+            'CREATE INDEX "subscriptions_pendingPlanVersionId_idx" ON "subscriptions"("pendingPlanVersionId")',
+        );
+        await client.query(
+            'ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingPlanVersionId_fkey" ' +
+                'FOREIGN KEY ("pendingPlanVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL',
+        );
+    }
+
+    /** What is left of the pending version on `subscriptions`. */
+    async function leftOver() {
+        const columns = await client.query(
+            'SELECT column_name FROM information_schema.columns ' +
+                "WHERE table_schema = current_schema() AND table_name = 'subscriptions' " +
+                "AND column_name LIKE 'pendingPlanVersion%'",
+        );
+        const index = await client.query(
+            "SELECT 1 FROM pg_indexes WHERE indexname = 'subscriptions_pendingPlanVersionId_idx'",
+        );
+        const key = await client.query(
+            "SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_pendingPlanVersionId_fkey'",
+        );
+        return {
+            columns: columns.rows.length,
+            index: index.rows.length,
+            key: key.rows.length,
+        };
+    }
+
+    test('the seven columns go, and their index and foreign key with them', async () => {
+        await asBeforeTheRetirement();
+        assert.deepEqual(await leftOver(), { columns: 7, index: 1, key: 1 }, 'the premise');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await leftOver(), { columns: 0, index: 0, key: 0 });
+    });
+
+    test('a second run finds nothing to drop and changes nothing', async () => {
+        await asBeforeTheRetirement();
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.deepEqual(await leftOver(), { columns: 0, index: 0, key: 0 });
+    });
+});

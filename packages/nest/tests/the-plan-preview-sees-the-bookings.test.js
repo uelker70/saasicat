@@ -114,10 +114,6 @@ const SUBSCRIPTION = {
         features: ['CORE'],
         quotas: { users: 8 },
     },
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 };
 
 /** The persistence bundle a consumer hands in, with the booking repo inside it. */

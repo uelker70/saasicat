@@ -289,7 +289,7 @@ describe('normalized plan identity across Prisma adapters', () => {
             subscriptionRow({
                 plan: 'DRIFTED',
                 planVersionId: 'entitlement-v1',
-                pendingPlanVersionId: 'entitlement-v2',
+                pendingChangeVersionId: 'entitlement-v2',
             }),
         );
         const repository = new PrismaSubscriptionRepository(client, {
@@ -750,7 +750,6 @@ function subscriptionRow(overrides = {}) {
         pendingEffectiveAt: null,
         customLimits: null,
         planVersionId: 'version-1',
-        pendingPlanVersionId: null,
         startedAt: null,
         ...overrides,
     };

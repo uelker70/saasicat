@@ -5,7 +5,6 @@ import {
     PendingPlanMaterializationService,
     TenantBillingController,
     decideCancellationFor,
-    decideRenewal,
 } from '../dist/billing/index.js';
 import {
     FLAT_ENTITLEMENTS,
@@ -133,49 +132,6 @@ describe('a change and a cancellation on the same day', () => {
     });
 });
 
-// @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
-// @requirement SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
-describe('a plan version published before the customer left', () => {
-    const version = (overrides = {}) => ({
-        pendingPlanVersionId: 'pv2',
-        pendingPlanVersionEffectiveAt: new Date('2027-01-01'),
-        pendingPlanVersionAccepted: true,
-        pendingPlanVersionNonRegressive: true,
-        canceledAt: null,
-        canceledEffectiveAt: null,
-        ...overrides,
-    });
-
-    test('does not roll onto a subscription whose term is over', () => {
-        const decision = decideRenewal(
-            version({
-                canceledAt: new Date('2026-06-01'),
-                canceledEffectiveAt: new Date('2027-01-01'),
-            }),
-            new Date('2027-01-02'),
-        );
-
-        assert.equal(decision, 'SKIP');
-    });
-
-    test('while a cancellation still to come stops nothing', () => {
-        // The premise, and the half every rule about "cancelled" gets wrong.
-        const decision = decideRenewal(
-            version({
-                canceledAt: new Date('2026-12-01'),
-                canceledEffectiveAt: new Date('2028-01-01'),
-            }),
-            new Date('2027-01-02'),
-        );
-
-        assert.equal(decision, 'ROLL_FORWARD');
-    });
-
-    test('and an uncancelled subscription rolls as before', () => {
-        assert.equal(decideRenewal(version(), new Date('2027-01-02')), 'ROLL_FORWARD');
-    });
-});
-
 /** A subscription whose cancellation landed two months ago. */
 const ENDED = usageRecord({
     currentPeriodEnd: new Date(Date.now() - 60 * DAY),
@@ -249,35 +205,6 @@ describe('activating a subscription that has already ended', () => {
         await activate(api);
 
         assert.equal(port.atomic[0].expectedCanceledAt, null);
-    });
-});
-
-// @requirement SC-SUB-014 — Accepting the same pending version twice changes nothing
-// @requirement SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
-describe('accepting a version after the subscription ended', () => {
-    const withPendingVersion = (base) =>
-        usageRecord({
-            ...base,
-            pendingPlanVersion: { id: 'pv2', planId: 'STARTER', version: 2 },
-            pendingPlanVersionEffectiveAt: new Date(Date.now() - 30 * DAY),
-        });
-
-    test('is refused rather than recorded against a dead contract', async () => {
-        const { api, port } = routes(withPendingVersion(ENDED));
-
-        await assert.rejects(
-            api.acceptPendingPlanVersion(REQUEST),
-            (err) => err.getResponse?.().code === 'SUBSCRIPTION_ENDED',
-        );
-        assert.equal(port.accepted.length, 0);
-    });
-
-    test('while a running subscription accepts as before', async () => {
-        const { api, port } = routes(withPendingVersion(STILL_RUNNING));
-
-        await api.acceptPendingPlanVersion(REQUEST);
-
-        assert.equal(port.accepted.length, 1);
     });
 });
 

@@ -11,16 +11,6 @@ export function subscriptionGone(tenantId: string): PersistenceRefusal {
     return refusal(BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND, 'gone', { tenantId });
 }
 
-/** The subscription moved between the caller's read and this write. */
-export function subscriptionChanged(tenantId: string): PersistenceRefusal {
-    return refusal(BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED, 'moved', { tenantId });
-}
-
-/** The pending plan version to accept was cleared in the meantime. */
-export function noPendingPlanVersion(tenantId: string): PersistenceRefusal {
-    return refusal(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, 'moved', { tenantId });
-}
-
 /** The plan to bind has no version in effect at `asOf`. */
 export function noActivePlanVersion(planId: string, asOf: Date): PersistenceRefusal {
     return refusal(BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION, 'gone', {

@@ -47,10 +47,6 @@ function usageAt(planPriceNet: number | null) {
             changeNote: null,
         },
         planPriceNet,
-        pendingPlanVersion: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
         canceledAt: null,
         canceledEffectiveAt: null,
         cancellation: {

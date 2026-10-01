@@ -73,10 +73,6 @@ const subscriptions = {
             supersededAt: null,
             changeNote: null,
         },
-        pendingPlanVersion: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
     }),
 };
 

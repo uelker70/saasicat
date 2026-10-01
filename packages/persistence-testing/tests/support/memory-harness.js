@@ -14,7 +14,6 @@ import {
     formatCustomerNumber,
     identityCorrectionDelta,
     noActivePlanVersion,
-    noPendingPlanVersion,
     planKeyTaken,
     promoCodeTaken,
     readCustomLimits,
@@ -114,7 +113,7 @@ export function createMemoryHarness() {
         async countByPlanVersionId(planVersionId) {
             return state.subscriptions.filter(
                 (s) =>
-                    s.planVersionId === planVersionId || s.pendingPlanVersionId === planVersionId,
+                    s.planVersionId === planVersionId || s.pendingChangeVersionId === planVersionId,
             ).length;
         },
     };
@@ -190,16 +189,9 @@ export function createMemoryHarness() {
             if ((row.canceledAt ?? null) !== (input.expectedCanceledAt ?? null)) {
                 return { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
             }
-            const pending = state.planVersions.find(
-                (version) => version.id === row.pendingPlanVersionId,
-            );
             row.plan = input.planId;
             row.billingCycle = input.cycle;
             row.planVersionId = target.id;
-            // Cleared where it belongs to another plan, or is what was bound.
-            if (pending && (pending.planId !== input.planId || pending.id === target.id)) {
-                row.pendingPlanVersionId = null;
-            }
             return { plan: row.plan, billingCycle: input.cycle, claimed: true };
         },
         async applyOnboardingSelection(tenantId, input, redeemPromo) {
@@ -241,22 +233,6 @@ export function createMemoryHarness() {
             row.pendingEffectiveAt = input.pendingEffectiveAt;
             row.pendingChangeVersionId = input.pendingChangeVersionId;
             return { claimed: true };
-        },
-        async acceptPendingPlanVersion(tenantId, userId, now) {
-            const row = state.subscriptions.find(
-                (subscription) => subscription.tenantId === tenantId,
-            );
-            if (!row) throw subscriptionGone(tenantId);
-            if (!row.pendingPlanVersionId) throw noPendingPlanVersion(tenantId);
-            const alreadyAccepted = row.pendingPlanVersionAccepted === true;
-            row.pendingPlanVersionAccepted = true;
-            row.pendingPlanVersionAcceptedAt ??= now;
-            return {
-                accepted: true,
-                acceptedAt: row.pendingPlanVersionAcceptedAt,
-                effectiveAt: null,
-                alreadyAccepted,
-            };
         },
         async cancelSubscription() {
             return { canceledAt: new Date(), status: 'CANCELED' };
@@ -1194,7 +1170,7 @@ export function createMemoryHarness() {
                 plan: input.plan,
                 status: input.status ?? 'ACTIVE',
                 planVersionId: input.planVersionId,
-                pendingPlanVersionId: input.pendingPlanVersionId ?? null,
+                pendingChangeVersionId: input.pendingChangeVersionId ?? null,
                 billingCycle: input.billingCycle ?? 'YEARLY',
                 startedAt: input.startedAt ?? null,
                 customLimits: input.customLimits ?? null,

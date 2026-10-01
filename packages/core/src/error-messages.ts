@@ -195,7 +195,6 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The minimum term extends beyond the end of the period — the cancellation only takes effect when the minimum term ends.',
     BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED:
         'The bundle requires [{features}] — present neither in the plan nor in the active bundles.',
-    NO_PENDING_PLAN_VERSION: 'There is no pending plan version awaiting confirmation.',
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
         'Exactly one of bundleVersionId (add preview) or subscriptionBundleId (cancel preview) must be given.',

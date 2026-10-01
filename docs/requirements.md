@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 23      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 24      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 22      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 538 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
-🔵 4 superseded, 🔴 1 withdrawn.
+Of 539 entries: 🟢 466 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+🔵 5 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -201,14 +201,17 @@ Of 538 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
-🔵 **Superseded** — [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+🔵 **Superseded** — [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+[SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
-🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
+🔴 **Withdrawn** — [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
+[SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
+[SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 538 requirements. Do not edit by hand:
+Generated from `requirements/` — 539 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -1737,18 +1740,13 @@ _Tested by:_
     - a tenant's own writes
         - a scheduled change is written, and only while the row is uncancelled
         - an immediate change binds the plan and refuses once a cancellation lands
-        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
-          newer one, when it moves only the rhythm
-        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
-          offers it as pending
+        - a change that leaves the plan as it is › keeps the bound version when it moves only the
+          rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect
         - a change that leaves the plan as it is › a change to another plan is scheduled with the
           version it was quoted at, and bound to it
         - changing to a plan with no live version says so rather than binding nothing
-        - an immediate change stays on its own connection when a version is pending
-        - accepting a pending version is idempotent, and reports the second call as such
-        - accepting when nothing is pending says so
-        - a pending version cleared while accepting it answers as nothing pending
-        - a pending version replaced while accepting it answers that the subscription changed
+        - an immediate change stays on its own connection
         - a second cancellation returns the first one instead of replacing it
         - an operator ending a contract on the spot flips the status
     - the statements a tenant write sends
@@ -1758,7 +1756,6 @@ _Tested by:_
     - the subscription a tenant is shown
         - a tenant with no subscription reads as none, not as an error
         - the dates and the plan version a person is shown all come back
-        - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
         - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/nest/tests/plan-catalog-importer.test.js`
@@ -1971,18 +1968,13 @@ _Tested by:_
     - a tenant's own writes
         - a scheduled change is written, and only while the row is uncancelled
         - an immediate change binds the plan and refuses once a cancellation lands
-        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
-          newer one, when it moves only the rhythm
-        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
-          offers it as pending
+        - a change that leaves the plan as it is › keeps the bound version when it moves only the
+          rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect
         - a change that leaves the plan as it is › a change to another plan is scheduled with the
           version it was quoted at, and bound to it
         - changing to a plan with no live version says so rather than binding nothing
-        - an immediate change stays on its own connection when a version is pending
-        - accepting a pending version is idempotent, and reports the second call as such
-        - accepting when nothing is pending says so
-        - a pending version cleared while accepting it answers as nothing pending
-        - a pending version replaced while accepting it answers that the subscription changed
+        - an immediate change stays on its own connection
         - a second cancellation returns the first one instead of replacing it
         - an operator ending a contract on the spot flips the status
     - the statements a tenant write sends
@@ -1992,7 +1984,6 @@ _Tested by:_
     - the subscription a tenant is shown
         - a tenant with no subscription reads as none, not as an error
         - the dates and the plan version a person is shown all come back
-        - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
         - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/cli/tests/generated-catalog-loads.test.js`
@@ -2179,7 +2170,7 @@ The one answer allowed to lag is a tenant's entitlements, which are cached for a
 feature marked as planned only stops being granted within that minute rather than at once. Nothing
 that is priced or recorded is taken from that cache: a contract records the version its subscription
 is bound to — the one a plan change bound, or the one a tenant has kept while a successor went on
-sale (`SC-SUB-012`) — and computes its entitlements fresh.
+sale (`SC-SUB-024`) — and computes its entitlements fresh.
 
 _Source:_ #289
 
@@ -3687,12 +3678,8 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/version-renewal.test.js`
-    - decideRenewal
-        - SKIP when no pending version
-        - SKIP when EffectiveAt is in the future
-        - ROLL_FORWARD when nonRegressive=true
-        - ROLL_FORWARD when accepted=true (even if regressive)
-        - CLEAR_PENDING when regressive + not accepted (variant B)
+    - computeNextPeriod
+        - null when currentPeriodEnd null (Trial)
 
 <!-- END proof -->
 
@@ -3722,7 +3709,7 @@ _Tested by:_
 
 ### SC-SUB-010 — A subscription that has ended can no longer change plan
 
-🟢 Nor complete onboarding, accept a pending version, or book an add-on.
+🟢 Nor complete onboarding or book an add-on.
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -3758,115 +3745,25 @@ _Tested by:_
 
 ### SC-SUB-012 — A new version of a plan does not move a customer who already bought one
 
-🟢 It is offered as a pending change instead. A change that only improves things takes effect at the
-next renewal; one that takes something away only takes effect if the tenant accepted it, and is
-otherwise dropped when its date arrives.
+🔵 _(Superseded on 2026-10-01 by `SC-SUB-024`.)_ It is offered as a pending change instead. A change
+that only improves things takes effect at the next renewal; one that takes something away only takes
+effect if the tenant accepted it, and is otherwise dropped when its date arrives.
 
 _Source:_ release 1.0.0-rc.6 · `docs/explanation/data-model.md`
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
-    - a tenant's own writes
-        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
-          newer one, when it moves only the rhythm
-        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
-          offers it as pending
-        - a change that leaves the plan as it is › a change to another plan is scheduled with the
-          version it was quoted at, and bound to it
-- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - PrismaTenantSubscriptionWriteAdapter
-        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
-          newer one, when it moves only the rhythm
-        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
-          offers it as pending
-        - a change that leaves the plan as it is › binds the version in effect where the
-          subscription is bound to none
-        - a change that leaves the plan as it is › a rebinding between its read and its write is not
-          written over
-- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - a plan version published before the customer left
-        - does not roll onto a subscription whose term is over
-        - while a cancellation still to come stops nothing
-        - and an uncancelled subscription rolls as before
-- `packages/nest/tests/pending-plan-materialization.test.js`
-    - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
-      is
-- `packages/nest/tests/plan-change-preview.test.js`
-    - a subscriber on an older version of the plan
-        - is quoted the version they keep for a change of rhythm, and loses nothing by it
-        - sees the price they pay as their current one when changing plan
-        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
-        - is quoted from the catalogue where no repository reads versions
-        - is quoted a change at a version the change can name › another plan at the version live
-          now, priced from that version and named by it
-        - is quoted a change at a version the change can name › the plan it stays on at the version
-          kept
-        - is quoted a change at a version the change can name › none where nothing reads versions,
-          priced from the catalogue
-        - is shown the price they pay › at the version they keep, in either rhythm, not the
-          catalogue's
-        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
-          not as 0
-        - is shown the price they pay › as none where the version they keep is sold under a special
-          contract
-        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
-          cannot be read
-        - is shown the price they pay › as unknown where the version bound is a version of another
-          plan
-        - is shown the price they pay › and a change is refused with a code rather than quoted from
-          the catalogue
-        - is shown the price they pay › from the catalogue where no repository reads versions, or
-          none is bound
-- `packages/nest/tests/subscription-contract-freeze-service.test.js`
-    - the plan line records the version the subscription is bound to
-        - a tenant on v1 who books an add-on after v2 is published keeps v1
-
-<!-- END proof -->
-
 ### SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
 
-🟢 A version becomes due because a date arrived, not because anybody still wants it.
+🔴 _(Withdrawn on 2026-10-01.)_ A version becomes due because a date arrived, not because anybody
+still wants it.
 
 _Source:_ release 1.0.0-rc.6
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - a subscription that has ended
-        - refuses a plan change instead of charging for one
-        - while a running one still changes plans
-- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - a plan version published before the customer left
-        - does not roll onto a subscription whose term is over
-        - while a cancellation still to come stops nothing
-        - and an uncancelled subscription rolls as before
-
-<!-- END proof -->
-
 ### SC-SUB-014 — Accepting the same pending version twice changes nothing
 
-🟢 And accepting one when none is pending is refused rather than silently accepted.
+🔴 _(Withdrawn on 2026-10-01.)_ And accepting one when none is pending is refused rather than silently
+accepted.
 
 _Source:_ `docs/reference/error-codes.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - accepting a version after the subscription ended
-        - is refused rather than recorded against a dead contract
-        - while a running subscription accepts as before
-- `packages/nest/tests/version-renewal.test.js`
-    - clearPendingPlanVersionFields
-        - returns all pending fields as null/false
-
-<!-- END proof -->
 
 ### SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
 
@@ -3883,10 +3780,6 @@ _Tested by:_
         - is declined once the cancellation has taken effect
         - but a cancellation still to come declines nothing
         - and an uncancelled subscription is applied as before
-- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - accepting a version after the subscription ended
-        - is refused rather than recorded against a dead contract
-        - while a running subscription accepts as before
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - materializes all due pending plan changes and invalidates each tenant
     - defaults to MONTHLY cycle when pendingBillingCycle is null
@@ -4055,9 +3948,8 @@ the end of the running term; otherwise a price higher in any rhythm is more for 
 at once; otherwise it is an improvement, taking effect at once. The version offered is the one a
 booking made now would bind, by its validity window, and only when it is newer than the version
 bound; it is offered only where the subscription could take it — not ended, not on a plan kept for a
-special contract, sold in its rhythm, and with no change of plan or rhythm and no pending version still
-to land, since the offer is judged against what the subscriber will have. Every user of the tenant
-can read the offer.
+special contract, sold in its rhythm, and with no change of plan or rhythm still to land, since the
+offer is judged against what the subscriber will have. Every user of the tenant can read the offer.
 
 _Source:_ #357
 
@@ -4120,7 +4012,6 @@ _Tested by:_
         - for a version not marketed
         - while a change to another plan is scheduled
         - while a change of rhythm is scheduled
-        - while a pending version has yet to land
         - once the cancellation has landed
         - on a plan kept for a special contract, either way round
         - where the version bound cannot be read as a version of the plan
@@ -4296,6 +4187,71 @@ _Tested by:_
         - that the application answers only after the timeout stays held, and a late success is kept
           as sent
         - held by another run is left to it
+
+<!-- END proof -->
+
+### SC-SUB-024 — A subscription keeps its plan version until the subscriber takes another
+
+🟢 💰 Features, quotas and price stay those of the version the subscription is bound to — during the
+term and across every renewal. A newer version is offered beside the plan (`SC-SUB-020`) and binds
+only when the subscriber takes it (`SC-SUB-021`); no renewal, no change of rhythm and no job of the
+platform moves a subscription to another version on its own, neither better nor worse. A change to
+another plan binds that plan's version, the one its preview quoted.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
+    - a tenant's own writes
+        - a change that leaves the plan as it is › keeps the bound version when it moves only the
+          rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect
+        - a change that leaves the plan as it is › a change to another plan is scheduled with the
+          version it was quoted at, and bound to it
+- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
+    - PrismaTenantSubscriptionWriteAdapter
+        - a change that leaves the plan as it is › keeps the bound version when it moves only the
+          rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect
+        - a change that leaves the plan as it is › binds the version in effect where the
+          subscription is bound to none
+        - a change that leaves the plan as it is › a rebinding between its read and its write is not
+          written over
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - a scheduled change keeps the version the subscriber is bound to where it leaves the plan as it
+      is
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a subscriber on an older version of the plan
+        - is quoted the version they keep for a change of rhythm, and loses nothing by it
+        - sees the price they pay as their current one when changing plan
+        - is refused a rhythm the version they keep is not sold in, rather than quoted it free
+        - is quoted from the catalogue where no repository reads versions
+        - is quoted a change at a version the change can name › another plan at the version live
+          now, priced from that version and named by it
+        - is quoted a change at a version the change can name › the plan it stays on at the version
+          kept
+        - is quoted a change at a version the change can name › none where nothing reads versions,
+          priced from the catalogue
+        - is shown the price they pay › at the version they keep, in either rhythm, not the
+          catalogue's
+        - is shown the price they pay › as none in a rhythm the version they keep is not sold in,
+          not as 0
+        - is shown the price they pay › as none where the version they keep is sold under a special
+          contract
+        - is shown the price they pay › as unknown, not the catalogue's, where the version bound
+          cannot be read
+        - is shown the price they pay › as unknown where the version bound is a version of another
+          plan
+        - is shown the price they pay › and a change is refused with a code rather than quoted from
+          the catalogue
+        - is shown the price they pay › from the catalogue where no repository reads versions, or
+          none is bound
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - the plan line records the version the subscription is bound to
+        - a tenant on v1 who books an add-on after v2 is published keeps v1
 
 <!-- END proof -->
 
@@ -4829,7 +4785,7 @@ _Tested by:_
 for a later date records it. When the change comes due, that version is bound, not whichever is in
 effect that day: a version published in between reaches the customer as an offer, never through a
 change they already confirmed at another price. A change that keeps the plan keeps the version bound
-(`SC-SUB-012`). Where no repository reads plan versions there is nothing to record, and the version
+(`SC-SUB-024`). Where no repository reads plan versions there is nothing to record, and the version
 in effect when the change comes due is bound.
 
 _Source:_ #348
@@ -5223,8 +5179,6 @@ _Tested by:_
     - the page around the card
         - shows an ended subscription as cancelled, whatever its status column says
         - and a running one keeps its badge and its billing date
-        - offers no pending version to accept once the contract is over
-        - while a running subscription is asked about it
     - a cancellation that arrives after the page did
         - is measured from now, not from when the card was created
 
@@ -5274,8 +5228,6 @@ _Tested by:_
     - the page around the card
         - shows an ended subscription as cancelled, whatever its status column says
         - and a running one keeps its badge and its billing date
-        - offers no pending version to accept once the contract is over
-        - while a running subscription is asked about it
     - a cancellation that arrives after the page did
         - is measured from now, not from when the card was created
 
@@ -15635,6 +15587,9 @@ _Tested by:_
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
+    - the pending version is dropped
+        - the seven columns go, and their index and foreign key with them
+        - a second run finds nothing to drop and changes nothing
 
 <!-- END proof -->
 
@@ -15733,6 +15688,9 @@ _Tested by:_
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
         - a second run pins nothing published since the first
+    - the pending version is dropped
+        - the seven columns go, and their index and foreign key with them
+        - a second run finds nothing to drop and changes nothing
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -15779,8 +15737,8 @@ _Tested by:_
 
 ### SC-OPS-007 — Repeating an action a person took changes nothing either
 
-🟢 Cancelling twice, accepting the same pending version twice, ending an already-ended contract —
-each reports the state that already holds instead of creating a second effect.
+🟢 Cancelling twice, ending an already-ended contract — each reports the state that already holds
+instead of creating a second effect.
 
 _Source:_ release 1.0.0-rc.6
 
@@ -15791,8 +15749,8 @@ after another: the platform checks before it writes, and where two requests pass
 together the store decides. The one that loses is answered with the status, code and parameters a
 request arriving a moment later gets from the check, rather than a 500 that reads like a crash in
 the log. That holds for the writes the shipped stores guard this way — catalogue keys and drafts,
-add-on cancellations, and the subscription's plan, pending version and cancellation — and for a
-store of an integrator's own where it refuses with a `PersistenceRefusal`.
+add-on cancellations, and the subscription's plan and cancellation — and for a store of an
+integrator's own where it refuses with a `PersistenceRefusal`.
 
 _Source:_ #352
 
@@ -15821,8 +15779,6 @@ _Tested by:_
         - is told it is already cancelled, as the check says it
         - is told it is not found where it went
     - a tenant whose subscription moves while the request is decided
-        - accepting a pending version cleared meanwhile answers as the check does
-        - accepting a pending version replaced meanwhile is told to reload
         - cancelling a subscription gone meanwhile answers as the check does
         - an onboarding whose subscription went meanwhile answers as the check does, on the atomic
           path too
@@ -16772,12 +16728,12 @@ _Tested by:_
     - PrismaSubscriptionRepository
         - findByTenantId maps row + plan version to SubscriptionRecord
         - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
-        - countByPlanVersionId uses a single OR count
+        - countByPlanVersionId counts the version bound and the one a scheduled change binds, in one
+          count
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
-        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
-          reads
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads
         - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record
@@ -16935,12 +16891,12 @@ _Tested by:_
     - PrismaSubscriptionRepository
         - findByTenantId maps row + plan version to SubscriptionRecord
         - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
-        - countByPlanVersionId uses a single OR count
+        - countByPlanVersionId counts the version bound and the one a scheduled change binds, in one
+          count
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
-        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
-          reads
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in two reads
         - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record

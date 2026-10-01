@@ -1,90 +1,12 @@
-// Pure-function building blocks for PlanVersion renewal and period-roll logic.
+// The pure decision behind a renewal: the next billing window of a
+// subscription. A renewal keeps the plan version the subscription is bound to;
+// a newer one reaches it as an offer, never through the renewal.
 //
-// Consumers implement the cron-job loop (DB query, transaction,
-// audit, cache invalidate) — the platform provides the **decision
-// pure functions** defined here, which determine for each subscription
-// what to do.
+// Consumers implement the cron-job loop (DB query, transaction, audit, cache
+// invalidate) — the platform provides the decision defined here.
 
 import type { BillingCycle } from '@saasicat/core';
 import { periodEndAfter } from './billing-period.js';
-
-/**
- * What the renewal cron should do with a subscription whose
- * `pendingPlanVersionEffectiveAt` has been reached.
- *
- *   - `ROLL_FORWARD`: pending becomes the new live version. Happens when
- *     either `nonRegressive=true` (platform guarantee: no regression)
- *     or `accepted=true` (the tenant has agreed to the change).
- *   - `CLEAR_PENDING`: pending is discarded. Happens when the
- *     pending version is regressive AND the tenant has **not** agreed
- *     by the effective date (variant B from roadmap §6.2: opt-in
- *     missed → no change).
- *   - `SKIP`: the sub has no pending version or the effective date is
- *     still in the future. (Should normally not be found by the cron
- *     filter at all — caught defensively here.)
- */
-export type RenewalDecision = 'ROLL_FORWARD' | 'CLEAR_PENDING' | 'SKIP';
-
-/** Input shape for `decideRenewal` (what the cron reads from the sub). */
-export interface RenewalSubInput {
-    pendingPlanVersionId: string | null;
-    pendingPlanVersionEffectiveAt: Date | null;
-    pendingPlanVersionAccepted: boolean;
-    /** `nonRegressive` from the referenced PlanVersion. */
-    pendingPlanVersionNonRegressive: boolean;
-    /**
-     * The cancellation, read the same way `computeNextPeriod` reads it below.
-     *
-     * A version published before the customer cancelled still comes due
-     * afterwards, and rolling it forward rewrites the plan of a subscription
-     * whose term is over. Required, and required together, because a record
-     * that omits them answers "not cancelled" and goes ahead.
-     */
-    canceledAt: Date | null;
-    canceledEffectiveAt: Date | null;
-}
-
-/**
- * Decides what should happen to a subscription with a due pending version.
- */
-export function decideRenewal(sub: RenewalSubInput, now: Date): RenewalDecision {
-    if (!sub.pendingPlanVersionId || !sub.pendingPlanVersionEffectiveAt) return 'SKIP';
-    if (sub.pendingPlanVersionEffectiveAt > now) return 'SKIP';
-    // Nothing rolls onto a subscription whose term is over. The same rule the
-    // scheduled plan change follows, one level up: a version is due because a
-    // date arrived, not because anybody still wants it.
-    const landedAt = sub.canceledEffectiveAt ?? sub.canceledAt;
-    if (landedAt !== null && landedAt <= now) return 'SKIP';
-    if (sub.pendingPlanVersionNonRegressive || sub.pendingPlanVersionAccepted) {
-        return 'ROLL_FORWARD';
-    }
-    return 'CLEAR_PENDING';
-}
-
-/**
- * Returns the fields that must be reset in the subscription update after a
- * `ROLL_FORWARD` or `CLEAR_PENDING`. The consumer inserts them
- * into its Prisma `update.data` block.
- */
-export function clearPendingPlanVersionFields(): {
-    pendingPlanVersionId: null;
-    pendingPlanVersionEffectiveAt: null;
-    pendingPlanVersionAccepted: false;
-    pendingPlanVersionAcceptedAt: null;
-    pendingPlanVersionAcceptedByUserId: null;
-    pendingPlanVersionNotifiedAt: null;
-    pendingPlanVersionReminderSentAt: null;
-} {
-    return {
-        pendingPlanVersionId: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
-        pendingPlanVersionAcceptedByUserId: null,
-        pendingPlanVersionNotifiedAt: null,
-        pendingPlanVersionReminderSentAt: null,
-    };
-}
 
 /** Input shape for `computeNextPeriod`. */
 export interface PeriodRollInput {

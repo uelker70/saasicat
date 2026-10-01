@@ -40,10 +40,6 @@ function buildSub({ plan = 'STARTER', status = 'TRIAL', id = 'sub-1' } = {}) {
             supersededAt: null,
             changeNote: null,
         },
-        pendingPlanVersion: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
     };
 }
 
@@ -66,7 +62,6 @@ function buildWritePort() {
             return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
         async schedulePlanChange() {},
-        async acceptPendingPlanVersion() {},
         async cancelSubscription() {
             return { canceledAt: null, status: 'ACTIVE' };
         },
@@ -411,7 +406,6 @@ test('atomic path: applyOnboardingSelection is used, sequential calls are avoide
             return { plan: 'unused', billingCycle: 'unused' };
         },
         async schedulePlanChange() {},
-        async acceptPendingPlanVersion() {},
         async cancelSubscription() {
             return { canceledAt: null, status: 'ACTIVE' };
         },
@@ -444,7 +438,6 @@ test('atomic path: successful non-trial plan change freezes the subscription con
             throw new Error('legacy path must NOT be hit');
         },
         async schedulePlanChange() {},
-        async acceptPendingPlanVersion() {},
         async cancelSubscription() {
             return { canceledAt: null, status: 'ACTIVE' };
         },
@@ -488,7 +481,6 @@ test('atomic path: adapter error throws BadRequestException (no half-state)', as
             throw new Error('legacy path must NOT be hit');
         },
         async schedulePlanChange() {},
-        async acceptPendingPlanVersion() {},
         async cancelSubscription() {
             return { canceledAt: null, status: 'ACTIVE' };
         },
@@ -522,7 +514,6 @@ test('atomic path: promo-redeem callback is called with subscriptionId', async (
             return { plan: '', billingCycle: '' };
         },
         async schedulePlanChange() {},
-        async acceptPendingPlanVersion() {},
         async cancelSubscription() {
             return { canceledAt: null, status: 'ACTIVE' };
         },

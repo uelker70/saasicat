@@ -106,13 +106,6 @@ export interface TenantPlanSectionI18n {
     bundlePreviewConfirmCancel: string;
     bundlePreviewInProgress: string;
     bundlePreviewClose: string;
-    pendingVersionTitle: string;
-    pendingVersionChipNonRegressive: string;
-    pendingVersionChipRegressive: string;
-    pendingVersionEffectiveAt: string;
-    pendingVersionAcceptAction: string;
-    pendingVersionAcceptInProgress: string;
-    pendingVersionAcceptedAt: string;
     /** The offer's heading; `{version}` is the version offered. */
     versionOfferTitle: string;
     versionOfferKindImprovement: string;
@@ -404,13 +397,6 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     bundlePreviewConfirmCancel: 'Kündigung bestätigen',
     bundlePreviewInProgress: 'Wird ausgeführt …',
     bundlePreviewClose: 'Abbrechen',
-    pendingVersionTitle: 'Anstehende Plan-Änderung',
-    pendingVersionChipNonRegressive: 'Verbessernd',
-    pendingVersionChipRegressive: 'Bestätigung erforderlich',
-    pendingVersionEffectiveAt: 'Wirksam ab',
-    pendingVersionAcceptAction: 'Änderungen akzeptieren',
-    pendingVersionAcceptInProgress: 'Akzeptiere …',
-    pendingVersionAcceptedAt: 'Akzeptiert am',
     versionOfferTitle: 'Version {version} Ihres Pakets',
     versionOfferKindImprovement: 'Verbesserung',
     versionOfferKindMoreForMore: 'Mehr Leistung, höherer Preis',
@@ -678,13 +664,6 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundlePreviewConfirmCancel: 'Confirm cancellation',
     bundlePreviewInProgress: 'Processing …',
     bundlePreviewClose: 'Cancel',
-    pendingVersionTitle: 'Upcoming plan change',
-    pendingVersionChipNonRegressive: 'Improvement',
-    pendingVersionChipRegressive: 'Confirmation required',
-    pendingVersionEffectiveAt: 'Effective as of',
-    pendingVersionAcceptAction: 'Accept changes',
-    pendingVersionAcceptInProgress: 'Accepting …',
-    pendingVersionAcceptedAt: 'Accepted on',
     versionOfferTitle: 'Version {version} of your plan',
     versionOfferKindImprovement: 'Improvement',
     versionOfferKindMoreForMore: 'More for more',

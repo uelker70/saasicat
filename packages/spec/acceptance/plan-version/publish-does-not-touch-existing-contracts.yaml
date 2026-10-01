@@ -3,8 +3,8 @@ description: |
     P1 guarantee from SPEC §6: When a new plan version is published,
     `Subscription.planVersionId` of the existing tenants is NOT touched.
     Only publishedAt of the new version + supersededAt of the old version
-    are written. Migration runs exclusively through the
-    notification + renewal cron with a 6-week lead time.
+    are written. A subscription moves to the new version only when the
+    subscriber takes it as an offer (SC-SUB-021); no renewal moves it.
 
     This is the core guarantee for grandfathering protection. If this
     test goes red, the implementation violates that contract protection.
@@ -43,13 +43,6 @@ then:
     - assertSubscriptionPriceMonthlyNet:
           tenantSlug: 'test-existing-contracts'
           value: 24.90
-    # pendingPlanVersion fields are not yet set (the notification cron
-    # has not run yet).
-    - assertSubscription:
-          tenantSlug: 'test-existing-contracts'
-          pendingPlanVersionId: null
-          pendingPlanVersionEffectiveAt: null
-
     # Catalog: the old version has supersededAt, the new one has publishedAt.
     - assertPlanVersion:
           planId: 'STANDARD'

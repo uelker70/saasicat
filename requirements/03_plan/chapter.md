@@ -738,18 +738,13 @@ _Tested by:_
     - a tenant's own writes
         - a scheduled change is written, and only while the row is uncancelled
         - an immediate change binds the plan and refuses once a cancellation lands
-        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
-          newer one, when it moves only the rhythm
-        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
-          offers it as pending
+        - a change that leaves the plan as it is › keeps the bound version when it moves only the
+          rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect
         - a change that leaves the plan as it is › a change to another plan is scheduled with the
           version it was quoted at, and bound to it
         - changing to a plan with no live version says so rather than binding nothing
-        - an immediate change stays on its own connection when a version is pending
-        - accepting a pending version is idempotent, and reports the second call as such
-        - accepting when nothing is pending says so
-        - a pending version cleared while accepting it answers as nothing pending
-        - a pending version replaced while accepting it answers that the subscription changed
+        - an immediate change stays on its own connection
         - a second cancellation returns the first one instead of replacing it
         - an operator ending a contract on the spot flips the status
     - the statements a tenant write sends
@@ -759,7 +754,6 @@ _Tested by:_
     - the subscription a tenant is shown
         - a tenant with no subscription reads as none, not as an error
         - the dates and the plan version a person is shown all come back
-        - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
         - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/nest/tests/plan-catalog-importer.test.js`
@@ -972,18 +966,13 @@ _Tested by:_
     - a tenant's own writes
         - a scheduled change is written, and only while the row is uncancelled
         - an immediate change binds the plan and refuses once a cancellation lands
-        - a change that leaves the plan as it is › keeps the bound version, and the offer of the
-          newer one, when it moves only the rhythm
-        - a change that leaves the plan as it is › a sale binds the version in effect, and no longer
-          offers it as pending
+        - a change that leaves the plan as it is › keeps the bound version when it moves only the
+          rhythm
+        - a change that leaves the plan as it is › a sale binds the version in effect
         - a change that leaves the plan as it is › a change to another plan is scheduled with the
           version it was quoted at, and bound to it
         - changing to a plan with no live version says so rather than binding nothing
-        - an immediate change stays on its own connection when a version is pending
-        - accepting a pending version is idempotent, and reports the second call as such
-        - accepting when nothing is pending says so
-        - a pending version cleared while accepting it answers as nothing pending
-        - a pending version replaced while accepting it answers that the subscription changed
+        - an immediate change stays on its own connection
         - a second cancellation returns the first one instead of replacing it
         - an operator ending a contract on the spot flips the status
     - the statements a tenant write sends
@@ -993,7 +982,6 @@ _Tested by:_
     - the subscription a tenant is shown
         - a tenant with no subscription reads as none, not as an error
         - the dates and the plan version a person is shown all come back
-        - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
         - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/cli/tests/generated-catalog-loads.test.js`
@@ -1180,7 +1168,7 @@ The one answer allowed to lag is a tenant's entitlements, which are cached for a
 feature marked as planned only stops being granted within that minute rather than at once. Nothing
 that is priced or recorded is taken from that cache: a contract records the version its subscription
 is bound to — the one a plan change bound, or the one a tenant has kept while a successor went on
-sale (`SC-SUB-012`) — and computes its entitlements fresh.
+sale (`SC-SUB-024`) — and computes its entitlements fresh.
 
 _Source:_ #289
 

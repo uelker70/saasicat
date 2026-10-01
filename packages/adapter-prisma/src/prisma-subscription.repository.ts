@@ -102,9 +102,10 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
     }
 
     async countByPlanVersionId(planVersionId: string): Promise<number> {
-        // Single COUNT over both FK columns — two separate queries would race.
+        // Single COUNT over both FK columns — two separate queries would race. A
+        // version a scheduled change will bind is booked as much as one bound.
         return this.subscriptions(this.db()).count({
-            where: { OR: [{ planVersionId }, { pendingPlanVersionId: planVersionId }] },
+            where: { OR: [{ planVersionId }, { pendingChangeVersionId: planVersionId }] },
         });
     }
 

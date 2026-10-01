@@ -150,7 +150,7 @@ describe('the plan line records the version the subscription is bound to', () =>
         features: ['CORE', 'WHATSAPP', 'EXPORT'],
     };
 
-    // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+    // @requirement SC-SUB-024 — A subscription keeps its plan version until the subscriber takes another
     test('a tenant on v1 who books an add-on after v2 is published keeps v1', async () => {
         const operator = publishingCatalogue(CATALOG);
         const { calls, service } = makeService({

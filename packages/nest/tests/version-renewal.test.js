@@ -1,104 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-    clearPendingPlanVersionFields,
-    computeNextPeriod,
-    decideRenewal,
-} from '../dist/billing/index.js';
+import { computeNextPeriod } from '../dist/billing/index.js';
 
 const NOW = new Date('2026-05-08T12:00:00Z');
-
-// @requirement SC-SUB-007 — A subscription with no period does not renew
-describe('decideRenewal', () => {
-    test('SKIP when no pending version', () => {
-        assert.equal(
-            decideRenewal(
-                {
-                    pendingPlanVersionId: null,
-                    pendingPlanVersionEffectiveAt: null,
-                    pendingPlanVersionAccepted: false,
-                    pendingPlanVersionNonRegressive: true,
-                },
-                NOW,
-            ),
-            'SKIP',
-        );
-    });
-
-    test('SKIP when EffectiveAt is in the future', () => {
-        assert.equal(
-            decideRenewal(
-                {
-                    pendingPlanVersionId: 'pv-2',
-                    pendingPlanVersionEffectiveAt: new Date('2026-06-01'),
-                    pendingPlanVersionAccepted: false,
-                    pendingPlanVersionNonRegressive: true,
-                },
-                NOW,
-            ),
-            'SKIP',
-        );
-    });
-
-    test('ROLL_FORWARD when nonRegressive=true', () => {
-        assert.equal(
-            decideRenewal(
-                {
-                    pendingPlanVersionId: 'pv-2',
-                    pendingPlanVersionEffectiveAt: new Date('2026-04-01'),
-                    pendingPlanVersionAccepted: false,
-                    pendingPlanVersionNonRegressive: true,
-                },
-                NOW,
-            ),
-            'ROLL_FORWARD',
-        );
-    });
-
-    test('ROLL_FORWARD when accepted=true (even if regressive)', () => {
-        assert.equal(
-            decideRenewal(
-                {
-                    pendingPlanVersionId: 'pv-2',
-                    pendingPlanVersionEffectiveAt: new Date('2026-04-01'),
-                    pendingPlanVersionAccepted: true,
-                    pendingPlanVersionNonRegressive: false,
-                },
-                NOW,
-            ),
-            'ROLL_FORWARD',
-        );
-    });
-
-    test('CLEAR_PENDING when regressive + not accepted (variant B)', () => {
-        assert.equal(
-            decideRenewal(
-                {
-                    pendingPlanVersionId: 'pv-2',
-                    pendingPlanVersionEffectiveAt: new Date('2026-04-01'),
-                    pendingPlanVersionAccepted: false,
-                    pendingPlanVersionNonRegressive: false,
-                },
-                NOW,
-            ),
-            'CLEAR_PENDING',
-        );
-    });
-});
-
-// @requirement SC-SUB-014 — Accepting the same pending version twice changes nothing
-describe('clearPendingPlanVersionFields', () => {
-    test('returns all pending fields as null/false', () => {
-        const fields = clearPendingPlanVersionFields();
-        assert.equal(fields.pendingPlanVersionId, null);
-        assert.equal(fields.pendingPlanVersionEffectiveAt, null);
-        assert.equal(fields.pendingPlanVersionAccepted, false);
-        assert.equal(fields.pendingPlanVersionAcceptedAt, null);
-        assert.equal(fields.pendingPlanVersionAcceptedByUserId, null);
-        assert.equal(fields.pendingPlanVersionNotifiedAt, null);
-        assert.equal(fields.pendingPlanVersionReminderSentAt, null);
-    });
-});
 
 // @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 // @requirement SC-SUB-003 — A term renews by itself unless it was cancelled first
@@ -153,6 +57,7 @@ describe('computeNextPeriod', () => {
         assert.deepEqual(next.minimumTermUntil, next.currentPeriodEnd);
     });
 
+    // @requirement SC-SUB-007 — A subscription with no period does not renew
     test('null when currentPeriodEnd null (Trial)', () => {
         assert.equal(
             computeNextPeriod(

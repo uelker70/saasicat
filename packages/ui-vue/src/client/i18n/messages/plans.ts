@@ -230,7 +230,7 @@ export const plansMessages = defineMessages(
             bodyTail: ', Draft v{version}.',
             supersededNoteLead: 'Eine ggf. zuvor live Version wird auf',
             supersededNoteTail:
-                'gesetzt (Vertragsschutz P1: Bestand-Subscriptions bleiben auf der alten Version bis zum nächsten Renewal).',
+                'gesetzt (Vertragsschutz P1: Bestand-Subscriptions behalten ihre Version; die neue wird ihnen angeboten).',
             forceRegressive:
                 'Force-Publish auch bei Regression (Feature entfernt / Quota gesenkt / Preis erhöht)',
             allowZeroPrice: 'Preis 0,00 bewusst zulassen (kostenloser Sondervertrag)',
@@ -485,7 +485,7 @@ export const plansMessages = defineMessages(
             bodyTail: ', draft v{version}.',
             supersededNoteLead: 'A previously live version, if any, is set to',
             supersededNoteTail:
-                '(contract protection P1: existing subscriptions stay on the old version until the next renewal).',
+                '(contract protection P1: existing subscriptions keep their version; the new one is offered to them).',
             forceRegressive:
                 'Force publish even on regression (feature removed / quota lowered / price increased)',
             allowZeroPrice: 'Deliberately allow price 0.00 (free special contract)',

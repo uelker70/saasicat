@@ -14,12 +14,10 @@ import {
     isPersistenceRefusal,
     marketingProjectionTaken,
     noActivePlanVersion,
-    noPendingPlanVersion,
     planKeyTaken,
     planNotInCatalog,
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
-    subscriptionChanged,
     subscriptionGone,
 } from '../dist/index.js';
 
@@ -132,18 +130,6 @@ describe('a write that lost a race names the case the check names', () => {
             subscriptionGone('t1'),
             BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
             'gone',
-            { tenantId: 't1' },
-        ],
-        [
-            subscriptionChanged('t1'),
-            BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
-            'moved',
-            { tenantId: 't1' },
-        ],
-        [
-            noPendingPlanVersion('t1'),
-            BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
-            'moved',
             { tenantId: 't1' },
         ],
         [

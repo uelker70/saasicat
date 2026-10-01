@@ -34,10 +34,6 @@ const CANCELLED = {
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     planVersion: null,
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
 };
 
 function buildController(subscription, writePort) {

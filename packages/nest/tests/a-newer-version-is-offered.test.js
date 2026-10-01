@@ -197,14 +197,6 @@ describe('no offer', () => {
         assert.equal(await offerOf({ sub }), null);
     });
 
-    test('while a pending version has yet to land', async () => {
-        const sub = subscription({
-            pendingPlanVersion: { id: 'pv-2', planId: 'STANDARD', version: 2 },
-            pendingPlanVersionEffectiveAt: PERIOD_END,
-        });
-        assert.equal(await offerOf({ sub }), null);
-    });
-
     test('once the cancellation has landed', async () => {
         const ended = new Date('2026-10-01T00:00:00.000Z');
         const sub = subscription({

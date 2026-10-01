@@ -346,8 +346,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     // single review round had exactly that as their root cause — a state no
     // fixture renders. Each case below is chosen for the branch that hid:
     // `currentPlanId` for the inverted "current plan" flag (1.48:1 in dark),
-    // a pending version for the banner behind its `v-if`, and a dialog for the
-    // teleported portal.
+    // and a dialog for the teleported portal.
     visualCase({
         id: 'tenant-plan',
         load: () => import('@saasicat/ui-vue-tenant/TenantPlanSection.vue'),

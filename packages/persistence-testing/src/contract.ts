@@ -807,41 +807,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(unchanged?.plan, 'STARTER', 'nothing was written');
         });
 
-        test('accepting a pending plan version where none is pending is refused', async (t) => {
-            const { seed, adapter } = harness;
-            const writer = adapter.tenantSubscriptionWrite;
-            if (!writer) {
-                missing(t, 'atomicPlanBinding');
-                return;
-            }
-            const current = await seed.createPlanVersion({
-                planKey: 'STARTER',
-                version: 1,
-                quotas: {},
-                features: [],
-                published: true,
-            });
-            await seed.createSubscription({
-                tenantId: 'tenant-nothing-pending',
-                plan: 'STARTER',
-                planVersionId: current.planVersionId,
-            });
-            await assert.rejects(
-                () =>
-                    writer.acceptPendingPlanVersion(
-                        'tenant-nothing-pending',
-                        'user-1',
-                        new Date('2026-05-01T00:00:00.000Z'),
-                    ),
-                refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION, {
-                    tenantId: 'tenant-nothing-pending',
-                }),
-            );
-        });
-
-        // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+        // @requirement SC-SUB-024
         describe('a change that leaves the plan as it is', () => {
-            /** A tenant on PRO v1 while v2 is the version in effect, v2 also offered as pending. */
+            /** A tenant on LOYAL v1 while v2 is the version in effect. */
             async function onASupersededVersion(
                 t: TestContext,
                 tenantId: string,
@@ -883,7 +851,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     tenantId,
                     plan: 'LOYAL',
                     planVersionId: bound.planVersionId,
-                    pendingPlanVersionId: live.planVersionId,
                 });
                 return { writer, bound: bound.planVersionId, live: live.planVersionId };
             }
@@ -915,12 +882,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         'tenant-rhythm-only',
                     );
                 assert.equal(after?.planVersionId, tenant.bound, 'still on the version bought');
-                const accepted = await tenant.writer.acceptPendingPlanVersion(
-                    'tenant-rhythm-only',
-                    'user-1',
-                    new Date('2026-05-02T00:00:00.000Z'),
-                );
-                assert.equal(accepted.accepted, true, 'the newer version is still on offer');
             });
 
             test('binds the version in effect of another plan, whatever the change asks to keep', async (t) => {
@@ -944,15 +905,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
                 assert.equal(after?.plan, 'SMALLER');
                 assert.equal(after?.planVersionId, other.planVersionId);
-                await assert.rejects(
-                    tenant.writer.acceptPendingPlanVersion(
-                        'tenant-scheduled-downgrade',
-                        'user-1',
-                        new Date('2026-05-02T00:00:00.000Z'),
-                    ),
-                    refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION),
-                    'a version of the plan left behind is not on offer any more',
-                );
             });
 
             // @requirement SC-CHG-022
@@ -1321,15 +1273,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         'tenant-sold-again',
                     );
                 assert.equal(after?.planVersionId, tenant.live);
-                await assert.rejects(
-                    tenant.writer.acceptPendingPlanVersion(
-                        'tenant-sold-again',
-                        'user-1',
-                        new Date('2026-05-02T00:00:00.000Z'),
-                    ),
-                    refusedAs(BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION),
-                    'the version bound is not offered again',
-                );
             });
         });
 
@@ -2454,7 +2397,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
+        test('countByPlanVersionId counts the version bound and the one a scheduled change will bind', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {
                 missing(t, 'countByPlanVersionId');
@@ -2480,10 +2423,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 planVersionId: v2.planVersionId,
             });
             await seed.createSubscription({
-                tenantId: 'tenant-pending',
+                tenantId: 'tenant-scheduled',
                 plan: 'PRO',
                 planVersionId: v1.planVersionId,
-                pendingPlanVersionId: v2.planVersionId,
+                pendingChangeVersionId: v2.planVersionId,
             });
 
             assert.equal(

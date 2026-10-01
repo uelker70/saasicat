@@ -79,10 +79,6 @@ export function usageRecord(overrides = {}) {
         pendingBillingCycle: null,
         pendingEffectiveAt: null,
         planVersion: null,
-        pendingPlanVersion: null,
-        pendingPlanVersionEffectiveAt: null,
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
         ...overrides,
     };
 }
@@ -118,7 +114,6 @@ export function recordingWritePort() {
         immediate: [],
         scheduled: [],
         atomic: [],
-        accepted: [],
         cancellations: [],
         async changePlanImmediate(tenantId, input) {
             this.immediate.push(input);
@@ -137,10 +132,6 @@ export function recordingWritePort() {
                 promoRedemption: null,
                 claimed: true,
             };
-        },
-        async acceptPendingPlanVersion(tenantId, userId) {
-            this.accepted.push({ tenantId, userId });
-            return { acceptedAt: new Date(), effectiveAt: null, alreadyAccepted: false };
         },
         async cancelSubscription(tenantId, input) {
             this.cancellations.push(input);

@@ -641,19 +641,6 @@ const TENANT_USAGE: UsageSnapshotShape = {
         changeNote: 'More storage',
     },
     planPriceNet: null,
-    // The pending-version banner only renders when this is set, and it is the
-    // surface that paints `--sa-color-inverse-notice`.
-    pendingPlanVersion: {
-        id: 'pv-2',
-        planId: 'pl-1',
-        version: 4,
-        nonRegressive: true,
-        changeNote: 'Adds the export feature',
-        publishedChanges: null,
-    },
-    pendingPlanVersionEffectiveAt: '2026-03-01T00:00:00.000Z',
-    pendingPlanVersionAccepted: false,
-    pendingPlanVersionAcceptedAt: null,
     limits: {
         plan: 'PRO',
         quotas: { users: 25, storage: 50, projects: 10 },
@@ -678,8 +665,6 @@ const TENANT_USAGE_WITH_AN_OFFER: UsageSnapshotShape = {
     status: 'ACTIVE',
     trialEndsAt: null,
     planPriceNet: 49,
-    pendingPlanVersion: null,
-    pendingPlanVersionEffectiveAt: null,
 };
 
 /**
@@ -1240,9 +1225,8 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // Tenant-facing. `apiPrefix` is the sub-path under the adapter's base, so
     // the fixture's cases pass `/api/billing` and these are the full paths.
     ...tenantRoutes('/api/billing', TENANT_USAGE, null),
-    // A newer version of the plan, offered: the subscription runs, and nothing
-    // is outstanding — while a pending version is, no offer is made, so this
-    // case cannot share the first one's subscription.
+    // A newer version of the plan, offered: a subscription of its own, so the
+    // first case keeps rendering the section with nothing on offer.
     ...tenantRoutes('/api/offer-billing', TENANT_USAGE_WITH_AN_OFFER, TENANT_VERSION_OFFER),
 ];
 

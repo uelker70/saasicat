@@ -176,7 +176,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // version the subscription is bound to, from one row. After a plan
         // change the write has bound the version it sold; on a re-freeze after
         // an add-on changed it is the version the tenant has had all along,
-        // even with a successor on sale (`SC-SUB-012`). The version on sale now
+        // even with a successor on sale (`SC-SUB-024`). The version on sale now
         // would charge a customer who bought v1 the price of v2.
         const bound = await this.source.findBoundPlanVersion(tenantId);
         if (!bound || bound.planId !== newPlan) {
