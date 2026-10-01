@@ -548,6 +548,18 @@ describe('what the operator does not wait on', () => {
         assert.equal(errors.mock.callCount(), 1);
     });
 
+    test('and one that throws before it answers does too, and the announcement succeeds', async () => {
+        const errors = mock.method(Logger.prototype, 'error', () => {});
+        const { service, notifications, port } = setUp();
+        notifications.windowChanged = () => {
+            throw new Error('no recipient configured');
+        };
+        const window = await service.announce(announcement(), OPERATOR);
+        await settle();
+        assert.equal(port.windows[0].id, window.id);
+        assert.equal(errors.mock.callCount(), 1);
+    });
+
     // @requirement SC-AUD-004 — A failure to record something never blocks the act itself
     test('an audit log that cannot be written does not undo the lock', async () => {
         mock.method(Logger.prototype, 'error', () => {});

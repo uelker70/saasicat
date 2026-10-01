@@ -504,8 +504,9 @@ export class MaintenanceService {
      * every tenant can take minutes, and the window is recorded either way.
      */
     private notify(event: MaintenanceWindowEvent): void {
-        if (!this.notifications) return;
-        withTimeout(this.notifications.windowChanged(event), NOTIFICATION_TIMEOUT_MS).catch(
+        const notifications = this.notifications;
+        if (!notifications) return;
+        withTimeout(() => notifications.windowChanged(event), NOTIFICATION_TIMEOUT_MS).catch(
             (error: unknown) => {
                 this.logger.error(
                     `The application was not told that window ${event.window.id} was ${event.kind}; ` +

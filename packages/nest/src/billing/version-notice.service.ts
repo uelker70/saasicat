@@ -165,10 +165,14 @@ export class VersionNoticeService implements OnModuleInit {
         if (!claimed) return null;
         const claimedAt = claimed.claimedAt ?? takenAt;
 
-        const sending = this.port.deliver(notice);
+        // A port that throws before it returns a promise fails like one that
+        // rejects, rather than escaping the run with its claim still held.
+        const sending = new Promise<SubscriptionNoticeDelivery>((resolve) =>
+            resolve(this.port.deliver(notice)),
+        );
         let delivery: SubscriptionNoticeDelivery;
         try {
-            delivery = await withTimeout(sending, this.deliveryTimeoutMs);
+            delivery = await withTimeout(() => sending, this.deliveryTimeoutMs);
         } catch (error) {
             if (error instanceof TimeoutError) {
                 this.settleLate(sending, claimed.id, claimedAt);

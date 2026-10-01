@@ -4248,6 +4248,7 @@ _Tested by:_
         - is told to every subscription it is offered to, each with its own tenant
     - a notice the application could not send
         - is tried again by the next run, and then kept as sent
+        - that the application throws on before it answers fails like any other, and the run goes on
         - told to nobody is kept as sent to no one, and not tried again
         - sent but not recorded counts as sent, and is not sent again while its claim holds
         - is claimed at the moment it is taken, not when the run began

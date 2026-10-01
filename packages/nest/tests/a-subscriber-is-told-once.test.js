@@ -194,6 +194,30 @@ describe('a notice the application could not send', () => {
         assert.equal(port.sent.length, 2);
     });
 
+    test('that the application throws on before it answers fails like any other, and the run goes on', async () => {
+        mock.method(Logger.prototype, 'error', () => {});
+        const sent = [];
+        const port = {
+            deliver(notice) {
+                sent.push(notice.tenantId);
+                if (notice.tenantId === 't1') throw new Error('no administrator found');
+                return Promise.resolve({ recipients: ['admin@example.com'], channel: 'email' });
+            },
+        };
+        const { service, notices } = runOver({
+            subscriptions: [subscriptionOf('t1'), subscriptionOf('t2')],
+            port,
+        });
+
+        assert.deepEqual(await service.sendDue(NOW), { told: 1, failed: 1 });
+        assert.deepEqual(sent, ['t1', 't2'], 'the run went on to the next subscription');
+        assert.equal(
+            (await notices.listForSubscription('sub-t1'))[0].claimedAt,
+            null,
+            'let go for the next run',
+        );
+    });
+
     // @requirement SC-SUB-023 — Every notice to a subscriber is recorded: once, with when and to whom it went
     test('told to nobody is kept as sent to no one, and not tried again', async () => {
         const port = sendingPort({ recipients: [], channel: 'email' });
