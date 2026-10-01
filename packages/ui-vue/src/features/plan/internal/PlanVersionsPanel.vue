@@ -2,7 +2,6 @@
     <AdminSection :title="msg.versions.title" class="pd-panel">
         <template #subtitle>
             {{ msg.versions.subtitle }}
-            <code class="pd-code">supersededAt</code>
         </template>
         <template #actions>
             <div class="pd-panel-head-right">
@@ -31,7 +30,7 @@
                     :key="v.id"
                     :class="[
                         'pd-timeline-seg',
-                        statusOf(v),
+                        statusChip(v),
                         v.id === selectedId ? 'is-selected' : '',
                     ]"
                     :style="{ flex: statusOf(v) === 'draft' ? 1.4 : 1 }"
@@ -76,7 +75,7 @@
                             :class="['chip dot', statusChip(v)]"
                             style="font-size: var(--sa-text-2xs)"
                         >
-                            {{ statusOf(v) }}
+                            {{ saleText(v) }}
                         </span>
                     </div>
                 </div>
@@ -84,11 +83,11 @@
                     <div class="pd-validity">
                         <div class="pd-validity-line">
                             <span class="pd-validity-date">
-                                {{ v.validFrom ? v.validFrom.slice(0, 10) : '—' }}
+                                {{ formatDate(v.validFrom) }}
                             </span>
                             <span class="pd-arrow-inf">→</span>
                             <span v-if="v.validUntil" class="pd-validity-date">
-                                {{ v.validUntil.slice(0, 10) }}
+                                {{ formatDate(v.validUntil) }}
                             </span>
                             <span v-else class="pd-arrow-inf">∞</span>
                         </div>
@@ -152,7 +151,7 @@
                             <q-icon name="edit" size="12px" />
                         </q-btn>
                     </template>
-                    <template v-if="statusOf(v) === 'live'">
+                    <template v-if="statusOf(v) === 'on-sale'">
                         <span
                             v-if="v.endsAt"
                             class="pd-endsat-badge"
@@ -190,6 +189,7 @@ import AdminSection from '../../../ui/page/AdminSection.vue';
 import type { PlanVersionRow } from '@saasicat/core';
 import { formatMessage } from '../../../client/i18n/format.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
+import { useVersionSaleText } from '../../../vue/use-version-sale-text.js';
 import type { EditabilityOf, StatusChipOf, StatusOf } from './plan-detail.types.js';
 
 const props = defineProps<{
@@ -216,6 +216,7 @@ defineEmits<{
 }>();
 
 const msg = useSaMessages('planDetail');
+const saleText = useVersionSaleText();
 
 const newDraftButtonLabel = computed(() =>
     formatMessage(msg.value.versions.newDraftButton, { version: props.nextDraftVersion }),
@@ -224,14 +225,14 @@ const newDraftButtonLabel = computed(() =>
 function timelineSelectTitle(version: PlanVersionRow): string {
     return formatMessage(msg.value.versions.timelineSelectTitle, {
         version: version.version,
-        status: props.statusOf(version),
+        status: saleText(version),
     });
 }
 
 function validityLabel(version: PlanVersionRow): string {
     const status = props.statusOf(version);
-    if (status === 'draft') return msg.value.versions.validityPlanned;
-    if (status === 'live') return msg.value.versions.validityActive;
+    if (status === 'draft' || status === 'scheduled') return msg.value.versions.validityPlanned;
+    if (status === 'on-sale') return msg.value.versions.validityActive;
     return msg.value.versions.validityHistoric;
 }
 

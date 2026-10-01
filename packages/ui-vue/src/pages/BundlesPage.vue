@@ -19,7 +19,7 @@
             <AdminSection>
                 <BundlesKpis
                     :bundles-total="bundles.length"
-                    :live-count="liveCount"
+                    :on-sale-count="onSaleCount"
                     :scheduled-bundles-count="scheduledBundlesCount"
                     :total-scheduled-versions="totalScheduledVersions"
                     :total-draft-versions="totalDraftVersions"
@@ -63,7 +63,7 @@
                     :filtered-bundles="filteredBundles"
                     :bundles-total="bundles.length"
                     :open-key="openKey"
-                    :aggregate-status-of="aggregateStatusOf"
+                    :aggregate-of="aggregateOf"
                     :i18n-locale-count="i18nLocaleCount"
                     @toggle="toggle"
                     @delete-bundle="confirmDelete"
@@ -180,13 +180,13 @@ import {
     type QuotaMeta,
 } from '../features/bundle/internal/catalog-i18n.js';
 import {
-    bundleActiveVersionAt,
-    bundleAggregateStatus,
+    bundleAggregate,
     bundleVersionStatus,
     bundleVersionsSorted,
-    type BundleAggregateStatus,
+    type BundleAggregate,
 } from '../features/bundle/internal/bundle-version-status';
 import { formatMessage } from '../client/i18n/format.js';
+import { versionOnSale } from '../client/version-sale.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import BundleAccordionList from '../internal/bundles-page/BundleAccordionList.vue';
@@ -384,8 +384,8 @@ function versionsOf(bundleId: string): BundleVersionRow[] {
     return fromMap ?? [];
 }
 
-function aggregateStatusOf(b: BundleRow): BundleAggregateStatus {
-    return bundleAggregateStatus(versionsOf(b.id), b.deletedAt);
+function aggregateOf(b: BundleRow): BundleAggregate {
+    return bundleAggregate(versionsOf(b.id), b.deletedAt);
 }
 
 const filteredBundles = computed(() => {
@@ -394,7 +394,7 @@ const filteredBundles = computed(() => {
         if (q && !b.bundleKey.toLowerCase().includes(q) && !b.label.toLowerCase().includes(q)) {
             return false;
         }
-        if (statusFilter.value !== 'all' && aggregateStatusOf(b) !== statusFilter.value) {
+        if (statusFilter.value !== 'all' && aggregateOf(b).status !== statusFilter.value) {
             return false;
         }
         return true;
@@ -406,14 +406,14 @@ function i18nLocaleCount(b: BundleRow): number {
 }
 const translatedCount = computed(() => bundles.value.filter((b) => i18nLocaleCount(b) > 0).length);
 
-const liveCount = computed(
-    () => bundles.value.filter((b) => aggregateStatusOf(b) === 'live').length,
+const onSaleCount = computed(
+    () => bundles.value.filter((b) => aggregateOf(b).status === 'on-sale').length,
 );
 const scheduledBundlesCount = computed(
-    () => bundles.value.filter((b) => aggregateStatusOf(b) === 'scheduled').length,
+    () => bundles.value.filter((b) => aggregateOf(b).status === 'scheduled').length,
 );
 const draftBundlesCount = computed(
-    () => bundles.value.filter((b) => aggregateStatusOf(b) === 'draft').length,
+    () => bundles.value.filter((b) => aggregateOf(b).status === 'draft').length,
 );
 const totalDraftVersions = computed(() => {
     let n = 0;
@@ -442,10 +442,10 @@ const existingBundleKeys = computed(() => bundles.value.map((b) => b.bundleKey))
 
 const statusFilterOptions = computed<BundlesStatusFilterOption[]>(() => [
     { label: msg.value.filter.all, value: 'all' },
-    { label: msg.value.filter.live, value: 'live' },
+    { label: msg.value.filter.onSale, value: 'on-sale' },
     { label: msg.value.filter.scheduled, value: 'scheduled' },
     { label: msg.value.filter.draft, value: 'draft' },
-    { label: msg.value.filter.superseded, value: 'superseded' },
+    { label: msg.value.filter.offSale, value: 'off-sale' },
     { label: msg.value.filter.retired, value: 'retired' },
 ]);
 
@@ -607,16 +607,14 @@ const selectedVersion = computed<BundleVersionRow | null>(() => {
 function defaultSelectedVersion(versions: BundleVersionRow[]): BundleVersionRow | null {
     if (versions.length === 0) return null;
     // Preferred: the draft (exactly one allowed) → then scheduled →
-    // then live → then latest.
+    // then the one on sale → then latest.
     const draft = versions.find((v) => v.publishedAt === null);
     if (draft) return draft;
     const sorted = bundleVersionsSorted(versions);
-    const scheduled = sorted.find(
-        (v) => v.validFrom && new Date(v.validFrom).getTime() > Date.now(),
-    );
+    const scheduled = sorted.find((v) => bundleVersionStatus(v) === 'scheduled');
     if (scheduled) return scheduled;
-    const live = bundleActiveVersionAt(versions);
-    if (live) return live;
+    const onSale = versionOnSale(versions, new Date());
+    if (onSale) return onSale;
     return sorted[sorted.length - 1];
 }
 
@@ -638,7 +636,7 @@ async function onAddVersion(bundleId: string): Promise<void> {
     if (detailVersions.value.some((v) => v.publishedAt === null)) return;
     const sortedVersions = bundleVersionsSorted(detailVersions.value);
     const previous =
-        bundleActiveVersionAt(detailVersions.value) ??
+        versionOnSale(detailVersions.value, new Date()) ??
         sortedVersions[sortedVersions.length - 1] ??
         null;
     inlineEditorError.value = null;

@@ -47,17 +47,17 @@ export const bundlesMessages = defineMessages(
         },
         filter: {
             all: 'Alle Status',
-            live: 'Nur Live',
+            onSale: 'Im Verkauf',
             scheduled: 'Mit geplanter Version',
             draft: 'Drafts',
-            superseded: 'Abgelöste',
+            offSale: 'Nicht mehr im Verkauf',
             retired: 'Retired',
         },
         kpis: {
             total: 'Bundles gesamt',
-            totalSub: '{live} live · {scheduled} mit geplanter Version',
+            totalSub: '{onSale} im Verkauf · {scheduled} mit geplanter Version',
             scheduled: 'Geplante Versionen',
-            scheduledSub: 'zukünftig aktiv · noch nicht verkaufbar',
+            scheduledSub: 'ab ihrem ersten Tag im Verkauf',
             drafts: 'Offene Drafts',
             draftsSub: '{count} Bundle(s) ohne Publish',
             translated: 'Mit Übersetzung',
@@ -67,23 +67,20 @@ export const bundlesMessages = defineMessages(
             translationCount: '{count} Übersetzung(en)',
             emptyNoMatch: 'Keine Bundles entsprechen der Suche.',
         },
-        // Lifecycle status of a BundleVersion / of a bundle stem.
+        // Where a BundleVersion / a bundle stem stands. The label is the sale
+        // state (`common.versionSale`); a retired bundle has its own.
         status: {
             draft: {
-                label: 'Draft',
                 tooltip: 'Noch nicht veröffentlicht — frei editierbar',
             },
-            live: {
-                label: 'Live',
-                tooltip: 'Aktive Version · verkaufbar · read-only (laufende Verträge)',
+            onSale: {
+                tooltip: 'Wird verkauft · read-only (laufende Verträge)',
             },
             scheduled: {
-                label: 'Geplant',
-                tooltip: 'Zukünftig aktiv · noch nicht verkaufbar · frei editierbar',
+                tooltip: 'Ab ihrem ersten Tag im Verkauf · bis dahin frei editierbar',
             },
-            superseded: {
-                label: 'Abgelöst',
-                tooltip: 'Durch neue Version ersetzt · Bestand bleibt',
+            offSale: {
+                tooltip: 'Wird nicht mehr verkauft · Bestand bleibt',
             },
             retired: {
                 label: 'Retired',
@@ -152,19 +149,12 @@ export const bundlesMessages = defineMessages(
         // number and the status word stay bold in the markup, so the sentence
         // is split around them.
         statusBanner: {
-            is: 'ist',
-            live: 'live',
-            liveTail: 'seit {date} — wird aktuell als Add-On angeboten.',
-            liveWarning:
+            onSaleTail: 'wird aktuell als Add-On angeboten.',
+            onSaleWarning:
                 'Inhalt & Preis sind read-only (laufende Verträge). Für Änderungen eine neue Version anlegen.',
-            scheduled: 'geplant',
-            scheduledTail: 'für {date} — wird ab dann verkaufbar.',
             scheduledOk: 'Frei editierbar bis dahin.',
-            superseded: 'abgelöst',
-            supersededTail:
-                '({from} – {until}) — wird nicht mehr angeboten, Bestand bleibt für Abrechnung erhalten.',
-            draft: 'Draft',
-            draftTail: '— noch nicht published, frei editierbar.',
+            offSaleTail: 'wird nicht mehr angeboten, Bestand bleibt für Abrechnung erhalten.',
+            draftTail: 'noch nicht published, frei editierbar.',
             discardTooltip: 'Geplante Version verwerfen',
         },
         // BundleVersionInlineEditor — features/quotas/pricing of one version.
@@ -283,17 +273,17 @@ export const bundlesMessages = defineMessages(
         },
         filter: {
             all: 'All statuses',
-            live: 'Live only',
+            onSale: 'On sale',
             scheduled: 'With scheduled version',
             draft: 'Drafts',
-            superseded: 'Superseded',
+            offSale: 'Off sale',
             retired: 'Retired',
         },
         kpis: {
             total: 'Bundles total',
-            totalSub: '{live} live · {scheduled} with a scheduled version',
+            totalSub: '{onSale} on sale · {scheduled} with a scheduled version',
             scheduled: 'Scheduled versions',
-            scheduledSub: 'active in the future · not sellable yet',
+            scheduledSub: 'on sale from their first day',
             drafts: 'Open drafts',
             draftsSub: '{count} bundle(s) without a publish',
             translated: 'With translation',
@@ -305,20 +295,16 @@ export const bundlesMessages = defineMessages(
         },
         status: {
             draft: {
-                label: 'Draft',
                 tooltip: 'Not published yet — freely editable',
             },
-            live: {
-                label: 'Live',
-                tooltip: 'Active version · sellable · read-only (running contracts)',
+            onSale: {
+                tooltip: 'On sale · read-only (running contracts)',
             },
             scheduled: {
-                label: 'Scheduled',
-                tooltip: 'Active in the future · not sellable yet · freely editable',
+                tooltip: 'On sale from its first day · freely editable until then',
             },
-            superseded: {
-                label: 'Superseded',
-                tooltip: 'Replaced by a newer version · existing contracts remain',
+            offSale: {
+                tooltip: 'No longer on sale · existing contracts remain',
             },
             retired: {
                 label: 'Retired',
@@ -380,19 +366,12 @@ export const bundlesMessages = defineMessages(
             addDisabledTooltip: 'Bundle already has a draft version — publish or discard it first',
         },
         statusBanner: {
-            is: 'is',
-            live: 'live',
-            liveTail: 'since {date} — currently offered as an add-on.',
-            liveWarning:
+            onSaleTail: 'currently offered as an add-on.',
+            onSaleWarning:
                 'Content & price are read-only (running contracts). Create a new version to make changes.',
-            scheduled: 'scheduled',
-            scheduledTail: 'for {date} — becomes sellable from then on.',
             scheduledOk: 'Freely editable until then.',
-            superseded: 'superseded',
-            supersededTail:
-                '({from} – {until}) — no longer offered, existing contracts remain for billing.',
-            draft: 'Draft',
-            draftTail: '— not published yet, freely editable.',
+            offSaleTail: 'no longer offered, existing contracts remain for billing.',
+            draftTail: 'not published yet, freely editable.',
             discardTooltip: 'Discard scheduled version',
         },
         editor: {

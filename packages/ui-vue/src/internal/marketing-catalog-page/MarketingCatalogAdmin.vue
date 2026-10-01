@@ -97,7 +97,7 @@
                                         v-if="!row.liveVersion"
                                         class="sa-marketing-chip sa-marketing-chip--muted"
                                     >
-                                        {{ msg.admin.noLiveVersion }}
+                                        {{ msg.admin.noVersion }}
                                     </span>
                                     <span
                                         v-else-if="!row.m.visible"
@@ -113,8 +113,11 @@
                                     </span>
                                     <span
                                         v-else
-                                        class="sa-marketing-chip sa-marketing-chip--live"
-                                        >{{ msg.admin.live }}</span
+                                        :class="[
+                                            'sa-marketing-chip',
+                                            saleChipClass(row.liveVersion),
+                                        ]"
+                                        >{{ saleText(row.liveVersion) }}</span
                                     >
                                 </div>
                                 <div class="sa-marketing-plan-key">{{ row.plan.planKey }}</div>
@@ -475,8 +478,10 @@ import type { ComponentPublicInstance } from 'vue';
 import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import { versionSale } from '../../client/version-sale.js';
 import { useRowReorder } from '../../vue/use-row-reorder.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import { useVersionSaleText } from '../../vue/use-version-sale-text.js';
 import type { FeatureSuggestion, MarketingRow, ResolvedMarketing } from './types.js';
 
 const props = defineProps<{
@@ -512,6 +517,15 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
+const saleText = useVersionSaleText();
+
+/** The chip of the version the entry is edited at, coloured by where it stands. */
+function saleChipClass(version: PlanVersionRow): string {
+    const kind = versionSale(version, new Date()).kind;
+    if (kind === 'on-sale') return 'sa-marketing-chip--live';
+    if (kind === 'scheduled') return 'sa-marketing-chip--scheduled';
+    return 'sa-marketing-chip--muted';
+}
 
 // sa-disclosure-exempt(writes `aria-expanded`):
 // this row is five grid cells, not a header that opens a body

@@ -490,7 +490,8 @@ describe('helper modules reach app-supplied languages', () => {
         messages: {
             discovery: { statusLabels: { pending: 'En attente' } },
             planVersions: { format: { today: "aujourd'hui" } },
-            bundles: { status: { live: { label: 'En ligne' } } },
+            common: { versionSale: { onSale: 'En vente' } },
+            bundles: { status: { retired: { label: 'Retiré' } } },
         },
     };
 
@@ -505,8 +506,9 @@ describe('helper modules reach app-supplied languages', () => {
         assert.equal(fr.planVersions.format.today, "aujourd'hui");
     });
 
-    test('bundle status labels follow an app language', () => {
-        assert.equal(fr.bundles.status.live.label, 'En ligne');
+    test('version sale labels follow an app language', () => {
+        assert.equal(fr.common.versionSale.onSale, 'En vente');
+        assert.equal(fr.bundles.status.retired.label, 'Retiré');
     });
 
     test('untranslated keys in those namespaces fall back, not blank', () => {

@@ -22,7 +22,7 @@ import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     bundlesTotal: number;
-    liveCount: number;
+    onSaleCount: number;
     scheduledBundlesCount: number;
     totalScheduledVersions: number;
     totalDraftVersions: number;
@@ -35,7 +35,7 @@ const msg = useSaMessages('bundles');
 
 const totalSub = computed(() =>
     formatMessage(msg.value.kpis.totalSub, {
-        live: props.liveCount,
+        onSale: props.onSaleCount,
         scheduled: props.scheduledBundlesCount,
     }),
 );

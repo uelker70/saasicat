@@ -84,6 +84,7 @@ export * from './vue/use-tenant-account.js';
 export * from './vue/use-platform-tenant-actions.js';
 export * from './vue/use-batch-columns.js';
 export * from './vue/use-row-reorder.js';
+export * from './vue/use-version-sale-text.js';
 export * from './vue/use-dialog.js';
 export * from './vue/use-steps.js';
 export * from './vue/plan-wizard.js';

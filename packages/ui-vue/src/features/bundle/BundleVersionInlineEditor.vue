@@ -219,12 +219,8 @@ import BundlePlanCompatPicker from './internal/BundlePlanCompatPicker.vue';
 import BundleQuotasEditor from './internal/BundleQuotasEditor.vue';
 import BundleStatusBanner from './internal/BundleStatusBanner.vue';
 import type { QuotaMeta } from './internal/catalog-i18n.js';
-import {
-    bundleVersionStatus,
-    findBundlePlanOverlap,
-    formatDate,
-} from './internal/bundle-version-status';
-import { formatMessage } from '../../client/i18n/format.js';
+import { bundleVersionStatus, findBundlePlanOverlap } from './internal/bundle-version-status';
+import { formatDay, formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionInlineEditor — orchestrates the five sub-components (status
@@ -284,7 +280,7 @@ const PRICE_RE = /^\d+(\.\d{1,2})?$/;
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
-const { locale } = useSuperAdminI18n();
+const { intlLocale } = useSuperAdminI18n();
 
 function buildForm(v: BundleVersionRow): Form {
     return {
@@ -313,7 +309,9 @@ watch(
 );
 
 const status = computed(() => bundleVersionStatus(props.version, props.now));
-const locked = computed(() => status.value === 'live' || status.value === 'superseded');
+// A version that has started selling is what contracts were made on; one still
+// to come, or a draft, can be corrected.
+const locked = computed(() => status.value === 'on-sale' || status.value === 'off-sale');
 /** Publishing is what ends a draft; a scheduled version already has its date. */
 const publishable = computed(() => props.version.publishedAt === null);
 
@@ -342,8 +340,10 @@ const savingsText = computed(() =>
 const selectedCountText = computed(() =>
     formatMessage(msg.value.editor.selectedCount, { count: form.planIds.length }),
 );
-const validUntilDisplay = computed(
-    () => formatDate(form.validUntil, locale.value) || msg.value.fields.validUntilOpen,
+const validUntilDisplay = computed(() =>
+    form.validUntil
+        ? formatDay(form.validUntil, intlLocale.value)
+        : msg.value.fields.validUntilOpen,
 );
 
 // ── Validation ─────────────────────────────────────────────

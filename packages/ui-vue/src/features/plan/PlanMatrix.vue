@@ -42,36 +42,40 @@
 
                                 <div class="pm-status-row">
                                     <span
-                                        v-if="p.live"
-                                        class="pm-chip pm-chip--live pm-chip--dot"
-                                        >{{ liveVersionLabel(p.live.version) }}</span
+                                        v-if="p.primary"
+                                        :class="[
+                                            'pm-chip',
+                                            p.onSale ? 'pm-chip--live' : 'pm-chip--scheduled',
+                                            'pm-chip--dot',
+                                        ]"
+                                        >{{ versionChip(p.primary) }}</span
                                     >
                                     <span v-else class="pm-chip pm-chip--supersed pm-chip--dot">{{
-                                        msg.matrix.chipNoLive
+                                        msg.matrix.chipNothingOnSale
                                     }}</span>
                                     <span
                                         v-if="p.draft"
                                         class="pm-chip pm-chip--draft pm-chip--dot"
                                     >
-                                        {{ draftVersionLabel(p.draft.version) }}
+                                        {{ versionChip(p.draft) }}
                                     </span>
                                 </div>
 
                                 <div class="pm-price">
                                     <template
                                         v-if="
-                                            p.live &&
-                                            Number(p.live.monthlyNet) === 0 &&
-                                            Number(p.live.yearlyNet) === 0
+                                            p.primary &&
+                                            Number(p.primary.monthlyNet) === 0 &&
+                                            Number(p.primary.yearlyNet) === 0
                                         "
                                     >
                                         <span class="pm-price-free">{{
                                             msg.matrix.priceFree
                                         }}</span>
                                     </template>
-                                    <template v-else-if="p.live">
+                                    <template v-else-if="p.primary">
                                         <span class="pm-price-big">{{
-                                            formatMoney(p.live.monthlyNet)
+                                            formatMoney(p.primary.monthlyNet)
                                         }}</span>
                                         <span class="pm-price-unit">{{
                                             msg.matrix.perMonthShort
@@ -79,7 +83,7 @@
                                         <span class="pm-price-yearly"
                                             >·
                                             {{
-                                                formatMoney(p.live.yearlyNet) +
+                                                formatMoney(p.primary.yearlyNet) +
                                                 msg.matrix.perYearShort
                                             }}</span
                                         >
@@ -102,18 +106,18 @@
 
                                 <div class="pm-plan-meta">
                                     <span>{{ tenantCountLabel(p.tenantCount) }}</span>
-                                    <template v-if="p.live?.validFrom">
+                                    <template v-if="p.primary?.validFrom">
                                         <span>·</span>
-                                        <span>{{ validFromLabel(p.live.validFrom) }}</span>
+                                        <span>{{ validFromLabel(p.primary.validFrom) }}</span>
                                     </template>
                                     <span
                                         :class="[
                                             'pm-chip pm-chip--tiny',
-                                            p.live?.marketed ? '' : 'pm-chip--supersed',
+                                            p.primary?.marketed ? '' : 'pm-chip--supersed',
                                         ]"
                                     >
                                         {{
-                                            p.live?.marketed
+                                            p.primary?.marketed
                                                 ? msg.matrix.inCatalog
                                                 : msg.matrix.private
                                         }}
@@ -317,9 +321,11 @@ import { computed } from 'vue';
 const NBSP = '\u00A0';
 import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
-import { formatMessage } from '../../client/i18n/format.js';
+import { formatDay, formatMessage } from '../../client/i18n/format.js';
+import { resolvePlans, type ResolvedPlan as ResolvedPlanOf } from '../../client/resolve-plans.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { useVersionSaleText } from '../../vue/use-version-sale-text.js';
 
 // PlanMatrix — V1 matrix overview. Plans as columns, quotas/features/
 // bundles as rows. Expects the plan master list plus, per plan, the
@@ -380,26 +386,18 @@ defineEmits<{
     (e: 'createPlan'): void;
 }>();
 
-interface ResolvedPlan {
-    plan: PlanRow;
-    planKey: string;
-    label: string;
-    description: string | null;
-    live: PlanVersionRow | null;
-    draft: PlanVersionRow | null;
-    tenantCount: number;
-}
+type ResolvedPlan = ResolvedPlanOf<PlanRow, PlanVersionRow>;
 
 const msg = useSaMessages('plans');
 const { locale, intlLocale } = useSuperAdminI18n();
 const common = useSaMessages('common');
+const saleText = useVersionSaleText();
 
-function liveVersionLabel(version: number): string {
-    return formatMessage(msg.value.matrix.chipLiveVersion, { version });
-}
-
-function draftVersionLabel(version: number): string {
-    return formatMessage(msg.value.matrix.chipDraftVersion, { version });
+function versionChip(version: PlanVersionRow): string {
+    return formatMessage(msg.value.matrix.chipVersion, {
+        version: version.version,
+        state: saleText(version),
+    });
 }
 
 function tenantCountLabel(count: number): string {
@@ -407,7 +405,9 @@ function tenantCountLabel(count: number): string {
 }
 
 function validFromLabel(validFrom: string): string {
-    return formatMessage(msg.value.matrix.validFrom, { date: validFrom.slice(0, 10) });
+    return formatMessage(msg.value.matrix.validFrom, {
+        date: formatDay(validFrom, intlLocale.value),
+    });
 }
 
 function planAccent(planKey: string): string {
@@ -418,24 +418,14 @@ function planAccent(planKey: string): string {
     );
 }
 
+// The same resolution as the plan list: a column shows the version on sale,
+// otherwise the next one scheduled — and says which it is.
 const resolvedPlans = computed<ResolvedPlan[]>(() =>
-    [...props.plans]
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.planKey.localeCompare(b.planKey))
-        .map((plan) => {
-            const versions = props.versionsByPlanId[plan.id] ?? [];
-            const live =
-                versions.find((v) => v.publishedAt !== null && v.supersededAt === null) ?? null;
-            const draft = versions.find((v) => v.publishedAt === null) ?? null;
-            return {
-                plan,
-                planKey: plan.planKey,
-                label: plan.label,
-                description: plan.description ?? null,
-                live,
-                draft,
-                tenantCount: props.tenantCountsByPlanKey[plan.planKey] ?? 0,
-            };
-        }),
+    resolvePlans({
+        plans: props.plans,
+        versionsByPlanId: props.versionsByPlanId,
+        tenantCountsByPlanKey: props.tenantCountsByPlanKey,
+    }),
 );
 
 function quotasOf(v: PlanVersionRow | null): Record<string, number> {
@@ -449,16 +439,17 @@ function quotasOf(v: PlanVersionRow | null): Record<string, number> {
 }
 
 /**
- * Effective version of a column: live, otherwise draft. This lets the
- * matrix also render pure draft plans (initial population before the first
- * publish); draft columns are visually marked via `isDraftSource`.
+ * Effective version of a column: the one on sale or next scheduled, otherwise
+ * the draft. This lets the matrix also render pure draft plans (initial
+ * population before the first publish); draft columns are visually marked via
+ * `isDraftSource`.
  */
 function effectiveOf(p: ResolvedPlan): PlanVersionRow | null {
-    return p.live ?? p.draft;
+    return p.primary ?? p.draft;
 }
 
 function isDraftSource(p: ResolvedPlan): boolean {
-    return !p.live && !!p.draft;
+    return !p.primary && !!p.draft;
 }
 
 function quotaValueFor(p: ResolvedPlan, key: string): number | undefined {
@@ -779,6 +770,11 @@ function formatQuota(v: number | undefined): string {
     background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
+}
+.pm-chip--scheduled {
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border-color: var(--sa-color-scheduled-border);
 }
 .pm-chip--supersed {
     background: var(--sa-color-border-soft);

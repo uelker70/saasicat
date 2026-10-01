@@ -233,7 +233,8 @@ import BundleFeaturesEditor, { type FeatureMeta } from './BundleFeaturesEditor.v
 import BundlePlanCompatPicker from './BundlePlanCompatPicker.vue';
 import BundleQuotasEditor from './BundleQuotasEditor.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
-import { findBundlePlanOverlap, formatDate } from './bundle-version-status';
+import { findBundlePlanOverlap } from './bundle-version-status';
+import { formatDay } from '../../../client/i18n/format.js';
 import { formatMessage } from '../../../client/i18n/format.js';
 import { trimChar } from '../../../client/text-shape.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
@@ -284,7 +285,7 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
-const { locale } = useSuperAdminI18n();
+const { intlLocale } = useSuperAdminI18n();
 
 const todayIso = computed(() => new Date().toISOString().slice(0, 10));
 
@@ -292,7 +293,7 @@ const validFromHint = computed(() => {
     if (!form.validFrom) return msg.value.create.validFromHint;
     if (form.validFrom <= todayIso.value) return msg.value.create.validFromImmediate;
     return formatMessage(msg.value.create.validFromScheduled, {
-        date: formatDate(form.validFrom, locale.value),
+        date: formatDay(form.validFrom, intlLocale.value),
     });
 });
 

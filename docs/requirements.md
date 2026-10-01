@@ -109,7 +109,7 @@ properties it has while doing it.
 | --- | -------------------------------------------- | ------------ | ------- |
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
-| 3   | Plans and their versions                     | `SC-PLAN-…`  | 27      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 28      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 24      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 542 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 543 entries: 🟢 469 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 6 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -212,7 +212,7 @@ Of 542 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 542 requirements. Do not edit by hand:
+Generated from `requirements/` — 543 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -1866,11 +1866,15 @@ _Tested by:_
         - dated version wins over NULL-validFrom (fallback, not an override)
 - `packages/ui-vue/tests/resolve-plans.test.js`
     - resolvePlans
-        - picks the currently valid version as the live one
-        - falls back to the next scheduled version when nothing is live
+        - picks the version on sale
+        - falls back to the next scheduled version when nothing is on sale
         - gives a plan with only drafts a row without a version
         - marks a plan expired only when nothing is left to come
         - lists sub-rows without repeating the parent
+        - sells a superseded predecessor until its successor starts
+        - sells a version on the whole of its last day
+        - does not sell a version superseded without a last day
+        - does not sell a version that has ended, and hides a plan with nothing else
         - sorts by sortOrder, then by key
     - countPlans
         - counts what the tiles above the list show
@@ -2276,6 +2280,53 @@ _Tested by:_
     - a subscriber on an older version of the plan
         - is quoted a change at a version the change can name › another plan at the version on sale
           now, priced from that version and named by it
+
+<!-- END proof -->
+
+### SC-PLAN-028 — The admin says whether a version is on sale by the rule a booking follows
+
+🟢 Every admin screen that shows where a plan or add-on version stands says it by the rule the
+platform sells by (`SC-PLAN-027`, `SC-BUN-035`): a draft, on sale from a day, on sale — until its
+last day where one is known — or off sale since a day. A predecessor whose successor starts next
+month reads as on sale until then, not as superseded, and the plan list, the plan detail, the
+matrix, the marketing page and the add-on pages give the same answer for the same version at the
+same moment, with the day in the reader's language.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/a-bundle-version-is-on-sale-by-its-dates.test.ts`
+    - a bundle version in the admin
+        - is on sale, though a successor has superseded it
+        - stays on sale for the whole of its last day
+        - is off sale once its successor has started
+        - is off sale when it was superseded without a last day
+        - is not scheduled when it was superseded before it ever started
+        - is a draft until it is published
+        - names the bundle by the version that decides its state
+- `packages/ui-vue/tests/version-sale.test.js`
+    - the sale state of a version
+        - is on sale until its last day, though a successor has superseded it
+        - stays on sale for the whole of its last day
+        - is off sale from the day after its last day
+        - is on sale from its first day before it starts
+        - is off sale, with no day, when it was superseded without a last day
+        - is not announced when it was superseded before it ever started
+        - ends at its end moment, and is on sale until the day before a midnight end
+        - takes the earlier of a last day and an end
+        - is a draft until it is published
+    - the version on sale among several
+        - is the superseded predecessor until its successor starts, then the successor
+        - prefers the latest start, a version without one last, then the highest number
+        - is nobody when nothing is on sale
+        - is, for a listing, the next one scheduled where nothing is on sale yet
+    - the words for it
+        - names the day where the state has one
+        - says it without a day where there is none
+        - formats the UTC day, so a day stored at midnight does not slip back
 
 <!-- END proof -->
 
@@ -13960,7 +14011,7 @@ _Tested by:_
     - helper modules reach app-supplied languages
         - discovery status labels follow an app language
         - relative-date wording follows an app language
-        - bundle status labels follow an app language
+        - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
 - `packages/ui-vue-tenant/tests/component/tenant-i18n-provider.test.ts`
@@ -14103,7 +14154,7 @@ _Tested by:_
     - helper modules reach app-supplied languages
         - discovery status labels follow an app language
         - relative-date wording follows an app language
-        - bundle status labels follow an app language
+        - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
 
@@ -14194,7 +14245,7 @@ _Tested by:_
     - helper modules reach app-supplied languages
         - discovery status labels follow an app language
         - relative-date wording follows an app language
-        - bundle status labels follow an app language
+        - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
 

@@ -4,42 +4,28 @@
 // API calls — so it can be consumed 1:1 by the inline editor + strip +
 // status banner + compat picker and called purely in tests.
 
-import { isVersionActiveAt, type BundleVersionRow, type PlanVersionRow } from '@saasicat/core';
+import type { BundleVersionRow, PlanVersionRow } from '@saasicat/core';
 
-import {
-    SA_INTL_LOCALES,
-    type SaBuiltinLocale,
-    type SaLocale,
-} from '../../../client/i18n/locale.js';
 import type { SaMessages } from '../../../client/i18n/messages.js';
+import {
+    describeVersionSale,
+    versionOnSale,
+    versionSale,
+    type VersionSaleKind,
+} from '../../../client/version-sale.js';
 
-/** UI lifecycle status of a single BundleVersion. */
-export type BundleVersionUiStatus = 'draft' | 'live' | 'scheduled' | 'superseded';
+/** Where a single BundleVersion stands — the platform's sale rule (`versionSale`). */
+export type BundleVersionUiStatus = VersionSaleKind;
 
 /** Top-level status of a bundle stem across all versions. */
 export type BundleAggregateStatus = BundleVersionUiStatus | 'retired';
 
-/**
- * Status of a BundleVersion at a given date, by the window the platform sells
- * by (`isVersionActiveAt`):
- *   - draft     : not published
- *   - live      : on sale — including a predecessor whose successor starts
- *                 later, until its last day has passed in full
- *   - scheduled : not on sale yet, and on sale from its own first day
- *   - superseded: anything else — its window has closed, or it was superseded
- *                 without a last day, or before it ever started
- *
- * A version without `validFrom` counts as on sale since it was published.
- */
+/** Where `v` stands at `now`. */
 export function bundleVersionStatus(
     v: BundleVersionRow,
     now: Date = new Date(),
 ): BundleVersionUiStatus {
-    if (v.publishedAt === null) return 'draft';
-    if (isVersionActiveAt(v, now)) return 'live';
-    const start = v.validFrom ? new Date(v.validFrom) : null;
-    if (start && start > now && isVersionActiveAt(v, start)) return 'scheduled';
-    return 'superseded';
+    return versionSale(v, now).kind;
 }
 
 /** UI metadata for a status (label, CSS class, tooltip). */
@@ -51,23 +37,53 @@ export interface BundleStatusMeta {
 
 const BUNDLE_STATUS_CLASS: Record<BundleAggregateStatus, BundleStatusMeta['cls']> = {
     draft: 'draft',
-    live: 'live',
+    'on-sale': 'live',
     scheduled: 'scheduled',
-    superseded: 'supersed',
+    'off-sale': 'supersed',
     retired: 'supersed',
 };
 
+const BUNDLE_STATUS_TOOLTIP: Record<BundleAggregateStatus, keyof SaMessages['bundles']['status']> =
+    {
+        draft: 'draft',
+        'on-sale': 'onSale',
+        scheduled: 'scheduled',
+        'off-sale': 'offSale',
+        retired: 'retired',
+    };
+
+/** The texts a status is worded with, as the active catalogue resolves them. */
+export interface BundleStatusTexts {
+    readonly bundles: SaMessages['bundles'];
+    readonly common: SaMessages['common'];
+    readonly intlLocale: string;
+}
+
 /**
- * Label, chip class and tooltip for a status. Takes the resolved slice rather
- * than a locale code — that is what lets an app-supplied language and
- * `i18n.overrides` reach these labels.
+ * Label, chip class and tooltip for a status. The label is where `version`
+ * stands, with its day; a retired bundle has a label of its own. Takes the
+ * resolved slices rather than a locale code — that is what lets an
+ * app-supplied language and `i18n.overrides` reach these labels.
  */
 export function bundleStatusMeta(
     status: BundleAggregateStatus,
-    bundles: SaMessages['bundles'],
+    version: BundleVersionRow | null,
+    texts: BundleStatusTexts,
+    now: Date = new Date(),
 ): BundleStatusMeta {
-    const texts = bundles.status[status];
-    return { label: texts.label, cls: BUNDLE_STATUS_CLASS[status], tooltip: texts.tooltip };
+    const label =
+        status === 'retired' || version === null
+            ? texts.bundles.status.retired.label
+            : describeVersionSale(
+                  versionSale(version, now),
+                  texts.common.versionSale,
+                  texts.intlLocale,
+              );
+    return {
+        label,
+        cls: BUNDLE_STATUS_CLASS[status],
+        tooltip: texts.bundles.status[BUNDLE_STATUS_TOOLTIP[status]].tooltip,
+    };
 }
 
 /**
@@ -85,40 +101,36 @@ export function bundleVersionsSorted(versions: BundleVersionRow[]): BundleVersio
     });
 }
 
-/**
- * Currently active (live) bundle version or `null`.
- * Unlike `bundleVersionStatus`, this refers to the whole bundle
- * stem — used in the card header for the "Live · v3" display.
- */
-export function bundleActiveVersionAt(
-    versions: BundleVersionRow[],
-    now: Date = new Date(),
-): BundleVersionRow | null {
-    return versions.find((v) => bundleVersionStatus(v, now) === 'live') ?? null;
+/** Where a bundle stands as a whole, and the version that decides it. */
+export interface BundleAggregate {
+    readonly status: BundleAggregateStatus;
+    /** The version on sale, else the next scheduled, else the draft, else the newest. */
+    readonly version: BundleVersionRow | null;
 }
 
-export function bundleAggregateStatus(
+/**
+ * A bundle is on sale while one of its versions is; otherwise it is scheduled
+ * while one will be, a draft while it has only an unpublished one, and off sale
+ * once every published version is. A retired bundle is retired whatever its
+ * versions say.
+ */
+export function bundleAggregate(
     versions: BundleVersionRow[],
     deletedAt: string | null,
     now: Date = new Date(),
-): BundleAggregateStatus {
-    if (deletedAt) return 'retired';
-    let hasLive = false;
-    let hasScheduled = false;
-    let hasSuperseded = false;
-    let hasDraft = false;
-    for (const v of versions) {
-        const status = bundleVersionStatus(v, now);
-        if (status === 'live') hasLive = true;
-        else if (status === 'scheduled') hasScheduled = true;
-        else if (status === 'superseded') hasSuperseded = true;
-        else if (status === 'draft') hasDraft = true;
-    }
-    if (hasLive) return 'live';
-    if (hasScheduled) return 'scheduled';
-    if (hasDraft) return 'draft';
-    if (hasSuperseded) return 'superseded';
-    return 'draft';
+): BundleAggregate {
+    const newest = [...versions].sort((a, b) => b.version - a.version)[0] ?? null;
+    if (deletedAt) return { status: 'retired', version: newest };
+    const onSale = versionOnSale(versions, now);
+    if (onSale) return { status: 'on-sale', version: onSale };
+    const scheduled = bundleVersionsSorted(versions).find(
+        (v) => bundleVersionStatus(v, now) === 'scheduled',
+    );
+    if (scheduled) return { status: 'scheduled', version: scheduled };
+    const draft = versions.find((v) => v.publishedAt === null);
+    if (draft) return { status: 'draft', version: draft };
+    if (newest) return { status: 'off-sale', version: newest };
+    return { status: 'draft', version: null };
 }
 
 /**
@@ -143,24 +155,4 @@ export function findBundlePlanOverlap(
     const features = bundle.features.filter((f) => planFeatures.has(f));
     const quotas = Object.keys(bundle.quotas ?? {}).filter((q) => planQuotas.has(q));
     return { features, quotas, hasAny: features.length > 0 || quotas.length > 0 };
-}
-
-/**
- * ISO `YYYY-MM-DD` → numeric date in the UI locale; null/empty → '—'.
- * Formatted in UTC so a calendar day never shifts across time zones.
- */
-export function formatDate(iso: string | null | undefined, locale: SaLocale): string {
-    if (!iso) return '—';
-    const day = iso.slice(0, 10);
-    const [y, m, d] = day.split('-');
-    if (!y || !m || !d) return iso;
-    return new Date(`${day}T00:00:00Z`).toLocaleDateString(
-        SA_INTL_LOCALES[locale as SaBuiltinLocale] ?? locale,
-        {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            timeZone: 'UTC',
-        },
-    );
 }

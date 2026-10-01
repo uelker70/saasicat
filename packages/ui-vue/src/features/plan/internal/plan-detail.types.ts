@@ -1,3 +1,4 @@
+import type { VersionSaleKind } from '../../../client/version-sale.js';
 import type { PlanVersionRow } from '@saasicat/core';
 
 export interface AuditRow {
@@ -27,7 +28,8 @@ export interface FeatureMeta {
     label?: string;
 }
 
-export type PlanVersionStatus = 'draft' | 'live' | 'superseded';
+/** Where a version stands — the platform's sale rule (`versionSale`). */
+export type PlanVersionStatus = VersionSaleKind;
 
 export interface PlanVersionEditability {
     editable: boolean;

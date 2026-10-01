@@ -86,6 +86,16 @@ export const commonMessages = defineMessages(
             previous: 'Vorherige Seite',
             next: 'Nächste Seite',
         },
+        // Where a plan or add-on version stands, as every version surface says
+        // it (`describeVersionSale`).
+        versionSale: {
+            draft: 'Entwurf',
+            scheduled: 'Im Verkauf ab {date}',
+            onSale: 'Im Verkauf',
+            onSaleUntil: 'Im Verkauf bis {date}',
+            offSale: 'Nicht mehr im Verkauf',
+            offSaleSince: 'Nicht mehr im Verkauf seit {date}',
+        },
     },
     {
         save: 'Save',
@@ -167,6 +177,14 @@ export const commonMessages = defineMessages(
             pageInput: 'Page, 1 to {pages}',
             previous: 'Previous page',
             next: 'Next page',
+        },
+        versionSale: {
+            draft: 'Draft',
+            scheduled: 'On sale from {date}',
+            onSale: 'On sale',
+            onSaleUntil: 'On sale until {date}',
+            offSale: 'Off sale',
+            offSaleSince: 'Off sale since {date}',
         },
     },
 );
