@@ -51,6 +51,7 @@ import type {
 import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog-import.types.js';
 import type { AppliedSettingsPort } from './settings-ports.types.js';
 import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
+import type { SubscriptionNoticeRepository } from './subscription-notice-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -173,6 +174,12 @@ export interface SaaSiCatPersistenceTenantBilling {
     subscriptionUsagePort: PersistenceProvider<SubscriptionUsagePort>;
     subscriptionWritePort: PersistenceProvider<TenantSubscriptionWritePort>;
     usageSnapshotPort?: PersistenceProvider<UsageSnapshotPort>;
+    /**
+     * The record of what each subscriber was told (`tenantBilling.versionNotices`).
+     * Optional so an adapter written before it keeps working; an installation
+     * that turns notices on without one is refused at start-up.
+     */
+    subscriptionNotices?: PersistenceProvider<SubscriptionNoticeRepository>;
 }
 
 /**

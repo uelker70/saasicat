@@ -45,6 +45,7 @@ import {
     type SelfServiceBlockedPlans,
 } from './self-service-policy.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from './tenant-billing.tokens.js';
+import { versionOnSale } from './version-on-sale.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 
 /** A version row as the comparison reads it: a price the row does not carry is `null`. */
@@ -60,21 +61,6 @@ function fieldsOf(plan: PlanDef): VersionOfferFields {
         monthlyNet: plan.monthlyNet ?? null,
         yearlyNet: plan.yearlyNet ?? null,
     };
-}
-
-/**
- * The version a booking made now would bind: the one active by its validity
- * window, and the newest live one only where the repository reads no windows.
- * An active lookup that finds nothing means nothing is on sale — falling back
- * past it would offer a version whose window has not opened.
- */
-async function versionOnSale(
-    plans: PlanRepository,
-    planKey: string,
-    now: Date,
-): Promise<PlanVersionRow | null> {
-    if (plans.findActivePlanVersion) return plans.findActivePlanVersion(planKey, now);
-    return (await plans.findLatestLivePlanVersion?.(planKey)) ?? null;
 }
 
 /**

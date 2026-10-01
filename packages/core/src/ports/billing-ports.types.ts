@@ -488,8 +488,26 @@ export interface SubscriptionUsageRecord {
  * Read adapter for the UI/display form of a subscription. Used by
  * `TenantBillingController.getUsage`.
  */
+/** A subscription read across tenants, with the tenant it belongs to. */
+export interface TenantSubscriptionUsage {
+    readonly tenantId: string;
+    readonly subscription: SubscriptionUsageRecord & { readonly id: string };
+}
+
 export interface SubscriptionUsagePort {
     findForTenant(tenantId: string): Promise<SubscriptionUsageRecord | null>;
+    /**
+     * Every subscription of `planKey`, in every tenant, bound to a version of
+     * that plan numbered below `version`. The platform reads it to find the
+     * subscriptions a newer version is offered to, inside the RLS bypass.
+     *
+     * Optional, so a port written before it keeps working; an application that
+     * turns version notices on over a port without it is refused at start-up.
+     */
+    listBoundToEarlierVersions?(
+        planKey: string,
+        version: number,
+    ): Promise<TenantSubscriptionUsage[]>;
 }
 
 /**

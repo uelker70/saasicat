@@ -2279,6 +2279,35 @@ in `selfServiceBlockedPlans`. A plan repository without `findVersionById` yields
   catalogue you build whole adds them; one that overrides single strings needs nothing.
 - **An inventory of your own routes and their guards** gains the two routes.
 
+### A subscriber can be told once of a newer version
+
+New and optional: the tenant's administrators hear of a newer version of their plan once, when the
+offer appears beside the plan, in your words (`SC-SUB-022`), and the platform keeps a record of each
+notice (`SC-SUB-023`). How to bind the port that sends it:
+[Telling Subscribers of a Newer Version](wire-the-backend.md#telling-subscribers-of-a-newer-version).
+To adopt it:
+
+1. Add `SubscriptionNotice` from `prisma-fragments/17-subscription-notice.prisma` to your schema.
+   Without it `saasicat schema check` lists the model as not adopted; with `prismaPersistence()` or
+   `drizzlePersistence()`, pass `notAdopted: ['SubscriptionNotice']` and the bundle builds no record.
+2. Run the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-subscriber-is-told-once.postgres.sql
+    ```
+
+3. Set `tenantBilling.versionNotices: { port }` and register `ScheduleModule`, or pass
+   `includeCron: false` and call `VersionNoticeService.sendDue` yourself.
+
+The first run tells every subscription the offer it has, including a version published before the
+upgrade. An application that told its subscribers of pending versions itself — the notice job this
+replaces — stops that job before it turns this on, or they hear twice.
+
+- **A `SubscriptionUsagePort` of your own** gains the optional `listBoundToEarlierVersions`, which
+  version notices need; both shipped adapters have it.
+- **A persistence contract harness** gains the `subscriptionNotices` member; a harness without it
+  declares `gaps: ['subscriptionNotices']`.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

@@ -70,6 +70,8 @@ export * from './proration.js';
 export * from './plan-change-preview.service.js';
 export * from './version-offer.service.js';
 export * from './version-switch.service.js';
+export { VersionNoticeService, type VersionNoticeRun } from './version-notice.service.js';
+export { VersionNoticeCron } from './version-notice.cron.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';

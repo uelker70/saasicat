@@ -1,6 +1,7 @@
 import type { DynamicModule } from '@nestjs/common';
 import type {
     SubscriptionBundleRepository,
+    SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
     TransactionRunner,
@@ -33,6 +34,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         subscriptionUsagePort,
         usageSnapshotPort,
         subscriptionWritePort,
+        versionNotices,
         imports: tenantImports,
         extraProviders,
         extraExports,
@@ -70,6 +72,13 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             transactionRunner: ctx.adapters.transactionRunner as
                 ProviderSpec<TransactionRunner> | undefined,
             ...tenantOptions.contractFreeze,
+        },
+        // `version-notices.requires-notice-record` has refused a configuration
+        // that reaches here with notices and nowhere to keep them.
+        versionNotices: versionNotices && {
+            ...versionNotices,
+            notices: (versionNotices.notices ??
+                tenantSlice?.subscriptionNotices) as ProviderSpec<SubscriptionNoticeRepository>,
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],

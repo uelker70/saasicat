@@ -761,6 +761,7 @@ _Tested by:_
         - the dates and the plan version a person is shown all come back
         - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
+        - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -994,6 +995,7 @@ _Tested by:_
         - the dates and the plan version a person is shown all come back
         - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
+        - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/cli/tests/generated-catalog-loads.test.js`
     - the catalogue init writes is one the platform accepts
         - with a single quota

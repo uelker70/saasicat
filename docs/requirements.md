@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 21      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 23      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 22      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 536 entries: 🟢 466 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 538 entries: 🟢 468 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 536 entries: 🟢 466 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 536 requirements. Do not edit by hand:
+Generated from `requirements/` — 538 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -1760,6 +1760,7 @@ _Tested by:_
         - the dates and the plan version a person is shown all come back
         - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
+        - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -1993,6 +1994,7 @@ _Tested by:_
         - the dates and the plan version a person is shown all come back
         - a pending version comes with what a person needs to decide
         - the version a subscription is billed for cannot be deleted underneath it
+        - the subscriptions on an earlier version of a plan are listed with their tenants
 - `packages/cli/tests/generated-catalog-loads.test.js`
     - the catalogue init writes is one the platform accepts
         - with a single quota
@@ -4210,6 +4212,90 @@ _Tested by:_
           language
         - after a refusal the page shows the subscription as it now stands, not as it was read
         - a refusal with no offer to show still says why
+
+<!-- END proof -->
+
+### SC-SUB-022 — A subscriber is told once of each newer version offered to them, when it is offered
+
+🟢 Where the application turns version notices on, the administrators of a tenant hear of a newer
+version of their plan once, through the application's own messages: when the offer appears beside
+the plan (`SC-SUB-020`) — not when the version is published — so a version whose window opens later
+is told when it opens, and a subscription with a change still to land is told once it has landed.
+The notice carries what the offer shows: both versions side by side, the kind of offer and when a
+switch would take effect. Each newer version is told once per subscription; nothing is repeated,
+there is no reminder and nothing to decline. A notice the application could not send is tried
+again by the next run, and one sent to nobody is kept as such rather than tried again; the platform
+runs every quarter of an hour, unless the application runs it from a scheduler of its own. The two
+cases a subscriber can hear twice: the process stops after the application sent the notice and
+before it was recorded as sent, or the application takes longer than a quarter of an hour to answer
+and another run takes the notice on meanwhile.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-is-told-once.test.js`
+    - a newer version offered to a subscriber
+        - is told with the offer, and the record keeps to whom and how
+        - is not told again by the next run
+        - is told of each newer version it is offered, once each
+        - whose window has not opened is told once it opens, not when it is published
+        - is not told while a change is still to land, and is told once it has
+        - is asked for only among subscriptions on older versions, so one already on it hears
+          nothing
+        - is told to every subscription it is offered to, each with its own tenant
+    - a notice the application could not send
+        - is tried again by the next run, and then kept as sent
+        - that the application throws on before it answers fails like any other, and the run goes on
+        - told to nobody is kept as sent to no one, and not tried again
+        - sent but not recorded counts as sent, and is not sent again while its claim holds
+        - is claimed at the moment it is taken, not when the run began
+        - that the application answers only after the timeout stays held, and a late success is kept
+          as sent
+        - that fails only after the timeout is let go for the next run
+        - held by another run is left to it
+    - a run reads and writes across tenants inside the RLS bypass
+    - turning version notices on
+        - is refused over a usage port that cannot list subscriptions across tenants
+        - is refused over a plan repository that cannot read a version
+        - starts over ports that have both
+    - the run every quarter of an hour
+        - waits while the application is locked for maintenance
+        - lets a run pass while the one before it is still sending
+
+<!-- END proof -->
+
+### SC-SUB-023 — Every notice to a subscriber is recorded: once, with when and to whom it went
+
+🟢 🔒 Each notice is kept as a record of its own — the subscription, what it was about, what it said,
+when it went out, to whom and through which channel — and there is one record per subscription and
+subject however many instances send notices at the same time. The record outlives the
+subscription, as the subscriber's account does.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/subscription-notice-mapping.test.js`
+    - a notice read back
+        - not yet delivered carries no delivery
+        - delivered carries to whom and how, and nobody where nobody was told
+        - of a kind the platform does not know is refused, naming the row
+        - delivered without a readable delivery is refused, naming the row
+- `packages/nest/tests/a-subscriber-is-told-once.test.js`
+    - a newer version offered to a subscriber
+        - is told with the offer, and the record keeps to whom and how
+    - a notice the application could not send
+        - told to nobody is kept as sent to no one, and not tried again
+        - sent but not recorded counts as sent, and is not sent again while its claim holds
+        - is claimed at the moment it is taken, not when the run began
+        - that the application answers only after the timeout stays held, and a late success is kept
+          as sent
+        - held by another run is left to it
 
 <!-- END proof -->
 
@@ -16690,6 +16776,9 @@ _Tested by:_
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
+          reads
+        - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record
     - PrismaPromoCodeRepository
@@ -16742,6 +16831,14 @@ _Tested by:_
         - opening leaves the refusal to the index, under an id of its own
         - a move is guarded on the window being open and at the stage the caller read
         - a move that matched nothing answers null and reads nothing back
+- `packages/adapter-prisma/tests/prisma-subscription-notice.repository.test.js`
+    - PrismaSubscriptionNoticeRepository
+        - a claim records the notice where it is new, then takes it in one guarded update
+        - a claim that takes no row answers null without reading
+        - a confirmation and a release name the claim they hold
+        - a confirmation that finds the claim gone answers false
+        - what was delivered is read as sent, and a delivery nobody can read stops the read
+        - the subscriptions told of a subject are the delivered ones
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so
@@ -16842,6 +16939,9 @@ _Tested by:_
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
+          reads
+        - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record
     - PrismaPromoCodeRepository

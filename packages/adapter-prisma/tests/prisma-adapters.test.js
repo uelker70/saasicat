@@ -528,6 +528,96 @@ describe('PrismaSubscriptionUsageAdapter', () => {
         assert.equal(usage.checkoutOfferId, 'offer-1');
         assert.equal(await new PrismaSubscriptionUsageAdapter(p).findForTenant('missing'), null);
     });
+
+    /**
+     * A client that answers the reads a cross-tenant list makes and records
+     * them: the plan's earlier versions, the subscriptions on them, the pending
+     * versions those name.
+     */
+    function listingClient({ plans = [] } = {}) {
+        const reads = [];
+        return {
+            reads,
+            plan: {
+                async findFirst({ where }) {
+                    return plans.find((plan) => plan.planKey === where.planKey) ?? null;
+                },
+                async findUnique({ where }) {
+                    return plans.find((plan) => plan.id === where.id) ?? null;
+                },
+            },
+            planVersion: {
+                async findMany(args) {
+                    reads.push(['planVersion', args.where]);
+                    return 'version' in args.where
+                        ? [planVersionRow({ id: 'pv-1', planId: args.where.planId, version: 1 })]
+                        : [
+                              planVersionRow({
+                                  id: 'pv-pending',
+                                  planId: plans[0]?.id ?? 'STARTER',
+                                  version: 3,
+                              }),
+                          ];
+                },
+            },
+            subscription: {
+                async findMany(args) {
+                    reads.push(['subscription', args.where]);
+                    return [
+                        subscriptionRow({ id: 'sub-1', tenantId: 't1' }),
+                        subscriptionRow({
+                            id: 'sub-2',
+                            tenantId: 't2',
+                            pendingPlanVersionId: 'pv-pending',
+                        }),
+                    ];
+                },
+            },
+        };
+    }
+
+    test('lists the subscriptions on earlier versions of a plan, each with its tenant, in three reads', async () => {
+        const client = listingClient();
+        const listed = await new PrismaSubscriptionUsageAdapter(client).listBoundToEarlierVersions(
+            'STARTER',
+            2,
+        );
+
+        assert.deepEqual(
+            listed.map((entry) => [entry.tenantId, entry.subscription.id]),
+            [
+                ['t1', 'sub-1'],
+                ['t2', 'sub-2'],
+            ],
+        );
+        assert.equal(listed[0].subscription.planVersion.id, 'pv-1');
+        assert.equal(listed[1].subscription.pendingPlanVersion.id, 'pv-pending');
+        assert.deepEqual(client.reads, [
+            ['planVersion', { planId: 'STARTER', version: { lt: 2 } }],
+            ['subscription', { planVersionId: { in: ['pv-1'] } }],
+            ['planVersion', { id: { in: ['pv-pending'] } }],
+        ]);
+    });
+
+    test('finds a plan stored by row id through its key, and a key no plan has lists nobody', async () => {
+        const client = listingClient({ plans: [{ id: 'plan-row-1', planKey: 'STARTER' }] });
+        const usage = new PrismaSubscriptionUsageAdapter(client, {
+            planBinding: { mode: 'normalized-plan-id' },
+        });
+
+        const listed = await usage.listBoundToEarlierVersions('STARTER', 2);
+        assert.deepEqual(client.reads[0], [
+            'planVersion',
+            { planId: 'plan-row-1', version: { lt: 2 } },
+        ]);
+        assert.equal(
+            listed[0].subscription.plan,
+            'STARTER',
+            'the record names the key, not the row',
+        );
+
+        assert.deepEqual(await usage.listBoundToEarlierVersions('UNKNOWN', 2), []);
+    });
 });
 
 describe('PrismaPlanVersionRepository', () => {

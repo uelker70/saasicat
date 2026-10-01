@@ -25,6 +25,8 @@ import type {
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
+    SubscriptionNoticeKey,
+    SubscriptionNoticeRepository,
     TransactionContext,
 } from '@saasicat/core';
 import {
@@ -436,6 +438,10 @@ const CONTRACT_GAPS: Record<
     maintenanceWindows: {
         reason: 'adapter provides no MaintenanceWindowPort',
         present: ({ adapter }) => Boolean(adapter.maintenanceWindows),
+    },
+    subscriptionNotices: {
+        reason: 'adapter provides no SubscriptionNoticeRepository',
+        present: ({ adapter }) => Boolean(adapter.subscriptionNotices),
     },
 };
 
@@ -6174,6 +6180,213 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(
                 (await port.listRecent(2)).map((w) => w.id),
                 [ids[2], ids[1]],
+            );
+        });
+
+        // -------------------------------------------------------------
+        // Subscriber notices — recorded once, claimed by one run at a time
+        // -------------------------------------------------------------
+
+        // @requirement SC-SUB-023 — Every notice to a subscriber is recorded: once, with when and to whom it went
+        describe('the record of what a subscriber was told', () => {
+            const RUN_AT = new Date('2026-10-15T09:00:00.123Z');
+            const LATER = new Date('2026-10-15T09:20:00.456Z');
+            const LEASE_START = new Date('2026-10-15T08:45:00.000Z');
+            const NOTICE: SubscriptionNoticeKey = {
+                tenantId: 'tenant-told',
+                subscriptionId: 'sub-told',
+                kind: 'version-offered',
+                subject: 'pv-standard-2',
+            };
+            const CONTENT = { kind: 'version-offered', offer: { plan: 'STANDARD', version: 2 } };
+            const DELIVERY = {
+                recipients: ['admin@example.com', 'owner@example.com'],
+                channel: 'email',
+            };
+
+            /** A scenario of the record, skipped where the harness declares it has none. */
+            function scenario(
+                name: string,
+                body: (notices: SubscriptionNoticeRepository) => Promise<void>,
+            ): void {
+                test(name, async (t) => {
+                    const notices = harness.adapter.subscriptionNotices;
+                    if (!notices) {
+                        missing(t, 'subscriptionNotices');
+                        return;
+                    }
+                    await body(notices);
+                });
+            }
+
+            scenario('the first run records the notice and holds it', async (notices) => {
+                const claimed = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                assert.ok(claimed?.id, 'the adapter assigns the id');
+                assert.equal(claimed.tenantId, 'tenant-told');
+                assert.equal(claimed.subscriptionId, 'sub-told');
+                assert.equal(claimed.kind, 'version-offered');
+                assert.equal(claimed.subject, 'pv-standard-2');
+                assert.deepEqual(claimed.content, CONTENT);
+                assert.equal(claimed.createdAt.toISOString(), RUN_AT.toISOString());
+                assert.equal(claimed.claimedAt?.toISOString(), RUN_AT.toISOString());
+                assert.equal(claimed.deliveredAt, null);
+                assert.equal(claimed.delivery, null);
+            });
+
+            scenario(
+                'a run finds a notice another run holds, and takes it on once that claim is stale',
+                async (notices) => {
+                    const first = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    assert.equal(
+                        await notices.claim(NOTICE, CONTENT, LATER, LEASE_START),
+                        null,
+                        'held since after the lease started: not taken',
+                    );
+                    const staleBefore = new Date(RUN_AT.getTime() + 1);
+                    const second = await notices.claim(
+                        NOTICE,
+                        { changed: true },
+                        LATER,
+                        staleBefore,
+                    );
+                    assert.equal(second?.id, first?.id, 'one notice, not a second');
+                    assert.equal(second?.claimedAt?.toISOString(), LATER.toISOString());
+                    assert.deepEqual(
+                        second?.content,
+                        { changed: true },
+                        'the claim stores what is sent now',
+                    );
+                },
+            );
+
+            scenario(
+                'of several runs claiming one notice at the same moment, exactly one holds it',
+                async (notices) => {
+                    const claims = await Promise.all(
+                        Array.from({ length: 4 }, () =>
+                            notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START),
+                        ),
+                    );
+                    assert.equal(claims.filter((claim) => claim !== null).length, 1);
+                    assert.equal((await notices.listForSubscription('sub-told')).length, 1);
+                },
+            );
+
+            scenario(
+                'a confirmed notice keeps to whom and how, and is never claimed again',
+                async (notices) => {
+                    const claimed = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    assert.ok(claimed?.claimedAt);
+                    assert.equal(
+                        await notices.confirm(claimed.id, claimed.claimedAt, DELIVERY, LATER),
+                        true,
+                    );
+                    const [kept] = await notices.listForSubscription('sub-told');
+                    assert.equal(kept?.deliveredAt?.toISOString(), LATER.toISOString());
+                    assert.deepEqual(kept?.delivery, DELIVERY);
+                    assert.deepEqual(
+                        await notices.listDeliveredSubscriptionIds(
+                            'version-offered',
+                            'pv-standard-2',
+                        ),
+                        ['sub-told'],
+                    );
+                    const farFuture = new Date('2099-01-01T00:00:00.000Z');
+                    assert.equal(await notices.claim(NOTICE, CONTENT, farFuture, farFuture), null);
+                },
+            );
+
+            scenario('a notice told to nobody is kept as delivered to no one', async (notices) => {
+                const claimed = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                assert.ok(claimed?.claimedAt);
+                const nobody = { recipients: [], channel: 'email' };
+                assert.equal(
+                    await notices.confirm(claimed.id, claimed.claimedAt, nobody, LATER),
+                    true,
+                );
+                assert.deepEqual(
+                    (await notices.listForSubscription('sub-told'))[0]?.delivery,
+                    nobody,
+                );
+            });
+
+            scenario(
+                'a confirmation from a claim another run has since taken over is refused',
+                async (notices) => {
+                    const first = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    const second = await notices.claim(
+                        NOTICE,
+                        CONTENT,
+                        LATER,
+                        new Date(RUN_AT.getTime() + 1),
+                    );
+                    assert.ok(first?.claimedAt && second?.claimedAt);
+                    assert.equal(
+                        await notices.confirm(first.id, first.claimedAt, DELIVERY, LATER),
+                        false,
+                    );
+                    assert.equal(
+                        (await notices.listForSubscription('sub-told'))[0]?.deliveredAt,
+                        null,
+                    );
+                    assert.equal(
+                        await notices.confirm(second.id, second.claimedAt, DELIVERY, LATER),
+                        true,
+                    );
+                },
+            );
+
+            scenario(
+                'a released notice is taken on by the next run, and only its own claim releases it',
+                async (notices) => {
+                    const claimed = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    assert.ok(claimed?.claimedAt);
+                    await notices.release(claimed.id, LATER);
+                    assert.equal(
+                        await notices.claim(NOTICE, CONTENT, LATER, LEASE_START),
+                        null,
+                        'another moment is not this claim: still held',
+                    );
+                    await notices.release(claimed.id, claimed.claimedAt);
+                    const again = await notices.claim(NOTICE, CONTENT, LATER, LEASE_START);
+                    assert.equal(again?.id, claimed.id);
+                    assert.equal(again?.claimedAt?.toISOString(), LATER.toISOString());
+                },
+            );
+
+            scenario(
+                'notices are kept apart by subscription, kind and subject, the most recent first',
+                async (notices) => {
+                    const v2 = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    const v3 = await notices.claim(
+                        { ...NOTICE, subject: 'pv-standard-3' },
+                        CONTENT,
+                        LATER,
+                        LEASE_START,
+                    );
+                    const other = await notices.claim(
+                        { ...NOTICE, tenantId: 'tenant-other', subscriptionId: 'sub-other' },
+                        CONTENT,
+                        RUN_AT,
+                        LEASE_START,
+                    );
+                    assert.ok(v2?.claimedAt && v3?.claimedAt && other?.claimedAt);
+                    await notices.confirm(other.id, other.claimedAt, DELIVERY, LATER);
+                    assert.deepEqual(
+                        (await notices.listForSubscription('sub-told')).map(
+                            (notice) => notice.subject,
+                        ),
+                        ['pv-standard-3', 'pv-standard-2'],
+                    );
+                    assert.deepEqual(
+                        await notices.listDeliveredSubscriptionIds(
+                            'version-offered',
+                            'pv-standard-2',
+                        ),
+                        ['sub-other'],
+                        'only what was delivered, and only for that subject',
+                    );
+                },
             );
         });
     });

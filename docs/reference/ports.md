@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 20 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 21 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -88,11 +88,10 @@ Adapter for the RLS bypass context.
 
 ### `SubscriptionUsagePort`
 
-Read adapter for the UI/display form of a subscription.
-
-| Member                                                                      | What it does |
-| --------------------------------------------------------------------------- | ------------ |
-| `findForTenant(tenantId: string): Promise<SubscriptionUsageRecord \| null>` | —            |
+| Member                                                                                                 | What it does                                                                                                |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `findForTenant(tenantId: string): Promise<SubscriptionUsageRecord \| null>`                            | —                                                                                                           |
+| `listBoundToEarlierVersions?( planKey: string, version: number, ): Promise<TenantSubscriptionUsage[]>` | Every subscription of `planKey`, in every tenant, bound to a version of that plan numbered below `version`. |
 
 ### `UsageSnapshotPort`
 
@@ -213,3 +212,13 @@ Stores what the installation applied and what changed between two boots.
 | `recordChange( change: NewSettingsChange, record: AppliedSettingsRecord, expectedFingerprint: string, ): Promise<SettingsChangeRecord \| null>` | Appends a change a boot noticed and replaces the record it supersedes, in one step: both land, or neither does.                                                                                                |
 | `listChanges(filter?: SettingsChangeFilter): Promise<SettingsChangeRecord[]>`                                                                   | Changes, the most recently recorded first: the order the record went through them, which the database numbers at each write — not the order of the moments they carry, which are the recording starts' clocks. |
 | `acknowledgeChange( id: string, acknowledgedBy: string, acknowledgedAt: Date, ): Promise<SettingsChangeRecord \| null>`                         | Marks a change as seen.                                                                                                                                                                                        |
+
+## Subscriber notices
+
+### `SubscriptionNoticePort`
+
+Sends a notice to the administrators of the tenant it is for, in the application's words and through its channels.
+
+| Member                                                                     | What it does |
+| -------------------------------------------------------------------------- | ------------ |
+| `deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery>` | —            |

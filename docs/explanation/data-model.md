@@ -66,6 +66,7 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 | `SubscriberPaymentMethodSetup` (`subscriber_payment_method_setups`) | gateway account + session unique                                        | A change of payment method a tenant started. A confirmation is recorded only against the open setup whose account, session and subscriber it names, and completes it.                                                                                                                                                                                                                                                                   |
 | `PaymentEventLog`                                                   | gateway account + `eventId` unique                                      | Every gateway callback, claimed on the transaction that writes its effect (`claim`), so a rollback leaves it free for the gateway's retry.                                                                                                                                                                                                                                                                                              |
 | `SubscriberLedgerEntry` (`subscriber_ledger_entries`)               | subscription + source + source reference + period start + origin unique | One charge in a subscriber's account: net, with its currency and period, naming the contract line it came from. Append-only; derived again as often as the platform or the application asks, and written once (invariant 10). Outlives the tenant.                                                                                                                                                                                      |
+| `SubscriptionNotice` (`subscription_notices`)                       | subscription + kind + subject unique                                    | One notice to a subscriber — a newer version offered — with what it said, when it went out, to whom and through which channel. Claimed by the run that sends it, confirmed after (invariant 12). Keeps the tenant and the subscription as values and outlives them.                                                                                                                                                                     |
 | `SubscriptionBundle` (`subscription_bundles`)                       | booking identity                                                        | Pins a standalone add-on booking to one concrete `BundleVersion`; runs its own billing window, aligned so its periods end on the day the plan's do; cancellation becomes effective at its stored cutoff.                                                                                                                                                                                                                                |
 
 ### Catalog & versioning
@@ -225,6 +226,15 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     land one window — and `update` changes a window only while it is still open
     and at the stage the caller read. An unlock and a lock issued together
     therefore cannot both land on one window.
+12. **A notice is sent once.** `SubscriptionNoticeRepository.claim` records a
+    notice only where no notice with its key — subscription, kind and subject —
+    exists, and takes it for one run in a single guarded update: only while it
+    is not delivered and no run holds it, or the run that holds it took it on
+    before the lease began. `confirm` and `release` land only under the claim
+    the caller holds. Two instances running the same job therefore send a
+    notice once between them. Two duplicates are left: a process that stops
+    after the message went out and before `confirm`, and an application that
+    answers later than the lease, after another run took the notice on.
 
 ## Capability requirements
 

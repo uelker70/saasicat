@@ -26,6 +26,7 @@ import {
 import { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
 import { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
 import { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
+import { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';
 import { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
 import { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
@@ -75,6 +76,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriberPaymentMethod: unknown;
     subscriberPaymentMethodSetup: unknown;
     subscriberLedgerEntry: unknown;
+    subscriptionNotice: unknown;
 }
 
 /**
@@ -286,6 +288,10 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             ),
             subscriptionWritePort: provide(
                 (prisma) => new PrismaTenantSubscriptionWriteAdapter(prisma, options.schema),
+            ),
+            subscriptionNotices: unless(
+                'tenantBilling.subscriptionNotices',
+                provide((prisma) => new PrismaSubscriptionNoticeRepository(canonical(prisma))),
             ),
         },
         adminResources:

@@ -14,6 +14,8 @@
 //   12 (the applied settings and their changes)
 //   13 (Subscriber, its tenants and corrections)
 //   14 (the subscriber's payment method and the gateway events)
+//   16 (maintenance windows)
+//   17 (what each subscriber was told)
 // The platform blocks below are hand-maintained copies of the fragments, with
 // the consumer relations to Tenant/User enabled. `schema apply` seeds them —
 // enums and models — into a fresh schema, but does not update blocks that
@@ -1308,6 +1310,32 @@ model MaintenanceWindow {
 
     @@index([createdAt])
     @@map("maintenance_windows")
+}
+
+// =============================================================================
+// Subscription notices (17-subscription-notice.prisma)
+// =============================================================================
+
+// What each subscriber was told, once per subscription, kind and subject. The
+// tenant and the subscription are kept as values: the record outlives them.
+model SubscriptionNotice {
+    id             String @id @default(uuid())
+    tenantId       String
+    subscriptionId String
+
+    kind    String
+    subject String
+    content Json
+
+    createdAt   DateTime  @default(now())
+    claimedAt   DateTime?
+    deliveredAt DateTime?
+    recipients  Json?
+    channel     String?
+
+    @@unique([subscriptionId, kind, subject])
+    @@index([kind, subject])
+    @@map("subscription_notices")
 }
 
 // =============================================================================

@@ -33,6 +33,7 @@ import {
     PrismaPromoSubscriptionLookup,
     PrismaAppliedSettingsRepository,
     PrismaMaintenanceWindowRepository,
+    PrismaSubscriptionNoticeRepository,
     PrismaMarketingProjectionRepository,
     PrismaPaymentEventLog,
     PrismaSubscriberPaymentMethodRepository,
@@ -69,6 +70,7 @@ const PLATFORM_TABLES = [
     'applied_settings',
     'settings_changes',
     'maintenance_windows',
+    'subscription_notices',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -117,6 +119,7 @@ function createHarness() {
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
             maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
+            subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),
         },
         seed: {
             async createPlanVersion(input) {

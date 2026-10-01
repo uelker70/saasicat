@@ -904,4 +904,37 @@ describe('the subscription a tenant is shown', () => {
         );
         assert.ok(await usage.findForTenant(TENANT), 'and the tenant still reads their plan');
     });
+
+    test('the subscriptions on an earlier version of a plan are listed with their tenants', async () => {
+        const v1 = await livePlanVersion('USAGE_LIST');
+        const v2 = await publish(
+            (await draftFor('USAGE_LIST')).id,
+            new Date('2026-06-01T00:00:00.000Z'),
+        );
+        const other = await livePlanVersion('USAGE_OTHER');
+        const subscribe = (tenantId, plan, planVersionId) =>
+            db.insert(saasicatSchema.subscriptions).values({
+                id: `sub-${tenantId}`,
+                tenantId,
+                plan,
+                planVersionId,
+                billingCycle: 'MONTHLY',
+                status: 'ACTIVE',
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                isPilot: false,
+                updatedAt: new Date(),
+            });
+        await subscribe('tenant-on-v1', 'USAGE_LIST', v1.id);
+        await subscribe('tenant-on-v2', 'USAGE_LIST', v2.id);
+        await subscribe('tenant-elsewhere', 'USAGE_OTHER', other.id);
+
+        const listed = await usage.listBoundToEarlierVersions('USAGE_LIST', 2);
+        assert.deepEqual(
+            listed.map((entry) => [entry.tenantId, entry.subscription.id]),
+            [['tenant-on-v1', 'sub-tenant-on-v1']],
+        );
+        assert.equal(listed[0].subscription.planVersion.id, v1.id);
+        assert.deepEqual(await usage.listBoundToEarlierVersions('USAGE_LIST', 1), []);
+        assert.deepEqual(await usage.listBoundToEarlierVersions('NO_SUCH_PLAN', 9), []);
+    });
 });

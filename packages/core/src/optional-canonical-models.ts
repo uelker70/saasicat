@@ -15,6 +15,7 @@ export const OPTIONAL_CANONICAL_MODELS = {
     AppliedSettings: ['core.appliedSettings'],
     SettingsChange: ['core.appliedSettings'],
     MaintenanceWindow: ['core.maintenanceWindows'],
+    SubscriptionNotice: ['tenantBilling.subscriptionNotices'],
     SubscriberLedgerEntry: ['entitlement.subscriberLedgerRepository'],
     PromoCodeHold: ['promo.holdRepository'],
 } as const;

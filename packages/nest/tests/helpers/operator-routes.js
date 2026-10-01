@@ -71,7 +71,11 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             subscriptionLookup: REPO,
             revenueAggregator: REPO,
         },
-        tenantBilling: { subscriptionWritePort: PORT, usageSnapshotPort: PORT },
+        tenantBilling: {
+            subscriptionWritePort: PORT,
+            usageSnapshotPort: PORT,
+            subscriptionNotices: REPO,
+        },
     };
     return {
         planCatalog: {
@@ -102,6 +106,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                 subscriberRepository: REPO,
             },
             chargeJournal: { ledgerRepository: REPO },
+            versionNotices: { port: PORT, includeCron: false },
         },
         promoCodes: true,
         setup: true,

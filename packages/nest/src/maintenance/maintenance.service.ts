@@ -44,6 +44,7 @@ import {
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { actorTagOf } from '../core/web-audit.js';
+import { withTimeout } from '../core/with-timeout.js';
 import { codedError } from '../errors/coded-error.js';
 import {
     MAINTENANCE_NOTIFICATION_PORT_TOKEN,
@@ -503,32 +504,17 @@ export class MaintenanceService {
      * every tenant can take minutes, and the window is recorded either way.
      */
     private notify(event: MaintenanceWindowEvent): void {
-        if (!this.notifications) return;
         const notifications = this.notifications;
-        const told = new Promise<void>((resolve, reject) => {
-            const timer = setTimeout(
-                () => reject(new Error(`no answer within ${NOTIFICATION_TIMEOUT_MS} ms`)),
-                NOTIFICATION_TIMEOUT_MS,
-            );
-            timer.unref();
-            notifications.windowChanged(event).then(
-                () => {
-                    clearTimeout(timer);
-                    resolve();
-                },
-                (error: unknown) => {
-                    clearTimeout(timer);
-                    reject(error instanceof Error ? error : new Error(String(error)));
-                },
-            );
-        });
-        told.catch((error: unknown) => {
-            this.logger.error(
-                `The application was not told that window ${event.window.id} was ${event.kind}; ` +
-                    'the window stands as recorded.',
-                error instanceof Error ? error.stack : String(error),
-            );
-        });
+        if (!notifications) return;
+        withTimeout(() => notifications.windowChanged(event), NOTIFICATION_TIMEOUT_MS).catch(
+            (error: unknown) => {
+                this.logger.error(
+                    `The application was not told that window ${event.window.id} was ${event.kind}; ` +
+                        'the window stands as recorded.',
+                    error instanceof Error ? error.stack : String(error),
+                );
+            },
+        );
     }
 }
 

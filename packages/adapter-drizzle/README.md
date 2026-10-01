@@ -97,10 +97,10 @@ atomic `claimSlot`/`releaseSlot`/`markExhaustedIfFull` and the slots held for
 checkouts, audit
 write/query/stats, MFA, RLS bypass, SuperAdmin bootstrap
 (`PASSWORD_HASHER_TOKEN`), plan-catalog read/import sinks, the record of the
-applied settings, the maintenance windows, and the `ZeroPromoRevenueDeductionAggregator` default.
-Not shipped: contracts,
-bundle bookings, registration, tenant-billing write ports,
-`FirstTimeCustomerCheck` — same as the Prisma adapter.
+applied settings, the maintenance windows, the record of what each subscriber
+was told, and the `ZeroPromoRevenueDeductionAggregator` default.
+Not shipped: registration persistence and `FirstTimeCustomerCheck` — same as the
+Prisma adapter.
 
 Manual wiring binds the db via `DRIZZLE_DB_TOKEN`.
 

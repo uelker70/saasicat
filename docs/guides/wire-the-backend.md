@@ -882,6 +882,83 @@ other reads the administration makes.
 
 What it does not do yet: collect anything, or show a tenant its own account.
 
+## Telling Subscribers of a Newer Version
+
+A subscription keeps the plan version it was sold, and a newer one sits beside the plan as an offer
+(`SC-SUB-020`). With version notices on, the tenant's administrators also hear of it once, in your
+words (`SC-SUB-022`): when the offer appears — not when the version is published — so a version
+whose window opens later is told when it opens, and a subscription with a change still to land is
+told once it has landed. Each newer version is told once per subscription. There is no reminder,
+because doing nothing costs the subscriber nothing.
+
+The platform decides when a notice is due and keeps a record of each: what it said, when it went out,
+to whom and how (`SC-SUB-023`). Your application decides who the administrators are, what the
+message says and how it travels. Adopt `prisma-fragments/17-subscription-notice.prisma`, run
+`sql/1.0-a-subscriber-is-told-once.postgres.sql` once, and bind a port:
+
+```ts
+import { Injectable } from '@nestjs/common';
+import type {
+    SubscriptionNotice,
+    SubscriptionNoticeDelivery,
+    SubscriptionNoticePort,
+} from '@saasicat/core';
+
+@Injectable()
+export class VersionNoticeMailer implements SubscriptionNoticePort {
+    constructor(
+        private readonly users: UsersService,
+        private readonly mail: MailService,
+    ) {}
+
+    async deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery> {
+        const admins = await this.users.activeAdministratorsOf(notice.tenantId);
+        for (const admin of admins) {
+            // `notice.offer`: both versions side by side, the kind of offer, when a switch takes effect.
+            await this.mail.send(admin.email, 'plan-version-offered', { offer: notice.offer });
+        }
+        return { recipients: admins.map((admin) => admin.email), channel: 'email' };
+    }
+}
+```
+
+```ts
+tenantBilling: {
+    authGuards: [JwtAuthGuard, TenantGuard],
+    versionNotices: {
+        port: {
+            useFactory: (mailer: VersionNoticeMailer) => mailer,
+            inject: [VersionNoticeMailer],
+        },
+    },
+    extraProviders: [VersionNoticeMailer],
+    imports: [UsersModule, MailModule],
+},
+```
+
+The record comes from `persistence.tenantBilling.subscriptionNotices`, which both shipped bundles
+provide; a start with version notices and no record is refused
+(`version-notices.requires-notice-record`). A `SubscriptionUsagePort` of your own needs
+`listBoundToEarlierVersions`, and the plan repository `findVersionById`, or the start is refused
+as well — without them the platform cannot find whom to tell.
+
+- **Resolve with to whom and how.** The platform keeps it as the record. An empty list records that
+  nobody could be told, and the notice is not tried again.
+- **Throw where it could not be sent.** The next run tries again.
+- **Answer within a minute.** An answer that takes longer is still awaited: the notice stays held,
+  so no other run sends it meanwhile, and the answer is recorded when it comes — or, where it is a
+  failure, the notice is let go for the next run.
+- **Two cases send a notice twice:** your process stops after the message went out and before the
+  platform recorded it, or your port takes longer than a quarter of an hour to answer, after which
+  another run may take the notice on.
+- **Where the run comes from.** The platform runs every quarter of an hour, which needs
+  `ScheduleModule` in your application, and pauses while the application is locked for
+  maintenance. Set `versionNotices.includeCron: false` to call `VersionNoticeService.sendDue` from a
+  scheduler of your own instead.
+- **Across tenants.** A run reads every tenant's subscription and writes the record inside
+  `RlsBypassPort`, and your port is called inside it too, so it can read the administrators of any
+  tenant.
+
 ## Admin Module
 
 `SaaSiCatModule` owns `PlatformAdminModule`, `AdminManifestModule` and the

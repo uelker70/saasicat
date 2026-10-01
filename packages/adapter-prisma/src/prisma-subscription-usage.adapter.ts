@@ -1,5 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
+import type {
+    SubscriptionUsagePort,
+    SubscriptionUsageRecord,
+    TenantSubscriptionUsage,
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PlanVersionRowLike,
@@ -62,6 +66,58 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
                   where: { id: subscription.pendingPlanVersionId },
               })
             : null;
+        return this.toRecord(subscription, planVersion, pendingPlanVersion);
+    }
+
+    /**
+     * Three reads whatever the number of subscriptions: the plan's earlier
+     * versions, the subscriptions bound to them, and the pending versions those
+     * name.
+     */
+    async listBoundToEarlierVersions(
+        planKey: string,
+        version: number,
+    ): Promise<TenantSubscriptionUsage[]> {
+        const storedPlanId = await this.binding.findStoragePlanId(this.prisma, planKey);
+        if (storedPlanId === null) return [];
+        const earlier = await this.planVersions().findMany({
+            where: { planId: storedPlanId, version: { lt: version } },
+        });
+        if (earlier.length === 0) return [];
+        const bound = new Map(earlier.map((row) => [row.id, row]));
+        const subscriptions = await this.subscriptions().findMany({
+            where: { planVersionId: { in: [...bound.keys()] } },
+            orderBy: { id: 'asc' },
+        });
+        const pendingIds = subscriptions.flatMap((row) =>
+            row.pendingPlanVersionId ? [row.pendingPlanVersionId] : [],
+        );
+        const pending = new Map(
+            pendingIds.length === 0
+                ? []
+                : (await this.planVersions().findMany({ where: { id: { in: pendingIds } } })).map(
+                      (row) => [row.id, row],
+                  ),
+        );
+        return Promise.all(
+            subscriptions.map(async (subscription) => ({
+                tenantId: subscription.tenantId,
+                subscription: await this.toRecord(
+                    subscription,
+                    bound.get(subscription.planVersionId)!,
+                    subscription.pendingPlanVersionId
+                        ? (pending.get(subscription.pendingPlanVersionId) ?? null)
+                        : null,
+                ),
+            })),
+        );
+    }
+
+    private async toRecord(
+        subscription: SubscriptionRowLike,
+        planVersion: PlanVersionRowLike,
+        pendingPlanVersion: PlanVersionRowLike | null,
+    ): Promise<SubscriptionUsageRecord & { id: string }> {
         const planVersionRecord = await this.toPlanVersion(planVersion);
 
         return {

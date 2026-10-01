@@ -698,6 +698,9 @@ _Tested by:_
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
+          reads
+        - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record
     - PrismaPromoCodeRepository
@@ -750,6 +753,14 @@ _Tested by:_
         - opening leaves the refusal to the index, under an id of its own
         - a move is guarded on the window being open and at the stage the caller read
         - a move that matched nothing answers null and reads nothing back
+- `packages/adapter-prisma/tests/prisma-subscription-notice.repository.test.js`
+    - PrismaSubscriptionNoticeRepository
+        - a claim records the notice where it is new, then takes it in one guarded update
+        - a claim that takes no row answers null without reading
+        - a confirmation and a release name the claim they hold
+        - a confirmation that finds the claim gone answers false
+        - what was delivered is read as sent, and a delivery nobody can read stops the read
+        - the subscriptions told of a subject are the delivered ones
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so
@@ -850,6 +861,9 @@ _Tested by:_
         - countActiveByPlanKey aggregates by authoritative PlanVersion identity
     - PrismaSubscriptionUsageAdapter
         - maps the canonical subscription to the tenant billing display form
+        - lists the subscriptions on earlier versions of a plan, each with its tenant, in three
+          reads
+        - finds a plan stored by row id through its key, and a key no plan has lists nobody
     - PrismaPlanVersionRepository
         - findLatestLive filters live versions and maps the record
     - PrismaPromoCodeRepository

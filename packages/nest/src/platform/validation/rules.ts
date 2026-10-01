@@ -332,6 +332,20 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`persistence.core.maintenanceWindows` — both shipped adapters do.',
     },
     {
+        id: 'version-notices.requires-notice-record',
+        when: (c) => Boolean(optionsOf(c.options.tenantBilling)?.versionNotices),
+        assert: (c) =>
+            Boolean(
+                optionsOf(c.options.tenantBilling)?.versionNotices?.notices ??
+                bundle(c)?.tenantBilling?.subscriptionNotices,
+            ),
+        message:
+            'version notices are turned on (`tenantBilling.versionNotices`), but there is ' +
+            'nowhere to record what each subscriber was told. Set ' +
+            '`tenantBilling.versionNotices.notices` or use a bundle ' +
+            'providing `persistence.tenantBilling.subscriptionNotices` — both shipped adapters do.',
+    },
+    {
         id: 'subscription-contract.requires-repository',
         when: (c) => Boolean(c.options.subscriptionContract),
         assert: (c) =>
