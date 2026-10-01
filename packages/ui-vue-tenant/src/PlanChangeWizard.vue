@@ -317,7 +317,7 @@ import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
 import { resolveErrorMessage } from '@saasicat/core';
 import { defaultQuotaValue } from './plan/quota-value.js';
-import { refusalOf } from './refusal-of.js';
+import { refusalMessage, refusalOf } from './refusal-of.js';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
 import type {
     BillingCycleStr,
@@ -711,11 +711,7 @@ async function submit() {
         if (body?.code === 'PLAN_CHANGE_QUOTE_CHANGED' && body.preview) {
             preview.value = body.preview as PlanChangePreviewShape;
         }
-        submitError.value = body
-            ? resolveErrorMessage(body, props.i18n.issueMessages)
-            : err instanceof Error
-              ? err.message
-              : String(err);
+        submitError.value = refusalMessage(err, props.i18n.issueMessages);
     } finally {
         submitting.value = false;
     }

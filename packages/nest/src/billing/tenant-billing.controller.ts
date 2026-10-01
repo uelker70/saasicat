@@ -553,7 +553,11 @@ export class TenantBillingController {
                     nextStatus: wasTrial ? null : 'ACTIVE',
                     trialEndsAt,
                     expectedCanceledAt: sub.canceledAt ?? null,
-                    keepsBoundVersion: false,
+                    // A change that keeps the plan keeps the version bound
+                    // (`SC-SUB-024`): the preview priced it at that version,
+                    // and moving the rhythm is no occasion to move it on to
+                    // the one on sale.
+                    keepsBoundVersion: dto.plan === sub.plan,
                     // The version checked above, and no other: one that stops
                     // taking bookings between the check and the write leaves
                     // the row unclaimed rather than binding its successor.

@@ -295,8 +295,8 @@ import {
 } from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
-import { resolveErrorMessage, type VersionOfferView } from '@saasicat/core';
-import { refusalOf } from './refusal-of.js';
+import type { VersionOfferView } from '@saasicat/core';
+import { refusalMessage, refusalOf } from './refusal-of.js';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import { defaultQuotaValue } from './plan/quota-value.js';
 
@@ -783,9 +783,7 @@ const versionSwitchNote = ref<string | null>(null);
 
 /** A refusal in the reader's language, from its code; the thrown text only where there is none. */
 function refusalText(err: unknown): string {
-    const body = refusalOf(err);
-    if (!body) return err instanceof Error ? err.message : String(err);
-    return resolveErrorMessage(body, effectiveI18n.value.issueMessages);
+    return refusalMessage(err, effectiveI18n.value.issueMessages);
 }
 
 /**

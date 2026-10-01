@@ -4545,6 +4545,8 @@ _Tested by:_
     - the confirmation binds the version it showed
         - it sends the version of the preview on screen
         - refused because the plan changed, it shows the plan as it stands and says why
+    - a refused change always says why
+        - a body with no code and a list of messages falls back to the thrown text
 
 <!-- END proof -->
 
@@ -4582,6 +4584,8 @@ _Tested by:_
     - the confirmation binds the version it showed
         - it sends the version of the preview on screen
         - refused because the plan changed, it shows the plan as it stands and says why
+    - a refused change always says why
+        - a body with no code and a list of messages falls back to the thrown text
 
 <!-- END proof -->
 

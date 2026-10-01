@@ -65,14 +65,14 @@ function writePort({ claimed = true, bindsPlanVersion } = {}) {
     };
 }
 
-function controllerOver(planPreview, port) {
+function controllerOver(planPreview, port, subscription = SUBSCRIPTION) {
     return new TenantBillingController(
         {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
         planPreview,
-        { findForTenant: async () => SUBSCRIPTION },
+        { findForTenant: async () => subscription },
         { snapshot: async () => ({}) },
         port,
         () => 't1',
@@ -103,6 +103,7 @@ describe('a change to another plan', () => {
         );
 
         assert.equal(port.immediate.length, 1);
+        assert.equal(port.immediate[0].keepsBoundVersion, false, 'another plan is a sale');
         assert.equal(port.immediate[0].quotedPlanVersionId, 'pv-pro-1');
         assert.equal(port.immediate[0].quotedVersionOnly, true);
     });
@@ -168,12 +169,17 @@ describe('a change to another plan', () => {
 });
 
 describe('a change that has no version to name', () => {
-    test('keeping the plan and moving the rhythm names none, and binds none', async () => {
+    test('keeping the plan and moving the rhythm names none, and keeps the version bound', async () => {
+        // Bound to STARTER v1 while v2 is on sale. The preview prices the
+        // rhythm change at v1; the write keeps v1 (`SC-SUB-024`) rather than
+        // binding the version on sale at a price nobody showed.
+        const bound = { ...SUBSCRIPTION, planVersion: { id: 'pv-starter-1', planId: 'STARTER' } };
         const port = writePort();
-        await controllerOver(previewNaming(null), port).changePlan(request, {
+        await controllerOver(previewNaming('pv-starter-1'), port, bound).changePlan(request, {
             plan: 'STARTER',
             billingCycle: 'YEARLY',
         });
+        assert.equal(port.immediate[0].keepsBoundVersion, true);
         assert.equal(port.immediate[0].quotedPlanVersionId, null);
         assert.equal(port.immediate[0].quotedVersionOnly, false);
     });

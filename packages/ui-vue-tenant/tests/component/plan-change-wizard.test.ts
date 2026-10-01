@@ -287,3 +287,20 @@ describe('the confirmation binds the version it showed', () => {
         expect(sent[1]).toEqual(['pl-2', 'MONTHLY', 'plv-3']);
     });
 });
+
+describe('a refused change always says why', () => {
+    test('a body with no code and a list of messages falls back to the thrown text', async () => {
+        // The shape a validation pipe answers with: nothing a catalogue can
+        // resolve, so the reader is shown the error rather than an empty line.
+        const refusal = Object.assign(new Error('Bad Request'), {
+            body: { statusCode: 400, message: ['plan must be a string'], error: 'Bad Request' },
+        });
+        const wrapper = openWizard({ changePlan: () => Promise.reject(refusal) });
+        await reachConfirmation(wrapper);
+        confirmButton().click();
+        await flush();
+
+        const error = panel().querySelector('.sp-wizard__error--spaced');
+        expect(error?.textContent?.trim()).toBe('Bad Request');
+    });
+});
