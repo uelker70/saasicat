@@ -29,7 +29,7 @@ let bundleId;
 
 before(async () => {
     ({ pool, db } = await openDisposableDatabase({ max: 4 }));
-    repository = new DrizzleBundleRepository(db, { validityWindows: true });
+    repository = new DrizzleBundleRepository(db);
 });
 
 after(async () => {
@@ -46,6 +46,11 @@ beforeEach(async () => {
 });
 
 /** A published version with the window it should carry, without going through publish. */
+// As UTC text, not a Date: node-postgres writes a Date in the machine's local
+// time, and a column without a zone keeps that wall-clock reading — so the
+// stored moment would move with the timezone of whoever runs the test.
+const utc = (date) => (date === null ? null : date.toISOString());
+
 async function seedVersion({ version, validFrom, validUntil, supersededAt = null }) {
     const id = randomUUID();
     await pool.query(
@@ -54,7 +59,7 @@ async function seedVersion({ version, validFrom, validUntil, supersededAt = null
             "marketed","changeNote","nonRegressive","publishedAt","validFrom","validUntil",
             "supersededAt","createdAt","updatedAt")
          VALUES ($1,$2,$3,'[]','{}','{}','[]',true,'seed',true,NOW(),$4,$5,$6,NOW(),NOW())`,
-        [id, bundleId, version, validFrom, validUntil, supersededAt],
+        [id, bundleId, version, utc(validFrom), utc(validUntil), utc(supersededAt)],
     );
     return id;
 }
@@ -163,29 +168,16 @@ describe('the edges of one window', () => {
     });
 });
 
-describe('an adapter that does not promise windows', () => {
-    test('does not offer the method, rather than answering from columns it ignores', () => {
-        // The contract gates on `!repository?.findActiveBundleVersion`, so what
-        // has to be false is the VALUE. `in` stays true — a declared field is
-        // defined as `undefined` under `useDefineForClassFields` — and
-        // `adapter-prisma` behaves the same way. Asserting `in` would invent a
-        // stricter contract than the one anybody relies on.
-        const plain = new DrizzleBundleRepository(db);
-        assert.equal(plain.findActiveBundleVersion, undefined);
-        const promising = new DrizzleBundleRepository(db, { validityWindows: true });
-        assert.equal(typeof promising.findActiveBundleVersion, 'function');
-    });
-
-    test('and hands back no window on a version that has one stored', async () => {
+describe('a version read back', () => {
+    test('carries the window it has stored', async () => {
         const id = await seedVersion({
             version: 1,
             validFrom: at('2026-03-01'),
             validUntil: at('2026-03-10'),
         });
-        const plain = new DrizzleBundleRepository(db);
 
-        const row = await plain.findVersionById(id);
-        assert.equal(row.validFrom, null);
-        assert.equal(row.validUntil, null);
+        const row = await repository.findVersionById(id);
+        assert.equal(row.validFrom, '2026-03-01T00:00:00.000Z');
+        assert.equal(row.validUntil, '2026-03-10T00:00:00.000Z');
     });
 });

@@ -172,7 +172,7 @@ describe('the prices a store is shown', () => {
     });
 });
 
-// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
+// @requirement SC-BUN-035 — An add-on is on sale by its dates, in the catalogue and at booking alike
 describe('which bundles a tenant may ask the price of', () => {
     test('a draft is not priced, because it was never on offer', async () => {
         // The caller names ids. An authenticated tenant can name one that never
@@ -192,7 +192,7 @@ describe('which bundles a tenant may ask the price of', () => {
         assert.deepEqual(await service.resolvePricesFor(STARTER, [draft.id]), {});
     });
 
-    test('a superseded version is not priced either', async () => {
+    test('a version whose successor has taken over is not priced either', async () => {
         const first = await publishBundle({ key: 'SUP' });
         const secondDraft = await bundleRepo.createDraft({
             bundleId: first.bundleId,
@@ -224,7 +224,6 @@ describe('which bundles a tenant may ask the price of', () => {
     });
 });
 
-// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
 // @requirement SC-BUN-024 — An add-on version somebody has already booked cannot be edited
 describe('a bundle the operator retired', () => {
     test('is not priced, though its version is still live', async () => {

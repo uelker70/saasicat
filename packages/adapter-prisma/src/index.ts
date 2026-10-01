@@ -67,11 +67,7 @@ export { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.adapt
 export { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
 // Catalog plane (CatalogModule) + V3 contract log.
 export { PrismaPlanRepository } from './prisma-plan.repository.js';
-export {
-    PRISMA_BUNDLE_REPOSITORY_OPTIONS,
-    PrismaBundleRepository,
-    type PrismaBundleRepositoryOptions,
-} from './prisma-bundle.repository.js';
+export { PrismaBundleRepository } from './prisma-bundle.repository.js';
 export { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
 export { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
 export { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';

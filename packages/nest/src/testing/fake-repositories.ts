@@ -65,7 +65,7 @@ import {
     subscriptionContractGone,
     formatCustomerNumber,
     identityCorrectionDelta,
-    startOfUtcDay,
+    isVersionActiveAt,
 } from '@saasicat/core';
 
 /**
@@ -711,6 +711,16 @@ export class FakeBundleRepository implements BundleRepository {
         return null;
     }
 
+    async findActiveBundleVersion(
+        bundleId: string,
+        asOf: Date = new Date(),
+    ): Promise<BundleVersionRow | null> {
+        return onSale(
+            [...this.versions.values()].filter((v) => v.bundleId === bundleId),
+            asOf,
+        );
+    }
+
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
         const draft = await this.findCurrentDraft(data.bundleId);
         if (draft) {
@@ -1122,37 +1132,10 @@ export class FakePlanRepository implements PlanRepository {
         planKey: string,
         asOf: Date = new Date(),
     ): Promise<PlanVersionRow | null> {
-        const t = asOf.getTime();
-        const dayStart = startOfUtcDay(asOf).getTime();
-        const matches = [...this.versions.values()].filter((v) => {
-            if (v.planId !== planKey) return false;
-            if (v.publishedAt === null) return false;
-            // validFrom NULL = "valid since forever" (tolerant of legacy data without a start date).
-            if (v.validFrom) {
-                const from = new Date(v.validFrom).getTime();
-                if (Number.isNaN(from) || from > t) return false;
-            }
-            // validUntil is day-inclusive: dark only from the following day.
-            if (v.validUntil) {
-                const until = new Date(v.validUntil).getTime();
-                if (!Number.isNaN(until) && until < dayStart) return false;
-            }
-            // endsAt is a precise termination (timestamp), not day-wise.
-            if (v.endsAt) {
-                const ends = new Date(v.endsAt).getTime();
-                if (!Number.isNaN(ends) && ends <= t) return false;
-            }
-            return true;
-        });
-        // Highest validFrom wins; on a tie the highest version.
-        // validFrom NULL sorts last (0) — a real fallback, not an override.
-        matches.sort((a, b) => {
-            const fa = a.validFrom ? new Date(a.validFrom).getTime() : 0;
-            const fb = b.validFrom ? new Date(b.validFrom).getTime() : 0;
-            if (fb !== fa) return fb - fa;
-            return b.version - a.version;
-        });
-        return matches[0] ?? null;
+        return onSale(
+            [...this.versions.values()].filter((v) => v.planId === planKey),
+            asOf,
+        );
     }
 
     async createPlanVersionDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionRow> {
@@ -1298,4 +1281,27 @@ function cloneEntitlementSnapshot(snapshot: EffectiveLimitsSnapshot): EffectiveL
             ? { leftOutBundleVersionIds: [...snapshot.leftOutBundleVersionIds] }
             : {}),
     };
+}
+
+/**
+ * The version on sale at `asOf` among one plan's or bundle's versions, by the
+ * rule the adapters ask the database for: published and inside its window
+ * (`isVersionActiveAt`, which also keeps a superseded version without a last
+ * day off sale), the latest `validFrom` first — a version without one last —
+ * then the highest number.
+ */
+function onSale<
+    T extends {
+        publishedAt: string | null;
+        validFrom: string | null;
+        validUntil: string | null;
+        supersededAt: string | null;
+        endsAt?: string | null;
+        version: number;
+    },
+>(versions: T[], asOf: Date): T | null {
+    const startOf = (v: T): number => (v.validFrom ? new Date(v.validFrom).getTime() : -Infinity);
+    const onSaleNow = versions.filter((v) => v.publishedAt !== null && isVersionActiveAt(v, asOf));
+    onSaleNow.sort((a, b) => startOf(b) - startOf(a) || b.version - a.version);
+    return onSaleNow[0] ?? null;
 }

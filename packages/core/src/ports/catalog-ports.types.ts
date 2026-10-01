@@ -270,28 +270,31 @@ export interface BundleRepository {
     findVersionById(versionId: string, tx?: TransactionContext): Promise<BundleVersionRow | null>;
     findCurrentDraft(bundleId: string): Promise<BundleVersionRow | null>;
     /**
-     * Currently published (= live) BundleVersion of a bundle:
+     * The newest published BundleVersion of a bundle:
      * `publishedAt IS NOT NULL AND supersededAt IS NULL`.
      *
-     * This deliberately ignores `validFrom`/`validUntil`. For new bookings
-     * and other time-aware catalog reads use `findActiveBundleVersion`.
+     * The version a publish chains to, not the version on sale: a successor
+     * published today with a start next month is the newest at once, and its
+     * predecessor goes on selling until then. What is on sale — for a booking,
+     * a catalogue, an upsell — is `findActiveBundleVersion`.
      */
     findLatestLive(bundleId: string, tx?: TransactionContext): Promise<BundleVersionRow | null>;
 
     /**
-     * BundleVersion active at `asOf`:
+     * The BundleVersion on sale at `asOf` — the one a booking made then may
+     * take:
      *   `publishedAt IS NOT NULL`
      *   `(validFrom IS NULL OR validFrom <= asOf)`
      *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`
+     *   `(supersededAt IS NULL OR validUntil IS NOT NULL)`
      *
-     * Both boundaries are inclusive. If multiple versions match, adapters
-     * return the highest `validFrom`, then the highest `version`; a null
-     * `validFrom` is a legacy fallback. Default `asOf` is the call time.
-     *
-     * Optional so adapters backed by legacy schemas without validity columns
-     * can omit the capability and consumers can fall back explicitly.
+     * Both boundaries are inclusive, and a superseded version sells only
+     * within a last day it carries — the rule of `buildActiveVersionWhere`.
+     * If multiple versions match, adapters return the highest `validFrom`,
+     * then the highest `version`; a null `validFrom` sorts last. Default
+     * `asOf` is the call time.
      */
-    findActiveBundleVersion?(
+    findActiveBundleVersion(
         bundleId: string,
         asOf?: Date,
         tx?: TransactionContext,

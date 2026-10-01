@@ -38,6 +38,7 @@ import {
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
+import { bundleVersionNotOnSale } from './bundle-version-not-on-sale.js';
 import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
@@ -199,15 +200,15 @@ export class SubscriptionBundlesService {
                 const bv = await this.bundles.findVersionById(id);
                 // Only what the tenant could have been shown. The caller names
                 // ids, and an authenticated tenant can name one that never
-                // appeared in their catalogue — a draft, a version somebody
-                // superseded, or one whose bundle has been retired — and would
+                // appeared in their catalogue — a draft, a version that is not
+                // on sale, or one whose bundle has been retired — and would
                 // then be told its plan-specific pricing.
                 //
                 // The version's own lifecycle is not enough: retiring a bundle
                 // soft-deletes the stem and leaves its live version untouched,
                 // so a check that looks only at the version says yes to
                 // something the catalogue stopped serving.
-                if (!bv || !isLive(bv)) return null;
+                if (!bv || bundleVersionNotOnSale(bv, new Date()) !== null) return null;
                 const stem = await this.bundles.findById(bv.bundleId);
                 if (!stem || stem.deletedAt !== null) return null;
                 return [
@@ -233,20 +234,11 @@ export class SubscriptionBundlesService {
                 params: { bundleVersionId: input.bundleVersionId },
             });
         }
-        if (bundleVersion.publishedAt === null) {
-            throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_PUBLISHED,
-                message: `BundleVersion '${input.bundleVersionId}' is not published and cannot be booked.`,
-                params: { bundleVersionId: input.bundleVersionId },
-            });
-        }
-        if (bundleVersion.supersededAt !== null) {
-            throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_SUPERSEDED,
-                message: `BundleVersion '${input.bundleVersionId}' has been superseded by a newer version.`,
-                params: { bundleVersionId: input.bundleVersionId },
-            });
-        }
+        // On sale by its window at the moment the booking starts, as the
+        // catalogue shows it: a version whose start is still to come is
+        // refused, and a superseded one is taken until its successor starts.
+        const notOnSale = bundleVersionNotOnSale(bundleVersion, input.startedAt ?? new Date());
+        if (notOnSale) throw new UnprocessableEntityException(notOnSale);
 
         // Self-service policy (#37): block sales-only bundles.
         if (this.blockedBundles?.bundleKeys?.includes(bundleVersion.bundleKey)) {
@@ -461,11 +453,6 @@ export function addMonths(date: Date, months: number): Date {
  * ended, which is the opposite of what a zero-month term is for, and possibly
  * a whole further period away.
  */
-/** Published and not superseded — what a tenant's catalogue can contain. */
-function isLive(version: { publishedAt: string | null; supersededAt: string | null }): boolean {
-    return version.publishedAt !== null && version.supersededAt === null;
-}
-
 export function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
     if (ownTermEndsAt === null || parentEndsAt === null) return ownTermEndsAt;
     return ownTermEndsAt < parentEndsAt ? ownTermEndsAt : parentEndsAt;

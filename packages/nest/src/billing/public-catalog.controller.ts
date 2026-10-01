@@ -156,7 +156,7 @@ export class PublicCatalogController {
 
     /**
      * — public catalog endpoint for bundles
-     * (stem list with live versions). If a `MarketingProjection` with
+     * (stem list with the version of each on sale now). If a `MarketingProjection` with
      * `targetType=BUNDLE` + matching locale exists, it is merged in.
      */
     @Get('bundles')
@@ -169,9 +169,9 @@ export class PublicCatalogController {
         const stems = await this.bundleRepo.list({});
         const requiresIndex = await this.loadFeatureRequiresIndex();
         const out: PublicBundleEntry[] = [];
+        const now = new Date();
         for (const stem of stems) {
-            const versions = await this.bundleRepo.listVersions(stem.id);
-            const live = versions.find((v) => v.publishedAt !== null && v.supersededAt === null);
+            const live = await this.bundleRepo.findActiveBundleVersion(stem.id, now);
             if (!live) continue;
             const marketing = await this.lookupMarketing('BUNDLE', live.id, locale);
             out.push(this.toBundleEntry(stem.bundleKey, live, marketing, requiresIndex));

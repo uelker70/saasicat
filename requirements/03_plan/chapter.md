@@ -508,9 +508,8 @@ _Tested by:_
         - a version is active throughout its last day, and not the next
         - a version is not active before its window opens
         - a bundle with no published version at all answers null, not an error
-    - an adapter that does not promise windows
-        - does not offer the method, rather than answering from columns it ignores
-        - and hands back no window on a version that has one stored
+    - a version read back
+        - carries the window it has stored
 - `packages/core/tests/active-plan-version-query.test.js`
     - buildActivePlanVersionWhere
         - requires publishedAt IS NOT NULL
@@ -696,10 +695,13 @@ _Tested by:_
     - the window a version is refused for
         - no start at all
         - a start that is not a date
+        - a start with a time of day
+        - but not the first moment of the day, as a stored draft gives it back
         - a start on or before the predecessor’s
         - a start that leaves a gap after a predecessor that ends
         - a predecessor without an end imposes no seam
         - an end that is not a date
+        - an end with a time of day
         - an end on or before the start
         - the codes come from the caller, so a plan refuses as a plan
         - the gapless refusal says which day it wanted

@@ -23,7 +23,12 @@ beforeEach(() => {
     service = new SubscriptionBundlesService(subBundleRepo, bundleRepo);
 });
 
-async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
+async function createPublishedBundle({
+    key,
+    planIds,
+    features = ['F'],
+    validFrom = new Date('2026-01-01T00:00:00Z'),
+} = {}) {
     const bundle = await bundleRepo.create({
         bundleKey: key,
         label: key,
@@ -42,7 +47,7 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
         publishedByUserId: null,
         publishedChanges: [],
         nonRegressive: true,
-        validFrom: new Date('2026-01-01T00:00:00Z'),
+        validFrom,
         validUntil: null,
     });
     return published;
@@ -50,7 +55,7 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
 
 // @requirement SC-BUN-008 — An add-on carries no commitment unless an operator configures one
 // @requirement SC-BUN-013 — A commitment of none stays none
-// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
+// @requirement SC-BUN-035 — An add-on is on sale by its dates, in the catalogue and at booking alike
 // @requirement SC-BUN-025 — An add-on may be restricted to particular plans
 // @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
 describe('SubscriptionBundlesService — addBundleToSubscription', () => {
@@ -234,7 +239,12 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
 // @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
     test('canceledEffectiveAt = currentPeriodEnd when the minimum term has already elapsed', async () => {
-        const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
+        // Booked in 2025, so at a version on sale then.
+        const bv = await createPublishedBundle({
+            key: 'B1',
+            planIds: [STARTER],
+            validFrom: new Date('2025-01-01T00:00:00Z'),
+        });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,

@@ -132,7 +132,7 @@ export class PublicMarketingCatalogService {
             this.planRepo.list({}),
             this.promotionRepo.list(),
             this.loadLabelMeta(locale),
-            this.loadMarketedBundles(),
+            this.loadMarketedBundles(asOf),
         ]);
         const out: PublicMarketingPlan[] = [];
 
@@ -220,17 +220,17 @@ export class PublicMarketingCatalogService {
     }
 
     /**
-     * Loads all published-and-live bundle versions and filters on
+     * Loads the bundle version of each bundle on sale at `asOf` and filters on
      * `marketed === true`. Without a registered `BundleRepository` (apps
      * without the SuperAdmin bundle editor) the list is empty — the public
      * catalog stays plan-only.
      */
-    private async loadMarketedBundles(): Promise<BundleVersionRow[]> {
+    private async loadMarketedBundles(asOf: Date): Promise<BundleVersionRow[]> {
         if (!this.bundleRepo) return [];
         const bundles = await this.bundleRepo.list({ excludeDeleted: true });
         const out: BundleVersionRow[] = [];
         for (const bundle of bundles) {
-            const live = await this.bundleRepo.findLatestLive(bundle.id);
+            const live = await this.bundleRepo.findActiveBundleVersion(bundle.id, asOf);
             if (live && live.marketed) {
                 out.push(live);
             }

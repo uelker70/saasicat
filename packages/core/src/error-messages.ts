@@ -61,12 +61,12 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "PlanVersion '{versionId}' has already been superseded by a newer version and cannot be terminated.",
     PLAN_VERSION_VALID_FROM_REQUIRED:
         'validFrom must be set when publishing (on the draft or the publish call)..',
-    PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' is not a valid date",
+    PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' is not a day (YYYY-MM-DD)",
     PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) must be strictly after the validFrom of the previous version ({previousValidFrom}).',
     PLAN_VERSION_VALID_FROM_NOT_GAPLESS:
         'The predecessor has validUntil={previousValidUntil} — the successor must start seamlessly on the next day ({requiredValidFrom}). Received: {received}.',
-    PLAN_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' is not a valid date",
+    PLAN_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' is not a day (YYYY-MM-DD)",
     PLAN_VERSION_VALID_UNTIL_BEFORE_FROM:
         'validUntil ({validUntil}) must be strictly after validFrom ({validFrom}).',
     PLAN_TERMINATE_INVALID_DATE: 'endsAt is not a valid date.',
@@ -81,6 +81,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "BundleVersion '{bundleVersionId}' is not published and cannot be booked.",
     BUNDLE_VERSION_SUPERSEDED:
         "BundleVersion '{bundleVersionId}' has been superseded by a newer version.",
+    BUNDLE_VERSION_NOT_YET_ON_SALE:
+        "BundleVersion '{bundleVersionId}' goes on sale on {validFrom} and cannot be booked before.",
     BUNDLE_VERSION_REGRESSION:
         'This bundle version is regressive (feature removed / quota lowered / price raised). Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
     BUNDLE_VERSION_ZERO_PRICE:
@@ -93,14 +95,14 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Discard is not implemented in the current repository. Implement BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:
         'Published bundle versions must keep a validFrom. Set a new future date, or edit the draft before publishing.',
-    BUNDLE_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' is not a valid date",
+    BUNDLE_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' is not a day (YYYY-MM-DD)",
     BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) must be strictly after the validFrom of the previous version ({previousValidFrom}).',
     BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS:
         'The predecessor has validUntil={previousValidUntil} — the successor must start seamlessly on the next day ({requiredValidFrom}). Received: {received}.',
     BUNDLE_VERSION_VALID_FROM_NOT_FUTURE:
         'validFrom ({validFrom}) must, for a published-but-future bundle version, still lie in the future.',
-    BUNDLE_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' is not a valid date",
+    BUNDLE_VERSION_VALID_UNTIL_INVALID: "validUntil '{validUntil}' is not a day (YYYY-MM-DD)",
     BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM:
         'validUntil ({validUntil}) must be strictly after validFrom ({validFrom}).',
     STRICT_MODE_VIOLATIONS: 'The strict-mode check found drift against the discovery snapshot.',

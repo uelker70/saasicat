@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, gte, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type {
     BundleCompatibility,
@@ -34,18 +34,6 @@ import { bundles, bundleVersions } from './schema.js';
 type BundleTableRow = typeof bundles.$inferSelect;
 type BundleVersionTableRow = typeof bundleVersions.$inferSelect;
 
-/** Whether this adapter answers validity-window questions at all. */
-export interface DrizzleBundleRepositoryOptions {
-    /**
-     * Opt-in, mirroring `adapter-prisma`. Without it a draft's `validFrom` and
-     * `validUntil` are neither written nor returned, and `findActiveBundleVersion`
-     * is not offered — the contract then gates that scenario off by capability
-     * rather than failing it, which is the difference between a gap that is
-     * visible and one that is silent.
-     */
-    validityWindows?: boolean;
-}
-
 /**
  * `BundleRepository` against the canonical `bundles` and `bundle_versions`.
  *
@@ -53,42 +41,15 @@ export interface DrizzleBundleRepositoryOptions {
  * versions, and from when. The booking half — what a tenant actually bought —
  * is `DrizzleSubscriptionBundleRepository`.
  *
- * Publishing supersedes the previous live version and, with validity windows
- * on, closes its window the day before the successor opens. Both statements go
+ * Publishing supersedes the previous live version and closes its window the
+ * day before the successor opens. Both statements go
  * through one transaction where the caller has not opened one: a superseded
  * predecessor with no successor is a bundle nobody can book, and a successor
  * beside an unsuperseded predecessor is two live versions at once.
  */
 @Injectable()
 export class DrizzleBundleRepository implements BundleRepository {
-    private readonly validityWindows: boolean;
-
-    constructor(
-        @Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient,
-        @Optional() options: DrizzleBundleRepositoryOptions = {},
-    ) {
-        this.validityWindows = options.validityWindows ?? false;
-        // Assigned rather than declared, and only when promised. The port makes
-        // this optional and callers test it for truth — the persistence
-        // contract gates its whole validity-window scenario on
-        // `!repository?.findActiveBundleVersion`. A method that exists and
-        // answers from columns the adapter does not maintain would pass that
-        // gate and then be wrong, which is worse than not being there.
-        //
-        // `in` stays true either way: a declared field is defined as
-        // `undefined` under `useDefineForClassFields`, here as in
-        // `adapter-prisma`. The two adapters agree, which is the point.
-        if (this.validityWindows) {
-            this.findActiveBundleVersion = (bundleId, asOf, tx) =>
-                this.activeVersionAt(bundleId, asOf ?? new Date(), tx);
-        }
-    }
-
-    readonly findActiveBundleVersion?: (
-        bundleId: string,
-        asOf?: Date,
-        tx?: TransactionContext,
-    ) => Promise<BundleVersionRow | null>;
+    constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {}
 
     // ─── Stems ───
 
@@ -242,9 +203,9 @@ export class DrizzleBundleRepository implements BundleRepository {
      * `validUntil` is day-inclusive, so a version is active throughout its
      * last day.
      */
-    private async activeVersionAt(
+    async findActiveBundleVersion(
         bundleId: string,
-        asOf: Date,
+        asOf: Date = new Date(),
         tx?: TransactionContext,
     ): Promise<BundleVersionRow | null> {
         const dayStart = new Date(asOf);
@@ -291,8 +252,8 @@ export class DrizzleBundleRepository implements BundleRepository {
                 bundleId: data.bundleId,
                 version: nextVersion,
                 ...bundleDraftDefaults(data),
-                validFrom: this.validityWindows ? toNullableDate(data.validFrom) : null,
-                validUntil: this.validityWindows ? toNullableDate(data.validUntil) : null,
+                validFrom: toNullableDate(data.validFrom),
+                validUntil: toNullableDate(data.validUntil),
                 updatedAt: now,
             })
             .onConflictDoNothing()
@@ -320,10 +281,8 @@ export class DrizzleBundleRepository implements BundleRepository {
         if (data.yearlyNet !== undefined) patch.yearlyNet = data.yearlyNet;
         if (data.marketed !== undefined) patch.marketed = data.marketed;
         if (data.changeNote !== undefined) patch.changeNote = data.changeNote;
-        if (this.validityWindows) {
-            if (data.validFrom !== undefined) patch.validFrom = toNullableDate(data.validFrom);
-            if (data.validUntil !== undefined) patch.validUntil = toNullableDate(data.validUntil);
-        }
+        if (data.validFrom !== undefined) patch.validFrom = toNullableDate(data.validFrom);
+        if (data.validUntil !== undefined) patch.validUntil = toNullableDate(data.validUntil);
 
         const rows = await this.db
             .update(bundleVersions)
@@ -374,9 +333,8 @@ export class DrizzleBundleRepository implements BundleRepository {
                 publishedChanges: publishMeta.publishedChanges,
                 nonRegressive: publishMeta.nonRegressive,
                 updatedAt: now,
-                ...(this.validityWindows
-                    ? { validFrom: publishMeta.validFrom, validUntil: publishMeta.validUntil }
-                    : {}),
+                validFrom: publishMeta.validFrom,
+                validUntil: publishMeta.validUntil,
             })
             .where(and(eq(bundleVersions.id, versionId), isNull(bundleVersions.publishedAt)))
             .returning();
@@ -397,11 +355,7 @@ export class DrizzleBundleRepository implements BundleRepository {
 
         await db
             .update(bundleVersions)
-            .set(
-                this.validityWindows
-                    ? { supersededAt: now, validUntil: previousUtcDay(publishMeta.validFrom) }
-                    : { supersededAt: now },
-            )
+            .set({ supersededAt: now, validUntil: previousUtcDay(publishMeta.validFrom) })
             .where(
                 and(
                     eq(bundleVersions.bundleId, draft.bundleId),
@@ -501,11 +455,8 @@ export class DrizzleBundleRepository implements BundleRepository {
                 : null,
             changeNote: row.changeNote,
             nonRegressive: row.nonRegressive,
-            // Null rather than the stored value where the adapter does not
-            // promise windows: returning a date it does not maintain would
-            // invite a caller to trust it.
-            validFrom: this.validityWindows ? toIso(row.validFrom) : null,
-            validUntil: this.validityWindows ? toIso(row.validUntil) : null,
+            validFrom: toIso(row.validFrom),
+            validUntil: toIso(row.validUntil),
             createdByUserId: row.createdByUserId,
             publishedByUserId: row.publishedByUserId,
             createdAt: row.createdAt.toISOString(),
