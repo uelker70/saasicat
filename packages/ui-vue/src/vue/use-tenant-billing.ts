@@ -134,8 +134,7 @@ export interface PlanChangePreviewShape {
     current: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
     /**
      * `planVersionId` is the version the target is priced at — what a change
-     * to another plan names when it is submitted. `null` where nothing reads
-     * versions.
+     * names when it is submitted. `null` where nothing reads versions.
      */
     target: {
         plan: PlanSnapshotShape;

@@ -2383,16 +2383,19 @@ sale rather than the old price.
 
 ### A plan change names the version its preview showed
 
-A change to another plan binds the version its preview showed, or nothing (`SC-CHG-023`). The preview
-is read again when the change is submitted, and a version that went on sale in between — a
+A plan change binds the version its preview showed, or nothing (`SC-CHG-023`). The preview is read
+again when the change is submitted, and a version that went on sale in between — a
 successor whose start passed while the page was open — is no longer bound at a price nobody saw:
 
-- **`POST billing/plan`** takes `planVersionId`, the preview's `target.planVersionId`. A change to
-  another plan that names none, where the preview names one, is refused with 400
+- **`POST billing/plan`** takes `planVersionId`, the preview's `target.planVersionId`. A change that
+  names none, where the preview names one, is refused with 400
   `PLAN_CHANGE_VERSION_NOT_NAMED`; one naming a version that is no longer on sale is refused with 409
   `PLAN_CHANGE_QUOTE_CHANGED`, carrying `preview` as it now stands. A change scheduled for the end of
-  the term is held to the same. A change that keeps the plan, and one where nothing reads versions,
-  names none.
+  the term is held to the same. A change that keeps the plan on a subscription bound to a version
+  keeps that version and names none, as does one where nothing reads versions; on a subscription
+  bound to none, a change of rhythm names the version on sale. The write claims the version the
+  change was decided from, so a change made by somebody else in between is refused with 409
+  `SUBSCRIPTION_CHANGED` instead of being undone.
 - **`useTenantBilling().changePlan(plan, billingCycle, planVersionId)`** takes the version as its
   third argument, `PlanChangePreviewShape.target` carries `planVersionId`, and the `changePlan` prop
   of `PlanChangeWizard` receives it as its third argument. `TenantPlanSection` passes it on; a

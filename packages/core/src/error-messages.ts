@@ -170,8 +170,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The offer changed since it was shown. Look at the current one before switching.',
     PLAN_CHANGE_QUOTE_CHANGED:
         'This plan changed since it was shown. Look at it again before changing to it.',
-    PLAN_CHANGE_VERSION_NOT_NAMED:
-        'A change to another plan has to name the version its preview showed.',
+    PLAN_CHANGE_VERSION_NOT_NAMED: 'A plan change has to name the version its preview showed.',
     VERSION_SWITCH_AFTER_CANCELLATION:
         'This subscription ends before this version would take effect, so it cannot be switched to.',
     VERSION_ENDS_BEFORE_SWITCH:

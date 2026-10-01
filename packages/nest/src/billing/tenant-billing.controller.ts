@@ -463,18 +463,30 @@ export class TenantBillingController {
             });
         }
 
-        // The version a change to another plan binds is the one its preview
-        // showed (`SC-CHG-023`). The preview is read again here, at the moment
-        // the change is submitted; a version that went on sale since — a
-        // successor whose start passed while the page was open — is not bound
-        // at a price nobody saw. The caller is shown the preview as it stands.
-        // A change that keeps the plan keeps the version bound and names none.
-        const quotedVersionId = dto.plan !== sub.plan ? decision.target.planVersionId : null;
+        // The version a change binds is the one its preview showed
+        // (`SC-CHG-023`). The preview is read again here, at the moment the
+        // change is submitted; a version that went on sale since — a successor
+        // whose start passed while the page was open — is not bound at a price
+        // nobody saw. The caller is shown the preview as it stands. Only a
+        // change that keeps the version bound names none: the preview kept it,
+        // as it does when the plan stays (`SC-SUB-024`). A subscription bound
+        // to no version has nothing to keep, so its preview quotes the version
+        // on sale, and the change names it like a change to another plan.
+        const boundVersionId = sub.planVersion?.id ?? null;
+        const quotedVersionId =
+            decision.target.planVersionId !== boundVersionId ? decision.target.planVersionId : null;
+        // The binding those decisions were taken from, claimed by the write
+        // wherever the store binds versions: a change made in between — another
+        // plan bound by someone else — is refused rather than undone by this one.
+        const claimsBinding =
+            this.subscriptionWrite.bindsPlanVersion !== false
+                ? { expectedPlanVersionId: boundVersionId }
+                : {};
         if (quotedVersionId !== null) {
             if (!dto.planVersionId) {
                 throw new BadRequestException({
                     code: BILLING_ERROR_CODES.PLAN_CHANGE_VERSION_NOT_NAMED,
-                    message: 'A change to another plan has to name the version its preview showed.',
+                    message: 'A plan change has to name the version its preview showed.',
                     params: { planKey: dto.plan },
                 });
             }
@@ -553,6 +565,7 @@ export class TenantBillingController {
                     nextStatus: wasTrial ? null : 'ACTIVE',
                     trialEndsAt,
                     expectedCanceledAt: sub.canceledAt ?? null,
+                    ...claimsBinding,
                     // A change that keeps the plan keeps the version bound
                     // (`SC-SUB-024`): the preview priced it at that version,
                     // and moving the rhythm is no occasion to move it on to
@@ -599,9 +612,11 @@ export class TenantBillingController {
             pendingBillingCycle: dto.billingCycle,
             pendingEffectiveAt: effectiveAt,
             expectedCanceledAt: sub.canceledAt ?? null,
+            ...claimsBinding,
             // The version the preview priced and the caller named, bound when
-            // the change comes due (`SC-CHG-022`). A change that keeps the plan
-            // records none: it keeps whatever version is bound by that day.
+            // the change comes due (`SC-CHG-022`). A change that keeps the
+            // version bound records none: it keeps whatever version is bound by
+            // that day.
             pendingChangeVersionId: quotedVersionId,
         });
         if (!scheduled.claimed) {

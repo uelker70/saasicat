@@ -9,8 +9,8 @@ Bind a plan change to the version its preview showed, or to nothing
 
 A plan change is previewed at one moment and submitted at another. When a
 successor's start passed in between, the change bound the version then on sale
-— at a price the customer was never shown. A change to another plan now names
-the version its preview showed, and the platform reads the preview again when
+— at a price the customer was never shown. A plan change now names the
+version its preview showed, and the platform reads the preview again when
 it is submitted: it changes only while that version is still the one on sale,
 and binds that version and no other (`SC-CHG-023`). A change scheduled for the
 end of the term is held to the same.
@@ -19,8 +19,12 @@ end of the term is held to the same.
   `target.planVersionId`. Naming none where the preview names one is refused
   with 400 `PLAN_CHANGE_VERSION_NOT_NAMED`; naming a version no longer on sale
   is refused with 409 `PLAN_CHANGE_QUOTE_CHANGED`, which carries the current
-  `preview`. A change that keeps the plan, and one where nothing reads
-  versions, names none.
+  `preview`. A change that keeps the plan on a subscription bound to a version
+  keeps that version and names none, as does one where nothing reads versions;
+  on a subscription bound to none, a change of rhythm names the version on
+  sale. The write claims the version the change was decided from, so a change
+  made by somebody else in between is refused with 409
+  `SUBSCRIPTION_CHANGED` instead of being undone.
 - `@saasicat/core` adds both codes with their messages.
 - `@saasicat/ui-vue`: `useTenantBilling().changePlan` takes the version as its
   third argument, and `PlanChangePreviewShape.target` carries `planVersionId`.

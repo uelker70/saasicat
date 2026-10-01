@@ -571,6 +571,7 @@ _Tested by:_
     - a scheduled change records the version it was quoted at
         - another plan: the version the preview priced
         - the same plan: none, so the version bound by the day it comes due is kept
+        - the same plan bound to no version: the version on sale it was quoted at
         - an immediate change binds the version its preview showed, and no other
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a scheduled change learns the version it was quoted at
@@ -606,6 +607,10 @@ _Tested by:_
         - naming no version is refused where the preview names one
         - scheduled for the term end is refused the same way, and recorded at the version named
         - whose version stops selling between the check and the write changes nothing
+    - a change of rhythm on a subscription bound to no version
+        - names the version on sale, and binds that one and no other
+        - naming none is refused
+        - naming a version no longer on sale is refused
 - `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
     - a scheduled change records the version it was quoted at
         - an immediate change binds the version its preview showed, and no other

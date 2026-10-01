@@ -202,3 +202,92 @@ describe('a change that has no version to name', () => {
         assert.equal(port.immediate[0].quotedVersionOnly, false);
     });
 });
+
+// @requirement SC-CHG-023 — A plan change binds the version its preview showed, or nothing
+describe('a change of rhythm on a subscription bound to no version', () => {
+    // Nothing to keep, so the preview quotes the version on sale, and the
+    // change names it as a change to another plan does: a successor that went
+    // on sale in between is not bound at a price nobody showed.
+    const yearly = (planVersionId) =>
+        planVersionId === undefined
+            ? { plan: 'STARTER', billingCycle: 'YEARLY' }
+            : { plan: 'STARTER', billingCycle: 'YEARLY', planVersionId };
+
+    test('names the version on sale, and binds that one and no other', async () => {
+        const port = writePort();
+        await controllerOver(previewNaming('pv-starter-2'), port).changePlan(
+            request,
+            yearly('pv-starter-2'),
+        );
+        assert.equal(port.immediate[0].quotedPlanVersionId, 'pv-starter-2');
+        assert.equal(port.immediate[0].quotedVersionOnly, true);
+    });
+
+    test('naming none is refused', async () => {
+        const port = writePort();
+        await assert.rejects(
+            () => controllerOver(previewNaming('pv-starter-2'), port).changePlan(request, yearly()),
+            refusedWith(400, 'PLAN_CHANGE_VERSION_NOT_NAMED'),
+        );
+        assert.equal(port.immediate.length, 0);
+    });
+
+    test('naming a version no longer on sale is refused', async () => {
+        const port = writePort();
+        await assert.rejects(
+            () =>
+                controllerOver(previewNaming('pv-starter-2'), port).changePlan(
+                    request,
+                    yearly('pv-starter-1'),
+                ),
+            refusedWith(409, 'PLAN_CHANGE_QUOTE_CHANGED'),
+        );
+        assert.equal(port.immediate.length, 0);
+    });
+});
+
+describe('the write claims the binding the change was decided from', () => {
+    // Somebody else's change landing between the read and the write — another
+    // plan bound — leaves the row unclaimed, rather than being undone by a
+    // change that was decided against the plan as it stood before.
+    const bound = { ...SUBSCRIPTION, planVersion: { id: 'pv-starter-1', planId: 'STARTER' } };
+    const toYearly = { plan: 'STARTER', billingCycle: 'YEARLY' };
+
+    test('an immediate change claims the version bound when it was read', async () => {
+        const port = writePort();
+        await controllerOver(previewNaming('pv-starter-1'), port, bound).changePlan(
+            request,
+            toYearly,
+        );
+        assert.equal(port.immediate[0].expectedPlanVersionId, 'pv-starter-1');
+    });
+
+    test('a scheduled change claims it the same way', async () => {
+        const port = writePort();
+        await controllerOver(
+            previewNaming('pv-pro-1', { isImmediate: false }),
+            port,
+            bound,
+        ).changePlan(request, toPro('pv-pro-1'));
+        assert.equal(port.scheduled[0].expectedPlanVersionId, 'pv-starter-1');
+    });
+
+    test('a subscription bound to no version claims exactly that', async () => {
+        const port = writePort();
+        await controllerOver(previewNaming('pv-pro-1'), port).changePlan(
+            request,
+            toPro('pv-pro-1'),
+        );
+        assert.ok('expectedPlanVersionId' in port.immediate[0]);
+        assert.equal(port.immediate[0].expectedPlanVersionId, null);
+    });
+
+    test('a store that binds no version is not asked to claim one', async () => {
+        const port = writePort({ bindsPlanVersion: false });
+        await controllerOver(previewNaming('pv-pro-1'), port, bound).changePlan(
+            request,
+            toPro('pv-pro-1'),
+        );
+        assert.equal('expectedPlanVersionId' in port.immediate[0], false);
+    });
+});

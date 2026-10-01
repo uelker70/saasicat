@@ -31,9 +31,10 @@ export class PreviewPlanChangeDto {
  * What it does carry is the version its preview showed (`planVersionId`, the
  * preview's `target.planVersionId`). The server reads the preview again and
  * changes only while that is still the version on sale, so nobody is bound to
- * a price they were not shown. A change to another plan has to name it where
- * the preview names one; a change that keeps the plan keeps its version and
- * names none.
+ * a price they were not shown. A change has to name it where the preview
+ * names one. Only a change that keeps the version bound names none — the same
+ * plan on a subscription bound to a version; one bound to none is quoted the
+ * version on sale, and names it.
  */
 export class ChangePlanDto extends PreviewPlanChangeDto {
     @IsOptional()

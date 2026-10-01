@@ -171,7 +171,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_CHANGE_QUOTE_CHANGED:
         'Dieser Plan hat sich seit der Anzeige geändert. Bitte sieh ihn dir noch einmal an, bevor du wechselst.',
     PLAN_CHANGE_VERSION_NOT_NAMED:
-        'Ein Wechsel auf einen anderen Plan muss die Version nennen, die seine Vorschau gezeigt hat.',
+        'Ein Planwechsel muss die Version nennen, die seine Vorschau gezeigt hat.',
     VERSION_SWITCH_AFTER_CANCELLATION:
         'Dieses Abonnement endet, bevor diese Version wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     VERSION_ENDS_BEFORE_SWITCH:

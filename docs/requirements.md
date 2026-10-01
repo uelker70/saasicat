@@ -4884,6 +4884,7 @@ _Tested by:_
     - a scheduled change records the version it was quoted at
         - another plan: the version the preview priced
         - the same plan: none, so the version bound by the day it comes due is kept
+        - the same plan bound to no version: the version on sale it was quoted at
         - an immediate change binds the version its preview showed, and no other
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a scheduled change learns the version it was quoted at
@@ -4897,13 +4898,14 @@ _Tested by:_
 
 ### SC-CHG-023 — A plan change binds the version its preview showed, or nothing
 
-🟢 💰 A change to another plan names the version its preview showed, and the platform reads the
-preview again when the change is submitted: it changes only while that version is still the one on
+🟢 💰 A plan change names the version its preview showed, and the platform reads the preview
+again when the change is submitted: it changes only while that version is still the one on
 sale, and binds that version and no other. Where another went on sale in between — a successor
 whose start passed while the page was open — the change is refused and carries the preview as it
 now stands, so nobody is bound to a price or terms they were not shown. A change scheduled for the
-end of the term is held to the same (`SC-CHG-022`). A change that keeps the plan keeps its version
-and names none.
+end of the term is held to the same (`SC-CHG-022`). A change that keeps the plan on a subscription
+bound to a version keeps that version and names none; one bound to no version names the version on
+sale like any other.
 
 _Source:_ #357
 
@@ -4918,6 +4920,10 @@ _Tested by:_
         - naming no version is refused where the preview names one
         - scheduled for the term end is refused the same way, and recorded at the version named
         - whose version stops selling between the check and the write changes nothing
+    - a change of rhythm on a subscription bound to no version
+        - names the version on sale, and binds that one and no other
+        - naming none is refused
+        - naming a version no longer on sale is refused
 - `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
     - a scheduled change records the version it was quoted at
         - an immediate change binds the version its preview showed, and no other
