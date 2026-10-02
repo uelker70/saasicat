@@ -36,11 +36,16 @@
                 v-if="usage.retirement && !hasEnded"
                 :retirement="usage.retirement"
                 :plan-name="planNameOf(usage.retirement.replacement.planKey)"
+                :switch-terms="usage.retirementSwitch"
+                :busy="takingOffer"
+                :billing-cycle="usage.billingCycle"
+                :next-period-start="usage.currentPeriodEnd"
                 :format-currency="formatCurrency"
                 :format-date="formatDate"
                 :quota-label="quotaLabelResolved"
                 :feature-label="featureLabelResolved"
                 :format-quota-value="quotaValueResolved"
+                @switch="onSwitchToReplacement"
             />
 
             <!-- A newer version of the plan, offered beside it (#357). -->
@@ -878,6 +883,27 @@ async function onTakeVersionOffer(planVersionId: string): Promise<void> {
         // an offer beside a plan card that still shows the old state would be
         // decided on a screen that never existed. Reloaded like a success is,
         // and the offer is then read against what came back.
+        await billing.reload();
+    } finally {
+        takingOffer.value = false;
+    }
+}
+
+async function onSwitchToReplacement(planVersionId: string): Promise<void> {
+    const version = String(usage.value?.retirement?.replacement.version ?? '');
+    takingOffer.value = true;
+    offerError.value = null;
+    versionSwitchNote.value = null;
+    try {
+        await billing.switchToReplacement(planVersionId);
+        versionSwitchNote.value = effectiveI18n.value.versionRetiredSwitched.replace(
+            '{version}',
+            version,
+        );
+    } catch (err) {
+        offerError.value = refusalText(err);
+        // The retirement as it now stands is read with the reload, so the card
+        // shows that rather than the one the switch was refused against.
         await billing.reload();
     } finally {
         takingOffer.value = false;

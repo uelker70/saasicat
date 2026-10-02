@@ -14,6 +14,8 @@
 import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
     type VersionOfferView,
+    type RetirementSwitchResult,
+    type RetirementSwitchTerms,
     type VersionRetiredNotice,
     type VersionSwitchResult,
 } from '@saasicat/core';
@@ -75,6 +77,12 @@ export interface UsageSnapshotShape {
      * `cancellation` needs no notice. Null where none is pending.
      */
     retirement: VersionRetiredNotice | null;
+    /**
+     * What switching to the retirement's replacement now would cost, where the
+     * subscription could. Null where it could not: no retirement pending, a
+     * trial, or something outstanding.
+     */
+    retirementSwitch: RetirementSwitchTerms | null;
     limits: {
         plan: string;
         quotas: Record<string, number>;
@@ -438,6 +446,13 @@ export interface UseTenantBillingResult {
      */
     acceptVersionOffer: (planVersionId: string) => Promise<VersionSwitchResult>;
     /**
+     * Switches to the replacement a retirement names — `planVersionId`, the
+     * version the page showed — before its date, and reloads. Refused with
+     * `RETIREMENT_SWITCH_CHANGED` when that is no longer the replacement; the
+     * refusal carries the retirement as it stands.
+     */
+    switchToReplacement: (planVersionId: string) => Promise<RetirementSwitchResult>;
+    /**
      * Declares a cancellation. Takes no argument, and that is the point.
      *
      * It used to take `immediately`, which the platform honoured — and a tenant
@@ -686,6 +701,15 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         return result;
     }
 
+    async function switchToReplacement(planVersionId: string): Promise<RetirementSwitchResult> {
+        const result = await fetchOrThrow<RetirementSwitchResult>('/retirement/switch', {
+            method: 'POST',
+            body: { planVersionId },
+        });
+        await reload();
+        return result;
+    }
+
     async function cancelSubscription(
         expectedEffectiveAt?: string,
     ): Promise<CancellationResultShape> {
@@ -718,6 +742,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         changePlan,
         loadVersionOffer,
         acceptVersionOffer,
+        switchToReplacement,
         cancelSubscription,
         hasFeature,
         subscriptionBundles,

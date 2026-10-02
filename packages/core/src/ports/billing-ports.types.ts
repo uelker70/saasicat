@@ -613,6 +613,27 @@ export interface ImmediatePlanChangeInput {
      * has none to claim.
      */
     expectedPlanVersionId?: string | null;
+    /**
+     * `true`: the change the subscription has scheduled survives the write. A
+     * retirement's move passes it — the change is the subscriber's own, and the
+     * move is not. One that only moves the rhythm on the plan being left follows
+     * the subscription to `planId` (`scheduledChangeAfterWrite`). The write then
+     * claims the row only while the scheduled change is still the one it read.
+     * Left out, the write clears it: a change the subscriber makes replaces the
+     * one they scheduled before.
+     */
+    keepsPendingChange?: boolean;
+    /**
+     * `true`: the write puts back a binding the subscription held a moment
+     * before, so `quotedPlanVersionId` counts whether or not it still takes
+     * bookings — it has to be a version of `planId`, nothing more. A
+     * retirement's move or switch passes it to bind the subscription back to
+     * the version retired, where the contract that has to come with the move
+     * could not be written: that version is off sale, often by its own end, and
+     * undoing a move is not a booking (`SC-PLAN-016` asks only of one). Left
+     * out, a version that no longer takes bookings is not bound.
+     */
+    restoresQuotedVersion?: boolean;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */

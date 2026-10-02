@@ -81,6 +81,21 @@ export interface AdminActor {
 }
 
 /**
+ * A platform job acting on its own schedule — no person behind it, so no user:
+ * the canonical `audit_logs.userId` is nullable for exactly this. `context`
+ * names the job, and the actor tag reads `job:platform:<job>`.
+ */
+export interface PlatformJobActor {
+    userId: null;
+    email: 'platform';
+    source: 'job';
+    context: string;
+}
+
+/** Whoever an audit entry names: a person, from the web or the CLI, or a platform job. */
+export type AuditActor = AdminActor | PlatformJobActor;
+
+/**
  * Audit adapter: platform services write to the audit log through this
  * interface. The consumer implementation persists the records (e.g.
  * Prisma `auditLog.create`, Django `AuditLog.objects.create`).
@@ -91,7 +106,7 @@ export interface AdminActor {
  */
 export interface AuditPort {
     write(input: {
-        actor: AdminActor;
+        actor: AuditActor;
         entity: string;
         entityId: string;
         action: string;

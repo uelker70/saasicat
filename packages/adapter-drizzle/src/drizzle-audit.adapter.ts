@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import type { AdminActor, AuditPort } from '@saasicat/core';
+import type { AuditActor, AuditPort } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { auditLogs } from './schema.js';
 
 /** `'web:<email>:<sessionId>'` / `'cli:<email>:<host>'` — audit-event.schema.json ActorTagPattern. */
-export function buildActorTag(actor: AdminActor): string {
+export function buildActorTag(actor: AuditActor): string {
     return `${actor.source}:${actor.email}:${actor.context}`;
 }
 
@@ -19,7 +19,7 @@ export class DrizzleAuditAdapter implements AuditPort {
     constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {}
 
     async write(input: {
-        actor: AdminActor;
+        actor: AuditActor;
         entity: string;
         entityId: string;
         action: string;

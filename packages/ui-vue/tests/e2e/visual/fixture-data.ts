@@ -658,6 +658,7 @@ const TENANT_USAGE: UsageSnapshotShape = {
         afterNoticeDeadline: false,
     },
     retirement: null,
+    retirementSwitch: null,
     checkoutOfferId: null,
 };
 

@@ -766,6 +766,23 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid var(--sa-color-warning-border);
     white-space: nowrap;
 }
+/* How far a retirement has come: neutral, except where a move is overdue. */
+.pd-retirement-progress {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
+    font: 600 var(--sa-text-xs) var(--sa-font-mono);
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
+    white-space: nowrap;
+}
+.pd-retirement-progress--overdue {
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
+    border-color: var(--sa-color-negative-border);
+}
 
 /* diff */
 .pd-diff-chips {

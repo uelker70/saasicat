@@ -140,3 +140,39 @@ export interface RetirementAnnounced {
     readonly told: number;
     readonly failed: number;
 }
+
+/**
+ * How far a retirement has come, counted over the subscriptions it reached
+ * (`SC-SUB-033`).
+ */
+export interface RetirementProgress {
+    /** Off the retired version: moved at their date, switched early, or changed on their own. */
+    readonly moved: number;
+    /** Still on the retired version, before their date. */
+    readonly waiting: number;
+    /** Still on the retired version after their date: the run has not moved them yet, or cannot. */
+    readonly overdue: number;
+    /** Still on the retired version, and ended by their date: there is nothing to move. */
+    readonly ended: number;
+}
+
+/** An announcement as the administration lists it, with how far it has come. */
+export interface VersionRetirementView extends VersionRetirementRecord {
+    readonly progress: RetirementProgress;
+}
+
+/** What one run of the moves at the date did. */
+export interface RetirementMoveRun {
+    /** Subscriptions moved onto their replacement, with the contract the move writes. */
+    readonly moved: number;
+    /** Moves that could not be made, and are tried again by the next run. */
+    readonly failed: number;
+}
+
+/** What switching to the replacement before the date did (`SC-SUB-032`). */
+export interface RetirementSwitchResult {
+    readonly fromPlanVersionId: string;
+    readonly planVersionId: string;
+    /** ISO date of the last day the price is held, or null where none is. */
+    readonly heldUntilDay: string | null;
+}

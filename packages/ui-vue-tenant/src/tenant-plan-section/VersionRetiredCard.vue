@@ -21,6 +21,36 @@
             {{ i18n.versionRetiredCancel.replace('{date}', lastDayToCancel) }}
         </p>
         <p class="sp-version-retired__note">{{ i18n.versionRetiredNoAction }}</p>
+
+        <div v-if="switchTerms" class="sp-version-retired__actions">
+            <TenantButton variant="solid" tone="accent" :loading="busy" @click="confirming = true">
+                {{ i18n.versionRetiredSwitch }}
+            </TenantButton>
+        </div>
+
+        <!-- What the switch costs until the date and after it, and what it gives up. -->
+        <TenantDialog
+            :model-value="confirming"
+            :title="i18n.versionRetiredSwitchTitle.replace('{version}', replacementVersion)"
+            size="sm"
+            @update:model-value="
+                (open: boolean) => {
+                    if (!open) confirming = false;
+                }
+            "
+        >
+            <p class="sp-version-retired__text">{{ switchText }}</p>
+            <p class="sp-version-retired__text">{{ i18n.versionRetiredSwitchCancelLapses }}</p>
+
+            <template #footer>
+                <TenantButton @click="confirming = false">
+                    {{ i18n.bundlePreviewClose }}
+                </TenantButton>
+                <TenantButton variant="solid" tone="accent" @click="confirm">
+                    {{ i18n.versionRetiredSwitchConfirm }}
+                </TenantButton>
+            </template>
+        </TenantDialog>
     </section>
 </template>
 
@@ -28,11 +58,15 @@
 // The version the tenant is on is being retired: when the subscription moves
 // to the replacement, what changes, and until when it may be cancelled without
 // notice. What it says is what the subscriber was told, read off the notice.
+// Where the subscription may switch before the date, the card offers it and
+// says what it costs; taking it is the section's, which owns the request.
 
-import { computed, useId } from 'vue';
-import type { VersionRetiredNotice } from '@saasicat/core';
+import { computed, ref, useId } from 'vue';
+import type { RetirementSwitchTerms, VersionRetiredNotice } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
+import TenantButton from '../ui/TenantButton.vue';
+import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
 import { dayAsInstant } from './version-retirement-day.js';
 
@@ -40,6 +74,14 @@ const props = defineProps<{
     retirement: VersionRetiredNotice;
     /** The display name of the plan the subscription continues on. */
     planName: string;
+    /** What switching now costs, where the subscription may; null where it may not. */
+    switchTerms?: RetirementSwitchTerms | null;
+    /** While the switch is being written. */
+    busy?: boolean;
+    /** The rhythm the prices are paid in. */
+    billingCycle?: string;
+    /** When the next period starts, which is when a price that is not held applies. */
+    nextPeriodStart?: string | null;
     formatCurrency: (n: number) => string;
     formatDate: (iso: string | Date) => string;
     quotaLabel: (key: string) => string;
@@ -47,8 +89,11 @@ const props = defineProps<{
     formatQuotaValue: (key: string, value: number) => string;
 }>();
 
+const emit = defineEmits<{ switch: [planVersionId: string] }>();
+
 const i18n = useTenantI18n();
 const headingId = useId();
+const confirming = ref(false);
 
 const retiredVersion = computed(() => String(props.retirement.retired.version));
 const replacementVersion = computed(() => String(props.retirement.replacement.version));
@@ -69,6 +114,38 @@ const replacementHeading = computed(() =>
         .replace('{date}', effectiveDate.value)
         .replace('{version}', replacementVersion.value),
 );
+
+const unit = computed(() =>
+    props.billingCycle === 'YEARLY'
+        ? i18n.value.wizardPriceUnitYearly
+        : i18n.value.wizardPriceUnitMonthly,
+);
+const priced = (amount: number) => `${props.formatCurrency(amount)} ${unit.value}`;
+
+const switchText = computed(() => {
+    const terms = props.switchTerms;
+    if (!terms) return '';
+    const named = (sentence: string) =>
+        sentence.replace('{plan}', props.planName).replace('{version}', replacementVersion.value);
+    if (terms.held) {
+        return named(i18n.value.versionRetiredSwitchHeld)
+            .replace('{held}', priced(terms.held.priceNet))
+            .replace('{day}', props.formatDate(dayAsInstant(terms.held.lastDay)))
+            .replace('{date}', effectiveDate.value)
+            .replace('{price}', priced(terms.priceNet));
+    }
+    return named(i18n.value.versionRetiredSwitchNextPeriod)
+        .replace(
+            '{date}',
+            props.nextPeriodStart ? props.formatDate(props.nextPeriodStart) : effectiveDate.value,
+        )
+        .replace('{price}', priced(terms.priceNet));
+});
+
+function confirm(): void {
+    confirming.value = false;
+    emit('switch', props.retirement.replacement.planVersionId);
+}
 </script>
 
 <style scoped>
@@ -90,6 +167,10 @@ const replacementHeading = computed(() =>
 .sp-version-retired__text {
     margin: 0;
     color: var(--sa-color-fg-body);
+}
+.sp-version-retired__actions {
+    display: flex;
+    justify-content: flex-end;
 }
 .sp-version-retired__note {
     margin: 0;

@@ -2,11 +2,7 @@
 // the preview an operator reads, and the announcement. Served where the manifest carries
 // `VERSION_RETIREMENT_CAPABILITY`; elsewhere both answer 404.
 
-import type {
-    RetirementAnnounced,
-    RetirementPreview,
-    VersionRetirementRecord,
-} from '@saasicat/core';
+import type { RetirementAnnounced, RetirementPreview, VersionRetirementView } from '@saasicat/core';
 
 import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
@@ -24,8 +20,8 @@ export interface RetirementAnnouncement {
 
 export const versionRetirementsResource = defineResource('versionRetirements', {
     /** Every retirement announced, the most recent first. */
-    list: async (http, ctx): Promise<VersionRetirementRecord[]> =>
-        (await requestJson<VersionRetirementRecord[]>(
+    list: async (http, ctx): Promise<VersionRetirementView[]> =>
+        (await requestJson<VersionRetirementView[]>(
             http,
             `${ctx.apiBase}/catalog/version-retirements`,
         )) ?? [],

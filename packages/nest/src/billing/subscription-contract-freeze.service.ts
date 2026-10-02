@@ -35,6 +35,7 @@ import {
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
     type ContractFreezePort,
     type ContractFreezeSourcePort,
+    type RetirementContractTerms,
 } from './contract-freeze.tokens.js';
 import {
     contractTotalsOf,
@@ -125,6 +126,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         billingCycle: BillingCycle,
         effectiveFrom: Date,
         endsAt: Date | null = null,
+        retirement?: RetirementContractTerms,
     ): Promise<void> {
         const data = await this.composeOnPlanChange(
             tenantId,
@@ -132,6 +134,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             billingCycle,
             effectiveFrom,
             endsAt,
+            retirement,
         );
         for (let attempt = 0; attempt < SUCCESSOR_ATTEMPTS; attempt++) {
             const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
@@ -160,6 +163,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         billingCycle: BillingCycle,
         effectiveFrom: Date,
         endsAt: Date | null = null,
+        retirement?: RetirementContractTerms,
     ): Promise<CreateSubscriptionContractData> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         // The catalogue gives the rate, the currency and the name the plan is
@@ -209,7 +213,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             minimumTermUntil: null,
             featuresSnapshot: planDef.features,
             quotaEffectsSnapshot: planDef.quotas,
-            metadata: null,
+            metadata: retirement ? { retirementId: retirement.retirementId } : null,
         };
 
         const redeemed = await this.redeemedCodeNotYetRecorded(
@@ -223,8 +227,16 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // the rate and each line's share of the tax are the installation's, so
         // the place that knows them writes them once rather than each source
         // carrying its own copy.
+        const held = retirement?.priceHold
+            ? priceHoldLine(cycle, retirement.retirementId, bound.id, retirement.priceHold)
+            : null;
         const lineItems = recordContractLinesMoney(
-            [planLineItem, ...bundles.lineItems, ...(redeemed ? [redeemed.line] : [])],
+            [
+                planLineItem,
+                ...bundles.lineItems,
+                ...(redeemed ? [redeemed.line] : []),
+                ...(held ? [held] : []),
+            ],
             { currency: catalog.currency, taxRate: vatRate },
         );
         // Each line keeps the rhythm it is billed in; the total states one
@@ -360,4 +372,42 @@ function recordsPromoCode(contract: SubscriptionContractRecord, code: string): b
             typeof snapshot === 'object' &&
             (snapshot as { code?: unknown }).code === code,
     );
+}
+
+/**
+ * The price a retirement's switch holds until the date the subscriber was told,
+ * as a discount line for the difference: generated, so the journal reads how
+ * long it runs from the line itself rather than from the contracts written
+ * after it (`SC-PRIC-063`).
+ */
+function priceHoldLine(
+    cycle: 'monthly' | 'yearly',
+    retirementId: string,
+    planVersionId: string,
+    hold: NonNullable<RetirementContractTerms['priceHold']>,
+): PricedContractLineItem {
+    return {
+        kind: 'discount',
+        sourceKey: `retirement-hold:${retirementId}`,
+        sourceVersionId: null,
+        titleSnapshot: `Price held until ${hold.lastDay}`,
+        descriptionSnapshot: null,
+        quantity: 1,
+        unit: null,
+        priceNet: -hold.amountNet,
+        billingCycle: cycle,
+        minimumTermUntil: null,
+        featuresSnapshot: [],
+        quotaEffectsSnapshot: {},
+        metadata: {
+            generated: true,
+            source: 'retirement',
+            priceHold: {
+                retirementId,
+                planVersionId,
+                until: hold.until.toISOString(),
+                resolvedAmountNet: hold.amountNet,
+            },
+        },
+    };
 }

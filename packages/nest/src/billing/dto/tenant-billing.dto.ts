@@ -54,6 +54,13 @@ export class AcceptVersionOfferDto {
     planVersionId!: string;
 }
 
+/** The replacement the page showed: the switch goes ahead only while it is still the one named. */
+export class SwitchToReplacementDto {
+    @IsString()
+    @IsNotEmpty()
+    planVersionId!: string;
+}
+
 /**
  * A cancellation carries nothing.
  *

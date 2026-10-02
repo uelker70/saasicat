@@ -2,18 +2,20 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../maintenance/maintenance.service.js';
+import { RetirementMoveService } from './retirement-move.service.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { VersionRetirementService } from './version-retirement.service.js';
 
 /**
  * Sends the version notices that are due, every quarter of an hour, so an
- * offer that appears is told within one — and the retirement notices an
- * announcement could not send at once.
+ * offer that appears is told within one — the retirement notices an
+ * announcement could not send at once — and moves the subscriptions whose
+ * retirement has taken effect (`SC-SUB-031`).
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.versionNotices.includeCron: false` — for a CLI boot, or an
- * application that calls `VersionNoticeService.sendDue` from a scheduler of its
- * own.
+ * application that calls `VersionNoticeService.sendDue` and
+ * `RetirementMoveService.moveDue` from a scheduler of its own.
  */
 @Injectable()
 export class VersionNoticeCron {
@@ -30,6 +32,10 @@ export class VersionNoticeCron {
         @Optional()
         @Inject(VersionRetirementService)
         private readonly retirements: VersionRetirementService | null = null,
+        // Present where retiring is: the moves at the date.
+        @Optional()
+        @Inject(RetirementMoveService)
+        private readonly moves: RetirementMoveService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'versionNotices' })
@@ -54,6 +60,12 @@ export class VersionNoticeCron {
             if (retired && (retired.told > 0 || retired.failed > 0)) {
                 this.logger.log(
                     `Retirement notices: ${retired.told} sent, ${retired.failed} to try again.`,
+                );
+            }
+            const moves = await this.moves?.moveDue(now);
+            if (moves && (moves.moved > 0 || moves.failed > 0)) {
+                this.logger.log(
+                    `Retirement moves: ${moves.moved} moved, ${moves.failed} to try again.`,
                 );
             }
         } finally {

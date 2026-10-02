@@ -50,6 +50,8 @@ export * from './subscription-notice-mapping.js';
 export * from './version-sale.js';
 export * from './version-retirement.types.js';
 export * from './version-retirement-mapping.js';
+export * from './scheduled-change-after-write.js';
+export * from './retirement-switch.js';
 export * from './maintenance-window-mapping.js';
 export * from './maintenance-window-views.js';
 export * from './zoned-instant.js';

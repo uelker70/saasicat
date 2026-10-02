@@ -36,6 +36,9 @@ import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
 import { VersionNoticeCron } from './version-notice.cron.js';
+import { RetirementMoveService } from './retirement-move.service.js';
+import { RetirementSwitchService } from './retirement-switch.service.js';
+import { PLAN_VERSION_ENDING_CHECK_TOKEN } from '../catalog/catalog.tokens.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import {
     VersionRetirementService,
@@ -463,6 +466,11 @@ export class TenantBillingModule {
                     retirements.transactionRunner,
                 ),
                 VersionRetirementService,
+                RetirementMoveService,
+                RetirementSwitchService,
+                // The catalogue asks before it ends a version whether
+                // subscriptions still move onto it.
+                { provide: PLAN_VERSION_ENDING_CHECK_TOKEN, useExisting: VersionRetirementService },
             );
         }
         // Confirmed terms are the operator's statement that they mean to retire
@@ -528,7 +536,14 @@ export class TenantBillingModule {
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
-                ...(retirements ? [VersionRetirementService] : []),
+                ...(retirements
+                    ? [
+                          VersionRetirementService,
+                          RetirementMoveService,
+                          RetirementSwitchService,
+                          PLAN_VERSION_ENDING_CHECK_TOKEN,
+                      ]
+                    : []),
                 ...(options.extraExports ?? []),
             ],
         };

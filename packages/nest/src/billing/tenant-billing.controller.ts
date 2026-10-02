@@ -13,6 +13,7 @@ import {
     Optional,
     Post,
     Req,
+    UnprocessableEntityException,
     UseGuards,
 } from '@nestjs/common';
 import type {
@@ -33,6 +34,7 @@ import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
 import { VersionRetirementService } from './version-retirement.service.js';
+import { RetirementSwitchService } from './retirement-switch.service.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -56,6 +58,7 @@ import {
     AcceptVersionOfferDto,
     ChangePlanDto,
     PreviewPlanChangeDto,
+    SwitchToReplacementDto,
 } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
@@ -63,6 +66,8 @@ import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type {
     AdminActor,
     OnboardingSelectionResponse,
+    RetirementSwitchResult,
+    RetirementSwitchTerms,
     VersionOfferView,
     VersionRetiredNotice,
     VersionSwitchResult,
@@ -137,6 +142,12 @@ interface UsageResponse {
      * Null where none is pending.
      */
     retirement: VersionRetiredNotice | null;
+    /**
+     * What switching to the retirement's replacement now would cost, where the
+     * subscription could (`SC-SUB-032`). Null where it could not: no retirement
+     * pending, a trial, or something outstanding.
+     */
+    retirementSwitch: RetirementSwitchTerms | null;
     limits: ReturnType<typeof toEffectiveLimitsSnapshot>;
     usage: Record<string, number>;
     /**
@@ -245,6 +256,10 @@ export class TenantBillingController {
         @Optional()
         @Inject(VersionRetirementService)
         private readonly retirements: VersionRetirementService | null = null,
+        // Appended last for the same reason, and present with it.
+        @Optional()
+        @Inject(RetirementSwitchService)
+        private readonly retirementSwitches: RetirementSwitchService | null = null,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -281,6 +296,9 @@ export class TenantBillingController {
         const planPriceNet = await this.planPreview.planPriceNet(sub);
         const now = new Date();
         const retirement = await this.pendingRetirement(sub, now);
+        const retirementSwitch = retirement
+            ? ((await this.retirementSwitches?.openFor(sub, now))?.terms ?? null)
+            : null;
 
         return {
             plan: sub.plan,
@@ -316,6 +334,7 @@ export class TenantBillingController {
             // be read in the confirmation, not discovered in the receipt.
             cancellation: this.projectCancellation(sub, now, retirement),
             retirement,
+            retirementSwitch,
             limits: toEffectiveLimitsSnapshot(limits),
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
@@ -367,6 +386,45 @@ export class TenantBillingController {
                 fromPlanVersionId: result.fromPlanVersionId,
                 toPlanVersionId: result.planVersionId,
                 takesEffectAt: result.takesEffectAt,
+            },
+        );
+        return result;
+    }
+
+    /**
+     * Switches to the replacement a retirement names, before its date
+     * (`SC-SUB-032`). The body names the version the page showed; a different
+     * one is refused with `RETIREMENT_SWITCH_CHANGED` and the retirement as it
+     * stands. Changes what the tenant pays, so it asks for the tenant's
+     * administrator.
+     */
+    @Post('retirement/switch')
+    @UseGuards(TenantAdminGuard)
+    async switchToReplacement(
+        @Req() req: RequestLike,
+        @Body() dto: SwitchToReplacementDto,
+    ): Promise<RetirementSwitchResult> {
+        const tenantId = this.requireTenantId(req);
+        const userId = this.requireUserId(req);
+        if (!this.retirementSwitches) {
+            throw new UnprocessableEntityException({
+                code: BILLING_ERROR_CODES.RETIREMENT_SWITCH_NOT_PENDING,
+                message:
+                    'No retirement of your version is waiting for its date, so there is nothing to switch to.',
+                params: {},
+            });
+        }
+        const result = await this.retirementSwitches.switchNow(tenantId, dto.planVersionId);
+        await this.auditLog(
+            req,
+            userId,
+            'Subscription',
+            tenantId,
+            'SWITCH_TO_RETIREMENT_REPLACEMENT',
+            {
+                fromPlanVersionId: result.fromPlanVersionId,
+                toPlanVersionId: result.planVersionId,
+                heldUntilDay: result.heldUntilDay,
             },
         );
         return result;

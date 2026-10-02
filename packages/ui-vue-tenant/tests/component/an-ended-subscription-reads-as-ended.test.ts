@@ -256,6 +256,7 @@ function sectionUsage(overrides: Record<string, unknown>) {
         usage: { users: 3 },
         packageSnapshot: null,
         retirement: null,
+        retirementSwitch: null,
         checkoutOfferId: null,
         ...overrides,
     };

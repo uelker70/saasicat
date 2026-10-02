@@ -53,6 +53,7 @@ const usage = (overrides: Partial<UsageSnapshotShape> = {}): UsageSnapshotShape 
             afterNoticeDeadline: false,
         },
         retirement: null,
+        retirementSwitch: null,
         checkoutOfferId: null,
         ...overrides,
     }) as UsageSnapshotShape;

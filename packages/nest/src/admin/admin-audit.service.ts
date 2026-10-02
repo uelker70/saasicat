@@ -6,7 +6,7 @@
 
 import * as os from 'node:os';
 import { Inject, Injectable } from '@nestjs/common';
-import type { AdminActor, AuditPort } from '@saasicat/core';
+import type { AdminActor, AuditActor, AuditPort, PlatformJobActor } from '@saasicat/core';
 import { AUDIT_PORT_TOKEN } from './admin.tokens.js';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class AdminAuditService {
     constructor(@Inject(AUDIT_PORT_TOKEN) private readonly audit: AuditPort) {}
 
     async log(input: {
-        actor: AdminActor;
+        actor: AuditActor;
         entity: string;
         entityId: string;
         action: string;
@@ -33,7 +33,7 @@ export class AdminAuditService {
      * Standardized actor tag for the `changes.actor` column:
      * `<source>:<email>:<context>`.
      */
-    actorTag(actor: AdminActor): string {
+    actorTag(actor: AuditActor): string {
         return `${actor.source}:${actor.email}:${actor.context}`;
     }
 
@@ -56,4 +56,9 @@ export class AdminAuditService {
             context: os.hostname(),
         };
     }
+}
+
+/** The actor a platform job writes its audit entries as: `job:platform:<job>`. */
+export function platformJobActor(job: string): PlatformJobActor {
+    return { userId: null, email: 'platform', source: 'job', context: job };
 }

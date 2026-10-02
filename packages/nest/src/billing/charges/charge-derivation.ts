@@ -54,6 +54,20 @@ export interface ChargeDerivationInput {
     bookings: readonly SubscriptionBundleRecord[];
     /** What the journal already holds for the subscription. */
     written: readonly SubscriberChargeRecord[];
+    /**
+     * The plan versions retirements move the subscription off, each with the
+     * date the subscriber was told. A plan line of one of them prices no
+     * period that starts on that date or later (`SC-PRIC-062`).
+     */
+    retired?: readonly RetiredPlanVersion[];
+}
+
+/** A plan version a retirement moves the subscription off, from the date it was told. */
+export interface RetiredPlanVersion {
+    planVersionId: string;
+    from: Date;
+    /** The retirement, whose mark the contract its move or switch writes carries. */
+    retirementId: string;
 }
 
 /**
@@ -159,6 +173,7 @@ function derivePlanCharges(input: ChargeDerivationInput): DuePlanCharge[] {
 
     const replaced = periodReplacedBy(window, input);
     if (replaced) return newPeriodAfterChange(input, window, replaced, isPlanLine);
+    const retiredBy = retiredLines(input);
 
     const priced = periodsToCharge({
         window,
@@ -168,7 +183,7 @@ function derivePlanCharges(input: ChargeDerivationInput): DuePlanCharge[] {
         input,
         endsAt: subscription.endsAt,
     }).flatMap((period) => {
-        const found = lineFor(input.contracts, period, isPlanLine);
+        const found = lineFor(input.contracts, period, isPlanLine, retiredBy);
         return found ? [{ period, ...found }] : [];
     });
 
@@ -231,7 +246,7 @@ function newPeriodAfterChange(
 ): DuePlanCharge[] {
     const { subscription } = input;
     if (!isChargeable(window, input, subscription.endsAt)) return [];
-    const found = lineFor(input.contracts, window, isPlanLine);
+    const found = lineFor(input.contracts, window, isPlanLine, retiredLines(input));
     if (!found) return [];
     const charge = chargeOf(input, found.contract, found.line, {
         origin: 'planChange',
@@ -297,7 +312,10 @@ function deriveUpgradeDifferences(
             const line = contract.lineItems.find(isPlanLine);
             const before = contractInForce(input.contracts, new Date(at.getTime() - 1));
             const lineBefore = before?.lineItems.find(isPlanLine);
-            if (!line || !lineBefore) continue;
+            // A retirement's move, or the switch it offers, is not an upgrade
+            // the subscriber chose: the date they were told, and the price held
+            // until then, say what it costs (`SC-PRIC-062`, `SC-PRIC-063`).
+            if (!line || !lineBefore || isRetirementLine(line)) continue;
             const difference = computeProration({
                 periodStart: period.periodStart,
                 periodEnd: period.periodEnd,
@@ -467,6 +485,12 @@ function deriveDiscountCharges(
     const { subscription } = input;
     const charges: NewSubscriberCharge[] = [];
     for (const { contract, line } of discountsWhereAgreed(input.contracts)) {
+        // A price held by a retirement's switch is held on the version
+        // switched to: a period priced on any other has no part of it.
+        const heldOn = discountSnapshotsOf(line)?.priceHold?.planVersionId ?? null;
+        const isHeldOn = (charge: Pick<NewSubscriberCharge, 'contractLineItemId'>) =>
+            heldOn === null ||
+            lineById(input.contracts, charge.contractLineItemId)?.sourceVersionId === heldOn;
         // A discount keeps to the rhythm it was agreed in: its amount was
         // resolved for a period of that length.
         const rhythm = line.billingCycle;
@@ -498,6 +522,7 @@ function deriveDiscountCharges(
               )
             : first;
         for (const { charge: planCharge, period } of due) {
+            if (!isHeldOn(planCharge)) continue;
             const amount =
                 endedAt && planCharge.periodStart > endedAt
                     ? 0
@@ -614,6 +639,8 @@ function discountFor(
                   : index === 0;
         if (applies) cents += toCents(code.resolvedAmountNet);
     }
+    const hold = snapshots.priceHold;
+    if (hold && periodStart < hold.until) cents += toCents(hold.resolvedAmountNet);
     return cents / CENTS;
 }
 
@@ -624,6 +651,12 @@ interface DiscountSnapshots {
         durationValue: number | null;
         resolvedAmountNet: number;
     } | null;
+    /**
+     * The price a retirement's switch holds until the date the subscriber was
+     * told: the difference to the version they left, taken off each period on
+     * the version they switched to that starts before then (`SC-PRIC-063`).
+     */
+    priceHold: { planVersionId: string; until: Date; resolvedAmountNet: number } | null;
 }
 
 /**
@@ -650,6 +683,19 @@ function discountSnapshotsOf(line: ContractLineItemRecord): DiscountSnapshots | 
                   resolvedAmountNet: numberOr0(code.resolvedAmountNet),
               }
             : null,
+        priceHold: priceHoldOf(metadata.priceHold),
+    };
+}
+
+function priceHoldOf(value: unknown): DiscountSnapshots['priceHold'] {
+    if (!isRecord(value)) return null;
+    if (typeof value.planVersionId !== 'string' || typeof value.until !== 'string') return null;
+    const until = new Date(value.until);
+    if (Number.isNaN(until.getTime())) return null;
+    return {
+        planVersionId: value.planVersionId,
+        until,
+        resolvedAmountNet: numberOr0(value.resolvedAmountNet),
     };
 }
 
@@ -815,22 +861,66 @@ function monthsAfter(from: Date, months: number, anchorDay: number | null): Date
  * opened and the contract for it is written a moment later, and an add-on is
  * booked before the contract that takes it in. A contract taking effect after
  * the period has ended prices nothing in it.
+ *
+ * Except where a retirement has taken the line in force off the subscription
+ * by the time the period starts (`retiredBy`). The period is the replacement's
+ * from the date the subscriber was told, and the move to it is written by a run
+ * that comes some time after that date: only the contract that retirement
+ * writes — marked with it — prices the period, however late it came, and the
+ * period stays uncharged until it exists. Any other contract written in between
+ * prices from its own start only, so a change the subscriber makes weeks later
+ * does not reach back over time they spent on the version being retired.
  */
 function lineFor(
     contracts: readonly SubscriptionContractRecord[],
     period: ChargePeriod,
     matches: (line: ContractLineItemRecord) => boolean,
+    retiredBy: (
+        line: ContractLineItemRecord,
+        period: ChargePeriod,
+    ) => RetiredPlanVersion | null = () => null,
 ): { contract: SubscriptionContractRecord; line: ContractLineItemRecord } | null {
     const inForce = contractInForce(contracts, period.start);
     const inForceLine = inForce?.lineItems.find(matches);
-    if (inForce && inForceLine) return { contract: inForce, line: inForceLine };
+    const awaited = inForceLine ? retiredBy(inForceLine, period) : null;
+    if (inForce && inForceLine && !awaited) return { contract: inForce, line: inForceLine };
     for (const contract of [...contracts].sort(byEffectiveFrom)) {
         if (contract.status === 'scheduled') continue;
-        if (contract.effectiveFrom < period.start || contract.effectiveFrom >= period.end) continue;
+        if (contract.effectiveFrom < period.start) continue;
+        if (!awaited && contract.effectiveFrom >= period.end) continue;
         const line = contract.lineItems.find(matches);
-        if (line) return { contract, line };
+        if (!line) continue;
+        const prices = awaited
+            ? isWrittenBy(line, awaited.retirementId)
+            : retiredBy(line, period) === null;
+        if (prices) return { contract, line };
     }
     return null;
+}
+
+/** The retirement that takes a plan line off the subscription by the start of a period, or null. */
+function retiredLines(
+    input: ChargeDerivationInput,
+): (line: ContractLineItemRecord, period: ChargePeriod) => RetiredPlanVersion | null {
+    const retired = input.retired ?? [];
+    return (line, period) =>
+        line.kind === 'plan'
+            ? (retired.find(
+                  (version) =>
+                      version.planVersionId === line.sourceVersionId &&
+                      version.from <= period.start,
+              ) ?? null)
+            : null;
+}
+
+/** Whether a retirement wrote the plan line: its move, or the switch it offers. */
+function isRetirementLine(line: ContractLineItemRecord): boolean {
+    return isRecord(line.metadata) && typeof line.metadata.retirementId === 'string';
+}
+
+/** Whether the retirement `retirementId` wrote the plan line. */
+function isWrittenBy(line: ContractLineItemRecord, retirementId: string): boolean {
+    return isRecord(line.metadata) && line.metadata.retirementId === retirementId;
 }
 
 /** The contract whose window holds `at` — the latest to take effect, where two do. */

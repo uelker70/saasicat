@@ -17,6 +17,7 @@ import type {
     CreateCheckoutOfferData,
     NewMaintenanceWindow,
     CreateSubscriberData,
+    ImmediatePlanChangeInput,
     NewContractLineItemData,
     NewSubscriptionContractData,
     PaymentEventClaim,
@@ -1197,6 +1198,180 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     [first, overNothing, overAnotherBinding, overWhatIsThere].map((r) => r.claimed),
                     [true, false, false, true],
                 );
+            });
+
+            // @requirement SC-SUB-031
+            describe('a write that keeps the change the subscription scheduled', () => {
+                /** A subscription on LOYAL's first version with `scheduled` waiting, moved to SUCCESSOR. */
+                async function moved(
+                    t: TestContext,
+                    tenantId: string,
+                    scheduled: (tenant: { live: string }) => {
+                        pendingPlan: string;
+                        pendingChangeVersionId: string | null;
+                    },
+                ) {
+                    const tenant = await onASupersededVersion(t, tenantId);
+                    const usage = harness.adapter.subscriptionUsage;
+                    if (!tenant || !usage) {
+                        if (tenant) t.skip('the adapter reads no subscription usage');
+                        return null;
+                    }
+                    const successor = await harness.seed.createPlanVersion({
+                        planKey: 'SUCCESSOR',
+                        version: 1,
+                        quotas: { users: 10 },
+                        features: [],
+                        published: true,
+                    });
+                    await tenant.writer.schedulePlanChange(tenantId, {
+                        ...scheduled(tenant),
+                        pendingBillingCycle: 'YEARLY',
+                        pendingEffectiveAt: new Date('2027-05-01T00:00:00.000Z'),
+                        expectedCanceledAt: null,
+                    });
+                    const change = await tenant.writer.changePlanImmediate(tenantId, {
+                        planId: 'SUCCESSOR',
+                        cycle: 'MONTHLY',
+                        periodStart: null,
+                        periodEnd: null,
+                        nextStatus: null,
+                        expectedCanceledAt: null,
+                        expectedPlanVersionId: tenant.bound,
+                        keepsBoundVersion: false,
+                        quotedPlanVersionId: successor.planVersionId,
+                        quotedVersionOnly: true,
+                        keepsPendingChange: true,
+                    });
+                    assert.equal(change.claimed, true);
+                    const after = await usage.findForTenant(tenantId);
+                    assert.equal(after?.planVersion?.id, successor.planVersionId, 'moved');
+                    return { after, tenant, usage, successor: successor.planVersionId };
+                }
+
+                /** The move undone: from `successor` back onto `quoted`, as a version of `planId`. */
+                const putBack = (
+                    planId: string,
+                    quoted: string,
+                    successor: string,
+                    restoresQuotedVersion: boolean,
+                ): ImmediatePlanChangeInput => ({
+                    planId,
+                    cycle: 'MONTHLY',
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                    expectedCanceledAt: null,
+                    expectedPlanVersionId: successor,
+                    keepsBoundVersion: false,
+                    quotedPlanVersionId: quoted,
+                    quotedVersionOnly: true,
+                    keepsPendingChange: true,
+                    restoresQuotedVersion,
+                });
+
+                test('a change of rhythm on the plan it left follows it to the new plan', async (t) => {
+                    const result = await moved(t, 'tenant-keeps-rhythm', () => ({
+                        pendingPlan: 'LOYAL',
+                        pendingChangeVersionId: null,
+                    }));
+                    if (!result) return;
+
+                    assert.equal(result.after?.pendingPlan, 'SUCCESSOR');
+                    assert.equal(result.after?.pendingBillingCycle, 'YEARLY');
+                    assert.equal(
+                        result.after?.pendingEffectiveAt?.toISOString(),
+                        '2027-05-01T00:00:00.000Z',
+                    );
+                    assert.equal(result.after?.pendingChangeVersionId, null);
+                });
+
+                test('a change that names a version stays as it was scheduled', async (t) => {
+                    const result = await moved(t, 'tenant-keeps-named', (tenant) => ({
+                        pendingPlan: 'LOYAL',
+                        pendingChangeVersionId: tenant.live,
+                    }));
+                    if (!result) return;
+
+                    assert.equal(result.after?.pendingPlan, 'LOYAL');
+                    assert.equal(result.after?.pendingChangeVersionId, result.tenant.live);
+                    assert.equal(result.after?.pendingBillingCycle, 'YEARLY');
+                });
+
+                test('puts it back on the version it left, ended or not, with what it scheduled', async (t) => {
+                    const repository = harness.adapter.planRepository;
+                    const end = repository?.terminate?.bind(repository);
+                    if (!end) {
+                        t.skip('the plan repository ends no versions');
+                        return;
+                    }
+                    const result = await moved(t, 'tenant-put-back', () => ({
+                        pendingPlan: 'LOYAL',
+                        pendingChangeVersionId: null,
+                    }));
+                    if (!result) return;
+                    const { tenant, usage, successor } = result;
+                    // Taken off sale by its own end: no booking takes it any more.
+                    await end(tenant.bound, new Date('2026-04-15T00:00:00.000Z'));
+
+                    const asABooking = await tenant.writer.changePlanImmediate(
+                        'tenant-put-back',
+                        putBack('LOYAL', tenant.bound, successor, false),
+                    );
+                    const asAPutBack = await tenant.writer.changePlanImmediate(
+                        'tenant-put-back',
+                        putBack('LOYAL', tenant.bound, successor, true),
+                    );
+
+                    assert.deepEqual([asABooking.claimed, asAPutBack.claimed], [false, true]);
+                    const after = await usage.findForTenant('tenant-put-back');
+                    assert.equal(after?.planVersion?.id, tenant.bound, 'back on the version left');
+                    assert.equal(after?.plan, 'LOYAL');
+                    assert.equal(after?.pendingPlan, 'LOYAL', 'the change of rhythm came back too');
+                    assert.equal(after?.pendingBillingCycle, 'YEARLY');
+                });
+
+                test('puts back no version of another plan than the one it names', async (t) => {
+                    const result = await moved(t, 'tenant-put-back-elsewhere', () => ({
+                        pendingPlan: 'LOYAL',
+                        pendingChangeVersionId: null,
+                    }));
+                    if (!result) return;
+                    const { tenant, usage, successor } = result;
+
+                    const change = await tenant.writer.changePlanImmediate(
+                        'tenant-put-back-elsewhere',
+                        putBack('SUCCESSOR', tenant.bound, successor, true),
+                    );
+
+                    assert.equal(change.claimed, false);
+                    const after = await usage.findForTenant('tenant-put-back-elsewhere');
+                    assert.equal(after?.planVersion?.id, successor, 'nothing written');
+                });
+            });
+
+            test('a write that does not keep the change the subscription scheduled clears it', async (t) => {
+                const tenant = await onASupersededVersion(t, 'tenant-clears-change');
+                const usage = harness.adapter.subscriptionUsage;
+                if (!tenant || !usage) return;
+                await tenant.writer.schedulePlanChange('tenant-clears-change', {
+                    pendingPlan: 'LOYAL',
+                    pendingBillingCycle: 'YEARLY',
+                    pendingEffectiveAt: new Date('2027-05-01T00:00:00.000Z'),
+                    pendingChangeVersionId: null,
+                    expectedCanceledAt: null,
+                });
+
+                await tenant.writer.changePlanImmediate('tenant-clears-change', {
+                    ...toYearly(false),
+                    periodStart: null,
+                    periodEnd: null,
+                    quotedPlanVersionId: tenant.live,
+                });
+
+                const after = await usage.findForTenant('tenant-clears-change');
+                assert.equal(after?.pendingPlan, null);
+                assert.equal(after?.pendingEffectiveAt, null);
             });
 
             // @requirement SC-PLAN-016

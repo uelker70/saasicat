@@ -998,7 +998,13 @@ Adopt `prisma-fragments/18-version-retirement.prisma` and run
 runner. Confirmed terms with nowhere to keep an announcement refuse the start, naming the setting.
 A `SubscriptionUsagePort` of your own needs `listBoundToVersion` — both shipped adapters have it —
 and has to return each subscription's `pendingChangeVersionId` with it: without it, a subscriber
-who took a newer version's offer is reached as if they stayed.
+who took a newer version's offer is reached as if they stayed. A `TenantSubscriptionWritePort` of
+your own honours `keepsPendingChange`, which the move passes so that a change the subscriber
+scheduled survives it — `scheduledChangeAfterWrite` in `@saasicat/core` says what the columns
+become — and `restoresQuotedVersion`, which binds the version named whether or not it still takes
+bookings: a move or a switch whose contract cannot be written is put back with it, onto a version
+that is off sale. An `AuditPort` of your own accepts the platform job's actor, whose `userId` is
+`null`.
 
 **What the operator does.** In the plan cockpit, a version no longer on sale offers "Retire…". The
 operator picks the plan the subscriptions continue on — its version on sale is the replacement, of
@@ -1020,10 +1026,31 @@ sent by the next quarter-hourly run. A subscription hears of a version's retirem
 announcement of the same version skips the ones the first one told. The tenant's plan section
 shows the same notice beside the plan (`SC-SUB-030`).
 
-What it does not do yet: move the subscriptions at the effective date. Until a later release does,
-a retirement announces, records, tells and opens the cancellation right, and the subscriptions stay
-on the retired version — while the notice tells them they continue on the replacement. **Keep
-`termsConfirmed: false` until the release that moves them.**
+**What happens at the date.** The quarter-hourly run that sends version notices also moves every
+subscription whose date has come and that is still on the retired version onto the replacement,
+keeping its period and its term (`SC-SUB-031`). A run that did not happen is caught up by the next.
+A subscription that has ended by its date is left alone, and so is one whose own scheduled change
+takes it off the version by then; a change scheduled for later survives the move. The move writes a
+successor contract, and the charge journal charges every period from the date at the replacement's
+price once that contract exists, however late it comes (`SC-PRIC-062`). Each move is audited as
+`PLAN_VERSION_RETIREMENT_MOVE` by the actor `job:platform:retirement-moves`. A move and its contract
+are one: where the contract cannot be written, the move is put back. A move that cannot be made is
+audited once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, tried again by every run, and shown
+as overdue beside the retired version in the plan cockpit, with the ones moved, waiting and ended
+(`SC-SUB-033`). With `versionNotices.includeCron: false`, call
+`RetirementMoveService.moveDue(new Date())` from your own scheduler, as you call
+`VersionNoticeService.sendDue`.
+
+**Switching early.** Until the date, the plan section offers the switch to the replacement
+(`SC-SUB-032`, `POST /billing/retirement/switch`, for the tenant's administrators). It takes effect
+at once and keeps the term. Where the replacement costs more, the subscriber goes on paying what
+they paid until the date: the contract the switch writes records the difference as a discount line
+"Price held until …" (`SC-PRIC-063`). The switch opens after a trial and not while a change is
+scheduled, and it ends the right to cancel without notice, which rests on the version being retired.
+
+**Ending the replacement.** A version subscriptions still move onto cannot be terminated before the
+day after the last of their dates; the catalogue refuses with
+`PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` and names the first day it may end (`SC-PLAN-029`).
 
 ## Admin Module
 

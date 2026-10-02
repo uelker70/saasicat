@@ -8,6 +8,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
+    SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
 } from '@saasicat/core';
@@ -18,7 +19,11 @@ import { cancellationHasLanded } from '../../entitlement/landed-cancellation.js'
 import { resolvePlanAnchorDay } from '../bundle-period.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from '../contract-freeze.tokens.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../subscription-bundles.tokens.js';
-import { SUBSCRIPTION_USAGE_PORT_TOKEN } from '../tenant-billing.tokens.js';
+import { retiredVersionsOf } from '../retirement-notices.js';
+import {
+    SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
+    SUBSCRIPTION_USAGE_PORT_TOKEN,
+} from '../tenant-billing.tokens.js';
 import { bookingsTheContractMisses, deriveDueCharges } from './charge-derivation.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './subscriber-charge.tokens.js';
 
@@ -67,6 +72,11 @@ export class SubscriberChargeService {
         @Optional()
         @Inject(CONTRACT_FREEZE_PORT_TOKEN)
         private readonly freeze: ContractFreezePort | null = null,
+        // Optional — without notices no retirement was ever announced, and
+        // nothing moves a subscription off its version.
+        @Optional()
+        @Inject(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN)
+        private readonly notices: SubscriptionNoticeRepository | null = null,
     ) {}
 
     /**
@@ -76,7 +86,10 @@ export class SubscriberChargeService {
      * Nothing is charged without a contract (a charge points at a contract
      * line), in a trial, before the plan's current window when the account is
      * still empty, for a period that starts after `now`, or for one that
-     * starts on or after the date a cancellation takes effect.
+     * starts on or after the date a cancellation takes effect. A period that
+     * starts on or after the date a retirement moves the subscription waits
+     * for the contract the move writes, and is charged at the replacement's
+     * price once it exists (`SC-PRIC-062`).
      *
      * A window that moved on before anything charged it is not charged
      * afterwards, so a job that renews periods calls this before it moves a
@@ -87,9 +100,10 @@ export class SubscriberChargeService {
         if (!subscription?.id) return [];
         const subscriber = await this.subscribers.findByTenantId(tenantId);
         if (!subscriber) return [];
-        const [bookings, written] = await Promise.all([
+        const [bookings, written, told] = await Promise.all([
             this.bookings?.listBySubscription(subscription.id) ?? [],
             this.ledger.listBySubscription(subscription.id),
+            this.notices?.listForSubscription(subscription.id) ?? [],
         ]);
         const contracts = await this.contractsNamingEveryBooking(
             tenantId,
@@ -114,6 +128,7 @@ export class SubscriberChargeService {
             contracts,
             bookings,
             written,
+            retired: retiredVersionsOf(told),
         });
         return this.ledger.recordCharges(due);
     }

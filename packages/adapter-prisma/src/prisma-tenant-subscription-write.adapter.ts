@@ -11,7 +11,14 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
-import { buildActivePlanVersionWhere, noActivePlanVersion, subscriptionGone } from '@saasicat/core';
+import {
+    NO_SCHEDULED_CHANGE,
+    type ScheduledChangeColumns,
+    buildActivePlanVersionWhere,
+    noActivePlanVersion,
+    scheduledChangeAfterWrite,
+    subscriptionGone,
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import {
     createPrismaPlanBindingResolver,
@@ -32,6 +39,10 @@ interface SubscriptionDbRow {
     canceledAt: Date | null;
     canceledEffectiveAt: Date | null;
     currentPeriodEnd: Date | null;
+    pendingPlan: string | null;
+    pendingBillingCycle: string | null;
+    pendingEffectiveAt: Date | null;
+    pendingChangeVersionId: string | null;
     /** Present where plan versions are synchronized. */
     planVersionId?: string | null;
 }
@@ -131,10 +142,6 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         const data: Record<string, unknown> = {
             plan: input.planId,
             billingCycle: input.cycle,
-            pendingPlan: null,
-            pendingBillingCycle: null,
-            pendingEffectiveAt: null,
-            pendingChangeVersionId: null,
             ...(input.nextStatus ? { status: input.nextStatus } : {}),
             // Opening a window sets the day the subscription is billed on, and
             // that day IS the window's start — derived rather than passed,
@@ -161,12 +168,18 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         // while it still holds, so a rebinding in between — a newer version
         // taken, another change — is not written over.
         let boundVersionId: string | null | undefined;
+        // The scheduled change as read, where the write keeps it: the claim
+        // then holds the row to it, so one rescheduled in between is not
+        // written over with what was read before.
+        let scheduledAsRead: ScheduledChangeColumns | undefined;
         if (this.schema.tenantSubscription.synchronizePlanVersion) {
             const current = await subscription.findUnique({ where: { tenantId } });
             if (!current) {
                 throw subscriptionGone(tenantId);
             }
             boundVersionId = current.planVersionId ?? null;
+            Object.assign(data, scheduledChangeAfterWrite(current, input));
+            if (input.keepsPendingChange) scheduledAsRead = scheduledChangeOf(current);
             const unclaimed = {
                 plan: current.plan,
                 billingCycle: current.billingCycle,
@@ -187,7 +200,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             const asOf = input.periodStart ?? new Date();
             const quoted = keepsVersion
                 ? null
-                : await this.stillBookable(client, input.quotedPlanVersionId, storagePlanId, asOf);
+                : await this.quotedToBind(client, input, storagePlanId, asOf);
             if (!keepsVersion && input.quotedVersionOnly && quoted === null) {
                 return unclaimed;
             }
@@ -215,6 +228,16 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                     `${input.quotedPlanVersionId ?? '(none)'} to be bound, and this write binds no ` +
                     'version: `tenantSubscription.synchronizePlanVersion` is false.',
             );
+        } else if (input.keepsPendingChange) {
+            // Only a retirement's move keeps the change, and a move binds a
+            // version, which this write does not.
+            throw new Error(
+                `A change for tenant ${tenantId} asked to keep the change it has scheduled, and ` +
+                    'this write reads no row to keep it from: ' +
+                    '`tenantSubscription.synchronizePlanVersion` is false.',
+            );
+        } else {
+            Object.assign(data, NO_SCHEDULED_CHANGE);
         }
 
         // Claimed, not updated: the caller decided against a cancellation state,
@@ -227,6 +250,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             input.expectedCanceledAt,
             data,
             boundVersionId,
+            scheduledAsRead,
         );
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
@@ -413,6 +437,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         expectedCanceledAt: Date | null | undefined,
         data: Record<string, unknown>,
         boundVersionId?: string | null,
+        scheduledAsRead?: ScheduledChangeColumns,
     ): Promise<{ count: number }> {
         try {
             return await this.subscription(client).updateMany({
@@ -420,6 +445,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                     tenantId,
                     canceledAt: expectedCanceledAt,
                     ...(boundVersionId === undefined ? {} : { planVersionId: boundVersionId }),
+                    ...(scheduledAsRead ?? {}),
                 },
                 data,
             });
@@ -455,21 +481,27 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     /**
      * The version a change was quoted at, while it can still be booked for its
-     * plan on the day the change takes effect (`bookableOn`); null otherwise,
-     * and the version in effect is bound. A version ended by then takes no new
-     * bookings (`SC-PLAN-016`).
+     * plan on the day the change takes effect (`bookableOn`) — or, where the
+     * write puts a binding back (`restoresQuotedVersion`), while it is one of
+     * that plan's. Null otherwise, and the version in effect is bound. A version
+     * ended by then takes no new bookings (`SC-PLAN-016`), and putting a
+     * subscription back on it is none.
      */
-    private async stillBookable(
+    private async quotedToBind(
         client: unknown,
-        quotedVersionId: string | null,
+        input: ImmediatePlanChangeInput,
         storagePlanId: string,
         asOf: Date,
     ): Promise<string | null> {
-        if (!quotedVersionId) return null;
+        if (!input.quotedPlanVersionId) return null;
         const quoted = await this.planVersions(client).findUnique({
-            where: { id: quotedVersionId },
+            where: { id: input.quotedPlanVersionId },
         });
-        return quoted && bookableOn(quoted, storagePlanId, asOf) ? quotedVersionId : null;
+        if (!quoted) return null;
+        const binds = input.restoresQuotedVersion
+            ? quoted.planId === storagePlanId
+            : bookableOn(quoted, storagePlanId, asOf);
+        return binds ? input.quotedPlanVersionId : null;
     }
 
     private assertConfiguration(): void {
@@ -488,4 +520,14 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             );
         }
     }
+}
+
+/** The scheduled change a row holds, as the claim compares it. */
+function scheduledChangeOf(row: ScheduledChangeColumns): ScheduledChangeColumns {
+    return {
+        pendingPlan: row.pendingPlan,
+        pendingBillingCycle: row.pendingBillingCycle,
+        pendingEffectiveAt: row.pendingEffectiveAt,
+        pendingChangeVersionId: row.pendingChangeVersionId,
+    };
 }

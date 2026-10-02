@@ -1,7 +1,7 @@
 import type { Logger } from '@nestjs/common';
 import type { BillingCycle } from '@saasicat/core';
 
-import type { ContractFreezePort } from './contract-freeze.tokens.js';
+import type { ContractFreezePort, RetirementContractTerms } from './contract-freeze.tokens.js';
 
 /** The contract a change freezes: the plan and rhythm it leaves, from when, and until when. */
 export interface FrozenTerms {
@@ -10,6 +10,8 @@ export interface FrozenTerms {
     effectiveFrom: Date;
     /** When the subscription ends, or null while it runs on. */
     endsAt: Date | null;
+    /** Where a retirement writes it: its move, or the switch it offers. */
+    retirement?: RetirementContractTerms;
 }
 
 /**
@@ -35,6 +37,7 @@ export async function freezeContractAfter(
             terms.cycle,
             terms.effectiveFrom,
             terms.endsAt,
+            ...(terms.retirement ? [terms.retirement] : []),
         );
     } catch (err) {
         logger.error(`Contract freeze after ${change} failed (tenant ${tenantId}): ${String(err)}`);

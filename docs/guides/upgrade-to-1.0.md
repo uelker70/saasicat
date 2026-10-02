@@ -2460,15 +2460,15 @@ catalogue key. Otherwise:
 
 New: an operator can retire a plan version no longer on sale for the subscriptions still on it,
 naming a replacement on sale; each subscription is told, keeps its version until the end of a term
-at least three calendar months away, and may cancel without notice until then. How it works and how
-to wire it: [Retiring a Version for Running Subscriptions](wire-the-backend.md#retiring-a-version-for-running-subscriptions).
+at least three calendar months away, may cancel without notice until then, and continues on the
+replacement at that date — or switches earlier, paying no more than before until then. How it works
+and how to wire it: [Retiring a Version for Running Subscriptions](wire-the-backend.md#retiring-a-version-for-running-subscriptions).
 What every installation has to do, whether or not it uses it:
 
 1. **Add the setting to `config/saas.yaml`.** `tenantBilling.orderlyRetirement.termsConfirmed` is
    required, like the notice periods beside it; the file stops loading without it, naming the
    field. Write `false`. Set it to `true` once your terms carry a clause that allows moving a
-   customer to another version **and** you run a release that moves subscriptions at the effective
-   date — this one announces only.
+   customer to another version.
 
     ```yaml
     tenantBilling:
@@ -2496,10 +2496,25 @@ What every installation has to do, whether or not it uses it:
   cancellation right that ends when they move.
 - **A `SubscriptionNoticeRepository` of your own** implements `record`, `listOfKindSince` and
   `listUndelivered`.
+- **A `TenantSubscriptionWritePort` of your own** honours `keepsPendingChange` on
+  `changePlanImmediate`, which the move at the date passes: the scheduled-change columns become what
+  `scheduledChangeAfterWrite` from `@saasicat/core` says. Otherwise a change the subscriber scheduled
+  is lost with the move, or — a change of rhythm alone, recorded on the plan they left — takes them
+  back to that plan when it comes due. It honours `restoresQuotedVersion` too, which binds the
+  version named while it is one of the plan's, whether or not it still takes bookings: a move or a
+  switch whose contract cannot be written is put back with it. Without it, a retired version taken off
+  sale by its `endsAt` is never put back, and the subscription stays on the replacement without the
+  contract that charges it.
+- **An `AuditPort` of your own** accepts the platform job's actor: `AuditActor` is `AdminActor` or
+  `PlatformJobActor`, whose `userId` is `null` and whose tag reads `job:platform:<job>`. The
+  canonical `audit_logs.userId` is nullable for exactly this; a filter of your own on `actorTag`
+  sees the `job:` prefix beside `web:` and `cli:`.
 - **A persistence contract harness** gains the `versionRetirements` and `subscriptionUsage` members;
   a harness without them declares `gaps: ['versionRetirements', 'boundSubscriptions']`.
-- **`@saasicat/ui-vue`** registers a `versionRetirements` resource, and the tenant usage
-  (`UsageSnapshotShape`) carries `retirement`, null where none is pending.
+- **`@saasicat/ui-vue`** registers a `versionRetirements` resource, whose `list` answers each
+  announcement with its `progress`, and the tenant usage (`UsageSnapshotShape`) carries
+  `retirement`, null where none is pending, and `retirementSwitch`, null where the subscription
+  cannot switch early; `useTenantBilling` gains `switchToReplacement`.
 
 ## What the codemod leaves to you
 

@@ -55,6 +55,19 @@ export const CATALOG_ERROR_CODES = {
     PLAN_TERMINATE_INVALID_DATE: 'PLAN_TERMINATE_INVALID_DATE',
     PLAN_TERMINATE_DATE_NOT_FUTURE: 'PLAN_TERMINATE_DATE_NOT_FUTURE',
     PLAN_TERMINATE_NOT_IMPLEMENTED: 'PLAN_TERMINATE_NOT_IMPLEMENTED',
+    /**
+     * Subscriptions told of a retirement still move onto this version, and
+     * nothing moves onto a version that has ended. Carries the version, its
+     * plan key and the first day it may end: the day after the last move.
+     */
+    PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES: 'PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES',
+    /**
+     * Subscriptions told of a retirement are past their date and still to be
+     * moved onto this version — a move the platform could not make yet — so it
+     * cannot end until they have moved. Carries how many, the version and its
+     * plan key.
+     */
+    PLAN_TERMINATE_WHILE_MOVES_OVERDUE: 'PLAN_TERMINATE_WHILE_MOVES_OVERDUE',
 
     // ── bundle versions ──
     BUNDLE_VERSION_ALREADY_PUBLISHED: 'BUNDLE_VERSION_ALREADY_PUBLISHED',
@@ -251,6 +264,20 @@ export const BILLING_ERROR_CODES = {
      * the preview the operator confirmed. Carries the preview as it stands.
      */
     RETIREMENT_PREVIEW_CHANGED: 'RETIREMENT_PREVIEW_CHANGED',
+    /** No retirement of the subscription's version waits for its date: there is nothing to switch to. */
+    RETIREMENT_SWITCH_NOT_PENDING: 'RETIREMENT_SWITCH_NOT_PENDING',
+    /** The switch opens once the trial has converted: a trial has no contract to hold the price on. */
+    RETIREMENT_SWITCH_IN_TRIAL: 'RETIREMENT_SWITCH_IN_TRIAL',
+    /**
+     * The subscription takes no switch now: a change is scheduled, it has
+     * ended, or its plan is held for a special contract.
+     */
+    RETIREMENT_SWITCH_NOT_OPEN: 'RETIREMENT_SWITCH_NOT_OPEN',
+    /**
+     * The version named is not the replacement the retirement names. Carries
+     * the retirement as it now stands.
+     */
+    RETIREMENT_SWITCH_CHANGED: 'RETIREMENT_SWITCH_CHANGED',
 
     // ── the preview routes' own blockers and warnings ──
     //

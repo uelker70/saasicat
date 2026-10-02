@@ -77,13 +77,13 @@ properties it has while doing it.
 | --- | -------------------------------------------- | ------------ | ------- |
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
-| 3   | Plans and their versions                     | `SC-PLAN-…`  | 28      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 30      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 33      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 61      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 63      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 551 entries: 🟢 477 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 557 entries: 🟢 483 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 6 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
