@@ -77,6 +77,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Subscriptions still move to version {version} of {planKey}, so it can end on {date} at the earliest.',
     PLAN_TERMINATE_WHILE_MOVES_OVERDUE:
         '{count} subscriptions are past their date and still to be moved to version {version} of {planKey}, so it cannot end until they have moved.',
+    PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED:
+        '{count} subscriptions have not yet been told that they move to version {version} of {planKey}, so it cannot end until they have been.',
     BUNDLE_VERSION_ALREADY_PUBLISHED:
         "BundleVersion '{versionId}' is already published; it is not published again or discarded.",
     BUNDLE_VERSION_NOT_EDITABLE:

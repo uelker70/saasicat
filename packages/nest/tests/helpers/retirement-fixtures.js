@@ -50,8 +50,28 @@ export function noticeFor(tenantId, overrides = {}) {
     };
 }
 
-/** A notice record holding what each announcement told. */
+/** A notice record holding what each announcement told, each delivered to an administrator. */
 export async function told(...notices) {
+    return deliveredAllBut(await recorded(...notices));
+}
+
+/** `record` with every notice delivered to an administrator, but those of the subscriptions in `untold`. */
+export function deliveredAllBut(record, untold = []) {
+    for (const row of record.rows.values()) {
+        if (untold.includes(row.subscriptionId)) continue;
+        Object.assign(row, {
+            deliveredAt: ANNOUNCED,
+            delivery: { recipients: ['admin@example.com'], channel: 'email' },
+        });
+    }
+    return record;
+}
+
+/**
+ * A notice record holding what each announcement would tell, recorded and not
+ * yet delivered: a retirement that has reached nobody (`SC-SUB-036`).
+ */
+export async function recorded(...notices) {
     const record = noticeRecord();
     await record.record(
         notices.map((notice) => ({

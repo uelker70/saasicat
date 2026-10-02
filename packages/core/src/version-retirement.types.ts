@@ -175,6 +175,11 @@ export interface RetirementProgress {
     /** Still on the retired version, and ended by their date: there is nothing to move. */
     readonly ended: number;
     /**
+     * Still on the retired version, and not told yet: their notice has reached
+     * nobody, so their date is not set and nothing moves them (`SC-SUB-036`).
+     */
+    readonly notTold: number;
+    /**
      * Reminded 14 days before their date (`SC-SUB-034`) — counted beside the
      * four above, not instead of one: a subscription reminded moves later.
      */

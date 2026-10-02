@@ -529,6 +529,7 @@ _Tested by:_
     - the retirement that reaches a subscription
         - is what the subscriber was told, until it takes effect
         - is none once the subscription has left the retired version
+        - is none while its notice has reached nobody, and the notice once it has
         - is none for a subscription told only of an offer
 
 <!-- END proof -->

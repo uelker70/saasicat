@@ -15,8 +15,9 @@ Let an operator retire a plan version for the subscriptions on it
 A subscription keeps its version (`SC-SUB-024`). Retiring one is the orderly
 way out: an operator names a replacement on sale, of the same plan or another,
 and every subscription on the version is told that it continues on it at the
-end of one of its terms at least three calendar months away (`SC-SUB-027`).
-Until then it may cancel without notice (`SC-CANC-023`). A price increase is a
+end of one of its terms at least three calendar months after its notice
+reached an administrator (`SC-SUB-035`). Until then it may cancel without
+notice (`SC-CANC-023`). A price increase is a
 retirement whose replacement costs more.
 
 - **`config/saas.yaml` needs `tenantBilling.orderlyRetirement.termsConfirmed`.**

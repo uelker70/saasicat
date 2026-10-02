@@ -17,6 +17,7 @@ import {
     noticeFor,
     retirementServiceOver,
     subscriptionOf,
+    recorded,
     told,
     usageOver,
 } from './helpers/retirement-fixtures.js';
@@ -59,8 +60,9 @@ async function aRun({
     port = sendingPort(),
     bypass = null,
     switches = switchesOver(subs, notices),
+    delivered = true,
 } = {}) {
-    const record = await told(...notices);
+    const record = await (delivered ? told : recorded)(...notices);
     const service = new RetirementReminderService(usageOver(subs), record, port, switches, bypass);
     return { service, record, port, subs };
 }
@@ -210,6 +212,16 @@ describe('the one reminder of a retirement', () => {
             // first; it cannot switch while that change is scheduled.
             [['leaves-later', null]],
         );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('reminds nobody whose notice has reached nobody: there is no date to remind of', async () => {
+        const { service, port } = await aRun({ delivered: false });
+
+        const run = await service.remindDue(REMIND_AT);
+
+        assert.deepEqual(run, { told: 0, failed: 0 });
+        assert.deepEqual(port.sent, []);
     });
 
     test('reminds a trial, which cannot switch before it ends', async () => {

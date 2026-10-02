@@ -41,11 +41,14 @@ const held = (amountNet, until) =>
 
 const at = (iso) => new Date(iso);
 
-/** An account charged through March on the retired version, told it moves on 1 April. */
-async function toldOfARetirement(lines = [standard()]) {
+/**
+ * An account charged through March on the retired version, told it moves on 1
+ * April — or, with `{ delivered: false }`, whose notice of it reached nobody.
+ */
+async function toldOfARetirement(lines = [standard()], { delivered = true } = {}) {
     const account = anAccount();
     await account.contract({ lineItems: lines });
-    account.toldOfRetirement(RETIRED, TOLD);
+    account.toldOfRetirement(RETIRED, TOLD, { delivered });
     await account.charge(utc('2026-01-10'));
     for (const [start, end] of [
         ['2026-02-01', '2026-03-01'],
@@ -244,5 +247,17 @@ describe('the price a switch holds', () => {
             ['2026-03-01', 'plan', 'renewal', 49],
             ['2026-04-01', 'plan', 'renewal', 45],
         ]);
+    });
+});
+
+// @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+describe('a retirement whose notice has reached nobody', () => {
+    test('charges nothing differently: the version the subscription is on prices its periods', async () => {
+        const account = await toldOfARetirement([standard()], { delivered: false });
+        account.roll(TOLD, utc('2026-05-01'));
+
+        await account.charge(at('2026-04-01T00:05:00.000Z'));
+
+        assert.deepEqual(account.entries().at(-1), ['2026-04-01', 'plan', 'renewal', 49]);
     });
 });

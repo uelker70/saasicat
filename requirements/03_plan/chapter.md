@@ -1359,6 +1359,7 @@ _Tested by:_
     - ending a version subscriptions still move onto
         - is refused before the day after the last of their dates, and allowed from it
         - is allowed where nobody is left to move: moved already, or ended by their date
+        - is refused while a notice onto it has reached nobody, whatever end is asked for
         - is refused while a move is past its date and not made, whatever end is asked for
         - is allowed for a version no retirement names
         - is asked by the catalogue before it ends a version, which writes nothing when refused

@@ -22,15 +22,39 @@ export const NOTICE_CLAIM_LEASE_MS = 15 * 60_000;
 /** How long the application may take to send one notice before the attempt counts as failed. */
 export const NOTICE_DELIVERY_TIMEOUT_MS = 60_000;
 
-export type NoticeOutcome = 'told' | 'failed' | null;
+/** How often a notice the application keeps telling nobody of is said in the log. */
+const NOBODY_WARNING_INTERVAL_MS = 24 * 60 * 60_000;
+
+/**
+ * What an attempt came to: told; failed, for the next run to try again;
+ * `untold` where the application named nobody and the notice waits for
+ * somebody to tell (`retriesNobody`); null where another run holds it or it
+ * went out meanwhile.
+ */
+export type NoticeOutcome = 'told' | 'failed' | 'untold' | null;
+
+export interface NoticeSenderOptions {
+    /**
+     * Whether a notice the application tells nobody of is tried again, rather
+     * than recorded as sent to no one. A retirement's notice is: the date it
+     * names counts from its reaching somebody (`SC-SUB-036`).
+     */
+    readonly retriesNobody?: boolean;
+}
 
 export class NoticeSender {
     private readonly logger = new Logger(NoticeSender.name);
+    private readonly retriesNobody: boolean;
+    /** When each notice told nobody was last said in the log, so it is said once a day. */
+    private readonly nobodyWarnedAt = new Map<string, number>();
 
     constructor(
         private readonly notices: SubscriptionNoticeRepository,
         private readonly port: SubscriptionNoticePort,
-    ) {}
+        options: NoticeSenderOptions = {},
+    ) {
+        this.retriesNobody = options.retriesNobody ?? false;
+    }
 
     /**
      * Claims the notice about `subject`, has the application send it, and
@@ -92,6 +116,11 @@ export class NoticeSender {
             return 'failed';
         }
         if (delivery.recipients.length === 0) {
+            if (this.retriesNobody) {
+                this.warnOfNobody(claimed.id, what);
+                await this.letGo(claimed.id, claimedAt);
+                return 'untold';
+            }
             this.logger.warn(
                 `The application told nobody of the notice ${what}; it is recorded as sent to ` +
                     'no one and is not tried again.',
@@ -101,12 +130,25 @@ export class NoticeSender {
         return 'told';
     }
 
+    /** Says once a day that a notice still reaches nobody, rather than on every run. */
+    private warnOfNobody(id: string, what: string): void {
+        const now = Date.now();
+        const last = this.nobodyWarnedAt.get(id);
+        if (last !== undefined && now - last < NOBODY_WARNING_INTERVAL_MS) return;
+        this.nobodyWarnedAt.set(id, now);
+        this.logger.warn(
+            `The application told nobody of the notice ${what}; it is tried again until ` +
+                'somebody is told.',
+        );
+    }
+
     /**
      * An application that has not answered in time may still send the notice,
      * so its claim is not let go: no other run takes it on while the answer is
      * awaited. A late success is recorded as sent, and a late failure lets the
-     * claim go for the next run. An answer that takes longer than the lease
-     * comes after another run may have sent the notice again.
+     * claim go for the next run — as does a late answer naming nobody, where
+     * nobody is not told (`retriesNobody`). An answer that takes longer than
+     * the lease comes after another run may have sent the notice again.
      */
     private settleLate(
         sending: Promise<SubscriptionNoticeDelivery>,
@@ -119,7 +161,14 @@ export class NoticeSender {
                 `${id}; it stays held while the answer is awaited.`,
         );
         void sending.then(
-            (delivery) => this.recordSent(id, claimedAt, delivery),
+            async (delivery) => {
+                if (this.retriesNobody && delivery.recipients.length === 0) {
+                    this.warnOfNobody(id, id);
+                    await this.letGo(id, claimedAt);
+                    return;
+                }
+                await this.recordSent(id, claimedAt, delivery);
+            },
             async (error: unknown) => {
                 this.logger.error(
                     `The notice ${id} was not sent; the next run tries again.`,

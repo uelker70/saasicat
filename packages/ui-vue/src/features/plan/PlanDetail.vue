@@ -766,7 +766,7 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid var(--sa-color-warning-border);
     white-space: nowrap;
 }
-/* How far a retirement has come: neutral, except where a move is overdue. */
+/* How far a retirement has come: neutral, except where it asks for the operator. */
 .pd-retirement-progress {
     display: inline-flex;
     align-items: center;
@@ -778,7 +778,7 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid var(--sa-color-border);
     white-space: nowrap;
 }
-.pd-retirement-progress--overdue {
+.pd-retirement-progress--attention {
     background: var(--sa-color-negative-surface);
     color: var(--sa-color-negative-fg);
     border-color: var(--sa-color-negative-border);

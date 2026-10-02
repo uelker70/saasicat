@@ -81,19 +81,28 @@ export function retirementOf(
  * reads it, and last how many of them were reminded — a count beside the
  * states, not one of them.
  */
-const PROGRESS_ORDER = ['overdue', 'waiting', 'moved', 'ended', 'reminded'] as const;
+const PROGRESS_ORDER = ['overdue', 'notTold', 'waiting', 'moved', 'ended', 'reminded'] as const;
+
+/**
+ * The states that ask the operator for a look: a move that has not happened by
+ * its date, and a subscription whose notice has reached nobody — it is not
+ * moved until it is told.
+ */
+const NEEDS_ATTENTION: ReadonlySet<string> = new Set(['overdue', 'notTold']);
 
 /**
  * How far a retirement has come, as the parts worth saying: each state with
- * subscriptions in it, overdue first — a move that has not happened by its
- * date is the one thing in it that asks for a look — and the reminded ones.
+ * subscriptions in it, the ones asking for attention first, and the reminded
+ * ones last.
  */
 export function retirementProgressParts(
     progress: RetirementProgress,
-): Array<{ state: (typeof PROGRESS_ORDER)[number]; count: number }> {
-    return PROGRESS_ORDER.map((state) => ({ state, count: progress[state] })).filter(
-        (part) => part.count > 0,
-    );
+): Array<{ state: (typeof PROGRESS_ORDER)[number]; count: number; attention: boolean }> {
+    return PROGRESS_ORDER.map((state) => ({
+        state,
+        count: progress[state],
+        attention: NEEDS_ATTENTION.has(state),
+    })).filter((part) => part.count > 0);
 }
 
 /**

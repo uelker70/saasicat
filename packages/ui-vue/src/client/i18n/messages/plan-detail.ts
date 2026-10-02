@@ -72,6 +72,7 @@ export const planDetailMessages = defineMessages(
                 waiting: '{count} warten auf ihr Datum',
                 overdue: '{count} überfällig',
                 ended: '{count} beendet',
+                notTold: '{count} nicht zugestellt',
                 reminded: '{count} erinnert',
             },
             retirementsUnreadable: 'Die Stilllegungen konnten nicht gelesen werden: {error}',
@@ -145,7 +146,7 @@ export const planDetailMessages = defineMessages(
         },
         retireDialog: {
             title: 'v{version} stilllegen',
-            intro: 'Die Abonnements auf v{version} von {planKey} wechseln auf die Version, die hier gewählt wird — jeweils zum ersten Laufzeitende, das mindestens drei Monate nach der Ankündigung liegt. Bis dahin können sie ohne Frist kündigen. Jedes Abonnement wird benachrichtigt.',
+            intro: 'Die Abonnements auf v{version} von {planKey} wechseln auf die Version, die hier gewählt wird — jeweils zum ersten Laufzeitende, das mindestens drei Monate nach der Zustellung ihrer Ankündigung liegt. Bis dahin können sie ohne Frist kündigen. Jedes Abonnement wird benachrichtigt.',
             planLabel: 'Weiter auf Plan',
             noVersionOnSale: '{planKey} hat keine Version im Verkauf.',
             replacement: 'Ersatz: {planKey} v{version}',
@@ -254,6 +255,7 @@ export const planDetailMessages = defineMessages(
                 waiting: '{count} waiting for their date',
                 overdue: '{count} overdue',
                 ended: '{count} ended',
+                notTold: '{count} not told',
                 reminded: '{count} reminded',
             },
             retirementsUnreadable: 'The retirements could not be read: {error}',
@@ -327,7 +329,7 @@ export const planDetailMessages = defineMessages(
         },
         retireDialog: {
             title: 'Retire v{version}',
-            intro: 'The subscriptions on v{version} of {planKey} move to the version chosen here, each at the first end of a term at least three months after the announcement. Until then they may cancel without notice. Every subscription is told.',
+            intro: 'The subscriptions on v{version} of {planKey} move to the version chosen here, each at the first end of a term at least three months after its notice reached it. Until then they may cancel without notice. Every subscription is told.',
             planLabel: 'Continue on plan',
             noVersionOnSale: '{planKey} has no version on sale.',
             replacement: 'Replacement: {planKey} v{version}',

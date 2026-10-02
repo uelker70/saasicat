@@ -23,6 +23,8 @@ import {
     retirementServiceOver,
     subscriptionOf,
     tenantOf,
+    deliveredAllBut,
+    recorded,
     told,
     usageOver,
 } from './helpers/retirement-fixtures.js';
@@ -106,12 +108,13 @@ async function aRun({
     freeze,
     bypass = null,
     ended,
+    delivered = true,
 } = {}) {
     const effects = sideEffects({ party, freeze });
     const writes = writesOver(subs, claims, ended);
     const service = new RetirementMoveService(
         usageOver(subs),
-        await told(...notices),
+        await (delivered ? told : recorded)(...notices),
         writes,
         effects.entitlements,
         bypass,
@@ -289,6 +292,16 @@ describe('the move at the date', () => {
             audited.map((entry) => [entry.action, entry.changes.reason]),
             [['PLAN_VERSION_RETIREMENT_MOVE_FAILED', 'replacement-not-bookable']],
         );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('moves nothing whose notice has reached nobody, however late it is', async () => {
+        const { service, writes } = await aRun({ delivered: false });
+
+        const run = await service.moveDue(new Date(DATE.getTime() + 40 * DAY));
+
+        assert.deepEqual(run, { moved: 0, failed: 0 });
+        assert.equal(writes.calls.length, 0);
     });
 
     test('a tenant without a subscriber to name is not moved at all', async () => {
@@ -777,8 +790,13 @@ describe('the free switch before the date', () => {
 });
 
 /** The retirement service over `subs`, told `notices`. */
-async function announced({ subs, notices }) {
-    return retirementServiceOver({ subs, record: await told(...notices) });
+/** The retirement service over `subs`, told `notices` and with `untold` recorded beside them, undelivered. */
+async function announced({ subs, notices, untold = [] }) {
+    const record = deliveredAllBut(
+        await recorded(...notices, ...untold),
+        untold.map((notice) => notice.subscriptionId),
+    );
+    return retirementServiceOver({ subs, record });
 }
 
 // @requirement SC-PLAN-029 — A version subscriptions still move onto cannot end before they have
@@ -821,6 +839,23 @@ describe('ending a version subscriptions still move onto', () => {
         const service = await check([moved, ended]);
 
         await service.assertMayEnd('pv-9', new Date('2026-04-01T00:00:00.000Z'), BEFORE);
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('is refused while a notice onto it has reached nobody, whatever end is asked for', async () => {
+        const service = await announced({
+            subs: [subscriptionOf('t1'), subscriptionOf('t2')],
+            notices: [noticeFor('t1')],
+            untold: [noticeFor('t2')],
+        });
+
+        const error = await rejection(
+            service.assertMayEnd('pv-9', new Date('2028-01-01T00:00:00.000Z'), BEFORE),
+        );
+
+        assert.equal(error.getStatus(), 422);
+        assert.equal(error.getResponse().code, 'PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED');
+        assert.deepEqual(error.getResponse().params, { count: 1, version: 3, planKey: 'PLUS' });
     });
 
     test('is refused while a move is past its date and not made, whatever end is asked for', async () => {
@@ -905,7 +940,21 @@ describe('how far a retirement has come', () => {
             waiting: 1,
             overdue: 1,
             ended: 1,
+            notTold: 0,
             reminded: 0,
         });
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('counts a subscription whose notice has reached nobody as not told, not as overdue', async () => {
+        const service = await announced({
+            subs: [subscriptionOf('t1'), subscriptionOf('t2')],
+            notices: [noticeFor('t1')],
+            untold: [noticeFor('t2')],
+        });
+
+        const [retirement] = await service.list(new Date('2026-07-02T00:00:00.000Z'));
+
+        assert.deepEqual([retirement.progress.overdue, retirement.progress.notTold], [1, 1]);
     });
 });

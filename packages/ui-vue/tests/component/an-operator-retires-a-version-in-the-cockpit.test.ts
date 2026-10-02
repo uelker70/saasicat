@@ -162,7 +162,14 @@ describe('retiring a version in the plan cockpit', () => {
                     replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
                     announcedAt: '2026-10-02T09:00:00.000Z',
                     announcedBy: 'web:operator@example.com:admin',
-                    progress: { moved: 0, waiting: 2, overdue: 0, ended: 0, reminded: 0 },
+                    progress: {
+                        moved: 0,
+                        waiting: 2,
+                        overdue: 0,
+                        ended: 0,
+                        notTold: 0,
+                        reminded: 0,
+                    },
                 },
             ],
         });
@@ -181,7 +188,14 @@ describe('retiring a version in the plan cockpit', () => {
                     replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
                     announcedAt: '2026-10-02T09:00:00.000Z',
                     announcedBy: 'web:operator@example.com:admin',
-                    progress: { moved: 3, waiting: 1, overdue: 1, ended: 0, reminded: 0 },
+                    progress: {
+                        moved: 3,
+                        waiting: 1,
+                        overdue: 1,
+                        ended: 0,
+                        notTold: 0,
+                        reminded: 0,
+                    },
                 },
             ],
         });
@@ -193,8 +207,40 @@ describe('retiring a version in the plan cockpit', () => {
             '1 waiting for their date',
             '3 moved',
         ]);
-        expect(parts[0]!.classes()).toContain('pd-retirement-progress--overdue');
-        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--overdue');
+        expect(parts[0]!.classes()).toContain('pd-retirement-progress--attention');
+        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--attention');
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('marks the subscriptions not told yet for a look', async () => {
+        const { wrapper } = mountCockpit({
+            list: async () => [
+                {
+                    id: 'r-1',
+                    retired: { planVersionId: 'pv-1', planKey: 'STANDARD', version: 1 },
+                    replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
+                    announcedAt: '2026-10-02T09:00:00.000Z',
+                    announcedBy: 'web:operator@example.com:admin',
+                    progress: {
+                        moved: 0,
+                        waiting: 1,
+                        overdue: 0,
+                        ended: 0,
+                        notTold: 2,
+                        reminded: 0,
+                    },
+                },
+            ],
+        });
+        await settle();
+
+        const parts = wrapper.findAll('.pd-retirement-progress');
+        expect(parts.map((part) => part.text())).toEqual([
+            '2 not told',
+            '1 waiting for their date',
+        ]);
+        expect(parts[0]!.classes()).toContain('pd-retirement-progress--attention');
+        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--attention');
     });
 
     // @requirement SC-SUB-034 — Where staying put costs something, a subscription is reminded once
@@ -207,7 +253,14 @@ describe('retiring a version in the plan cockpit', () => {
                     replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
                     announcedAt: '2026-10-02T09:00:00.000Z',
                     announcedBy: 'web:operator@example.com:admin',
-                    progress: { moved: 0, waiting: 2, overdue: 0, ended: 0, reminded: 2 },
+                    progress: {
+                        moved: 0,
+                        waiting: 2,
+                        overdue: 0,
+                        ended: 0,
+                        notTold: 0,
+                        reminded: 2,
+                    },
                 },
             ],
         });
@@ -218,7 +271,7 @@ describe('retiring a version in the plan cockpit', () => {
             '2 waiting for their date',
             '2 reminded',
         ]);
-        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--overdue');
+        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--attention');
     });
 
     test('says so where the announcements could not be read', async () => {

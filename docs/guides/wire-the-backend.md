@@ -977,7 +977,8 @@ A subscription keeps its version (`SC-SUB-024`). Sometimes an operator cannot ke
 running — it costs more to serve than it brings in, or a whole plan is being phased out. Retiring a
 version is the orderly way out: the subscriptions on it are told that they continue on a
 replacement the operator names, each at the end of one of its terms at least three calendar months
-away (`SC-SUB-027`), and may leave without notice until then (`SC-CANC-023`). A price increase is a
+after its notice reached an administrator (`SC-SUB-035`), and may leave without notice until then
+(`SC-CANC-023`). A price increase is a
 retirement whose replacement costs more: publish the new version first, let it start, then retire
 the old one.
 
@@ -1028,6 +1029,17 @@ before that instant, on which it may cancel without notice. A notice your port c
 sent by the next quarter-hourly run. A subscription hears of a version's retirement once: a second
 announcement of the same version skips the ones the first one told. The tenant's plan section
 shows the same notice beside the plan (`SC-SUB-030`).
+
+**Nothing happens before the notice arrives.** A retirement counts from its notice reaching at least
+one administrator (`SC-SUB-036`). Until then it moves nothing, reminds nobody, offers no switch,
+shows nothing beside the plan and changes no charge. For a retirement notice, an answer from your
+port with no recipients counts as not sent: the run tries again every quarter of an hour and says so
+in the log once a day, so a tenant without an administrator is told once one exists. A notice that
+goes out late names the date counted from then — the first end of a term at least three calendar
+months after its sending (`SC-SUB-035`) — and its last day to cancel with it. A subscription that
+left the version before its notice could go out is not sent one. The plan cockpit counts the
+subscriptions not told yet beside the retired version, and the replacement cannot be terminated
+while any of them waits: `PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED`.
 
 **The one reminder.** Where staying put costs a subscription something — the replacement is
 dearer in the rhythm it is billed in at the date, or takes a feature away or lowers a quota — the

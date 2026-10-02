@@ -192,7 +192,7 @@
                         v-for="part in retiredProgress(retirementOf?.(v) ?? null)"
                         :key="part.state"
                         class="pd-retirement-progress"
-                        :class="{ 'pd-retirement-progress--overdue': part.state === 'overdue' }"
+                        :class="{ 'pd-retirement-progress--attention': part.attention }"
                     >
                         {{
                             formatMessage(msg.versions.retiredProgress[part.state], {
