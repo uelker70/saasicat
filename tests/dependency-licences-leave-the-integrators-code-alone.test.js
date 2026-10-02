@@ -11,10 +11,19 @@
 
 // @requirement SC-SEC-012 — A new dependency's licence is part of the decision to add it
 
-import { describe, test } from 'node:test';
+import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    readdirSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
@@ -93,21 +102,75 @@ describe('how a licence is read', () => {
     });
 });
 
-/** The two sentences every MIT licence file carries, broken across lines as files break them. */
-const MIT_TEXT =
-    'MIT License\n\nPermission is hereby granted, free\nof charge, to any person obtaining a copy ' +
-    '...\nThe above copyright notice and this permission notice shall be included in all copies ' +
-    'or\nsubstantial portions of the Software.';
+const TEXTS = join(ROOT, 'scripts', 'licence-texts');
+
+/** The MIT licence as the accepted text has it: a title and a placeholder notice. */
+const MIT = readFileSync(join(TEXTS, 'MIT.txt'), 'utf8');
+
+/** The MIT licence as a package ships it, under a title and a holder of its own. */
+const SHIPPED_MIT = MIT.replace('MIT License', 'The MIT License (MIT)').replace(
+    '<year> <copyright holders>',
+    '2015-present Razvan Stoenescu',
+);
+
+/** The licence files that govern a copy and are not one of the permissive texts. */
+const refusedLicences = (copy, source) =>
+    licencesOfCopy(copy, source)
+        .filter((licence) => !isNotice(licence))
+        .filter((licence) => !isPermissive(licenceOfText(readFileSync(licence.path, 'utf8'))))
+        .map((licence) => licence.path);
 
 describe('how a licence file is read', () => {
-    test('the permissive licences are recognised by their own wording, across line breaks', () => {
-        assert.equal(licenceOfText(MIT_TEXT), 'MIT');
+    test('a permissive licence is recognised word for word, whatever its title, holders and line breaks', () => {
+        assert.equal(licenceOfText(MIT), 'MIT');
+        assert.equal(licenceOfText(SHIPPED_MIT), 'MIT');
         assert.equal(
             licenceOfText(
-                'Apache License\n  Version 2.0, January 2004\n\nTERMS AND CONDITIONS FOR USE, ' +
-                    'REPRODUCTION, AND\nDISTRIBUTION',
+                SHIPPED_MIT.replace(
+                    'Copyright (c) 2015-present Razvan Stoenescu',
+                    'Copyright (c) 2015 One\nCopyright 2016 Another',
+                ),
             ),
+            'MIT',
+        );
+        // Wrapped elsewhere, so that a sentence opens a line with "copyright".
+        assert.equal(
+            licenceOfText(
+                SHIPPED_MIT.replace('AUTHORS OR COPYRIGHT', 'AUTHORS OR\nCOPYRIGHT').replace(
+                    'to deal\nin',
+                    'to deal in',
+                ),
+            ),
+            'MIT',
+        );
+        assert.equal(
+            licenceOfText(readFileSync(join(TEXTS, 'Apache-2.0.txt'), 'utf8')),
             'Apache-2.0',
+        );
+    });
+
+    test('a permissive licence with anything added to it is not recognised', () => {
+        for (const added of [
+            'The font files are licensed under the SIL OFL 1.1.',
+            'Icons: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)',
+            'Portions are GPL-3.0.',
+            '"Commons Clause" License Condition v1.0',
+        ]) {
+            assert.equal(licenceOfText(`${SHIPPED_MIT}\n${added}`), null, added);
+        }
+        assert.equal(licenceOfText(`MIT License, except the fonts\n\n${MIT}`), null);
+    });
+
+    test('a reworded licence is not recognised until somebody has read it', () => {
+        assert.equal(licenceOfText(SHIPPED_MIT.replace('and/or sell', 'and/or')), null);
+    });
+
+    test('a copyright notice is not read, whatever else it says', () => {
+        // The one place the reading looks away: holders and years differ in
+        // every copy, so terms named inside a notice are not seen.
+        assert.equal(
+            licenceOfText(SHIPPED_MIT.replace('Stoenescu', 'Stoenescu; the fonts are OFL-1.1')),
+            'MIT',
         );
     });
 
@@ -125,10 +188,6 @@ describe('how a licence file is read', () => {
             ),
             null,
         );
-    });
-
-    test('a text with a permissive part and another part is read as neither', () => {
-        assert.equal(licenceOfText(`${MIT_TEXT}\n\nThe fonts: GNU GENERAL PUBLIC LICENSE`), null);
     });
 
     test('a file that only mentions a licence is not that licence', () => {
@@ -208,13 +267,33 @@ describe('what @saasicat/ui-vue copies out of a development dependency', () => {
         });
 
         test(`${copy.what} is governed only by permissive licence texts`, () => {
-            const refused = licencesOfCopy(copy, require.resolve(copy.from))
-                .filter((licence) => !isNotice(licence))
-                .filter(
-                    (licence) => !isPermissive(licenceOfText(readFileSync(licence.path, 'utf8'))),
-                )
-                .map((licence) => licence.path);
-            assert.deepEqual(refused, [], 'a licence text that is not one of the permissive ones');
+            assert.deepEqual(
+                refusedLicences(copy, require.resolve(copy.from)),
+                [],
+                'a licence text that is not one of the permissive ones',
+            );
         });
     }
+
+    describe('a copy whose font is under terms of its own, in a package under MIT', () => {
+        const scratch = mkdtempSync(join(tmpdir(), 'licence-texts-'));
+        after(() => rmSync(scratch, { recursive: true, force: true }));
+        const pkg = join(scratch, 'node_modules', 'font-pkg');
+        mkdirSync(join(pkg, 'font'), { recursive: true });
+        writeFileSync(join(pkg, 'package.json'), '{"name":"font-pkg","license":"MIT"}');
+        writeFileSync(join(pkg, 'LICENSE'), SHIPPED_MIT);
+        writeFileSync(join(pkg, 'font', 'font.css'), '@font-face {}');
+        writeFileSync(
+            join(pkg, 'font', 'OFL.txt'),
+            'SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007',
+        );
+        const source = join(pkg, 'font', 'font.css');
+
+        test('is refused for the font’s licence, whatever the file holding it is called', () => {
+            assert.deepEqual(
+                refusedLicences({ from: source, to: 'font/font.css', directory: true }, source),
+                [join(dirname(source), 'OFL.txt')],
+            );
+        });
+    });
 });

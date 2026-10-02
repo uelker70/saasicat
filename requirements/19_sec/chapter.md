@@ -364,10 +364,13 @@ _Tested by:_
         - a licence that cannot be read is refused rather than assumed
         - the deprecated list form reads as alternatives
     - how a licence file is read
-        - the permissive licences are recognised by their own wording, across line breaks
+        - a permissive licence is recognised word for word, whatever its title, holders and line
+          breaks
+        - a permissive licence with anything added to it is not recognised
+        - a reworded licence is not recognised until somebody has read it
+        - a copyright notice is not read, whatever else it says
         - anything else, a copyleft licence or an empty file, is not recognised
         - the Open Font Licence is not read as MIT, though it opens with the same sentence
-        - a text with a permissive part and another part is read as neither
         - a file that only mentions a licence is not that licence
     - what the published packages bring into an application
         - the walk reaches the tree
@@ -376,6 +379,8 @@ _Tested by:_
     - what @saasicat/ui-vue copies out of a development dependency
         - ${copy.what} comes from a package under a permissive licence
         - ${copy.what} is governed only by permissive licence texts
+        - a copy whose font is under terms of its own, in a package under MIT › is refused for the
+          font’s licence, whatever the file holding it is called
 
 <!-- END proof -->
 
@@ -529,6 +534,8 @@ _Tested by:_
     - the licences that govern a copy
         - a directory copy carries its own, its package root’s and each copied subdirectory’s
         - a single file carries those from its directory up to the package root, beside it
+    - a licence file
+        - is found under the names packages give it, and a stylesheet named alike is not
     - a notice
         - is told by the file’s own name, whatever the directories on the way are called
 

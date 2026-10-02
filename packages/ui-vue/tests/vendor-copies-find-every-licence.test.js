@@ -2,7 +2,8 @@
 // built for the purpose, so the answer does not depend on what an installed
 // package happens to carry today: a licence at the package's root, one in the
 // directory the copied stylesheet sits in, and one in a subdirectory the
-// directory copy takes along.
+// directory copy takes along; and licence files under the names packages give
+// them.
 
 // @requirement SC-SEC-017 — What a package ships of somebody else's files carries their licence
 
@@ -55,6 +56,35 @@ describe('the licences that govern a copy', () => {
             'icons.css.LICENSE.txt',
             'icons.css.PACKAGE-LICENSE.txt',
         ]);
+    });
+});
+
+describe('a licence file', () => {
+    test('is found under the names packages give it, and a stylesheet named alike is not', () => {
+        const pkg = join(ROOT, 'node_modules', 'names-pkg');
+        mkdirSync(join(pkg, 'font'), { recursive: true });
+        writeFileSync(join(pkg, 'package.json'), '{"name":"names-pkg","license":"MIT"}');
+        writeFileSync(join(pkg, 'LICENSE.md'), 'package terms');
+        for (const name of [
+            'font.css',
+            'OFL.txt',
+            'LICENSE-MIT',
+            'LICENSE-APACHE',
+            'noticeboard.css',
+        ]) {
+            writeFileSync(join(pkg, 'font', name), '');
+        }
+        const source = join(pkg, 'font', 'font.css');
+
+        assert.deepEqual(
+            targetsOf({ from: source, to: 'font/font.css', directory: true }, source),
+            [
+                join('font', 'LICENSE-APACHE.txt'),
+                join('font', 'LICENSE-MIT.txt'),
+                join('font', 'OFL.txt'),
+                join('font', 'PACKAGE-LICENSE.txt'),
+            ],
+        );
     });
 });
 

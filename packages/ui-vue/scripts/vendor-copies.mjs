@@ -28,8 +28,14 @@ export const VENDOR_COPIES = [
 /** The files a directory copy keeps: the stylesheet and the fonts it names. */
 export const WANTED = /\.(css|woff2?|ttf|eot)$/;
 
-/** A licence or notice file, as packages name them. */
-const LICENCE_FILE = /^(licen[cs]e|copying|notice)(\.(md|txt))?$/i;
+/**
+ * A licence or notice file, by how its name begins — packages name them every
+ * way: `LICENSE`, `LICENSE.md`, `LICENSE-MIT`, `COPYING`, `NOTICE`, a font's
+ * `OFL.txt`. Read wide on purpose: a licence missed would ship a copy without
+ * its terms, while a file taken for one that is not costs an extra file and a
+ * look.
+ */
+const LICENCE_FILE = /^(licen[cs]e|copying|notice|ofl|unlicense)([-._].*)?$/i;
 
 /**
  * The licence and notice files that govern `file`, the nearest first: those in

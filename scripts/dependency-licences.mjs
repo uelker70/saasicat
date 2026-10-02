@@ -35,60 +35,76 @@ export const PERMISSIVE = new Set([
 const SPELLINGS = new Map([['Apache 2.0', 'Apache-2.0']]);
 
 /**
- * What a licence file's text states, as an SPDX id — or null where it is none
- * of these, or where it also carries another licence's wording.
+ * The licences a copied file is accepted under, by their whole text: one file
+ * per licence in `licence-texts/`, named by its SPDX id.
  *
- * A text is recognised by phrases from each licence's body rather than its
- * title, and by more than its opening sentence: the MIT permission sentence
- * also opens the SIL Open Font Licence, so MIT needs its notice clause too, and
- * Apache-2.0 needs its terms heading, which a file that only mentions it lacks.
- * A text that also uses the wording of a licence off the list — a file with an
- * MIT part and a GPL part, say — is read as neither. Plain substring tests,
- * compared without case: the text is another package's file, and nothing of it
- * becomes a pattern.
+ * A licence file is recognised only when it is one of these word for word,
+ * apart from what differs from copy to copy — its title, its copyright notices,
+ * case and line breaks. Anything added — a sentence putting the fonts under the
+ * Open Font Licence, a Commons Clause rider, "portions are GPL-3.0" — makes it a
+ * different text, and a different text is refused. The reading errs that way on
+ * purpose: a licence file reworded upstream fails until somebody has read it,
+ * which is the decision `SC-SEC-012` asks for. Searching a text for the wording
+ * of the licences off the list instead could never name them all.
+ *
+ * One thing is not read: a copyright notice, whose holders and years differ in
+ * every copy, so terms named inside one are not seen.
+ *
+ * Only the licences a copy ships under today have a text here; a copy under
+ * another one is refused until its text is added beside these.
  */
 const LICENCE_TEXTS = [
-    [
-        'Apache-2.0',
-        [
-            'apache license',
-            'version 2.0',
-            'terms and conditions for use, reproduction, and distribution',
-        ],
-    ],
-    [
-        'MIT',
-        [
-            'permission is hereby granted, free of charge',
-            'shall be included in all copies or substantial portions of the software',
-        ],
-    ],
-    ['ISC', ['permission to use, copy, modify, and/or distribute this software for any purpose']],
-    ['BSD-3-Clause', ['redistribution and use in source and binary forms', 'neither the name']],
-    ['BSD-2-Clause', ['redistribution and use in source and binary forms']],
+    // Titled "MIT License", "The MIT License (MIT)" and so on: a line of these
+    // words alone is a title.
+    { id: 'MIT', title: new Set(['the', 'mit', 'license']) },
+    // Its heading is part of the text, the same in every copy.
+    { id: 'Apache-2.0', title: new Set() },
 ];
 
-/** Wording of licences that are not on the list; any of it disqualifies a text. */
-const OTHER_LICENCES = [
-    // GPL, LGPL and AGPL alike.
-    'general public license',
-    'mozilla public license',
-    'eclipse public license',
-    'european union public licence',
-    'common development and distribution license',
-    'server side public license',
-    'creative commons',
-    'open font license',
-    'font software',
-];
+/**
+ * What follows the word in a copyright notice — a mark, a year, a placeholder —
+ * and not in a sentence that happens to open a line with it, such as the MIT
+ * licence's "copyright holders be liable" wrapped onto a line of its own.
+ */
+const NOTICE_STARTS = ['(c)', '©', '[', '<', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+function isCopyrightNotice(line) {
+    if (!line.startsWith('copyright ')) return false;
+    const rest = line.slice('copyright '.length).trimStart();
+    return NOTICE_STARTS.some((start) => rest.startsWith(start));
+}
+
+const isTitle = (line, title) =>
+    title.size > 0 && line.split(/\s+/).every((word) => title.has(word.replace(/[()]/g, '')));
+
+/** A licence file's words, without its title and copyright notices, case or line breaks. */
+function wordsOf(text, title) {
+    const lines = String(text)
+        .toLowerCase()
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line !== '' && !isCopyrightNotice(line));
+    const start = lines.findIndex((line) => !isTitle(line, title));
+    if (start === -1) return [];
+    return lines.slice(start).join(' ').split(/\s+/);
+}
+
+const ACCEPTED_TEXTS = LICENCE_TEXTS.map(({ id, title }) => ({
+    id,
+    title,
+    words: wordsOf(
+        readFileSync(new URL(`./licence-texts/${id}.txt`, import.meta.url), 'utf8'),
+        title,
+    ),
+}));
+
+/** The SPDX id of the licence a licence file's text is, or null where it is none of them. */
 export function licenceOfText(text) {
-    const flat = String(text).toLowerCase().split(/\s+/).join(' ');
-    if (OTHER_LICENCES.some((wording) => flat.includes(wording))) return null;
-    for (const [id, phrases] of LICENCE_TEXTS) {
-        if (phrases.every((phrase) => flat.includes(phrase))) return id;
-    }
-    return null;
+    const match = ACCEPTED_TEXTS.find(({ title, words }) => {
+        const found = wordsOf(text, title);
+        return found.length === words.length && found.every((word, i) => word === words[i]);
+    });
+    return match?.id ?? null;
 }
 
 /** A manifest's licence as one SPDX expression, or null where it states none. */
