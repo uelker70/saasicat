@@ -1010,6 +1010,7 @@ _Tested by:_
         - a tenant without a subscriber to name is not moved at all
         - a move whose contract cannot be written is put back, and the next run makes both, where
           the version retired ${offSale}
+        - a move put back takes the change of rhythm it scheduled back to the plan it left
         - a put-back that fails outright is recorded as one refused, and the run goes on
         - a move that cannot be put back either says so in the audit log
         - a change of rhythm scheduled between the read and the write is left to the next run
@@ -1058,6 +1059,7 @@ _Tested by:_
         - is refused where the subscription changed between the read and the write
         - whose contract cannot be written is put back and refused, and nothing is charged, where
           the version retired ${offSale}
+        - that is put back keeps a change scheduled while its contract was being written
         - that cannot be put back either says so in the log, naming the subscription
         - is refused before anything moves where the contract could not name its party
         - is offered with its terms where it is open, and not otherwise

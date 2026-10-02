@@ -7,6 +7,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
+import { scheduledChangeAfterWrite } from '@saasicat/core';
 
 import {
     RetirementMoveService,
@@ -122,9 +123,10 @@ function usageOver(subs) {
 
 /**
  * A write that claims the row where `claims` says so, and then binds what was
- * asked — the plan and the version quoted — as an adapter does. A version in
- * `ended` takes no bookings: asked for alone, it is bound only where the write
- * puts a binding back (`restoresQuotedVersion`), as the port says.
+ * asked — the plan and the version quoted — and leaves of the scheduled change
+ * what the shared rule says, as an adapter does. A version in `ended` takes no
+ * bookings: asked for alone, it is bound only where the write puts a binding
+ * back (`restoresQuotedVersion`), as the port says.
  */
 function writesOver(subs, claims = () => true, ended = []) {
     const calls = [];
@@ -139,6 +141,7 @@ function writesOver(subs, claims = () => true, ended = []) {
             const claimed = !refused && claims(tenantId, input);
             const sub = subs.find((candidate) => tenantOf(candidate) === tenantId);
             if (claimed && sub) {
+                Object.assign(sub, scheduledChangeAfterWrite(sub, input));
                 sub.plan = input.planId;
                 sub.planVersion = { id: input.quotedPlanVersionId, planId: input.planId };
             }
@@ -431,6 +434,28 @@ describe('the move at the date', () => {
             );
         });
     }
+
+    test('a move put back takes the change of rhythm it scheduled back to the plan it left', async () => {
+        const sub = subscriptionOf('t1', {
+            pendingPlan: 'STANDARD',
+            pendingBillingCycle: 'YEARLY',
+            pendingEffectiveAt: new Date('2026-08-01T00:00:00.000Z'),
+        });
+        let whileMoved = null;
+        const { service } = await aRun({
+            subs: [sub],
+            freeze: async () => {
+                whileMoved = sub.pendingPlan;
+                throw new Error('database gone');
+            },
+        });
+
+        await service.moveDue(DATE);
+
+        assert.equal(whileMoved, 'PLUS', 'moved, the change of rhythm followed it to PLUS');
+        assert.equal(sub.planVersion.id, 'pv-1', 'put back');
+        assert.deepEqual([sub.pendingPlan, sub.pendingBillingCycle], ['STANDARD', 'YEARLY']);
+    });
 
     test('a put-back that fails outright is recorded as one refused, and the run goes on', async () => {
         const { service, audited } = await aRun({
@@ -751,6 +776,32 @@ describe('the free switch before the date', () => {
             assert.deepEqual(recorded, []);
         });
     }
+
+    test('that is put back keeps a change scheduled while its contract was being written', async () => {
+        const sub = subscriptionOf('t1');
+        const { service } = aSwitch({
+            sub,
+            freeze: async () => {
+                // Another request of the tenant schedules a change of rhythm
+                // on the replacement it now sees.
+                Object.assign(sub, {
+                    pendingPlan: 'PLUS',
+                    pendingBillingCycle: 'YEARLY',
+                    pendingEffectiveAt: new Date('2026-07-01T00:00:00.000Z'),
+                });
+                throw new Error('database gone');
+            },
+        });
+
+        await rejection(service.switchNow('t1', 'pv-9', BEFORE));
+
+        assert.equal(sub.planVersion.id, 'pv-1', 'put back');
+        assert.deepEqual(
+            [sub.pendingPlan, sub.pendingBillingCycle],
+            ['STANDARD', 'YEARLY'],
+            'the change scheduled meanwhile survives, on the plan it is back on',
+        );
+    });
 
     test('that cannot be put back either says so in the log, naming the subscription', async () => {
         let writes = 0;

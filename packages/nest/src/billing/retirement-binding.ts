@@ -41,15 +41,17 @@ export function bindReplacement(
  * that has to come with the move or the switch could not be written; whether
  * it was. That version is off sale — often by its own end — and binding it
  * again undoes a move rather than booking anything, so its sale does not
- * decide. Where it cannot be bound, the subscription is on the replacement
- * without its contract, and `logger` names it.
+ * decide. The change the subscription has scheduled goes back with it, made
+ * before the move or while its contract was being written: it is the
+ * subscriber's, and the move it undoes was not. Where it cannot be bound, the
+ * subscription is on the replacement without its contract, and `logger` names
+ * it.
  */
 export async function bindRetiredAgain(
     writes: TenantSubscriptionWritePort,
     tenantId: string,
     sub: Subscription,
     notice: Retirement,
-    keepsPendingChange: boolean,
     logger: Pick<Logger, 'error'>,
 ): Promise<boolean> {
     let why: string;
@@ -61,7 +63,7 @@ export async function bindRetiredAgain(
             notice.replacement,
             notice.retired,
             {
-                keepsPendingChange,
+                keepsPendingChange: true,
                 restoresQuotedVersion: true,
             },
         );

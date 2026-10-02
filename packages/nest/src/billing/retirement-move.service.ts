@@ -176,7 +176,6 @@ export class RetirementMoveService {
             notice.tenantId,
             sub,
             notice,
-            true,
             this.logger,
         );
         this.entitlements.invalidateTenant(notice.tenantId);

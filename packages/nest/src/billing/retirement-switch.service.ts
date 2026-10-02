@@ -187,14 +187,15 @@ export class RetirementSwitchService {
 
     /**
      * Binds the subscription back to the version retired, where the switch's
-     * contract failed. Where that fails too, the log names the subscription.
+     * contract failed, keeping a change scheduled meanwhile. Where that fails
+     * too, the log names the subscription.
      */
     private async putBack(
         tenantId: string,
         sub: SubscriptionUsageRecord,
         notice: VersionRetiredNotice,
     ): Promise<void> {
-        await bindRetiredAgain(this.writes, tenantId, sub, notice, false, this.logger);
+        await bindRetiredAgain(this.writes, tenantId, sub, notice, this.logger);
         this.entitlements.invalidateTenant(tenantId);
     }
 
