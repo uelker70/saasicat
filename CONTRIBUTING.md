@@ -423,6 +423,21 @@ contribution is licensed under the same terms, and that the project may relicens
 it in future. Without that, the copyright would fragment across contributors and
 no later licensing decision could be made at all.
 
+### What a dependency brings with it
+
+An integrator builds a product of their own on SaaSiCat, so nothing it depends on may put
+conditions on that product's code (`SC-SEC-012`).
+`tests/dependency-licences-leave-the-integrators-code-alone.test.js` walks every dependency and peer
+dependency of the published packages, all the way down, and refuses any licence that is not in the
+list in [`scripts/dependency-licences.mjs`](scripts/dependency-licences.mjs) — copyleft, and also a
+licence it cannot read. Adding a licence to that list is the decision to make before the dependency
+is added, not after.
+
+A file copied out of another package into what a package publishes goes through
+[`packages/ui-vue/scripts/vendor-copies.mjs`](packages/ui-vue/scripts/vendor-copies.mjs), which
+ships every licence that governs it beside it (`SC-SEC-017`). The package it comes from is usually a
+development dependency, so the licence test reads that package and those licence texts as well.
+
 ## Security issues
 
 Do not open public issues or PRs for vulnerabilities — see [SECURITY.md](SECURITY.md)

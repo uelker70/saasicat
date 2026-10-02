@@ -21,13 +21,11 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { VENDOR_COPIES, WANTED, licenceTarget, licencesOfCopy } from './vendor-copies.mjs';
+
 const PACKAGE = fileURLToPath(new URL('..', import.meta.url));
 const ASSETS = join(PACKAGE, 'dist', 'assets');
 const require = createRequire(join(PACKAGE, 'package.json'));
-
-mkdirSync(ASSETS, { recursive: true });
-
-cpSync(require.resolve('quasar/dist/quasar.css'), join(ASSETS, 'quasar.css'));
 
 // The stylesheet and the font files beside it, which it names by relative path
 // — and nothing else. The directory also holds a JavaScript index of icon
@@ -39,22 +37,35 @@ cpSync(require.resolve('quasar/dist/quasar.css'), join(ASSETS, 'quasar.css'));
 // requests to be answered by the dev server's SPA fallback — the browser got
 // HTML where a font should be and reported `invalid sfntVersion`. The consumer
 // end-to-end suite is what read that back.
-const WANTED = /\.(css|woff2?|ttf|eot)$/;
-const icons = dirname(require.resolve('@quasar/extras/material-icons/material-icons.css'));
-const target = join(ASSETS, 'material-icons');
-
 function copyWanted(from, to) {
     mkdirSync(to, { recursive: true });
     for (const entry of readdirSync(from, { withFileTypes: true })) {
         const source = join(from, entry.name);
         if (entry.isDirectory()) copyWanted(source, join(to, entry.name));
-        // Not everything: the directory also holds a JavaScript index of icon
-        // names this package does not use, which would ship as output no entry
-        // point reaches. `dist-is-self-contained` reported exactly those three.
         else if (WANTED.test(entry.name)) cpSync(source, join(to, entry.name));
     }
 }
 
-copyWanted(icons, target);
+for (const copy of VENDOR_COPIES) {
+    const source = require.resolve(copy.from);
+    const target = join(ASSETS, copy.to);
+    if (copy.directory) {
+        copyWanted(dirname(source), dirname(target));
+    } else {
+        mkdirSync(dirname(target), { recursive: true });
+        cpSync(source, target);
+    }
+    // A copy without its terms is one the licence does not allow, so a source
+    // that names none stops the build rather than shipping without them.
+    const licences = licencesOfCopy(copy, source);
+    if (licences.length === 0) {
+        throw new Error(`copy-vendor-styles: no licence found for ${copy.what} (${copy.from}).`);
+    }
+    for (const licence of licences) {
+        cpSync(licence.path, join(ASSETS, licenceTarget(copy, licence)));
+    }
+}
 
-console.log('copy-vendor-styles: quasar.css + material-icons');
+console.log(
+    `copy-vendor-styles: ${VENDOR_COPIES.map((copy) => copy.to).join(' + ')}, with their licences`,
+);
