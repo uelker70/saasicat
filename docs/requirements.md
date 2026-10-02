@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 33      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 34      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 557 entries: 🟢 483 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 558 entries: 🟢 484 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 6 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -212,7 +212,7 @@ Of 557 entries: 🟢 483 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 557 requirements. Do not edit by hand:
+Generated from `requirements/` — 558 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -4315,6 +4315,7 @@ _Tested by:_
     - a notice read back
         - not yet delivered carries no delivery
         - delivered carries to whom and how, and nobody where nobody was told
+        - of every kind the platform sends is read back as that kind
         - of a kind the platform does not know is refused, naming the row
         - delivered without a readable delivery is refused, naming the row
 - `packages/nest/tests/a-subscriber-is-told-once.test.js`
@@ -4733,6 +4734,59 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - says how far the retirement has come, and marks a move overdue
+
+<!-- END proof -->
+
+### SC-SUB-034 — Where staying put costs something, a subscription is reminded once
+
+🟢 💰 A subscription told of a retirement is reminded once, 14 days before the date it was told,
+where staying put costs it something: the replacement is dearer in the rhythm it is billed in at that
+date — or not sold in it — or takes a feature away or lowers a quota. A price that rises only in
+another rhythm costs it nothing, and it is not reminded. The reminder goes through the same notice
+port as the announcement, says again what the subscription was told and what a switch taken now
+would cost, and is recorded with whom it went to and how. A run that did not happen on the day is
+caught up by the next, until the date. It is not sent where the subscription has cancelled, has
+ended, has switched, or leaves the version by the date through a change of its own. Beside each
+retired version, the administration counts the subscriptions reminded.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-retirement-reminds-where-staying-costs.test.js`
+    - whether staying put costs a subscription something
+        - ${what}
+    - when the reminder is due
+        - 14 days before the date, at its time of day
+        - from that moment until the date, and not a millisecond either side
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where retiring is wired, it also takes effect
+        - the run that reminds subscriptions before their date is there
+- `packages/nest/tests/a-retirement-reminds-once.test.js`
+    - the one reminder of a retirement
+        - reminds 14 days before the date, as it was told, with what a switch now would cost
+        - reminds nothing before its day, and catches up a run that did not happen until the date
+        - reminds once, however often the run comes
+        - reminds where staying costs something in the rhythm billed at the date, and only there
+        - reminds where a feature is taken away, whatever the price
+        - leaves alone a subscription that cancelled, ended, switched or leaves the version by its
+          date
+        - reminds a trial, which cannot switch before it ends
+        - a reminder the application could not send is sent by the next run
+        - a reminder that cannot be put together fails for that subscription alone
+        - runs across tenants: the reminder is sent inside the bypass
+        - the quarter-hour run reminds after the notices and before the moves, and pauses under
+          maintenance
+        - a step of the quarter-hour run that fails holds up none of the others
+        - the operator sees how many were reminded: reminders that reached somebody
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - how far a retirement has come says how many were reminded, last and beside the states
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - counts the subscriptions reminded beside the states, unmarked
 
 <!-- END proof -->
 
@@ -10566,6 +10620,7 @@ _Tested by:_
         - is offered on the version no longer on sale, and on no other
         - says on a version that it was retired, and for which replacement
         - says how far the retirement has come, and marks a move overdue
+        - counts the subscriptions reminded beside the states, unmarked
         - says so where the announcements could not be read
         - is not offered where the platform does not serve it
         - shows the replacement, its price, the dates and whom it misses before anything is sent

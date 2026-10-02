@@ -112,6 +112,12 @@ export function leavesTheVersionBy(sub: RetiringSubscription, at: Date): boolean
     return Boolean(next && sub.planVersion && next !== sub.planVersion.id);
 }
 
+/** The rhythm the subscription is billed in at `at`: a change of rhythm scheduled by then included. */
+export function rhythmAt(sub: RetiringSubscription, at: Date): BillingCycle {
+    const change = scheduledRhythm(sub);
+    return change && change.at <= at ? change.cycle : (sub.billingCycle as BillingCycle);
+}
+
 /** A change of rhythm scheduled on the plan the subscription keeps, or null. */
 function scheduledRhythm(sub: RetiringSubscription): { at: Date; cycle: BillingCycle } | null {
     if (sub.pendingPlan !== sub.plan || !sub.pendingBillingCycle || !sub.pendingEffectiveAt) {
@@ -160,6 +166,5 @@ function effectiveDate(
         }
         boundary = advanceOneCycle(boundary, rhythm, day);
     }
-    const billingCycle = change && change.at <= boundary ? change.cycle : cycle;
-    return { at: boundary, billingCycle };
+    return { at: boundary, billingCycle: rhythmAt(sub, boundary) };
 }

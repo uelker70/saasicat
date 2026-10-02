@@ -8,6 +8,7 @@
 // replacement, at that version's price, from then on. A price increase is a
 // retirement whose replacement costs more.
 
+import type { RetirementSwitchTerms } from './retirement-switch.js';
 import type { VersionChange } from './subscription.types.js';
 import type { VersionOfferSide } from './version-offer.js';
 
@@ -74,6 +75,25 @@ export interface VersionRetiredNotice {
     readonly effectiveAt: string;
     /** ISO date (`YYYY-MM-DD`), UTC. */
     readonly lastDayToCancel: string;
+}
+
+/**
+ * The one reminder of a retirement, where staying put costs the subscription
+ * something (`SC-SUB-034`): sent 14 days before the retirement takes effect,
+ * once per subscription and retired version. It says again what the
+ * retirement notice said, and what a switch taken now would cost. Its
+ * `billingCycle` is still the rhythm billed at the date, read again from the
+ * subscription as it stands when the reminder is sent: a change of rhythm
+ * scheduled since the announcement is in it.
+ */
+export interface VersionRetirementReminder extends Omit<VersionRetiredNotice, 'kind'> {
+    readonly kind: 'version-retirement-reminder';
+    /**
+     * What switching to the replacement now costs in the subscription's rhythm
+     * (`SC-SUB-032`), or null where it cannot switch now: in a trial, with a
+     * change scheduled, or where either plan is held for a special contract.
+     */
+    readonly switchTerms: RetirementSwitchTerms | null;
 }
 
 /**
@@ -154,6 +174,11 @@ export interface RetirementProgress {
     readonly overdue: number;
     /** Still on the retired version, and ended by their date: there is nothing to move. */
     readonly ended: number;
+    /**
+     * Reminded 14 days before their date (`SC-SUB-034`) — counted beside the
+     * four above, not instead of one: a subscription reminded moves later.
+     */
+    readonly reminded: number;
 }
 
 /** An announcement as the administration lists it, with how far it has come. */

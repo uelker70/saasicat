@@ -37,7 +37,9 @@ later survives the move.
   `RETIREMENT_SWITCH_NOT_OPEN`, `RETIREMENT_SWITCH_CHANGED`.
 - **Ending a replacement.** A version subscriptions still move onto cannot be
   terminated before the day after the last of their dates:
-  `PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` (`SC-PLAN-029`).
+  `PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` (`SC-PLAN-029`). While a move onto
+  it is past its date and not made, it cannot be terminated at all:
+  `PLAN_TERMINATE_WHILE_MOVES_OVERDUE`.
 - **Audit.** Each move is recorded as `PLAN_VERSION_RETIREMENT_MOVE`, and a move
   that cannot be made once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, by the new
   platform job actor: `AuditActor` is `AdminActor` or `PlatformJobActor`

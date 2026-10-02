@@ -15,6 +15,7 @@ const TABLE = 'subscription_notices';
 const KINDS: Record<SubscriptionNoticeKind, true> = {
     'version-offered': true,
     'version-retired': true,
+    'version-retirement-reminder': true,
 };
 
 /**

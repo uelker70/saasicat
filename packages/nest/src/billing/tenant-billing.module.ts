@@ -37,6 +37,7 @@ import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
 import { VersionNoticeCron } from './version-notice.cron.js';
 import { RetirementMoveService } from './retirement-move.service.js';
+import { RetirementReminderService } from './retirement-reminder.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
 import { PLAN_VERSION_ENDING_CHECK_TOKEN } from '../catalog/catalog.tokens.js';
 import { VersionNoticeService } from './version-notice.service.js';
@@ -467,6 +468,7 @@ export class TenantBillingModule {
                 ),
                 VersionRetirementService,
                 RetirementMoveService,
+                RetirementReminderService,
                 RetirementSwitchService,
                 // The catalogue asks before it ends a version whether
                 // subscriptions still move onto it.
@@ -540,6 +542,7 @@ export class TenantBillingModule {
                     ? [
                           VersionRetirementService,
                           RetirementMoveService,
+                          RetirementReminderService,
                           RetirementSwitchService,
                           PLAN_VERSION_ENDING_CHECK_TOKEN,
                       ]

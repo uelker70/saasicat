@@ -44,6 +44,12 @@ describe('a notice read back', () => {
         });
     });
 
+    test('of every kind the platform sends is read back as that kind', () => {
+        for (const kind of ['version-offered', 'version-retired', 'version-retirement-reminder']) {
+            assert.equal(toSubscriptionNoticeRecord({ ...ROW, kind }).kind, kind);
+        }
+    });
+
     test('of a kind the platform does not know is refused, naming the row', () => {
         assert.throws(
             () => toSubscriptionNoticeRecord({ ...ROW, kind: 'price-raised' }),
