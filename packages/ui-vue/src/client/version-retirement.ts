@@ -76,13 +76,17 @@ export function retirementOf(
     return records.find((record) => record.retired.planVersionId === planVersionId) ?? null;
 }
 
-/** Where the subscriptions a retirement reached stand, in the order an operator reads it. */
-const PROGRESS_ORDER = ['overdue', 'waiting', 'moved', 'ended'] as const;
+/**
+ * Where the subscriptions a retirement reached stand, in the order an operator
+ * reads it, and last how many of them were reminded — a count beside the
+ * states, not one of them.
+ */
+const PROGRESS_ORDER = ['overdue', 'waiting', 'moved', 'ended', 'reminded'] as const;
 
 /**
  * How far a retirement has come, as the parts worth saying: each state with
  * subscriptions in it, overdue first — a move that has not happened by its
- * date is the one thing in it that asks for a look.
+ * date is the one thing in it that asks for a look — and the reminded ones.
  */
 export function retirementProgressParts(
     progress: RetirementProgress,

@@ -3,19 +3,22 @@ import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../maintenance/maintenance.service.js';
 import { RetirementMoveService } from './retirement-move.service.js';
+import { RetirementReminderService } from './retirement-reminder.service.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import { VersionRetirementService } from './version-retirement.service.js';
 
 /**
  * Sends the version notices that are due, every quarter of an hour, so an
  * offer that appears is told within one — the retirement notices an
- * announcement could not send at once — and moves the subscriptions whose
- * retirement has taken effect (`SC-SUB-031`).
+ * announcement could not send at once, and the reminders whose day has come
+ * (`SC-SUB-034`) — and moves the subscriptions whose retirement has taken
+ * effect (`SC-SUB-031`).
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.versionNotices.includeCron: false` — for a CLI boot, or an
- * application that calls `VersionNoticeService.sendDue` and
- * `RetirementMoveService.moveDue` from a scheduler of its own.
+ * application that calls `VersionNoticeService.sendDue`,
+ * `RetirementReminderService.remindDue` and `RetirementMoveService.moveDue`
+ * from a scheduler of its own.
  */
 @Injectable()
 export class VersionNoticeCron {
@@ -36,6 +39,10 @@ export class VersionNoticeCron {
         @Optional()
         @Inject(RetirementMoveService)
         private readonly moves: RetirementMoveService | null = null,
+        // Present where retiring is: the reminders before it.
+        @Optional()
+        @Inject(RetirementReminderService)
+        private readonly reminders: RetirementReminderService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'versionNotices' })
@@ -60,6 +67,12 @@ export class VersionNoticeCron {
             if (retired && (retired.told > 0 || retired.failed > 0)) {
                 this.logger.log(
                     `Retirement notices: ${retired.told} sent, ${retired.failed} to try again.`,
+                );
+            }
+            const reminded = await this.reminders?.remindDue(now);
+            if (reminded && (reminded.told > 0 || reminded.failed > 0)) {
+                this.logger.log(
+                    `Retirement reminders: ${reminded.told} sent, ${reminded.failed} to try again.`,
                 );
             }
             const moves = await this.moves?.moveDue(now);

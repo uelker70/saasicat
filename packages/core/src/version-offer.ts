@@ -79,8 +79,8 @@ export interface VersionSwitchResult {
     readonly takesEffectAt: string;
 }
 
-/** A change that takes something the subscriber has away from them. */
-function takesSomethingAway(change: VersionChange): boolean {
+/** A change that takes something the subscriber has away from them: a feature, or quota. */
+export function takesSomethingAway(change: VersionChange): boolean {
     if (change.direction !== 'REGRESSION') return false;
     return change.field === 'features.removed' || change.field.startsWith('quotas.');
 }

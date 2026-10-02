@@ -118,14 +118,29 @@ describe('how a preview reads', () => {
 
     // @requirement SC-SUB-033 — The operator sees how far each retirement has come
     test('how far a retirement has come says the states with subscriptions in them, overdue first', () => {
-        assert.deepEqual(retirementProgressParts({ moved: 4, waiting: 2, overdue: 1, ended: 0 }), [
-            { state: 'overdue', count: 1 },
-            { state: 'waiting', count: 2 },
-            { state: 'moved', count: 4 },
-        ]);
         assert.deepEqual(
-            retirementProgressParts({ moved: 0, waiting: 0, overdue: 0, ended: 0 }),
+            retirementProgressParts({ moved: 4, waiting: 2, overdue: 1, ended: 0, reminded: 0 }),
+            [
+                { state: 'overdue', count: 1 },
+                { state: 'waiting', count: 2 },
+                { state: 'moved', count: 4 },
+            ],
+        );
+        assert.deepEqual(
+            retirementProgressParts({ moved: 0, waiting: 0, overdue: 0, ended: 0, reminded: 0 }),
             [],
+        );
+    });
+
+    // @requirement SC-SUB-034 — Where staying put costs something, a subscription is reminded once
+    test('how far a retirement has come says how many were reminded, last and beside the states', () => {
+        assert.deepEqual(
+            retirementProgressParts({ moved: 1, waiting: 2, overdue: 0, ended: 0, reminded: 3 }),
+            [
+                { state: 'waiting', count: 2 },
+                { state: 'moved', count: 1 },
+                { state: 'reminded', count: 3 },
+            ],
         );
     });
 

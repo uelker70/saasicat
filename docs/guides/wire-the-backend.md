@@ -921,9 +921,12 @@ export class VersionNoticeMailer implements SubscriptionNoticePort {
             if (notice.kind === 'version-offered') {
                 // Both versions side by side, the kind of offer, when a switch takes effect.
                 await this.mail.send(admin.email, 'plan-version-offered', { offer: notice.offer });
-            } else {
+            } else if (notice.kind === 'version-retired') {
                 // A retirement: see "Retiring a Version for Running Subscriptions" below.
                 await this.mail.send(admin.email, 'plan-version-retired', { retirement: notice });
+            } else {
+                // Its one reminder, 14 days before the date, where staying put costs something.
+                await this.mail.send(admin.email, 'plan-version-reminder', { reminder: notice });
             }
         }
         return { recipients: admins.map((admin) => admin.email), channel: 'email' };
@@ -1026,6 +1029,16 @@ sent by the next quarter-hourly run. A subscription hears of a version's retirem
 announcement of the same version skips the ones the first one told. The tenant's plan section
 shows the same notice beside the plan (`SC-SUB-030`).
 
+**The one reminder.** Where staying put costs a subscription something — the replacement is
+dearer in the rhythm it is billed in at the date, or takes a feature away or lowers a quota — the
+same run reminds it once, 14 days before the date (`SC-SUB-034`). Your port is handed a
+`version-retirement-reminder` notice: what the retirement notice said, with the rhythm as it stands,
+and `switchTerms`, what a switch taken now would cost, or `null` where the subscription cannot
+switch now. A price that rises only in another rhythm is no reason to remind. A run that did not
+happen on the day is caught up until the date. Nobody is reminded who has cancelled, switched, or
+leaves the version by the date through a change of their own. The plan cockpit counts the reminded
+subscriptions beside the retired version.
+
 **What happens at the date.** The quarter-hourly run that sends version notices also moves every
 subscription whose date has come and that is still on the retired version onto the replacement,
 keeping its period and its term (`SC-SUB-031`). A run that did not happen is caught up by the next.
@@ -1038,8 +1051,8 @@ are one: where the contract cannot be written, the move is put back. A move that
 audited once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, tried again by every run, and shown
 as overdue beside the retired version in the plan cockpit, with the ones moved, waiting and ended
 (`SC-SUB-033`). With `versionNotices.includeCron: false`, call
-`RetirementMoveService.moveDue(new Date())` from your own scheduler, as you call
-`VersionNoticeService.sendDue`.
+`RetirementReminderService.remindDue(new Date())` and `RetirementMoveService.moveDue(new Date())`
+from your own scheduler, as you call `VersionNoticeService.sendDue`.
 
 **Switching early.** Until the date, the plan section offers the switch to the replacement
 (`SC-SUB-032`, `POST /billing/retirement/switch`, for the tenant's administrators). It takes effect
@@ -1050,7 +1063,9 @@ scheduled, and it ends the right to cancel without notice, which rests on the ve
 
 **Ending the replacement.** A version subscriptions still move onto cannot be terminated before the
 day after the last of their dates; the catalogue refuses with
-`PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` and names the first day it may end (`SC-PLAN-029`).
+`PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` and names the first day it may end (`SC-PLAN-029`). While a
+move onto it is past its date and not made, it cannot be terminated at all:
+`PLAN_TERMINATE_WHILE_MOVES_OVERDUE`, with how many are waiting.
 
 ## Admin Module
 

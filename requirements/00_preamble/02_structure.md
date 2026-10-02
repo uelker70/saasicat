@@ -79,7 +79,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 33      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 34      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 557 entries: 🟢 483 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 558 entries: 🟢 484 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 6 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

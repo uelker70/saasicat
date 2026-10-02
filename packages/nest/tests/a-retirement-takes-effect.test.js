@@ -13,17 +13,21 @@ import {
     RetirementMoveService,
     RetirementSwitchService,
     VersionNoticeCron,
-    VersionRetirementService,
 } from '../dist/billing/index.js';
 import { PlanVersionsService } from '../dist/catalog/index.js';
 import { FakePlanRepository } from '../dist/testing/index.js';
-import { usageRecord } from './helpers/subscription-fixtures.js';
-import { noticeRecord, sendingPort } from './helpers/version-notices.js';
+import {
+    DATE,
+    REPLACEMENT_SIDE,
+    noticeFor,
+    retirementServiceOver,
+    subscriptionOf,
+    tenantOf,
+    told,
+    usageOver,
+} from './helpers/retirement-fixtures.js';
 
 const DAY = 24 * 60 * 60 * 1000;
-const ANNOUNCED = new Date('2026-03-15T09:00:00.000Z');
-/** The date the subscribers were told: they continue on the replacement from 1 July. */
-const DATE = new Date('2026-07-01T00:00:00.000Z');
 const BEFORE = new Date('2026-03-20T10:00:00.000Z');
 /**
  * The two ways the version retired is off sale, as `writesOver` takes them: a
@@ -34,92 +38,6 @@ const OFF_SALE = [
     ['was closed by a successor', []],
     ['has ended', ['pv-1']],
 ];
-
-const RETIRED_SIDE = {
-    planKey: 'STANDARD',
-    planVersionId: 'pv-1',
-    version: 1,
-    features: [],
-    quotas: {},
-    monthlyNet: 49,
-    yearlyNet: 490,
-    validUntil: '2026-03-01T00:00:00.000Z',
-    endsAt: null,
-};
-/** Version 3 of another plan, dearer by three a month and thirty a year. */
-const REPLACEMENT_SIDE = {
-    ...RETIRED_SIDE,
-    planKey: 'PLUS',
-    planVersionId: 'pv-9',
-    version: 3,
-    monthlyNet: 52,
-    yearlyNet: 520,
-    validUntil: null,
-};
-
-/** What the announcement told the subscription of `tenantId`. */
-function noticeFor(tenantId, overrides = {}) {
-    return {
-        kind: 'version-retired',
-        tenantId,
-        subscriptionId: `sub-${tenantId}`,
-        retirementId: 'ret-1',
-        retired: RETIRED_SIDE,
-        replacement: REPLACEMENT_SIDE,
-        changes: [],
-        billingCycle: 'MONTHLY',
-        effectiveAt: DATE.toISOString(),
-        lastDayToCancel: '2026-06-30',
-        ...overrides,
-    };
-}
-
-/** A notice record holding what each announcement told. */
-async function told(...notices) {
-    const record = noticeRecord();
-    await record.record(
-        notices.map((notice) => ({
-            tenantId: notice.tenantId,
-            subscriptionId: notice.subscriptionId,
-            kind: notice.kind,
-            subject: notice.retired.planVersionId,
-            content: notice,
-        })),
-        ANNOUNCED,
-    );
-    return record;
-}
-
-/** A monthly subscription of `tenantId` on the retired version. */
-function subscriptionOf(tenantId, overrides = {}) {
-    return usageRecord({
-        id: `sub-${tenantId}`,
-        plan: 'STANDARD',
-        billingCycle: 'MONTHLY',
-        currentPeriodStart: new Date('2026-06-01T00:00:00.000Z'),
-        currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
-        planVersion: { id: 'pv-1', planId: 'STANDARD', version: 1 },
-        pendingChangeVersionId: null,
-        ...overrides,
-    });
-}
-
-const tenantOf = (sub) => sub.id.slice('sub-'.length);
-
-/** The usage port over `subs`, as the adapters answer it: each read a copy of the row. */
-function usageOver(subs) {
-    return {
-        async findForTenant(tenantId) {
-            const sub = subs.find((candidate) => tenantOf(candidate) === tenantId);
-            return sub ? { ...sub } : null;
-        },
-        async listBoundToVersion(planVersionId) {
-            return subs
-                .filter((sub) => sub.planVersion?.id === planVersionId)
-                .map((sub) => ({ tenantId: tenantOf(sub), subscription: { ...sub } }));
-        },
-    };
-}
 
 /**
  * A write that claims the row where `claims` says so, and then binds what was
@@ -860,31 +778,7 @@ describe('the free switch before the date', () => {
 
 /** The retirement service over `subs`, told `notices`. */
 async function announced({ subs, notices }) {
-    const retirements = {
-        rows: [
-            {
-                id: 'ret-1',
-                retired: { planVersionId: 'pv-1', planKey: 'STANDARD', version: 1 },
-                replacement: { planVersionId: 'pv-9', planKey: 'PLUS', version: 3 },
-                announcedAt: ANNOUNCED,
-                announcedBy: 'web:operator@example.com:admin',
-            },
-        ],
-        async list() {
-            return this.rows;
-        },
-    };
-    return new VersionRetirementService(
-        { findVersionById: async () => null },
-        usageOver(subs),
-        await told(...notices),
-        sendingPort(),
-        retirements,
-        { run: async (work) => work({}) },
-        { tenantBilling: { orderlyRetirement: { termsConfirmed: true } } },
-        null,
-        null,
-    );
+    return retirementServiceOver({ subs, record: await told(...notices) });
 }
 
 // @requirement SC-PLAN-029 — A version subscriptions still move onto cannot end before they have
@@ -1006,6 +900,12 @@ describe('how far a retirement has come', () => {
 
         const [retirement] = await service.list(new Date('2026-07-02T00:00:00.000Z'));
 
-        assert.deepEqual(retirement.progress, { moved: 1, waiting: 1, overdue: 1, ended: 1 });
+        assert.deepEqual(retirement.progress, {
+            moved: 1,
+            waiting: 1,
+            overdue: 1,
+            ended: 1,
+            reminded: 0,
+        });
     });
 });

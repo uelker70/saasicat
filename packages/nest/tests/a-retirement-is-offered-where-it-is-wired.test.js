@@ -14,6 +14,7 @@ import { VERSION_RETIREMENT_CAPABILITY } from '@saasicat/core';
 import { AdminManifestService } from '../dist/admin/index.js';
 import {
     RetirementMoveService,
+    RetirementReminderService,
     RetirementSwitchService,
     VersionRetirementService,
 } from '../dist/billing/index.js';
@@ -133,6 +134,14 @@ describe('where retiring is wired, it also takes effect', () => {
             actions.includes('PLAN_VERSION_RETIREMENT_MOVE_FAILED'),
             'and a move that could not be made',
         );
+        await moduleRef.close();
+    });
+
+    // @requirement SC-SUB-034 — Where staying put costs something, a subscription is reminded once
+    test('the run that reminds subscriptions before their date is there', async () => {
+        const { moduleRef } = await started(installation(termsConfirmed));
+
+        assert.ok(moduleRef.get(RetirementReminderService, { strict: false }));
         await moduleRef.close();
     });
 

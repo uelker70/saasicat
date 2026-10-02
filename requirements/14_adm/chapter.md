@@ -425,6 +425,7 @@ _Tested by:_
         - is offered on the version no longer on sale, and on no other
         - says on a version that it was retired, and for which replacement
         - says how far the retirement has come, and marks a move overdue
+        - counts the subscriptions reminded beside the states, unmarked
         - says so where the announcements could not be read
         - is not offered where the platform does not serve it
         - shows the replacement, its price, the dates and whom it misses before anything is sent

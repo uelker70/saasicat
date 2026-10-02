@@ -677,6 +677,7 @@ _Tested by:_
     - a notice read back
         - not yet delivered carries no delivery
         - delivered carries to whom and how, and nobody where nobody was told
+        - of every kind the platform sends is read back as that kind
         - of a kind the platform does not know is refused, naming the row
         - delivered without a readable delivery is refused, naming the row
 - `packages/nest/tests/a-subscriber-is-told-once.test.js`
@@ -1095,5 +1096,56 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - says how far the retirement has come, and marks a move overdue
+
+<!-- END proof -->
+
+### SC-SUB-034 — Where staying put costs something, a subscription is reminded once
+
+🟢 💰 A subscription told of a retirement is reminded once, 14 days before the date it was told,
+where staying put costs it something: the replacement is dearer in the rhythm it is billed in at that
+date — or not sold in it — or takes a feature away or lowers a quota. A price that rises only in
+another rhythm costs it nothing, and it is not reminded. The reminder goes through the same notice
+port as the announcement, says again what the subscription was told and what a switch taken now
+would cost, and is recorded with whom it went to and how. A run that did not happen on the day is
+caught up by the next, until the date. It is not sent where the subscription has cancelled, has
+ended, has switched, or leaves the version by the date through a change of its own. Beside each
+retired version, the administration counts the subscriptions reminded.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-retirement-reminds-where-staying-costs.test.js`
+    - whether staying put costs a subscription something
+        - ${what}
+    - when the reminder is due
+        - 14 days before the date, at its time of day
+        - from that moment until the date, and not a millisecond either side
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where retiring is wired, it also takes effect
+        - the run that reminds subscriptions before their date is there
+- `packages/nest/tests/a-retirement-reminds-once.test.js`
+    - the one reminder of a retirement
+        - reminds 14 days before the date, as it was told, with what a switch now would cost
+        - reminds nothing before its day, and catches up a run that did not happen until the date
+        - reminds once, however often the run comes
+        - reminds where staying costs something in the rhythm billed at the date, and only there
+        - reminds where a feature is taken away, whatever the price
+        - leaves alone a subscription that cancelled, ended, switched or leaves the version by its
+          date
+        - reminds a trial, which cannot switch before it ends
+        - a reminder the application could not send is sent by the next run
+        - runs across tenants: the reminder is sent inside the bypass
+        - the quarter-hour run reminds after the notices and before the moves, and pauses under
+          maintenance
+        - the operator sees how many were reminded: reminders that reached somebody
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - how far a retirement has come says how many were reminded, last and beside the states
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - counts the subscriptions reminded beside the states, unmarked
 
 <!-- END proof -->

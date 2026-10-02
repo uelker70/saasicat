@@ -36,6 +36,18 @@ export async function retirementNoticesDue(
     );
 }
 
+/** `notices` by the version they retire, so the subscriptions on each are read once. */
+export function groupByRetiredVersion(
+    notices: readonly VersionRetiredNotice[],
+): Map<string, VersionRetiredNotice[]> {
+    const groups = new Map<string, VersionRetiredNotice[]>();
+    for (const notice of notices) {
+        const id = notice.retired.planVersionId;
+        groups.set(id, [...(groups.get(id) ?? []), notice]);
+    }
+    return groups;
+}
+
 /** The plan versions a subscription's retirements move it off, each from the date it was told. */
 export function retiredVersionsOf(
     records: readonly SubscriptionNoticeRecord[],

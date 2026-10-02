@@ -44,6 +44,7 @@ import {
     type SubscriptionUsageRecord,
     type TransactionRunner,
     type VersionRetiredNotice,
+    type VersionRetirementReminder,
     type VersionRetirementRepository,
     type VersionRetirementView,
     classifyVersionOffer,
@@ -412,13 +413,14 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     /**
      * Every announcement, the most recent first, with how far it has come
      * (`SC-SUB-033`): counted over the subscriptions it reached, from where
-     * each one is now.
+     * each one is now, and how many of them were reminded (`SC-SUB-034`).
      */
     async list(now = new Date()): Promise<VersionRetirementView[]> {
         return readAcrossTenants(this.rlsBypass, async () => {
-            const [retirements, told] = await Promise.all([
+            const [retirements, told, reminded] = await Promise.all([
                 this.retirements.list(),
                 this.allNotices(),
+                this.remindedByRetirement(),
             ]);
             const stillOn = new Map<string, Promise<Map<string, SubscriptionUsageRecord>>>();
             const onVersion = (planVersionId: string) => {
@@ -432,11 +434,14 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
             return Promise.all(
                 retirements.map(async (retirement) => ({
                     ...retirement,
-                    progress: progressOf(
-                        told.filter((notice) => notice.retirementId === retirement.id),
-                        await onVersion(retirement.retired.planVersionId),
-                        now,
-                    ),
+                    progress: {
+                        ...progressOf(
+                            told.filter((notice) => notice.retirementId === retirement.id),
+                            await onVersion(retirement.retired.planVersionId),
+                            now,
+                        ),
+                        reminded: reminded.get(retirement.id) ?? 0,
+                    },
                 })),
             );
         });
@@ -504,6 +509,23 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     /** Every retirement notice on record, as it was told. */
     private allNotices(): Promise<VersionRetiredNotice[]> {
         return retirementNoticesOnRecord(this.notices);
+    }
+
+    /**
+     * How many subscriptions each retirement has reminded: reminders that went
+     * out to somebody. One the application could send to nobody reminded no one.
+     */
+    private async remindedByRetirement(): Promise<Map<string, number>> {
+        const counts = new Map<string, number>();
+        for (const record of await this.notices.listOfKindSince(
+            'version-retirement-reminder',
+            new Date(0),
+        )) {
+            if (!record.delivery || record.delivery.recipients.length === 0) continue;
+            const { retirementId } = record.content as VersionRetirementReminder;
+            counts.set(retirementId, (counts.get(retirementId) ?? 0) + 1);
+        }
+        return counts;
     }
 
     /** The subscriptions on a version, by id. */
@@ -650,7 +672,7 @@ function progressOf(
     told: readonly VersionRetiredNotice[],
     stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
     now: Date,
-): RetirementProgress {
+): Omit<RetirementProgress, 'reminded'> {
     const progress = { moved: 0, waiting: 0, overdue: 0, ended: 0 };
     for (const notice of told) {
         const sub = stillOn.get(notice.subscriptionId);

@@ -20,7 +20,8 @@
 // subscription like the subscriber's account does (ADR 0012): `tenantId` and
 // `subscriptionId` are kept as values, not as keys.
 //
-// `kind` is text holding a closed set: version-offered, version-retired.
+// `kind` is text holding a closed set: version-offered, version-retired,
+// version-retirement-reminder.
 //
 // Optional: adopt it where `tenantBilling.versionNotices` is configured, which
 // refuses to start without a place to keep notices; a retirement needs it too.
@@ -34,8 +35,9 @@ model SubscriptionNotice {
 
     kind    String
     // What the notice is about — for version-offered, the id of the version
-    // offered; for version-retired, the id of the version retired, so a
-    // subscription is told of a version's retirement once.
+    // offered; for version-retired and version-retirement-reminder, the id of
+    // the version retired, so a subscription is told of a version's retirement
+    // once and reminded of it once.
     subject String
     // The notice as it was last handed to the application.
     content Json

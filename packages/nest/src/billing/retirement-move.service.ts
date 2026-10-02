@@ -40,7 +40,7 @@ import { SubscriberChargeService } from './charges/subscriber-charge.service.js'
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { bindReplacement, bindRetiredAgain } from './retirement-binding.js';
 import { leavesTheVersionBy } from './retirement-reach.js';
-import { retirementNoticesDue } from './retirement-notices.js';
+import { groupByRetiredVersion, retirementNoticesDue } from './retirement-notices.js';
 import {
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -273,17 +273,6 @@ export class RetirementMoveService {
             );
         }
     }
-}
-
-function groupByRetiredVersion(
-    notices: readonly VersionRetiredNotice[],
-): Map<string, VersionRetiredNotice[]> {
-    const groups = new Map<string, VersionRetiredNotice[]>();
-    for (const notice of notices) {
-        const id = notice.retired.planVersionId;
-        groups.set(id, [...(groups.get(id) ?? []), notice]);
-    }
-    return groups;
 }
 
 function sameInstant(a: Date | null, b: Date | null): boolean {

@@ -78,6 +78,7 @@ export {
     type RetirementNoticeRun,
 } from './version-retirement.service.js';
 export { RetirementMoveService } from './retirement-move.service.js';
+export { RetirementReminderService } from './retirement-reminder.service.js';
 export { RetirementSwitchService, type OpenRetirementSwitch } from './retirement-switch.service.js';
 export {
     VersionRetirementAdminModule,

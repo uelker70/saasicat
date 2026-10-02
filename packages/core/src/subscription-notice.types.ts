@@ -6,10 +6,14 @@
 // and how.
 
 import type { VersionOfferView } from './version-offer.js';
-import type { VersionRetiredNotice } from './version-retirement.types.js';
+import type {
+    VersionRetiredNotice,
+    VersionRetirementReminder,
+} from './version-retirement.types.js';
 
 /** What a notice is about. */
-export type SubscriptionNoticeKind = 'version-offered' | 'version-retired';
+export type SubscriptionNoticeKind =
+    'version-offered' | 'version-retired' | 'version-retirement-reminder';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -20,7 +24,9 @@ export interface SubscriptionNoticeKey {
      * What it is about. For `version-offered`, the id of the version offered;
      * for `version-retired`, the id of the version retired — so a subscription
      * is told of a version's retirement once, whichever announcement it came
-     * with. The announcement is in the notice as `retirementId`.
+     * with. The announcement is in the notice as `retirementId`. For
+     * `version-retirement-reminder`, the id of the version retired as well: a
+     * subscription is reminded of a version's retirement once.
      */
     readonly subject: string;
 }
@@ -64,4 +70,5 @@ export interface VersionOfferedNotice {
 }
 
 /** A notice handed to the application to send. */
-export type SubscriptionNotice = VersionOfferedNotice | VersionRetiredNotice;
+export type SubscriptionNotice =
+    VersionOfferedNotice | VersionRetiredNotice | VersionRetirementReminder;
