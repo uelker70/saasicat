@@ -50,3 +50,4 @@ export { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink
 export { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.repository.js';
 export { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 export { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
+export { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';

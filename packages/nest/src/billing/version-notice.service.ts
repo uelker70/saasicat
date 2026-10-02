@@ -9,11 +9,10 @@
 // confirmed after (`SC-SUB-023`), which is what makes it once rather than once a
 // run.
 
-import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleInit, Optional } from '@nestjs/common';
 import type {
     PlanRepository,
     RlsBypassPort,
-    SubscriptionNoticeDelivery,
     SubscriptionNoticePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -24,7 +23,7 @@ import type {
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
-import { TimeoutError, withTimeout } from '../core/with-timeout.js';
+import { NOTICE_DELIVERY_TIMEOUT_MS, NoticeSender } from './notice-sender.js';
 import {
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
@@ -32,16 +31,6 @@ import {
 } from './tenant-billing.tokens.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { versionOnSale } from './version-on-sale.js';
-
-/**
- * How long a run's claim on a notice holds. Longer than an attempt may take,
- * so a second instance does not take a notice on while the first still waits
- * for the application to answer.
- */
-const CLAIM_LEASE_MS = 15 * 60_000;
-
-/** How long the application may take to send one notice before the attempt counts as failed. */
-const DELIVERY_TIMEOUT_MS = 60_000;
 
 /** What one run did: notices sent, and notices whose sending failed and waits for the next run. */
 export interface VersionNoticeRun {
@@ -51,8 +40,8 @@ export interface VersionNoticeRun {
 
 @Injectable()
 export class VersionNoticeService implements OnModuleInit {
-    private readonly logger = new Logger(VersionNoticeService.name);
-    private readonly deliveryTimeoutMs = DELIVERY_TIMEOUT_MS;
+    private readonly deliveryTimeoutMs = NOTICE_DELIVERY_TIMEOUT_MS;
+    private readonly sender: NoticeSender;
 
     constructor(
         @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
@@ -62,14 +51,16 @@ export class VersionNoticeService implements OnModuleInit {
         @Inject(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN)
         private readonly notices: SubscriptionNoticeRepository,
         @Inject(SUBSCRIPTION_NOTICE_PORT_TOKEN)
-        private readonly port: SubscriptionNoticePort,
+        port: SubscriptionNoticePort,
         private readonly offers: VersionOfferService,
         // The run is the installation's, not a tenant's: under a row policy it
         // would otherwise find no subscription and report that it told nobody.
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
-    ) {}
+    ) {
+        this.sender = new NoticeSender(notices, port);
+    }
 
     /**
      * Refuses a wiring that could never send a notice. Starting anyway would
@@ -104,7 +95,11 @@ export class VersionNoticeService implements OnModuleInit {
             let failed = 0;
             for (const plan of await this.plans.list({ onlyPublished: true })) {
                 for (const notice of await this.dueFor(plan.planKey, now)) {
-                    const outcome = await this.tell(notice);
+                    const outcome = await this.sender.tell(
+                        notice,
+                        notice.offer.offered.planVersionId,
+                        this.deliveryTimeoutMs,
+                    );
                     if (outcome === 'told') told += 1;
                     if (outcome === 'failed') failed += 1;
                 }
@@ -140,123 +135,5 @@ export class VersionNoticeService implements OnModuleInit {
     ): Promise<TenantSubscriptionUsage[]> {
         // `onModuleInit` refused a port without it.
         return this.subscriptions.listBoundToEarlierVersions!(planKey, version);
-    }
-
-    /**
-     * Claims the notice, has the application send it, and records to whom.
-     * Null where another run holds it or it went out meanwhile.
-     */
-    private async tell(notice: VersionOfferedNotice): Promise<'told' | 'failed' | null> {
-        // Stamped with the moment it is taken, not with the start of the run: a
-        // run that takes longer than the lease would otherwise take claims that
-        // every other instance already reads as abandoned.
-        const takenAt = new Date();
-        const claimed = await this.notices.claim(
-            {
-                tenantId: notice.tenantId,
-                subscriptionId: notice.subscriptionId,
-                kind: notice.kind,
-                subject: notice.offer.offered.planVersionId,
-            },
-            notice,
-            takenAt,
-            new Date(takenAt.getTime() - CLAIM_LEASE_MS),
-        );
-        if (!claimed) return null;
-        const claimedAt = claimed.claimedAt ?? takenAt;
-
-        // A port that throws before it returns a promise fails like one that
-        // rejects, rather than escaping the run with its claim still held.
-        const sending = new Promise<SubscriptionNoticeDelivery>((resolve) =>
-            resolve(this.port.deliver(notice)),
-        );
-        let delivery: SubscriptionNoticeDelivery;
-        try {
-            delivery = await withTimeout(() => sending, this.deliveryTimeoutMs);
-        } catch (error) {
-            if (error instanceof TimeoutError) {
-                this.settleLate(sending, claimed.id, claimedAt);
-            } else {
-                this.logger.error(
-                    `The notice of version ${notice.offer.offered.planVersionId} to subscription ` +
-                        `${notice.subscriptionId} was not sent; the next run tries again.`,
-                    error instanceof Error ? error.stack : String(error),
-                );
-                await this.notices.release(claimed.id, claimedAt);
-            }
-            return 'failed';
-        }
-        if (delivery.recipients.length === 0) {
-            this.logger.warn(
-                `Subscription ${notice.subscriptionId} was offered version ` +
-                    `${notice.offer.offered.planVersionId}, and the application told nobody; ` +
-                    'the notice is recorded as sent to no one and is not tried again.',
-            );
-        }
-        await this.recordSent(claimed.id, claimedAt, delivery);
-        return 'told';
-    }
-
-    /**
-     * An application that has not answered in time may still send the notice,
-     * so its claim is not let go: no other run takes it on while the answer is
-     * awaited. A late success is recorded as sent, and a late failure lets the
-     * claim go for the next run. An answer that takes longer than the lease
-     * comes after another run may have sent the notice again.
-     */
-    private settleLate(
-        sending: Promise<SubscriptionNoticeDelivery>,
-        id: string,
-        claimedAt: Date,
-    ): void {
-        this.logger.warn(
-            `The application did not answer within ${this.deliveryTimeoutMs} ms for the notice ` +
-                `${id}; it stays held while the answer is awaited.`,
-        );
-        void sending.then(
-            (delivery) => this.recordSent(id, claimedAt, delivery),
-            async (error: unknown) => {
-                this.logger.error(
-                    `The notice ${id} was not sent; the next run tries again.`,
-                    error instanceof Error ? error.stack : String(error),
-                );
-                try {
-                    await this.notices.release(id, claimedAt);
-                } catch (released) {
-                    this.logger.error(
-                        `The notice ${id} could not be let go; it is tried again once its claim ` +
-                            'goes stale.',
-                        released instanceof Error ? released.stack : String(released),
-                    );
-                }
-            },
-        );
-    }
-
-    /**
-     * Records a notice the application has sent. It went out whatever happens
-     * here, so a failure to record it is not released for another attempt: it
-     * is logged, and the run goes on to the next subscriber rather than
-     * stopping theirs over one row.
-     */
-    private async recordSent(
-        id: string,
-        claimedAt: Date,
-        delivery: SubscriptionNoticeDelivery,
-    ): Promise<void> {
-        try {
-            if (!(await this.notices.confirm(id, claimedAt, delivery, new Date()))) {
-                this.logger.warn(
-                    `The notice ${id} was sent, but its claim had gone stale and another run ` +
-                        'took it on; the subscriber may hear of the version twice.',
-                );
-            }
-        } catch (error) {
-            this.logger.error(
-                `The notice ${id} was sent, but recording it failed; once its claim goes stale ` +
-                    'the subscriber may hear of the version again.',
-                error instanceof Error ? error.stack : String(error),
-            );
-        }
     }
 }

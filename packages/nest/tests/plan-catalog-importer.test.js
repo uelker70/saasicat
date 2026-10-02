@@ -48,6 +48,7 @@ vatRate: 19.0
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 features:
   - { key: CORE_IDENTITY, label: Mitglieder, tier: CORE }
   - { key: WHATSAPP, label: WhatsApp, tier: ADVANCED }
@@ -124,6 +125,7 @@ vatRate: 19.0
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 plans:
   - id: ENTERPRISE
     name: Enterprise
@@ -152,6 +154,7 @@ vatRate: 19.0
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 plans:
   - id: SIMPLE
     monthlyNet: 5.50

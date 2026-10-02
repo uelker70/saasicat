@@ -423,6 +423,27 @@ export const subscriptionNotices = pgTable('subscription_notices', {
 });
 
 // ---------------------------------------------------------------------------
+// Retirement announcements — a plan version ended for the subscriptions on it
+// ---------------------------------------------------------------------------
+//
+// The versions are values, not keys: the record outlives the catalogue entries
+// it names. What it means for each subscription is a `subscription_notices` row
+// of kind `version-retired`: its subject is the retired version, its content
+// names this row's id as `retirementId`.
+
+export const versionRetirements = pgTable('version_retirements', {
+    id: text('id').primaryKey(),
+    retiredPlanVersionId: text('retiredPlanVersionId').notNull(),
+    retiredPlanKey: text('retiredPlanKey').notNull(),
+    retiredVersion: integer('retiredVersion').notNull(),
+    replacementPlanVersionId: text('replacementPlanVersionId').notNull(),
+    replacementPlanKey: text('replacementPlanKey').notNull(),
+    replacementVersion: integer('replacementVersion').notNull(),
+    announcedAt: writtenAt('announcedAt'),
+    announcedBy: text('announcedBy').notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // Subscribers — the party a contract is concluded with
 // ---------------------------------------------------------------------------
 //

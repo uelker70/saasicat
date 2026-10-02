@@ -334,6 +334,13 @@ _Tested by:_
         - acknowledgeChange posts to the change, with its id escaped
         - a read that answers nothing is an error, not a page with no facts
         - every operation this descriptor declares has a case above
+- `packages/ui-vue/tests/version-retirements-resource.test.js`
+    - versionRetirementsResource
+        - list asks for every announcement
+        - preview asks for the version, naming the replacement, both escaped
+        - announce posts the replacement and the subscriptions shown, with the second factor
+        - a preview that answers nothing is an error, not an empty dialog
+        - every operation this descriptor declares has a case above
 
 <!-- END proof -->
 

@@ -255,6 +255,7 @@ function sectionUsage(overrides: Record<string, unknown>) {
         limits: { plan: 'PRO', quotas: { users: 50 }, features: ['EXPORT'] },
         usage: { users: 3 },
         packageSnapshot: null,
+        retirement: null,
         checkoutOfferId: null,
         ...overrides,
     };

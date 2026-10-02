@@ -47,6 +47,7 @@ describe('what init says about the settings it wrote', () => {
             { key: 'tenantBilling.cancellationNoticeDays.yearly', value: '0' },
             { key: 'tenantBilling.selfServiceBlockedPlans.asTarget', value: '[]' },
             { key: 'tenantBilling.selfServiceBlockedPlans.asSource', value: '[]' },
+            { key: 'tenantBilling.orderlyRetirement.termsConfirmed', value: 'false' },
         ]);
     });
 

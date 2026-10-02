@@ -27,7 +27,11 @@
                 @create-draft="$emit('createDraft')"
                 @publish="$emit('publish', $event)"
                 @edit-draft="$emit('editDraft', $event)"
+                :can-retire="retirement?.canRetire"
+                :retirement-of="retirement?.retirementOf"
+                :retirements-error="retirement?.recordsError.value ?? null"
                 @open-terminate="openTerminateDialog"
+                @open-retire="(version: PlanVersionRow) => retirement?.open(version)"
             />
 
             <PlanVersionDiffPanel
@@ -56,6 +60,14 @@
             @execute="executeTerminate"
         />
 
+        <PlanRetireDialog
+            v-if="retirement"
+            :flow="retirement"
+            :plan="plan"
+            :format-money="formatMoney"
+            :format-date="formatDate"
+        />
+
         <PlanAuditLog
             v-if="auditRows.length > 0 || loadingAudit"
             :audit-rows="auditRows"
@@ -74,7 +86,9 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 import PlanAuditLog from './internal/PlanAuditLog.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
 import PlanDetailKpis from './internal/PlanDetailKpis.vue';
+import PlanRetireDialog from './PlanRetireDialog.vue';
 import PlanTerminateDialog from './PlanTerminateDialog.vue';
+import type { VersionRetirementFlow } from '../../vue/use-version-retirement.js';
 import PlanVersionDiffPanel from './internal/PlanVersionDiffPanel.vue';
 import PlanVersionsPanel from './internal/PlanVersionsPanel.vue';
 import type {
@@ -111,6 +125,11 @@ const props = withDefaults(
          * the second factor, which leaves the dialog open.
          */
         submitTerminate?: (versionId: string, endsAt: string) => Promise<boolean>;
+        /**
+         * Retiring a version for the subscriptions on it, as the page binds it
+         * (`useVersionRetirement`). Absent, the action is not offered.
+         */
+        retirement?: VersionRetirementFlow;
     }>(),
     {
         impactByVersion: () => ({}),
@@ -120,6 +139,7 @@ const props = withDefaults(
         availableBundles: () => [],
         featureRegistry: () => ({}),
         submitTerminate: undefined,
+        retirement: undefined,
     },
 );
 

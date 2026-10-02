@@ -716,6 +716,7 @@ _Tested by:_
 - `packages/nest/tests/a-changed-configuration-is-reported.test.js`
     - addresses in the file and an email port bound
         - every address is mailed what moved, and the change is recorded regardless
+        - confirming the terms an orderly retirement rests on is reported like any change
         - a boot that finds nothing changed mails nobody
         - an address taken off the list is told that once, and nothing after
         - emptying the list is the last thing the old list hears about
@@ -745,6 +746,7 @@ _Tested by:_
 - `packages/nest/tests/a-changed-configuration-is-reported.test.js`
     - addresses in the file and an email port bound
         - every address is mailed what moved, and the change is recorded regardless
+        - confirming the terms an orderly retirement rests on is reported like any change
         - a boot that finds nothing changed mails nobody
         - an address taken off the list is told that once, and nothing after
         - emptying the list is the last thing the old list hears about

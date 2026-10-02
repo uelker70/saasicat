@@ -163,6 +163,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Plan version terminated',
                 severity: 'high',
             },
+            { key: 'PLAN_VERSION_RETIRE', label: 'Plan version retired', severity: 'high' },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
             { key: 'USER_DEACTIVATE', label: 'User deactivated', severity: 'high' },

@@ -8,6 +8,12 @@ import type {
     SubscriptionNoticeKind,
     SubscriptionNoticeRecord,
 } from '../subscription-notice.types.js';
+import type { TransactionContext } from './core-ports.types.js';
+
+/** A notice to record before anybody is told: its key and what it says. */
+export interface NoticeToRecord extends SubscriptionNoticeKey {
+    readonly content: unknown;
+}
 
 /**
  * Keeps the record of every notice sent to a subscriber: one per subscription,
@@ -54,6 +60,25 @@ export interface SubscriptionNoticeRepository {
     listDeliveredSubscriptionIds(kind: SubscriptionNoticeKind, subject: string): Promise<string[]>;
     /** Every notice of one subscription, the most recently recorded first. */
     listForSubscription(subscriptionId: string): Promise<SubscriptionNoticeRecord[]>;
+    /**
+     * Records each notice where it is not recorded yet, unclaimed and not
+     * delivered — in the caller's transaction where one is given, so a notice
+     * exists exactly when what it tells of does. A notice already recorded
+     * under the same key is left as it is and not counted: the answer is how
+     * many were recorded now, so a caller can tell that another got there
+     * first — under a transaction running beside it as well.
+     */
+    record(notices: readonly NoticeToRecord[], now: Date, tx?: TransactionContext): Promise<number>;
+    /** Every notice of `kind` recorded at or after `since`, the most recent first. */
+    listOfKindSince(kind: SubscriptionNoticeKind, since: Date): Promise<SubscriptionNoticeRecord[]>;
+    /**
+     * The notices of `kind` that are not delivered and that no run holds — never
+     * claimed, released, or claimed before `staleBefore` — the oldest first.
+     */
+    listUndelivered(
+        kind: SubscriptionNoticeKind,
+        staleBefore: Date,
+    ): Promise<SubscriptionNoticeRecord[]>;
 }
 
 /**

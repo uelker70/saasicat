@@ -215,6 +215,43 @@ export const BILLING_ERROR_CODES = {
      */
     VERSION_ENDS_BEFORE_SWITCH: 'VERSION_ENDS_BEFORE_SWITCH',
 
+    // ── retiring a version for running subscriptions ──
+    /**
+     * The operator's terms are not confirmed to carry the clause a retirement
+     * rests on (`tenantBilling.orderlyRetirement.termsConfirmed` in
+     * `config/saas.yaml`), so none is accepted.
+     */
+    RETIREMENT_TERMS_NOT_CONFIRMED: 'RETIREMENT_TERMS_NOT_CONFIRMED',
+    /**
+     * The version is still on sale: a subscription booked after the
+     * announcement would be on it without having been told. Carries the plan
+     * key and the version.
+     */
+    RETIREMENT_VERSION_ON_SALE: 'RETIREMENT_VERSION_ON_SALE',
+    /** The replacement is not on sale, so nobody can continue on it. Carries plan key and version. */
+    RETIREMENT_REPLACEMENT_NOT_ON_SALE: 'RETIREMENT_REPLACEMENT_NOT_ON_SALE',
+    /**
+     * The replacement has no price in the rhythm some of the subscriptions it
+     * reaches are billed in, so they cannot continue on it. Carries how many,
+     * and the replacement's plan key and version.
+     */
+    RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM: 'RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM',
+    /** The replacement named is the version being retired. */
+    RETIREMENT_REPLACEMENT_IS_RETIRED: 'RETIREMENT_REPLACEMENT_IS_RETIRED',
+    /** No running subscription is on the version: there is nobody to tell. Carries plan key and version. */
+    RETIREMENT_NOTHING_AFFECTED: 'RETIREMENT_NOTHING_AFFECTED',
+    /**
+     * Some of the subscriptions it reaches were reached by a retirement within
+     * the last twelve months, and a subscription is reached at most once in that
+     * time. Carries how many and which.
+     */
+    RETIREMENT_WITHIN_TWELVE_MONTHS: 'RETIREMENT_WITHIN_TWELVE_MONTHS',
+    /**
+     * The subscriptions the retirement reaches, or their dates, changed since
+     * the preview the operator confirmed. Carries the preview as it stands.
+     */
+    RETIREMENT_PREVIEW_CHANGED: 'RETIREMENT_PREVIEW_CHANGED',
+
     // ── the preview routes' own blockers and warnings ──
     //
     // These travel inside a 200 response, in `blockers[]` and `warnings[]`, not

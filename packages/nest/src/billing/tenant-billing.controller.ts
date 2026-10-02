@@ -32,6 +32,7 @@ import { initialPeriodWindow } from './billing-period.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
+import { VersionRetirementService } from './version-retirement.service.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -63,6 +64,7 @@ import type {
     AdminActor,
     OnboardingSelectionResponse,
     VersionOfferView,
+    VersionRetiredNotice,
     VersionSwitchResult,
 } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
@@ -128,6 +130,13 @@ interface UsageResponse {
      * is the one that does.
      */
     cancellation: CancellationDecision;
+    /**
+     * The retirement announced for the version the subscription is on, while it
+     * has not taken effect — what the subscriber was told. Until then
+     * `cancellation` is free of notice, for the end of the running period.
+     * Null where none is pending.
+     */
+    retirement: VersionRetiredNotice | null;
     limits: ReturnType<typeof toEffectiveLimitsSnapshot>;
     usage: Record<string, number>;
     /**
@@ -231,6 +240,11 @@ export class TenantBillingController {
         // Appended last for the same reason.
         @Inject(VersionSwitchService)
         private readonly versionSwitches: VersionSwitchService,
+        // Appended last for the same reason. Only where an operator may retire
+        // versions.
+        @Optional()
+        @Inject(VersionRetirementService)
+        private readonly retirements: VersionRetirementService | null = null,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -265,6 +279,8 @@ export class TenantBillingController {
             usage[key] = usageRaw[key] ?? 0;
         }
         const planPriceNet = await this.planPreview.planPriceNet(sub);
+        const now = new Date();
+        const retirement = await this.pendingRetirement(sub, now);
 
         return {
             plan: sub.plan,
@@ -298,7 +314,8 @@ export class TenantBillingController {
             // period are not visible to a browser. With a window configured,
             // four days of delay cost a whole period — a sentence that has to
             // be read in the confirmation, not discovered in the receipt.
-            cancellation: this.projectCancellation(sub, new Date()),
+            cancellation: this.projectCancellation(sub, now, retirement),
+            retirement,
             limits: toEffectiveLimitsSnapshot(limits),
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
@@ -993,7 +1010,7 @@ export class TenantBillingController {
         // term they were still inside — the one thing this route may not do.
         // Ending a contract on the spot is an operator's act, and it goes
         // through the operator's own path.
-        const decision = this.projectCancellation(sub, now);
+        const decision = this.projectCancellation(sub, now, await this.pendingRetirement(sub, now));
 
         // What the page showed has to be what the customer agreed to. Refused
         // rather than silently applied, with the new date in the error so the
@@ -1118,22 +1135,39 @@ export class TenantBillingController {
      * the same input are two chances to disagree about a rule the customer
      * meets once.
      */
-    private projectCancellation(sub: SubscriptionUsageRecord, now: Date): CancellationDecision {
+    private projectCancellation(
+        sub: SubscriptionUsageRecord,
+        now: Date,
+        retirement: VersionRetiredNotice | null,
+    ): CancellationDecision {
         return decideCancellationFor(
             {
                 status: sub.status,
                 billingCycle: sub.billingCycle as BillingCycle,
                 currentPeriodEnd: sub.currentPeriodEnd ?? null,
-                minimumTermUntil: sub.minimumTermUntil ?? null,
+                // A retirement on its way lets the subscriber leave for the end
+                // of the period they are in, whatever term they committed to:
+                // the terms are what the operator is changing.
+                minimumTermUntil: retirement ? null : (sub.minimumTermUntil ?? null),
                 trialEndsAt: sub.trialEndsAt ?? null,
                 billingAnchorDay: sub.billingAnchorDay ?? null,
             },
             now,
             // The rhythm of the CONTRACT, not of the plan somebody is looking
             // at: a customer on a yearly subscription is owed the yearly
-            // notice even where the same plan is also sold monthly.
-            noticeDaysFor(this.cancellationNoticeDays, sub.billingCycle),
+            // notice even where the same plan is also sold monthly. None while
+            // a retirement is on its way: it is left without notice.
+            retirement ? 0 : noticeDaysFor(this.cancellationNoticeDays, sub.billingCycle),
         );
+    }
+
+    /** The retirement reaching the subscription that has not taken effect yet, or null. */
+    private async pendingRetirement(
+        sub: SubscriptionUsageRecord,
+        now: Date,
+    ): Promise<VersionRetiredNotice | null> {
+        if (!this.retirements || !sub.id) return null;
+        return this.retirements.pendingFor({ id: sub.id, planVersion: sub.planVersion }, now);
     }
 
     private requireTenantId(req: RequestLike): string {

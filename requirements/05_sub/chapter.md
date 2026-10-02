@@ -756,3 +756,216 @@ _Tested by:_
         - a tenant on v1 who books an add-on after v2 is published keeps v1
 
 <!-- END proof -->
+
+### SC-SUB-025 — A version is retired only off sale, and only where the operator's terms allow it
+
+🟢 💰 Retiring a version announces to the subscriptions on it that they continue on a replacement the
+operator names: a version on sale, of the same plan or of another, so a whole plan can be phased
+out. The version retired has to be off sale, so nobody books it after the announcement; a price
+increase therefore lets the new version start first and retires the old one after. It needs
+`tenantBilling.orderlyRetirement.termsConfirmed` in `config/saas.yaml`, the operator's statement
+that their terms carry the clause a retirement rests on: without it the administration does not
+offer the action and the server refuses it with a code, and with it but nowhere to keep an
+announcement the application does not start. A retirement that would reach nobody is refused too,
+and so is one whose replacement has no price in the rhythm a subscription it reaches is billed in.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - retiring a version is offered
+        - where announcements are kept and the terms are confirmed: routes and capability
+        - while the terms are not confirmed: the routes, but no capability
+        - not without ${without}: neither the routes nor the capability
+        - not without the catalogue's operator routes, terms confirmed or not
+    - terms confirmed to allow a retirement
+        - with nowhere to keep one, the installation does not start, naming the setting
+        - with a place to keep it, it starts
+        - unconfirmed, it starts without one too
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the preview of a retirement
+        - may name a version of another plan as the replacement
+        - reports what would refuse the announcement, all of it at once › a version still on sale,
+          on its last day too
+        - reports what would refuse the announcement, all of it at once › but not one whose last day
+          was yesterday
+        - reports what would refuse the announcement, all of it at once › a version only scheduled
+          for sale is not off sale either
+        - reports what would refuse the announcement, all of it at once › a replacement that is not
+          on sale: a draft, or one whose sale has ended
+        - reports what would refuse the announcement, all of it at once › a replacement with no
+          price in the rhythm a subscription is billed in
+        - reports what would refuse the announcement, all of it at once › a replacement with no
+          price in the rhythm a subscription will be billed in by then
+        - reports what would refuse the announcement, all of it at once › but not one whose
+          subscriptions are all billed in a rhythm it is sold in
+        - reports what would refuse the announcement, all of it at once › nobody on the version to
+          tell
+        - reports what would refuse the announcement, all of it at once › several at once
+        - is refused where the terms are not confirmed, before anything is read
+    - announcing a retirement
+        - refuses what the preview reports, with every blocker, and writes nothing
+        - refuses where the terms are not confirmed, and writes nothing
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - where retiring is offered
+        - on a version no longer on sale, and on no other
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - is offered on the version no longer on sale, and on no other
+
+<!-- END proof -->
+
+### SC-SUB-026 — A retirement is announced for exactly the subscriptions the operator was shown
+
+🟢 💰 Before announcing, the operator sees every running subscription on the version with the date
+it would continue on the replacement, and every subscription it would not reach with the reason:
+ended, cancelled for a date by then, moving to another plan or version by then, or told already by
+an earlier announcement of this version, which stands — a subscription hears of a version's
+retirement once. The announcement names the subscriptions shown. Where they are no longer the ones
+it reaches, it is refused with the preview as it stands, rather than told to somebody the operator
+has not looked at.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect-at-a-term-end.test.js`
+    - a subscription with a change of rhythm scheduled
+        - counts its terms in the new rhythm from the day it lands, never inside the yearly term
+        - keeps the old rhythm where the change lands after the effective date
+        - is billed in the new rhythm where the change lands on the effective date
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the preview of a retirement
+        - shows each running subscription on the version with its effective date
+        - lists the subscriptions it does not reach, with the reason
+    - announcing a retirement
+        - accepts the subscriptions shown in any order
+        - refuses when the subscriptions shown are ${name}, and writes nothing
+        - a second announcement of the version leaves the subscriptions it told alone
+        - one told of it more than a year ago is still left alone
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - the retirement flow
+        - announces behind the second factor, naming the replacement and whom it was shown
+        - a preview that changed meanwhile replaces the one shown, and says so
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - shows the replacement, its price, the dates and whom it misses before anything is sent
+
+<!-- END proof -->
+
+### SC-SUB-027 — A retirement's date is the end of a term at least three calendar months away
+
+🟢 💰 For each subscription, the first end of one of its terms that lies at least three calendar
+months after the announcement — never inside a term the customer has paid for. Terms are counted
+in the subscription's own rhythm from the end of the period running now; a subscription in its
+trial counts them from the end of the trial, and one with a change of rhythm scheduled counts them
+in the new rhythm from the day it lands. The last day to cancel without notice is the last whole
+UTC day before the date, since a term ends at the moment it was booked.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect-at-a-term-end.test.js`
+    - the effective date of a retirement
+        - monthly, periods starting on the 1st: the first period end from 15 June on — 1 July
+        - a term that ends at the time of day it was booked leaves the whole day before as the last
+        - yearly, the term ending on 31 December: 1 January
+        - yearly, the term ending on 31 March, less than three months away: a year later
+        - a term ending exactly three months after the announcement is the effective date
+        - and one a millisecond earlier is not
+        - periods anchored on the 31st land on the last day of a shorter month
+        - a subscription without a period end counts its terms from its start
+    - a subscription in its trial
+        - counts its terms from the end of the trial
+        - takes effect at the end of the trial where that is far enough away
+    - a subscription with a change of rhythm scheduled
+        - counts its terms in the new rhythm from the day it lands, never inside the yearly term
+        - keeps the old rhythm where the change lands after the effective date
+        - is billed in the new rhythm where the change lands on the effective date
+    - three calendar months
+        - keep the day of the month and the time of day
+        - end on the last day of a month that has no such day
+        - cross into the next year
+
+<!-- END proof -->
+
+### SC-SUB-028 — A subscription is reached by a retirement at most once in twelve months
+
+🟢 💰 A retirement that would reach a subscription told of another within the last twelve months is
+refused, saying how many of its subscriptions that holds for.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - a subscription is reached at most once in twelve months
+        - one reached eleven months ago holds the announcement back, counted
+        - one reached exactly twelve months ago still does
+        - one reached a moment longer ago does not
+        - a notice of another kind does not count
+
+<!-- END proof -->
+
+### SC-SUB-029 — Every subscription a retirement reaches is told, and what it was told is kept
+
+🟢 💰 The announcement and one notice per subscription are written together, so there is no
+announcement whose notices are missing, and then handed to the application's own messages: both
+versions side by side with their prices, the date the subscription continues on the replacement,
+and the last day it may cancel without notice. A notice the application could not send is sent by
+the next run, which the platform runs every quarter of an hour. What is recorded is the notice as it
+was told (`SC-SUB-023`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - announcing a retirement
+        - keeps the announcement, records a notice per subscription and tells each
+        - writes the announcement and its notices in one transaction
+        - a notice that cannot be taken on is left for the next run, and the others are told
+        - a notice whose sending and letting go both fail is counted as failed, not thrown
+        - an audit entry that cannot be written does not make the announcement read as failed
+        - a notice the application cannot send now stays recorded and goes out with the next run
+    - the run that sends what an announcement could not
+        - sends only retirement notices, and leaves one another run holds
+        - runs inside the bypass
+    - the run every quarter of an hour
+        - sends what an announcement could not, after the offers, at the same moment
+        - sends neither while the application is locked for maintenance
+
+<!-- END proof -->
+
+### SC-SUB-030 — A tenant sees the retirement of its version beside its plan
+
+🟢 The plan section says when the subscription continues on which version of which plan, what that
+version costs beside the one it is on, and until when it may be cancelled without notice — and says
+the last of these again in the confirmation of a cancellation. What it says is the notice the
+subscriber was told.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-retired-version-is-announced-beside-the-plan.test.ts`
+    - a retired version, beside the plan
+        - says when the subscription moves on, to which version, and what it costs then
+        - is not shown where nothing is being retired
+        - is said again in the confirmation of a cancellation
+
+<!-- END proof -->

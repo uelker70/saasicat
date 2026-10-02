@@ -81,6 +81,24 @@ export class DrizzleSubscriptionUsageAdapter implements SubscriptionUsagePort {
             subscription: toRecord(subscription, bound.get(subscription.planVersionId)!),
         }));
     }
+
+    /** Two reads whatever the number of subscriptions: the version, and the subscriptions on it. */
+    async listBoundToVersion(planVersionId: string): Promise<TenantSubscriptionUsage[]> {
+        const [planVersion] = await this.db
+            .select()
+            .from(planVersions)
+            .where(eq(planVersions.id, planVersionId));
+        if (!planVersion) return [];
+        const rows = await this.db
+            .select()
+            .from(subscriptions)
+            .where(eq(subscriptions.planVersionId, planVersionId))
+            .orderBy(asc(subscriptions.id));
+        return rows.map((subscription) => ({
+            tenantId: subscription.tenantId,
+            subscription: toRecord(subscription, planVersion),
+        }));
+    }
 }
 
 function toRecord(
@@ -105,6 +123,7 @@ function toRecord(
         pendingPlan: subscription.pendingPlan,
         pendingBillingCycle: subscription.pendingBillingCycle,
         pendingEffectiveAt: subscription.pendingEffectiveAt,
+        pendingChangeVersionId: subscription.pendingChangeVersionId,
         planVersion: toUsagePlanVersion(planVersion),
         packageSnapshot: subscription.packageSnapshot,
         checkoutOfferId: subscription.checkoutOfferId,

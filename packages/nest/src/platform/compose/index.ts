@@ -25,6 +25,7 @@ import { composePayments } from './payments.js';
 import { composePromoCodes } from './promo-codes.js';
 import { composeSubscriberAccount } from './subscriber-account.js';
 import { composeSubscriptionBundles, composeTenantBilling } from './tenant-billing.js';
+import { composeVersionRetirement } from './version-retirement.js';
 
 /** One feature's contribution: the modules it adds, or none. */
 export type Composer = (ctx: CompositionContext) => DynamicModule[];
@@ -45,6 +46,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeSubscriptionContract,
     // After the admin resources and tenant billing: it imports both.
     composeSubscriberAccount,
+    // After tenant billing: it imports it.
+    composeVersionRetirement,
     composeMaintenance,
 ];
 

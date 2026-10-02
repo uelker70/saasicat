@@ -996,7 +996,7 @@ paths:
         parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
         post:
             tags: [catalog]
-            summary: Retire a plan version (endsAt; without a successor version)
+            summary: End a plan version's sale (endsAt; without a successor version)
             x-mfa-required: true
             requestBody:
                 required: true
@@ -1009,6 +1009,80 @@ paths:
                             },
                     }
             responses: { '200': { description: Terminated } }
+
+    # ── Retiring a version for running subscriptions (packages/nest/src/billing/version-retirement*) ──
+    #
+    # Served where the manifest carries the capability `planVersions.retire`. The
+    # subscriptions on a version no longer on sale move to a replacement on sale, each at
+    # the first end of a term at least three calendar months after the announcement, and
+    # may cancel without notice until then. Where the operator's terms are not confirmed to
+    # allow it, both routes refuse with `RETIREMENT_TERMS_NOT_CONFIRMED` before reading anything.
+
+    /catalog/plan-versions/{id}/retirement:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: What retiring the version for its running subscriptions would do now
+            parameters:
+                - name: replacement
+                  in: query
+                  required: true
+                  description: The plan version the subscriptions continue on
+                  schema: { type: string, format: uuid }
+            responses:
+                '200':
+                    description: >-
+                        Whom it reaches and when, whom it does not and why, and every blocker the
+                        announcement would refuse with
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/RetirementPreview' }
+                '404':
+                    description: Either version does not exist (`PLAN_VERSION_NOT_FOUND`)
+                '422':
+                    description: >-
+                        The terms are not confirmed (`RETIREMENT_TERMS_NOT_CONFIRMED`), or the
+                        replacement is the version itself (`RETIREMENT_REPLACEMENT_IS_RETIRED`)
+        post:
+            tags: [catalog]
+            summary: Announce the retirement to every subscription it reaches
+            description: >-
+                The announcement and one notice per subscription are recorded in one
+                transaction, then handed to the application's `SubscriptionNoticePort`; a notice
+                that cannot be sent now is sent by the next run. Audited as PLAN_VERSION_RETIRE.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/RetirementAnnouncement' }
+            responses:
+                '201':
+                    description: Announced
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/RetirementAnnounced' }
+                '409':
+                    description: >-
+                        The subscriptions it reaches are no longer the ones named
+                        (`RETIREMENT_PREVIEW_CHANGED`); the body carries the preview as it stands
+                '422':
+                    description: >-
+                        The first blocker the preview reports (`RETIREMENT_*`), with every blocker
+                        beside it
+
+    /catalog/version-retirements:
+        get:
+            tags: [catalog]
+            summary: Every retirement announced, the most recent first
+            responses:
+                '200':
+                    description: List
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/VersionRetirement' }
 
     # ── Bundles ──
     /catalog/bundles:
@@ -1920,6 +1994,125 @@ components:
             required: [endsAt]
             properties:
                 endsAt: { type: string, description: 'ISO-8601; must lie in the future' }
+
+        RetiredVersionRef:
+            type: object
+            required: [planVersionId, planKey, version]
+            properties:
+                planVersionId: { type: string }
+                planKey: { type: string }
+                version: { type: integer }
+
+        RetirementSide:
+            description: 'A version as the subscribers compare it; a price of null is a rhythm it is not sold in'
+            allOf:
+                - $ref: '#/components/schemas/RetiredVersionRef'
+                - type: object
+                  required: [features, quotas, monthlyNet, yearlyNet, validUntil, endsAt]
+                  properties:
+                      features: { type: array, items: { type: string } }
+                      quotas: { type: object, additionalProperties: { type: number } }
+                      monthlyNet: { type: [number, 'null'] }
+                      yearlyNet: { type: [number, 'null'] }
+                      validUntil: { type: [string, 'null'] }
+                      endsAt: { type: [string, 'null'] }
+
+        RetirementPreview:
+            type: object
+            required: [retired, replacement, changes, asOf, reached, skipped, blockers]
+            properties:
+                retired: { $ref: '#/components/schemas/RetirementSide' }
+                replacement: { $ref: '#/components/schemas/RetirementSide' }
+                changes:
+                    type: array
+                    description: 'Every difference, retired to replacement, as the catalogue diff states it'
+                    items: { type: object }
+                asOf: { type: string, description: 'ISO-8601: the moment it is computed for' }
+                reached:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            [
+                                tenantId,
+                                subscriptionId,
+                                status,
+                                billingCycle,
+                                effectiveAt,
+                                lastDayToCancel,
+                                reachedRecently,
+                            ]
+                        properties:
+                            tenantId: { type: string }
+                            subscriptionId: { type: string }
+                            status: { type: string }
+                            billingCycle: { type: string }
+                            effectiveAt: { type: string, description: 'ISO-8601: a term end' }
+                            lastDayToCancel:
+                                { type: string, description: 'ISO date, UTC: the day before' }
+                            reachedRecently:
+                                {
+                                    type: boolean,
+                                    description: 'Reached by a retirement within twelve months',
+                                }
+                skipped:
+                    type: array
+                    items:
+                        type: object
+                        required: [tenantId, subscriptionId, reason]
+                        properties:
+                            tenantId: { type: string }
+                            subscriptionId: { type: string }
+                            reason:
+                                {
+                                    type: string,
+                                    enum:
+                                        [
+                                            ended,
+                                            cancelled-before,
+                                            changes-before,
+                                            no-term,
+                                            already-told,
+                                        ],
+                                }
+                blockers:
+                    type: array
+                    description: 'Empty where it may be announced as it stands'
+                    items:
+                        type: object
+                        required: [code, message, params]
+                        properties:
+                            code: { type: string, description: 'RETIREMENT_*' }
+                            message: { type: string }
+                            params: { type: object }
+
+        RetirementAnnouncement:
+            type: object
+            required: [replacementPlanVersionId, subscriptionIds]
+            properties:
+                replacementPlanVersionId: { type: string, format: uuid }
+                subscriptionIds:
+                    type: array
+                    description: 'The subscriptions the operator was shown in the preview'
+                    items: { type: string }
+
+        VersionRetirement:
+            type: object
+            required: [id, retired, replacement, announcedAt, announcedBy]
+            properties:
+                id: { type: string }
+                retired: { $ref: '#/components/schemas/RetiredVersionRef' }
+                replacement: { $ref: '#/components/schemas/RetiredVersionRef' }
+                announcedAt: { type: string }
+                announcedBy: { type: string }
+
+        RetirementAnnounced:
+            type: object
+            required: [retirement, told, failed]
+            properties:
+                retirement: { $ref: '#/components/schemas/VersionRetirement' }
+                told: { type: integer, description: 'Notices sent at once' }
+                failed: { type: integer, description: 'Notices the next run sends' }
 
         CatalogMarketingProjectionUpdate:
             type: object

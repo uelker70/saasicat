@@ -45,6 +45,8 @@ tenantBilling:
   selfServiceBlockedPlans:
     asTarget: ['\${BLOCKED_PLAN}']
     asSource: []
+  orderlyRetirement:
+    termsConfirmed: false
 features:
   - { key: CORE }
 plans:
@@ -124,6 +126,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 7, yearly: 7 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 plans:
   - { id: BASIC, quotas: { users: 1 }, features: [] }
 `;

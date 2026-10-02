@@ -369,6 +369,7 @@ describe('where the record says the values came from', () => {
                 'tenantBilling:',
                 '  cancellationNoticeDays: { monthly: 14, yearly: 90 }',
                 '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
+                '  orderlyRetirement: { termsConfirmed: false }',
                 'plans:',
                 '  - { id: PRO, name: Pro, monthlyNet: 9, yearlyNet: 90, features: [], quotas: { users: 1 } }',
             ].join('\n'),
@@ -396,6 +397,7 @@ describe('the record is a mirror, never a source', () => {
                 tenantBilling: {
                     cancellationNoticeDays: { monthly: 99, yearly: 99 },
                     selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+                    orderlyRetirement: { termsConfirmed: false },
                 },
             }),
         );

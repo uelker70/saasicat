@@ -117,6 +117,8 @@ persistenceAdapterContract({
         'appliedSettings',
         'maintenanceWindows',
         'subscriptionNotices',
+        'versionRetirements',
+        'boundSubscriptions',
     ],
 });
 ```

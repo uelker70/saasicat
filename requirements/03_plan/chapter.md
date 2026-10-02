@@ -1295,6 +1295,23 @@ _Source:_ #357
 
 _Tested by:_
 
+- `packages/core/tests/version-sale.test.js`
+    - the sale state of a version
+        - is on sale until its last day, though a successor has superseded it
+        - stays on sale for the whole of its last day
+        - is off sale from the day after its last day
+        - is on sale from its first day before it starts
+        - is off sale, with no day, when it was superseded without a last day
+        - is not announced when it was superseded before it ever started
+        - ends at its end moment, and is on sale until the day before a midnight end
+        - reads an end at the close of a day as that day sold in full
+        - takes the earlier of a last day and an end
+        - is a draft until it is published
+    - the version on sale among several
+        - is the superseded predecessor until its successor starts, then the successor
+        - prefers the latest start, a version without one last, then the highest number
+        - is nobody when nothing is on sale
+        - is, for a listing, the next one scheduled where nothing is on sale yet
 - `packages/ui-vue/tests/available-bundle.test.js`
     - an add-on offered beside the plans
         - is offered at its version on sale, on the plans that version allows
@@ -1312,22 +1329,8 @@ _Tested by:_
         - is a draft until it is published
         - names the bundle by the version that decides its state
 - `packages/ui-vue/tests/version-sale.test.js`
-    - the sale state of a version
-        - is on sale until its last day, though a successor has superseded it
-        - stays on sale for the whole of its last day
-        - is off sale from the day after its last day
-        - is on sale from its first day before it starts
-        - is off sale, with no day, when it was superseded without a last day
-        - is not announced when it was superseded before it ever started
-        - ends at its end moment, and is on sale until the day before a midnight end
-        - reads an end at the close of a day as that day sold in full
-        - takes the earlier of a last day and an end
-        - is a draft until it is published
-    - the version on sale among several
-        - is the superseded predecessor until its successor starts, then the successor
-        - prefers the latest start, a version without one last, then the highest number
-        - is nobody when nothing is on sale
-        - is, for a listing, the next one scheduled where nothing is on sale yet
+    - the state the admin reads
+        - is the platform's, handed on
     - the words for it
         - names the day where the state has one
         - says it without a day where there is none

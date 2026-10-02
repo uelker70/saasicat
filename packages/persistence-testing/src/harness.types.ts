@@ -27,9 +27,11 @@ import type {
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
     SubscriptionNoticeRepository,
+    SubscriptionUsagePort,
     SubscriptionRepository,
     TenantSubscriptionWritePort,
     TransactionRunner,
+    VersionRetirementRepository,
 } from '@saasicat/core';
 
 /**
@@ -155,6 +157,18 @@ export interface ContractAdapterInstances {
      * record a delivery a later run is still making.
      */
     subscriptionNotices?: SubscriptionNoticeRepository;
+    /**
+     * Enables the retirement announcement scenarios: an announcement kept with
+     * both versions, when and by whom, and written in one transaction with the
+     * notices that say what it means for each subscription. A retirement whose
+     * notices could be lost would take away the cancellation right they carry.
+     */
+    versionRetirements?: VersionRetirementRepository;
+    /**
+     * Enables the scenario that lists the subscriptions bound to exactly one
+     * plan version, in every tenant — the subscriptions a retirement reaches.
+     */
+    subscriptionUsage?: SubscriptionUsagePort;
 }
 
 /** Fixture writers — implemented per adapter against its own schema. */
@@ -284,7 +298,9 @@ export type ContractGap =
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'
-    | 'subscriptionNotices';
+    | 'subscriptionNotices'
+    | 'versionRetirements'
+    | 'boundSubscriptions';
 
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */

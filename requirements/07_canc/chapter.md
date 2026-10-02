@@ -504,3 +504,31 @@ and a run that repeats sends no reminder twice. Each reminder sent is part of th
 (`SC-PRIV-017`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-CANC-023 — A retirement lets a subscription cancel without notice until it takes effect
+
+🟢 💰 Neither the notice period nor a minimum term holds it: those are the terms the operator is
+changing. A cancellation declared by the last day the notice names lands at the end of the period
+running, and the page states that date before the customer confirms. Once the subscription has left
+the retired version — a newer version taken — or the retirement has taken effect, notice and term
+apply again.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-lets-a-subscriber-leave-without-notice.test.js`
+    - a subscription a retirement reaches
+        - is shown the retirement it was told of
+        - is offered to leave at the end of the period it is in, without notice or minimum term
+        - is cancelled for that date when it confirms
+        - once the retirement has taken effect, owes notice and term again
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the retirement that reaches a subscription
+        - is what the subscriber was told, until it takes effect
+        - is none once the subscription has left the retired version
+        - is none for a subscription told only of an offer
+
+<!-- END proof -->

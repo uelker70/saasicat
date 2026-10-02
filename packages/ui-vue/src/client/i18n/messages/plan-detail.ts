@@ -63,6 +63,11 @@ export const planDetailMessages = defineMessages(
             endsAtBadge: 'Endet {date}',
             changeEndDateAction: 'Enddatum…',
             terminateAction: 'Terminieren…',
+            retireAction: 'Stilllegen…',
+            retireTitle: 'Version für laufende Abonnements stilllegen',
+            retiredChip: 'Stillgelegt → {planKey} v{version}',
+            retiredTitle: 'Angekündigt am {date} von {by}',
+            retirementsUnreadable: 'Die Stilllegungen konnten nicht gelesen werden: {error}',
             empty: 'Noch keine Versionen — „Neue Draft-Version" oben rechts.',
             publish: 'Publish',
             viewDiff: 'Diff',
@@ -131,6 +136,46 @@ export const planDetailMessages = defineMessages(
                 'Backend unterstützt Terminate noch nicht — bitte API-Server neu bauen.',
             errorFailed: 'Terminate fehlgeschlagen.',
         },
+        retireDialog: {
+            title: 'v{version} stilllegen',
+            intro: 'Die Abonnements auf v{version} von {planKey} wechseln auf die Version, die hier gewählt wird — jeweils zum ersten Laufzeitende, das mindestens drei Monate nach der Ankündigung liegt. Bis dahin können sie ohne Frist kündigen. Jedes Abonnement wird benachrichtigt.',
+            planLabel: 'Weiter auf Plan',
+            noVersionOnSale: '{planKey} hat keine Version im Verkauf.',
+            replacement: 'Ersatz: {planKey} v{version}',
+            priceMonthly: 'Monatlich',
+            priceYearly: 'Jährlich',
+            priceChange: '{from} → {to}',
+            notSold: 'nicht angeboten',
+            otherChanges: 'Dazu {count} Änderungen an Features oder Kontingenten.',
+            reachedTitle: 'Erreicht {count} Abonnements',
+            dateRow: '{count} wechseln am {date} — ohne Frist kündbar bis {lastDay}',
+            skippedTitle: 'Nicht erreicht',
+            skipped: {
+                ended: '{count} beendet',
+                cancelledBefore: '{count} gekündigt, die Kündigung wirkt vorher',
+                changesBefore: '{count} wechseln vorher Plan oder Version',
+                noTerm: '{count} ohne erkennbare Laufzeit',
+                alreadyTold:
+                    '{count} schon durch eine frühere Stilllegung dieser Version benachrichtigt',
+            },
+            blockers: {
+                RETIREMENT_VERSION_ON_SALE:
+                    'v{version} von {planKey} ist noch im Verkauf. Beende zuerst den Verkauf, damit sie nach der Ankündigung niemand mehr bucht.',
+                RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+                    'v{version} von {planKey} ist nicht im Verkauf, Abonnements können darauf nicht weiterlaufen.',
+                RETIREMENT_NOTHING_AFFECTED:
+                    'Kein laufendes Abonnement ist auf v{version} von {planKey} — es gibt niemanden zu benachrichtigen.',
+                RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
+                    '{count} dieser Abonnements werden in einem Rhythmus abgerechnet, für den v{version} von {planKey} keinen Preis hat — sie können darauf nicht weiterlaufen.',
+                RETIREMENT_WITHIN_TWELVE_MONTHS:
+                    '{count} dieser Abonnements wurden in den letzten zwölf Monaten schon von einer Stilllegung erreicht. Ein Abonnement wird höchstens einmal im Jahr erreicht.',
+            },
+            announce: 'Ankündigen',
+            mfa: 'v{version} von {planKey} für laufende Abonnements stilllegen.',
+            previewChanged:
+                'Die erreichten Abonnements haben sich geändert. Bitte die aktualisierte Vorschau prüfen und erneut ankündigen.',
+            done: 'Angekündigt. {told} Abonnements benachrichtigt, {failed} werden beim nächsten Lauf erneut versucht.',
+        },
     },
     {
         header: {
@@ -193,6 +238,11 @@ export const planDetailMessages = defineMessages(
             endsAtBadge: 'Ends {date}',
             changeEndDateAction: 'End date…',
             terminateAction: 'Terminate…',
+            retireAction: 'Retire…',
+            retireTitle: 'Retire this version for running subscriptions',
+            retiredChip: 'Retired → {planKey} v{version}',
+            retiredTitle: 'Announced on {date} by {by}',
+            retirementsUnreadable: 'The retirements could not be read: {error}',
             empty: 'No versions yet — use “New draft version” at the top right.',
             publish: 'Publish',
             viewDiff: 'Diff',
@@ -260,6 +310,45 @@ export const planDetailMessages = defineMessages(
             errorNotImplemented:
                 'The backend does not support terminate yet — please rebuild the API server.',
             errorFailed: 'Terminate failed.',
+        },
+        retireDialog: {
+            title: 'Retire v{version}',
+            intro: 'The subscriptions on v{version} of {planKey} move to the version chosen here, each at the first end of a term at least three months after the announcement. Until then they may cancel without notice. Every subscription is told.',
+            planLabel: 'Continue on plan',
+            noVersionOnSale: '{planKey} has no version on sale.',
+            replacement: 'Replacement: {planKey} v{version}',
+            priceMonthly: 'Monthly',
+            priceYearly: 'Yearly',
+            priceChange: '{from} → {to}',
+            notSold: 'not sold',
+            otherChanges: 'Plus {count} changes to features or quotas.',
+            reachedTitle: 'Reaches {count} subscriptions',
+            dateRow: '{count} move on {date} — may cancel without notice until {lastDay}',
+            skippedTitle: 'Not reached',
+            skipped: {
+                ended: '{count} ended',
+                cancelledBefore: '{count} cancelled, landing before then',
+                changesBefore: '{count} move to another plan or version before then',
+                noTerm: '{count} without a term to count from',
+                alreadyTold: '{count} already told by an earlier retirement of this version',
+            },
+            blockers: {
+                RETIREMENT_VERSION_ON_SALE:
+                    'v{version} of {planKey} is still on sale. End its sale first, so nobody books it after the announcement.',
+                RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+                    'v{version} of {planKey} is not on sale, so subscriptions cannot continue on it.',
+                RETIREMENT_NOTHING_AFFECTED:
+                    'No running subscription is on v{version} of {planKey}, so there is nobody to tell.',
+                RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
+                    '{count} of these subscriptions are billed in a rhythm v{version} of {planKey} has no price for, so they cannot continue on it.',
+                RETIREMENT_WITHIN_TWELVE_MONTHS:
+                    '{count} of these subscriptions were reached by a retirement within the last twelve months. A subscription is reached at most once a year.',
+            },
+            announce: 'Announce',
+            mfa: 'Retire v{version} of {planKey} for running subscriptions.',
+            previewChanged:
+                'The subscriptions it reaches have changed. Check the updated preview and announce again.',
+            done: 'Announced. {told} subscriptions told, {failed} to be tried again by the next run.',
         },
     },
 );

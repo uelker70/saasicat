@@ -27,10 +27,19 @@
 // adapters, check the configuration, assemble.
 
 import { type DynamicModule, Logger, Module, type Provider } from '@nestjs/common';
-import type { AuditPort, MfaPort, PlanCatalog, RlsBypassPort, SecretSealer } from '@saasicat/core';
+import type {
+    AuditPort,
+    MfaPort,
+    PlanCatalog,
+    PlanCatalogSettings,
+    RlsBypassPort,
+    SecretSealer,
+} from '@saasicat/core';
 
 import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
+import { retirementTermsConfirmed } from '../billing/version-retirement.service.js';
 import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 
 import {
@@ -55,6 +64,7 @@ import {
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
+import { servesVersionRetirements } from './compose/version-retirement.js';
 import { composeTenantManifest } from './compose/tenant-manifest.js';
 import { composeEnforcementRuntime, resolvePlanResolution } from './compose/enforcement-runtime.js';
 import {
@@ -198,19 +208,28 @@ export class SaaSiCatModule {
         const lightweightProviders: Provider[] = [...maintenanceGuardProviders(composition)];
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
         if (options.autoManifest !== false) {
-            const contribution = buildStandardManifestContribution(
-                catalogConfig,
-                adminResourcesConfig,
-                promoCodesConfig,
-                servesSubscriberAccounts(options),
-            );
+            const subscriberAccounts = servesSubscriberAccounts(options);
+            const versionRetirements = servesVersionRetirements(composition);
             lightweightProviders.push({
                 provide: STANDARD_MANIFEST_REGISTRATION_TOKEN,
-                useFactory: (manifest: AdminManifestService) => {
+                // Retiring is offered only where the operator's terms are
+                // confirmed to allow it, which `config/saas.yaml` says once it
+                // is read — not when the module is defined.
+                useFactory: (manifest: AdminManifestService, settings: PlanCatalogSettings) => {
+                    const contribution = buildStandardManifestContribution(
+                        catalogConfig,
+                        adminResourcesConfig,
+                        promoCodesConfig,
+                        {
+                            subscriberAccounts,
+                            versionRetirements:
+                                versionRetirements && retirementTermsConfirmed(settings),
+                        },
+                    );
                     manifest.register(contribution);
                     return contribution;
                 },
-                inject: [AdminManifestService],
+                inject: [AdminManifestService, PLAN_CATALOG_SETTINGS_TOKEN],
             });
         }
         // The static enforcement stack — what makes `@RequireFeature` and

@@ -29,6 +29,7 @@ const planCatalog = {
     tenantBilling: {
         cancellationNoticeDays: { monthly: 0, yearly: 0 },
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        orderlyRetirement: { termsConfirmed: false },
     },
     plans: [],
 };
@@ -137,6 +138,7 @@ describe('SaaSiCatModule persistence bundle', () => {
                     'tenantBilling:',
                     '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
                     '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
+                    '  orderlyRetirement: { termsConfirmed: false }',
                 ].join('\n'),
             );
             let loads = 0;

@@ -448,6 +448,17 @@ export interface SubscriptionUsageRecord {
     pendingPlan: string | null;
     pendingBillingCycle: string | null;
     pendingEffectiveAt: Date | null;
+    /**
+     * The version a scheduled change binds when it lands, where it names one —
+     * a newer version taken for the end of the term, or the version a change
+     * to another plan was quoted at. Read where it matters whether the
+     * subscription stays on its version: a change on the same plan in the same
+     * rhythm is otherwise indistinguishable from staying put.
+     *
+     * Optional, because an adapter written before it does not pass it through;
+     * both shipped adapters do.
+     */
+    pendingChangeVersionId?: string | null;
     planVersion: {
         id: string;
         planId: string;
@@ -497,6 +508,16 @@ export interface SubscriptionUsagePort {
         planKey: string,
         version: number,
     ): Promise<TenantSubscriptionUsage[]>;
+    /**
+     * Every subscription, in every tenant, bound to the plan version
+     * `planVersionId`, whatever its status. The platform reads it to find the
+     * subscriptions a retirement reaches, inside the RLS bypass, and decides
+     * itself which of them are still running.
+     *
+     * Optional, so a port written before it keeps working; a retirement over a
+     * port without it is refused at start-up.
+     */
+    listBoundToVersion?(planVersionId: string): Promise<TenantSubscriptionUsage[]>;
 }
 
 /**

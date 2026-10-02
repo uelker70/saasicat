@@ -48,6 +48,7 @@ import {
     usePromotions,
     useTenants,
     usersResource,
+    versionRetirementsResource,
 } from '../dist/index.js';
 
 const ADMIN_ENDPOINT = '/api/v1/admin';
@@ -765,6 +766,8 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     settings: Object.keys(settingsResource.ops),
     // The same for maintenance windows: `tests/maintenance-resource.test.js`.
     maintenance: Object.keys(maintenanceResource.ops),
+    // And for retiring a version: `tests/version-retirements-resource.test.js`.
+    versionRetirements: Object.keys(versionRetirementsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
     // `charges` is platform-served with no admin-client twin, like the

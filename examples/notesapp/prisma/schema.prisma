@@ -1326,6 +1326,28 @@ model SubscriptionNotice {
 }
 
 // =============================================================================
+// VersionRetirement — every retirement an operator announces (18-version-retirement.prisma)
+// =============================================================================
+
+model VersionRetirement {
+    id String @id @default(uuid())
+
+    retiredPlanVersionId String
+    retiredPlanKey       String
+    retiredVersion       Int
+
+    replacementPlanVersionId String
+    replacementPlanKey       String
+    replacementVersion       Int
+
+    announcedAt DateTime @default(now())
+    announcedBy String
+
+    @@index([retiredPlanVersionId])
+    @@map("version_retirements")
+}
+
+// =============================================================================
 // Subscriber — the party a contract is concluded with (13-subscriber.prisma)
 // =============================================================================
 

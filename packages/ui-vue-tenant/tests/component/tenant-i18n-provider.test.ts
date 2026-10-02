@@ -57,6 +57,7 @@ const usage: UsageSnapshotShape = {
         noticeDeadline: null,
         afterNoticeDeadline: false,
     },
+    retirement: null,
     checkoutOfferId: null,
 };
 

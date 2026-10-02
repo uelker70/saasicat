@@ -8,49 +8,17 @@
         </div>
         <p class="sp-version-offer__lead">{{ lead }}</p>
 
-        <div class="sp-version-offer__scroll">
-            <table class="sp-version-offer__table">
-                <caption class="sp-version-offer__caption">
-                    {{
-                        i18n.versionOfferCaption
-                    }}
-                </caption>
-                <thead>
-                    <tr>
-                        <th scope="col">{{ i18n.versionOfferColumnItem }}</th>
-                        <th scope="col">
-                            {{ i18n.versionOfferColumnBound.replace('{version}', boundVersion) }}
-                        </th>
-                        <th scope="col">
-                            {{
-                                i18n.versionOfferColumnOffered.replace('{version}', offeredVersion)
-                            }}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="row in prices" :key="row.rhythm">
-                        <th scope="row">{{ priceLabel(row.rhythm) }}</th>
-                        <td>{{ priceText(row.bound) }}</td>
-                        <td>{{ priceText(row.offered) }}</td>
-                    </tr>
-                    <tr v-for="row in quotas" :key="row.key">
-                        <th scope="row">{{ quotaLabel(row.key) }}</th>
-                        <td>{{ formatQuotaValue(row.key, row.bound) }}</td>
-                        <td>{{ formatQuotaValue(row.key, row.offered) }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <p v-if="features.added.length > 0" class="sp-version-offer__features">
-            <strong>{{ i18n.versionOfferFeaturesAdded }}:</strong>
-            {{ features.added.map(featureLabel).join(', ') }}
-        </p>
-        <p v-if="features.removed.length > 0" class="sp-version-offer__features">
-            <strong>{{ i18n.versionOfferFeaturesRemoved }}:</strong>
-            {{ features.removed.map(featureLabel).join(', ') }}
-        </p>
+        <VersionComparison
+            :bound="offer.bound"
+            :other="offer.offered"
+            :caption="i18n.versionOfferCaption"
+            :bound-heading="i18n.versionOfferColumnBound.replace('{version}', boundVersion)"
+            :other-heading="i18n.versionOfferColumnOffered.replace('{version}', offeredVersion)"
+            :format-currency="formatCurrency"
+            :quota-label="quotaLabel"
+            :feature-label="featureLabel"
+            :format-quota-value="formatQuotaValue"
+        />
 
         <p class="sp-version-offer__effective">{{ effectiveText }}</p>
         <p class="sp-version-offer__note">{{ i18n.versionOfferNoAction }}</p>
@@ -102,13 +70,8 @@ import type { VersionOfferView } from '@saasicat/core';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
-import {
-    offerAsksFirst,
-    offerFeatureChanges,
-    offerPriceRows,
-    offerQuotaRows,
-    offerTone,
-} from './version-offer-comparison.js';
+import VersionComparison from './VersionComparison.vue';
+import { offerAsksFirst, offerTone } from './version-offer-comparison.js';
 
 const props = defineProps<{
     offer: VersionOfferView;
@@ -129,9 +92,6 @@ const confirming = ref(false);
 
 const offeredVersion = computed(() => String(props.offer.offered.version));
 const boundVersion = computed(() => String(props.offer.bound.version));
-const prices = computed(() => offerPriceRows(props.offer));
-const quotas = computed(() => offerQuotaRows(props.offer));
-const features = computed(() => offerFeatureChanges(props.offer));
 const tone = computed(() => offerTone(props.offer.class));
 
 const kindLabel = computed(() => {
@@ -163,16 +123,6 @@ const confirmBody = computed(() =>
 const takeLabel = computed(() =>
     i18n.value.versionOfferTakeAction.replace('{version}', offeredVersion.value),
 );
-
-function priceLabel(rhythm: 'MONTHLY' | 'YEARLY'): string {
-    return rhythm === 'MONTHLY'
-        ? i18n.value.versionOfferPriceMonthly
-        : i18n.value.versionOfferPriceYearly;
-}
-
-function priceText(net: number | null): string {
-    return net === null ? i18n.value.versionOfferNotSold : props.formatCurrency(net);
-}
 
 function onTake(): void {
     if (offerAsksFirst(props.offer.class)) {
@@ -211,7 +161,6 @@ function confirm(): void {
     color: var(--sa-color-fg-heading);
 }
 .sp-version-offer__lead,
-.sp-version-offer__features,
 .sp-version-offer__effective {
     margin: 0;
     color: var(--sa-color-fg-body);
@@ -220,35 +169,6 @@ function confirm(): void {
     margin: 0;
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
-}
-/* Scrolls rather than being cut off where three columns do not fit. */
-.sp-version-offer__scroll {
-    overflow-x: auto;
-}
-.sp-version-offer__table {
-    width: 100%;
-    border-collapse: collapse;
-    font-variant-numeric: tabular-nums;
-}
-.sp-version-offer__caption {
-    caption-side: top;
-    text-align: start;
-    padding-bottom: var(--sa-space-2);
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-secondary);
-}
-.sp-version-offer__table th,
-.sp-version-offer__table td {
-    padding: var(--sa-space-2) var(--sa-space-4);
-    border-bottom: 1px solid var(--sa-color-border-soft);
-    text-align: start;
-}
-.sp-version-offer__table thead th {
-    font-weight: 600;
-    color: var(--sa-color-fg-secondary);
-}
-.sp-version-offer__table tbody th {
-    font-weight: 500;
 }
 .sp-version-offer__actions {
     display: flex;

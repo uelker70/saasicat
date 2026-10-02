@@ -119,14 +119,18 @@ tenantBilling:
     selfServiceBlockedPlans:
         asTarget: []
         asSource: []
+    orderlyRetirement:
+        termsConfirmed: false
 marketing:
     availableLocales: [de, en]
 ```
 
-`tenantBilling:` is required, member by member — the notice period per rhythm and
-the plans self-service may not reach or leave. Both have a money or a legal
+`tenantBilling:` is required, member by member — the notice period per rhythm, the
+plans self-service may not reach or leave, and whether your terms allow you to retire
+a version for the subscriptions already on it. Each has a money or a legal
 consequence, so the file states them rather than defaulting them; see
-[the settings section of the upgrade guide](upgrade-to-1.0.md#the-settings-that-cost-money-live-in-configsaasyaml).
+[the settings section of the upgrade guide](upgrade-to-1.0.md#the-settings-that-cost-money-live-in-configsaasyaml)
+and [Retiring a Version for Running Subscriptions](#retiring-a-version-for-running-subscriptions).
 
 > `features:` and `plans:` are still allowed as optional blocks in the schema —
 > only for static setups without an admin UI (tests, smoke environments).
@@ -914,8 +918,13 @@ export class VersionNoticeMailer implements SubscriptionNoticePort {
     async deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery> {
         const admins = await this.users.activeAdministratorsOf(notice.tenantId);
         for (const admin of admins) {
-            // `notice.offer`: both versions side by side, the kind of offer, when a switch takes effect.
-            await this.mail.send(admin.email, 'plan-version-offered', { offer: notice.offer });
+            if (notice.kind === 'version-offered') {
+                // Both versions side by side, the kind of offer, when a switch takes effect.
+                await this.mail.send(admin.email, 'plan-version-offered', { offer: notice.offer });
+            } else {
+                // A retirement: see "Retiring a Version for Running Subscriptions" below.
+                await this.mail.send(admin.email, 'plan-version-retired', { retirement: notice });
+            }
         }
         return { recipients: admins.map((admin) => admin.email), channel: 'email' };
     }
@@ -958,6 +967,63 @@ as well — without them the platform cannot find whom to tell.
 - **Across tenants.** A run reads every tenant's subscription and writes the record inside
   `RlsBypassPort`, and your port is called inside it too, so it can read the administrators of any
   tenant.
+
+## Retiring a Version for Running Subscriptions
+
+A subscription keeps its version (`SC-SUB-024`). Sometimes an operator cannot keep a version
+running — it costs more to serve than it brings in, or a whole plan is being phased out. Retiring a
+version is the orderly way out: the subscriptions on it are told that they continue on a
+replacement the operator names, each at the end of one of its terms at least three calendar months
+away (`SC-SUB-027`), and may leave without notice until then (`SC-CANC-023`). A price increase is a
+retirement whose replacement costs more: publish the new version first, let it start, then retire
+the old one.
+
+**It rests on your terms.** A customer agreed to a version; moving them to another needs a clause in
+the terms they accepted. Confirm that your terms carry one, and only then:
+
+```yaml
+tenantBilling:
+    orderlyRetirement:
+        termsConfirmed: true
+```
+
+Without it the administration does not offer the action, and the server refuses it with
+`RETIREMENT_TERMS_NOT_CONFIRMED`. The setting is a business setting like the notice periods: the
+settings page shows it, and a change to it is recorded and reported (`SC-CFG-009`).
+
+**Wiring.** It needs version notices (the section above) and a place to keep each announcement.
+Adopt `prisma-fragments/18-version-retirement.prisma` and run
+`sql/1.0-a-retirement-is-announced.postgres.sql` once; both shipped bundles then provide
+`persistence.tenantBilling.versionRetirements`, and the platform writes on its own transaction
+runner. Confirmed terms with nowhere to keep an announcement refuse the start, naming the setting.
+A `SubscriptionUsagePort` of your own needs `listBoundToVersion` — both shipped adapters have it —
+and has to return each subscription's `pendingChangeVersionId` with it: without it, a subscriber
+who took a newer version's offer is reached as if they stayed.
+
+**What the operator does.** In the plan cockpit, a version no longer on sale offers "Retire…". The
+operator picks the plan the subscriptions continue on — its version on sale is the replacement, of
+the same plan or another — and reads the preview before anything is sent: the replacement's prices
+beside the retired version's, how many subscriptions move on which date, and the ones it does not
+reach and why (`SC-SUB-026`). The announcement asks for the second factor, and it is refused where
+the version is still on sale, the replacement is not or has no price in the rhythm a subscription is
+billed in, nobody would be reached, or a subscription was reached by another retirement within
+twelve months (`SC-SUB-025`, `SC-SUB-028`). The routes are
+`GET` and `POST /admin/catalog/plan-versions/:id/retirement` and `GET /admin/catalog/version-retirements`.
+
+**What your port is handed.** One `version-retired` notice per subscription, recorded with the
+announcement in one transaction and then sent through the same `SubscriptionNoticePort` as an offer
+(`SC-SUB-029`). It carries both versions side by side with their prices, quotas and features
+(`retired`, `replacement`, `changes`), the `billingCycle` it is billed in when the retirement takes
+effect, the `effectiveAt` instant and `lastDayToCancel` — the last whole calendar day, in UTC,
+before that instant, on which it may cancel without notice. A notice your port could not send is
+sent by the next quarter-hourly run. A subscription hears of a version's retirement once: a second
+announcement of the same version skips the ones the first one told. The tenant's plan section
+shows the same notice beside the plan (`SC-SUB-030`).
+
+What it does not do yet: move the subscriptions at the effective date. Until a later release does,
+a retirement announces, records, tells and opens the cancellation right, and the subscriptions stay
+on the retired version — while the notice tells them they continue on the replacement. **Keep
+`termsConfirmed: false` until the release that moves them.**
 
 ## Admin Module
 

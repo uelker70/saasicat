@@ -60,6 +60,7 @@ test('planCatalog accepts minimal valid catalog', () => {
         tenantBilling: {
             cancellationNoticeDays: { monthly: 0, yearly: 0 },
             selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+            orderlyRetirement: { termsConfirmed: false },
         },
         plans: [
             {

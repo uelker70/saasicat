@@ -15,6 +15,7 @@
 // notification cron, TrialExpirationService.
 
 export * from './billing-period.js';
+export * from './retirement-reach.js';
 export * from './bundle-period.js';
 export * from './bundle-price.js';
 export * from './cancellation.js';
@@ -72,6 +73,15 @@ export * from './version-offer.service.js';
 export * from './version-switch.service.js';
 export { VersionNoticeService, type VersionNoticeRun } from './version-notice.service.js';
 export { VersionNoticeCron } from './version-notice.cron.js';
+export {
+    VersionRetirementService,
+    type RetirementNoticeRun,
+} from './version-retirement.service.js';
+export {
+    VersionRetirementAdminModule,
+    type VersionRetirementAdminModuleOptions,
+} from './version-retirement-admin.module.js';
+export * from './dto/version-retirement.dto.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';

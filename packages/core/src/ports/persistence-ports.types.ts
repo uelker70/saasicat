@@ -52,6 +52,7 @@ import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog
 import type { AppliedSettingsPort } from './settings-ports.types.js';
 import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
 import type { SubscriptionNoticeRepository } from './subscription-notice-ports.types.js';
+import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -180,6 +181,12 @@ export interface SaaSiCatPersistenceTenantBilling {
      * that turns notices on without one is refused at start-up.
      */
     subscriptionNotices?: PersistenceProvider<SubscriptionNoticeRepository>;
+    /**
+     * The record of every retirement announcement. Optional so an adapter
+     * written before it keeps working; an installation that lets an operator
+     * retire versions without one is refused at start-up.
+     */
+    versionRetirements?: PersistenceProvider<VersionRetirementRepository>;
 }
 
 /**
