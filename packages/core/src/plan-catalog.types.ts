@@ -110,9 +110,19 @@ export interface SelfServiceBlockedPlans {
  * passed it in code" attached. The file is read at boot, so an edit lands on
  * the next restart.
  */
+/**
+ * Whether the operator may retire a plan version for the subscriptions already
+ * on it. It reaches contracts customers have made, so it rests on a clause in
+ * the operator's terms; `termsConfirmed` states that they carry it.
+ */
+export interface OrderlyRetirementSettings {
+    termsConfirmed: boolean;
+}
+
 export interface PlanCatalogTenantBilling {
     cancellationNoticeDays: CancellationNoticePeriods;
     selfServiceBlockedPlans: SelfServiceBlockedPlans;
+    orderlyRetirement: OrderlyRetirementSettings;
 }
 
 /**

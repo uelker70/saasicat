@@ -94,6 +94,22 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
         );
     }
 
+    /** Two reads whatever the number of subscriptions: the version, and the subscriptions on it. */
+    async listBoundToVersion(planVersionId: string): Promise<TenantSubscriptionUsage[]> {
+        const planVersion = await this.planVersions().findUnique({ where: { id: planVersionId } });
+        if (!planVersion) return [];
+        const subscriptions = await this.subscriptions().findMany({
+            where: { planVersionId },
+            orderBy: { id: 'asc' },
+        });
+        return Promise.all(
+            subscriptions.map(async (subscription) => ({
+                tenantId: subscription.tenantId,
+                subscription: await this.toRecord(subscription, planVersion),
+            })),
+        );
+    }
+
     private async toRecord(
         subscription: SubscriptionRowLike,
         planVersion: PlanVersionRowLike,
@@ -124,6 +140,7 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             pendingPlan: subscription.pendingPlan,
             pendingBillingCycle: subscription.pendingBillingCycle ?? null,
             pendingEffectiveAt: subscription.pendingEffectiveAt,
+            pendingChangeVersionId: subscription.pendingChangeVersionId ?? null,
             planVersion: planVersionRecord,
             packageSnapshot: subscription.packageSnapshot ?? null,
             checkoutOfferId: subscription.checkoutOfferId ?? null,

@@ -158,6 +158,7 @@
                 :audit-rows="auditRows"
                 :loading-audit="loadingAudit"
                 :submit-terminate="onSubmitTerminate"
+                :retirement="retirement"
                 @create-draft="openCreateDraft"
                 @edit-draft="openEditDraft"
                 @publish="openPublish"
@@ -227,7 +228,12 @@ import { providePlanWizard, type PlanDraftEditing } from '../vue/plan-wizard.js'
 import { PLAN_STEP_META, providePlanArea } from '../features/plan/plan-area-context.js';
 import type { EditorFormPayload } from '../features/plan/plan-area-context.js';
 import { useResource } from '../vue/resource-registry.js';
-import { useSuperAdminEndpoints, useSuperAdminHttp } from '../vue/use-super-admin-context.js';
+import {
+    useSuperAdminEndpoints,
+    useSuperAdminHttp,
+    useSuperAdminManifest,
+} from '../vue/use-super-admin-context.js';
+import { useVersionRetirement } from '../vue/use-version-retirement.js';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import { countPlans, resolvePlans } from '../client/resolve-plans.js';
@@ -438,6 +444,16 @@ const {
 type Mode = 'list' | 'matrix' | 'cockpit';
 const mode = ref<Mode>('list');
 const selectedPlan = ref<PlanRow | null>(null);
+// Retiring a version for the subscriptions on it, where the platform serves it.
+const shellManifest = useSuperAdminManifest();
+const retirement = useVersionRetirement({
+    plan: selectedPlan,
+    manifest: computed(() => shellManifest),
+    plans: useResource('plans'),
+    versions: useResource('planVersions'),
+    retirements: useResource('versionRetirements'),
+    mfa,
+});
 
 // Synthetic (not yet persisted) PlanVersion from the editor form that the
 // review screen displays. Persisted only on a review

@@ -15,6 +15,7 @@ import { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
 import { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 import { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
+import { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
 import { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
 import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
 import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
@@ -190,6 +191,10 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             subscriptionNotices: unless(
                 'tenantBilling.subscriptionNotices',
                 provide((client) => new DrizzleSubscriptionNoticeRepository(client)),
+            ),
+            versionRetirements: unless(
+                'tenantBilling.versionRetirements',
+                provide((client) => new DrizzleVersionRetirementRepository(client)),
             ),
         },
         promo: {

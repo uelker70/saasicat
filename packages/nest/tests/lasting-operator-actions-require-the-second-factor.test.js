@@ -28,6 +28,8 @@ const LASTING = [
     'DELETE admin/catalog/plans/:id/purge',
     'POST admin/catalog/bundle-versions/:id/publish',
     'POST admin/catalog/plan-versions/:id/publish',
+    // Running contracts continue on another version.
+    'POST admin/catalog/plan-versions/:id/retirement',
     'POST admin/catalog/plan-versions/:id/terminate',
     // Every tenant locked out at once, and let back in (`SC-ADM-029`).
     'POST admin/maintenance/lock',

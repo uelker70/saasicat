@@ -20,6 +20,7 @@
 --   prisma-fragments/15-subscriber-ledger.prisma
 --   prisma-fragments/16-maintenance-window.prisma
 --   prisma-fragments/17-subscription-notice.prisma
+--   prisma-fragments/18-version-retirement.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -735,6 +736,21 @@ CREATE TABLE "subscription_notices" (
     CONSTRAINT "subscription_notices_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "version_retirements" (
+    "id" TEXT NOT NULL,
+    "retiredPlanVersionId" TEXT NOT NULL,
+    "retiredPlanKey" TEXT NOT NULL,
+    "retiredVersion" INTEGER NOT NULL,
+    "replacementPlanVersionId" TEXT NOT NULL,
+    "replacementPlanKey" TEXT NOT NULL,
+    "replacementVersion" INTEGER NOT NULL,
+    "announcedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "announcedBy" TEXT NOT NULL,
+
+    CONSTRAINT "version_retirements_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -977,6 +993,9 @@ CREATE INDEX "subscription_notices_kind_subject_idx" ON "subscription_notices"("
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subscription_notices_subscriptionId_kind_subject_key" ON "subscription_notices"("subscriptionId", "kind", "subject");
+
+-- CreateIndex
+CREATE INDEX "version_retirements_retiredPlanVersionId_idx" ON "version_retirements"("retiredPlanVersionId");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

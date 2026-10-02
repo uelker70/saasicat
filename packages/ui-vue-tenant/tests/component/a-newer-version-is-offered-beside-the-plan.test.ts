@@ -93,6 +93,7 @@ function aSubscription(overrides: Record<string, unknown> = {}) {
         limits: { plan: 'STANDARD', quotas: { users: 5, vehicles: 100 }, features: ['DASHBOARD'] },
         usage: { users: 3 },
         packageSnapshot: null,
+        retirement: null,
         checkoutOfferId: null,
         ...overrides,
     };

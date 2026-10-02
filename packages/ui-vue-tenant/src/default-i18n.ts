@@ -50,6 +50,12 @@ export interface TenantPlanSectionI18n {
     cancelConfirmBody: string;
     cancelConfirmLate: string;
     cancelConfirmAction: string;
+    /**
+     * Said in the confirmation while a retirement is on its way: no notice
+     * applies until the day before it takes effect. `{version}` is the version
+     * retired, `{date}` that last day.
+     */
+    cancelConfirmRetirement: string;
     usageTitle: string;
     /** #18 — feature / scope-of-services matrix (included + locked). */
     featuresOverviewTitle: string;
@@ -137,6 +143,16 @@ export interface TenantPlanSectionI18n {
     versionOfferSwitchScheduled: string;
     /** A scheduled change that keeps the plan and the rhythm: a newer version taken for the end of the term. */
     pendingVersionSwitch: string;
+    /** A retirement's heading; `{version}` is the version being retired. */
+    versionRetiredTitle: string;
+    /** `{date}` is when it takes effect, `{plan}` and `{version}` the replacement. */
+    versionRetiredLead: string;
+    versionRetiredCaption: string;
+    /** The replacement's column; `{date}` is when it takes effect, `{version}` its version. */
+    versionRetiredColumnReplacement: string;
+    /** `{date}` is the last day a cancellation needs no notice. */
+    versionRetiredCancel: string;
+    versionRetiredNoAction: string;
     wizardTitle: string;
     wizardClose: string;
     wizardCurrent: string;
@@ -343,6 +359,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     cancelConfirmLate:
         'Die Kündigungsfrist für die laufende Periode ist am {deadline} abgelaufen. Die Kündigung wird deshalb erst zum {date} wirksam.',
     cancelConfirmAction: 'Zum {date} kündigen',
+    cancelConfirmRetirement:
+        'Weil Version {version} Ihres Pakets eingestellt wird, gilt bis einschließlich {date} keine Kündigungsfrist.',
     usageTitle: 'Verbrauch',
     featuresOverviewTitle: 'Leistungsumfang',
     featuresActive: 'Enthalten',
@@ -430,6 +448,15 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     versionOfferSwitchedNow: 'Sie nutzen jetzt Version {version}.',
     versionOfferSwitchScheduled: 'Der Wechsel zu Version {version} ist zum {date} vorgemerkt.',
     pendingVersionSwitch: 'Neue Version vorgemerkt',
+    versionRetiredTitle: 'Version {version} Ihres Pakets wird eingestellt',
+    versionRetiredLead:
+        'Ab dem {date} läuft Ihr Abonnement auf {plan} (Version {version}) weiter, zu den Bedingungen dieser Version.',
+    versionRetiredCaption: 'Ihre Version und die, auf der Ihr Abonnement weiterläuft',
+    versionRetiredColumnReplacement: 'Ab {date} (Version {version})',
+    versionRetiredCancel:
+        'Bis einschließlich {date} können Sie ohne Kündigungsfrist zum Ende Ihrer laufenden Periode kündigen.',
+    versionRetiredNoAction:
+        'Wenn Sie nichts tun, läuft Ihr Abonnement ab dann auf der neuen Version weiter.',
     wizardTitle: 'Paket wechseln',
     wizardClose: 'Schließen',
     wizardCurrent: 'Aktuell',
@@ -610,6 +637,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     cancelConfirmLate:
         'The notice period for the running term ended on {deadline}, so the cancellation takes effect on {date} instead.',
     cancelConfirmAction: 'Cancel as of {date}',
+    cancelConfirmRetirement:
+        'Because version {version} of your plan is being retired, no notice period applies up to and including {date}.',
     usageTitle: 'Usage',
     featuresOverviewTitle: 'Features',
     featuresActive: 'Included',
@@ -697,6 +726,15 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     versionOfferSwitchedNow: 'You are on version {version} now.',
     versionOfferSwitchScheduled: 'The switch to version {version} is scheduled for {date}.',
     pendingVersionSwitch: 'New version scheduled',
+    versionRetiredTitle: 'Version {version} of your plan is being retired',
+    versionRetiredLead:
+        'From {date}, your subscription continues on {plan} (version {version}), on that version’s terms.',
+    versionRetiredCaption: 'Your version and the one your subscription continues on',
+    versionRetiredColumnReplacement: 'From {date} (version {version})',
+    versionRetiredCancel:
+        'Up to and including {date}, you may cancel without notice, for the end of your current period.',
+    versionRetiredNoAction:
+        'If you do nothing, your subscription continues on the new version from then on.',
     wizardTitle: 'Change plan',
     wizardClose: 'Close',
     wizardCurrent: 'Current',

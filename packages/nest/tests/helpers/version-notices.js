@@ -8,6 +8,9 @@
  */
 export function noticeRecord() {
     const rows = new Map();
+    const recordedIn = [];
+    // Stable, so rows recorded at the same moment keep the order they came in.
+    const newestFirst = (list) => [...list].sort((a, b) => b.createdAt - a.createdAt);
     const keyOf = (key) => `${key.subscriptionId}|${key.kind}|${key.subject}`;
     const held = (id, claimedAt) =>
         [...rows.values()].find(
@@ -52,8 +55,45 @@ export function noticeRecord() {
                 .map((row) => row.subscriptionId);
         },
         async listForSubscription(subscriptionId) {
-            return [...rows.values()].filter((row) => row.subscriptionId === subscriptionId);
+            return newestFirst(
+                [...rows.values()].filter((row) => row.subscriptionId === subscriptionId),
+            );
         },
+        async record(notices, now, tx) {
+            recordedIn.push(tx);
+            let written = 0;
+            for (const { content, ...key } of notices) {
+                if (rows.has(keyOf(key))) continue;
+                written += 1;
+                rows.set(keyOf(key), {
+                    id: `notice-${rows.size + 1}`,
+                    ...key,
+                    content,
+                    createdAt: now,
+                    claimedAt: null,
+                    deliveredAt: null,
+                    delivery: null,
+                });
+            }
+            return written;
+        },
+        async listOfKindSince(kind, since) {
+            return newestFirst(
+                [...rows.values()].filter((row) => row.kind === kind && row.createdAt >= since),
+            );
+        },
+        async listUndelivered(kind, staleBefore) {
+            return [...rows.values()]
+                .filter(
+                    (row) =>
+                        row.kind === kind &&
+                        row.deliveredAt === null &&
+                        (row.claimedAt === null || row.claimedAt < staleBefore),
+                )
+                .sort((a, b) => a.createdAt - b.createdAt);
+        },
+        /** The transaction each `record` was given, in order. */
+        recordedIn,
     };
 }
 

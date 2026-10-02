@@ -5,11 +5,20 @@
  * card draws them.
  */
 
-import type { VersionOfferView } from '@saasicat/core';
+import type { VersionOfferSide, VersionOfferView } from '@saasicat/core';
 
 import type { BadgeTone } from '../ui/badge-tone.js';
 
 export type VersionOfferKind = VersionOfferView['class'];
+
+/**
+ * Two versions side by side: the one the subscriber has, and the other — a
+ * version offered, or the replacement a retirement announces.
+ */
+export interface VersionPair {
+    readonly bound: VersionOfferSide;
+    readonly offered: VersionOfferSide;
+}
 
 /** One rhythm's net price in both versions; `null` where a version is not sold in it. */
 export interface OfferPriceRow {
@@ -28,7 +37,7 @@ export interface OfferQuotaRow {
     offered: number;
 }
 
-export function offerPriceRows(offer: VersionOfferView): OfferPriceRow[] {
+export function offerPriceRows(offer: VersionPair): OfferPriceRow[] {
     return [
         { rhythm: 'MONTHLY', bound: offer.bound.monthlyNet, offered: offer.offered.monthlyNet },
         { rhythm: 'YEARLY', bound: offer.bound.yearlyNet, offered: offer.offered.yearlyNet },
@@ -36,7 +45,7 @@ export function offerPriceRows(offer: VersionOfferView): OfferPriceRow[] {
 }
 
 /** Every quota either version carries, the bound version's first, in their own order. */
-export function offerQuotaRows(offer: VersionOfferView): OfferQuotaRow[] {
+export function offerQuotaRows(offer: VersionPair): OfferQuotaRow[] {
     const keys = [
         ...Object.keys(offer.bound.quotas),
         ...Object.keys(offer.offered.quotas).filter((key) => !(key in offer.bound.quotas)),
@@ -49,7 +58,7 @@ export function offerQuotaRows(offer: VersionOfferView): OfferQuotaRow[] {
 }
 
 /** The features the version offered adds, and the ones it no longer has. */
-export function offerFeatureChanges(offer: VersionOfferView): {
+export function offerFeatureChanges(offer: VersionPair): {
     added: string[];
     removed: string[];
 } {

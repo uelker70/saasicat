@@ -420,6 +420,15 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - is offered on the version no longer on sale, and on no other
+        - says on a version that it was retired, and for which replacement
+        - says so where the announcements could not be read
+        - is not offered where the platform does not serve it
+        - shows the replacement, its price, the dates and whom it misses before anything is sent
+        - a blocker is said in words, and nothing can be announced
+        - announcing names the subscriptions shown, and says what was sent
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - the lock strip in the administration’s shell
         - an installation that keeps no windows is not asked about them

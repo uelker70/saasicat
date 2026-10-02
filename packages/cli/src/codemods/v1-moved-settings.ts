@@ -131,4 +131,8 @@ export const WHERE_IT_GOES: Record<string, string> = {
     selfServiceBlockedPlans:
         'config/saas.yaml → tenantBilling.selfServiceBlockedPlans — both `asTarget` and ' +
         '`asSource` are required, and `[]` is the way to say "nothing is blocked".',
+    orderlyRetirement:
+        'config/saas.yaml → tenantBilling.orderlyRetirement — `termsConfirmed` is required: ' +
+        '`true` once your terms carry the clause that allows retiring a version for running ' +
+        'subscriptions, `false` until they do.',
 };

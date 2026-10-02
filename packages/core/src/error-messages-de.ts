@@ -178,6 +178,21 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Abonnement endet, bevor diese Version wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
     VERSION_ENDS_BEFORE_SWITCH:
         'Diese Version wird nicht mehr verkauft, bevor sie wirksam würde. Ein Wechsel dorthin ist nicht möglich.',
+    RETIREMENT_TERMS_NOT_CONFIRMED:
+        'Eine Version für laufende Abonnements stillzulegen, braucht eine Klausel in deinen AGB. Setze tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml, sobald sie sie enthalten.',
+    RETIREMENT_VERSION_ON_SALE:
+        'Version {version} von {planKey} wird noch verkauft. Beende zuerst ihren Verkauf, damit sie nach der Ankündigung niemand mehr bucht.',
+    RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+        'Version {version} von {planKey} wird nicht verkauft. Abonnements können nicht auf ihr weiterlaufen.',
+    RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
+        '{count} dieser Abonnements werden in einem Rhythmus abgerechnet, für den Version {version} von {planKey} keinen Preis hat. Sie können nicht auf ihr weiterlaufen.',
+    RETIREMENT_REPLACEMENT_IS_RETIRED: 'Eine Version kann nicht ihr eigener Ersatz sein.',
+    RETIREMENT_NOTHING_AFFECTED:
+        'Kein laufendes Abonnement nutzt Version {version} von {planKey}. Es gibt niemanden zu benachrichtigen.',
+    RETIREMENT_WITHIN_TWELVE_MONTHS:
+        '{count} dieser Abonnements waren in den letzten zwölf Monaten schon von einer Stilllegung betroffen. Ein Abonnement ist höchstens einmal im Jahr betroffen.',
+    RETIREMENT_PREVIEW_CHANGED:
+        'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sieh sie dir noch einmal an, bevor du sie ankündigst.',
     SUBSCRIPTION_ENDED:
         'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
     PLAN_LOCKED:

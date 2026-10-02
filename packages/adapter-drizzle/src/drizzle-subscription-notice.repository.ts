@@ -1,15 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, isNotNull, isNull, lt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import {
+    type NoticeToRecord,
     type SubscriptionNoticeDelivery,
     type SubscriptionNoticeKey,
     type SubscriptionNoticeKind,
     type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
+    type TransactionContext,
     toSubscriptionNoticeRecord,
 } from '@saasicat/core';
-import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
+import { DRIZZLE_DB_TOKEN, type DrizzleClient, resolveDb } from './client.js';
 import { subscriptionNotices } from './schema.js';
 
 /** `SubscriptionNoticeRepository` against the canonical `subscription_notices` table. */
@@ -107,6 +109,71 @@ export class DrizzleSubscriptionNoticeRepository implements SubscriptionNoticeRe
             .from(subscriptionNotices)
             .where(eq(subscriptionNotices.subscriptionId, subscriptionId))
             .orderBy(desc(subscriptionNotices.createdAt), desc(subscriptionNotices.id));
+        return rows.map(toSubscriptionNoticeRecord);
+    }
+
+    async record(
+        notices: readonly NoticeToRecord[],
+        now: Date,
+        tx?: TransactionContext,
+    ): Promise<number> {
+        if (notices.length === 0) return 0;
+        const written = await resolveDb(this.db, tx)
+            .insert(subscriptionNotices)
+            .values(
+                notices.map(({ content, ...key }) => ({
+                    id: randomUUID(),
+                    tenantId: key.tenantId,
+                    subscriptionId: key.subscriptionId,
+                    kind: key.kind,
+                    subject: key.subject,
+                    content,
+                    createdAt: now,
+                })),
+            )
+            .onConflictDoNothing({
+                target: [
+                    subscriptionNotices.subscriptionId,
+                    subscriptionNotices.kind,
+                    subscriptionNotices.subject,
+                ],
+            })
+            .returning({ id: subscriptionNotices.id });
+        return written.length;
+    }
+
+    async listOfKindSince(
+        kind: SubscriptionNoticeKind,
+        since: Date,
+    ): Promise<SubscriptionNoticeRecord[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionNotices)
+            .where(
+                and(eq(subscriptionNotices.kind, kind), gte(subscriptionNotices.createdAt, since)),
+            )
+            .orderBy(desc(subscriptionNotices.createdAt), desc(subscriptionNotices.id));
+        return rows.map(toSubscriptionNoticeRecord);
+    }
+
+    async listUndelivered(
+        kind: SubscriptionNoticeKind,
+        staleBefore: Date,
+    ): Promise<SubscriptionNoticeRecord[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionNotices)
+            .where(
+                and(
+                    eq(subscriptionNotices.kind, kind),
+                    isNull(subscriptionNotices.deliveredAt),
+                    or(
+                        isNull(subscriptionNotices.claimedAt),
+                        lt(subscriptionNotices.claimedAt, staleBefore),
+                    ),
+                ),
+            )
+            .orderBy(asc(subscriptionNotices.createdAt), asc(subscriptionNotices.id));
         return rows.map(toSubscriptionNoticeRecord);
     }
 

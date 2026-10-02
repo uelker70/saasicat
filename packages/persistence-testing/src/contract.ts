@@ -25,9 +25,12 @@ import type {
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
+    NewVersionRetirement,
+    NoticeToRecord,
     SubscriptionNoticeKey,
     SubscriptionNoticeRepository,
     TransactionContext,
+    VersionRetirementRepository,
 } from '@saasicat/core';
 import {
     BILLING_ERROR_CODES,
@@ -455,6 +458,14 @@ const CONTRACT_GAPS: Record<
     subscriptionNotices: {
         reason: 'adapter provides no SubscriptionNoticeRepository',
         present: ({ adapter }) => Boolean(adapter.subscriptionNotices),
+    },
+    versionRetirements: {
+        reason: 'adapter provides no VersionRetirementRepository',
+        present: ({ adapter }) => Boolean(adapter.versionRetirements),
+    },
+    boundSubscriptions: {
+        reason: 'adapter provides no SubscriptionUsagePort that lists a version',
+        present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listBoundToVersion),
     },
 };
 
@@ -6493,6 +6504,260 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     );
                 },
             );
+
+            scenario(
+                'a notice recorded ahead of telling is unclaimed, and one recorded already is left as it was',
+                async (notices) => {
+                    const claimed = await notices.claim(NOTICE, CONTENT, RUN_AT, LEASE_START);
+                    const written = await notices.record(
+                        [
+                            { ...NOTICE, content: { overwritten: true } },
+                            { ...NOTICE, subscriptionId: 'sub-new', content: CONTENT },
+                        ],
+                        LATER,
+                    );
+                    const [kept] = await notices.listForSubscription('sub-told');
+                    assert.deepEqual(kept?.content, CONTENT, 'not overwritten');
+                    assert.equal(
+                        kept?.claimedAt?.toISOString(),
+                        claimed?.claimedAt?.toISOString(),
+                        'and its claim not touched',
+                    );
+                    assert.equal(written, 1, 'only the notice it recorded now is counted');
+                    assert.equal(await notices.record([], LATER), 0, 'nothing to record');
+                    const [fresh] = await notices.listForSubscription('sub-new');
+                    assert.equal(fresh?.createdAt.toISOString(), LATER.toISOString());
+                    assert.equal(fresh?.claimedAt, null);
+                    assert.equal(fresh?.deliveredAt, null);
+                },
+            );
+
+            scenario(
+                'a kind is read from an instant on, the most recent first',
+                async (notices) => {
+                    const EARLY = new Date('2026-10-01T00:00:00.000Z');
+                    const retired = (subject: string): NoticeToRecord => ({
+                        ...NOTICE,
+                        kind: 'version-retired',
+                        subject,
+                        content: CONTENT,
+                    });
+                    await notices.record([retired('ret-1')], EARLY);
+                    await notices.record([retired('ret-2')], RUN_AT);
+                    await notices.record([{ ...NOTICE, subject: 'pv-x', content: CONTENT }], LATER);
+                    assert.deepEqual(
+                        (
+                            await notices.listOfKindSince(
+                                'version-retired',
+                                new Date('2026-10-02T00:00:00.000Z'),
+                            )
+                        ).map((notice) => notice.subject),
+                        ['ret-2'],
+                    );
+                    assert.deepEqual(
+                        (await notices.listOfKindSince('version-retired', EARLY)).map(
+                            (notice) => notice.subject,
+                        ),
+                        ['ret-2', 'ret-1'],
+                        'from the instant itself on, the most recent first, and of that kind only',
+                    );
+                },
+            );
+
+            scenario(
+                'the notices nobody delivers are listed, the oldest first, a held one once its claim is stale',
+                async (notices) => {
+                    const retired = (subject: string): NoticeToRecord => ({
+                        ...NOTICE,
+                        kind: 'version-retired',
+                        subject,
+                        content: CONTENT,
+                    });
+                    await notices.record([retired('a')], LEASE_START);
+                    await notices.record([retired('b'), retired('c'), retired('d')], RUN_AT);
+                    await notices.record(
+                        [{ ...NOTICE, subject: 'offered', content: CONTENT }],
+                        LEASE_START,
+                    );
+                    await notices.claim(retired('b'), CONTENT, LATER, LEASE_START);
+                    await notices.claim(retired('c'), CONTENT, RUN_AT, LEASE_START);
+                    const d = await notices.claim(retired('d'), CONTENT, RUN_AT, LEASE_START);
+                    assert.ok(d?.claimedAt);
+                    await notices.confirm(d.id, d.claimedAt, DELIVERY, LATER);
+                    const staleBefore = new Date(RUN_AT.getTime() + 1);
+                    assert.deepEqual(
+                        (await notices.listUndelivered('version-retired', staleBefore)).map(
+                            (notice) => notice.subject,
+                        ),
+                        ['a', 'c'],
+                        'never claimed, and claimed before the lease started; not the fresh claim, ' +
+                            'not the delivered one, not another kind',
+                    );
+                },
+            );
+        });
+
+        // -------------------------------------------------------------
+        // Retirement announcements — written with the notices they make
+        // -------------------------------------------------------------
+
+        describe('a retirement announcement', () => {
+            const ANNOUNCED_AT = new Date('2026-03-15T10:30:00.250Z');
+            const ANNOUNCEMENT: NewVersionRetirement = {
+                retired: { planVersionId: 'pv-basic-1', planKey: 'BASIC', version: 1 },
+                replacement: { planVersionId: 'pv-standard-3', planKey: 'STANDARD', version: 3 },
+                announcedAt: ANNOUNCED_AT,
+                announcedBy: 'super-admin:ops@example.com',
+            };
+            const noticeOf = (retirementId: string): NoticeToRecord => ({
+                tenantId: 'tenant-retired',
+                subscriptionId: 'sub-retired',
+                kind: 'version-retired',
+                subject: retirementId,
+                content: { retirementId },
+            });
+
+            /** A scenario of the announcement, skipped where the harness declares it has none. */
+            function scenario(
+                name: string,
+                body: (
+                    retirements: VersionRetirementRepository,
+                    notices: SubscriptionNoticeRepository,
+                ) => Promise<void>,
+            ): void {
+                test(name, async (t) => {
+                    const retirements = harness.adapter.versionRetirements;
+                    if (!retirements) {
+                        missing(t, 'versionRetirements');
+                        return;
+                    }
+                    const notices = harness.adapter.subscriptionNotices;
+                    if (!notices) {
+                        missing(t, 'subscriptionNotices');
+                        return;
+                    }
+                    await body(retirements, notices);
+                });
+            }
+
+            scenario('is kept with both versions, when and by whom', async (retirements) => {
+                const created = await retirements.create(ANNOUNCEMENT);
+                assert.ok(created.id, 'the adapter assigns the id');
+                assert.deepEqual(created.retired, ANNOUNCEMENT.retired);
+                assert.deepEqual(created.replacement, ANNOUNCEMENT.replacement);
+                assert.equal(created.announcedAt.toISOString(), ANNOUNCED_AT.toISOString());
+                assert.equal(created.announcedBy, ANNOUNCEMENT.announcedBy);
+                assert.deepEqual(await retirements.findById(created.id), created);
+                assert.equal(await retirements.findById('no-such-retirement'), null);
+            });
+
+            scenario('is listed with the most recent first', async (retirements) => {
+                const first = await retirements.create(ANNOUNCEMENT);
+                const second = await retirements.create({
+                    ...ANNOUNCEMENT,
+                    announcedAt: new Date('2026-04-01T00:00:00.000Z'),
+                });
+                assert.deepEqual(
+                    (await retirements.list()).map((retirement) => retirement.id),
+                    [second.id, first.id],
+                );
+            });
+
+            scenario(
+                'is written with its notices in one transaction, or not at all',
+                async (retirements, notices) => {
+                    await assert.rejects(
+                        harness.adapter.transactionRunner.run(async (tx) => {
+                            const retirement = await retirements.create(ANNOUNCEMENT, tx);
+                            await notices.record([noticeOf(retirement.id)], ANNOUNCED_AT, tx);
+                            throw new Error('rolled back');
+                        }),
+                        /rolled back/,
+                    );
+                    assert.deepEqual(await retirements.list(), [], 'no announcement');
+                    assert.deepEqual(
+                        await notices.listForSubscription('sub-retired'),
+                        [],
+                        'and no notice',
+                    );
+
+                    const kept = await harness.adapter.transactionRunner.run(async (tx) => {
+                        const retirement = await retirements.create(ANNOUNCEMENT, tx);
+                        await notices.record([noticeOf(retirement.id)], ANNOUNCED_AT, tx);
+                        return retirement;
+                    });
+                    const [notice] = await notices.listForSubscription('sub-retired');
+                    assert.equal(notice?.subject, kept.id);
+                    assert.equal(notice?.kind, 'version-retired');
+                    assert.equal(notice?.claimedAt, null, 'recorded, not yet told');
+                },
+            );
+        });
+
+        describe('the subscriptions on one version', () => {
+            test('are listed in every tenant, whatever their status, and none of another version', async (t) => {
+                const usage = harness.adapter.subscriptionUsage;
+                if (!usage?.listBoundToVersion) {
+                    missing(t, 'boundSubscriptions');
+                    return;
+                }
+                const { seed } = harness;
+                const v1 = await seed.createPlanVersion({
+                    planKey: 'RETIRE',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                    superseded: true,
+                });
+                const v2 = await seed.createPlanVersion({
+                    planKey: 'RETIRE',
+                    version: 2,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                // A has taken version 2 for the end of its term: still on 1,
+                // and the version it moves to read with it.
+                const a = await seed.createSubscription({
+                    tenantId: 'tenant-a',
+                    plan: 'RETIRE',
+                    planVersionId: v1.planVersionId,
+                    pendingChangeVersionId: v2.planVersionId,
+                });
+                const b = await seed.createSubscription({
+                    tenantId: 'tenant-b',
+                    plan: 'RETIRE',
+                    planVersionId: v1.planVersionId,
+                    status: 'CANCELED',
+                });
+                await seed.createSubscription({
+                    tenantId: 'tenant-c',
+                    plan: 'RETIRE',
+                    planVersionId: v2.planVersionId,
+                });
+                const bound = await usage.listBoundToVersion(v1.planVersionId);
+                assert.deepEqual(
+                    bound.map((row) => `${row.tenantId}/${row.subscription.id}`).sort(),
+                    [`tenant-a/${a.subscriptionId}`, `tenant-b/${b.subscriptionId}`].sort(),
+                );
+                assert.ok(
+                    bound.every((row) => row.subscription.planVersion.id === v1.planVersionId),
+                    'each read with the version it is on',
+                );
+                const pending = Object.fromEntries(
+                    bound.map((row) => [
+                        row.subscription.id,
+                        row.subscription.pendingChangeVersionId ?? null,
+                    ]),
+                );
+                assert.deepEqual(
+                    pending,
+                    { [a.subscriptionId]: v2.planVersionId, [b.subscriptionId]: null },
+                    'and the version a scheduled change binds',
+                );
+                assert.deepEqual(await usage.listBoundToVersion('no-such-version'), []);
+            });
         });
     });
 }

@@ -14,6 +14,7 @@
 import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
     type VersionOfferView,
+    type VersionRetiredNotice,
     type VersionSwitchResult,
 } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
@@ -68,6 +69,12 @@ export interface UsageSnapshotShape {
         noticeDeadline: string | null;
         afterNoticeDeadline: boolean;
     };
+    /**
+     * The retirement announced for the version the subscription is on, while
+     * it has not taken effect — what the subscriber was told. Until then
+     * `cancellation` needs no notice. Null where none is pending.
+     */
+    retirement: VersionRetiredNotice | null;
     limits: {
         plan: string;
         quotas: Record<string, number>;

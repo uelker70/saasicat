@@ -2456,6 +2456,49 @@ catalogue key. Otherwise:
   `superseded` are `onSale` and `offSale`; `bundles.kpis.totalSub` takes `{onSale}`. Keys that
   were removed are named in the changeset.
 
+### An operator can retire a version for running subscriptions
+
+New: an operator can retire a plan version no longer on sale for the subscriptions still on it,
+naming a replacement on sale; each subscription is told, keeps its version until the end of a term
+at least three calendar months away, and may cancel without notice until then. How it works and how
+to wire it: [Retiring a Version for Running Subscriptions](wire-the-backend.md#retiring-a-version-for-running-subscriptions).
+What every installation has to do, whether or not it uses it:
+
+1. **Add the setting to `config/saas.yaml`.** `tenantBilling.orderlyRetirement.termsConfirmed` is
+   required, like the notice periods beside it; the file stops loading without it, naming the
+   field. Write `false`. Set it to `true` once your terms carry a clause that allows moving a
+   customer to another version **and** you run a release that moves subscriptions at the effective
+   date — this one announces only.
+
+    ```yaml
+    tenantBilling:
+        orderlyRetirement:
+            termsConfirmed: false
+    ```
+
+2. **Adopt the announcement table** where version notices are on: `VersionRetirement` from
+   `prisma-fragments/18-version-retirement.prisma`, and the migration once, before `db push` where
+   you use one. Without the model, `saasicat schema check` lists it as not adopted; with
+   `prismaPersistence()` or `drizzlePersistence()`, pass `notAdopted: ['VersionRetirement']` and
+   retiring stays off — unless `termsConfirmed` is `true`, which then refuses the start.
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-retirement-is-announced.postgres.sql
+    ```
+
+3. **Handle the second kind of notice.** `SubscriptionNotice` is now `version-offered` or
+   `version-retired`; a `SubscriptionNoticePort` narrows on `notice.kind` before it reads
+   `notice.offer`.
+
+- **A `SubscriptionUsagePort` of your own** gains the optional `listBoundToVersion`, which retiring
+  needs; both shipped adapters have it.
+- **A `SubscriptionNoticeRepository` of your own** implements `record`, `listOfKindSince` and
+  `listUndelivered`.
+- **A persistence contract harness** gains the `versionRetirements` and `subscriptionUsage` members;
+  a harness without them declares `gaps: ['versionRetirements', 'boundSubscriptions']`.
+- **`@saasicat/ui-vue`** registers a `versionRetirements` resource, and the tenant usage
+  (`UsageSnapshotShape`) carries `retirement`, null where none is pending.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

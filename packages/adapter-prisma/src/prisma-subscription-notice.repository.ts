@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
     type CanonicalSubscriptionNoticeRow,
+    type NoticeToRecord,
     type SubscriptionNoticeDelivery,
     type SubscriptionNoticeKey,
     type SubscriptionNoticeKind,
     type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
+    type TransactionContext,
     toSubscriptionNoticeRecord,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
@@ -115,6 +117,56 @@ export class PrismaSubscriptionNoticeRepository implements SubscriptionNoticeRep
             where: { subscriptionId },
             select: COLUMNS,
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        });
+        return rows.map(toSubscriptionNoticeRecord);
+    }
+
+    async record(
+        notices: readonly NoticeToRecord[],
+        now: Date,
+        tx?: TransactionContext,
+    ): Promise<number> {
+        if (notices.length === 0) return 0;
+        const db = (tx ?? this.prisma) as SubscriptionNoticePrisma;
+        const { count } = await db.subscriptionNotice.createMany({
+            data: notices.map(({ content, ...key }) => ({
+                id: randomUUID(),
+                tenantId: key.tenantId,
+                subscriptionId: key.subscriptionId,
+                kind: key.kind,
+                subject: key.subject,
+                content,
+                createdAt: now,
+            })),
+            skipDuplicates: true,
+        });
+        return count;
+    }
+
+    async listOfKindSince(
+        kind: SubscriptionNoticeKind,
+        since: Date,
+    ): Promise<SubscriptionNoticeRecord[]> {
+        const rows = await this.db.subscriptionNotice.findMany({
+            where: { kind, createdAt: { gte: since } },
+            select: COLUMNS,
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        });
+        return rows.map(toSubscriptionNoticeRecord);
+    }
+
+    async listUndelivered(
+        kind: SubscriptionNoticeKind,
+        staleBefore: Date,
+    ): Promise<SubscriptionNoticeRecord[]> {
+        const rows = await this.db.subscriptionNotice.findMany({
+            where: {
+                kind,
+                deliveredAt: null,
+                OR: [{ claimedAt: null }, { claimedAt: { lt: staleBefore } }],
+            },
+            select: COLUMNS,
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         });
         return rows.map(toSubscriptionNoticeRecord);
     }

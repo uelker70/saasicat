@@ -58,6 +58,7 @@ function usageAt(planPriceNet: number | null) {
         limits: { plan: 'PRO', quotas: { users: 50 }, features: [] },
         usage: { users: 3 },
         packageSnapshot: null,
+        retirement: null,
         checkoutOfferId: null,
     };
 }

@@ -31,6 +31,18 @@
                 {{ offerReadError }}
             </p>
 
+            <!-- The version the tenant is on is being retired, and what follows. -->
+            <VersionRetiredCard
+                v-if="usage.retirement && !hasEnded"
+                :retirement="usage.retirement"
+                :plan-name="planNameOf(usage.retirement.replacement.planKey)"
+                :format-currency="formatCurrency"
+                :format-date="formatDate"
+                :quota-label="quotaLabelResolved"
+                :feature-label="featureLabelResolved"
+                :format-quota-value="quotaValueResolved"
+            />
+
             <!-- A newer version of the plan, offered beside it (#357). -->
             <VersionOfferCard
                 v-if="versionOffer && !hasEnded"
@@ -190,6 +202,16 @@
                             .replace('{date}', formatDate(cancellationPlan.effectiveAt))
                     }}
                 </p>
+                <p v-if="usage.retirement">
+                    {{
+                        effectiveI18n.cancelConfirmRetirement
+                            .replace('{version}', String(usage.retirement.retired.version))
+                            .replace(
+                                '{date}',
+                                formatDate(dayAsInstant(usage.retirement.lastDayToCancel)),
+                            )
+                    }}
+                </p>
                 <p v-if="cancellationPlan">
                     {{
                         effectiveI18n.cancelConfirmBody.replace(
@@ -298,6 +320,8 @@ import type { HttpClient } from '@saasicat/ui-vue';
 import type { VersionOfferView } from '@saasicat/core';
 import { refusalMessage, refusalOf } from './refusal-of.js';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
+import VersionRetiredCard from './tenant-plan-section/VersionRetiredCard.vue';
+import { dayAsInstant } from './tenant-plan-section/version-retirement-day.js';
 import { defaultQuotaValue } from './plan/quota-value.js';
 
 // TenantPlanSection — main component for the tenant plan/bundle self-service
@@ -558,11 +582,12 @@ const hasFeatureOverview = computed(
     () => Object.keys(featureRegistry.value ?? {}).length > 0 || activeFeatures.value.length > 0,
 );
 
-const currentPlanName = computed(() => {
-    if (!usage.value) return '';
-    const plan = catalog.plans.value?.find((p) => p.id === usage.value!.plan);
-    return plan?.name ?? usage.value.plan;
-});
+/** A plan's display name from the catalogue, its key where the catalogue does not list it. */
+function planNameOf(planKey: string): string {
+    return catalog.plans.value?.find((p) => p.id === planKey)?.name ?? planKey;
+}
+
+const currentPlanName = computed(() => (usage.value ? planNameOf(usage.value.plan) : ''));
 
 // The amount due per billing cycle, as the server reads it off the version the
 // subscription is bound to. Not the catalogue's: that is the price a new

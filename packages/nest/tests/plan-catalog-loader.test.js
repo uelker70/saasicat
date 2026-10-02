@@ -23,6 +23,7 @@ vatRate: 19.0
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 features:
   - { key: VEHICLE_INVENTORY, label: Fahrzeugbestand, tier: CORE }
   - { key: DMS,               label: Dokumentenablage, tier: PRO }
@@ -69,6 +70,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -90,6 +92,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -117,6 +120,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 features:
   - { key: F1 }
 plans:
@@ -140,6 +144,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -167,6 +172,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 features:
   - { key: F1 }
   - { key: F2_PLANNED, plannedOnly: true }
@@ -189,6 +195,7 @@ vatRate: 19
 tenantBilling:
   cancellationNoticeDays: { monthly: 0, yearly: 0 }
   selfServiceBlockedPlans: { asTarget: [], asSource: [] }
+  orderlyRetirement: { termsConfirmed: false }
 features:
   - { key: F1 }
 plans:
@@ -246,7 +253,8 @@ test('a catalogue without tenantBilling is refused, and the field is named', () 
             (line) =>
                 !line.startsWith('tenantBilling:') &&
                 !line.trimStart().startsWith('cancellationNoticeDays:') &&
-                !line.trimStart().startsWith('selfServiceBlockedPlans:'),
+                !line.trimStart().startsWith('selfServiceBlockedPlans:') &&
+                !line.trimStart().startsWith('orderlyRetirement:'),
         )
         .join('\n');
     assert.throws(

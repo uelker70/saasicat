@@ -164,3 +164,13 @@ export const SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN = Symbol.for(
 
 /** Adapter token: the application's `SubscriptionNoticePort`, which sends a notice. */
 export const SUBSCRIPTION_NOTICE_PORT_TOKEN = Symbol.for('saasicat/nest/SubscriptionNoticePort');
+
+/** Where retirement announcements are kept (`VersionRetirementRepository`). */
+export const VERSION_RETIREMENT_REPOSITORY_TOKEN = Symbol.for(
+    'saasicat/nest/VersionRetirementRepository',
+);
+
+/** Writes an announcement and its notices in one transaction (`TransactionRunner`). */
+export const VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
+    'saasicat/nest/VersionRetirementTransactionRunner',
+);

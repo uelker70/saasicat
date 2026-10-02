@@ -160,6 +160,25 @@ describe('addresses in the file and an email port bound', () => {
         assert.equal(port.changes.length, 1, 'the record is written whether or not mail goes out');
     });
 
+    test('confirming the terms an orderly retirement rests on is reported like any change', async () => {
+        const terms = (termsConfirmed) => ({
+            cancellationNoticeDays: NOTICE,
+            selfServiceBlockedPlans: BLOCKED,
+            orderlyRetirement: { termsConfirmed },
+        });
+        const notifications = { settingsChanged: ['ops@example.com'] };
+        const port = portRecording(catalogWith({ tenantBilling: terms(false), notifications }));
+        const email = new FakeEmailPort();
+        app = await boot(catalogWith({ tenantBilling: terms(true), notifications }), port, email);
+
+        assert.equal(email.sent.length, 1);
+        assert.match(
+            email.sent[0].text,
+            /tenantBilling\.orderlyRetirement\.termsConfirmed: false → true/,
+        );
+        assert.equal(port.changes.length, 1);
+    });
+
     test('a boot that finds nothing changed mails nobody', async () => {
         const catalog = catalogWith({ notifications: { settingsChanged: ADDRESSES } });
         const email = new FakeEmailPort();

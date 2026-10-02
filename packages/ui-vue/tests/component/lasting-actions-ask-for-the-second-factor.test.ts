@@ -196,7 +196,12 @@ describe('PlansPage asks for the code before it purges, ends or publishes', () =
                 plugins: [router],
                 provide: {
                     ...shell(http),
-                    ...provideStubResources({ audit: { list: async () => [] } } as never),
+                    ...provideStubResources({
+                        audit: { list: async () => [] },
+                        plans: { list: async () => [] },
+                        planVersions: { listForPlan: async () => [] },
+                        versionRetirements: {},
+                    } as never),
                 },
             },
         });

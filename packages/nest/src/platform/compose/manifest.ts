@@ -10,6 +10,7 @@
 import type { FactoryProvider } from '@nestjs/common';
 import {
     SUBSCRIBER_ACCOUNT_CAPABILITY,
+    VERSION_RETIREMENT_CAPABILITY,
     type ManifestContribution,
     type PlanCatalogSettings,
 } from '@saasicat/core';
@@ -41,7 +42,7 @@ export function buildStandardManifestContribution(
     catalog: SaaSiCatCatalogOptions | null,
     adminResources: SaaSiCatAdminResourcesOptions | true | null,
     promoCodes: SaaSiCatPromoCodesOptions | true | null,
-    subscriberAccounts: boolean,
+    served: { subscriberAccounts: boolean; versionRetirements: boolean },
 ): ManifestContribution {
     // `settings.read` does not follow `includeSettingsController`: that flag
     // says who answers `GET /admin/settings`, not whether the page exists. An
@@ -80,7 +81,8 @@ export function buildStandardManifestContribution(
             },
         };
     }
-    if (subscriberAccounts) capabilities[SUBSCRIBER_ACCOUNT_CAPABILITY] = true;
+    if (served.subscriberAccounts) capabilities[SUBSCRIBER_ACCOUNT_CAPABILITY] = true;
+    if (served.versionRetirements) capabilities[VERSION_RETIREMENT_CAPABILITY] = true;
     if (promoCodes) {
         Object.assign(capabilities, {
             'promoCodes.read': true,

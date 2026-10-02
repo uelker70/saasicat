@@ -92,6 +92,7 @@ Adapter for the RLS bypass context.
 | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `findForTenant(tenantId: string): Promise<SubscriptionUsageRecord \| null>`                            | —                                                                                                           |
 | `listBoundToEarlierVersions?( planKey: string, version: number, ): Promise<TenantSubscriptionUsage[]>` | Every subscription of `planKey`, in every tenant, bound to a version of that plan numbered below `version`. |
+| `listBoundToVersion?(planVersionId: string): Promise<TenantSubscriptionUsage[]>`                       | Every subscription, in every tenant, bound to the plan version `planVersionId`, whatever its status.        |
 
 ### `UsageSnapshotPort`
 

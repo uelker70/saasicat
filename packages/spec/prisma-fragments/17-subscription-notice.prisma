@@ -5,7 +5,8 @@
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
 // One row per notice a subscriber is due: that a newer version of their plan is
-// offered to them, told once. The platform records a notice before it has the
+// offered to them, or that the version they are on is being retired — each told
+// once. The platform records a notice before it has the
 // application send it and confirms it after, so the unique key below is what
 // makes a notice once — however many instances run the job — and the row is
 // what shows later when it went out, to whom and how.
@@ -19,10 +20,10 @@
 // subscription like the subscriber's account does (ADR 0012): `tenantId` and
 // `subscriptionId` are kept as values, not as keys.
 //
-// `kind` is text holding a closed set: version-offered.
+// `kind` is text holding a closed set: version-offered, version-retired.
 //
 // Optional: adopt it where `tenantBilling.versionNotices` is configured, which
-// refuses to start without a place to keep notices.
+// refuses to start without a place to keep notices; a retirement needs it too.
 //
 // Contract: @saasicat/core (SubscriptionNoticeRepository).
 
@@ -32,7 +33,9 @@ model SubscriptionNotice {
     subscriptionId String
 
     kind    String
-    // What the notice is about — for version-offered, the id of the version.
+    // What the notice is about — for version-offered, the id of the version
+    // offered; for version-retired, the id of the version retired, so a
+    // subscription is told of a version's retirement once.
     subject String
     // The notice as it was last handed to the application.
     content Json

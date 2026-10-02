@@ -35,6 +35,13 @@ tenantBilling:
     selfServiceBlockedPlans:
         asTarget: []
         asSource: []
+    # Whether you may retire a plan version for the subscriptions already on
+    # it — end it, or raise its price, with three calendar months of notice and
+    # a named replacement. That reaches contracts your customers have already
+    # made, so it needs a clause in your terms, legally reviewed. true states
+    # that your terms carry it; until then the admin does not offer it.
+    orderlyRetirement:
+        termsConfirmed: false
 
 marketing:
     availableLocales: [en]

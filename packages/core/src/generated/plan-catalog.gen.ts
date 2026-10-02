@@ -73,6 +73,15 @@ export interface PlanCatalog {
              */
             asSource: string[];
         };
+        /**
+         * Whether the operator may retire a plan version for the subscriptions already on it — end it, or raise its price, with three calendar months of notice and a named replacement. It reaches contracts customers have already made, so it rests on a clause in the operator's terms, legally reviewed; without one only the rule that a subscription keeps its version applies.
+         */
+        orderlyRetirement: {
+            /**
+             * true states that the operator's terms carry that clause. Only then does the admin offer a retirement and the server accept one; false refuses it.
+             */
+            termsConfirmed: boolean;
+        };
     };
     /**
      * App-wide marketing configuration..

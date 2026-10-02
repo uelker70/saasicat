@@ -22,13 +22,10 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
     BillingCycle,
-    PlanDef,
     PlanRepository,
     PlanVersionRow,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
-    VersionOfferFields,
-    VersionOfferSide,
     VersionOfferView,
 } from '@saasicat/core';
 import { classifyVersionOffer, isVersionActiveAt } from '@saasicat/core';
@@ -36,7 +33,6 @@ import { classifyVersionOffer, isVersionActiveAt } from '@saasicat/core';
 import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { termEndOf } from './billing-period.js';
-import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { listPriceNet } from './plan-helpers.js';
 import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
@@ -44,22 +40,8 @@ import {
 } from './self-service-policy.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from './tenant-billing.tokens.js';
 import { versionOnSale } from './version-on-sale.js';
+import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
-
-/** A version row as the comparison reads it: a price the row does not carry is `null`. */
-function planOf(planKey: string, row: PlanVersionRow): PlanDef {
-    return planDefFromVersion({ id: planKey, name: planKey }, row);
-}
-
-/** What the classification compares of a plan. */
-function fieldsOf(plan: PlanDef): VersionOfferFields {
-    return {
-        features: plan.features,
-        quotas: plan.quotas,
-        monthlyNet: plan.monthlyNet ?? null,
-        yearlyNet: plan.yearlyNet ?? null,
-    };
-}
 
 /**
  * A scheduled change that has not landed yet. A change of rhythm alone is
@@ -67,24 +49,6 @@ function fieldsOf(plan: PlanDef): VersionOfferFields {
  */
 function awaitsAChange(sub: SubscriptionUsageRecord): boolean {
     return Boolean(sub.pendingPlan);
-}
-
-function sideOf(row: PlanVersionRow, plan: PlanDef): VersionOfferSide {
-    return {
-        planVersionId: row.id,
-        version: row.version,
-        features: [...plan.features],
-        quotas: { ...plan.quotas },
-        monthlyNet: plan.monthlyNet ?? null,
-        yearlyNet: plan.yearlyNet ?? null,
-        validUntil: isoOrNull(row.validUntil),
-        endsAt: isoOrNull(row.endsAt),
-    };
-}
-
-/** A date as a store hands it over — a string, or a `Date` from a driver that parses — as ISO. */
-function isoOrNull(value: string | Date | null | undefined): string | null {
-    return value === null || value === undefined ? null : new Date(value).toISOString();
 }
 
 @Injectable()
@@ -128,13 +92,16 @@ export class VersionOfferService {
         // of the application's own to the same rule, on the row it returned.
         if (!isVersionActiveAt(offeredRow, now)) return null;
 
-        const boundPlan = planOf(sub.plan, boundRow);
-        const offeredPlan = planOf(sub.plan, offeredRow);
+        const boundPlan = planOfVersion(sub.plan, boundRow);
+        const offeredPlan = planOfVersion(sub.plan, offeredRow);
         if (listPriceNet(offeredPlan, sub.billingCycle as BillingCycle) === null) return null;
 
-        const bound = sideOf(boundRow, boundPlan);
-        const offered = sideOf(offeredRow, offeredPlan);
-        const verdict = classifyVersionOffer(fieldsOf(boundPlan), fieldsOf(offeredPlan));
+        const bound = versionSideOf(boundRow, boundPlan);
+        const offered = versionSideOf(offeredRow, offeredPlan);
+        const verdict = classifyVersionOffer(
+            comparedFieldsOf(boundPlan),
+            comparedFieldsOf(offeredPlan),
+        );
         if (verdict.class === 'same') return null;
 
         const takesEffectAt =

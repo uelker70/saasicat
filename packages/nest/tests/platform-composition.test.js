@@ -58,6 +58,7 @@ function catalogFileNamed(name) {
             'tenantBilling:',
             '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
             '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
+            '  orderlyRetirement: { termsConfirmed: false }',
         ].join('\n'),
     );
     return path;

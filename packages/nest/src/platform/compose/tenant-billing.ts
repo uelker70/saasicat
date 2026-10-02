@@ -14,6 +14,7 @@ import { normalizeTenantAuthGuards, quotaUsageSnapshotProvider } from './tenant-
 
 import { resolveBundleRepository } from './bundle-repository-source.js';
 import { optionsOf, type CompositionContext } from './context.js';
+import { versionRetirementsOf } from './version-retirement.js';
 
 /**
  * The tenant's own billing surface.
@@ -79,6 +80,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             ...versionNotices,
             notices: (versionNotices.notices ??
                 tenantSlice?.subscriptionNotices) as ProviderSpec<SubscriptionNoticeRepository>,
+            retirements: versionRetirementsOf(ctx),
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],

@@ -21,6 +21,7 @@ import type {
     TenantSubscriptionWritePort,
     TransactionRunner,
     UsageSnapshotPort,
+    VersionRetirementRepository,
 } from '@saasicat/core';
 import { subscriberProviders } from '../subscriber/subscriber.module.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
@@ -36,6 +37,10 @@ import { VersionOfferService } from './version-offer.service.js';
 import { VersionSwitchService } from './version-switch.service.js';
 import { VersionNoticeCron } from './version-notice.cron.js';
 import { VersionNoticeService } from './version-notice.service.js';
+import {
+    VersionRetirementService,
+    retirementTermsConfirmed,
+} from './version-retirement.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
@@ -63,6 +68,8 @@ import {
     USAGE_SNAPSHOT_PORT_TOKEN,
     USER_EMAIL_RESOLVER_TOKEN,
     USER_ID_RESOLVER_TOKEN,
+    VERSION_RETIREMENT_REPOSITORY_TOKEN,
+    VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN,
     type AuditContextResolver,
     type PendingPlanQueryPort,
     type TenantIdResolver,
@@ -71,6 +78,12 @@ import {
     type UserIdResolver,
     CANCELLATION_NOTICE_DAYS_TOKEN,
 } from './tenant-billing.tokens.js';
+
+/**
+ * Checks at start-up that confirmed retirement terms can be acted on. A plain
+ * symbol: created and read only here.
+ */
+const ORDERLY_RETIREMENT_IS_WIRED = Symbol('OrderlyRetirementIsWired');
 
 // TenantBillingModule — registers the `TenantBillingController` with all
 // tenant self-service endpoints (`/billing/entitlement`, `/billing/usage`,
@@ -176,6 +189,19 @@ export interface VersionNoticesOptions {
      * calls `VersionNoticeService.sendDue` from a scheduler of its own.
      */
     includeCron?: boolean;
+    /**
+     * Lets an operator retire a plan version for the subscriptions already on
+     * it, once `config/saas.yaml` confirms the terms allow it
+     * (`tenantBilling.orderlyRetirement.termsConfirmed`). Where each
+     * announcement is kept, and the runner that writes it together with the
+     * notices it makes. Confirmed terms without this refuse the start.
+     */
+    retirements?: VersionRetirementsOptions;
+}
+
+export interface VersionRetirementsOptions {
+    repository: ProviderSpec<VersionRetirementRepository>;
+    transactionRunner: ProviderSpec<TransactionRunner>;
 }
 
 export interface TenantBillingModuleOptions {
@@ -428,6 +454,37 @@ export class TenantBillingModule {
                 ...(versionNotices.includeCron === false ? [] : [VersionNoticeCron]),
             );
         }
+        const retirements = versionNotices?.retirements;
+        if (retirements) {
+            providers.push(
+                asProvider(VERSION_RETIREMENT_REPOSITORY_TOKEN, retirements.repository),
+                asProvider(
+                    VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN,
+                    retirements.transactionRunner,
+                ),
+                VersionRetirementService,
+            );
+        }
+        // Confirmed terms are the operator's statement that they mean to retire
+        // versions. Starting without anything that could announce one would
+        // leave them looking for an action that is not there.
+        providers.push({
+            provide: ORDERLY_RETIREMENT_IS_WIRED,
+            useFactory: (catalog: PlanCatalogSettings) => {
+                const confirmed = retirementTermsConfirmed(catalog);
+                if (confirmed && !retirements) {
+                    throw new Error(
+                        'config/saas.yaml confirms tenantBilling.orderlyRetirement.termsConfirmed, ' +
+                            'but nothing can announce a retirement: it needs ' +
+                            '`tenantBilling.versionNotices` (a notice port) and a place to keep ' +
+                            'announcements (`VersionRetirement`, see 18-version-retirement.prisma). ' +
+                            'Wire both, or set termsConfirmed to false.',
+                    );
+                }
+                return confirmed;
+            },
+            inject: [PLAN_CATALOG_SETTINGS_TOKEN],
+        });
         if (options.tenantIdResolver) {
             providers.push({
                 provide: TENANT_ID_RESOLVER_TOKEN,
@@ -471,6 +528,7 @@ export class TenantBillingModule {
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
+                ...(retirements ? [VersionRetirementService] : []),
                 ...(options.extraExports ?? []),
             ],
         };

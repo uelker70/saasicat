@@ -177,6 +177,21 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This subscription ends before this version would take effect, so it cannot be switched to.',
     VERSION_ENDS_BEFORE_SWITCH:
         'This version stops being sold before it would take effect, so it cannot be switched to.',
+    RETIREMENT_TERMS_NOT_CONFIRMED:
+        'Retiring a version for running subscriptions needs a clause in your terms. Set tenantBilling.orderlyRetirement.termsConfirmed in config/saas.yaml once they carry it.',
+    RETIREMENT_VERSION_ON_SALE:
+        'Version {version} of {planKey} is still on sale. End its sale first, so nobody books it after the announcement.',
+    RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+        'Version {version} of {planKey} is not on sale, so subscriptions cannot continue on it.',
+    RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
+        '{count} of these subscriptions are billed in a rhythm version {version} of {planKey} has no price for, so they cannot continue on it.',
+    RETIREMENT_REPLACEMENT_IS_RETIRED: 'A version cannot be its own replacement.',
+    RETIREMENT_NOTHING_AFFECTED:
+        'No running subscription is on version {version} of {planKey}, so there is nobody to tell.',
+    RETIREMENT_WITHIN_TWELVE_MONTHS:
+        '{count} of these subscriptions were reached by a retirement within the last twelve months. A subscription is reached at most once a year.',
+    RETIREMENT_PREVIEW_CHANGED:
+        'The subscriptions this retirement reaches changed since they were shown. Look at them again before announcing it.',
     SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
     PLAN_LOCKED:
         'Active {planName} special contract — please contact the contract manager to change plans.',

@@ -79,6 +79,7 @@ export function createMemoryHarness() {
         settingsChanges: [],
         maintenanceWindows: [],
         subscriptionNotices: [],
+        versionRetirements: [],
     });
 
     let transactionCounter = 0;
@@ -1364,6 +1365,93 @@ export function createMemoryHarness() {
                 .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1));
             return structuredClone(rows);
         },
+        async record(notices, now) {
+            let written = 0;
+            for (const { content, ...key } of notices) {
+                const recorded = state.subscriptionNotices.some(
+                    (row) =>
+                        row.subscriptionId === key.subscriptionId &&
+                        row.kind === key.kind &&
+                        row.subject === key.subject,
+                );
+                if (recorded) continue;
+                state.subscriptionNotices.push({
+                    id: nextId('notice'),
+                    ...structuredClone(key),
+                    content: structuredClone(content),
+                    createdAt: now,
+                    claimedAt: null,
+                    deliveredAt: null,
+                    delivery: null,
+                });
+                written += 1;
+            }
+            return written;
+        },
+        async listOfKindSince(kind, since) {
+            const rows = state.subscriptionNotices
+                .filter((row) => row.kind === kind && row.createdAt >= since)
+                .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1));
+            return structuredClone(rows);
+        },
+        async listUndelivered(kind, staleBefore) {
+            const rows = state.subscriptionNotices
+                .filter(
+                    (row) =>
+                        row.kind === kind &&
+                        row.deliveredAt === null &&
+                        (row.claimedAt === null || row.claimedAt < staleBefore),
+                )
+                .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1));
+            return structuredClone(rows);
+        },
+    };
+
+    /** Retirement announcements, kept as they were announced. */
+    const versionRetirements = {
+        async create(data) {
+            const row = { id: nextId('retirement'), ...structuredClone(data) };
+            state.versionRetirements.push(row);
+            return structuredClone(row);
+        },
+        async list() {
+            return structuredClone(
+                [...state.versionRetirements].sort(
+                    (a, b) => b.announcedAt - a.announcedAt || (a.id < b.id ? 1 : -1),
+                ),
+            );
+        },
+        async findById(id) {
+            const row = state.versionRetirements.find((candidate) => candidate.id === id);
+            return row ? structuredClone(row) : null;
+        },
+    };
+
+    /** The read a retirement asks: the subscriptions on one version, in every tenant. */
+    const subscriptionUsage = {
+        async findForTenant() {
+            return null;
+        },
+        async listBoundToVersion(planVersionId) {
+            const planVersion = state.planVersions.find((row) => row.id === planVersionId);
+            if (!planVersion) return [];
+            return state.subscriptions
+                .filter((row) => row.planVersionId === planVersionId)
+                .map((row) => ({
+                    tenantId: row.tenantId,
+                    subscription: {
+                        ...structuredClone(row),
+                        planVersion: {
+                            id: planVersion.id,
+                            planId: planVersion.planId,
+                            version: planVersion.version,
+                            publishedAt: planVersion.publishedAt,
+                            supersededAt: planVersion.supersededAt,
+                            changeNote: null,
+                        },
+                    },
+                }));
+        },
     };
 
     /** The notice `id`, while the claim taken at `claimedAt` holds it and it is not delivered. */
@@ -1495,6 +1583,8 @@ export function createMemoryHarness() {
             appliedSettings,
             maintenanceWindows,
             subscriptionNotices,
+            versionRetirements,
+            subscriptionUsage,
         },
         seed,
         async reset() {

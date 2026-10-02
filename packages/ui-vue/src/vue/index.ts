@@ -61,6 +61,7 @@ export * from './use-platform-tenant-actions.js';
 export * from './use-batch-columns.js';
 export * from './use-row-reorder.js';
 export * from './use-version-sale-text.js';
+export * from './use-version-retirement.js';
 export * from './use-dialog.js';
 export * from './use-steps.js';
 export * from './plan-wizard.js';
