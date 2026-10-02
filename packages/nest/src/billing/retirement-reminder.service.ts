@@ -14,10 +14,9 @@
 // application sends it to the tenant's administrators, and the record keeps to
 // whom and how, once however many instances run.
 //
-// It does not wait for the announcement to have reached the subscriber. It
-// says everything the announcement said, so where the announcement could not
-// be sent, the reminder is the subscriber's first word of the retirement:
-// late, and still better than being moved with none.
+// A reminder follows only a notice that reached the subscriber: a retirement
+// counts from its notice being told (`SC-SUB-036`), and before that there is
+// no date to remind of.
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
@@ -37,7 +36,7 @@ import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { NOTICE_DELIVERY_TIMEOUT_MS, NoticeSender, type NoticeOutcome } from './notice-sender.js';
 import { leavesTheVersionBy, rhythmAt } from './retirement-reach.js';
-import { groupByRetiredVersion, retirementNoticesOnRecord } from './retirement-notices.js';
+import { groupByRetiredVersion, retirementNoticesTold } from './retirement-notices.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
 import {
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
@@ -74,7 +73,7 @@ export class RetirementReminderService {
     /** Reminds every subscription whose reminder is due at `now` and has not gone out. */
     async remindDue(now: Date): Promise<RetirementNoticeRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
-            const due = (await retirementNoticesOnRecord(this.notices)).filter((notice) =>
+            const due = (await retirementNoticesTold(this.notices)).filter((notice) =>
                 retirementReminderIsDue(notice, now),
             );
             let told = 0;

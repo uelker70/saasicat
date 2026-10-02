@@ -5,7 +5,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
-import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+    ConflictException,
+    Logger,
+    NotFoundException,
+    UnprocessableEntityException,
+} from '@nestjs/common';
 
 import { VersionNoticeCron, VersionRetirementService } from '../dist/billing/index.js';
 import { NOW, version } from './helpers/version-offers.js';
@@ -751,20 +756,29 @@ describe('announcing a retirement', () => {
 
 // @requirement SC-SUB-029 — Every subscription a retirement reaches is told, and what it was told is kept
 describe('the run that sends what an announcement could not', () => {
-    test('sends only retirement notices, and leaves one another run holds', async () => {
-        const notices = noticeRecord();
-        const at = new Date(NOW.getTime() - 60_000);
-        const retiredNotice = (subscriptionId) => ({
-            tenantId: 't1',
-            subscriptionId,
-            kind: 'version-retired',
-            subject: 'ret-1',
-            content: { kind: 'version-retired', tenantId: 't1', subscriptionId },
+    /** An announcement at NOW whose notices the application could not send; `sends` turns it on. */
+    async function unsent({ bound } = {}) {
+        let sending = false;
+        const port = sendingPort((notice) => {
+            if (!sending) throw new Error('mail server down');
+            return { recipients: [`${notice.tenantId}@example.com`], channel: 'email' };
         });
+        const retired = retiring({ port, ...(bound ? { bound } : {}) });
+        await retired.service.announce(
+            RETIRED.id,
+            REPLACEMENT.id,
+            ['sub-t1', 'sub-t2'],
+            ACTOR,
+            NOW,
+        );
+        port.sent.length = 0;
+        return { ...retired, sends: () => (sending = true) };
+    }
+
+    test('sends only retirement notices, and leaves one another run holds', async () => {
+        const { service, notices, port, sends } = await unsent();
         await notices.record(
             [
-                retiredNotice('sub-a'),
-                retiredNotice('sub-held'),
                 {
                     tenantId: 't1',
                     subscriptionId: 'sub-b',
@@ -773,24 +787,152 @@ describe('the run that sends what an announcement could not', () => {
                     content: { kind: 'version-offered' },
                 },
             ],
-            at,
+            NOW,
         );
-        // Another run took this one a minute ago; its claim holds for a quarter of an hour.
+        // Another run took t2's a minute ago; its claim holds for a quarter of an hour.
+        const [t2] = await notices.listForSubscription('sub-t2');
+        const taken = new Date(NOW.getTime() + 60_000);
         await notices.claim(
             {
-                tenantId: 't1',
-                subscriptionId: 'sub-held',
+                tenantId: 't2',
+                subscriptionId: 'sub-t2',
                 kind: 'version-retired',
-                subject: 'ret-1',
+                subject: t2.subject,
             },
-            retiredNotice('sub-held').content,
-            at,
-            new Date(at.getTime() - 15 * 60_000),
+            t2.content,
+            taken,
+            new Date(taken.getTime() - 15 * 60_000),
         );
-        const { service, port } = retiring({ notices });
+        sends();
 
-        assert.deepEqual(await service.sendUndelivered(NOW), { told: 1, failed: 0 });
-        assert.deepEqual(idsOf(port.sent), ['sub-a']);
+        assert.deepEqual(await service.sendUndelivered(new Date(taken.getTime() + 60_000)), {
+            told: 1,
+            failed: 0,
+        });
+        assert.deepEqual(idsOf(port.sent), ['sub-t1']);
+    });
+
+    // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+    test('a notice sent late names the date counted from its sending, and the day before it', async () => {
+        const { service, notices, port, sends } = await unsent();
+        sends();
+        // Two months late: three calendar months from now end on 15 March, and
+        // the first term end after it is 1 April — not 1 February.
+        const late = new Date('2026-12-15T09:00:00.000Z');
+
+        await service.sendUndelivered(late);
+
+        assert.deepEqual(
+            port.sent.map((notice) => [
+                notice.subscriptionId,
+                notice.effectiveAt,
+                notice.lastDayToCancel,
+            ]),
+            [
+                ['sub-t1', '2027-04-01T00:00:00.000Z', '2027-03-31'],
+                ['sub-t2', '2027-04-01T00:00:00.000Z', '2027-03-31'],
+            ],
+        );
+        const [kept] = await notices.listForSubscription('sub-t1');
+        assert.deepEqual(kept.content, port.sent[0], 'recorded as it was told, with the new date');
+    });
+
+    // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+    test('a notice sent a minute late keeps the date it was announced with', async () => {
+        const { service, port, sends } = await unsent();
+        sends();
+
+        await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+
+        assert.deepEqual(
+            port.sent.map((notice) => notice.effectiveAt),
+            ['2027-02-01T00:00:00.000Z', '2027-02-01T00:00:00.000Z'],
+        );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('a notice the application tells nobody of is tried again until somebody is told', async () => {
+        let recipients = [];
+        const port = sendingPort(() => ({ recipients, channel: 'email' }));
+        const { service, notices } = retiring({ port });
+
+        const announced = await service.announce(
+            RETIRED.id,
+            REPLACEMENT.id,
+            ['sub-t1', 'sub-t2'],
+            ACTOR,
+            NOW,
+        );
+        // The record hands out its rows themselves, so the moment is read now.
+        const [{ deliveredAt: deliveredToNobody }] = await notices.listForSubscription('sub-t1');
+        recipients = ['admin@example.com'];
+        const run = await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+
+        assert.deepEqual([announced.told, announced.failed], [0, 2], 'not told, to try again');
+        assert.equal(deliveredToNobody, null, 'nobody is not a delivery');
+        assert.deepEqual(run, { told: 2, failed: 0 });
+        const [kept] = await notices.listForSubscription('sub-t1');
+        assert.deepEqual(kept.delivery, { recipients: ['admin@example.com'], channel: 'email' });
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('says once a day, not on every run, that a notice still reaches nobody', async () => {
+        const port = sendingPort(() => ({ recipients: [], channel: 'email' }));
+        const { service } = retiring({ port });
+        const warned = [];
+        const original = Logger.prototype.warn;
+        Logger.prototype.warn = function (message) {
+            warned.push(String(message));
+        };
+        try {
+            await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+            await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+            await service.sendUndelivered(new Date(NOW.getTime() + 120_000));
+        } finally {
+            Logger.prototype.warn = original;
+        }
+
+        assert.equal(port.sent.length, 6, 'tried by the announcement and by both runs');
+        assert.equal(
+            warned.filter((line) => line.includes('tried again until somebody is told')).length,
+            2,
+            'once for each notice',
+        );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('tells nobody who has left the version, and still tells the others', async () => {
+        const bound = [boundTo('t1'), boundTo('t2')];
+        const { service, notices, port, sends } = await unsent({ bound });
+        // t1 took the newer version before its notice could go out.
+        bound[0].subscription.planVersion = { id: 'pv-2', planId: 'STANDARD', version: 2 };
+        sends();
+
+        const run = await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+
+        assert.deepEqual(run, { told: 1, failed: 0 });
+        assert.deepEqual(idsOf(port.sent), ['sub-t2']);
+        const [kept] = await notices.listForSubscription('sub-t1');
+        assert.equal(kept.deliveredAt, null, "t1's notice stays on record, unsent");
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('tells nobody whom the retirement no longer reaches, and still tells the others', async () => {
+        const bound = [boundTo('t1'), boundTo('t2')];
+        const { service, notices, port, sends } = await unsent({ bound });
+        // t2 is cancelled for a day before any date a notice could name now.
+        Object.assign(bound[1].subscription, {
+            canceledAt: new Date('2026-11-20T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2026-12-01T00:00:00.000Z'),
+        });
+        sends();
+
+        const run = await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+
+        assert.deepEqual(run, { told: 1, failed: 0 });
+        assert.deepEqual(idsOf(port.sent), ['sub-t1']);
+        const [kept] = await notices.listForSubscription('sub-t2');
+        assert.equal(kept.deliveredAt, null, "t2's notice stays on record, unsent");
     });
 
     test('runs inside the bypass', async () => {
@@ -879,6 +1021,26 @@ describe('the retirement that reaches a subscription', () => {
             null,
         );
         assert.equal(await service.pendingFor({ id: 'sub-t1', planVersion: null }, NOW), null);
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('is none while its notice has reached nobody, and the notice once it has', async () => {
+        let sending = false;
+        const port = sendingPort(() => {
+            if (!sending) throw new Error('mail server down');
+            return { recipients: ['admin@example.com'], channel: 'email' };
+        });
+        const { service } = retiring({ port });
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+        const before = await service.pendingFor(onRetired, NOW);
+        sending = true;
+        await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+
+        assert.equal(before, null);
+        assert.deepEqual(
+            await service.pendingFor(onRetired, NOW),
+            port.sent.find((notice) => notice.subscriptionId === 'sub-t1'),
+        );
     });
 
     test('is none for a subscription told only of an offer', async () => {

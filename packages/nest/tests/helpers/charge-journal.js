@@ -190,12 +190,17 @@ export function anAccount({
         },
         /**
          * Records that the subscription was told its version is retired, taking
-         * effect on `effectiveAt` — what the announcement writes.
+         * effect on `effectiveAt` — what the announcement writes, delivered to an
+         * administrator. With `{ delivered: false }` it is recorded and has
+         * reached nobody.
          */
-        toldOfRetirement(planVersionId, effectiveAt) {
+        toldOfRetirement(planVersionId, effectiveAt, { delivered = true } = {}) {
             told.push({
                 kind: 'version-retired',
                 subscriptionId: subscription.id,
+                delivery: delivered
+                    ? { recipients: ['admin@example.com'], channel: 'email' }
+                    : null,
                 content: {
                     retirementId: 'ret-1',
                     retired: { planVersionId },

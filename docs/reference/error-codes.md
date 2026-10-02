@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 209 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 210 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -105,6 +105,7 @@ Plans, versions, bundles, marketing entries.
 | `PLAN_TERMINATE_INVALID_DATE`                  | endsAt is not a valid date.                                                                                                                                                                                                                             |
 | `PLAN_TERMINATE_NOT_IMPLEMENTED`               | Terminate is not implemented in the current repository. Implement PlanRepository.terminate.                                                                                                                                                             |
 | `PLAN_TERMINATE_WHILE_MOVES_OVERDUE`           | {count} subscriptions are past their date and still to be moved to version {version} of {planKey}, so it cannot end until they have moved.                                                                                                              |
+| `PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED`     | {count} subscriptions have not yet been told that they move to version {version} of {planKey}, so it cannot end until they have been.                                                                                                                   |
 | `PLAN_VERSION_ALREADY_PUBLISHED`               | PlanVersion '{versionId}' is already published; it is not published again or discarded.                                                                                                                                                                 |
 | `PLAN_VERSION_DISCARD_NOT_IMPLEMENTED`         | Discard is not implemented in the current repository. Implement PlanRepository.deletePlanVersionDraft.                                                                                                                                                  |
 | `PLAN_VERSION_NOT_EDITABLE`                    | PlanVersion '{versionId}' is not editable. Only drafts and published versions are editable that are latest-in-chain, bind no subscription yet, and whose validFrom lies in the future.                                                                  |

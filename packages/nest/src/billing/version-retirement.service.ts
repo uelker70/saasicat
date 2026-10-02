@@ -63,7 +63,12 @@ import {
     NoticeSender,
 } from './notice-sender.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
-import { retirementNoticesOnRecord } from './retirement-notices.js';
+import {
+    groupByRetiredVersion,
+    reachedSomebody,
+    retirementNoticesOnRecord,
+    type RetirementNoticeOnRecord,
+} from './retirement-notices.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
 import {
     RETIREMENT_REPEAT_MONTHS,
@@ -119,7 +124,9 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
     ) {
-        this.sender = new NoticeSender(notices, port);
+        // A retirement counts from its notice reaching somebody, so one the
+        // application tells nobody of is tried again.
+        this.sender = new NoticeSender(notices, port, { retriesNobody: true });
     }
 
     /** Refuses a wiring that could never find the subscriptions a retirement reaches. */
@@ -359,28 +366,52 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 this.deliveryTimeoutMs,
             );
             if (outcome === 'told') told += 1;
-            if (outcome === 'failed') failed += 1;
+            // Told to nobody is not told: the next run tries again, as it
+            // does a notice the application could not send.
+            if (outcome === 'failed' || outcome === 'untold') failed += 1;
         }
         return { retirement, told, failed };
     }
 
-    /** Sends every retirement notice that is recorded and not yet sent. */
+    /**
+     * Sends every retirement notice that is recorded and has reached nobody
+     * yet. A retirement counts from its notice reaching the subscriber
+     * (`SC-SUB-036`), so a notice sent now names the date counted from now —
+     * the first end of a term at least three calendar months away — and the
+     * last day to cancel with it, from the subscription as it stands. One that
+     * has left the version, or that the retirement no longer reaches, is not
+     * told: its notice stays on record, unsent. One the application tells
+     * nobody of counts as neither told nor failed here: it is tried again by
+     * every run and said in the log once a day, not by every run.
+     */
     async sendUndelivered(now: Date): Promise<RetirementNoticeRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
             let told = 0;
             let failed = 0;
             const staleBefore = new Date(now.getTime() - NOTICE_CLAIM_LEASE_MS);
-            for (const record of await this.notices.listUndelivered(
-                'version-retired',
-                staleBefore,
-            )) {
-                const outcome = await this.sender.tell(
-                    record.content as VersionRetiredNotice,
-                    record.subject,
-                    this.deliveryTimeoutMs,
-                );
-                if (outcome === 'told') told += 1;
-                if (outcome === 'failed') failed += 1;
+            const waiting = await this.notices.listUndelivered('version-retired', staleBefore);
+            const byVersion = groupByRetiredVersion(
+                waiting.map((record) => record.content as VersionRetiredNotice),
+            );
+            for (const [retiredId, notices] of byVersion) {
+                const onIt = await this.boundTo(retiredId);
+                for (const stored of notices) {
+                    const sub = onIt.get(stored.subscriptionId);
+                    const reach = sub ? retirementReach(sub, now) : null;
+                    if (!reach?.reached) continue;
+                    const outcome = await this.sender.tell(
+                        {
+                            ...stored,
+                            billingCycle: reach.billingCycle,
+                            effectiveAt: reach.effectiveAt.toISOString(),
+                            lastDayToCancel: reach.lastDayToCancel,
+                        },
+                        retiredId,
+                        this.deliveryTimeoutMs,
+                    );
+                    if (outcome === 'told') told += 1;
+                    if (outcome === 'failed') failed += 1;
+                }
             }
             return { told, failed };
         });
@@ -388,9 +419,10 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
 
     /**
      * The retirement that reaches the subscription and has not taken effect at
-     * `now`, or null. What it says is what the subscriber was told. One the
-     * subscription has already left the retired version for — a newer version
-     * taken, say — no longer reaches it.
+     * `now`, or null. What it says is what the subscriber was told, and only
+     * once it was: a notice that has reached nobody sets no date (`SC-SUB-036`).
+     * One the subscription has already left the retired version for — a newer
+     * version taken, say — no longer reaches it.
      */
     async pendingFor(
         subscription: {
@@ -402,7 +434,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         const bound = subscription.planVersion?.id;
         if (!bound) return null;
         for (const record of await this.notices.listForSubscription(subscription.id)) {
-            if (record.kind !== 'version-retired') continue;
+            if (record.kind !== 'version-retired' || !reachedSomebody(record)) continue;
             const notice = record.content as VersionRetiredNotice;
             if (notice.retired.planVersionId !== bound) continue;
             if (new Date(notice.effectiveAt) > now) return notice;
@@ -413,7 +445,8 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     /**
      * Every announcement, the most recent first, with how far it has come
      * (`SC-SUB-033`): counted over the subscriptions it reached, from where
-     * each one is now, and how many of them were reminded (`SC-SUB-034`).
+     * each one is now — not told yet among them (`SC-SUB-036`) — and how many
+     * of them were reminded (`SC-SUB-034`).
      */
     async list(now = new Date()): Promise<VersionRetirementView[]> {
         return readAcrossTenants(this.rlsBypass, async () => {
@@ -436,7 +469,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                     ...retirement,
                     progress: {
                         ...progressOf(
-                            told.filter((notice) => notice.retirementId === retirement.id),
+                            told.filter(({ notice }) => notice.retirementId === retirement.id),
                             await onVersion(retirement.retired.planVersionId),
                             now,
                         ),
@@ -448,32 +481,55 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     }
 
     /**
-     * Refuses ending a version while subscriptions told of a retirement still
+     * Refuses ending a version while subscriptions a retirement reached still
      * move onto it (`SC-PLAN-029`): the move binds the replacement, and nothing
-     * binds a version that has ended. While one is past its date and still to
-     * move — a move the run could not make yet — it cannot end at all;
-     * otherwise it may end from the day after the last of their dates, which
-     * leaves the run a day to catch up.
+     * binds a version that has ended. While one has not been told yet — its
+     * date counts from its notice reaching it, so it is not set — or is past
+     * its date and still to move, a move the run could not make yet, it cannot
+     * end at all (`SC-SUB-036`); otherwise it may end from the day after the
+     * last of their dates, which leaves the run a day to catch up.
      */
     async assertMayEnd(versionId: string, endsAt: Date, now = new Date()): Promise<void> {
         await readAcrossTenants(this.rlsBypass, async () => {
             const onto = (await this.allNotices()).filter(
-                (notice) => notice.replacement.planVersionId === versionId,
+                ({ notice }) => notice.replacement.planVersionId === versionId,
             );
-            const stillToMove: VersionRetiredNotice[] = [];
-            for (const retiredId of new Set(onto.map((notice) => notice.retired.planVersionId))) {
+            const stillToMove: RetirementNoticeOnRecord[] = [];
+            for (const retiredId of new Set(
+                onto.map(({ notice }) => notice.retired.planVersionId),
+            )) {
                 const bound = await this.boundTo(retiredId);
-                for (const notice of onto) {
+                for (const onRecord of onto) {
+                    const { notice } = onRecord;
                     if (notice.retired.planVersionId !== retiredId) continue;
                     const sub = bound.get(notice.subscriptionId);
                     if (sub && !cancellationHasLanded(sub, new Date(notice.effectiveAt))) {
-                        stillToMove.push(notice);
+                        stillToMove.push(onRecord);
                     }
                 }
             }
             if (stillToMove.length === 0) return;
-            const [{ replacement }] = stillToMove as [VersionRetiredNotice];
-            const overdue = stillToMove.filter((notice) => new Date(notice.effectiveAt) <= now);
+            const [{ notice: first }] = stillToMove as [RetirementNoticeOnRecord];
+            const { replacement } = first;
+            // A notice that has reached nobody has no date yet: once it is
+            // told, the date counts from then, and could lie past any end.
+            const untold = stillToMove.filter((onRecord) => !onRecord.told);
+            if (untold.length > 0) {
+                throw new UnprocessableEntityException({
+                    code: CATALOG_ERROR_CODES.PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED,
+                    message:
+                        `${untold.length} subscriptions have not yet been told that they move to ` +
+                        `version ${replacement.version} of ${replacement.planKey}, so it cannot ` +
+                        'end until they have been.',
+                    params: {
+                        count: untold.length,
+                        version: replacement.version,
+                        planKey: replacement.planKey,
+                    },
+                });
+            }
+            const toMove = stillToMove.map((onRecord) => onRecord.notice);
+            const overdue = toMove.filter((notice) => new Date(notice.effectiveAt) <= now);
             if (overdue.length > 0) {
                 throw new UnprocessableEntityException({
                     code: CATALOG_ERROR_CODES.PLAN_TERMINATE_WHILE_MOVES_OVERDUE,
@@ -488,7 +544,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                     },
                 });
             }
-            const last = Math.max(...stillToMove.map((n) => new Date(n.effectiveAt).getTime()));
+            const last = Math.max(...toMove.map((n) => new Date(n.effectiveAt).getTime()));
             const earliest = new Date(startOfUtcDay(last) + DAY_MS);
             if (endsAt >= earliest) return;
             throw new UnprocessableEntityException({
@@ -506,8 +562,8 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         });
     }
 
-    /** Every retirement notice on record, as it was told. */
-    private allNotices(): Promise<VersionRetiredNotice[]> {
+    /** Every retirement notice on record, as it was told, and whether it was. */
+    private allNotices(): Promise<RetirementNoticeOnRecord[]> {
         return retirementNoticesOnRecord(this.notices);
     }
 
@@ -669,16 +725,17 @@ function startOfUtcDay(ms: number): number {
 
 /** Where each subscription a retirement reached stands now. */
 function progressOf(
-    told: readonly VersionRetiredNotice[],
+    onRecord: readonly RetirementNoticeOnRecord[],
     stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
     now: Date,
 ): Omit<RetirementProgress, 'reminded'> {
-    const progress = { moved: 0, waiting: 0, overdue: 0, ended: 0 };
-    for (const notice of told) {
+    const progress = { moved: 0, waiting: 0, overdue: 0, ended: 0, notTold: 0 };
+    for (const { notice, told } of onRecord) {
         const sub = stillOn.get(notice.subscriptionId);
         const at = new Date(notice.effectiveAt);
         if (!sub) progress.moved += 1;
         else if (cancellationHasLanded(sub, at)) progress.ended += 1;
+        else if (!told) progress.notTold += 1;
         else if (at > now) progress.waiting += 1;
         else progress.overdue += 1;
     }

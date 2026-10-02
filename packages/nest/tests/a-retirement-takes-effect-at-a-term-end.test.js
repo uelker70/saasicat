@@ -31,7 +31,7 @@ function subscription(fields) {
 
 const effective = (sub, announcedAt = ANNOUNCED) => retirementReach(sub, announcedAt);
 
-// @requirement SC-SUB-027 — A retirement's date is the end of a term at least three calendar months away
+// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
 describe('the effective date of a retirement', () => {
     test('monthly, periods starting on the 1st: the first period end from 15 June on — 1 July', () => {
         const reach = effective(
@@ -120,7 +120,7 @@ describe('the effective date of a retirement', () => {
     });
 });
 
-// @requirement SC-SUB-027 — A retirement's date is the end of a term at least three calendar months away
+// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
 describe('a subscription in its trial', () => {
     test('counts its terms from the end of the trial', () => {
         const reach = effective(
@@ -138,7 +138,7 @@ describe('a subscription in its trial', () => {
 });
 
 // @requirement SC-SUB-026 — A retirement is announced for exactly the subscriptions the operator was shown
-// @requirement SC-SUB-027 — A retirement's date is the end of a term at least three calendar months away
+// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
 describe('a subscription with a change of rhythm scheduled', () => {
     const running = {
         currentPeriodStart: at('2026-03-01T00:00:00Z'),
@@ -283,7 +283,7 @@ describe('a subscription a retirement does not reach', () => {
     });
 });
 
-// @requirement SC-SUB-027 — A retirement's date is the end of a term at least three calendar months away
+// @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
 describe('three calendar months', () => {
     test('keep the day of the month and the time of day', () => {
         assert.equal(

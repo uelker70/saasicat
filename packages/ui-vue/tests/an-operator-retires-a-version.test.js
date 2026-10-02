@@ -119,15 +119,29 @@ describe('how a preview reads', () => {
     // @requirement SC-SUB-033 — The operator sees how far each retirement has come
     test('how far a retirement has come says the states with subscriptions in them, overdue first', () => {
         assert.deepEqual(
-            retirementProgressParts({ moved: 4, waiting: 2, overdue: 1, ended: 0, reminded: 0 }),
+            retirementProgressParts({
+                moved: 4,
+                waiting: 2,
+                overdue: 1,
+                ended: 0,
+                notTold: 0,
+                reminded: 0,
+            }),
             [
-                { state: 'overdue', count: 1 },
-                { state: 'waiting', count: 2 },
-                { state: 'moved', count: 4 },
+                { state: 'overdue', count: 1, attention: true },
+                { state: 'waiting', count: 2, attention: false },
+                { state: 'moved', count: 4, attention: false },
             ],
         );
         assert.deepEqual(
-            retirementProgressParts({ moved: 0, waiting: 0, overdue: 0, ended: 0, reminded: 0 }),
+            retirementProgressParts({
+                moved: 0,
+                waiting: 0,
+                overdue: 0,
+                ended: 0,
+                notTold: 0,
+                reminded: 0,
+            }),
             [],
         );
     });
@@ -135,11 +149,37 @@ describe('how a preview reads', () => {
     // @requirement SC-SUB-034 — Where staying put costs something, a subscription is reminded once
     test('how far a retirement has come says how many were reminded, last and beside the states', () => {
         assert.deepEqual(
-            retirementProgressParts({ moved: 1, waiting: 2, overdue: 0, ended: 0, reminded: 3 }),
+            retirementProgressParts({
+                moved: 1,
+                waiting: 2,
+                overdue: 0,
+                ended: 0,
+                notTold: 0,
+                reminded: 3,
+            }),
             [
-                { state: 'waiting', count: 2 },
-                { state: 'moved', count: 1 },
-                { state: 'reminded', count: 3 },
+                { state: 'waiting', count: 2, attention: false },
+                { state: 'moved', count: 1, attention: false },
+                { state: 'reminded', count: 3, attention: false },
+            ],
+        );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('how far a retirement has come puts the subscriptions not told after the overdue ones, asking for a look', () => {
+        assert.deepEqual(
+            retirementProgressParts({
+                moved: 1,
+                waiting: 0,
+                overdue: 1,
+                ended: 0,
+                notTold: 2,
+                reminded: 0,
+            }),
+            [
+                { state: 'overdue', count: 1, attention: true },
+                { state: 'notTold', count: 2, attention: true },
+                { state: 'moved', count: 1, attention: false },
             ],
         );
     });

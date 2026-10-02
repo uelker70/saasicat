@@ -68,6 +68,13 @@ export const CATALOG_ERROR_CODES = {
      * plan key.
      */
     PLAN_TERMINATE_WHILE_MOVES_OVERDUE: 'PLAN_TERMINATE_WHILE_MOVES_OVERDUE',
+    /**
+     * Subscriptions on a retired version have not yet been told of their move
+     * onto this version — their notice has reached nobody, so their date is not
+     * set — and it cannot end until they have been. Carries how many, the
+     * version and its plan key.
+     */
+    PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED: 'PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED',
 
     // ── bundle versions ──
     BUNDLE_VERSION_ALREADY_PUBLISHED: 'BUNDLE_VERSION_ALREADY_PUBLISHED',

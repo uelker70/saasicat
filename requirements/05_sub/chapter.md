@@ -861,42 +861,15 @@ _Tested by:_
 
 ### SC-SUB-027 — A retirement's date is the end of a term at least three calendar months away
 
-🟢 💰 For each subscription, the first end of one of its terms that lies at least three calendar
-months after the announcement — never inside a term the customer has paid for. Terms are counted
-in the subscription's own rhythm from the end of the period running now; a subscription in its
-trial counts them from the end of the trial, and one with a change of rhythm scheduled counts them
-in the new rhythm from the day it lands. The last day to cancel without notice is the last whole
-UTC day before the date, since a term ends at the moment it was booked.
+🔵 _(Superseded on 2026-10-02 by `SC-SUB-035`.)_ For each subscription, the first end of one of its
+terms that lies at least three calendar months after the announcement — never inside a term the
+customer has paid for. Terms are counted in the subscription's own rhythm from the end of the
+period running now; a subscription in its trial counts them from the end of the trial, and one with
+a change of rhythm scheduled counts them in the new rhythm from the day it lands. The last day to
+cancel without notice is the last whole UTC day before the date, since a term ends at the moment it
+was booked.
 
 _Source:_ #357
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-retirement-takes-effect-at-a-term-end.test.js`
-    - the effective date of a retirement
-        - monthly, periods starting on the 1st: the first period end from 15 June on — 1 July
-        - a term that ends at the time of day it was booked leaves the whole day before as the last
-        - yearly, the term ending on 31 December: 1 January
-        - yearly, the term ending on 31 March, less than three months away: a year later
-        - a term ending exactly three months after the announcement is the effective date
-        - and one a millisecond earlier is not
-        - periods anchored on the 31st land on the last day of a shorter month
-        - a subscription without a period end counts its terms from its start
-    - a subscription in its trial
-        - counts its terms from the end of the trial
-        - takes effect at the end of the trial where that is far enough away
-    - a subscription with a change of rhythm scheduled
-        - counts its terms in the new rhythm from the day it lands, never inside the yearly term
-        - keeps the old rhythm where the change lands after the effective date
-        - is billed in the new rhythm where the change lands on the effective date
-    - three calendar months
-        - keep the day of the month and the time of day
-        - end on the last day of a month that has no such day
-        - cross into the next year
-
-<!-- END proof -->
 
 ### SC-SUB-028 — A subscription is reached by a retirement at most once in twelve months
 
@@ -943,6 +916,12 @@ _Tested by:_
         - a notice the application cannot send now stays recorded and goes out with the next run
     - the run that sends what an announcement could not
         - sends only retirement notices, and leaves one another run holds
+        - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent a minute late keeps the date it was announced with
+        - a notice the application tells nobody of is tried again until somebody is told
+        - says once a day, not on every run, that a notice still reaches nobody
+        - tells nobody who has left the version, and still tells the others
+        - tells nobody whom the retirement no longer reaches, and still tells the others
         - runs inside the bypass
     - the run every quarter of an hour
         - sends what an announcement could not, after the offers, at the same moment
@@ -1008,6 +987,7 @@ _Tested by:_
         - moves a trial without a contract or a charge: both come when it converts
         - a subscription that changed between the read and the write is left to the next run
         - a replacement the write refuses is a failure, recorded once however often it is tried
+        - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
         - a move whose contract cannot be written is put back, and the next run makes both, where
           the version retired ${offSale}
@@ -1090,6 +1070,7 @@ _Tested by:_
 - `packages/nest/tests/a-retirement-takes-effect.test.js`
     - how far a retirement has come
         - counts the subscriptions it reached as moved, waiting, overdue or ended
+        - counts a subscription whose notice has reached nobody as not told, not as overdue
 - `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
     - how a preview reads
         - how far a retirement has come says the states with subscriptions in them, overdue first
@@ -1135,6 +1116,7 @@ _Tested by:_
         - reminds where a feature is taken away, whatever the price
         - leaves alone a subscription that cancelled, ended, switched or leaves the version by its
           date
+        - reminds nobody whose notice has reached nobody: there is no date to remind of
         - reminds a trial, which cannot switch before it ends
         - a reminder the application could not send is sent by the next run
         - a reminder that cannot be put together fails for that subscription alone
@@ -1149,5 +1131,98 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - counts the subscriptions reminded beside the states, unmarked
+
+<!-- END proof -->
+
+### SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+
+🟢 💰 For each subscription, the first end of one of its terms that lies at least three calendar
+months after its notice of the retirement reached an administrator of the tenant — never inside a
+term the customer has paid for. A notice the announcement sends at once counts from the
+announcement; one that could not be sent then counts from the moment it is, and names the date
+counted from then. Terms are counted in the subscription's own rhythm from the end of the period
+running now; a subscription in its trial counts them from the end of the trial, and one with a
+change of rhythm scheduled counts them in the new rhythm from the day it lands. The last day to
+cancel without notice is the last whole UTC day before the date, since a term ends at the moment it
+was booked.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect-at-a-term-end.test.js`
+    - the effective date of a retirement
+        - monthly, periods starting on the 1st: the first period end from 15 June on — 1 July
+        - a term that ends at the time of day it was booked leaves the whole day before as the last
+        - yearly, the term ending on 31 December: 1 January
+        - yearly, the term ending on 31 March, less than three months away: a year later
+        - a term ending exactly three months after the announcement is the effective date
+        - and one a millisecond earlier is not
+        - periods anchored on the 31st land on the last day of a shorter month
+        - a subscription without a period end counts its terms from its start
+    - a subscription in its trial
+        - counts its terms from the end of the trial
+        - takes effect at the end of the trial where that is far enough away
+    - a subscription with a change of rhythm scheduled
+        - counts its terms in the new rhythm from the day it lands, never inside the yearly term
+        - keeps the old rhythm where the change lands after the effective date
+        - is billed in the new rhythm where the change lands on the effective date
+    - three calendar months
+        - keep the day of the month and the time of day
+        - end on the last day of a month that has no such day
+        - cross into the next year
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the run that sends what an announcement could not
+        - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent a minute late keeps the date it was announced with
+
+<!-- END proof -->
+
+### SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+
+🟢 💰 Until its notice has reached at least one administrator of the tenant, a retirement changes
+nothing for the subscription: no move, no reminder, no switch offered and nothing shown beside its
+plan, and its periods are charged from the version it is on. A notice the application could not
+send, or sent to nobody, is tried again by every run until somebody is told; one whose subscription
+has left the version, or that the retirement no longer reaches, is not sent. A replacement cannot be
+terminated while a notice onto it has not reached its subscriber. Beside each retired version, the
+administration counts the subscriptions not told yet.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
+    - a retirement whose notice has reached nobody
+        - charges nothing differently: the version the subscription is on prices its periods
+- `packages/nest/tests/a-retirement-reminds-once.test.js`
+    - the one reminder of a retirement
+        - reminds nobody whose notice has reached nobody: there is no date to remind of
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the move at the date
+        - moves nothing whose notice has reached nobody, however late it is
+    - ending a version subscriptions still move onto
+        - is refused while a notice onto it has reached nobody, whatever end is asked for
+    - how far a retirement has come
+        - counts a subscription whose notice has reached nobody as not told, not as overdue
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the run that sends what an announcement could not
+        - a notice the application tells nobody of is tried again until somebody is told
+        - says once a day, not on every run, that a notice still reaches nobody
+        - tells nobody who has left the version, and still tells the others
+        - tells nobody whom the retirement no longer reaches, and still tells the others
+    - the retirement that reaches a subscription
+        - is none while its notice has reached nobody, and the notice once it has
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - how far a retirement has come puts the subscriptions not told after the overdue ones,
+          asking for a look
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - marks the subscriptions not told yet for a look
 
 <!-- END proof -->

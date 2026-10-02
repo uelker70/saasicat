@@ -2460,7 +2460,8 @@ catalogue key. Otherwise:
 
 New: an operator can retire a plan version no longer on sale for the subscriptions still on it,
 naming a replacement on sale; each subscription is told, keeps its version until the end of a term
-at least three calendar months away, may cancel without notice until then, and continues on the
+at least three calendar months after its notice reached an administrator, may cancel without notice
+until then, and continues on the
 replacement at that date — or switches earlier, paying no more than before until then. How it works
 and how to wire it: [Retiring a Version for Running Subscriptions](wire-the-backend.md#retiring-a-version-for-running-subscriptions).
 What every installation has to do, whether or not it uses it:
@@ -2489,7 +2490,9 @@ What every installation has to do, whether or not it uses it:
 3. **Handle the other kinds of notice.** `SubscriptionNotice` is now `version-offered`,
    `version-retired` or `version-retirement-reminder`; a `SubscriptionNoticePort` narrows on
    `notice.kind` before it reads `notice.offer`. A port that treats every notice that is not an
-   offer as a retirement sends the reminder 14 days before the date as a second announcement.
+   offer as a retirement sends the reminder 14 days before the date as a second announcement. A
+   retirement notice your port answers with no recipients is not told: the run asks again every
+   quarter of an hour until it names somebody, and the retirement's date counts from then.
 
 - **A `SubscriptionUsagePort` of your own** gains the optional `listBoundToVersion`, which retiring
   needs; both shipped adapters have it. Return each subscription's `pendingChangeVersionId` with
