@@ -2491,7 +2491,9 @@ What every installation has to do, whether or not it uses it:
    `notice.offer`.
 
 - **A `SubscriptionUsagePort` of your own** gains the optional `listBoundToVersion`, which retiring
-  needs; both shipped adapters have it.
+  needs; both shipped adapters have it. Return each subscription's `pendingChangeVersionId` with
+  it, or a subscriber who took a newer version's offer is reached as if they stayed — and told of a
+  cancellation right that ends when they move.
 - **A `SubscriptionNoticeRepository` of your own** implements `record`, `listOfKindSince` and
   `listUndelivered`.
 - **A persistence contract harness** gains the `versionRetirements` and `subscriptionUsage` members;

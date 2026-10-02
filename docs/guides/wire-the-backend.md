@@ -996,7 +996,9 @@ Adopt `prisma-fragments/18-version-retirement.prisma` and run
 `sql/1.0-a-retirement-is-announced.postgres.sql` once; both shipped bundles then provide
 `persistence.tenantBilling.versionRetirements`, and the platform writes on its own transaction
 runner. Confirmed terms with nowhere to keep an announcement refuse the start, naming the setting.
-A `SubscriptionUsagePort` of your own needs `listBoundToVersion` — both shipped adapters have it.
+A `SubscriptionUsagePort` of your own needs `listBoundToVersion` — both shipped adapters have it —
+and has to return each subscription's `pendingChangeVersionId` with it: without it, a subscriber
+who took a newer version's offer is reached as if they stayed.
 
 **What the operator does.** In the plan cockpit, a version no longer on sale offers "Retire…". The
 operator picks the plan the subscriptions continue on — its version on sale is the replacement, of

@@ -59,7 +59,10 @@ of a move that does not happen.
   not take on, is sent by the quarter-hourly run.
 - `SubscriptionUsagePort.listBoundToVersion` is new and optional; both shipped
   adapters have it, and confirmed terms over a port without it refuse to
-  start.
+  start. A port of your own returns each subscription's
+  `pendingChangeVersionId` (new, optional on `SubscriptionUsageRecord`) with
+  it, or a subscriber who took a newer version's offer is reached as if they
+  stayed.
   `SubscriptionNoticeRepository` gains `record`, `listOfKindSince` and
   `listUndelivered`. The persistence contract holds both; a harness gains the
   `versionRetirements` and `subscriptionUsage` members, or declares
