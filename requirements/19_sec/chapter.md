@@ -345,10 +345,44 @@ _Source:_ `SECURITY.md`
 
 ### SC-SEC-012 — A new dependency's licence is part of the decision to add it
 
-🟢 A copyleft dependency would conflict with the terms SaaSiCat is distributed under, and the
-conflict is only discoverable by reading. Where it is unclear, it is raised rather than added.
+🟢 A copyleft dependency would conflict with the terms SaaSiCat is distributed under. A test reads
+the licence of every package the published packages bring into an application, and of every file
+a package copies out of another, and refuses one it does not know to be permissive; a licence it
+cannot read is raised rather than added.
 
 _Source:_ ADR 0001
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/dependency-licences-leave-the-integrators-code-alone.test.js`
+    - how a licence is read
+        - a permissive licence, in the spellings packages use, is accepted
+        - a copyleft licence is refused, weak or strong
+        - a choice is accepted where one alternative is permissive, a combination only where all are
+        - a licence that cannot be read is refused rather than assumed
+        - the deprecated list form reads as alternatives
+    - how a licence file is read
+        - a permissive licence is recognised word for word, whatever its title, holders and line
+          breaks
+        - a permissive licence with anything added to it is not recognised
+        - a reworded licence is not recognised until somebody has read it
+        - a copyright notice is not read, whatever else it says
+        - anything else, a copyleft licence or an empty file, is not recognised
+        - the Open Font Licence is not read as MIT, though it opens with the same sentence
+        - a file that only mentions a licence is not that licence
+    - what the published packages bring into an application
+        - the walk reaches the tree
+        - every dependency it needs is installed, so its licence can be read
+        - every one of them leaves the integrator’s code alone
+    - what @saasicat/ui-vue copies out of a development dependency
+        - ${copy.what} comes from a package under a permissive licence
+        - ${copy.what} is governed only by permissive licence texts
+        - a copy whose font is under terms of its own, in a package under MIT › is refused for the
+          font’s licence, whatever the file holding it is called
+
+<!-- END proof -->
 
 ### SC-SEC-013 — The platform's own routes with lasting consequences check the second factor themselves
 
@@ -473,5 +507,37 @@ _Tested by:_
     - a second factor with nothing to seal it
         - is a finding of its own, naming both ways to bind one
         - stops the boot
+
+<!-- END proof -->
+
+### SC-SEC-017 — What a package ships of somebody else's files carries their licence
+
+🟢 Where a package copies files out of another package into what it publishes — `@saasicat/ui-vue`
+copies Quasar's stylesheet and the Material Icons font — the licence and notice files that govern
+them are published beside them, as their package states them: those in every directory the copied
+files come from and in every one above it up to the package's root, since a directory may carry
+terms of its own inside a package under others.
+
+_Source:_ ADR 0001
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/vendor-copies-carry-their-licence.test.js`
+    - what this package ships of somebody else's
+        - there is something to check
+        - ${copy.what} ships with every licence that governs it, as its package states them
+        - each copy carries the terms of the package it comes from, not only the nearest
+        - dist/assets holds the own stylesheet and the declared copies, and nothing else
+- `packages/ui-vue/tests/vendor-copies-find-every-licence.test.js`
+    - the licences that govern a copy
+        - a directory copy carries its own, its package root’s and each copied subdirectory’s
+        - a single file carries those from its directory up to the package root, beside it
+    - a licence file
+        - is found under the names packages give it, and a stylesheet named alike is not
+        - lands under a name of its own, and a directory named like one is not taken
+    - a notice
+        - is told by the file’s own name, whatever the directories on the way are called
 
 <!-- END proof -->
