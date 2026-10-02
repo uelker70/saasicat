@@ -146,8 +146,9 @@ export class NoticeSender {
      * An application that has not answered in time may still send the notice,
      * so its claim is not let go: no other run takes it on while the answer is
      * awaited. A late success is recorded as sent, and a late failure lets the
-     * claim go for the next run. An answer that takes longer than the lease
-     * comes after another run may have sent the notice again.
+     * claim go for the next run — as does a late answer naming nobody, where
+     * nobody is not told (`retriesNobody`). An answer that takes longer than
+     * the lease comes after another run may have sent the notice again.
      */
     private settleLate(
         sending: Promise<SubscriptionNoticeDelivery>,
@@ -160,7 +161,14 @@ export class NoticeSender {
                 `${id}; it stays held while the answer is awaited.`,
         );
         void sending.then(
-            (delivery) => this.recordSent(id, claimedAt, delivery),
+            async (delivery) => {
+                if (this.retriesNobody && delivery.recipients.length === 0) {
+                    this.warnOfNobody(id, `notice ${id}`);
+                    await this.letGo(id, claimedAt);
+                    return;
+                }
+                await this.recordSent(id, claimedAt, delivery);
+            },
             async (error: unknown) => {
                 this.logger.error(
                     `The notice ${id} was not sent; the next run tries again.`,

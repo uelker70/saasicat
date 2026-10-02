@@ -388,6 +388,10 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         return readAcrossTenants(this.rlsBypass, async () => {
             let told = 0;
             let failed = 0;
+            // `now` is when the run began; each notice counts from the moment
+            // it is sent, which the ones before it may have pushed back.
+            const started = Date.now();
+            const sendingAt = () => new Date(now.getTime() + (Date.now() - started));
             const staleBefore = new Date(now.getTime() - NOTICE_CLAIM_LEASE_MS);
             const waiting = await this.notices.listUndelivered('version-retired', staleBefore);
             const byVersion = groupByRetiredVersion(
@@ -397,7 +401,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 const onIt = await this.boundTo(retiredId);
                 for (const stored of notices) {
                     const sub = onIt.get(stored.subscriptionId);
-                    const reach = sub ? retirementReach(sub, now) : null;
+                    const reach = sub ? retirementReach(sub, sendingAt()) : null;
                     if (!reach?.reached) continue;
                     const outcome = await this.sender.tell(
                         {

@@ -838,6 +838,61 @@ describe('the run that sends what an announcement could not', () => {
     });
 
     // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
+    test('a notice sent after the ones before it counts from its own sending, not from the start of the run', async () => {
+        // The run starts 200 ms before midnight on 30 November: three calendar
+        // months on is 28 February, 23:59:59.800, so 1 March may be named. The
+        // first answer takes half a second, so the second notice is sent after
+        // midnight, where 1 March is less than three months away: it names 1 April.
+        let sending = false;
+        let first = true;
+        const port = sendingPort(async (notice) => {
+            if (!sending) throw new Error('mail server down');
+            if (first) {
+                first = false;
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+            return { recipients: [`${notice.tenantId}@example.com`], channel: 'email' };
+        });
+        const { service } = retiring({ port });
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+        port.sent.length = 0;
+        sending = true;
+
+        await service.sendUndelivered(new Date('2026-11-30T23:59:59.800Z'));
+
+        assert.deepEqual(
+            port.sent.map((notice) => [notice.subscriptionId, notice.effectiveAt]),
+            [
+                ['sub-t1', '2027-03-01T00:00:00.000Z'],
+                ['sub-t2', '2027-04-01T00:00:00.000Z'],
+            ],
+        );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('a notice answered too late with nobody to tell is tried again, not recorded as told', async () => {
+        let delayMs = 60;
+        let recipients = [];
+        const port = sendingPort(async () => {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            return { recipients, channel: 'email' };
+        });
+        const { service, notices } = retiring({ port });
+        // The answers come after the attempt has counted as failed.
+        service.deliveryTimeoutMs = 20;
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const [{ deliveredAt: afterTheLateAnswer }] = await notices.listForSubscription('sub-t1');
+        delayMs = 0;
+        recipients = ['admin@example.com'];
+
+        const run = await service.sendUndelivered(new Date(NOW.getTime() + 60_000));
+
+        assert.equal(afterTheLateAnswer, null, 'nobody, however late, is not a delivery');
+        assert.deepEqual(run, { told: 2, failed: 0 });
+    });
+
+    // @requirement SC-SUB-035 — A retirement's date is a term end at least three months after its notice arrived
     test('a notice sent a minute late keeps the date it was announced with', async () => {
         const { service, port, sends } = await unsent();
         sends();
@@ -970,7 +1025,7 @@ describe('the run every quarter of an hour', () => {
         };
     }
 
-    test('sends what an announcement could not, after the offers, at the same moment', async () => {
+    test('sends what an announcement could not after the offers, reading the clock as it starts', async () => {
         const { calls, offers, retirements } = recording();
 
         await new VersionNoticeCron(offers, null, retirements).sendDueNotices();
@@ -979,7 +1034,10 @@ describe('the run every quarter of an hour', () => {
             calls.map(([what]) => what),
             ['offers', 'retirements'],
         );
-        assert.equal(calls[0][1], calls[1][1]);
+        // Its own moment, not the offers': a retirement's notice counts from
+        // when it is sent, which slow offers may have pushed back.
+        assert.notEqual(calls[1][1], calls[0][1]);
+        assert.ok(calls[1][1] >= calls[0][1]);
     });
 
     test('sends neither while the application is locked for maintenance', async () => {

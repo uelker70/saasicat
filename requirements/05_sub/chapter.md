@@ -917,6 +917,9 @@ _Tested by:_
     - the run that sends what an announcement could not
         - sends only retirement notices, and leaves one another run holds
         - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent after the ones before it counts from its own sending, not from the start of
+          the run
+        - a notice answered too late with nobody to tell is tried again, not recorded as told
         - a notice sent a minute late keeps the date it was announced with
         - a notice the application tells nobody of is tried again until somebody is told
         - says once a day, not on every run, that a notice still reaches nobody
@@ -924,7 +927,7 @@ _Tested by:_
         - tells nobody whom the retirement no longer reaches, and still tells the others
         - runs inside the bypass
     - the run every quarter of an hour
-        - sends what an announcement could not, after the offers, at the same moment
+        - sends what an announcement could not after the offers, reading the clock as it starts
         - sends neither while the application is locked for maintenance
 
 <!-- END proof -->
@@ -1176,6 +1179,8 @@ _Tested by:_
 - `packages/nest/tests/an-operator-announces-a-retirement.test.js`
     - the run that sends what an announcement could not
         - a notice sent late names the date counted from its sending, and the day before it
+        - a notice sent after the ones before it counts from its own sending, not from the start of
+          the run
         - a notice sent a minute late keeps the date it was announced with
 
 <!-- END proof -->
@@ -1211,6 +1216,7 @@ _Tested by:_
         - counts a subscription whose notice has reached nobody as not told, not as overdue
 - `packages/nest/tests/an-operator-announces-a-retirement.test.js`
     - the run that sends what an announcement could not
+        - a notice answered too late with nobody to tell is tried again, not recorded as told
         - a notice the application tells nobody of is tried again until somebody is told
         - says once a day, not on every run, that a notice still reaches nobody
         - tells nobody who has left the version, and still tells the others

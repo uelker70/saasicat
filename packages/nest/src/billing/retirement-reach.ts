@@ -2,8 +2,10 @@
 //
 // A retirement reaches running contracts, so it comes with notice: it takes
 // effect at the first end of one of the subscription's terms that lies at least
-// three calendar months after the announcement — never inside a term, where the
-// customer has paid for the version they are on. A term is the period of the
+// three calendar months after the notice reached the subscriber — the
+// announcement where it was sent with it, the later moment it was sent where it
+// could not be then (`SC-SUB-035`) — never inside a term, where the customer has
+// paid for the version they are on. A term is the period of the
 // subscription's rhythm; a subscription still in its trial counts its terms
 // from the end of the trial, and one with a change of rhythm scheduled counts
 // them in the new rhythm from the day it lands.
@@ -18,7 +20,7 @@ import {
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { advanceOneCycle, periodEndAfter } from './billing-period.js';
 
-/** Calendar months between an announcement and the earliest effective date. */
+/** Calendar months between a notice reaching the subscriber and the earliest effective date. */
 export const RETIREMENT_LEAD_MONTHS = 3;
 
 /** A subscription is reached by a retirement at most once in this many calendar months. */
@@ -28,7 +30,7 @@ export const RETIREMENT_REPEAT_MONTHS = 12;
 export type RetirementReach =
     | {
           readonly reached: true;
-          /** When it continues on the replacement: a term end, at least the lead after the announcement. */
+          /** When it continues on the replacement: a term end, at least the lead after `toldAt`. */
           readonly effectiveAt: Date;
           /**
            * The last day it may be cancelled without notice: the last whole UTC
@@ -76,10 +78,14 @@ export function calendarMonthsAfter(from: Date, months: number): Date {
     return out;
 }
 
-/** Whether a retirement announced at `announcedAt` reaches `sub`, and when it takes effect. */
-export function retirementReach(sub: RetiringSubscription, announcedAt: Date): RetirementReach {
+/**
+ * Whether a retirement whose notice reaches `sub` at `toldAt` reaches it, and
+ * when it takes effect: the announcement for the notice sent with it, the
+ * moment of sending for one sent later.
+ */
+export function retirementReach(sub: RetiringSubscription, toldAt: Date): RetirementReach {
     if (sub.status === 'CANCELED') return { reached: false, reason: 'ended' };
-    const effective = effectiveDate(sub, calendarMonthsAfter(announcedAt, RETIREMENT_LEAD_MONTHS));
+    const effective = effectiveDate(sub, calendarMonthsAfter(toldAt, RETIREMENT_LEAD_MONTHS));
     if (!effective) return { reached: false, reason: 'no-term' };
     const effectiveAt = effective.at;
     const landsAt = cancellationLandsAt(sub);

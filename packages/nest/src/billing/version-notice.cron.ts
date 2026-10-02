@@ -58,13 +58,15 @@ export class VersionNoticeCron {
         if (this.running) return;
         this.running = true;
         try {
-            const now = new Date();
-            const sent = await this.step('Version notices', () => this.notices.sendDue(now));
+            // Each step reads the clock as it starts: a retirement's notice
+            // counts from the moment it is sent (`SC-SUB-035`), which the steps
+            // before it may have pushed back.
+            const sent = await this.step('Version notices', () => this.notices.sendDue(new Date()));
             if (sent && (sent.told > 0 || sent.failed > 0)) {
                 this.logger.log(`Version notices: ${sent.told} sent, ${sent.failed} to try again.`);
             }
             const retired = await this.step('Retirement notices', () =>
-                this.retirements?.sendUndelivered(now),
+                this.retirements?.sendUndelivered(new Date()),
             );
             if (retired && (retired.told > 0 || retired.failed > 0)) {
                 this.logger.log(
@@ -72,14 +74,16 @@ export class VersionNoticeCron {
                 );
             }
             const reminded = await this.step('Retirement reminders', () =>
-                this.reminders?.remindDue(now),
+                this.reminders?.remindDue(new Date()),
             );
             if (reminded && (reminded.told > 0 || reminded.failed > 0)) {
                 this.logger.log(
                     `Retirement reminders: ${reminded.told} sent, ${reminded.failed} to try again.`,
                 );
             }
-            const moves = await this.step('Retirement moves', () => this.moves?.moveDue(now));
+            const moves = await this.step('Retirement moves', () =>
+                this.moves?.moveDue(new Date()),
+            );
             if (moves && (moves.moved > 0 || moves.failed > 0)) {
                 this.logger.log(
                     `Retirement moves: ${moves.moved} moved, ${moves.failed} to try again.`,
