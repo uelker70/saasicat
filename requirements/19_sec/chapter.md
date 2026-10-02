@@ -536,6 +536,7 @@ _Tested by:_
         - a single file carries those from its directory up to the package root, beside it
     - a licence file
         - is found under the names packages give it, and a stylesheet named alike is not
+        - lands under a name of its own, and a directory named like one is not taken
     - a notice
         - is told by the file’s own name, whatever the directories on the way are called
 

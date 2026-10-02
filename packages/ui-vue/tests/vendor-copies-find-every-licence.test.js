@@ -86,6 +86,24 @@ describe('a licence file', () => {
             ],
         );
     });
+
+    test('lands under a name of its own, and a directory named like one is not taken', () => {
+        const pkg = join(ROOT, 'node_modules', 'dual-pkg');
+        mkdirSync(join(pkg, 'font', 'ofl'), { recursive: true });
+        writeFileSync(
+            join(pkg, 'package.json'),
+            '{"name":"dual-pkg","license":"(MIT OR Apache-2.0)"}',
+        );
+        for (const name of ['font.css', 'LICENSE.MIT', 'LICENSE.APACHE2']) {
+            writeFileSync(join(pkg, 'font', name), '');
+        }
+        const source = join(pkg, 'font', 'font.css');
+
+        assert.deepEqual(
+            targetsOf({ from: source, to: 'font/font.css', directory: true }, source),
+            [join('font', 'LICENSE.APACHE2.txt'), join('font', 'LICENSE.MIT.txt')],
+        );
+    });
 });
 
 describe('a notice', () => {

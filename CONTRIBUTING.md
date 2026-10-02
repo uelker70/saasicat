@@ -440,7 +440,8 @@ development dependency, so the licence test reads that package and those licence
 licence text counts only when it is word for word one of those in
 [`scripts/licence-texts/`](scripts/licence-texts/), apart from its title and copyright notices: a
 copy under another licence, or a licence file with anything added to it, fails until somebody has
-read it, and a licence accepted then gets its text there.
+read it, and a licence accepted then gets its text there. A notice file ships beside the copy as it
+is and is not judged: the terms are what the licence files state.
 
 ## Security issues
 

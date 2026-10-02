@@ -6,8 +6,8 @@
 // licence does not allow — MIT asks for its notice "in all copies or
 // substantial portions", Apache-2.0 for a copy of the licence and any NOTICE.
 
-import { existsSync, readdirSync } from 'node:fs';
-import { basename, dirname, join, parse, relative } from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { basename, dirname, extname, join, relative } from 'node:path';
 
 /**
  * - `from` — the file to copy, as a package resolves it.
@@ -37,6 +37,13 @@ export const WANTED = /\.(css|woff2?|ttf|eot)$/;
  */
 const LICENCE_FILE = /^(licen[cs]e|copying|notice|ofl|unlicense)([-._].*)?$/i;
 
+/** The licence and notice files in `dir` — files only: a directory may be named like one. */
+function licenceFilesIn(dir) {
+    return readdirSync(dir).filter(
+        (name) => LICENCE_FILE.test(name) && statSync(join(dir, name)).isFile(),
+    );
+}
+
 /**
  * The licence and notice files that govern `file`, the nearest first: those in
  * its own directory and in every one above it, up to its package's root.
@@ -54,7 +61,7 @@ export function licenceFilesOf(file) {
     let nearestDir = null;
     for (let dir = dirname(file); ; dir = dirname(dir)) {
         const atRoot = existsSync(join(dir, 'package.json'));
-        for (const name of readdirSync(dir).filter((entry) => LICENCE_FILE.test(entry))) {
+        for (const name of licenceFilesIn(dir)) {
             nearestDir ??= dir;
             found.push({ path: join(dir, name), nearest: dir === nearestDir, packageRoot: atRoot });
         }
@@ -65,7 +72,9 @@ export function licenceFilesOf(file) {
 /**
  * Whether a governing file is a notice — who made it — rather than the terms
  * it is under. Read off the file's own name: a directory on the way may be
- * called anything.
+ * called anything. A notice ships as it is and is not judged: what it may say
+ * cannot be told apart from attribution by reading it, and the terms are what
+ * the licence files beside it state.
  */
 export function isNotice(licence) {
     return /^notice/i.test(basename(licence.path));
@@ -87,7 +96,7 @@ export function licencesOfCopy(copy, source) {
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
             if (!entry.isDirectory()) continue;
             const sub = join(dir, entry.name);
-            for (const name of readdirSync(sub).filter((file) => LICENCE_FILE.test(file))) {
+            for (const name of licenceFilesIn(sub)) {
                 governing.push({
                     path: join(sub, name),
                     nearest: true,
@@ -111,7 +120,7 @@ export function licencesOfCopy(copy, source) {
  * overwrites the other.
  */
 export function licenceTarget(copy, licence) {
-    const base = parse(licence.path).name.toUpperCase();
+    const base = nameOf(licence.path);
     const prefix = licence.nearest
         ? ''
         : licence.packageRoot
@@ -120,4 +129,17 @@ export function licenceTarget(copy, licence) {
     const name = `${prefix}${base}`;
     if (!copy.directory) return `${copy.to}.${name}.txt`;
     return join(dirname(copy.to), licence.within ?? '', `${name}.txt`);
+}
+
+/**
+ * A licence file's name in the copy: `.md` and `.txt` go, any other ending
+ * stays, so `LICENSE.MIT` and `LICENSE.APACHE2` remain two files.
+ */
+function nameOf(path) {
+    const file = basename(path);
+    const ending = extname(file);
+    const plain = ['.md', '.txt'].includes(ending.toLowerCase())
+        ? file.slice(0, -ending.length)
+        : file;
+    return plain.toUpperCase();
 }
