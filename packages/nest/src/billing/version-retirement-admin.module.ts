@@ -21,11 +21,7 @@ import {
     Req,
     type Type,
 } from '@nestjs/common';
-import type {
-    RetirementAnnounced,
-    RetirementPreview,
-    VersionRetirementRecord,
-} from '@saasicat/core';
+import type { RetirementAnnounced, RetirementPreview, VersionRetirementView } from '@saasicat/core';
 
 import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
 import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
@@ -83,7 +79,7 @@ function buildVersionRetirementController(guards: Array<Type<CanActivate>>): Typ
         }
 
         @Get('version-retirements')
-        list(): Promise<VersionRetirementRecord[]> {
+        list(): Promise<VersionRetirementView[]> {
             return this.retirements.list();
         }
     }

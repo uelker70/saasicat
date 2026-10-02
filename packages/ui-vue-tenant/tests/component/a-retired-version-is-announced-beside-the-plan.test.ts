@@ -51,7 +51,7 @@ const RETIREMENT = {
     lastDayToCancel: '2027-01-31',
 };
 
-function aSubscription(retirement: unknown) {
+function aSubscription(retirement: unknown, retirementSwitch: unknown = null) {
     return {
         plan: 'STANDARD',
         effectivePlan: 'STANDARD',
@@ -87,19 +87,29 @@ function aSubscription(retirement: unknown) {
         usage: { users: 3 },
         packageSnapshot: null,
         retirement,
+        retirementSwitch,
         checkoutOfferId: null,
     };
 }
 
-function aServer(retirement: unknown): HttpClient {
+/** Every switch the page asked for, by the body it sent. */
+const switches: unknown[] = [];
+
+function aServer(retirement: unknown, retirementSwitch: unknown = null): HttpClient {
     const reply = (body: unknown) => ({
         status: 200,
         headers: { get: () => 'application/json' },
         json: async () => body,
         text: async () => JSON.stringify(body),
     });
-    return async (url) => {
-        if (url.endsWith('/usage')) return reply(aSubscription(retirement));
+    return async (url, init) => {
+        if (url.endsWith('/retirement/switch')) {
+            switches.push(JSON.parse(String(init?.body ?? 'null')));
+            retirement = null;
+            retirementSwitch = null;
+            return reply({ fromPlanVersionId: 'pv-1', planVersionId: 'pv-9', heldUntilDay: null });
+        }
+        if (url.endsWith('/usage')) return reply(aSubscription(retirement, retirementSwitch));
         if (url.endsWith('/version-offer')) return reply({ offer: null });
         if (url.endsWith('/plans')) {
             return reply([plan('STANDARD', 'Standard'), plan('PRO', 'Professional')]);
@@ -112,13 +122,14 @@ const mounted: VueWrapper[] = [];
 afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
     document.body.innerHTML = '';
+    switches.splice(0);
 });
 
-async function aSection(retirement: unknown) {
+async function aSection(retirement: unknown, retirementSwitch: unknown = null) {
     const wrapper = mount(TenantPlanSection, {
         attachTo: document.body,
         props: {
-            http: aServer(retirement),
+            http: aServer(retirement, retirementSwitch),
             formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
             formatDate: (value: string | Date) => String(value).slice(0, 10),
             i18n,
@@ -169,5 +180,66 @@ describe('a retired version, beside the plan', () => {
         expect(document.body.querySelector('.sp-dialog__panel')?.textContent).toContain(
             'Weil Version 1 Ihres Pakets eingestellt wird, gilt bis einschließlich 2027-01-31 keine Kündigungsfrist.',
         );
+    });
+});
+
+/** The replacement costs ten more; the subscriber keeps paying 49 until the date. */
+const HELD = { priceNet: 59, held: { priceNet: 49, amountNet: 10, lastDay: '2027-01-31' } };
+
+const buttonNamed = (wrapper: VueWrapper, label: string) =>
+    wrapper.findAll('button').find((button) => button.text() === label);
+
+async function confirmingTheSwitch(retirementSwitch: unknown) {
+    const wrapper = await aSection(RETIREMENT, retirementSwitch);
+    await buttonNamed(wrapper, i18n.versionRetiredSwitch)!.trigger('click');
+    await flushPromises();
+    return wrapper;
+}
+
+const dialogText = () => document.body.querySelector('.sp-dialog__panel')?.textContent ?? '';
+
+// @requirement SC-SUB-032 — A subscriber may switch to the replacement early, at no more than they paid
+describe('the switch to the replacement, before the date', () => {
+    test('is offered where the subscription may take it, and not otherwise', async () => {
+        const offered = await aSection(RETIREMENT, HELD);
+        expect(buttonNamed(offered, i18n.versionRetiredSwitch)).toBeTruthy();
+        offered.unmount();
+        mounted.splice(0);
+
+        const notOffered = await aSection(RETIREMENT, null);
+        expect(buttonNamed(notOffered, i18n.versionRetiredSwitch)).toBeUndefined();
+    });
+
+    test('says what it costs until the date and after it, and that cancelling without notice lapses', async () => {
+        await confirmingTheSwitch(HELD);
+
+        expect(dialogText()).toContain(
+            'Bis einschließlich 2027-01-31 zahlen Sie weiter € 49.00 netto/Monat, ab 2027-02-01 € 59.00 netto/Monat.',
+        );
+        expect(dialogText()).toContain(i18n.versionRetiredSwitchCancelLapses);
+    });
+
+    test('says a price that is not higher applies from the next period', async () => {
+        await confirmingTheSwitch({ priceNet: 45, held: null });
+
+        expect(dialogText()).toContain(
+            'Ab Ihrer nächsten Periode am 2026-11-01 zahlen Sie € 45.00 netto/Monat.',
+        );
+    });
+
+    test('switches to the version shown when confirmed, and says so', async () => {
+        await confirmingTheSwitch(HELD);
+
+        // The dialog is teleported to the document, outside the wrapper.
+        const confirm = [...document.body.querySelectorAll('button')].find(
+            (button) => button.textContent?.trim() === i18n.versionRetiredSwitchConfirm,
+        );
+        expect(confirm, 'no confirm button').toBeTruthy();
+        confirm!.click();
+        await flushPromises();
+
+        expect(switches).toEqual([{ planVersionId: 'pv-9' }]);
+        expect(document.body.textContent).toContain('Sie nutzen jetzt Version 3.');
+        expect(card()).toBeNull();
     });
 });

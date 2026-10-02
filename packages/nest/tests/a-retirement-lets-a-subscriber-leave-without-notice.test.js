@@ -58,7 +58,7 @@ const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
  * retirement service answers for it, `undefined` for an installation where
  * retiring is off.
  */
-function buildController(retirement) {
+function buildController(retirement, switches = null) {
     const port = {
         calls: [],
         async cancelSubscription(_tenantId, input) {
@@ -96,7 +96,7 @@ function buildController(retirement) {
     ];
     // Every optional collaborator between the resolvers and the notice periods.
     while (args.length < 15) args.push(null);
-    args.push(NOTICE, null, null, null, retirements);
+    args.push(NOTICE, null, null, null, retirements, switches);
     return { controller: new TenantBillingController(...args), port, asked };
 }
 
@@ -152,5 +152,55 @@ describe('an installation where retiring versions is off', () => {
 
         assert.equal(usage.retirement, null);
         assert.equal(usage.cancellation.effectiveAt.getTime(), MINIMUM_TERM.getTime());
+    });
+});
+
+/** The switch service as the controller asks it: what it could take now, and the switch. */
+function switching(terms) {
+    const switched = [];
+    return {
+        switched,
+        async openFor(_subscription, _now) {
+            return terms ? { notice: null, terms } : null;
+        },
+        async switchNow(tenantId, planVersionId) {
+            switched.push([tenantId, planVersionId]);
+            return { fromPlanVersionId: 'pv-1', planVersionId, heldUntilDay: '2027-01-31' };
+        },
+    };
+}
+
+// @requirement SC-SUB-032 — A subscriber may switch to the replacement early, at no more than they paid
+describe('the switch to the replacement, as the tenant asks for it', () => {
+    const effectiveAt = new Date(Date.now() + 100 * DAY);
+    const TERMS = { priceNet: 520, held: { priceNet: 490, amountNet: 30, lastDay: '2027-01-31' } };
+
+    test('the usage says what it costs where it is open, and nothing where no retirement is pending', async () => {
+        const open = await buildController(told(effectiveAt), switching(TERMS)).controller.getUsage(
+            request,
+        );
+        const none = await buildController(null, switching(TERMS)).controller.getUsage(request);
+
+        assert.deepEqual(open.retirementSwitch, TERMS);
+        assert.equal(none.retirementSwitch, null);
+    });
+
+    test('switches to the version the page named, for the tenant asking', async () => {
+        const switches = switching(TERMS);
+        const { controller } = buildController(told(effectiveAt), switches);
+
+        const result = await controller.switchToReplacement(request, { planVersionId: 'pv-2' });
+
+        assert.deepEqual(switches.switched, [['t1', 'pv-2']]);
+        assert.equal(result.heldUntilDay, '2027-01-31');
+    });
+
+    test('is refused where retiring versions is off', async () => {
+        const { controller } = buildController(undefined);
+
+        await assert.rejects(
+            () => controller.switchToReplacement(request, { planVersionId: 'pv-2' }),
+            (error) => error.getResponse().code === 'RETIREMENT_SWITCH_NOT_PENDING',
+        );
     });
 });

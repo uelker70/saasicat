@@ -57,6 +57,8 @@ export interface ContractFreezePort {
          * next change.
          */
         endsAt: Date | null,
+        /** Where a retirement writes the contract: its move, or the switch it offers. */
+        retirement?: RetirementContractTerms,
     ): Promise<void>;
 
     /**
@@ -72,6 +74,25 @@ export interface ContractFreezePort {
      * call: there is nothing to succeed it with.
      */
     endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void>;
+}
+
+/**
+ * What a retirement adds to the contract its move, or the switch it offers,
+ * writes. The plan line is marked with the retirement, so the journal does not
+ * charge the move as an upgrade the subscriber chose; and a switch to a
+ * replacement that costs more holds the price the subscriber paid until the date
+ * they were told, as a discount line for the difference (`SC-PRIC-063`).
+ */
+export interface RetirementContractTerms {
+    readonly retirementId: string;
+    readonly priceHold?: {
+        /** The difference held, net, for one period of the contract's rhythm. */
+        readonly amountNet: number;
+        /** The date the subscriber was told: periods starting before it are held. */
+        readonly until: Date;
+        /** The last day the price is held, as the contract names it. */
+        readonly lastDay: string;
+    } | null;
 }
 
 /** Frozen bundle line items + their version ids (trace). */

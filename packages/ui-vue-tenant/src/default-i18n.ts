@@ -153,6 +153,21 @@ export interface TenantPlanSectionI18n {
     /** `{date}` is the last day a cancellation needs no notice. */
     versionRetiredCancel: string;
     versionRetiredNoAction: string;
+    /** The free switch to the replacement, before the date. */
+    versionRetiredSwitch: string;
+    /** `{version}` is the replacement's version. */
+    versionRetiredSwitchTitle: string;
+    /**
+     * A dearer replacement: `{plan}` and `{version}` name it, `{held}` is the
+     * price paid up to and including `{day}`, `{price}` its own from `{date}`.
+     */
+    versionRetiredSwitchHeld: string;
+    /** The same price or less: `{price}` applies from the next period, which starts on `{date}`. */
+    versionRetiredSwitchNextPeriod: string;
+    versionRetiredSwitchCancelLapses: string;
+    versionRetiredSwitchConfirm: string;
+    /** After the switch; `{version}` is the replacement's version. */
+    versionRetiredSwitched: string;
     wizardTitle: string;
     wizardClose: string;
     wizardCurrent: string;
@@ -457,6 +472,16 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
         'Bis einschließlich {date} können Sie ohne Kündigungsfrist zum Ende Ihrer laufenden Periode kündigen.',
     versionRetiredNoAction:
         'Wenn Sie nichts tun, läuft Ihr Abonnement ab dann auf der neuen Version weiter.',
+    versionRetiredSwitch: 'Jetzt wechseln',
+    versionRetiredSwitchTitle: 'Jetzt zu Version {version} wechseln?',
+    versionRetiredSwitchHeld:
+        'Ihr Abonnement läuft ab sofort auf {plan} (Version {version}). Bis einschließlich {day} zahlen Sie weiter {held}, ab {date} {price}.',
+    versionRetiredSwitchNextPeriod:
+        'Ihr Abonnement läuft ab sofort auf {plan} (Version {version}). Ab Ihrer nächsten Periode am {date} zahlen Sie {price}.',
+    versionRetiredSwitchCancelLapses:
+        'Mit dem Wechsel entfällt die Kündigung ohne Frist. Ihre Laufzeit bleibt, wie sie ist.',
+    versionRetiredSwitchConfirm: 'Wechsel bestätigen',
+    versionRetiredSwitched: 'Sie nutzen jetzt Version {version}.',
     wizardTitle: 'Paket wechseln',
     wizardClose: 'Schließen',
     wizardCurrent: 'Aktuell',
@@ -735,6 +760,16 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
         'Up to and including {date}, you may cancel without notice, for the end of your current period.',
     versionRetiredNoAction:
         'If you do nothing, your subscription continues on the new version from then on.',
+    versionRetiredSwitch: 'Switch now',
+    versionRetiredSwitchTitle: 'Switch to version {version} now?',
+    versionRetiredSwitchHeld:
+        'Your subscription continues on {plan} (version {version}) from now on. Up to and including {day} you keep paying {held}, from {date} {price}.',
+    versionRetiredSwitchNextPeriod:
+        'Your subscription continues on {plan} (version {version}) from now on. From your next period on {date}, you pay {price}.',
+    versionRetiredSwitchCancelLapses:
+        'With the switch, cancelling without notice is no longer available. Your term stays as it is.',
+    versionRetiredSwitchConfirm: 'Confirm switch',
+    versionRetiredSwitched: 'You are on version {version} now.',
     wizardTitle: 'Change plan',
     wizardClose: 'Close',
     wizardCurrent: 'Current',

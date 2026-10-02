@@ -124,6 +124,8 @@ export function anAccount({
     const contracts = new FakeSubscriptionContractRepository();
     const bookings = [];
     const ledger = journal();
+    // The retirement notices the subscription was told, as the record keeps them.
+    const told = [];
     const subscribers = { findByTenantId: async () => subscriber };
     const subscriptions = { findForTenant: async () => subscription };
     const service = new SubscriberChargeService(
@@ -133,6 +135,7 @@ export function anAccount({
         subscriptions,
         { listBySubscription: async () => bookings },
         freeze,
+        { listForSubscription: async () => told },
     );
     const reader = new SubscriberAccountService(ledger, contracts, subscribers, subscriptions);
     return {
@@ -184,6 +187,21 @@ export function anAccount({
         /** Brings the account up to date at `now`, as the application's call does. */
         charge(now) {
             return service.recordDueCharges('t1', now);
+        },
+        /**
+         * Records that the subscription was told its version is retired, taking
+         * effect on `effectiveAt` — what the announcement writes.
+         */
+        toldOfRetirement(planVersionId, effectiveAt) {
+            told.push({
+                kind: 'version-retired',
+                subscriptionId: subscription.id,
+                content: {
+                    retirementId: 'ret-1',
+                    retired: { planVersionId },
+                    effectiveAt: effectiveAt.toISOString(),
+                },
+            });
         },
         /** Moves the plan's window, as a renewal job does. */
         roll(start, end) {

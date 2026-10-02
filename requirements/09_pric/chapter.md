@@ -1419,3 +1419,60 @@ _Tested by:_
     - a percentage discount on a half cent rounds the way a person computing it rounds
 
 <!-- END proof -->
+
+### SC-PRIC-062 — A period from a retirement's date is charged at the replacement's price
+
+🟢 💰 A plan line of the version being retired prices no period that starts on or after the date the
+subscriber was told. Such a period waits, uncharged, for the contract the move writes, and is then
+charged at the replacement's price — also where the move is written after the period has ended, or
+an application wrote a contract on the retired version in between. A contract a retirement writes,
+by its move or by the switch it offers, adds no prorated difference: it is not an upgrade the
+subscriber chose.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
+    - a period from the date the subscriber was told
+        - waits while the subscription is on the version retired, and is charged from the move
+        - is charged from a move written after it ended, and so is every period in between
+        - is not charged from a contract an application wrote on the version retired in between
+        - is not priced by a change the subscriber made later, on another plan
+        - leaves the add-ons the contract names to be charged as before
+        - a period that starts before the date is the version retired’s, at its price
+        - a contract a retirement writes adds no difference inside a period the version left priced
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a contract a retirement writes
+        - marks its plan line with the retirement, and adds nothing to the move
+
+<!-- END proof -->
+
+### SC-PRIC-063 — After a free switch to a dearer replacement, the price is held until the date
+
+🟢 💰 The contract the switch writes names the replacement at its own price and holds the
+difference as a discount line until the date the subscriber was told. The journal takes it off every
+period on the replacement that starts before that date, also where a later contract was written in
+between; a period that starts on the date or after it is charged in full. Leaving the replacement
+ends it, and a change of rhythm moves what is left of it to the first period in the new rhythm,
+once, as it does for every agreed discount.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
+    - the price a switch holds
+        - takes the difference off each period before the date, and nothing from it
+        - stays where it was agreed when a contract is written again before the date
+        - ends when the subscriber leaves the version switched to
+        - a cheaper replacement holds nothing: its price applies from the next period
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a contract a retirement writes
+        - holds the price of a switch to a dearer replacement as a discount line until the date
+
+<!-- END proof -->

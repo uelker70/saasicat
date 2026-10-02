@@ -128,6 +128,23 @@ test('an offer is taken by posting the version shown, and the usage reloaded aft
     );
 });
 
+// @requirement SC-SUB-032 — A subscriber may switch to the replacement early, at no more than they paid
+test('switchToReplacement posts the version shown to /billing/retirement/switch, then reloads', async () => {
+    const { client, calls } = makeRecordingHttp();
+    const billing = useTenantBilling({ http: client, autoLoad: false });
+
+    await billing.switchToReplacement('pv-9');
+
+    assert.deepEqual(
+        calls.map((c) => [c.method, c.url, c.body]),
+        [
+            ['POST', '/billing/retirement/switch', { planVersionId: 'pv-9' }],
+            ['GET', '/billing/usage', undefined],
+            ['GET', '/billing/subscription-bundles', undefined],
+        ],
+    );
+});
+
 describe('useTenantBillingCatalog URL construction', () => {
     test('default apiPrefix is /billing — catalog endpoints land under /billing/{plans,bundles,feature-registry}', async () => {
         const { client, calls } = makeRecordingHttp();

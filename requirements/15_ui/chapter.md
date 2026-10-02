@@ -1048,6 +1048,7 @@ _Tested by:_
         - plan preview, bundles and cancel all go under the same prefix
     - the version offer is read under the same prefix and answered as the offer itself
     - an offer is taken by posting the version shown, and the usage reloaded after
+    - switchToReplacement posts the version shown to /billing/retirement/switch, then reloads
     - useTenantBillingCatalog URL construction
         - default apiPrefix is /billing — catalog endpoints land under
           /billing/{plans,bundles,feature-registry}

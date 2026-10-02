@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AdminActor, AuditPort } from '@saasicat/core';
+import type { AuditActor, AuditPort } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /** `'web:<email>:<sessionId>'` / `'cli:<email>:<host>'` — audit-event.schema.json ActorTagPattern. */
-export function buildActorTag(actor: AdminActor): string {
+export function buildActorTag(actor: AuditActor): string {
     return `${actor.source}:${actor.email}:${actor.context}`;
 }
 
@@ -22,7 +22,7 @@ export class PrismaAuditAdapter implements AuditPort {
     ) {}
 
     async write(input: {
-        actor: AdminActor;
+        actor: AuditActor;
         entity: string;
         entityId: string;
         action: string;

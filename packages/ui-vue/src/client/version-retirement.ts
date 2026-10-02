@@ -6,8 +6,9 @@ import type {
     PlanVersionRow,
     RetirementBlocker,
     RetirementPreview,
+    RetirementProgress,
     RetirementSkipReason,
-    VersionRetirementRecord,
+    VersionRetirementView,
 } from '@saasicat/core';
 
 import { formatMessage } from './i18n/format.js';
@@ -69,10 +70,26 @@ export function retirementSkips(
  * first in `records`, which the server lists the most recent first.
  */
 export function retirementOf(
-    records: readonly VersionRetirementRecord[],
+    records: readonly VersionRetirementView[],
     planVersionId: string,
-): VersionRetirementRecord | null {
+): VersionRetirementView | null {
     return records.find((record) => record.retired.planVersionId === planVersionId) ?? null;
+}
+
+/** Where the subscriptions a retirement reached stand, in the order an operator reads it. */
+const PROGRESS_ORDER = ['overdue', 'waiting', 'moved', 'ended'] as const;
+
+/**
+ * How far a retirement has come, as the parts worth saying: each state with
+ * subscriptions in it, overdue first — a move that has not happened by its
+ * date is the one thing in it that asks for a look.
+ */
+export function retirementProgressParts(
+    progress: RetirementProgress,
+): Array<{ state: (typeof PROGRESS_ORDER)[number]; count: number }> {
+    return PROGRESS_ORDER.map((state) => ({ state, count: progress[state] })).filter(
+        (part) => part.count > 0,
+    );
 }
 
 /**

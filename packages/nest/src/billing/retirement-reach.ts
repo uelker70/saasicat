@@ -105,7 +105,7 @@ export function retirementReach(sub: RetiringSubscription, announcedAt: Date): R
  * took for the end of its term is scheduled on the same plan and in the same
  * rhythm, so only the version it binds tells the two apart.
  */
-function leavesTheVersionBy(sub: RetiringSubscription, at: Date): boolean {
+export function leavesTheVersionBy(sub: RetiringSubscription, at: Date): boolean {
     if (sub.pendingEffectiveAt === null || sub.pendingEffectiveAt > at) return false;
     if (sub.pendingPlan !== null && sub.pendingPlan !== sub.plan) return true;
     const next = sub.pendingChangeVersionId;

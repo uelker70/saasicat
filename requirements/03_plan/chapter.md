@@ -1337,3 +1337,30 @@ _Tested by:_
         - formats the UTC day, so a day stored at midnight does not slip back
 
 <!-- END proof -->
+
+### SC-PLAN-029 — A version subscriptions still move onto cannot end before they have
+
+🟢 💰 Ending a plan version is refused while subscriptions told of a retirement still have to move
+onto it — still on the retired version, and not ended by their date. While one of them is past its
+date, a move the platform could not make yet, it cannot end at all, and the refusal says how many;
+otherwise it may end from the day after the last of their dates, which leaves the run that moves
+them a day to catch up, and the refusal names that day.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where retiring is wired, it also takes effect
+        - the catalogue asks tenant billing before it ends a version, and nothing without it
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - ending a version subscriptions still move onto
+        - is refused before the day after the last of their dates, and allowed from it
+        - is allowed where nobody is left to move: moved already, or ended by their date
+        - is refused while a move is past its date and not made, whatever end is asked for
+        - is allowed for a version no retirement names
+        - is asked by the catalogue before it ends a version, which writes nothing when refused
+
+<!-- END proof -->

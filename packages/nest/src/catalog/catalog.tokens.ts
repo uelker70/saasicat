@@ -57,3 +57,16 @@ export const CATALOG_FEATURE_UI_REGISTRY_TOKEN = Symbol.for(
  * cannot be wired without an answer to it.
  */
 export const NEW_PAYMENT_METHODS_SOURCE_TOKEN = Symbol.for('saasicat/nest/NewPaymentMethodsSource');
+
+/**
+ * Asked before a plan version is ended, by whatever above the catalogue knows
+ * of subscriptions that still have to reach it — a retirement's moves onto its
+ * replacement. The catalogue defines the question and asks it; tenant billing
+ * answers it where retiring is on. Absent, nothing stops an end.
+ */
+export interface PlanVersionEndingCheck {
+    /** Refuses ending `versionId` at `endsAt` while subscriptions still have to move onto it. */
+    assertMayEnd(versionId: string, endsAt: Date): Promise<void>;
+}
+
+export const PLAN_VERSION_ENDING_CHECK_TOKEN = Symbol.for('saasicat/nest/PlanVersionEndingCheck');

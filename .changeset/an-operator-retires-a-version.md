@@ -19,11 +19,6 @@ end of one of its terms at least three calendar months away (`SC-SUB-027`).
 Until then it may cancel without notice (`SC-CANC-023`). A price increase is a
 retirement whose replacement costs more.
 
-**Nothing moves a subscription yet.** This release announces, records and tells;
-moving the subscriptions at the effective date follows in a later one. Keep
-`termsConfirmed: false` until then: an announcement made now tells subscribers
-of a move that does not happen.
-
 - **`config/saas.yaml` needs `tenantBilling.orderlyRetirement.termsConfirmed`.**
   It is required, like the notice periods beside it, and a file without it no
   longer loads. `true` states that your terms carry the clause a retirement

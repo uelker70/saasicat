@@ -164,6 +164,16 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             { key: 'PLAN_VERSION_RETIRE', label: 'Plan version retired', severity: 'high' },
+            {
+                key: 'PLAN_VERSION_RETIREMENT_MOVE',
+                label: 'Subscription moved to the replacement of a retired version',
+                severity: 'medium',
+            },
+            {
+                key: 'PLAN_VERSION_RETIREMENT_MOVE_FAILED',
+                label: 'Subscription could not be moved to the replacement of a retired version',
+                severity: 'high',
+            },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
             { key: 'USER_DEACTIVATE', label: 'User deactivated', severity: 'high' },

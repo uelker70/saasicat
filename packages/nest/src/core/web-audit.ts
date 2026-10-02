@@ -11,7 +11,7 @@
 // tenant-billing.controller.ts; that one can migrate here later).
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { AdminActor } from '@saasicat/core';
+import type { AdminActor, AuditActor } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import {
@@ -47,7 +47,7 @@ export function defaultActorFromRequest(req: unknown): AdminActor {
 }
 
 /** `web:<email>:<context>` — the origin marker as the audit log writes it. */
-export function actorTagOf(actor: AdminActor): string {
+export function actorTagOf(actor: AuditActor): string {
     return `${actor.source}:${actor.email}:${actor.context}`;
 }
 

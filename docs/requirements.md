@@ -109,13 +109,13 @@ properties it has while doing it.
 | --- | -------------------------------------------- | ------------ | ------- |
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
-| 3   | Plans and their versions                     | `SC-PLAN-…`  | 28      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 30      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 33      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 61      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 63      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 551 entries: 🟢 477 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 557 entries: 🟢 483 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 6 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -212,7 +212,7 @@ Of 551 entries: 🟢 477 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 551 requirements. Do not edit by hand:
+Generated from `requirements/` — 557 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -2338,6 +2338,33 @@ _Tested by:_
         - names the day where the state has one
         - says it without a day where there is none
         - formats the UTC day, so a day stored at midnight does not slip back
+
+<!-- END proof -->
+
+### SC-PLAN-029 — A version subscriptions still move onto cannot end before they have
+
+🟢 💰 Ending a plan version is refused while subscriptions told of a retirement still have to move
+onto it — still on the retired version, and not ended by their date. While one of them is past its
+date, a move the platform could not make yet, it cannot end at all, and the refusal says how many;
+otherwise it may end from the day after the last of their dates, which leaves the run that moves
+them a day to catch up, and the refusal names that day.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where retiring is wired, it also takes effect
+        - the catalogue asks tenant billing before it ends a version, and nothing without it
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - ending a version subscriptions still move onto
+        - is refused before the day after the last of their dates, and allowed from it
+        - is allowed where nobody is left to move: moved already, or ended by their date
+        - is refused while a move is past its date and not made, whatever end is asked for
+        - is allowed for a version no retirement names
+        - is asked by the catalogue before it ends a version, which writes nothing when refused
 
 <!-- END proof -->
 
@@ -4578,6 +4605,132 @@ _Tested by:_
         - says when the subscription moves on, to which version, and what it costs then
         - is not shown where nothing is being retired
         - is said again in the confirmation of a cancellation
+
+<!-- END proof -->
+
+### SC-SUB-031 — A subscription continues on the replacement at the date it was told
+
+🟢 💰 At the date each subscription was told, the platform moves it from the retired version onto
+the replacement, at the replacement's price in the subscription's rhythm, keeping its period and its
+term. A run every quarter of an hour finds the subscriptions whose date has come and that are still
+on the retired version, so a run that did not happen — under a maintenance lock, on a stopped server
+— is caught up by the next. It leaves alone a subscription that has ended by its date and one whose
+own scheduled change takes it off the version by then; a change the subscriber scheduled for later
+survives the move, and one that only moves the rhythm follows the subscription to the replacement's
+plan. A move and the contract it writes are one: where the contract cannot be written, the move is
+put back — onto the retired version whether or not it is still on sale, since undoing a move books
+nothing — so no subscription runs on the replacement under the retired version's contract, unless
+putting it back fails as well. Each move is written to the audit log as the platform's job. A move
+that cannot be made — no party for the contract, a replacement that no longer takes bookings, a
+contract that cannot be written — is recorded there once, tried again by every run, and the charge
+journal waits for it (`SC-PRIC-062`); one that could not be put back either is recorded as such and
+not tried again, since the subscription is no longer on the retired version.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where retiring is wired, it also takes effect
+        - the run that moves subscriptions at their date, and the switch, are there
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the move at the date
+        - moves a subscription still on the version retired, keeping its term and what it scheduled
+        - records the move under the platform job, naming both versions
+        - moves nothing before the date, and catches up a run that did not happen
+        - leaves a subscription that has ended by its date, and moves one that ends after it
+        - leaves a subscription whose own change takes it off the version by its date
+        - moves a trial without a contract or a charge: both come when it converts
+        - a subscription that changed between the read and the write is left to the next run
+        - a replacement the write refuses is a failure, recorded once however often it is tried
+        - a tenant without a subscriber to name is not moved at all
+        - a move whose contract cannot be written is put back, and the next run makes both, where
+          the version retired ${offSale}
+        - a put-back that fails outright is recorded as one refused, and the run goes on
+        - a move that cannot be put back either says so in the audit log
+        - a change of rhythm scheduled between the read and the write is left to the next run
+        - a subscription already on the replacement is left alone
+        - runs across tenants: the write is made inside the bypass
+        - the quarter-hour run moves what is due after the notices, and pauses under maintenance
+
+<!-- END proof -->
+
+### SC-SUB-032 — A subscriber may switch to the replacement early, at no more than they paid
+
+🟢 💰 Until the date, a subscription on a version being retired may move to the named replacement at
+once, from the plan section. The switch keeps the period and the term. Where the replacement costs
+more in the subscription's rhythm, the subscriber goes on paying what they paid until the date they
+were told (`SC-PRIC-063`); where it costs the same or less, its price applies from the next period.
+The switch opens after a trial, and not while a change is scheduled, the subscription has ended, or
+either plan is held for a special contract — the rule a version offer follows. The confirmation says
+what the switch costs until the date and after it, and that cancelling without notice is no longer
+available once switched: that right rests on the version being retired (`SC-CANC-023`). A page that
+named another version than the replacement is refused with the retirement as it stands, and a switch
+whose contract cannot be written is put back — whether or not the retired version is still on sale —
+and refused, so nothing has changed unless putting it back fails as well, which the server log
+names.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-lets-a-subscriber-leave-without-notice.test.js`
+    - the switch to the replacement, as the tenant asks for it
+        - the usage says what it costs where it is open, and nothing where no retirement is pending
+        - switches to the version the page named, for the tenant asking
+        - is refused where retiring versions is off
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the free switch before the date
+        - moves at once, keeps the term, and holds the price until the date where the replacement
+          costs more
+        - holds the difference of the subscriber’s own rhythm
+        - holds nothing where the replacement costs the same or less
+        - is refused where no retirement waits for its date
+        - is refused, with the retirement as it stands, where the page named another version
+        - opens only after the trial
+        - is refused while something is outstanding, as a version offer is
+        - is refused where the subscription changed between the read and the write
+        - whose contract cannot be written is put back and refused, and nothing is charged, where
+          the version retired ${offSale}
+        - that cannot be put back either says so in the log, naming the subscription
+        - is refused before anything moves where the contract could not name its party
+        - is offered with its terms where it is open, and not otherwise
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - switchToReplacement posts the version shown to /billing/retirement/switch, then reloads
+- `packages/ui-vue-tenant/tests/component/a-retired-version-is-announced-beside-the-plan.test.ts`
+    - the switch to the replacement, before the date
+        - is offered where the subscription may take it, and not otherwise
+        - says what it costs until the date and after it, and that cancelling without notice lapses
+        - says a price that is not higher applies from the next period
+        - switches to the version shown when confirmed, and says so
+
+<!-- END proof -->
+
+### SC-SUB-033 — The operator sees how far each retirement has come
+
+🟢 Beside each retired version, the administration counts the subscriptions the retirement reached:
+moved — at their date, by a switch, or by a change of their own — waiting for their date, ended by
+it, and overdue: past their date and still on the version, a move the platform could not make yet.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - how far a retirement has come
+        - counts the subscriptions it reached as moved, waiting, overdue or ended
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - how far a retirement has come says the states with subscriptions in them, overdue first
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - says how far the retirement has come, and marks a move overdue
 
 <!-- END proof -->
 
@@ -7368,6 +7521,63 @@ _Tested by:_
         - and is 0.58 of rest a new period is reduced by
 - `packages/nest/tests/promo-calculator.test.js`
     - a percentage discount on a half cent rounds the way a person computing it rounds
+
+<!-- END proof -->
+
+### SC-PRIC-062 — A period from a retirement's date is charged at the replacement's price
+
+🟢 💰 A plan line of the version being retired prices no period that starts on or after the date the
+subscriber was told. Such a period waits, uncharged, for the contract the move writes, and is then
+charged at the replacement's price — also where the move is written after the period has ended, or
+an application wrote a contract on the retired version in between. A contract a retirement writes,
+by its move or by the switch it offers, adds no prorated difference: it is not an upgrade the
+subscriber chose.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
+    - a period from the date the subscriber was told
+        - waits while the subscription is on the version retired, and is charged from the move
+        - is charged from a move written after it ended, and so is every period in between
+        - is not charged from a contract an application wrote on the version retired in between
+        - is not priced by a change the subscriber made later, on another plan
+        - leaves the add-ons the contract names to be charged as before
+        - a period that starts before the date is the version retired’s, at its price
+        - a contract a retirement writes adds no difference inside a period the version left priced
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a contract a retirement writes
+        - marks its plan line with the retirement, and adds nothing to the move
+
+<!-- END proof -->
+
+### SC-PRIC-063 — After a free switch to a dearer replacement, the price is held until the date
+
+🟢 💰 The contract the switch writes names the replacement at its own price and holds the
+difference as a discount line until the date the subscriber was told. The journal takes it off every
+period on the replacement that starts before that date, also where a later contract was written in
+between; a period that starts on the date or after it is charged in full. Leaving the replacement
+ends it, and a change of rhythm moves what is left of it to the first period in the new rhythm,
+once, as it does for every agreed discount.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
+    - the price a switch holds
+        - takes the difference off each period before the date, and nothing from it
+        - stays where it was agreed when a contract is written again before the date
+        - ends when the subscriber leaves the version switched to
+        - a cheaper replacement holds nothing: its price applies from the next period
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a contract a retirement writes
+        - holds the price of a switch to a dearer replacement as a discount line until the date
 
 <!-- END proof -->
 
@@ -10353,6 +10563,7 @@ _Tested by:_
     - retiring a version in the plan cockpit
         - is offered on the version no longer on sale, and on no other
         - says on a version that it was retired, and for which replacement
+        - says how far the retirement has come, and marks a move overdue
         - says so where the announcements could not be read
         - is not offered where the platform does not serve it
         - shows the replacement, its price, the dates and whom it misses before anything is sent
@@ -11849,6 +12060,7 @@ _Tested by:_
         - plan preview, bundles and cancel all go under the same prefix
     - the version offer is read under the same prefix and answered as the offer itself
     - an offer is taken by posting the version shown, and the usage reloaded after
+    - switchToReplacement posts the version shown to /billing/retirement/switch, then reloads
     - useTenantBillingCatalog URL construction
         - default apiPrefix is /billing — catalog endpoints land under
           /billing/{plans,bundles,feature-registry}

@@ -38,7 +38,7 @@ export interface AuditEvent {
         [k: string]: unknown;
     } | null;
     /**
-     * Origin marker. Format: 'web:<email>:<sessionId>' or 'cli:<email>:<host>'.
+     * Origin marker. Format: 'web:<email>:<sessionId>', 'cli:<email>:<host>', or 'job:platform:<job>' for a platform job acting on its own schedule.
      */
     actorTag?: string | null;
     ipAddress?: string | null;

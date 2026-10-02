@@ -73,6 +73,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_TERMINATE_DATE_NOT_FUTURE: 'endsAt ({endsAt}) must lie strictly in the future.',
     PLAN_TERMINATE_NOT_IMPLEMENTED:
         'Terminate is not implemented in the current repository. Implement PlanRepository.terminate.',
+    PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES:
+        'Subscriptions still move to version {version} of {planKey}, so it can end on {date} at the earliest.',
+    PLAN_TERMINATE_WHILE_MOVES_OVERDUE:
+        '{count} subscriptions are past their date and still to be moved to version {version} of {planKey}, so it cannot end until they have moved.',
     BUNDLE_VERSION_ALREADY_PUBLISHED:
         "BundleVersion '{versionId}' is already published; it is not published again or discarded.",
     BUNDLE_VERSION_NOT_EDITABLE:
@@ -192,6 +196,13 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         '{count} of these subscriptions were reached by a retirement within the last twelve months. A subscription is reached at most once a year.',
     RETIREMENT_PREVIEW_CHANGED:
         'The subscriptions this retirement reaches changed since they were shown. Look at them again before announcing it.',
+    RETIREMENT_SWITCH_NOT_PENDING:
+        'No retirement of your version is waiting for its date, so there is nothing to switch to.',
+    RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',
+    RETIREMENT_SWITCH_NOT_OPEN:
+        'This subscription cannot switch now: a change is scheduled, it has ended, or its plan is held for a special contract.',
+    RETIREMENT_SWITCH_CHANGED:
+        'The retirement changed since it was shown. Look at it again before switching.',
     SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
     PLAN_LOCKED:
         'Active {planName} special contract — please contact the contract manager to change plans.',

@@ -12,7 +12,7 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
-import { noActivePlanVersion, subscriptionGone } from '@saasicat/core';
+import { noActivePlanVersion, scheduledChangeAfterWrite, subscriptionGone } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { subscriptions } from './schema.js';
@@ -80,9 +80,8 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             const keepsVersion = input.keepsBoundVersion && current.plan === input.planId;
             const quoted = keepsVersion
                 ? null
-                : await this.stillBookable(
-                      input.quotedPlanVersionId,
-                      input.planId,
+                : await this.quotedToBind(
+                      input,
                       input.periodStart ?? new Date(),
                       tx as unknown as TransactionContext,
                   );
@@ -110,10 +109,8 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 plan: input.planId,
                 billingCycle: input.cycle,
                 planVersionId,
-                pendingPlan: null,
-                pendingBillingCycle: null,
-                pendingEffectiveAt: null,
-                pendingChangeVersionId: null,
+                // The row is locked, so a change kept is the one read.
+                ...scheduledChangeAfterWrite(current, input),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 ...periodFields(input.periodStart, input.periodEnd),
                 // Null and undefined both mean "leave the trial as it is" — the
@@ -317,17 +314,21 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
      * begun, and it has not ended (`SC-PLAN-016`). Null otherwise, and the
      * version in effect is bound. A window closed by a successor's publication
      * does not count against it — that is the version quoted before the
-     * successor. On the caller's transaction, for the reason given below.
+     * successor. Where the write puts a binding back (`restoresQuotedVersion`),
+     * belonging to the plan is enough: putting a subscription back on a version
+     * ended is no booking. On the caller's transaction, for the reason given
+     * below.
      */
-    private async stillBookable(
-        quotedVersionId: string | null,
-        planKey: string,
+    private async quotedToBind(
+        input: ImmediatePlanChangeInput,
         asOf: Date,
         tx: TransactionContext,
     ): Promise<string | null> {
+        const quotedVersionId = input.quotedPlanVersionId;
         if (!quotedVersionId) return null;
         const quoted = await this.plans.findVersionById(quotedVersionId, tx);
-        if (!quoted || quoted.planId !== planKey) return null;
+        if (!quoted || quoted.planId !== input.planId) return null;
+        if (input.restoresQuotedVersion) return quotedVersionId;
         if (quoted.validFrom && new Date(quoted.validFrom) > asOf) return null;
         return quoted.endsAt && new Date(quoted.endsAt) <= asOf ? null : quotedVersionId;
     }

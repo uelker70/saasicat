@@ -188,6 +188,18 @@
                     >
                         {{ retiredChip(retirementOf(v)!) }}
                     </span>
+                    <span
+                        v-for="part in retiredProgress(retirementOf?.(v) ?? null)"
+                        :key="part.state"
+                        class="pd-retirement-progress"
+                        :class="{ 'pd-retirement-progress--overdue': part.state === 'overdue' }"
+                    >
+                        {{
+                            formatMessage(msg.versions.retiredProgress[part.state], {
+                                count: part.count,
+                            })
+                        }}
+                    </span>
                     <q-btn
                         v-if="canRetire?.(v)"
                         class="btn btn--sm"
@@ -208,8 +220,9 @@
 import { computed } from 'vue';
 import AdminBanner from '../../../ui/feedback/AdminBanner.vue';
 import AdminSection from '../../../ui/page/AdminSection.vue';
-import type { PlanVersionRow, VersionRetirementRecord } from '@saasicat/core';
+import type { PlanVersionRow, VersionRetirementView } from '@saasicat/core';
 import { formatMessage } from '../../../client/i18n/format.js';
+import { retirementProgressParts } from '../../../client/version-retirement.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 import { useVersionSaleText } from '../../../vue/use-version-sale-text.js';
 import type { EditabilityOf, StatusChipOf, StatusOf } from './plan-detail.types.js';
@@ -230,7 +243,7 @@ const props = defineProps<{
     /** Whether `version` is offered for retiring; absent where retiring is not served. */
     canRetire?: (version: PlanVersionRow) => boolean;
     /** The most recent announcement that retired `version`, or null. */
-    retirementOf?: (version: PlanVersionRow) => VersionRetirementRecord | null;
+    retirementOf?: (version: PlanVersionRow) => VersionRetirementView | null;
     /** Why the announcements could not be read, where they could not. */
     retirementsError?: string | null;
 }>();
@@ -269,14 +282,18 @@ function endsAtTitle(endsAt: string): string {
     return formatMessage(msg.value.versions.endsAtTitle, { date: props.formatDate(endsAt) });
 }
 
-function retiredChip(record: VersionRetirementRecord): string {
+function retiredChip(record: VersionRetirementView): string {
     return formatMessage(msg.value.versions.retiredChip, {
         planKey: record.replacement.planKey,
         version: record.replacement.version,
     });
 }
 
-function retiredTitle(record: VersionRetirementRecord): string {
+function retiredProgress(record: VersionRetirementView | null) {
+    return record ? retirementProgressParts(record.progress) : [];
+}
+
+function retiredTitle(record: VersionRetirementView): string {
     return formatMessage(msg.value.versions.retiredTitle, {
         date: props.formatDate(String(record.announcedAt)),
         by: record.announcedBy,

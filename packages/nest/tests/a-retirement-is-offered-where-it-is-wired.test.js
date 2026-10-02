@@ -12,7 +12,12 @@ import { Test } from '@nestjs/testing';
 import { VERSION_RETIREMENT_CAPABILITY } from '@saasicat/core';
 
 import { AdminManifestService } from '../dist/admin/index.js';
-import { VersionRetirementService } from '../dist/billing/index.js';
+import {
+    RetirementMoveService,
+    RetirementSwitchService,
+    VersionRetirementService,
+} from '../dist/billing/index.js';
+import { PlanVersionsService } from '../dist/catalog/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
     bootable,
@@ -112,6 +117,40 @@ describe('retiring a version is offered', () => {
         assert.deepEqual(routes, []);
         assert.equal(manifest.capabilities[VERSION_RETIREMENT_CAPABILITY], undefined);
         await moduleRef.close();
+    });
+});
+
+describe('where retiring is wired, it also takes effect', () => {
+    // @requirement SC-SUB-031 — A subscription continues on the replacement at the date it was told
+    test('the run that moves subscriptions at their date, and the switch, are there', async () => {
+        const { moduleRef, manifest } = await started(installation(termsConfirmed));
+
+        assert.ok(moduleRef.get(RetirementMoveService, { strict: false }));
+        assert.ok(moduleRef.get(RetirementSwitchService, { strict: false }));
+        const actions = manifest.audit.actions.map((action) => action.key);
+        assert.ok(actions.includes('PLAN_VERSION_RETIREMENT_MOVE'), 'the audit log names the move');
+        assert.ok(
+            actions.includes('PLAN_VERSION_RETIREMENT_MOVE_FAILED'),
+            'and a move that could not be made',
+        );
+        await moduleRef.close();
+    });
+
+    // @requirement SC-PLAN-029 — A version subscriptions still move onto cannot end before they have
+    test('the catalogue asks tenant billing before it ends a version, and nothing without it', async () => {
+        const wired = await started(installation(termsConfirmed));
+        const unwired = await started(installation(withoutNotices));
+
+        assert.equal(
+            wired.moduleRef.get(PlanVersionsService, { strict: false }).endingCheck,
+            wired.moduleRef.get(VersionRetirementService, { strict: false }),
+        );
+        assert.equal(
+            unwired.moduleRef.get(PlanVersionsService, { strict: false }).endingCheck,
+            null,
+        );
+        await wired.moduleRef.close();
+        await unwired.moduleRef.close();
     });
 });
 

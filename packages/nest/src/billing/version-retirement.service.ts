@@ -34,16 +34,18 @@ import {
     type RetirementAnnounced,
     type RetirementBlocker,
     type RetirementPreview,
+    type RetirementProgress,
     type RetirementReachedRow,
     type RetirementSkippedRow,
     type RlsBypassPort,
     type SubscriptionNoticePort,
     type SubscriptionNoticeRepository,
     type SubscriptionUsagePort,
+    type SubscriptionUsageRecord,
     type TransactionRunner,
     type VersionRetiredNotice,
-    type VersionRetirementRecord,
     type VersionRetirementRepository,
+    type VersionRetirementView,
     classifyVersionOffer,
     versionSale,
 } from '@saasicat/core';
@@ -51,7 +53,8 @@ import {
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
-import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
+import { PLAN_REPOSITORY_TOKEN, type PlanVersionEndingCheck } from '../catalog/catalog.tokens.js';
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { actorTagOf } from '../core/web-audit.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
@@ -59,6 +62,7 @@ import {
     NoticeSender,
 } from './notice-sender.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import { retirementNoticesOnRecord } from './retirement-notices.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
 import {
     RETIREMENT_REPEAT_MONTHS,
@@ -85,7 +89,7 @@ export function retirementTermsConfirmed(settings: PlanCatalogSettings): boolean
 }
 
 @Injectable()
-export class VersionRetirementService implements OnModuleInit {
+export class VersionRetirementService implements OnModuleInit, PlanVersionEndingCheck {
     private readonly logger = new Logger(VersionRetirementService.name);
     private readonly deliveryTimeoutMs = NOTICE_DELIVERY_TIMEOUT_MS;
     private readonly sender: NoticeSender;
@@ -405,9 +409,109 @@ export class VersionRetirementService implements OnModuleInit {
         return null;
     }
 
-    /** Every announcement, the most recent first. */
-    list(): Promise<VersionRetirementRecord[]> {
-        return this.retirements.list();
+    /**
+     * Every announcement, the most recent first, with how far it has come
+     * (`SC-SUB-033`): counted over the subscriptions it reached, from where
+     * each one is now.
+     */
+    async list(now = new Date()): Promise<VersionRetirementView[]> {
+        return readAcrossTenants(this.rlsBypass, async () => {
+            const [retirements, told] = await Promise.all([
+                this.retirements.list(),
+                this.allNotices(),
+            ]);
+            const stillOn = new Map<string, Promise<Map<string, SubscriptionUsageRecord>>>();
+            const onVersion = (planVersionId: string) => {
+                let found = stillOn.get(planVersionId);
+                if (!found) {
+                    found = this.boundTo(planVersionId);
+                    stillOn.set(planVersionId, found);
+                }
+                return found;
+            };
+            return Promise.all(
+                retirements.map(async (retirement) => ({
+                    ...retirement,
+                    progress: progressOf(
+                        told.filter((notice) => notice.retirementId === retirement.id),
+                        await onVersion(retirement.retired.planVersionId),
+                        now,
+                    ),
+                })),
+            );
+        });
+    }
+
+    /**
+     * Refuses ending a version while subscriptions told of a retirement still
+     * move onto it (`SC-PLAN-029`): the move binds the replacement, and nothing
+     * binds a version that has ended. While one is past its date and still to
+     * move — a move the run could not make yet — it cannot end at all;
+     * otherwise it may end from the day after the last of their dates, which
+     * leaves the run a day to catch up.
+     */
+    async assertMayEnd(versionId: string, endsAt: Date, now = new Date()): Promise<void> {
+        await readAcrossTenants(this.rlsBypass, async () => {
+            const onto = (await this.allNotices()).filter(
+                (notice) => notice.replacement.planVersionId === versionId,
+            );
+            const stillToMove: VersionRetiredNotice[] = [];
+            for (const retiredId of new Set(onto.map((notice) => notice.retired.planVersionId))) {
+                const bound = await this.boundTo(retiredId);
+                for (const notice of onto) {
+                    if (notice.retired.planVersionId !== retiredId) continue;
+                    const sub = bound.get(notice.subscriptionId);
+                    if (sub && !cancellationHasLanded(sub, new Date(notice.effectiveAt))) {
+                        stillToMove.push(notice);
+                    }
+                }
+            }
+            if (stillToMove.length === 0) return;
+            const [{ replacement }] = stillToMove as [VersionRetiredNotice];
+            const overdue = stillToMove.filter((notice) => new Date(notice.effectiveAt) <= now);
+            if (overdue.length > 0) {
+                throw new UnprocessableEntityException({
+                    code: CATALOG_ERROR_CODES.PLAN_TERMINATE_WHILE_MOVES_OVERDUE,
+                    message:
+                        `${overdue.length} subscriptions are past their date and still to be ` +
+                        `moved to version ${replacement.version} of ${replacement.planKey}, so ` +
+                        'it cannot end until they have moved.',
+                    params: {
+                        count: overdue.length,
+                        version: replacement.version,
+                        planKey: replacement.planKey,
+                    },
+                });
+            }
+            const last = Math.max(...stillToMove.map((n) => new Date(n.effectiveAt).getTime()));
+            const earliest = new Date(startOfUtcDay(last) + DAY_MS);
+            if (endsAt >= earliest) return;
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES,
+                message:
+                    `Subscriptions still move to version ${replacement.version} of ` +
+                    `${replacement.planKey}, so it can end on ` +
+                    `${earliest.toISOString().slice(0, 10)} at the earliest.`,
+                params: {
+                    version: replacement.version,
+                    planKey: replacement.planKey,
+                    date: earliest.toISOString().slice(0, 10),
+                },
+            });
+        });
+    }
+
+    /** Every retirement notice on record, as it was told. */
+    private allNotices(): Promise<VersionRetiredNotice[]> {
+        return retirementNoticesOnRecord(this.notices);
+    }
+
+    /** The subscriptions on a version, by id. */
+    private async boundTo(planVersionId: string): Promise<Map<string, SubscriptionUsageRecord>> {
+        // `onModuleInit` refused a port without it where retiring is on, and a
+        // notice exists only where it was.
+        const rows = await this.subscriptions.listBoundToVersion!(planVersionId);
+        return new Map(rows.map((row) => [row.subscription.id, row.subscription]));
     }
 
     private async versionOf(id: string): Promise<PlanVersionRow> {
@@ -533,4 +637,28 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
     const left = new Set(a);
     const right = new Set(b);
     return left.size === right.size && [...left].every((id) => right.has(id));
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfUtcDay(ms: number): number {
+    return ms - (ms % DAY_MS);
+}
+
+/** Where each subscription a retirement reached stands now. */
+function progressOf(
+    told: readonly VersionRetiredNotice[],
+    stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
+    now: Date,
+): RetirementProgress {
+    const progress = { moved: 0, waiting: 0, overdue: 0, ended: 0 };
+    for (const notice of told) {
+        const sub = stillOn.get(notice.subscriptionId);
+        const at = new Date(notice.effectiveAt);
+        if (!sub) progress.moved += 1;
+        else if (cancellationHasLanded(sub, at)) progress.ended += 1;
+        else if (at > now) progress.waiting += 1;
+        else progress.overdue += 1;
+    }
+    return progress;
 }

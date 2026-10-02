@@ -162,12 +162,39 @@ describe('retiring a version in the plan cockpit', () => {
                     replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
                     announcedAt: '2026-10-02T09:00:00.000Z',
                     announcedBy: 'web:operator@example.com:admin',
+                    progress: { moved: 0, waiting: 2, overdue: 0, ended: 0 },
                 },
             ],
         });
         await settle();
 
         expect(wrapper.text()).toContain('Retired → STANDARD v2');
+    });
+
+    // @requirement SC-SUB-033 — The operator sees how far each retirement has come
+    test('says how far the retirement has come, and marks a move overdue', async () => {
+        const { wrapper } = mountCockpit({
+            list: async () => [
+                {
+                    id: 'r-1',
+                    retired: { planVersionId: 'pv-1', planKey: 'STANDARD', version: 1 },
+                    replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
+                    announcedAt: '2026-10-02T09:00:00.000Z',
+                    announcedBy: 'web:operator@example.com:admin',
+                    progress: { moved: 3, waiting: 1, overdue: 1, ended: 0 },
+                },
+            ],
+        });
+        await settle();
+
+        const parts = wrapper.findAll('.pd-retirement-progress');
+        expect(parts.map((part) => part.text())).toEqual([
+            '1 overdue',
+            '1 waiting for their date',
+            '3 moved',
+        ]);
+        expect(parts[0]!.classes()).toContain('pd-retirement-progress--overdue');
+        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--overdue');
     });
 
     test('says so where the announcements could not be read', async () => {

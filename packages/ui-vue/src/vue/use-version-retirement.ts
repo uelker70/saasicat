@@ -14,7 +14,7 @@ import {
     type PlanVersionRow,
     type RetirementAnnounced,
     type RetirementPreview,
-    type VersionRetirementRecord,
+    type VersionRetirementView,
 } from '@saasicat/core';
 
 import { adminErrorMessage, toAdminError } from '../client/admin-error.js';
@@ -37,7 +37,7 @@ export interface VersionRetirementFlow {
     /** Whether `version` is offered for retiring now. */
     canRetire: (version: PlanVersionRow) => boolean;
     /** The most recent announcement that retired `version`, or null. */
-    retirementOf: (version: PlanVersionRow) => VersionRetirementRecord | null;
+    retirementOf: (version: PlanVersionRow) => VersionRetirementView | null;
     /** Why the announcements could not be read, or null. */
     readonly recordsError: Ref<string | null>;
     /** The version being retired while the dialog is open. */
@@ -85,7 +85,7 @@ export function useVersionRetirement(options: {
     const announcing = ref(false);
     const error = ref<string | null>(null);
     const result = ref<RetirementAnnounced | null>(null);
-    const records = ref<VersionRetirementRecord[]>([]);
+    const records = ref<VersionRetirementView[]>([]);
     const recordsError = ref<string | null>(null);
 
     // Read where a plan's cockpit is open, which is the only place they show.

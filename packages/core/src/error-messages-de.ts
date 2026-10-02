@@ -72,6 +72,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_TERMINATE_DATE_NOT_FUTURE: 'endsAt ({endsAt}) muss strikt in der Zukunft liegen.',
     PLAN_TERMINATE_NOT_IMPLEMENTED:
         'Das Beenden ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.terminate.',
+    PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES:
+        'Abonnements ziehen noch auf Version {version} von {planKey} um. Sie kann frühestens am {date} enden.',
+    PLAN_TERMINATE_WHILE_MOVES_OVERDUE:
+        '{count} Abonnements sind über ihr Datum und ziehen noch auf Version {version} von {planKey} um. Sie kann erst enden, wenn sie umgezogen sind.',
     BUNDLE_VERSION_ALREADY_PUBLISHED:
         "BundleVersion '{versionId}' ist bereits veröffentlicht und wird weder erneut veröffentlicht noch verworfen.",
     BUNDLE_VERSION_NOT_EDITABLE:
@@ -193,6 +197,13 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{count} dieser Abonnements waren in den letzten zwölf Monaten schon von einer Stilllegung betroffen. Ein Abonnement ist höchstens einmal im Jahr betroffen.',
     RETIREMENT_PREVIEW_CHANGED:
         'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sieh sie dir noch einmal an, bevor du sie ankündigst.',
+    RETIREMENT_SWITCH_NOT_PENDING:
+        'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
+    RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',
+    RETIREMENT_SWITCH_NOT_OPEN:
+        'Dieses Abonnement kann gerade nicht wechseln: Eine Änderung ist geplant, es ist beendet, oder sein Paket gilt für einen Sondervertrag.',
+    RETIREMENT_SWITCH_CHANGED:
+        'Die Einstellung hat sich seit der Anzeige geändert. Sehen Sie sie sich noch einmal an, bevor Sie wechseln.',
     SUBSCRIPTION_ENDED:
         'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
     PLAN_LOCKED:

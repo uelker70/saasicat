@@ -19,6 +19,7 @@ import {
     promoCodeTaken,
     readCustomLimits,
     refuseForeignPaymentMethodReference,
+    scheduledChangeAfterWrite,
     subscriberChargeColumns,
     subscriberPaymentMethodColumns,
     toSubscriberChargeRecord,
@@ -155,16 +156,20 @@ export function createMemoryHarness() {
                 row.plan === input.planId &&
                 (row.planVersionId ?? null) !== null;
             // A change that names the version it was quoted at is bound to it,
-            // while that version still takes bookings on the day it lands.
+            // while that version still takes bookings on the day it lands — or,
+            // where the write puts a binding back, whatever its sale.
             const asOf = input.periodStart ?? new Date();
             const quotedRow = state.planVersions.find(
                 (version) => version.id === input.quotedPlanVersionId,
             );
+            const takesBookings =
+                quotedRow &&
+                !(quotedRow.validFrom && new Date(quotedRow.validFrom) > asOf) &&
+                !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf);
             const quoted =
                 quotedRow &&
                 quotedRow.planId === input.planId &&
-                !(quotedRow.validFrom && new Date(quotedRow.validFrom) > asOf) &&
-                !(quotedRow.endsAt && new Date(quotedRow.endsAt) <= asOf)
+                (input.restoresQuotedVersion || takesBookings)
                     ? { id: quotedRow.id }
                     : null;
             if (!keepsVersion && input.quotedVersionOnly && !quoted) return unclaimed;
@@ -195,6 +200,19 @@ export function createMemoryHarness() {
             if ((row.canceledAt ?? null) !== (input.expectedCanceledAt ?? null)) {
                 return { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
             }
+            Object.assign(
+                row,
+                scheduledChangeAfterWrite(
+                    {
+                        plan: row.plan,
+                        pendingPlan: row.pendingPlan ?? null,
+                        pendingBillingCycle: row.pendingBillingCycle ?? null,
+                        pendingEffectiveAt: row.pendingEffectiveAt ?? null,
+                        pendingChangeVersionId: row.pendingChangeVersionId ?? null,
+                    },
+                    input,
+                ),
+            );
             row.plan = input.planId;
             row.billingCycle = input.cycle;
             row.planVersionId = target.id;
@@ -1427,30 +1445,39 @@ export function createMemoryHarness() {
         },
     };
 
-    /** The read a retirement asks: the subscriptions on one version, in every tenant. */
+    /** A subscription row as the usage read answers it: with its version, and what it scheduled. */
+    function usageOf(row) {
+        const planVersion = state.planVersions.find((version) => version.id === row.planVersionId);
+        return {
+            ...structuredClone(row),
+            pendingPlan: row.pendingPlan ?? null,
+            pendingBillingCycle: row.pendingBillingCycle ?? null,
+            pendingEffectiveAt: row.pendingEffectiveAt ?? null,
+            pendingChangeVersionId: row.pendingChangeVersionId ?? null,
+            planVersion: planVersion
+                ? {
+                      id: planVersion.id,
+                      planId: planVersion.planId,
+                      version: planVersion.version,
+                      publishedAt: planVersion.publishedAt,
+                      supersededAt: planVersion.supersededAt,
+                      changeNote: null,
+                  }
+                : null,
+        };
+    }
+
+    /** The reads a retirement asks: one tenant's subscription, and those on one version, in every tenant. */
     const subscriptionUsage = {
-        async findForTenant() {
-            return null;
+        async findForTenant(tenantId) {
+            const row = state.subscriptions.find((candidate) => candidate.tenantId === tenantId);
+            return row ? usageOf(row) : null;
         },
         async listBoundToVersion(planVersionId) {
-            const planVersion = state.planVersions.find((row) => row.id === planVersionId);
-            if (!planVersion) return [];
+            if (!state.planVersions.some((row) => row.id === planVersionId)) return [];
             return state.subscriptions
                 .filter((row) => row.planVersionId === planVersionId)
-                .map((row) => ({
-                    tenantId: row.tenantId,
-                    subscription: {
-                        ...structuredClone(row),
-                        planVersion: {
-                            id: planVersion.id,
-                            planId: planVersion.planId,
-                            version: planVersion.version,
-                            publishedAt: planVersion.publishedAt,
-                            supersededAt: planVersion.supersededAt,
-                            changeNote: null,
-                        },
-                    },
-                }));
+                .map((row) => ({ tenantId: row.tenantId, subscription: usageOf(row) }));
         },
     };
 

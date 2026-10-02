@@ -12,6 +12,7 @@ import {
     isRetirable,
     retirementDates,
     retirementOf,
+    retirementProgressParts,
     retirementSkips,
     useVersionRetirement,
 } from '../dist/index.js';
@@ -113,6 +114,19 @@ describe('how a preview reads', () => {
 
         assert.equal(retirementOf(records, 'pv-1').id, 'r-2');
         assert.equal(retirementOf(records, 'pv-9'), null);
+    });
+
+    // @requirement SC-SUB-033 — The operator sees how far each retirement has come
+    test('how far a retirement has come says the states with subscriptions in them, overdue first', () => {
+        assert.deepEqual(retirementProgressParts({ moved: 4, waiting: 2, overdue: 1, ended: 0 }), [
+            { state: 'overdue', count: 1 },
+            { state: 'waiting', count: 2 },
+            { state: 'moved', count: 4 },
+        ]);
+        assert.deepEqual(
+            retirementProgressParts({ moved: 0, waiting: 0, overdue: 0, ended: 0 }),
+            [],
+        );
     });
 
     test("a blocker in the operator's words, the server's where the catalogue has none", () => {

@@ -801,3 +801,61 @@ describe('a code redeemed without an offer is recorded in the first contract aft
         }
     });
 });
+
+describe('a contract a retirement writes', () => {
+    const SWITCHED_AT = new Date('2026-03-20T10:00:00.000Z');
+    const DATE = new Date('2026-07-01T00:00:00.000Z');
+
+    // @requirement SC-PRIC-062 — A period from a retirement's date is charged at the replacement's price
+    test('marks its plan line with the retirement, and adds nothing to the move', async () => {
+        const { calls, service } = makeService();
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
+            retirementId: 'ret-1',
+        });
+
+        const [data] = calls.created;
+        assert.deepEqual(
+            data.lineItems.map((line) => [line.kind, line.metadata]),
+            [['plan', { retirementId: 'ret-1' }]],
+        );
+    });
+
+    // @requirement SC-PRIC-063 — After a free switch to a dearer replacement, the price is held until the date
+    test('holds the price of a switch to a dearer replacement as a discount line until the date', async () => {
+        const { calls, service } = makeService();
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', SWITCHED_AT, null, {
+            retirementId: 'ret-1',
+            priceHold: { amountNet: 3, until: DATE, lastDay: '2026-06-30' },
+        });
+
+        const [data] = calls.created;
+        const hold = data.lineItems.find((line) => line.kind === 'discount');
+        assert.equal(hold.sourceKey, 'retirement-hold:ret-1');
+        assert.equal(hold.priceNet, -3);
+        assert.equal(hold.billingCycle, 'monthly');
+        assert.equal(hold.titleSnapshot, 'Price held until 2026-06-30');
+        assert.equal(hold.metadata.generated, true);
+        assert.deepEqual(hold.metadata.priceHold, {
+            retirementId: 'ret-1',
+            planVersionId: 'pv-standard-3',
+            until: DATE.toISOString(),
+            resolvedAmountNet: 3,
+        });
+        assert.equal(data.priceSnapshot.discountNet, 3);
+        assert.equal(data.priceSnapshot.totalNet, 46);
+    });
+
+    test('a contract written for anything else marks nothing and holds nothing', async () => {
+        const { calls, service } = makeService();
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', SWITCHED_AT, null);
+
+        const [data] = calls.created;
+        assert.deepEqual(
+            data.lineItems.map((line) => [line.kind, line.metadata]),
+            [['plan', null]],
+        );
+    });
+});

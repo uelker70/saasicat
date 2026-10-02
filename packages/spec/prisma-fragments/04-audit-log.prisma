@@ -21,7 +21,8 @@ model AuditLog {
     entityId  String
     action    String // SCREAMING_SNAKE_CASE; e.g. "PROMO_CODE_REDEEM"
     changes   Json? // { field: { old: …, new: … } }
-    // Origin marker 'web:<email>:<sessionId>' | 'cli:<email>:<host>' — see
+    // Origin marker 'web:<email>:<sessionId>' | 'cli:<email>:<host>' |
+    // 'job:platform:<job>' — see
     // audit-event.schema.json `actorTag`. Queryable with a trailing wildcard
     // ('cli:*') via AuditQueryPort.
     actorTag  String?

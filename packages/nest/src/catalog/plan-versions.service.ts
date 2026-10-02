@@ -48,6 +48,8 @@ import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
     PLAN_REPOSITORY_TOKEN,
+    PLAN_VERSION_ENDING_CHECK_TOKEN,
+    type PlanVersionEndingCheck,
 } from './catalog.tokens.js';
 import type { CatalogServiceConfig } from './bundles.service.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
@@ -81,6 +83,11 @@ export class PlanVersionsService {
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        // Optional: present where retiring versions is on, which may still have
+        // subscriptions to move onto this one.
+        @Optional()
+        @Inject(PLAN_VERSION_ENDING_CHECK_TOKEN)
+        private readonly endingCheck: PlanVersionEndingCheck | null = null,
     ) {
         this.mode = config.strictModeCheckMode ?? 'blocking';
         this.marketedOnly = new Set(config.marketedOnlyFeatures ?? []);
@@ -468,6 +475,7 @@ export class PlanVersionsService {
                     'Implement PlanRepository.terminate.',
             });
         }
+        await this.endingCheck?.assertMayEnd(versionId, endsAt);
         return this.repo.terminate(versionId, endsAt);
     }
 

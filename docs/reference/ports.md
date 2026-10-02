@@ -44,7 +44,7 @@ Audit adapter: platform services write to the audit log through this interface.
 
 | Member                                                                                                                                     | What it does |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
-| `write(input: { actor: AdminActor; entity: string; entityId: string; action: string; changes?: Record<string, unknown>; }): Promise<void>` | —            |
+| `write(input: { actor: AuditActor; entity: string; entityId: string; action: string; changes?: Record<string, unknown>; }): Promise<void>` | —            |
 
 ### `AuditQueryPort`
 

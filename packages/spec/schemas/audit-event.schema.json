@@ -38,7 +38,7 @@
         },
         "actorTag": {
             "type": ["string", "null"],
-            "description": "Origin marker. Format: 'web:<email>:<sessionId>' or 'cli:<email>:<host>'."
+            "description": "Origin marker. Format: 'web:<email>:<sessionId>', 'cli:<email>:<host>', or 'job:platform:<job>' for a platform job acting on its own schedule."
         },
         "ipAddress": { "type": ["string", "null"] },
         "userAgent": { "type": ["string", "null"] },
@@ -48,7 +48,7 @@
     "$defs": {
         "ActorTagPattern": {
             "type": "string",
-            "pattern": "^(web|cli):[^:]+:[^:]+$",
+            "pattern": "^(web|cli|job):[^:]+:[^:]+$",
             "description": "Mandatory format for actorTag."
         },
 
