@@ -163,7 +163,7 @@ export class NoticeSender {
         void sending.then(
             async (delivery) => {
                 if (this.retriesNobody && delivery.recipients.length === 0) {
-                    this.warnOfNobody(id, `notice ${id}`);
+                    this.warnOfNobody(id, id);
                     await this.letGo(id, claimedAt);
                     return;
                 }
