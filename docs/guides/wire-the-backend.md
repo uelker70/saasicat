@@ -1032,9 +1032,10 @@ shows the same notice beside the plan (`SC-SUB-030`).
 **The one reminder.** Where staying put costs a subscription something — the replacement is
 dearer in the rhythm it is billed in at the date, or takes a feature away or lowers a quota — the
 same run reminds it once, 14 days before the date (`SC-SUB-034`). Your port is handed a
-`version-retirement-reminder` notice: what the retirement notice said, with the rhythm as it stands,
-and `switchTerms`, what a switch taken now would cost, or `null` where the subscription cannot
-switch now. A price that rises only in another rhythm is no reason to remind. A run that did not
+`version-retirement-reminder` notice: what the retirement notice said — its `billingCycle` the
+rhythm billed at the date, read again as the subscription stands when it is reminded — and
+`switchTerms`, what a switch taken now would cost, or `null` where the subscription cannot switch
+now. A price that rises only in another rhythm is no reason to remind. A run that did not
 happen on the day is caught up until the date. Nobody is reminded who has cancelled, switched, or
 leaves the version by the date through a change of their own. The plan cockpit counts the reminded
 subscriptions beside the retired version.

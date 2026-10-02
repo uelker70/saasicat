@@ -4775,9 +4775,11 @@ _Tested by:_
           date
         - reminds a trial, which cannot switch before it ends
         - a reminder the application could not send is sent by the next run
+        - a reminder that cannot be put together fails for that subscription alone
         - runs across tenants: the reminder is sent inside the bypass
         - the quarter-hour run reminds after the notices and before the moves, and pauses under
           maintenance
+        - a step of the quarter-hour run that fails holds up none of the others
         - the operator sees how many were reminded: reminders that reached somebody
 - `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
     - how a preview reads

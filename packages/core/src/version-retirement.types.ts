@@ -81,8 +81,10 @@ export interface VersionRetiredNotice {
  * The one reminder of a retirement, where staying put costs the subscription
  * something (`SC-SUB-034`): sent 14 days before the retirement takes effect,
  * once per subscription and retired version. It says again what the
- * retirement notice said, with the rhythm as it stands when the reminder is
- * sent, and what a switch taken now would cost.
+ * retirement notice said, and what a switch taken now would cost. Its
+ * `billingCycle` is still the rhythm billed at the date, read again from the
+ * subscription as it stands when the reminder is sent: a change of rhythm
+ * scheduled since the announcement is in it.
  */
 export interface VersionRetirementReminder extends Omit<VersionRetiredNotice, 'kind'> {
     readonly kind: 'version-retirement-reminder';

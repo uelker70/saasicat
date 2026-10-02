@@ -14,7 +14,7 @@
 // application sends it to the tenant's administrators, and the record keeps to
 // whom and how, once however many instances run.
 
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
     retirementCostsTheSubscription,
     retirementReminderIsDue,
@@ -30,7 +30,7 @@ import {
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
-import { NOTICE_DELIVERY_TIMEOUT_MS, NoticeSender } from './notice-sender.js';
+import { NOTICE_DELIVERY_TIMEOUT_MS, NoticeSender, type NoticeOutcome } from './notice-sender.js';
 import { leavesTheVersionBy, rhythmAt } from './retirement-reach.js';
 import { groupByRetiredVersion, retirementNoticesOnRecord } from './retirement-notices.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
@@ -45,6 +45,7 @@ const KIND = 'version-retirement-reminder';
 
 @Injectable()
 export class RetirementReminderService {
+    private readonly logger = new Logger(RetirementReminderService.name);
     private readonly deliveryTimeoutMs = NOTICE_DELIVERY_TIMEOUT_MS;
     private readonly sender: NoticeSender;
 
@@ -85,19 +86,41 @@ export class RetirementReminderService {
                     const sub = byId.get(notice.subscriptionId);
                     if (!sub || reminded.has(notice.subscriptionId)) continue;
                     if (!isToBeReminded(sub, notice)) continue;
-                    const reminder = await this.reminderOf(notice, sub, now);
-                    if (!reminder) continue;
-                    const outcome = await this.sender.tell(
-                        reminder,
-                        retiredId,
-                        this.deliveryTimeoutMs,
-                    );
+                    const outcome = await this.remind(notice, sub, retiredId, now);
                     if (outcome === 'told') told += 1;
                     if (outcome === 'failed') failed += 1;
                 }
             }
             return { told, failed };
         });
+    }
+
+    /**
+     * Sends `sub` its reminder where staying put costs it something. One that
+     * cannot be put together fails for this subscription alone, as one the
+     * application could not send does, and the next run tries again: a row
+     * nobody can read stops neither the other reminders nor the moves after
+     * them.
+     */
+    private async remind(
+        notice: VersionRetiredNotice,
+        sub: SubscriptionUsageRecord,
+        retiredId: string,
+        now: Date,
+    ): Promise<NoticeOutcome> {
+        let reminder: VersionRetirementReminder | null;
+        try {
+            reminder = await this.reminderOf(notice, sub, now);
+        } catch (error) {
+            this.logger.error(
+                `The reminder for subscription ${notice.subscriptionId} of tenant ` +
+                    `${notice.tenantId} could not be put together; the next run tries again.`,
+                error instanceof Error ? error.stack : String(error),
+            );
+            return 'failed';
+        }
+        if (!reminder) return null;
+        return this.sender.tell(reminder, retiredId, this.deliveryTimeoutMs);
     }
 
     /**
@@ -122,9 +145,11 @@ export class RetirementReminderService {
 }
 
 /**
- * Whether the reminder is the platform's to send: not where the subscription
- * has ended or cancelled, nor where a change of its own takes it off the
- * version by its date — it would be told of a cost it does not bear.
+ * Whether the reminder is the platform's to send. Not where the subscription
+ * has ended. Not where it has cancelled: its end is declared, and an earlier
+ * one cannot be declared over it, so a reminder would ask it to act where it
+ * cannot. Nor where a change of its own takes it off the version by its date,
+ * which leaves it nothing to pay for.
  */
 function isToBeReminded(sub: SubscriptionUsageRecord, notice: VersionRetiredNotice): boolean {
     if (sub.status === 'CANCELED' || cancellationLandsAt(sub) !== null) return false;

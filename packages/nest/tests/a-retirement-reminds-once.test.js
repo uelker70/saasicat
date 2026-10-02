@@ -58,15 +58,10 @@ async function aRun({
     notices = [noticeFor('t1')],
     port = sendingPort(),
     bypass = null,
+    switches = switchesOver(subs, notices),
 } = {}) {
     const record = await told(...notices);
-    const service = new RetirementReminderService(
-        usageOver(subs),
-        record,
-        port,
-        switchesOver(subs, notices),
-        bypass,
-    );
+    const service = new RetirementReminderService(usageOver(subs), record, port, switches, bypass);
     return { service, record, port, subs };
 }
 
@@ -252,6 +247,29 @@ describe('the one reminder of a retirement', () => {
         assert.equal(remindersIn(record).length, 1);
     });
 
+    test('a reminder that cannot be put together fails for that subscription alone', async () => {
+        const subs = [subscriptionOf('t1'), subscriptionOf('t2')];
+        const notices = [noticeFor('t1'), noticeFor('t2')];
+        const readable = switchesOver(subs, notices);
+        // t1's notices hold a row nobody can read.
+        const switches = {
+            async openFor(sub, now) {
+                if (sub.id === 'sub-t1')
+                    throw new Error("subscription_notices row 'n-7' is unreadable");
+                return readable.openFor(sub, now);
+            },
+        };
+        const { service, port } = await aRun({ subs, notices, switches });
+
+        const run = await service.remindDue(REMIND_AT);
+
+        assert.deepEqual(run, { told: 1, failed: 1 });
+        assert.deepEqual(
+            port.sent.map((notice) => notice.tenantId),
+            ['t2'],
+        );
+    });
+
     test('runs across tenants: the reminder is sent inside the bypass', async () => {
         let inside = false;
         const sentInside = [];
@@ -299,6 +317,29 @@ describe('the one reminder of a retirement', () => {
         await locked.sendDueNotices();
 
         assert.deepEqual(calls, ['notices', 'retirement notices', 'reminders', 'moves']);
+    });
+
+    test('a step of the quarter-hour run that fails holds up none of the others', async () => {
+        const order = ['notices', 'retirement notices', 'reminders', 'moves'];
+        for (const failing of order) {
+            const calls = [];
+            const step = (name, result) => async () => {
+                calls.push(name);
+                if (name === failing) throw new Error(`${name} failed`);
+                return result;
+            };
+            const cron = new VersionNoticeCron(
+                { sendDue: step('notices', { told: 0, failed: 0 }) },
+                null,
+                { sendUndelivered: step('retirement notices', { told: 0, failed: 0 }) },
+                { moveDue: step('moves', { moved: 0, failed: 0 }) },
+                { remindDue: step('reminders', { told: 0, failed: 0 }) },
+            );
+
+            await cron.sendDueNotices();
+
+            assert.deepEqual(calls, order, `where ${failing} fail`);
+        }
     });
 
     test('the operator sees how many were reminded: reminders that reached somebody', async () => {

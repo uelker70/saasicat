@@ -59,23 +59,27 @@ export class VersionNoticeCron {
         this.running = true;
         try {
             const now = new Date();
-            const { told, failed } = await this.notices.sendDue(now);
-            if (told > 0 || failed > 0) {
-                this.logger.log(`Version notices: ${told} sent, ${failed} to try again.`);
+            const sent = await this.step('Version notices', () => this.notices.sendDue(now));
+            if (sent && (sent.told > 0 || sent.failed > 0)) {
+                this.logger.log(`Version notices: ${sent.told} sent, ${sent.failed} to try again.`);
             }
-            const retired = await this.retirements?.sendUndelivered(now);
+            const retired = await this.step('Retirement notices', () =>
+                this.retirements?.sendUndelivered(now),
+            );
             if (retired && (retired.told > 0 || retired.failed > 0)) {
                 this.logger.log(
                     `Retirement notices: ${retired.told} sent, ${retired.failed} to try again.`,
                 );
             }
-            const reminded = await this.reminders?.remindDue(now);
+            const reminded = await this.step('Retirement reminders', () =>
+                this.reminders?.remindDue(now),
+            );
             if (reminded && (reminded.told > 0 || reminded.failed > 0)) {
                 this.logger.log(
                     `Retirement reminders: ${reminded.told} sent, ${reminded.failed} to try again.`,
                 );
             }
-            const moves = await this.moves?.moveDue(now);
+            const moves = await this.step('Retirement moves', () => this.moves?.moveDue(now));
             if (moves && (moves.moved > 0 || moves.failed > 0)) {
                 this.logger.log(
                     `Retirement moves: ${moves.moved} moved, ${moves.failed} to try again.`,
@@ -83,6 +87,23 @@ export class VersionNoticeCron {
             }
         } finally {
             this.running = false;
+        }
+    }
+
+    /**
+     * One step of the run. A step that fails is logged and holds up none of the
+     * others: they do not depend on one another, and the next run tries the
+     * failed one again.
+     */
+    private async step<T>(name: string, run: () => Promise<T> | undefined): Promise<T | undefined> {
+        try {
+            return await run();
+        } catch (error) {
+            this.logger.error(
+                `${name}: the step failed; the next run tries again.`,
+                error instanceof Error ? error.stack : String(error),
+            );
+            return undefined;
         }
     }
 }

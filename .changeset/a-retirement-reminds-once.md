@@ -19,8 +19,9 @@ the date through a change of their own. With
 yourself.
 
 - **A third kind of notice.** `SubscriptionNotice` gains
-  `version-retirement-reminder`: what the retirement notice said, with the
-  rhythm as it stands, and `switchTerms`, what a switch taken now would cost,
+  `version-retirement-reminder`: what the retirement notice said — its
+  `billingCycle` the rhythm billed at the date, read again as the subscription
+  stands when reminded — and `switchTerms`, what a switch taken now would cost,
   or `null` where the subscription cannot switch now. It is recorded like the
   others, with its recipients and channel, once per subscription and retired
   version. A `SubscriptionNoticePort` of your own narrows on `notice.kind`: one
