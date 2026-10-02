@@ -13,6 +13,11 @@
 // it off the version by the date. A reminder is a notice like the others: the
 // application sends it to the tenant's administrators, and the record keeps to
 // whom and how, once however many instances run.
+//
+// It does not wait for the announcement to have reached the subscriber. It
+// says everything the announcement said, so where the announcement could not
+// be sent, the reminder is the subscriber's first word of the retirement:
+// late, and still better than being moved with none.
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
