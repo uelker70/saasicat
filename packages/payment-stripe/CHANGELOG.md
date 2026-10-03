@@ -1,5 +1,41 @@
 # @saasicat/payment-stripe
 
+## 1.0.0-rc.24
+
+### Patch Changes
+
+- Updated dependencies [05b9e78]
+- Updated dependencies [f7839c2]
+- Updated dependencies [ce7241e]
+- Updated dependencies [49e93ab]
+- Updated dependencies [109fcce]
+- Updated dependencies [f78c15d]
+- Updated dependencies [b17333a]
+- Updated dependencies [fe07088]
+- Updated dependencies [f905b7f]
+- Updated dependencies [21ba667]
+- Updated dependencies [c69e2af]
+- Updated dependencies [381c516]
+- Updated dependencies [60e875d]
+- Updated dependencies [d556622]
+- Updated dependencies [c3b87c8]
+- Updated dependencies [4470181]
+- Updated dependencies [edb496b]
+- Updated dependencies [8a3ee1d]
+- Updated dependencies [2cafe45]
+- Updated dependencies [b152580]
+- Updated dependencies [7063891]
+- Updated dependencies [a576414]
+- Updated dependencies [e444a9b]
+- Updated dependencies [7cd9d27]
+- Updated dependencies [e99d6c0]
+- Updated dependencies [71937ba]
+- Updated dependencies [42b21ab]
+- Updated dependencies [c25f062]
+- Updated dependencies [5a6b34a]
+- Updated dependencies [536982d]
+    - @saasicat/core@1.0.0-rc.24
+
 ## 1.0.0-rc.23
 
 ### Patch Changes

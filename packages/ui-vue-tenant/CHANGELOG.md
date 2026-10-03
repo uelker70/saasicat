@@ -1,5 +1,373 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.24
+
+### Major Changes
+
+- f7839c2: Bind a plan change to the version its preview showed, or to nothing
+
+    A plan change is previewed at one moment and submitted at another. When a
+    successor's start passed in between, the change bound the version then on sale
+    — at a price the customer was never shown. A plan change now names the
+    version its preview showed, and the platform reads the preview again when
+    it is submitted: it changes only while that version is still the one on sale,
+    and binds that version and no other (`SC-CHG-023`). A change scheduled for the
+    end of the term is held to the same.
+
+    - `POST billing/plan` takes `planVersionId`, the preview's
+      `target.planVersionId`. Naming none where the preview names one is refused
+      with 400 `PLAN_CHANGE_VERSION_NOT_NAMED`; naming a version no longer on sale
+      is refused with 409 `PLAN_CHANGE_QUOTE_CHANGED`, which carries the current
+      `preview`. A change that keeps the plan on a subscription bound to a version
+      keeps that version and names none, as does one where nothing reads versions;
+      on a subscription bound to none, a change of rhythm names the version on
+      sale. The write claims the version the change was decided from, so a change
+      made by somebody else in between is refused with 409
+      `SUBSCRIPTION_CHANGED` instead of being undone.
+    - `@saasicat/core` adds both codes with their messages.
+    - `@saasicat/ui-vue`: `useTenantBilling().changePlan` takes the version as its
+      third argument, and `PlanChangePreviewShape.target` carries `planVersionId`.
+    - `@saasicat/ui-vue-tenant`: `PlanChangeWizard` sends the version of the
+      preview on screen, shows the preview a refusal carries, and words a refused
+      change in the reader's language; its `changePlan` prop takes the version as
+      its third argument.
+
+- f905b7f: Retire the pending version: a newer version is only offered
+
+    A subscription keeps its plan version across every renewal until the
+    subscriber takes another (`SC-SUB-024`); a newer version is an offer beside
+    the plan (`SC-SUB-020`). The pending version — set by a notice job, accepted by
+    the tenant, rolled forward at the end of the term — is gone with everything
+    that carried it.
+
+    - `POST billing/subscription/accept-pending-version`,
+      `TenantSubscriptionWritePort.acceptPendingPlanVersion`,
+      `useTenantBilling().acceptPendingPlanVersion`, `PendingVersionBanner`, the
+      seven `pendingVersion*` strings of `TenantPlanSectionI18n`, the error code
+      `NO_PENDING_PLAN_VERSION` and its refusal `noPendingPlanVersion` are removed.
+      A switch is taken through `POST billing/version-offer/accept`.
+    - `decideRenewal` and `clearPendingPlanVersionFields` are removed; a renewal
+      keeps the version, and `computeNextPeriod` stays.
+    - `SubscriptionUsageRecord`, `GET billing/usage` and `Subscription` carry no
+      `pendingPlanVersion*` fields. `prisma-fragments/01-subscription.prisma` and
+      `03-plan-versions.prisma` drop the seven columns and their relation, and
+      `sql/1.0-a-newer-version-is-only-offered.postgres.sql` drops them from an
+      existing database — run it once nothing reads them any more; it discards
+      every pending version still recorded, accepted ones included.
+    - `countByPlanVersionId` counts the version a scheduled change will bind
+      (`pendingChangeVersionId`) beside the version bound, so an operator cannot
+      edit a version somebody's switch is waiting for. Both adapters count it, and
+      the persistence contract holds a store of your own to it; the harness seed
+      writes it as `pendingChangeVersionId`.
+
+### Minor Changes
+
+- d556622: A retired version's subscriptions move to the replacement at their date
+
+    At the date each subscription was told, the platform moves it from the retired
+    version onto the replacement, at the replacement's price, keeping its period
+    and its term (`SC-SUB-031`). The quarter-hourly run that sends version notices
+    does it, and catches up a run that did not happen; with
+    `versionNotices.includeCron: false`, call `RetirementMoveService.moveDue`
+    yourself. A subscription that has ended by its date, or whose own scheduled
+    change takes it off the version by then, is left alone; a change scheduled for
+    later survives the move.
+
+    - **What a moved subscription pays.** A plan line of the retired version prices
+      no period that starts on or after the date the subscriber was told: the period
+      waits for the contract the move writes and is charged at the replacement's
+      price, however late that contract comes (`SC-PRIC-062`). A contract a
+      retirement writes adds no prorated difference.
+    - **Switching early.** Until the date, a subscriber may switch to the
+      replacement at once from the plan section — `POST /billing/retirement/switch`,
+      for the tenant's administrators, audited as `SWITCH_TO_RETIREMENT_REPLACEMENT`
+      (`SC-SUB-032`). The term stays. Where the replacement costs more, the contract
+      holds the difference as a discount line until the date, so the subscriber
+      pays what they paid until then (`SC-PRIC-063`); where it costs the same or
+      less, its price applies from the next period. The switch opens after a trial,
+      not while a change is scheduled, and ends the right to cancel without notice.
+      New codes: `RETIREMENT_SWITCH_NOT_PENDING`, `RETIREMENT_SWITCH_IN_TRIAL`,
+      `RETIREMENT_SWITCH_NOT_OPEN`, `RETIREMENT_SWITCH_CHANGED`.
+    - **Ending a replacement.** A version subscriptions still move onto cannot be
+      terminated before the day after the last of their dates:
+      `PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` (`SC-PLAN-029`). While a move onto
+      it is past its date and not made, it cannot be terminated at all:
+      `PLAN_TERMINATE_WHILE_MOVES_OVERDUE`.
+    - **Audit.** Each move is recorded as `PLAN_VERSION_RETIREMENT_MOVE`, and a move
+      that cannot be made once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, by the new
+      platform job actor: `AuditActor` is `AdminActor` or `PlatformJobActor`
+      (`source: 'job'`, `userId: null`, tag `job:platform:retirement-moves`). An
+      `AuditPort` of your own accepts a `null` user; the canonical
+      `audit_logs.userId` already is nullable.
+    - **`TenantSubscriptionWritePort.changePlanImmediate`** takes
+      `keepsPendingChange`: the scheduled change survives the write, and one that
+      only moves the rhythm on the plan being left follows the subscription to its
+      new plan (`scheduledChangeAfterWrite` in `@saasicat/core`). It also takes
+      `restoresQuotedVersion`, which binds the version named whether or not it
+      still takes bookings: a move or a switch whose contract cannot be written is
+      put back with it, onto the retired version, which is off sale. Both shipped
+      adapters honour both and the persistence contract holds them to it; a port of
+      your own has to.
+    - **The plan cockpit** shows beside a retired version how many of its
+      subscriptions moved, wait for their date, are overdue or ended
+      (`SC-SUB-033`); `versionRetirements.list` answers `VersionRetirementView`
+      with `progress`. The tenant usage carries `retirementSwitch`, and
+      `useTenantBilling` gains `switchToReplacement`. New wording keys:
+      `planDetail.versions.retiredProgress.*` and `versionRetiredSwitch*`.
+
+- 4f2c108: Offer a newer version of the plan beside it, and switch to it
+
+    `TenantPlanSection` reads `GET billing/version-offer` and, where a newer
+    version of the tenant's plan is offered, shows it beside the plan: a card with
+    both versions side by side — the net price in each rhythm, each quota, the
+    features added and removed — the kind of offer and when a switch would take
+    effect. There is nothing to decline and no deadline; the card says the current
+    version stays as long as the tenant does not switch.
+
+    - An improvement is taken by one click. More for more and one that takes
+      something away ask first, and say what the switch does: charged the prorated
+      difference where the rhythm gets dearer, or taking effect at the term end.
+    - The page states the outcome — switched now, or scheduled for a date — and
+      the plan card names a scheduled switch as a new version rather than as a
+      change to the same plan.
+    - A refusal is shown in the app's language through `issueMessages`. Where the
+      offer moved in the meantime, the card shows the one that now stands.
+    - New catalogue keys: `versionOffer*` and `pendingVersionSwitch`, in the
+      German and English defaults. An app that passes its own full `i18n` map adds
+      them.
+
+- 7cd9d27: Let an operator retire a plan version for the subscriptions on it
+
+    A subscription keeps its version (`SC-SUB-024`). Retiring one is the orderly
+    way out: an operator names a replacement on sale, of the same plan or another,
+    and every subscription on the version is told that it continues on it at the
+    end of one of its terms at least three calendar months after its notice
+    reached an administrator (`SC-SUB-035`). Until then it may cancel without
+    notice (`SC-CANC-023`). A price increase is a
+    retirement whose replacement costs more.
+
+    - **`config/saas.yaml` needs `tenantBilling.orderlyRetirement.termsConfirmed`.**
+      It is required, like the notice periods beside it, and a file without it no
+      longer loads. `true` states that your terms carry the clause a retirement
+      rests on; without it the administration does not offer the action and the
+      server refuses it with `RETIREMENT_TERMS_NOT_CONFIRMED` (`SC-SUB-025`).
+      The loader names the field it is missing; `saasicat init` writes `false`.
+    - Only a version no longer on sale can be retired, for a replacement priced in
+      the rhythm each subscription is billed in by then; a retirement that reaches
+      nobody is refused, and a subscription is reached at most once in twelve
+      months (`SC-SUB-028`) and hears of a version's retirement once. The operator
+      sees every subscription it reaches with its date, and every one it does not
+      with the reason, before announcing; the announcement names them and is
+      refused with `RETIREMENT_PREVIEW_CHANGED` where they changed meanwhile
+      (`SC-SUB-026`).
+    - Routes: `GET` and `POST /admin/catalog/plan-versions/:id/retirement`, the
+      second behind the second factor and audited as `PLAN_VERSION_RETIRE`, and
+      `GET /admin/catalog/version-retirements`. The manifest carries
+      `planVersions.retire` (`VERSION_RETIREMENT_CAPABILITY`) where they are
+      served and the terms are confirmed.
+    - Each announcement is kept in the new `version_retirements` table, and each
+      subscription it reaches gets a `version-retired` notice in the same
+      transaction (`SC-SUB-029`). Adopt
+      `prisma-fragments/18-version-retirement.prisma` and run
+      `sql/1.0-a-retirement-is-announced.postgres.sql`; both bundles provide
+      `tenantBilling.versionRetirements`, which
+      `notAdopted: ['VersionRetirement']` leaves out. Confirmed terms with nowhere
+      to keep an announcement refuse the start.
+    - `SubscriptionNotice` is `version-offered` or `version-retired`. A retirement
+      notice carries both versions with their prices (`retired`, `replacement`,
+      `changes`), the `billingCycle` it is billed in when the retirement takes
+      effect, `effectiveAt` and `lastDayToCancel`. A `SubscriptionNoticePort`
+      narrows on `kind`. A notice the port could not send, or the platform could
+      not take on, is sent by the quarter-hourly run.
+    - `SubscriptionUsagePort.listBoundToVersion` is new and optional; both shipped
+      adapters have it, and confirmed terms over a port without it refuse to
+      start. A port of your own returns each subscription's
+      `pendingChangeVersionId` (new, optional on `SubscriptionUsageRecord`) with
+      it, or a subscriber who took a newer version's offer is reached as if they
+      stayed.
+      `SubscriptionNoticeRepository` gains `record`, `listOfKindSince` and
+      `listUndelivered`. The persistence contract holds both; a harness gains the
+      `versionRetirements` and `subscriptionUsage` members, or declares
+      `gaps: ['versionRetirements', 'boundSubscriptions']`.
+    - `versionSale`, `versionOnSale` and `versionOnSaleOrNext` move to
+      `@saasicat/core`, where the server decides by them; `@saasicat/ui-vue`
+      re-exports them unchanged.
+    - `@saasicat/ui-vue`: the plan cockpit offers "Retire…" on a version no
+      longer on sale, with a dialog that shows the replacement's prices, the
+      dates, the subscriptions not reached and every blocker before anything is
+      sent, and marks a retired version with its replacement. New:
+      `useVersionRetirement`, the `versionRetirements` resource, and the catalogue
+      keys `planDetail.versions.retire*`/`retired*` and `planDetail.retireDialog`.
+      The tenant usage carries `retirement`.
+    - `@saasicat/ui-vue-tenant`: the plan section shows a retirement beside the
+      plan — when the subscription continues on which version, at what price, and
+      until when it may cancel without notice — and says the last again in the
+      cancellation confirmation (`SC-SUB-030`). New wording keys
+      `versionRetired*` and `cancelConfirmRetirement`.
+
+### Patch Changes
+
+- 05b9e78: Keep a booked add-on and the plan it runs beside in step
+
+    A plan change, a retirement and an add-on booking now ask one question the
+    same way: can this add-on run beside that plan, allowed there, priced there in
+    the rhythm the booking is billed in, and in no longer a rhythm than the plan's.
+    A plan change asked only about the rhythm, so an add-on sold for one plan went
+    on running after a move to another, at a price nobody had set. And a booking
+    made after a change was scheduled could land on the plan that change moves to,
+    since a scheduled change lands without looking at add-ons.
+
+    - A plan change is refused while an add-on still booked on the day it lands
+      cannot run on the target plan (`SC-CHG-024`): the tenant's own change, the
+      plan chosen at onboarding, which is asked about today because it applies at
+      once, and the early switch to the replacement of a retirement. The new code
+      `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` names the add-on, the plan and the
+      earliest day the add-on could end; the switch says the same with
+      `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW`. The rhythm part keeps
+      `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`, which now names the add-on and that
+      day too. The day is the one a cancellation would land on, never after the
+      subscription ends, and both sentences say what gets past the refusal: the
+      add-on cancelled, and a change taking effect on or after that day.
+    - A booking, its preview, and the reinstatement of a cancelled booking refuse
+      an add-on that cannot run on a plan the subscription is already set to move
+      to (`SC-BUN-037`), with the new code `BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN`,
+      or `BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE` where only the rhythm is in the
+      way (both `planKey`, `billingCycle`, `from`): the target of a scheduled
+      change from the day it lands, in the rhythm it lands in, and the replacement
+      of a retirement the subscription has been told of from its date, for as long
+      as the subscription is on the version retired. A reinstatement is refused,
+      too, where the add-on cannot run on the plan of today.
+    - A retirement is refused while a subscription it reaches still holds, at its
+      date, an add-on that cannot run beside the replacement in the rhythm billed
+      then (`SC-SUB-037`), with `RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES`,
+      which the plan cockpit words in English and German.
+    - The tenant's add-on dialog shows each reason a booking cannot be made in the
+      language chosen, through the message catalogue, rather than the English the
+      backend sends; two reasons with the same code are shown as two. The shipped
+      sentences of `BUNDLE_INCOMPATIBLE_WITH_PLAN` and
+      `BUNDLE_NOT_PRICED_FOR_THIS_PLAN` no longer show the version's id or the
+      rhythm's raw value.
+    - The booking preview names every reason an add-on cannot run beside the plan
+      of today at once, as before. `BUNDLE_INCOMPATIBLE_WITH_PLAN` from a booking
+      carries `allowedPlanKeys` as one comma-separated string, as the preview's
+      always did.
+
+    Breaking where an application wires the modules by hand or calls the booking
+    service itself; `SaaSiCatModule` does all of it.
+
+    - `TenantBillingModule.forRoot` takes `bundleRepository` beside
+      `subscriptionBundleRepository`, and refuses to start with the one and
+      without the other. `SaaSiCatModule` refuses a persistence bundle that has
+      the bookings without the add-on versions
+      (`tenant-billing.requires-bundle-catalogue`).
+    - The add-on route needs `PLANS_AHEAD_TOKEN`, which `TenantBillingModule`
+      exports; a module that mounts the route without tenant billing in its scope
+      no longer starts.
+    - `SubscriptionBundlesService.addBundleToSubscription` and
+      `SubscriptionBundlePreviewContext` require `plansAhead`: what the provider
+      behind `PLANS_AHEAD_TOKEN` answers for the subscription, or an empty list
+      only where nothing is scheduled and no retirement was told.
+    - `cancelBundleFromSubscription` requires `subscriptionId`, and
+      `reactivateBundle` takes one input naming the subscription, the booking, the
+      plan of today and the plans ahead. Both answer a booking of any other
+      subscription as not found.
+
+- 7063891: Book an add-on once per subscription, and never one that has been deleted
+
+    A subscription holds an add-on once, whichever version each booking names, as
+    `SC-BUN-027` says. A tenant holding version 1 of an add-on could book version
+    2 beside it and pay twice for what the two have in common. The booking now
+    refuses that with `BUNDLE_ALREADY_SUBSCRIBED` until the first booking has
+    ended, and the booking preview says so first. The tenant's add-on store says
+    the add-on is booked instead of offering the newer version, and counts a
+    booking cancelled for a day still to come as running, as the server does. A
+    checkout offer refuses two versions of one add-on as a duplicate, when it is
+    made and when it is concluded.
+
+    A version of a deleted add-on can no longer be booked (`SC-BUN-036`). Deleting
+    an add-on leaves its versions' dates as they were, and only the tenant's price
+    read asked about the add-on itself. So a version still inside its window was
+    booked, previewed and put into checkout offers, although the catalogue no
+    longer showed it.
+
+    - `@saasicat/core`: a new code, `BUNDLE_DELETED`, with its text in English and
+      German.
+    - `@saasicat/nest`: the booking and its preview refuse a deleted add-on's
+      version with `BUNDLE_DELETED`. A checkout offer refuses it with
+      `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED` and the reason `bundle_deleted` when it
+      is made, and with `CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE` when it is
+      concluded.
+
+    Nothing changes for an application's own repositories. Bookings already
+    running are left as they are, and the booking reads the add-on through
+    `BundleRepository.findById`, which every repository already implements.
+
+    A test fake of `BundleRepository` does need to answer `findById` for the
+    add-on of every version it books. An answer of `null` reads as a deleted
+    add-on, a fake without the method fails, and `FakeBundleRepository` from
+    `@saasicat/nest/testing` answers only for add-ons given to `seedBundle`.
+
+- c25f062: Show a subscriber the price of the plan version they are bound to
+
+    The plan card read the price off the catalogue, which lists what a new
+    customer pays. After a new version of the plan that is not what a subscriber
+    on the older one pays, and the card showed them the newer price
+    (`SC-SUB-019`).
+
+    - `GET billing/usage` answers with `planPriceNet`: what the plan costs per
+      billing cycle, net, at the version the subscription is bound to, priced by
+      the rules the contract freeze bills it by. Where the plan repository does not
+      read versions (`findVersionById`), or the subscription is bound to none, the
+      catalogue's price stands in. It is `null` where the plan has no list price in
+      the rhythm, including a version sold under a special contract, and where the
+      version bound cannot be read — the plan repository does not find it, or
+      finds a version of another plan. The catalogue's price there would be the
+      newest one; the rest of the account still answers, and the case is logged.
+    - The plan-change preview refuses a change for such a subscription with
+      `BOUND_PLAN_VERSION_UNREADABLE` (422) rather than quoting it from the
+      catalogue.
+    - `PlanChangePreviewService.planPriceNet(subscription)` is where that is read,
+      and the preview's current price comes from the same place.
+    - `UsageSnapshotShape` in `@saasicat/ui-vue` carries `planPriceNet`, required:
+      a fixture typed as that shape adds the field.
+    - `TenantPlanSection` shows `planPriceNet` on the plan card rather than the
+      catalogue's price.
+
+- Updated dependencies [05b9e78]
+- Updated dependencies [f7839c2]
+- Updated dependencies [ce7241e]
+- Updated dependencies [49e93ab]
+- Updated dependencies [109fcce]
+- Updated dependencies [f78c15d]
+- Updated dependencies [b17333a]
+- Updated dependencies [fe07088]
+- Updated dependencies [f905b7f]
+- Updated dependencies [21ba667]
+- Updated dependencies [c69e2af]
+- Updated dependencies [381c516]
+- Updated dependencies [60e875d]
+- Updated dependencies [d556622]
+- Updated dependencies [c3b87c8]
+- Updated dependencies [4470181]
+- Updated dependencies [edb496b]
+- Updated dependencies [8a3ee1d]
+- Updated dependencies [2cafe45]
+- Updated dependencies [b152580]
+- Updated dependencies [7063891]
+- Updated dependencies [a576414]
+- Updated dependencies [e444a9b]
+- Updated dependencies [7cd9d27]
+- Updated dependencies [e99d6c0]
+- Updated dependencies [71937ba]
+- Updated dependencies [42b21ab]
+- Updated dependencies [22eb81c]
+- Updated dependencies [c25f062]
+- Updated dependencies [5a6b34a]
+- Updated dependencies [536982d]
+- Updated dependencies [4eae16a]
+    - @saasicat/core@1.0.0-rc.24
+    - @saasicat/ui-vue@1.0.0-rc.24
+
 ## 1.0.0-rc.23
 
 ### Minor Changes
