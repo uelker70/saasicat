@@ -2559,6 +2559,50 @@ scheduled could land on the plan that change moves to.
 - **`BUNDLE_INCOMPATIBLE_WITH_PLAN` from a booking** carries `allowedPlanKeys` as one
   comma-separated string, as the preview's always did, rather than an array.
 
+### An operator can retire an add-on version for the bookings on it
+
+New: an operator can retire an add-on version no longer on sale for the bookings still on it; they
+continue on the add-on's version on sale, each told, and may be cancelled without their minimum term
+until then. How it works and how to wire it:
+[Retiring an Add-on Version](wire-the-backend.md#retiring-an-add-on-version). What every
+installation has to do, whether or not it uses it:
+
+1. **Adopt the add-on announcement table, or declare it not adopted.** `BundleVersionRetirement`
+   from `prisma-fragments/19-bundle-version-retirement.prisma`, and the migration once, before
+   `db push` where you use one. Without the model, `saasicat schema check` lists it as not adopted;
+   with `prismaPersistence()` or `drizzlePersistence()`, pass
+   `notAdopted: ['BundleVersionRetirement']` and retiring add-on versions stays off, while retiring
+   plan versions works as before.
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-an-add-on-retirement-is-announced.postgres.sql
+    ```
+
+2. **Handle the new kind of notice.** `SubscriptionNotice` gains `bundle-version-retired`, one per
+   booking an add-on retirement reaches. A port that narrows on `notice.kind` and treats whatever it
+   did not name as a reminder sends an add-on's retirement as a plan version's reminder; a port that
+   checks every kind is exhaustive no longer compiles until it names this one.
+
+- **A `SubscriptionBundleRepository` of your own** gains the optional `listOfVersion`, and **a
+  `SubscriptionUsagePort` of your own** the optional `listByIds`; retiring an add-on version needs
+  both, both shipped adapters have them, and a start with confirmed terms is refused without them.
+- **A persistence contract harness** gains the `bundleVersionRetirements` member; a harness without
+  it, or without the two methods above, declares
+  `gaps: ['bundleVersionRetirements', 'bookingsOfVersion', 'subscriptionsById']` as far as it lacks
+  them.
+- **Code of your own that cancels a booking** through `SubscriptionBundlesService` or previews it
+  through `SubscriptionBundlePreviewService` passes `minimumTermLapses` where a retirement told for
+  the booking is still to take effect; the shipped route decides it from the server's clock.
+- **A new refusal**, for a booking on a version being retired that the announcement did not reach:
+  `BUNDLE_RETIREMENT_REINSTATE_REFUSED` (`bundleKey`, `version`, `replacementVersion`), answered to
+  its reinstatement. An application that words refusals itself adds it; the shipped texts cover
+  English and German until it does.
+- **`@saasicat/ui-vue`** registers a `bundleVersionRetirements` resource, and the tenant's bookings
+  (`SubscriptionBundleShape`, `useTenantSubscriptionBundles`) carry `retirement`, null where none
+  stands. The add-on page's label for a deleted add-on reads "Deleted" rather than "Retired"; its
+  keys, `bundles.filter.retired` and `bundles.status.retired.label`, are unchanged, so an override
+  of them keeps its words.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

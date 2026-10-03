@@ -90,3 +90,35 @@ export function retiredVersionsOf(
             retirementId: notice.retirementId,
         }));
 }
+
+/**
+ * The kinds of notice a retirement tells a subscription with: of the plan
+ * version it is on, and of an add-on version it holds.
+ */
+const RETIREMENT_NOTICE_KINDS = ['version-retired', 'bundle-version-retired'] as const;
+
+/**
+ * The subscriptions a retirement reached at or after `since`, plan or add-on
+ * alike: a subscription is reached at most once in twelve months, whichever it
+ * was told of (`SC-SUB-028`, `SC-BUN-041`). A retirement counts from its
+ * notice reaching somebody, as its date does (`SC-SUB-036`), which can be long
+ * after the notice was recorded. One whose notice still waits counts from the
+ * announcement, so a second retirement is not announced on top of one nobody
+ * has been told of yet.
+ *
+ * Read in full: a notice recorded before `since` may have reached somebody
+ * after it.
+ */
+export async function subscriptionsReachedSince(
+    notices: Pick<SubscriptionNoticeRepository, 'listOfKindSince'>,
+    since: Date,
+): Promise<Set<string>> {
+    const reached = new Set<string>();
+    for (const kind of RETIREMENT_NOTICE_KINDS) {
+        for (const record of await notices.listOfKindSince(kind, new Date(0))) {
+            const counted = reachedSomebody(record) ? record.deliveredAt : record.createdAt;
+            if (counted !== null && counted >= since) reached.add(record.subscriptionId);
+        }
+    }
+    return reached;
+}

@@ -83,38 +83,40 @@ PromoCodesModule.forRoot({
 
 ## Shipped adapters
 
-| Class                                    | Implements port                    | Tables                                                              |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------------------------------------- |
-| `PrismaTransactionRunner`                | `TransactionRunner`                | — (`$transaction`)                                                  |
-| `PrismaMfaAdapter`                       | `MfaPort`                          | `super_admin_mfa`                                                   |
-| `PrismaAuditAdapter`                     | `AuditPort`                        | `audit_logs`                                                        |
-| `PrismaAuditQueryAdapter`                | `AuditQueryPort`                   | `audit_logs`                                                        |
-| `PrismaAuditStatsAdapter`                | `AuditStatsPort`                   | `audit_logs`                                                        |
-| `AsyncLocalRlsBypassAdapter`             | `RlsBypassPort`                    | (no DB access)                                                      |
-| `PrismaSubscriptionRepository`           | `SubscriptionRepository`           | `subscriptions`, `plan_versions`, optionally `subscription_bundles` |
-| `PrismaSubscriptionBundleRepository`     | `SubscriptionBundleRepository`     | `subscription_bundles`                                              |
-| `PrismaTenantSubscriptionWriteAdapter`   | `TenantSubscriptionWritePort`      | `subscriptions`, `plans`, `plan_versions`                           |
-| `PrismaPlanVersionRepository`            | `PlanVersionRepository`            | `plan_versions`                                                     |
-| `PrismaPromoCodeRepository`              | `PromoCodeRepository`              | `promo_codes`                                                       |
-| `PrismaPromoCodeRedemptionRepository`    | `PromoCodeRedemptionRepository`    | `promo_code_redemptions`                                            |
-| `PrismaPromoCodeHoldRepository`          | `PromoCodeHoldRepository`          | `promo_code_holds`, `promo_codes`                                   |
-| `PrismaPromoCodeValidationLogRepository` | `PromoCodeValidationLogRepository` | `promo_code_validation_logs`                                        |
-| `PrismaPromoSubscriptionLookup`          | `PromoSubscriptionLookup`          | `subscriptions`                                                     |
-| `ZeroPromoRevenueDeductionAggregator`    | `PromoRevenueDeductionAggregator`  | — (constant `'0.00'`)                                               |
-| `PrismaSuperAdminBootstrapAdapter`       | `SuperAdminProvisioningPort`       | `super_admin_users`                                                 |
-| `PrismaPlanCatalogReadSink`              | `PlanCatalogReadSink`              | `plans`, `plan_versions`, `feature_catalog_entries`                 |
-| `PrismaPlanCatalogImportSink`            | `PlanCatalogImportSink`            | same                                                                |
-| `PrismaPlanRepository`                   | `PlanRepository`                   | `plans`, `plan_versions`                                            |
-| `PrismaBundleRepository`                 | `BundleRepository`                 | `bundles`, `bundle_versions`                                        |
-| `PrismaCatalogEntryRepository`           | `CatalogEntryRepository`           | capability, feature and quota catalog tables                        |
-| `PrismaMarketingProjectionRepository`    | `MarketingProjectionRepository`    | `marketing_projections`                                             |
-| `PrismaMarketingSettingsRepository`      | `MarketingSettingsRepository`      | `marketing_settings`                                                |
-| `PrismaPromotionRepository`              | `PromotionRepository`              | `promotions`                                                        |
-| `PrismaSubscriptionContractRepository`   | `SubscriptionContractRepository`   | `subscription_contracts`, `contract_line_items`                     |
-| `PrismaSubscriberLedgerRepository`       | `SubscriberLedgerRepository`       | `subscriber_ledger_entries`                                         |
-| `PrismaAppliedSettingsRepository`        | `AppliedSettingsPort`              | `applied_settings`, `settings_changes`                              |
-| `PrismaMaintenanceWindowRepository`      | `MaintenanceWindowPort`            | `maintenance_windows`                                               |
-| `PrismaSubscriptionNoticeRepository`     | `SubscriptionNoticeRepository`     | `subscription_notices`                                              |
+| Class                                     | Implements port                     | Tables                                                              |
+| ----------------------------------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| `PrismaTransactionRunner`                 | `TransactionRunner`                 | — (`$transaction`)                                                  |
+| `PrismaMfaAdapter`                        | `MfaPort`                           | `super_admin_mfa`                                                   |
+| `PrismaAuditAdapter`                      | `AuditPort`                         | `audit_logs`                                                        |
+| `PrismaAuditQueryAdapter`                 | `AuditQueryPort`                    | `audit_logs`                                                        |
+| `PrismaAuditStatsAdapter`                 | `AuditStatsPort`                    | `audit_logs`                                                        |
+| `AsyncLocalRlsBypassAdapter`              | `RlsBypassPort`                     | (no DB access)                                                      |
+| `PrismaSubscriptionRepository`            | `SubscriptionRepository`            | `subscriptions`, `plan_versions`, optionally `subscription_bundles` |
+| `PrismaSubscriptionBundleRepository`      | `SubscriptionBundleRepository`      | `subscription_bundles`                                              |
+| `PrismaTenantSubscriptionWriteAdapter`    | `TenantSubscriptionWritePort`       | `subscriptions`, `plans`, `plan_versions`                           |
+| `PrismaPlanVersionRepository`             | `PlanVersionRepository`             | `plan_versions`                                                     |
+| `PrismaPromoCodeRepository`               | `PromoCodeRepository`               | `promo_codes`                                                       |
+| `PrismaPromoCodeRedemptionRepository`     | `PromoCodeRedemptionRepository`     | `promo_code_redemptions`                                            |
+| `PrismaPromoCodeHoldRepository`           | `PromoCodeHoldRepository`           | `promo_code_holds`, `promo_codes`                                   |
+| `PrismaPromoCodeValidationLogRepository`  | `PromoCodeValidationLogRepository`  | `promo_code_validation_logs`                                        |
+| `PrismaPromoSubscriptionLookup`           | `PromoSubscriptionLookup`           | `subscriptions`                                                     |
+| `ZeroPromoRevenueDeductionAggregator`     | `PromoRevenueDeductionAggregator`   | — (constant `'0.00'`)                                               |
+| `PrismaSuperAdminBootstrapAdapter`        | `SuperAdminProvisioningPort`        | `super_admin_users`                                                 |
+| `PrismaPlanCatalogReadSink`               | `PlanCatalogReadSink`               | `plans`, `plan_versions`, `feature_catalog_entries`                 |
+| `PrismaPlanCatalogImportSink`             | `PlanCatalogImportSink`             | same                                                                |
+| `PrismaPlanRepository`                    | `PlanRepository`                    | `plans`, `plan_versions`                                            |
+| `PrismaBundleRepository`                  | `BundleRepository`                  | `bundles`, `bundle_versions`                                        |
+| `PrismaCatalogEntryRepository`            | `CatalogEntryRepository`            | capability, feature and quota catalog tables                        |
+| `PrismaMarketingProjectionRepository`     | `MarketingProjectionRepository`     | `marketing_projections`                                             |
+| `PrismaMarketingSettingsRepository`       | `MarketingSettingsRepository`       | `marketing_settings`                                                |
+| `PrismaPromotionRepository`               | `PromotionRepository`               | `promotions`                                                        |
+| `PrismaSubscriptionContractRepository`    | `SubscriptionContractRepository`    | `subscription_contracts`, `contract_line_items`                     |
+| `PrismaSubscriberLedgerRepository`        | `SubscriberLedgerRepository`        | `subscriber_ledger_entries`                                         |
+| `PrismaAppliedSettingsRepository`         | `AppliedSettingsPort`               | `applied_settings`, `settings_changes`                              |
+| `PrismaMaintenanceWindowRepository`       | `MaintenanceWindowPort`             | `maintenance_windows`                                               |
+| `PrismaSubscriptionNoticeRepository`      | `SubscriptionNoticeRepository`      | `subscription_notices`                                              |
+| `PrismaVersionRetirementRepository`       | `VersionRetirementRepository`       | `version_retirements`                                               |
+| `PrismaBundleVersionRetirementRepository` | `BundleVersionRetirementRepository` | `bundle_version_retirements`                                        |
 
 `PrismaMfaAdapter` stores the secret it is handed. The platform seals it first with the
 `SecretSealer` bound in `adapters`, which this bundle does not supply: the key belongs to the

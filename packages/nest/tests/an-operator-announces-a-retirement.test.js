@@ -576,6 +576,45 @@ describe('a subscription is reached at most once in twelve months', () => {
         assert.deepEqual(codesOf(preview), []);
     });
 
+    test('one whose notice reached somebody counts from then, though recorded long before', async () => {
+        const notices = noticeRecord();
+        await reachedAt(notices, new Date('2025-08-15T09:00:00.000Z'));
+        for (const row of notices.rows.values()) {
+            Object.assign(row, {
+                deliveredAt: new Date('2026-09-15T09:00:00.000Z'),
+                delivery: { recipients: ['admin@example.com'], channel: 'email' },
+            });
+        }
+        const { service } = retiring({ notices });
+
+        const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+        assert.deepEqual(codesOf(preview), ['RETIREMENT_WITHIN_TWELVE_MONTHS']);
+    });
+
+    // @requirement SC-BUN-041 — Retirements of plan and add-on reach a subscription at most once in twelve months
+    test('an add-on retirement it was told of counts as well', async () => {
+        const notices = noticeRecord();
+        await notices.record(
+            [
+                {
+                    tenantId: 't1',
+                    subscriptionId: 'sub-t1',
+                    kind: 'bundle-version-retired',
+                    subject: 'bv-earlier',
+                    content: { kind: 'bundle-version-retired' },
+                },
+            ],
+            new Date('2026-06-15T09:00:00.000Z'),
+        );
+        const { service } = retiring({ notices });
+
+        const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+        assert.deepEqual(codesOf(preview), ['RETIREMENT_WITHIN_TWELVE_MONTHS']);
+        assert.deepEqual(preview.blockers[0].params, { count: 1 });
+    });
+
     test('a notice of another kind does not count', async () => {
         const notices = noticeRecord();
         await notices.record(
@@ -1192,7 +1231,7 @@ describe('the run every quarter of an hour', () => {
     });
 });
 
-// @requirement SC-CANC-023 — A retirement lets a subscription cancel without notice until it takes effect
+// @requirement SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 describe('the retirement that reaches a subscription', () => {
     const onRetired = { id: 'sub-t1', planVersion: { id: 'pv-1' } };
 

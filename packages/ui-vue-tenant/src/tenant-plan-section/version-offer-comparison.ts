@@ -12,12 +12,22 @@ import type { BadgeTone } from '../ui/badge-tone.js';
 export type VersionOfferKind = VersionOfferView['class'];
 
 /**
+ * What a comparison reads off a version: its prices, quotas and features. A
+ * plan version offered or retired and an add-on version retired carry all
+ * four.
+ */
+export type ComparedVersion = Pick<
+    VersionOfferSide,
+    'features' | 'quotas' | 'monthlyNet' | 'yearlyNet'
+>;
+
+/**
  * Two versions side by side: the one the subscriber has, and the other — a
  * version offered, or the replacement a retirement announces.
  */
 export interface VersionPair {
-    readonly bound: VersionOfferSide;
-    readonly offered: VersionOfferSide;
+    readonly bound: ComparedVersion;
+    readonly offered: ComparedVersion;
 }
 
 /** One rhythm's net price in both versions; `null` where a version is not sold in it. */

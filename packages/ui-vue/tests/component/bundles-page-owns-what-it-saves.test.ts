@@ -139,6 +139,7 @@ function mountPage() {
                     plans: { list: async () => [PLAN] },
                     planVersions: { listForPlan: async () => [LIVE_PLAN_VERSION] },
                     discovery: { read: async () => ({ status: 'unchanged' }) },
+                    bundleVersionRetirements: {},
                 } as never),
             },
         },

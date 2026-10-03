@@ -76,6 +76,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             usageSnapshotPort: PORT,
             subscriptionNotices: REPO,
             versionRetirements: REPO,
+            bundleVersionRetirements: REPO,
         },
     };
     return {

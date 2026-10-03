@@ -103,6 +103,7 @@ describe('BundlesPage asks for the code before it publishes', () => {
                         plans: { list: async () => [] },
                         planVersions: { listForPlan: async () => [] },
                         discovery: { read: async () => ({ status: 'unchanged' }) },
+                        bundleVersionRetirements: {},
                     } as never),
                 },
             },

@@ -100,7 +100,7 @@ function buildController(retirement, switches = null) {
     return { controller: new TenantBillingController(...args), port, asked };
 }
 
-// @requirement SC-CANC-023 — A retirement lets a subscription cancel without notice until it takes effect
+// @requirement SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 describe('a subscription a retirement reaches', () => {
     const effectiveAt = new Date(Date.now() + 100 * DAY);
 

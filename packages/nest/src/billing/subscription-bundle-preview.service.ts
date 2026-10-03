@@ -390,7 +390,11 @@ export class SubscriptionBundlePreviewService {
 
     async previewCancel(
         ctx: SubscriptionBundlePreviewContext,
-        input: { subscriptionBundleId: string },
+        input: {
+            subscriptionBundleId: string;
+            /** As for the cancellation itself (`CancelBundleFromSubscriptionInput`). */
+            minimumTermLapses?: boolean;
+        },
         now = new Date(),
     ): Promise<SubscriptionBundleCancelPreviewDto> {
         const existing = await this.subscriptionBundles.findById(input.subscriptionBundleId);
@@ -425,17 +429,15 @@ export class SubscriptionBundlePreviewService {
         // monthly bundle beside a yearly plan named a date up to a year past
         // the one the cancellation would actually land on.
         const bookingPeriodEnd = existing.currentPeriodEnd ?? ctx.currentPeriodEnd;
+        const minimumTermEndsAt = input.minimumTermLapses ? null : existing.minimumTermEndsAt;
         const effectiveAt = resolveBundleCancelEffectiveAt({
             parentEndsAt: ctx.parentEndsAt,
             canceledAt: now,
             currentPeriodEnd: bookingPeriodEnd,
-            minimumTermEndsAt: existing.minimumTermEndsAt,
+            minimumTermEndsAt,
         });
         const periodEnd = bookingPeriodEnd ?? now;
-        if (
-            existing.minimumTermEndsAt &&
-            existing.minimumTermEndsAt.getTime() > periodEnd.getTime()
-        ) {
+        if (minimumTermEndsAt && minimumTermEndsAt.getTime() > periodEnd.getTime()) {
             warnings.push({
                 code: BILLING_ERROR_CODES.MINIMUM_TERM_BINDS,
                 message:

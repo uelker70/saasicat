@@ -207,6 +207,18 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{count} dieser Abonnements waren in den letzten zwölf Monaten schon von einer Stilllegung betroffen. Ein Abonnement ist höchstens einmal im Jahr betroffen.',
     RETIREMENT_PREVIEW_CHANGED:
         'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sieh sie dir noch einmal an, bevor du sie ankündigst.',
+    BUNDLE_RETIREMENT_VERSION_ON_SALE:
+        'Version {version} von {bundleKey} wird noch verkauft. Veröffentliche die Version, die sie ersetzt, und lege diese still, sobald ihr Verkauf geendet hat, damit sie nach der Ankündigung niemand mehr bucht.',
+    BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+        'Version {version} von {bundleKey} wird nicht verkauft. Buchungen können nicht auf ihr weiterlaufen.',
+    BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
+        'Der Ersatz ist eine Version von {replacementBundleKey}, nicht von {bundleKey}. Eine Buchung läuft auf einer Version ihres eigenen Add-ons weiter.',
+    BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN:
+        '{count} dieser Buchungen laufen neben einem Plan, neben dem Version {version} von {bundleKey} nicht laufen kann. Sie können nicht auf ihr weiterlaufen.',
+    BUNDLE_RETIREMENT_NOTHING_AFFECTED:
+        'Keine laufende Buchung nutzt Version {version} von {bundleKey}. Es gibt niemanden zu benachrichtigen.',
+    BUNDLE_RETIREMENT_REINSTATE_REFUSED:
+        'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Buchen Sie stattdessen Version {replacementVersion}.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',

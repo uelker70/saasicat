@@ -91,8 +91,9 @@ export interface SubscriptionNoticeRepository {
  * Throw where it could not be sent and should be tried again: the claim is
  * released and the next run sends it. Resolving with no recipients records that
  * nobody could be told, and the notice is not tried again — except a
- * retirement's notice (`version-retired`), which nobody was told of: it is tried
- * again by every run until somebody is, and its date counts from then.
+ * retirement's notice (`version-retired`, `bundle-version-retired`), which
+ * nobody was told of: it is tried again by every run until somebody is, and its
+ * date counts from then.
  */
 export interface SubscriptionNoticePort {
     deliver(notice: SubscriptionNotice): Promise<SubscriptionNoticeDelivery>;

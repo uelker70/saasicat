@@ -60,4 +60,4 @@ later survives the move.
   (`SC-SUB-033`); `versionRetirements.list` answers `VersionRetirementView`
   with `progress`. The tenant usage carries `retirementSwitch`, and
   `useTenantBilling` gains `switchToReplacement`. New wording keys:
-  `planDetail.versions.retiredProgress.*` and `versionRetiredSwitch*`.
+  `common.retirementProgress.*` and `versionRetiredSwitch*`.

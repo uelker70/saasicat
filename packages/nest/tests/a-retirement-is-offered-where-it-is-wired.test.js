@@ -9,10 +9,14 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
-import { VERSION_RETIREMENT_CAPABILITY } from '@saasicat/core';
+import {
+    BUNDLE_VERSION_RETIREMENT_CAPABILITY,
+    VERSION_RETIREMENT_CAPABILITY,
+} from '@saasicat/core';
 
 import { AdminManifestService } from '../dist/admin/index.js';
 import {
+    BundleVersionRetirementService,
     RetirementMoveService,
     RetirementReminderService,
     RetirementSwitchService,
@@ -184,4 +188,71 @@ describe('terms confirmed to allow a retirement', () => {
         const { moduleRef } = await started(installation(bundleWithoutRetirements));
         await moduleRef.close();
     });
+});
+
+const ADD_ON_ROUTES = [
+    'GET admin/catalog/bundle-versions/:id/retirement',
+    'POST admin/catalog/bundle-versions/:id/retirement',
+    'GET admin/catalog/bundle-version-retirements',
+];
+
+const bundleWithoutAddOnRetirements = (options) => {
+    const { bundleVersionRetirements: _, ...tenantBilling } = options.persistence.tenantBilling;
+    return { ...options, persistence: { ...options.persistence, tenantBilling } };
+};
+const bundleWithoutBookings = (options) => {
+    const { subscriptionBundleRepository: _, ...entitlement } = options.persistence.entitlement;
+    return { ...options, persistence: { ...options.persistence, entitlement } };
+};
+
+/** The add-on routes an installation mounts, and what its manifest says. */
+async function addOnsStarted(options) {
+    const root = SaaSiCatModule.forRoot(bootable(options));
+    const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
+    const manifest = await moduleRef.get(AdminManifestService).getManifest();
+    const routes = controllersIn(root)
+        .flatMap(handlersOf)
+        .map(({ route }) => route)
+        .filter((route) => ADD_ON_ROUTES.includes(route));
+    return { moduleRef, manifest, routes };
+}
+
+// @requirement SC-BUN-038 — An add-on version is retired only off sale, onto a version of the same add-on on sale
+describe('retiring an add-on version is offered', () => {
+    test('where add-on announcements are kept and the terms are confirmed: routes and capability', async () => {
+        const { moduleRef, manifest, routes } = await addOnsStarted(installation(termsConfirmed));
+
+        assert.deepEqual(routes, ADD_ON_ROUTES);
+        assert.equal(manifest.capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY], true);
+        assert.ok(moduleRef.get(BundleVersionRetirementService, { strict: false }));
+        assert.ok(
+            manifest.audit.actions.some((action) => action.key === 'BUNDLE_VERSION_RETIRE'),
+            'and the audit log names what it records',
+        );
+        await moduleRef.close();
+    });
+
+    test('while the terms are not confirmed: the routes, but no capability', async () => {
+        const { moduleRef, manifest, routes } = await addOnsStarted(installation());
+
+        assert.deepEqual(routes, ADD_ON_ROUTES);
+        assert.equal(manifest.capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY], undefined);
+        await moduleRef.close();
+    });
+
+    for (const [without, change] of [
+        ['a place to keep add-on announcements', bundleWithoutAddOnRetirements],
+        ['bookings to reach', bundleWithoutBookings],
+    ]) {
+        test(`not without ${without}, while plan versions still are`, async () => {
+            const { moduleRef, manifest, routes } = await addOnsStarted(
+                installation((options) => termsConfirmed(change(options))),
+            );
+
+            assert.deepEqual(routes, []);
+            assert.equal(manifest.capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY], undefined);
+            assert.equal(manifest.capabilities[VERSION_RETIREMENT_CAPABILITY], true);
+            await moduleRef.close();
+        });
+    }
 });

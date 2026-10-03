@@ -88,11 +88,12 @@ Adapter for the RLS bypass context.
 
 ### `SubscriptionUsagePort`
 
-| Member                                                                                                 | What it does                                                                                                |
-| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `findForTenant(tenantId: string): Promise<SubscriptionUsageRecord \| null>`                            | —                                                                                                           |
-| `listBoundToEarlierVersions?( planKey: string, version: number, ): Promise<TenantSubscriptionUsage[]>` | Every subscription of `planKey`, in every tenant, bound to a version of that plan numbered below `version`. |
-| `listBoundToVersion?(planVersionId: string): Promise<TenantSubscriptionUsage[]>`                       | Every subscription, in every tenant, bound to the plan version `planVersionId`, whatever its status.        |
+| Member                                                                                                 | What it does                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `findForTenant(tenantId: string): Promise<SubscriptionUsageRecord \| null>`                            | —                                                                                                                                |
+| `listBoundToEarlierVersions?( planKey: string, version: number, ): Promise<TenantSubscriptionUsage[]>` | Every subscription of `planKey`, in every tenant, bound to a version of that plan numbered below `version`.                      |
+| `listBoundToVersion?(planVersionId: string): Promise<TenantSubscriptionUsage[]>`                       | Every subscription, in every tenant, bound to the plan version `planVersionId`, whatever its status.                             |
+| `listByIds?(subscriptionIds: readonly string[]): Promise<TenantSubscriptionUsage[]>`                   | The subscriptions `subscriptionIds`, in whichever tenant, each with the tenant it belongs to; an id that names none is left out. |
 
 ### `UsageSnapshotPort`
 

@@ -389,6 +389,7 @@ _Tested by:_
     - SubscriptionBundlePreviewService — previewCancel
         - effectiveAt = period end when minimum term expired
         - minimum term binds beyond period end → effectiveAt + warning
+        - a retirement told for the booking lets it go at the period end, with no term to warn of
         - already canceled → blocker
         - foreign subscription → NotFound (no cross-tenant leak)
 - `packages/nest/tests/subscription-bundles-service.test.js`
@@ -1051,6 +1052,7 @@ _Tested by:_
     - SubscriptionBundlePreviewService — previewCancel
         - effectiveAt = period end when minimum term expired
         - minimum term binds beyond period end → effectiveAt + warning
+        - a retirement told for the booking lets it go at the period end, with no term to warn of
         - already canceled → blocker
         - foreign subscription → NotFound (no cross-tenant leak)
 - `packages/nest/tests/subscription-bundle-repo.test.js`
@@ -1383,3 +1385,309 @@ _Tested by:_
         - reinstating a cancelled one is refused against that plan too, and nothing changes
 
 <!-- END proof -->
+
+### SC-BUN-038 — An add-on version is retired only off sale, onto a version of the same add-on on sale
+
+🟢 💰 Retiring an add-on version announces to the bookings on it that they continue on a
+replacement: the add-on's version on sale, so each stays the same booking with its term. The
+version retired has to be off sale, so nobody books it after the announcement. It rests on the same
+terms as a plan version's retirement (`SC-SUB-025`): without them the administration does not offer
+it and the server refuses it. A retirement that would reach no booking is refused too.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - retiring an add-on version is offered
+        - where add-on announcements are kept and the terms are confirmed: routes and capability
+        - while the terms are not confirmed: the routes, but no capability
+        - not without ${without}, while plan versions still are
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - what an add-on version may be retired onto
+        - one off sale, onto a version of the same add-on on sale, is not refused
+        - a version still on sale, a replacement not on sale and one of another add-on are all named
+          at once
+        - a replacement whose add-on was deleted is not on sale
+        - is refused outright where the operator has not confirmed the terms
+        - a version is not its own replacement
+        - nothing to tell where no booking runs on the version
+- `packages/ui-vue/tests/an-operator-retires-an-add-on-version.test.js`
+    - where retiring an add-on version is offered
+        - on a version no longer on sale, where the platform serves it, and on no other
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - retiring an add-on version where the add-on is managed
+        - is offered on the version no longer on sale
+        - is not offered on the version on sale
+        - is not offered where the platform does not serve it
+        - says on a version that it was retired, onto which version, and how far that has come
+        - says so where the announcements could not be read
+        - shows the replacement, its list prices, the dates and whom it misses before anything is
+          sent
+        - an add-on with no version on sale says so, and asks for no preview
+        - a blocker is said in words, and nothing can be announced
+        - announcing asks for the code, names the bookings shown, and says what was sent
+
+<!-- END proof -->
+
+### SC-BUN-039 — An add-on retirement is announced for exactly the bookings the operator was shown
+
+🟢 💰 Before announcing, the operator sees every running booking on the version with the date it
+would continue on the replacement, and every booking it would not reach with the reason: its
+subscription ended, cancelled for a date by then, without a period to count from, or told already
+by an earlier announcement of this version, which stands. The announcement names the bookings
+shown. Where they are no longer the ones it reaches, it is refused with the preview as it stands.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - an announcement and the bookings the operator was shown
+        - is refused, with the preview as it stands, where they changed meanwhile
+        - is refused with every blocker where the preview has any
+- `packages/ui-vue/tests/an-operator-retires-an-add-on-version.test.js`
+    - the add-on retirement flow
+        - announces behind the second factor, naming the replacement and the bookings shown
+        - a preview that changed meanwhile replaces the one shown, and says so
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - retiring an add-on version where the add-on is managed
+        - shows the replacement, its list prices, the dates and whom it misses before anything is
+          sent
+        - announcing asks for the code, names the bookings shown, and says what was sent
+
+<!-- END proof -->
+
+### SC-BUN-040 — An add-on retirement's date is an end of the booking's own period, three months on
+
+🟢 💰 For each booking, the first end of its own period — in the rhythm the booking is billed in —
+that lies at least three calendar months after its notice reached an administrator of the tenant; a
+booking without a rhythm or a period of its own counts the plan's. The last day it may be cancelled
+without its minimum term is the last whole UTC day before that date.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - the date an add-on retirement reaches a booking on
+        - is the first end of its own monthly period three calendar months after the notice
+        - and of its own yearly period for a yearly booking
+        - a booking billed with the plan ends with the plan’s terms
+        - a booking cancelled to end by the date is not reached, one ending a day later is
+        - a booking whose subscription ends by the date is not reached
+        - names the plan the add-on runs beside at the date, a change landing by then included
+        - the preview lists whom it reaches and whom not, and why
+
+<!-- END proof -->
+
+### SC-BUN-041 — Retirements of plan and add-on reach a subscription at most once in twelve months
+
+🟢 💰 A retirement — of a plan version or of an add-on version — that would reach a subscription
+told of either within the last twelve months is refused, saying how many of what it reaches that
+holds for. A retirement counts from its notice reaching somebody; one whose notice still waits
+counts from its announcement. `SC-SUB-028` says the same for plan versions alone. Where this stops:
+two announcements made at the same moment are not held against each other.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - a subscription is reached at most once in twelve months
+        - an add-on retirement it was told of counts as well
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - twelve months between two retirements of one subscription
+        - a plan retirement eleven months ago holds an add-on retirement back, counted
+        - so does an add-on retirement, exactly twelve months ago too
+        - but not one a moment longer ago, nor a notice of another kind
+        - a retirement that reached somebody counts from then, though recorded long before
+        - and not once it reached somebody a moment over twelve months ago
+
+<!-- END proof -->
+
+### SC-BUN-042 — Every booking an add-on retirement reaches is told, and what it was told is kept
+
+🟢 💰 The announcement and one notice per booking are written together, and then handed to the
+application's own messages: the plan the add-on runs beside at the date, both versions side by side
+with their prices for that plan in each rhythm, the rhythm the booking is billed in, the date it
+continues on the replacement, and the last day it may be cancelled without its minimum term. A
+notice the application could not send is sent by the next run. What is recorded is the notice as it
+was told (`SC-SUB-023`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - the announcement of an add-on retirement
+        - keeps the announcement and one notice per booking in one transaction, and tells each
+        - tells each booking the prices beside its own plan, and what changes at them
+        - is written to the audit log as an operator action
+        - is refused, and keeps nothing, where another announcement of the version got there first
+
+<!-- END proof -->
+
+### SC-BUN-043 — An add-on retirement waits for its notice to reach the subscriber
+
+🟢 💰 Until its notice has reached at least one administrator of the tenant, an add-on retirement
+changes nothing for the booking: nothing is shown beside the add-on, its minimum term still holds,
+and its date counts from the notice arriving. A notice the application could not send, or sent to
+nobody, is tried again by every run until somebody is told. Beside each retired version, the
+administration counts the bookings not told yet.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - a notice that has reached nobody yet
+        - sets no date: the booking is not pending, and the next run tells it from then
+        - is not told once the booking no longer runs to the date
+    - the quarter-hour run
+        - sends the add-on retirement notices an announcement could not, after the plan’s
+
+<!-- END proof -->
+
+### SC-BUN-044 — An add-on retirement's replacement has to fit each booking's plan at its date
+
+🟢 💰 The announcement is refused while a booking it reaches runs, at its date, beside a plan the
+replacement cannot run beside: not allowed there, without a price there in the rhythm the booking is
+billed in, or in a longer rhythm than the plan's — the question `SC-BUN-037` asks of a booking. The
+preview counts those bookings.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - a replacement and the plans its bookings run beside
+        - is refused where it cannot run beside the plan a booking runs beside at the date, counted
+        - asks about the plan a change moves the subscription to before the date
+        - and about the price there, in the booking’s rhythm
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - retiring an add-on version where the add-on is managed
+        - a blocker is said in words, and nothing can be announced
+
+<!-- END proof -->
+
+### SC-BUN-045 — A retirement lets a booking be cancelled without its minimum term until it takes effect
+
+🟢 💰 From the moment its notice reaches the subscriber until its date, a booking on a version being
+retired may be cancelled without its minimum term: the cancellation lands at the end of the period
+running, and the preview of it says no minimum term holds.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - cancelling a booking a retirement was told of
+        - lands at the end of the period running, without the minimum term
+        - and with it where no retirement is pending
+        - is pending until the date, and no longer from it
+    - the tenant’s add-on route and a retirement told
+        - cancels without the minimum term while one is pending, asked by the server’s clock
+- `packages/nest/tests/subscription-bundle-preview.test.js`
+    - SubscriptionBundlePreviewService — previewCancel
+        - a retirement told for the booking lets it go at the period end, with no term to warn of
+
+<!-- END proof -->
+
+### SC-BUN-046 — A tenant sees the retirement of an add-on's version beside the add-on
+
+🟢 Where the tenant's add-ons are listed, a booking on a version being retired says when it
+continues on which version, what that version costs beside the one it is on at the prices for the
+subscription's plan, what changes in its quotas and features, and until when it may be cancelled
+without its minimum term. What it says is the notice the subscriber was told.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - the tenant’s add-on route and a retirement told
+        - lists each booking with the retirement of the version it is on
+- `packages/ui-vue-tenant/tests/component/a-retired-add-on-version-is-announced-beside-the-add-on.test.ts`
+    - a retired add-on version, in the add-on store
+        - says when the booking moves on, to which version, at what price, and until when it may go
+        - sits directly after the booking it is about
+        - is not shown where the version booked is not being retired
+    - a retired add-on version, on the page of the tenant’s add-ons
+        - is said on the booking it is about, in the app’s money where the app gives it
+        - guesses no currency where the app gives no formatter
+        - is not shown on a booking whose version is not being retired
+
+<!-- END proof -->
+
+### SC-BUN-047 — The operator sees how far each add-on retirement has come
+
+🟢 Beside each retired add-on version, the administration counts the bookings the retirement
+reached: on another version since, waiting for their date, ended by it, not told yet, and overdue —
+past their date and still on the version.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - how far an add-on retirement has come
+        - counts its bookings waiting, not told, ended by their date and overdue
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - retiring an add-on version where the add-on is managed
+        - says on a version that it was retired, onto which version, and how far that has come
+
+<!-- END proof -->
+
+### SC-BUN-048 — A booking a retirement did not reach is not reinstated on the retired version
+
+🟢 💰 A cancelled booking on a version being retired that the announcement did not reach — set to
+end before it would move — is refused when it is reinstated, and told which version to book
+instead. Reinstated, it would run on past the date on a version nobody sells.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - reinstating a booking of a version being retired
+        - is refused where the announcement did not reach it, naming the replacement
+        - is not refused where its notice still waits, and the next run tells it
+        - is not refused where it was reached, nor on a version nobody retired
+    - the tenant’s add-on route and a retirement told
+        - refuses to reinstate what the retirement service refuses, and writes nothing
+- `packages/ui-vue-tenant/tests/component/a-retired-add-on-version-is-announced-beside-the-add-on.test.ts`
+    - a booking the platform will not reinstate
+        - is told why in the reader’s language
+
+<!-- END proof -->
+
+### SC-BUN-049 — A booking continues on the replacement at the date it was told
+
+🟡 _(Decided, not yet delivered.)_ 💰 At its date, a booking still on the retired version continues
+on the replacement, keeping its period and its term, and is charged from then at the replacement's
+price for its plan.
+
+_Source:_ #357
