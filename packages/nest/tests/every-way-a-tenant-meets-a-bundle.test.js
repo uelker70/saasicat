@@ -302,7 +302,10 @@ describe('a tenant books a bundle', () => {
                 listActiveBySubscription: async () => [],
                 findById: async () => null,
             },
-            { findVersionById: async () => bundleVersion },
+            {
+                findVersionById: async () => bundleVersion,
+                findById: async () => ({ deletedAt: null }),
+            },
             { defaultMinimumTermMonths: 12 },
         );
         return { svc, written };

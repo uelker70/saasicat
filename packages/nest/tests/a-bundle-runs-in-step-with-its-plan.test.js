@@ -311,7 +311,10 @@ describe('booking one, through the service that writes it', () => {
                 listActiveBySubscription: async () => [],
                 findById: async () => null,
             },
-            { findVersionById: async () => bundleVersion },
+            {
+                findVersionById: async () => bundleVersion,
+                findById: async () => ({ deletedAt: null }),
+            },
             { defaultMinimumTermMonths: 12 },
         );
         return { svc, added };
@@ -406,7 +409,10 @@ describe('a bundle nobody can be charged for is not booked', () => {
                 listActiveBySubscription: async () => [],
                 findById: async () => null,
             },
-            { findVersionById: async () => bundleVersion },
+            {
+                findVersionById: async () => bundleVersion,
+                findById: async () => ({ deletedAt: null }),
+            },
             { defaultMinimumTermMonths: 0 },
         );
     }

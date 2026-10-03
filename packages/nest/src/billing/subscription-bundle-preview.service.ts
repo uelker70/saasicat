@@ -32,6 +32,7 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import type {
     BillingCycle,
     BundleRepository,
+    BundleRow,
     BundleVersionRow,
     CatalogEntryRepository,
     PlanRepository,
@@ -52,6 +53,7 @@ import {
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { versionOnSale } from './version-on-sale.js';
 import { bundleVersionNotOnSale } from './bundle-version-not-on-sale.js';
+import { addOnAlreadyBooked, runningBundleVersions } from './add-on-already-booked.js';
 import {
     bundleCycleFitsPlan,
     bundleFirstPeriodEnd,
@@ -256,16 +258,25 @@ export class SubscriptionBundlePreviewService {
             });
         }
 
-        this.collectBookabilityBlockers(bundleVersion, ctx.currentPlanKey, blockers, now);
+        this.collectBookabilityBlockers(
+            bundleVersion,
+            await this.bundles.findById(bundleVersion.bundleId),
+            ctx.currentPlanKey,
+            blockers,
+            now,
+        );
 
-        const activeBundleVersions = await this.loadActiveBundleVersions(ctx.subscriptionId);
-        if (activeBundleVersions.some((bv) => bv.id === bundleVersion.id)) {
-            blockers.push({
-                code: 'BUNDLE_ALREADY_SUBSCRIBED',
-                message: 'This bundle is already actively booked.',
-                params: { subscriptionId: ctx.subscriptionId },
-            });
-        }
+        const activeBundleVersions = await runningBundleVersions(
+            this.subscriptionBundles,
+            this.bundles,
+            ctx.subscriptionId,
+        );
+        const alreadyBooked = addOnAlreadyBooked(
+            ctx.subscriptionId,
+            activeBundleVersions,
+            bundleVersion,
+        );
+        if (alreadyBooked) blockers.push(alreadyBooked);
 
         const planFeatures = new Set(await this.resolvePlanFeatures(ctx.currentPlanKey, now));
         const redundantFeatures = this.collectRedundantFeatures(
@@ -460,11 +471,12 @@ export class SubscriptionBundlePreviewService {
     /** Bookability checks — same codes as `addBundleToSubscription` (422 path). */
     private collectBookabilityBlockers(
         bundleVersion: BundleVersionRow,
+        bundle: BundleRow | null,
         currentPlanKey: string,
         blockers: SubscriptionBundlePreviewIssue[],
         asOf: Date,
     ): void {
-        const notOnSale = bundleVersionNotOnSale(bundleVersion, asOf);
+        const notOnSale = bundleVersionNotOnSale(bundleVersion, bundle, asOf);
         if (notOnSale) blockers.push(notOnSale);
         const planIds = bundleVersion.compatibility?.planIds ?? [];
         if (planIds.length > 0 && !planIds.includes(currentPlanKey)) {
@@ -489,15 +501,6 @@ export class SubscriptionBundlePreviewService {
                 params: { bundleKey: bundleVersion.bundleKey },
             });
         }
-    }
-
-    /** Versions of the active bundle bookings (for redundancy + requires coverage). */
-    private async loadActiveBundleVersions(subscriptionId: string): Promise<BundleVersionRow[]> {
-        const active = await this.subscriptionBundles.listActiveBySubscription(subscriptionId);
-        const versions = await Promise.all(
-            active.map((booking) => this.bundles.findVersionById(booking.bundleVersionId)),
-        );
-        return versions.filter((bv): bv is BundleVersionRow => bv !== null);
     }
 
     /** Features of the plan's version on sale at `asOf`; empty without PlanRepository. */

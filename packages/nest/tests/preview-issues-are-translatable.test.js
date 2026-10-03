@@ -28,16 +28,28 @@ import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN } from '@saasicat/core';
 // side of the wire able to name them. A guard that covers one of two identical
 // surfaces reports on the half nobody was worried about. So is the quota
 // refusal the plan change shares with a version switch, where it is built.
+//
+// And so are the refusals a preview shares with a booking or a write: they are
+// built once and returned, the preview pushes what it is handed, and a scan of
+// the preview alone sees a variable where the code is. Read where they are
+// written, by the literal they return.
 
 const BILLING_SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'billing');
+const PUSHED = ['blockers.push({', 'warnings.push({'];
+const RETURNED = ['return {'];
 const SERVICES = [
-    'plan-change-preview.service.ts',
-    'subscription-bundle-preview.service.ts',
-    'quota-over-target.ts',
-].map((file) => join(BILLING_SRC, file));
+    ['plan-change-preview.service.ts', PUSHED],
+    ['subscription-bundle-preview.service.ts', PUSHED],
+    ['quota-over-target.ts', PUSHED],
+    ['bundle-version-not-on-sale.ts', RETURNED],
+    ['add-on-already-booked.ts', RETURNED],
+    ['plan-helpers.ts', RETURNED],
+].map(([file, openers]) => [join(BILLING_SRC, file), openers]);
 
 /**
- * The `blockers.push({…})` and `warnings.push({…})` object literals, as text.
+ * The issue object literals `openers` start, as text: `blockers.push({…})` and
+ * `warnings.push({…})` where a service pushes its own, `return {…}` where a
+ * helper builds one for the preview and the booking alike.
  *
  * Scanned by hand rather than matched: `/push\(\{([\s\S]*?)\}\);/` puts two
  * quantifiers that can exchange characters next to each other, which is
@@ -50,9 +62,9 @@ const SERVICES = [
  * not — they ride inside a 200 response, which is why they needed a guard of
  * their own.
  */
-function issueBlocks(source) {
+function issueBlocks(source, openers) {
     const blocks = [];
-    for (const opener of ['blockers.push({', 'warnings.push({']) {
+    for (const opener of openers) {
         let at = source.indexOf(opener);
         while (at !== -1) {
             const bodyStart = at + opener.length;
@@ -122,9 +134,9 @@ function placeholdersOf(text) {
     return new Set(Array.from(text.matchAll(/\{(\w+)\}/g), (m) => m[1]));
 }
 
-const BLOCKS_PER_SERVICE = SERVICES.map((path) => [
+const BLOCKS_PER_SERVICE = SERVICES.map(([path, openers]) => [
     basename(path),
-    issueBlocks(readFileSync(path, 'utf8')),
+    issueBlocks(readFileSync(path, 'utf8'), openers),
 ]);
 const BLOCKS = BLOCKS_PER_SERVICE.flatMap(([, blocks]) => blocks);
 
@@ -132,13 +144,18 @@ function emittedCodes() {
     return [...new Set(BLOCKS.map(codeOf).filter(Boolean))].sort();
 }
 
-function paramsPerCode() {
-    const byCode = {};
-    for (const block of BLOCKS) {
-        const code = codeOf(block);
-        if (code) byCode[code] = paramsOf(block);
-    }
-    return byCode;
+/**
+ * Every issue with the values it passes and the source it is written in. Each
+ * block on its own rather than one per code: a code written in two places may
+ * pass different values in each, and a template checked against one of them
+ * says nothing about the other.
+ */
+function issues() {
+    return BLOCKS_PER_SERVICE.flatMap(([source, blocks]) =>
+        blocks
+            .map((block) => ({ source, code: codeOf(block), params: paramsOf(block) }))
+            .filter((issue) => issue.code),
+    );
 }
 
 // @requirement SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
@@ -177,9 +194,8 @@ describe('a preview issue can be read in the reader’s language', () => {
     }
 
     test('every template names only values the issue carries', () => {
-        const params = paramsPerCode();
         const problems = [];
-        for (const code of codes) {
+        for (const { source, code, params } of issues()) {
             for (const [locale, catalogue] of [
                 ['en', ERROR_MESSAGES_EN],
                 ['de', ERROR_MESSAGES_DE],
@@ -187,8 +203,8 @@ describe('a preview issue can be read in the reader’s language', () => {
                 const template = catalogue[code];
                 if (!template) continue;
                 for (const name of placeholdersOf(template)) {
-                    if (!params[code]?.has(name)) {
-                        problems.push(`${locale} ${code} asks for {${name}}`);
+                    if (!params.has(name)) {
+                        problems.push(`${locale} ${code} in ${source} asks for {${name}}`);
                     }
                 }
             }

@@ -42,6 +42,7 @@ import { sumToCents } from '@saasicat/core';
 import { grossFromNet } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
+import { sameAddOn } from '../billing/add-on-already-booked.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
 
@@ -262,16 +263,22 @@ export class CheckoutOfferPricing {
         const ids = input.bundleVersionIds;
         if (ids.length === 0) return [];
         const out: BundleVersionRow[] = [];
-        for (const [index, bundleVersionId] of ids.entries()) {
-            if (ids.indexOf(bundleVersionId) !== index) {
-                throw bundleNotOffered(bundleVersionId, 'duplicate');
-            }
+        for (const bundleVersionId of ids) {
             const version = this.bundles
                 ? await this.bundles.findVersionById(bundleVersionId)
                 : null;
-            if (!version) throw bundleNotOffered(bundleVersionId, 'missing');
+            if (!this.bundles || !version) throw bundleNotOffered(bundleVersionId, 'missing');
+            // An offer holds an add-on once (`SC-BUN-027`): two versions of one
+            // add-on are a duplicate as much as one version named twice.
+            if (out.some((held) => sameAddOn(held, version))) {
+                throw bundleNotOffered(bundleVersionId, 'duplicate');
+            }
             if (checkBookable) {
-                const notBookable = bundleVersionNotBookableReason(version, asOf.getTime());
+                const notBookable = bundleVersionNotBookableReason(
+                    version,
+                    await this.bundles.findById(version.bundleId),
+                    asOf.getTime(),
+                );
                 if (notBookable) throw bundleNotOffered(bundleVersionId, notBookable);
                 if (!version.marketed) throw bundleNotOffered(bundleVersionId, 'not_marketed');
             }

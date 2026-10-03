@@ -245,8 +245,35 @@ const bookedRows = computed<BookedRow[]>(() =>
     }),
 );
 
-const activeBookedVersionIds = computed(
-    () => new Set(props.booked.filter((b) => !b.canceledAt).map((b) => b.bundleVersionId)),
+/**
+ * Bookings still running: not cancelled, or cancelled for a day still to come.
+ * Until that day the add-on is the tenant's, and the server refuses to book it
+ * again (`SC-BUN-027`).
+ */
+const runningBookings = computed(() => {
+    const now = Date.now();
+    return props.booked.filter(
+        (b) =>
+            !b.canceledAt ||
+            (b.canceledEffectiveAt !== null && Date.parse(b.canceledEffectiveAt) > now),
+    );
+});
+
+const runningVersionIds = computed(
+    () => new Set(runningBookings.value.map((b) => b.bundleVersionId)),
+);
+
+/**
+ * The add-ons those bookings are of, by key. A newer version the catalogue now
+ * sells is the same add-on as the version booked, so it is not offered again.
+ */
+const runningAddOnKeys = computed(
+    () =>
+        new Set(
+            runningBookings.value.map(
+                (b) => b.bundleKey ?? catalogByVersion.value.get(b.bundleVersionId)?.bundleKey,
+            ),
+        ),
 );
 
 const planFeatureSet = computed(() => new Set(props.planFeatures));
@@ -341,7 +368,7 @@ function priceFor(bundle: CatalogBundle, cycle: BillingCycleStr): number | null 
 // for freshly booked bundles before the usage reload.
 const coveredFeatureSet = computed(() => {
     const covered = new Set(props.planFeatures);
-    for (const versionId of activeBookedVersionIds.value) {
+    for (const versionId of runningVersionIds.value) {
         for (const f of catalogByVersion.value.get(versionId)?.features ?? []) {
             covered.add(f);
         }
@@ -360,7 +387,7 @@ function missingRequiresOf(b: CatalogBundle): string[] {
 // (the bundle would sell already-included features twice). Quotas don't
 // count — they act additively.
 function resolveState(b: CatalogBundle, priceNet: number | null): BundleState {
-    if (activeBookedVersionIds.value.has(b.bundleVersionId)) return 'booked';
+    if (runningAddOnKeys.value.has(b.bundleKey)) return 'booked';
     if (b.features.some((f) => planFeatureSet.value.has(f))) return 'incompatible';
     if (missingRequiresOf(b).length > 0) return 'missing-requires';
     // Last, so a bundle that is already booked or incompatible keeps the

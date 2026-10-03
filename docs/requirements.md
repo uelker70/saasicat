@@ -110,7 +110,7 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 35      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 36      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 36      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 23      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 560 entries: 🟢 485 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 561 entries: 🟢 486 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 7 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -213,7 +213,7 @@ Of 560 entries: 🟢 485 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 560 requirements. Do not edit by hand:
+Generated from `requirements/` — 561 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3351,6 +3351,23 @@ _Tested by:_
         - publishing is internally atomic and applies auto-succession
         - publishing refuses a version somebody else published first
         - publishing reuses a caller transaction instead of nesting one
+- `packages/nest/tests/an-add-on-is-booked-once.test.js`
+    - a tenant booking an add-on
+        - is refused a newer version while a booking of an older one runs
+        - is refused it while the older booking is cancelled but has not ended
+        - books it once the older booking has ended
+        - books a different add-on beside it
+    - the preview of that booking
+        - says what the booking would say
+        - has no word against a different add-on
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - where each amount comes from
+        - two different add-ons, each at its own price
+    - what cannot be priced is refused, not priced at nothing
+        - the same add-on twice, in two of its versions
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService
+        - consume refuses an offer naming two versions of one add-on, for that reason
 - `packages/nest/tests/subscription-bundle-repo.test.js`
     - SubscriptionBundleRepository — lifecycle
         - add + listBySubscription returns the new booking
@@ -3367,6 +3384,13 @@ _Tested by:_
         - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
         - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
         - custom defaultMinimumTermMonths from the config token takes effect
+- `packages/ui-vue-tenant/tests/component/a-held-add-on-is-not-offered-again.test.ts`
+    - the store, while a version of an add-on is held
+        - says a newer version of it is booked, and offers no button
+        - still says so while the booking is cancelled for a day to come
+        - offers it again once the cancellation has taken effect
+        - offers a different add-on beside it
+        - knows the add-on of a booking whose key the server did not send, from the catalogue
 
 <!-- END proof -->
 
@@ -3637,6 +3661,34 @@ _Tested by:_
         - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
         - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
         - custom defaultMinimumTermMonths from the config token takes effect
+
+<!-- END proof -->
+
+### SC-BUN-036 — A deleted add-on cannot be booked, whatever its versions' dates say
+
+🟢 Deleting an add-on takes it out of the catalogue with every version, and leaves their dates as
+they were, so a version can still be inside its window. A booking and its preview refuse it all the
+same, and so does a checkout offer, both when it is made and when it is concluded.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-deleted-add-on-cannot-be-booked.test.js`
+    - a tenant booking a version of an add-on
+        - books it while the add-on is in the catalogue
+        - is refused once the add-on is deleted, though the version is inside its window
+        - is refused where the add-on cannot be read at all
+    - the preview of that booking
+        - says what the booking would say
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - what cannot be priced is refused, not priced at nothing
+        - an add-on that has been deleted, though its version is on sale
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService
+        - consume blocks an add-on deleted after the offer was made
 
 <!-- END proof -->
 
@@ -9902,6 +9954,8 @@ _Tested by:_
         - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
+        - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -9927,6 +9981,8 @@ _Tested by:_
         - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
+        - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -9989,6 +10045,8 @@ _Tested by:_
         - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
+        - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -10062,6 +10120,7 @@ _Tested by:_
         - an update cannot bring amounts in either
     - where each amount comes from
         - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
+        - two different add-ons, each at its own price
         - an add-on's price for that plan and rhythm, its override included
         - the promotion the public catalogue picks, as a discount with its snapshot
         - a promotion tied to a code, or to another language, is not applied
@@ -10072,6 +10131,8 @@ _Tested by:_
         - a plan without a price for the rhythm
         - an add-on that is ${reason}
         - the same add-on twice
+        - the same add-on twice, in two of its versions
+        - an add-on that has been deleted, though its version is on sale
         - a promo code the promo module refuses
         - a promo code where no promo module is registered to check it
         - the module does not start without a plan repository to price from
