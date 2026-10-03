@@ -362,6 +362,19 @@ describe('every rule can actually fail', () => {
             adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
             catalogFailure: new Error("ENOENT: no such file or directory, open '/app/saas.yaml'"),
         },
+        // Tenant billing over add-on bookings, with no add-on versions to read them by.
+        {
+            options: {
+                planCatalog: MINIMAL_CATALOG,
+                controller: { guards: [] },
+                tenantBilling: {},
+                persistence: {
+                    capabilities: { transactions: true, pessimisticLocking: true },
+                    entitlement: { subscriptionBundleRepository: {} },
+                },
+            },
+            adapters: CORE_ADAPTERS,
+        },
     ];
 
     test('every rule fails in at least one probe', () => {

@@ -81,6 +81,7 @@ function bookingOf(bundleVersion) {
             planCycle: 'MONTHLY',
             planPeriodEnd: at('2026-06-30'),
             planAnchorDay: 1,
+            plansAhead: [],
         });
     return { book, added };
 }
@@ -150,6 +151,7 @@ describe('the preview of an add-on booking', () => {
         currentPeriodEnd: at('2026-06-01'),
         parentEndsAt: null,
         planAnchorDay: 1,
+        plansAhead: [],
     };
     const previewOf = (bundleVersion, now) =>
         new SubscriptionBundlePreviewService(

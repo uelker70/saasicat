@@ -174,3 +174,12 @@ export const VERSION_RETIREMENT_REPOSITORY_TOKEN = Symbol.for(
 export const VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
     'saasicat/nest/VersionRetirementTransactionRunner',
 );
+
+/**
+ * The plans a subscription is already set to move to (`PlansAhead`).
+ *
+ * Provided and exported by `TenantBillingModule`, which knows the scheduled
+ * changes and the retirements, and read by the add-on booking, which must not
+ * book an add-on that cannot run on any of them.
+ */
+export const PLANS_AHEAD_TOKEN = Symbol.for('saasicat/nest/PlansAhead');

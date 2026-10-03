@@ -1,10 +1,12 @@
 // @requirement SC-BUN-016 — A tenant reads what a booking commits to before confirming it
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { computed, nextTick } from 'vue';
 
 import BundlePreviewDialog from '../../src/tenant-plan-section/BundlePreviewDialog.vue';
+import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
+import { TENANT_I18N_KEY } from '../../src/tenant-i18n';
 import type { BundlePreviewShape } from '@saasicat/ui-vue';
 
 // What a tenant is told before they agree to a bundle.
@@ -39,11 +41,20 @@ const BASE: BundlePreviewShape = {
 const mounted: VueWrapper[] = [];
 const panel = () => document.body.querySelector<HTMLElement>('.sp-dialog__panel');
 
-function mountPreview(preview: unknown) {
+function mountPreview(preview: unknown, locale?: 'de' | 'en') {
     // `as never` on the component collapses the options type along with it, so
     // the options are built separately and handed over as one value.
     const options: Record<string, unknown> = {
         attachTo: document.body,
+        global: locale
+            ? {
+                  provide: {
+                      [TENANT_I18N_KEY as symbol]: computed(() =>
+                          defaultTenantPlanSectionI18n(locale),
+                      ),
+                  },
+              }
+            : {},
         props: {
             modelValue: true,
             preview,
@@ -128,5 +139,79 @@ describe('ending with the plan is stated, not left to be discovered', () => {
         await nextTick();
         expect(panel()!.textContent).not.toContain('not refunded');
         expect(panel()!.textContent).not.toContain('First billing period');
+    });
+});
+
+// @requirement SC-LANG-005 — Every string on a screen follows the language that was chosen
+describe('a reason the booking cannot be made reads in the chosen language', () => {
+    /** The refusal for a plan the subscription is set to move to, with the English the backend sends. */
+    const upcoming = (planKey: string, from: string) => ({
+        code: 'BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN',
+        message: `This bundle cannot run on the ${planKey} plan, which the subscription moves to on ${from}.`,
+        params: { planKey, billingCycle: 'YEARLY', from },
+    });
+    const listed = () =>
+        [...panel()!.querySelectorAll('li')].map((item) => item.textContent?.trim());
+
+    test('each of two reasons with one code, with its own values', async () => {
+        // A booking can meet two plans it is set to move to: a change it
+        // scheduled, and a retirement it was told of.
+        mountPreview(
+            { ...BASE, blockers: [upcoming('BASIC', '2027-01-01'), upcoming('PRO', '2027-03-01')] },
+            'de',
+        );
+        await nextTick();
+        expect(listed()).toEqual(
+            expect.arrayContaining([
+                'Dieses Bundle kann nicht im Plan BASIC laufen, auf den das Abonnement am 2027-01-01 wechselt.',
+                'Dieses Bundle kann nicht im Plan PRO laufen, auf den das Abonnement am 2027-03-01 wechselt.',
+            ]),
+        );
+    });
+
+    test('and read again in another order, each still keeps its own', async () => {
+        // A list keyed by the code alone cannot tell the two apart once Vue has
+        // to match the old entries to the new by key, and it says so.
+        const incompatible = {
+            code: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
+            message: 'not for this plan',
+            params: { bundleVersionId: 'bv-1', planKey: 'STARTER', allowedPlanKeys: 'PRO' },
+        };
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const wrapper = mountPreview(
+            {
+                ...BASE,
+                blockers: [
+                    upcoming('BASIC', '2027-01-01'),
+                    upcoming('PRO', '2027-03-01'),
+                    incompatible,
+                ],
+            },
+            'en',
+        );
+        await nextTick();
+        // Typed as the mount is, through `never`: see `mountPreview`.
+        await wrapper.setProps({
+            preview: {
+                ...BASE,
+                blockers: [
+                    incompatible,
+                    upcoming('PRO', '2027-03-01'),
+                    upcoming('BASIC', '2027-01-01'),
+                ],
+            },
+        } as never);
+        const duplicates = warn.mock.calls.filter(([message]) =>
+            String(message).includes('Duplicate keys'),
+        );
+        warn.mockRestore();
+
+        expect(duplicates).toEqual([]);
+        expect(listed()).toEqual(
+            expect.arrayContaining([
+                'This bundle cannot run on the PRO plan, which the subscription moves to on 2027-03-01.',
+                'This bundle cannot run on the BASIC plan, which the subscription moves to on 2027-01-01.',
+            ]),
+        );
     });
 });

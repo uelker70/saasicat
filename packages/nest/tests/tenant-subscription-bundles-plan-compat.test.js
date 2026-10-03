@@ -12,6 +12,9 @@ import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.
 
 const REQ = { user: { tenantId: 't1' } };
 
+/** A subscription set to move nowhere. */
+const NOTHING_AHEAD = { of: async () => [] };
+
 // Production-like: planVersion.planId is a UUID and differs from the plan key.
 function buildSub() {
     return {
@@ -52,6 +55,8 @@ function buildController() {
         { findForTenant: async () => buildSub() },
         (req) => req.user?.tenantId ?? null,
         null,
+        null,
+        NOTHING_AHEAD,
     );
     return { ctrl, captured };
 }

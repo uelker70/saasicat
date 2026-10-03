@@ -82,6 +82,20 @@ function bookingsRepo(bookings) {
     return { listActiveBySubscription: async () => bookings };
 }
 
+/** Reports, which any plan may book, in either rhythm. */
+const REPORTS = {
+    async findVersionById(id) {
+        return {
+            id,
+            label: 'Reports',
+            compatibility: {},
+            pricingOverrides: [],
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        };
+    },
+};
+
 function preview(targetCycle, bookings) {
     const service = new PlanChangePreviewService(
         givenPlanCatalogSource(CATALOG),
@@ -91,13 +105,18 @@ function preview(targetCycle, bookings) {
         null,
         null,
         bookings === null ? null : bookingsRepo(bookings),
+        null,
+        null,
+        REPORTS,
     );
     return service.preview('t1', 'PRO', targetCycle, NOW);
 }
 
 const YEARLY_BOOKING = {
     id: 'sb-1',
+    bundleVersionId: 'bv-reports',
     billingCycle: 'YEARLY',
+    canceledEffectiveAt: null,
     currentPeriodEnd: new Date('2027-01-01'),
     minimumTermEndsAt: null,
 };
@@ -111,11 +130,12 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
         assert.ok(hasCycleBlocker(dto), `expected a blocker, got ${JSON.stringify(dto.blockers)}`);
     });
 
-    test('the blocker names the date the add-on runs to, so the tenant can act', async () => {
+    test('the blocker names the add-on and the date it runs to, so the tenant can act', async () => {
         const dto = await preview('MONTHLY', [YEARLY_BOOKING]);
         const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
-        assert.match(blocker.message, /2027-01-01/);
-        assert.match(blocker.message, /cancel the bundle/);
+        assert.equal(blocker.params.bundleName, 'Reports');
+        assert.equal(blocker.params.until, '2027-01-01');
+        assert.match(blocker.message, /Once it is cancelled/);
     });
 
     // The date and the instruction are the whole value of this blocker, and a
@@ -132,11 +152,11 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
 
         assert.equal(
             resolveErrorMessage(blocker, {}, ERROR_MESSAGES_EN),
-            'A yearly bundle is booked until 2027-01-01. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.',
+            'Reports is billed yearly and runs until 2027-01-01 at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after that day goes through — or keep the yearly cycle.',
         );
         assert.equal(
             resolveErrorMessage(blocker, {}, ERROR_MESSAGES_DE),
-            'Ein jährlich abgerechnetes Bundle ist bis 2027-01-01 gebucht. Ein monatlich abgerechnetes Paket kann es nicht tragen — kündigen Sie das Bundle zuerst, oder behalten Sie den jährlichen Rhythmus.',
+            'Reports wird jährlich abgerechnet und läuft frühestens bis 2027-01-01; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
         );
     });
 
@@ -221,15 +241,18 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
         assert.equal(hasCycleBlocker(dto), false);
     });
 
-    test('the date falls back to the minimum term where no period is stored', async () => {
-        const dto = await preview('MONTHLY', [
-            {
-                ...YEARLY_BOOKING,
-                currentPeriodEnd: null,
-                minimumTermEndsAt: new Date('2026-12-01'),
-            },
-        ]);
-        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
-        assert.match(blocker.message, /2026-12-01/);
+    // A booking that stores no period of its own runs with the plan's, so a
+    // cancellation of it lands where the cancel route would put it: at the
+    // plan's period end, or at a commitment running longer.
+    test("where no period is stored, the date is the plan's period end or a longer commitment", async () => {
+        const untilWithCommitment = async (minimumTermEndsAt) => {
+            const dto = await preview('MONTHLY', [
+                { ...YEARLY_BOOKING, currentPeriodEnd: null, minimumTermEndsAt },
+            ]);
+            return dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE')
+                .params.until;
+        };
+        assert.equal(await untilWithCommitment(new Date('2026-12-01')), '2027-01-01');
+        assert.equal(await untilWithCommitment(new Date('2027-03-01')), '2027-03-01');
     });
 });

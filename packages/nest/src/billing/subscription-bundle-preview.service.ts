@@ -55,7 +55,12 @@ import { versionOnSale } from './version-on-sale.js';
 import { bundleVersionNotOnSale } from './bundle-version-not-on-sale.js';
 import { addOnAlreadyBooked, runningBundleVersions } from './add-on-already-booked.js';
 import {
-    bundleCycleFitsPlan,
+    addOnMisfits,
+    misfitRefusal,
+    plansAheadRefusals,
+    type PlanAhead,
+} from './add-on-fits-plan.js';
+import {
     bundleFirstPeriodEnd,
     bundleFirstPeriodStart,
     resolvePlanAnchorDay,
@@ -117,6 +122,12 @@ export interface SubscriptionBundlePreviewContext {
      * first period would then differ from the one written.
      */
     planAnchorDay?: number | null;
+    /**
+     * The plans the subscription is already set to move to, each from when it
+     * moves — what the booking is handed, so the preview refuses what the
+     * booking would.
+     */
+    plansAhead: readonly PlanAhead[];
 }
 
 export interface BundlePreviewSnapshot {
@@ -244,24 +255,23 @@ export class SubscriptionBundlePreviewService {
         const warnings: SubscriptionBundlePreviewIssue[] = [];
 
         // The bundle's rhythm, not the plan's — the same default the booking
-        // takes, and the same refusal. Quoting the plan's rhythm for a bundle
-        // asked for in another one prices a contract nobody is about to sign.
+        // takes. Quoting the plan's rhythm for a bundle asked for in another one
+        // prices a contract nobody is about to sign. Whether it can run beside
+        // the plan, and beside every plan the subscription is set to move to,
+        // is the booking's own rule, and every reason it fails is shown.
         const planCycle = ctx.billingCycle;
         const billingCycle = input.billingCycle ?? planCycle;
-        if (!bundleCycleFitsPlan(billingCycle, planCycle)) {
-            blockers.push({
-                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
-                message:
-                    `A ${billingCycle.toLowerCase()} bundle cannot run beside a ` +
-                    `${planCycle.toLowerCase()} plan: it would still be committed on ` +
-                    'every day the plan could end.',
-            });
+        const plan = { planKey: ctx.currentPlanKey, billingCycle: planCycle };
+        for (const misfit of addOnMisfits(bundleVersion, plan, billingCycle)) {
+            blockers.push(misfitRefusal(misfit, bundleVersion, plan, billingCycle));
         }
+        blockers.push(
+            ...plansAheadRefusals(bundleVersion, ctx.plansAhead, billingCycle, ctx.parentEndsAt),
+        );
 
         this.collectBookabilityBlockers(
             bundleVersion,
             await this.bundles.findById(bundleVersion.bundleId),
-            ctx.currentPlanKey,
             blockers,
             now,
         );
@@ -311,22 +321,9 @@ export class SubscriptionBundlePreviewService {
             });
         }
 
+        // Null where the plan has no price in that rhythm, which the rule above
+        // has already refused; there is then nothing to prorate either.
         const priceNet = resolveBundlePriceNet(bundleVersion, ctx.currentPlanKey, billingCycle);
-        if (priceNet === null) {
-            // Published bundles always resolve SOME price — that is checked when
-            // they are published. What cannot be checked there is the
-            // combination: which plan a tenant is on, and in which rhythm. A
-            // bundle priced only monthly, offered to a tenant on a yearly plan,
-            // resolves nothing here, and booking it would hand over features
-            // with no price attached.
-            blockers.push({
-                code: BILLING_ERROR_CODES.BUNDLE_NOT_PRICED_FOR_THIS_PLAN,
-                message:
-                    `This bundle has no ${billingCycle.toLowerCase()} price for the ` +
-                    `${ctx.currentPlanKey} plan, so it cannot be booked from here.`,
-                params: { billingCycle, planKey: ctx.currentPlanKey },
-            });
-        }
         // Resolved by the one function the booking route uses, so the two cannot
         // reach different days and quote a period the booking would not store.
         const planAnchorDay = resolvePlanAnchorDay({
@@ -472,26 +469,11 @@ export class SubscriptionBundlePreviewService {
     private collectBookabilityBlockers(
         bundleVersion: BundleVersionRow,
         bundle: BundleRow | null,
-        currentPlanKey: string,
         blockers: SubscriptionBundlePreviewIssue[],
         asOf: Date,
     ): void {
         const notOnSale = bundleVersionNotOnSale(bundleVersion, bundle, asOf);
         if (notOnSale) blockers.push(notOnSale);
-        const planIds = bundleVersion.compatibility?.planIds ?? [];
-        if (planIds.length > 0 && !planIds.includes(currentPlanKey)) {
-            blockers.push({
-                code: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
-                message:
-                    `The bundle is not compatible with plan '${currentPlanKey}'. ` +
-                    `Allowed: [${planIds.join(', ')}].`,
-                params: {
-                    bundleVersionId: bundleVersion.id,
-                    planKey: currentPlanKey,
-                    allowedPlanKeys: planIds.join(', '),
-                },
-            });
-        }
         if (this.blockedBundles?.bundleKeys?.includes(bundleVersion.bundleKey)) {
             blockers.push({
                 code: 'BUNDLE_NOT_SELF_SERVICE',

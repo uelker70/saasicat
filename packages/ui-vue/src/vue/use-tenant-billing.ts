@@ -294,6 +294,8 @@ export interface CancellationResultShape {
 export interface BundlePreviewIssueShape {
     code: string;
     message: string;
+    /** The values the sentence names, beside it rather than inside it. */
+    params?: Record<string, string | number>;
 }
 
 export interface BundlePreviewSnapshotShape {

@@ -44,6 +44,7 @@ const SERVICES = [
     ['bundle-version-not-on-sale.ts', RETURNED],
     ['add-on-already-booked.ts', RETURNED],
     ['plan-helpers.ts', RETURNED],
+    ['add-on-fits-plan.ts', RETURNED],
 ].map(([file, openers]) => [join(BILLING_SRC, file), openers]);
 
 /**

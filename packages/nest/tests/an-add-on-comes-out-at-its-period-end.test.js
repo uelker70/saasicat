@@ -63,6 +63,7 @@ const book = async (key, billingCycle) => {
         planPeriodEnd: PLAN_PERIOD_END,
         planAnchorDay: PLAN_ANCHOR_DAY,
         billingCycle,
+        plansAhead: [],
     });
 };
 
@@ -84,6 +85,7 @@ describe('a monthly add-on beside a yearly plan', () => {
     test('cancelling lands at the end of the period it is in', async () => {
         const row = await book('MONTHLY_CANCEL', 'MONTHLY');
         const cancelled = await service.cancelBundleFromSubscription({
+            subscriptionId: SUB,
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-09-01T00:00:00Z'),
             parentEndsAt: null,
@@ -97,6 +99,7 @@ describe('a monthly add-on beside a yearly plan', () => {
         // they would then have to be refunded for.
         const row = await book('MONTHLY_EDGE', 'MONTHLY');
         const cancelled = await service.cancelBundleFromSubscription({
+            subscriptionId: SUB,
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-09-23T00:00:00Z'),
             parentEndsAt: null,
@@ -122,6 +125,7 @@ describe('a yearly add-on beside a yearly plan', () => {
         // 2027-08-27, after the bundle's own last period.
         const row = await book('YEARLY_CANCEL', 'YEARLY');
         const cancelled = await service.cancelBundleFromSubscription({
+            subscriptionId: SUB,
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-09-01T00:00:00Z'),
             parentEndsAt: null,
@@ -150,10 +154,12 @@ describe('a commitment an operator did configure', () => {
             planPeriodEnd: PLAN_PERIOD_END,
             planAnchorDay: PLAN_ANCHOR_DAY,
             billingCycle: 'MONTHLY',
+            plansAhead: [],
         });
         assert.equal(iso(row.minimumTermEndsAt), '2027-07-23', 'capped at the parent’s end');
 
         const cancelled = await withTerm.cancelBundleFromSubscription({
+            subscriptionId: SUB,
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-09-01T00:00:00Z'),
             parentEndsAt: PLAN_PERIOD_END,

@@ -321,6 +321,7 @@ describe('a tenant books a bundle', () => {
             planCycle: 'MONTHLY',
             planPeriodEnd: at('2026-03-21'),
             planAnchorDay: 21,
+            plansAhead: [],
             ...overrides,
         });
 

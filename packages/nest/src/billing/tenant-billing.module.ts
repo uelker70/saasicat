@@ -10,6 +10,7 @@ import { planCatalogSchema } from '@saasicat/spec';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
+    BundleRepository,
     PlanCatalogSettings,
     SubscriberLedgerRepository,
     SubscriberRepository,
@@ -39,7 +40,11 @@ import { VersionNoticeCron } from './version-notice.cron.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
-import { PLAN_VERSION_ENDING_CHECK_TOKEN } from '../catalog/catalog.tokens.js';
+import {
+    BUNDLE_REPOSITORY_TOKEN,
+    PLAN_VERSION_ENDING_CHECK_TOKEN,
+} from '../catalog/catalog.tokens.js';
+import { PlansAheadService } from './plans-ahead.js';
 import { VersionNoticeService } from './version-notice.service.js';
 import {
     VersionRetirementService,
@@ -81,6 +86,7 @@ import {
     type UserEmailResolver,
     type UserIdResolver,
     CANCELLATION_NOTICE_DAYS_TOKEN,
+    PLANS_AHEAD_TOKEN,
 } from './tenant-billing.tokens.js';
 
 /**
@@ -241,15 +247,28 @@ export interface TenantBillingModuleOptions {
     /**
      * Optional adapter for the tenant's bundle bookings.
      *
-     * The plan-change preview reads it for one rule: a bundle may run in a
-     * shorter rhythm than its plan, never a longer one, so a move to a shorter
-     * cycle is refused while an add-on with a longer one is still active.
+     * A plan change reads it — the tenant's own, a retirement's switch, and a
+     * retirement's announcement — to ask of every add-on still booked whether
+     * it can run on the target plan (`SC-CHG-024`, `SC-SUB-037`).
      * `SubscriptionBundleModule` exports the same token, but it is a sibling
      * import rather than an ancestor — its exports do not reach this module's
-     * providers, so without this option the rule resolves to "no bookings" and
-     * silently allows the move it exists to prevent.
+     * providers, so without this option those rules resolve to "no bookings"
+     * and silently allow the moves they exist to prevent. Required together
+     * with `bundleRepository`.
      */
     subscriptionBundleRepository?: ProviderSpec<SubscriptionBundleRepository>;
+
+    /**
+     * Optional adapter for the add-on catalogue, read beside the bookings.
+     *
+     * A plan change, and a retirement onto another plan, ask of every booking
+     * still running when it lands whether its add-on can run on the target
+     * plan at all: allowed there, priced there in the booking's rhythm. That
+     * needs the version booked, and the same sibling rule as for the bookings
+     * applies — without it the two read only the rhythm. Required together
+     * with `subscriptionBundleRepository`.
+     */
+    bundleRepository?: ProviderSpec<BundleRepository>;
 
     /**
      * Optional adapter that provides due scheduled plan changes (#19). If it is
@@ -358,6 +377,8 @@ export class TenantBillingModule {
             PlanChangePreviewService,
             VersionOfferService,
             VersionSwitchService,
+            PlansAheadService,
+            { provide: PLANS_AHEAD_TOKEN, useExisting: PlansAheadService },
         ];
 
         assertNoMovedOptions(options);
@@ -381,11 +402,20 @@ export class TenantBillingModule {
             },
         );
         if (options.subscriptionBundleRepository) {
+            if (!options.bundleRepository) {
+                throw new Error(
+                    'TenantBillingModule.forRoot() was given subscriptionBundleRepository without ' +
+                        'bundleRepository. A plan change checks that every add-on still booked can ' +
+                        'run on the target plan, and that needs the add-on versions the bookings ' +
+                        'name. Pass the bundle repository beside the booking repository.',
+                );
+            }
             providers.push(
                 asProvider(
                     SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN,
                     options.subscriptionBundleRepository,
                 ),
+                asProvider(BUNDLE_REPOSITORY_TOKEN, options.bundleRepository),
             );
         }
         if (options.trialProjectionPort) {
@@ -531,6 +561,7 @@ export class TenantBillingModule {
                 ComposedTenantAuthGuard,
                 TenantAdminGuard,
                 PlanChangePreviewService,
+                PLANS_AHEAD_TOKEN,
                 SUBSCRIPTION_USAGE_PORT_TOKEN,
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,

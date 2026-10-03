@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 24 rules, in 14 areas.
+There are 25 rules, in 14 areas.
 
 ## core
 
@@ -151,6 +151,13 @@ gateway accounts the bound gateways belong to.
 
 TenantBilling is enabled without a `persistence.tenantBilling` slice, and these
 adapters are missing: subscriptionUsagePort, subscriptionWritePort.
+
+### tenant-billing.requires-bundle-catalogue
+
+TenantBilling reads the add-on bookings of the persistence bundle, but the
+bundle has no bundle repository. A plan change asks of every add-on still booked
+whether it can run on the target plan, and that needs the add-on versions the
+bookings name. Give the bundle a `catalog.bundleRepository`.
 
 ## subscription-bundles
 

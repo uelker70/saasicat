@@ -149,6 +149,9 @@ _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - the preview of such a booking
+        - names every reason an add-on cannot run beside the plan of today, at once
 - `packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js`
     - which cycles a bundle may be sold on
         - every combination, not three of the four
@@ -476,7 +479,7 @@ _Tested by:_
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
     - moving to a shorter cycle with a longer add-on booked
         - a yearly add-on blocks the move to a monthly plan
-        - the blocker names the date the add-on runs to, so the tenant can act
+        - the blocker names the add-on and the date it runs to, so the tenant can act
         - and says both in either language, not only in the English message
         - the German sentence carries no English cycle word
         - staying on the yearly cycle is not blocked
@@ -485,7 +488,7 @@ _Tested by:_
         - no active bookings, nothing to block
         - a consumer without the bundle module is not blocked by bookings it cannot have
         - moving to a LONGER cycle with a monthly add-on is fine
-        - the date falls back to the minimum term where no period is stored
+        - where no period is stored, the date is the plan's period end or a longer commitment
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -620,6 +623,9 @@ _Tested by:_
         - a plan that runs on shows no end date
         - the no-refund rule holds whether or not the plan is ending
         - a cancellation preview does not repeat the booking terms
+    - a reason the booking cannot be made reads in the chosen language
+        - each of two reasons with one code, with its own values
+        - and read again in another order, each still keeps its own
 
 <!-- END proof -->
 
@@ -881,6 +887,11 @@ _Tested by:_
         - disjoint bundles are all kept
         - empty selection → empty result
         - does not mutate the input
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - reinstating a cancelled booking, which books it again
+        - is refused where the plan of today cannot carry it
+    - the preview of such a booking
+        - names every reason an add-on cannot run beside the plan of today, at once
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - an operator publishes a bundle
         - a base price is enough
@@ -1084,7 +1095,7 @@ _Tested by:_
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
     - moving to a shorter cycle with a longer add-on booked
         - a yearly add-on blocks the move to a monthly plan
-        - the blocker names the date the add-on runs to, so the tenant can act
+        - the blocker names the add-on and the date it runs to, so the tenant can act
         - and says both in either language, not only in the English message
         - the German sentence carries no English cycle word
         - staying on the yearly cycle is not blocked
@@ -1093,7 +1104,7 @@ _Tested by:_
         - no active bookings, nothing to block
         - a consumer without the bundle module is not blocked by bookings it cannot have
         - moving to a LONGER cycle with a monthly add-on is fine
-        - the date falls back to the minimum term where no period is stored
+        - where no period is stored, the date is the plan's period end or a longer commitment
 - `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
     - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
     - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
@@ -1319,5 +1330,54 @@ _Tested by:_
 - `packages/nest/tests/checkout-offer-service.test.js`
     - CheckoutOfferService
         - consume blocks an add-on deleted after the offer was made
+
+<!-- END proof -->
+
+### SC-BUN-037 — An add-on cannot be booked where it cannot run on a plan the subscription moves to
+
+🟢 💰 A booking is refused, and its preview says so, where the add-on cannot run on a plan the
+subscription is already set to move to: the target of a change it scheduled, from the day that
+change lands, and the replacement plan of a retirement it has been told of, from that date for as
+long as the subscription is still on the version retired, whatever else is scheduled before it.
+Reinstating a cancelled booking books it again: it is refused the same way, and where the add-on
+cannot run on the plan of today. A subscription that ends no later than the move never makes it,
+and books the add-on.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - a booking on a subscription set to move to another plan
+        - is refused where the plan it moves to does not book the add-on
+        - is refused where that plan has no price for it in its rhythm
+        - is refused for a yearly add-on where the move is to the monthly rhythm
+        - books an add-on the plan it moves to can carry
+        - books it where the subscription ends on the day of the move, which then never lands
+        - but not where the subscription ends a day after the move
+    - reinstating a cancelled booking, which books it again
+        - is refused where the plan it moves to cannot carry the add-on
+        - is refused where the plan of today cannot carry it
+        - reinstates one both plans can carry
+    - the preview of such a booking
+        - says what the booking would say
+    - the plans a subscription is set to move to
+        - are none where nothing is scheduled and no retirement was told
+        - are the target of a scheduled change, in its rhythm, from the day it lands
+        - are monthly where the change names no rhythm, as the change lands
+        - are the replacement of a retirement told, from its date
+        - carry the retirement in the rhythm billed at its date, not the one it was told in
+        - keep a told retirement where a scheduled change would leave the version first
+        - do not ask about a retirement for a subscription that has no id
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the retirements a subscription was told of
+        - stay past their date, for as long as the subscription is on the version
+        - are none while the notice has reached nobody
+- `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
+    - a booking, and the plans the subscription moves to, in a real container
+        - is refused where the plan a scheduled change moves to cannot carry the add-on
+        - reinstating a cancelled one is refused against that plan too, and nothing changes
 
 <!-- END proof -->

@@ -1,5 +1,6 @@
 import type { DynamicModule } from '@nestjs/common';
 import type {
+    BundleRepository,
     SubscriptionBundleRepository,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -57,6 +58,12 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         // "none" and allow the move it exists to refuse.
         subscriptionBundleRepository: ctx.persistence?.entitlement?.subscriptionBundleRepository as
             ProviderSpec<SubscriptionBundleRepository> | undefined,
+        // The versions those bookings name, for the same rule: whether an
+        // add-on can run on the plan a change moves to is a question about the
+        // version booked, not only its rhythm.
+        bundleRepository: (ctx.persistence?.entitlement?.subscriptionBundleRepository
+            ? resolveBundleRepository(ctx.persistence)
+            : undefined) as ProviderSpec<BundleRepository> | undefined,
         subscriptionUsagePort: ctx.shared
             .subscriptionUsagePort as ProviderSpec<SubscriptionUsagePort>,
         usageSnapshotPort:

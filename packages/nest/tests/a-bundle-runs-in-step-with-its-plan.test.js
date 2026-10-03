@@ -330,6 +330,7 @@ describe('booking one, through the service that writes it', () => {
             planCycle: 'YEARLY',
             planPeriodEnd: at('2026-07-31'),
             planAnchorDay: 31,
+            plansAhead: [],
             ...overrides,
         });
 
@@ -427,6 +428,7 @@ describe('a bundle nobody can be charged for is not booked', () => {
             planCycle: 'MONTHLY',
             planPeriodEnd: at('2026-03-21'),
             planAnchorDay: 21,
+            plansAhead: [],
             ...overrides,
         });
 
@@ -917,6 +919,7 @@ describe('cancelling one, against its own period', () => {
     test('a monthly booking ends with its month, not with the plan’s year', async () => {
         const { svc } = serviceFor(monthlyBookingOnYearlyPlan);
         const result = await svc.cancelBundleFromSubscription({
+            subscriptionId: 'sub-1',
             subscriptionBundleId: 'sb-1',
             canceledAt: at('2026-03-05'),
             // What the plan would have said: eleven months later.
@@ -936,6 +939,7 @@ describe('cancelling one, against its own period', () => {
             currentPeriodEnd: null,
         });
         const result = await svc.cancelBundleFromSubscription({
+            subscriptionId: 'sub-1',
             subscriptionBundleId: 'sb-1',
             canceledAt: at('2026-03-05'),
             currentPeriodEnd: at('2027-01-01'),
@@ -950,6 +954,7 @@ describe('cancelling one, against its own period', () => {
             minimumTermEndsAt: at('2026-08-31'),
         });
         const result = await svc.cancelBundleFromSubscription({
+            subscriptionId: 'sub-1',
             subscriptionBundleId: 'sb-1',
             canceledAt: at('2026-03-05'),
             currentPeriodEnd: at('2027-01-01'),
@@ -964,6 +969,7 @@ describe('cancelling one, against its own period', () => {
             minimumTermEndsAt: at('2026-08-31'),
         });
         const result = await svc.cancelBundleFromSubscription({
+            subscriptionId: 'sub-1',
             subscriptionBundleId: 'sb-1',
             canceledAt: at('2026-03-05'),
             currentPeriodEnd: at('2027-01-01'),

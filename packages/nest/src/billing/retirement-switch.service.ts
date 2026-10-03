@@ -31,24 +31,31 @@ import {
     BILLING_ERROR_CODES,
     retirementSwitchTerms,
     type BillingCycle,
+    type BundleRepository,
     type RetirementSwitchResult,
     type RetirementSwitchTerms,
     type SelfServiceBlockedPlans,
+    type SubscriptionBundleRepository,
     type SubscriptionUsagePort,
     type SubscriptionUsageRecord,
     type TenantSubscriptionWritePort,
     type VersionRetiredNotice,
 } from '@saasicat/core';
 
+import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { heldAddOnMisfits, heldMisfitRefusal } from './add-on-fits-plan.js';
+import { addOnInTheWay } from './add-on-in-the-way.js';
+import type { BundleBookingRefusal } from './bundle-version-not-on-sale.js';
 import { bindReplacement, bindRetiredAgain } from './retirement-binding.js';
 import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -83,6 +90,14 @@ export class RetirementSwitchService {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
+        // The add-ons booked, and the versions they name. Absent where nothing
+        // books add-ons; `TenantBillingModule` refuses the one without the other.
+        @Optional()
+        @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
+        private readonly subscriptionBundles: SubscriptionBundleRepository | null = null,
+        @Optional()
+        @Inject(BUNDLE_REPOSITORY_TOKEN)
+        private readonly bundles: BundleRepository | null = null,
     ) {}
 
     /** The switch the subscription could take now, or null where it can take none. */
@@ -140,6 +155,11 @@ export class RetirementSwitchService {
                     'plan is held for a special contract.',
             );
         }
+        // A switch moves the subscription onto the replacement's plan today, so
+        // every add-on running today has to be able to run there (`SC-CHG-024`).
+        // The announcement asked only about those still running at the date.
+        const standing = await this.refusalForAnAddOn(sub, notice, now);
+        if (standing) throw new UnprocessableEntityException(standing);
         // Where contracts are frozen, the switch ends in one naming the
         // subscriber: refused here, while nothing has moved.
         await this.contractFreeze?.assertPartyFor(tenantId);
@@ -197,6 +217,35 @@ export class RetirementSwitchService {
     ): Promise<void> {
         await bindRetiredAgain(this.writes, tenantId, sub, notice, this.logger);
         this.entitlements.invalidateTenant(tenantId);
+    }
+
+    /**
+     * The refusal for the first add-on running today that cannot run beside the
+     * replacement's plan, in the rhythm the subscription keeps; null where
+     * none stands in the way.
+     */
+    private async refusalForAnAddOn(
+        sub: SubscriptionUsageRecord,
+        notice: VersionRetiredNotice,
+        now: Date,
+    ): Promise<BundleBookingRefusal | null> {
+        if (!this.subscriptionBundles || !sub.id) return null;
+        const target = {
+            planKey: notice.replacement.planKey,
+            billingCycle: sub.billingCycle as BillingCycle,
+        };
+        const [first] = await heldAddOnMisfits(
+            this.subscriptionBundles,
+            this.bundles,
+            sub.id,
+            target,
+            now,
+        );
+        if (!first) return null;
+        return heldMisfitRefusal(first.misfit, addOnInTheWay(first, sub, now), {
+            planName: target.planKey,
+            billingCycle: target.billingCycle,
+        });
     }
 
     /**

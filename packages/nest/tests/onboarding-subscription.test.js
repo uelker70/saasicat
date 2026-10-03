@@ -5,7 +5,11 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TenantBillingController } from '../dist/billing/index.js';
+import {
+    PlanChangePreviewService,
+    TenantBillingController,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
 
 function buildEntitlement() {
     return {
@@ -741,5 +745,114 @@ describe('onboarding brings the account up to date', () => {
         );
 
         assert.equal(result.plan, 'SPORT');
+    });
+});
+
+// @requirement SC-CHG-024 — A plan change is refused while a booked add-on cannot run on the target plan
+describe('onboarding, and an add-on still running today', () => {
+    // A trial on Pro choosing Basic: as a change, a move down, which the
+    // preview would land at the end of the trial. Onboarding sets the plan at
+    // once, so what runs today is what has to fit.
+    const DAY = 24 * 60 * 60 * 1000;
+    const plan = (id, name, monthlyNet) => ({
+        id,
+        name,
+        tagline: '',
+        marketed: true,
+        monthlyNet,
+        yearlyNet: monthlyNet * 10,
+        quotas: {},
+        features: [],
+    });
+    const CATALOG = {
+        schemaVersion: 1,
+        app: { name: 'Test App' },
+        currency: 'EUR',
+        vatRate: 19,
+        // Basic first: the catalogue's order ranks the plans.
+        plans: [plan('BASIC', 'Basic', 19), plan('PRO', 'Pro', 49)],
+    };
+    /** Reports, sold for Pro only. */
+    const REPORTS = {
+        async findVersionById(id) {
+            return {
+                id,
+                label: 'Reports',
+                compatibility: { planIds: ['PRO'] },
+                pricingOverrides: [],
+                monthlyNet: '5.00',
+                yearlyNet: '50.00',
+            };
+        },
+    };
+
+    /** A trial on Pro ending in ten days, holding Reports until `endsAt`. */
+    function onboardingWithReportsUntil(endsAt) {
+        const trial = {
+            ...buildSub({ plan: 'PRO' }),
+            trialEndsAt: new Date(Date.now() + 10 * DAY),
+            canceledAt: null,
+            canceledEffectiveAt: null,
+        };
+        const booking = {
+            id: 'sb-1',
+            subscriptionId: trial.id,
+            bundleVersionId: 'bv-reports',
+            billingCycle: 'MONTHLY',
+            currentPeriodEnd: endsAt,
+            minimumTermEndsAt: null,
+            canceledAt: new Date(Date.now() - DAY),
+            canceledEffectiveAt: endsAt,
+        };
+        const subscriptionUsage = { findForTenant: async () => trial };
+        const planPreview = new PlanChangePreviewService(
+            givenPlanCatalogSource(CATALOG),
+            buildEntitlement(),
+            subscriptionUsage,
+            { snapshot: async () => ({}) },
+            null,
+            null,
+            {
+                listActiveBySubscription: async (_id, asOf) =>
+                    booking.canceledEffectiveAt > asOf ? [booking] : [],
+            },
+            null,
+            null,
+            REPORTS,
+        );
+        const subscriptionWrite = buildWritePort();
+        const ctrl = buildController({ planPreview, subscriptionUsage, subscriptionWrite });
+        const onboard = () =>
+            ctrl.completeOnboardingSubscription(
+                { user: { tenantId: 't1', sub: 'u1' } },
+                { plan: 'BASIC', billingCycle: 'MONTHLY' },
+            );
+        return { onboard, subscriptionWrite };
+    }
+
+    test('is refused where the add-on ends before the trial does, but after today', async () => {
+        const { onboard, subscriptionWrite } = onboardingWithReportsUntil(
+            new Date(Date.now() + 2 * DAY),
+        );
+
+        await assert.rejects(onboard, (error) => {
+            assert.equal(error.getResponse().code, 'PLAN_CHANGE_BLOCKED');
+            assert.deepEqual(
+                error.getResponse().blockers.map((blocker) => blocker.code),
+                ['BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN'],
+            );
+            return true;
+        });
+        assert.deepEqual(subscriptionWrite.changePlanCalls, []);
+    });
+
+    test('goes through once the add-on has ended', async () => {
+        const { onboard, subscriptionWrite } = onboardingWithReportsUntil(
+            new Date(Date.now() - 60_000),
+        );
+
+        await onboard();
+
+        assert.equal(subscriptionWrite.changePlanCalls.length, 1);
     });
 });

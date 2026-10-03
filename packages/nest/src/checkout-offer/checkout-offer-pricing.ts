@@ -43,6 +43,7 @@ import { grossFromNet } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
 import { sameAddOn } from '../billing/add-on-already-booked.js';
+import { addOnMisfits, type AddOnMisfit } from '../billing/add-on-fits-plan.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
 
@@ -282,16 +283,15 @@ export class CheckoutOfferPricing {
                 if (notBookable) throw bundleNotOffered(bundleVersionId, notBookable);
                 if (!version.marketed) throw bundleNotOffered(bundleVersionId, 'not_marketed');
             }
-            const planKeys = version.compatibility?.planIds ?? [];
-            if (planKeys.length > 0 && !planKeys.includes(input.planKey)) {
-                throw bundleNotOffered(bundleVersionId, 'incompatible_with_plan');
-            }
-            if (
-                resolveBundlePriceNet(version, input.planKey, wireCycle(input.billingCycle)) ===
-                null
-            ) {
-                throw bundleNotOffered(bundleVersionId, 'not_priced');
-            }
+            // Booked in the plan's own rhythm, so only the plan and the price
+            // can be in the way.
+            const cycle = wireCycle(input.billingCycle);
+            const [misfit] = addOnMisfits(
+                version,
+                { planKey: input.planKey, billingCycle: cycle },
+                cycle,
+            );
+            if (misfit) throw bundleNotOffered(bundleVersionId, OFFER_MISFIT_REASON[misfit]);
             out.push(version);
         }
         return out;
@@ -516,6 +516,13 @@ function planNotOffered(planKey: string, billingCycle: Cycle): UnprocessableEnti
         params: { planKey, billingCycle },
     });
 }
+
+/** The reason an offer names for an add-on that cannot run beside its plan. */
+const OFFER_MISFIT_REASON: Record<AddOnMisfit, string> = {
+    'not-allowed': 'incompatible_with_plan',
+    'not-priced': 'not_priced',
+    'longer-rhythm': 'cycle_exceeds_plan',
+};
 
 function bundleNotOffered(bundleVersionId: string, reason: string): UnprocessableEntityException {
     return new UnprocessableEntityException({

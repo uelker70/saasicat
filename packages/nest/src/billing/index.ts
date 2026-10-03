@@ -69,6 +69,8 @@ export * from './billing-permission.guard.js';
 export * from './self-service-policy.js';
 export * from './proration.js';
 export * from './plan-change-preview.service.js';
+export { PlansAheadService, type PlansAhead, type PlansAheadSubject } from './plans-ahead.js';
+export type { PlanAhead, PlanBeside } from './add-on-fits-plan.js';
 export * from './version-offer.service.js';
 export * from './version-switch.service.js';
 export { VersionNoticeService, type VersionNoticeRun } from './version-notice.service.js';

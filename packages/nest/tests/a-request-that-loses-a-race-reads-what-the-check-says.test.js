@@ -167,6 +167,7 @@ describe('an operator who creates in the catalogue a moment after another', () =
 describe('a tenant who cancels an add-on a moment after another request', () => {
     const BOOKING = {
         id: 'sb-1',
+        subscriptionId: 'sub-1',
         canceledAt: null,
         currentPeriodEnd: new Date('2099-02-01T00:00:00.000Z'),
         minimumTermEndsAt: null,
@@ -182,7 +183,11 @@ describe('a tenant who cancels an add-on a moment after another request', () => 
         return new SubscriptionBundlesService(
             repo,
             new FakeBundleRepository(),
-        ).cancelBundleFromSubscription({ subscriptionBundleId: BOOKING.id, parentEndsAt: null });
+        ).cancelBundleFromSubscription({
+            subscriptionId: BOOKING.subscriptionId,
+            subscriptionBundleId: BOOKING.id,
+            parentEndsAt: null,
+        });
     }
 
     test('is told it is already cancelled, as the check says it', async () => {

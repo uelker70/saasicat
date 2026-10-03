@@ -152,6 +152,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Ein jährlich abgerechnetes Bundle passt nicht zu einem monatlich abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
         'Für dieses Bundle ist im Plan {planKey} kein {billingCycle} Preis hinterlegt, es kann hier deshalb nicht gebucht werden.',
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN:
+        'Dieses Bundle kann nicht im Plan {planKey} laufen, auf den das Abonnement am {from} wechselt.',
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE:
+        'Ein jährlich abgerechnetes Bundle kann nicht neben der monatlichen Abrechnung laufen, auf die das Abonnement am {from} wechselt.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist bereits gekündigt.",
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
@@ -194,6 +198,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Version {version} von {planKey} wird nicht verkauft. Abonnements können nicht auf ihr weiterlaufen.',
     RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
         '{count} dieser Abonnements werden in einem Rhythmus abgerechnet, für den Version {version} von {planKey} keinen Preis hat. Sie können nicht auf ihr weiterlaufen.',
+    RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES:
+        '{count} dieser Abonnements halten ein Bundle, das in Version {version} von {planKey} nicht laufen kann. Sie können nicht auf ihr weiterlaufen.',
     RETIREMENT_REPLACEMENT_IS_RETIRED: 'Eine Version kann nicht ihr eigener Ersatz sein.',
     RETIREMENT_NOTHING_AFFECTED:
         'Kein laufendes Abonnement nutzt Version {version} von {planKey}. Es gibt niemanden zu benachrichtigen.',
@@ -224,7 +230,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     CYCLE_SHORTENS_AT_TERM_END:
         'Ein monatlich abgerechnetes {planName} kann nicht innerhalb der laufenden Jahreslaufzeit beginnen. Das Upgrade greift zum Ende dieser Laufzeit; wer es sofort möchte, behält den jährlichen Rhythmus.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
-        'Ein jährlich abgerechnetes Bundle ist bis {until} gebucht. Ein monatlich abgerechnetes Paket kann es nicht tragen — kündigen Sie das Bundle zuerst, oder behalten Sie den jährlichen Rhythmus.',
+        '{bundleName} wird jährlich abgerechnet und läuft frühestens bis {until}; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
+    BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN:
+        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder wählen Sie ein anderes Paket.',
     REDUNDANT_FEATURES:
         'Der Plan oder ein anderes gebuchtes Bundle enthält bereits {count} der Funktionen aus diesem Bundle — mit der Buchung werden sie doppelt bezahlt.',
     MINIMUM_TERM_BINDS:

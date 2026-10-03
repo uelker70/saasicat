@@ -70,10 +70,13 @@ import {
 } from './subscription-bundle-preview.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import {
+    PLANS_AHEAD_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
     type TenantIdResolver,
 } from './tenant-billing.tokens.js';
+import type { PlanAhead } from './add-on-fits-plan.js';
+import type { PlansAhead } from './plans-ahead.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 
@@ -141,6 +144,12 @@ export function buildTenantSubscriptionBundlesController(
             @Optional()
             @Inject(SubscriberChargeService)
             private readonly charges: SubscriberChargeService | null = null,
+            // Exported by `TenantBillingModule`, which the add-on route needs in
+            // its scope anyway. Required rather than optional: without it a
+            // booking would go unchecked against the plans the subscription is
+            // set to move to, and nothing would say so.
+            @Inject(PLANS_AHEAD_TOKEN)
+            private readonly plansAhead: PlansAhead,
         ) {}
 
         @Get()
@@ -197,6 +206,7 @@ export function buildTenantSubscriptionBundlesController(
                 // quote a different day from the one booked.
                 planAnchorDay: resolvePlanAnchorDay(sub),
                 billingCycle: dto.billingCycle as BillingCycle | undefined,
+                plansAhead: await this.plansAheadOf(sub),
             });
             await this.refreezeContract(tenantId, sub);
             await recordChargesAfter(this.charges, tenantId, 'an add-on booking', this.logger);
@@ -236,6 +246,8 @@ export function buildTenantSubscriptionBundlesController(
                 // describe different contracts.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 planAnchorDay: resolvePlanAnchorDay(sub),
+                // Asked only about a purchase: a cancellation has no plan to fit.
+                plansAhead: hasAdd ? await this.plansAheadOf(sub) : [],
             };
             return hasAdd
                 ? this.previewService.previewAdd(ctx, {
@@ -259,6 +271,7 @@ export function buildTenantSubscriptionBundlesController(
             const tenantId = this.requireTenantId(req);
             const sub = await this.requireSubscription(tenantId);
             const result = await this.service.cancelBundleFromSubscription({
+                subscriptionId: this.requireSubscriptionPk(sub),
                 subscriptionBundleId,
                 canceledAt: dto.canceledAt ? new Date(dto.canceledAt) : undefined,
                 // A bundle cannot be held past the plan that pays for it, and
@@ -281,7 +294,14 @@ export function buildTenantSubscriptionBundlesController(
             // Reactivating is buying again, so it closes with the till.
             const sub = await this.requireRunningSubscription(tenantId);
             await this.contractFreeze?.assertPartyFor(tenantId);
-            const result = await this.service.reactivateBundle(subscriptionBundleId);
+            const result = await this.service.reactivateBundle({
+                subscriptionId: this.requireSubscriptionPk(sub),
+                subscriptionBundleId,
+                currentPlanKey: sub.plan,
+                planCycle: planCycleOf(sub),
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                plansAhead: await this.plansAheadOf(sub),
+            });
             await this.refreezeContract(tenantId, sub);
             return result;
         }
@@ -293,6 +313,11 @@ export function buildTenantSubscriptionBundlesController(
                 );
             }
             return sub.id;
+        }
+
+        /** The plans the subscription is already set to move to. */
+        private plansAheadOf(sub: SubscriptionUsageRecord): Promise<readonly PlanAhead[]> {
+            return this.plansAhead.of(sub);
         }
 
         private requireTenantId(req: RequestLike): string {

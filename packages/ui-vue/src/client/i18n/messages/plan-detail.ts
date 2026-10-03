@@ -175,6 +175,8 @@ export const planDetailMessages = defineMessages(
                     'Kein laufendes Abonnement ist auf v{version} von {planKey} — es gibt niemanden zu benachrichtigen.',
                 RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
                     '{count} dieser Abonnements werden in einem Rhythmus abgerechnet, für den v{version} von {planKey} keinen Preis hat — sie können darauf nicht weiterlaufen.',
+                RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES:
+                    '{count} dieser Abonnements halten ein Bundle, das in v{version} von {planKey} nicht laufen kann — sie können darauf nicht weiterlaufen.',
                 RETIREMENT_WITHIN_TWELVE_MONTHS:
                     '{count} dieser Abonnements wurden in den letzten zwölf Monaten schon von einer Stilllegung erreicht. Ein Abonnement wird höchstens einmal im Jahr erreicht.',
             },
@@ -357,6 +359,8 @@ export const planDetailMessages = defineMessages(
                     'No running subscription is on v{version} of {planKey}, so there is nobody to tell.',
                 RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
                     '{count} of these subscriptions are billed in a rhythm v{version} of {planKey} has no price for, so they cannot continue on it.',
+                RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES:
+                    '{count} of these subscriptions hold a bundle that cannot run on v{version} of {planKey}, so they cannot continue on it.',
                 RETIREMENT_WITHIN_TWELVE_MONTHS:
                     '{count} of these subscriptions were reached by a retirement within the last twelve months. A subscription is reached at most once a year.',
             },

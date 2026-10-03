@@ -19,6 +19,7 @@ import {
 
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { advanceOneCycle, periodEndAfter } from './billing-period.js';
+import { rhythmTheChangeLandsIn } from './scheduled-change.js';
 
 /** Calendar months between a notice reaching the subscriber and the earliest effective date. */
 export const RETIREMENT_LEAD_MONTHS = 3;
@@ -118,19 +119,27 @@ export function leavesTheVersionBy(sub: RetiringSubscription, at: Date): boolean
     return Boolean(next && sub.planVersion && next !== sub.planVersion.id);
 }
 
+/** What `rhythmAt` reads of a subscription. */
+type RhythmOf = Pick<
+    RetiringSubscription,
+    'plan' | 'billingCycle' | 'pendingPlan' | 'pendingBillingCycle' | 'pendingEffectiveAt'
+>;
+
 /** The rhythm the subscription is billed in at `at`: a change of rhythm scheduled by then included. */
-export function rhythmAt(sub: RetiringSubscription, at: Date): BillingCycle {
+export function rhythmAt(sub: RhythmOf, at: Date): BillingCycle {
     const change = scheduledRhythm(sub);
     return change && change.at <= at ? change.cycle : (sub.billingCycle as BillingCycle);
 }
 
-/** A change of rhythm scheduled on the plan the subscription keeps, or null. */
-function scheduledRhythm(sub: RetiringSubscription): { at: Date; cycle: BillingCycle } | null {
-    if (sub.pendingPlan !== sub.plan || !sub.pendingBillingCycle || !sub.pendingEffectiveAt) {
-        return null;
-    }
-    if (sub.pendingBillingCycle === sub.billingCycle) return null;
-    return { at: sub.pendingEffectiveAt, cycle: sub.pendingBillingCycle as BillingCycle };
+/**
+ * A change of rhythm scheduled on the plan the subscription keeps, or null. Its
+ * rhythm is the one the change lands in (`rhythmTheChangeLandsIn`).
+ */
+function scheduledRhythm(sub: RhythmOf): { at: Date; cycle: BillingCycle } | null {
+    if (sub.pendingPlan !== sub.plan || !sub.pendingEffectiveAt) return null;
+    const cycle = rhythmTheChangeLandsIn(sub);
+    if (cycle === sub.billingCycle) return null;
+    return { at: sub.pendingEffectiveAt, cycle };
 }
 
 /**
