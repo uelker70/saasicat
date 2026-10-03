@@ -353,7 +353,9 @@ describe('the plans a subscription is set to move to', () => {
             pendingBillingCycle: 'MONTHLY',
             pendingEffectiveAt: MOVE,
         });
-        assert.deepEqual(ahead, [{ planKey: 'BASIC', billingCycle: 'MONTHLY', from: MOVE }]);
+        assert.deepEqual(ahead, [
+            { planKey: 'BASIC', billingCycle: 'MONTHLY', from: MOVE, by: 'change' },
+        ]);
     });
 
     test('are monthly where the change names no rhythm, as the change lands', async () => {
@@ -362,13 +364,17 @@ describe('the plans a subscription is set to move to', () => {
             pendingPlan: 'BASIC',
             pendingEffectiveAt: MOVE,
         });
-        assert.deepEqual(ahead, [{ planKey: 'BASIC', billingCycle: 'MONTHLY', from: MOVE }]);
+        assert.deepEqual(ahead, [
+            { planKey: 'BASIC', billingCycle: 'MONTHLY', from: MOVE, by: 'change' },
+        ]);
     });
 
     test('are the replacement of a retirement told, from its date', async () => {
         const retirements = retirementsTelling(TOLD_FOR_OCTOBER);
         const ahead = await new PlansAheadService(retirements).of(SUBSCRIPTION);
-        assert.deepEqual(ahead, [{ planKey: 'BASIC', billingCycle: 'YEARLY', from: OCTOBER }]);
+        assert.deepEqual(ahead, [
+            { planKey: 'BASIC', billingCycle: 'YEARLY', from: OCTOBER, by: 'retirement' },
+        ]);
         assert.deepEqual(retirements.asked, ['sub-1']);
     });
 
@@ -381,8 +387,8 @@ describe('the plans a subscription is set to move to', () => {
             pendingEffectiveAt: MOVE,
         });
         assert.deepEqual(ahead, [
-            { planKey: 'STANDARD', billingCycle: 'MONTHLY', from: MOVE },
-            { planKey: 'BASIC', billingCycle: 'MONTHLY', from: OCTOBER },
+            { planKey: 'STANDARD', billingCycle: 'MONTHLY', from: MOVE, by: 'change' },
+            { planKey: 'BASIC', billingCycle: 'MONTHLY', from: OCTOBER, by: 'retirement' },
         ]);
     });
 
@@ -396,8 +402,8 @@ describe('the plans a subscription is set to move to', () => {
             pendingEffectiveAt: MOVE,
         });
         assert.deepEqual(ahead, [
-            { planKey: 'PRO', billingCycle: 'YEARLY', from: MOVE },
-            { planKey: 'BASIC', billingCycle: 'YEARLY', from: OCTOBER },
+            { planKey: 'PRO', billingCycle: 'YEARLY', from: MOVE, by: 'change' },
+            { planKey: 'BASIC', billingCycle: 'YEARLY', from: OCTOBER, by: 'retirement' },
         ]);
     });
 

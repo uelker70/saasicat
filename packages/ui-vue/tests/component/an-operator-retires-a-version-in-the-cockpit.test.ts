@@ -201,17 +201,17 @@ describe('retiring a version in the plan cockpit', () => {
         });
         await settle();
 
-        const parts = wrapper.findAll('.pd-retirement-progress');
+        const parts = wrapper.findAll('.sa-retirement-progress');
         expect(parts.map((part) => part.text())).toEqual([
             '1 overdue',
             '1 waiting for their date',
             '3 moved',
         ]);
-        expect(parts[0]!.classes()).toContain('pd-retirement-progress--attention');
-        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--attention');
+        expect(parts[0]!.classes()).toContain('sa-retirement-progress--attention');
+        expect(parts[1]!.classes()).not.toContain('sa-retirement-progress--attention');
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('marks the subscriptions not told yet for a look', async () => {
         const { wrapper } = mountCockpit({
             list: async () => [
@@ -234,13 +234,13 @@ describe('retiring a version in the plan cockpit', () => {
         });
         await settle();
 
-        const parts = wrapper.findAll('.pd-retirement-progress');
+        const parts = wrapper.findAll('.sa-retirement-progress');
         expect(parts.map((part) => part.text())).toEqual([
             '2 not told',
             '1 waiting for their date',
         ]);
-        expect(parts[0]!.classes()).toContain('pd-retirement-progress--attention');
-        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--attention');
+        expect(parts[0]!.classes()).toContain('sa-retirement-progress--attention');
+        expect(parts[1]!.classes()).not.toContain('sa-retirement-progress--attention');
     });
 
     // @requirement SC-SUB-034 — Where staying put costs something, a subscription is reminded once
@@ -266,12 +266,12 @@ describe('retiring a version in the plan cockpit', () => {
         });
         await settle();
 
-        const parts = wrapper.findAll('.pd-retirement-progress');
+        const parts = wrapper.findAll('.sa-retirement-progress');
         expect(parts.map((part) => part.text())).toEqual([
             '2 waiting for their date',
             '2 reminded',
         ]);
-        expect(parts[1]!.classes()).not.toContain('pd-retirement-progress--attention');
+        expect(parts[1]!.classes()).not.toContain('sa-retirement-progress--attention');
     });
 
     test('says so where the announcements could not be read', async () => {

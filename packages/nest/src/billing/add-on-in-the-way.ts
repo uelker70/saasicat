@@ -1,6 +1,6 @@
 import type { SubscriptionBundleRecord, SubscriptionUsageRecord } from '@saasicat/core';
 
-import type { HeldAddOnMisfit } from './add-on-fits-plan.js';
+import type { ContinuesOn, HeldAddOnMisfit } from './add-on-fits-plan.js';
 import { resolveBundleCancelEffectiveAt } from './subscription-bundles.service.js';
 
 /** What of the subscription decides when one of its bookings can end. */
@@ -12,21 +12,39 @@ type Parent = Pick<
 /**
  * How a refusal names a booking that stands in the way of a move, read at
  * `now`: the add-on's name, and the earliest day the booking can end. Where
- * the version booked cannot be read, its id stands in for the name.
+ * the version booked cannot be read, its id stands in for the name. A booking
+ * told that its version is being retired may be cancelled without its minimum
+ * term until the retirement's date (`SC-BUN-045`), so the term does not count
+ * then. Where the version it continues on from that date is the one in the
+ * way, that version and its date (`continuesOn`) — but only while the date is
+ * ahead and the booking is not cancelled yet, since only then does cancelling
+ * end it before the date. Past the date a cancellation lands after it, and a
+ * cancelled booking cannot be cancelled again: both are told the day they can
+ * end instead.
  */
 export function addOnInTheWay(
     held: HeldAddOnMisfit,
     sub: Parent,
     now: Date,
-): { bundleName: string; until: string } {
-    const until = earliestEndOf(held.booking, {
-        now,
-        planPeriodEnd: sub.currentPeriodEnd,
-        parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
-    });
+): { bundleName: string; until: string; continuesOn: ContinuesOn | null } {
+    const datePending = Boolean(held.ahead && new Date(held.ahead.effectiveAt) > now);
+    const until = earliestEndOf(
+        datePending ? { ...held.booking, minimumTermEndsAt: null } : held.booking,
+        {
+            now,
+            planPeriodEnd: sub.currentPeriodEnd,
+            parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+        },
+    );
+    const cancellingHelps = datePending && held.booking.canceledAt === null;
+    const continuesOn =
+        held.continuesOn && cancellingHelps && held.ahead && held.version
+            ? { version: held.version.version, from: held.ahead.effectiveAt.slice(0, 10) }
+            : null;
     return {
         bundleName: held.version?.label ?? held.booking.bundleVersionId,
         until: until.toISOString().slice(0, 10),
+        continuesOn,
     };
 }
 

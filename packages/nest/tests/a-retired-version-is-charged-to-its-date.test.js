@@ -250,7 +250,7 @@ describe('the price a switch holds', () => {
     });
 });
 
-// @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+// @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
 describe('a retirement whose notice has reached nobody', () => {
     test('charges nothing differently: the version the subscription is on prices its periods', async () => {
         const account = await toldOfARetirement([standard()], { delivered: false });

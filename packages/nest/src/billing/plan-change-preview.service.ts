@@ -34,15 +34,19 @@ import {
 } from './plan-helpers.js';
 import { termEndOf } from './billing-period.js';
 import {
+    continuationMisfitRefusal,
     heldAddOnMisfits,
     heldMisfitRefusal,
     type AddOnMisfit,
+    type ContinuesOn,
+    type AddOnsAhead,
     type PlanBeside,
 } from './add-on-fits-plan.js';
 import { addOnInTheWay } from './add-on-in-the-way.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import {
+    ADD_ONS_AHEAD_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     TRIAL_PROJECTION_PORT_TOKEN,
     USAGE_SNAPSHOT_PORT_TOKEN,
@@ -265,6 +269,11 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository | null = null,
+        // Where add-on versions are retired: a booking told of one continues
+        // on the replacement, which has to run beside the target plan too.
+        @Optional()
+        @Inject(ADD_ONS_AHEAD_TOKEN)
+        private readonly addOnsAhead: AddOnsAhead | null = null,
     ) {}
 
     async preview(
@@ -568,11 +577,17 @@ export class PlanChangePreviewService {
             changeLandsAt,
             now,
         )) {
+            const { continuesOn } = held;
             blockers.push(
-                heldMisfitRefusal(held.misfit, held, {
-                    planName: targetSnap.name,
-                    billingCycle: target.billingCycle,
-                }),
+                continuesOn
+                    ? continuationMisfitRefusal(
+                          { bundleName: held.bundleName, continuesOn },
+                          { planName: targetSnap.name },
+                      )
+                    : heldMisfitRefusal(held.misfit, held, {
+                          planName: targetSnap.name,
+                          billingCycle: target.billingCycle,
+                      }),
             );
         }
 
@@ -648,7 +663,8 @@ export class PlanChangePreviewService {
     /**
      * The bookings still running when the change lands whose add-on cannot run
      * on the target plan, each with the first reason, its name and the earliest
-     * day it can end (`addOnInTheWay`). Empty without the bundle module, which
+     * day it can end — or the version it continues on, where that is the one
+     * in the way (`addOnInTheWay`). Empty without the bundle module, which
      * is a consumer that has no bookings at all rather than one whose bookings
      * are being ignored.
      */
@@ -660,7 +676,14 @@ export class PlanChangePreviewService {
         target: PlanBeside,
         landsAt: Date,
         now: Date,
-    ): Promise<Array<{ misfit: AddOnMisfit; bundleName: string; until: string }>> {
+    ): Promise<
+        Array<{
+            misfit: AddOnMisfit;
+            bundleName: string;
+            until: string;
+            continuesOn: ContinuesOn | null;
+        }>
+    > {
         const subscriptionId = sub.id;
         if (!this.subscriptionBundles || !subscriptionId) return [];
         const held = await heldAddOnMisfits(
@@ -669,6 +692,7 @@ export class PlanChangePreviewService {
             subscriptionId,
             target,
             landsAt,
+            (await this.addOnsAhead?.of(subscriptionId)) ?? [],
         );
         return held.map((one) => ({ misfit: one.misfit, ...addOnInTheWay(one, sub, now) }));
     }

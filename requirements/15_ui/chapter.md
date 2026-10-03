@@ -335,10 +335,10 @@ _Tested by:_
         - a read that answers nothing is an error, not a page with no facts
         - every operation this descriptor declares has a case above
 - `packages/ui-vue/tests/version-retirements-resource.test.js`
-    - versionRetirementsResource
+    - descriptor.name
         - list asks for every announcement
         - preview asks for the version, naming the replacement, both escaped
-        - announce posts the replacement and the subscriptions shown, with the second factor
+        - announce posts the replacement and what the operator was shown, with the second factor
         - a preview that answers nothing is an error, not an empty dialog
         - every operation this descriptor declares has a case above
 

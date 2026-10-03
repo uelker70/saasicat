@@ -78,8 +78,8 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 37      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 37      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 49      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 38      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -88,7 +88,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 30      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 26      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -100,13 +100,14 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 564 entries: 🟢 489 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
-🔵 7 superseded, 🔴 3 withdrawn.
+Of 578 entries: 🟢 501 stand today, 🟡 66 decided but not yet delivered, ⚪ 0 drafts,
+🔵 8 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
+[SC-BUN-049](#sc-bun-049--a-booking-continues-on-the-replacement-at-the-date-it-was-told),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
@@ -172,6 +173,7 @@ Of 564 entries: 🟢 489 stand today, 🟡 65 decided but not yet delivered, ⚪
 🔵 **Superseded** — [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
+[SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),

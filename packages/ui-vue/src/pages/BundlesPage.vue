@@ -129,6 +129,8 @@
             @submitted="onPublishSubmitted"
         />
 
+        <BundleRetireDialog :flow="retirement" />
+
         <MfaPromptDialog
             :model-value="mfa.show.value"
             :description="mfa.description.value"
@@ -149,6 +151,7 @@ import type {
     bundlesResource,
     bundleVersionsResource,
 } from '../client/resources/bundles.resource.js';
+import type { bundleVersionRetirementsResource } from '../client/resources/bundle-version-retirements.resource.js';
 import type { catalogResource } from '../client/resources/catalog.resource.js';
 import type { planVersionsResource, plansResource } from '../client/resources/plans.resource.js';
 import { findLatestLive } from '../vue/use-live-plan-versions.js';
@@ -169,9 +172,14 @@ import type {
     UpdateBundleVersionDraftData,
 } from '@saasicat/core';
 
+import BundleRetireDialog from '../features/bundle/BundleRetireDialog.vue';
 import BundleVersionPublishDialog from '../features/bundle/BundleVersionPublishDialog.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
+import {
+    provideBundleVersionRetirement,
+    useBundleVersionRetirement,
+} from '../vue/use-bundle-version-retirement.js';
 import BundleCreatePanel from '../features/bundle/internal/BundleCreatePanel.vue';
 import type { FeatureMeta } from '../features/bundle/internal/BundleFeaturesEditor.vue';
 import {
@@ -247,6 +255,9 @@ const props = defineProps<{
         plans?: ResourceOverride<(typeof plansResource)['ops']>;
         planVersions?: ResourceOverride<(typeof planVersionsResource)['ops']>;
         discovery?: ResourceOverride<(typeof discoveryResource)['ops']>;
+        bundleVersionRetirements?: ResourceOverride<
+            (typeof bundleVersionRetirementsResource)['ops']
+        >;
     };
     /** Presentation and capability. Never data, never a callback. */
     options?: BundlesPageOptions;
@@ -481,6 +492,17 @@ const editSubmitting = ref(false);
 const detailBundle = computed<BundleRow | null>(
     () => bundles.value.find((b) => b.id === openKey.value) ?? null,
 );
+
+// Retiring a version of the open add-on for the bookings on it, where the
+// platform serves it. Provided rather than handed down: the version's status,
+// three components below, is where it is offered.
+const retirement = useBundleVersionRetirement({
+    versions: detailVersions,
+    manifest: computed(() => manifest),
+    retirements: useResource('bundleVersionRetirements', props.resources?.bundleVersionRetirements),
+    mfa,
+});
+provideBundleVersionRetirement(retirement);
 
 /**
  * Reloads one bundle's versions into BOTH places the page reads them from.

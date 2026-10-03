@@ -28,6 +28,7 @@ const AREA = {
     'settings-ports.types.ts': 'Configuration',
     'subscription-notice-ports.types.ts': 'Subscriber notices',
     'version-retirement-ports.types.ts': 'Version retirements',
+    'bundle-version-retirement-ports.types.ts': 'Version retirements',
 };
 
 /**

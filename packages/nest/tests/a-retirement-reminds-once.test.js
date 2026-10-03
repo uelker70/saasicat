@@ -214,7 +214,7 @@ describe('the one reminder of a retirement', () => {
         );
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('reminds nobody whose notice has reached nobody: there is no date to remind of', async () => {
         const { service, port } = await aRun({ delivered: false });
 

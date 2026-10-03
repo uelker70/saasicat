@@ -15,7 +15,21 @@
 // notification cron, TrialExpirationService.
 
 export * from './billing-period.js';
-export * from './retirement-reach.js';
+export {
+    RETIREMENT_LEAD_MONTHS,
+    RETIREMENT_REPEAT_MONTHS,
+    calendarMonthsAfter,
+    leavesTheVersionBy,
+    retirementReach,
+    rhythmAt,
+    type RetirementReach,
+    type RetiringSubscription,
+} from './retirement-reach.js';
+export {
+    bundleRetirementReach,
+    type BundleRetirementReach,
+    type RetiringBooking,
+} from './bundle-retirement-reach.js';
 export * from './bundle-period.js';
 export * from './bundle-price.js';
 export * from './cancellation.js';
@@ -79,6 +93,7 @@ export {
     VersionRetirementService,
     type RetirementNoticeRun,
 } from './version-retirement.service.js';
+export { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 export { RetirementMoveService } from './retirement-move.service.js';
 export { RetirementReminderService } from './retirement-reminder.service.js';
 export { RetirementSwitchService, type OpenRetirementSwitch } from './retirement-switch.service.js';

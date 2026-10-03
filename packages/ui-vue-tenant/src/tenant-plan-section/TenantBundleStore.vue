@@ -6,42 +6,59 @@
         <div v-if="bookedRows.length > 0" class="sp-bundle-store__booked">
             <div class="sp-bundle-store__subtitle">{{ i18n.bundlesBookedTitle }}</div>
             <ul class="sp-plan-section__item-list">
-                <li v-for="row in bookedRows" :key="row.id" class="sp-plan-section__item">
-                    <div>
-                        <span class="sp-plan-section__item-label">{{ row.label }}</span>
-                        <span v-if="row.canceledAt" class="sp-plan-section__item-canceled">
-                            {{ i18n.bundleCanceledAt }}
-                            {{ formatDate(row.canceledEffectiveAt ?? row.canceledAt) }}
-                        </span>
-                        <span v-else-if="row.minimumTermEndsAt" class="sp-plan-section__item-price">
-                            {{ i18n.bundleMinimumTermUntil }}
-                            {{ formatDate(row.minimumTermEndsAt) }}
-                        </span>
-                    </div>
-                    <div class="sp-bundle-store__booked-actions">
-                        <span v-if="row.priceNet !== null" class="sp-plan-section__item-price">
-                            {{ formatCurrency(row.priceNet) }} {{ unitFor(row.billingCycle) }}
-                        </span>
-                        <TenantButton
-                            v-if="!row.canceledAt"
-                            variant="quiet"
-                            tone="danger"
-                            :loading="cancelingId === row.id"
-                            @click="emit('cancel', row.id)"
-                        >
-                            {{ i18n.bundleCancelAction }}
-                        </TenantButton>
-                        <TenantButton
-                            v-else
-                            variant="quiet"
-                            tone="accent"
-                            :loading="reactivatingId === row.id"
-                            @click="emit('reactivate', row.id)"
-                        >
-                            {{ i18n.bundleReactivateAction }}
-                        </TenantButton>
-                    </div>
-                </li>
+                <template v-for="row in bookedRows" :key="row.id">
+                    <li class="sp-plan-section__item">
+                        <div>
+                            <span class="sp-plan-section__item-label">{{ row.label }}</span>
+                            <span v-if="row.canceledAt" class="sp-plan-section__item-canceled">
+                                {{ i18n.bundleCanceledAt }}
+                                {{ formatDate(row.canceledEffectiveAt ?? row.canceledAt) }}
+                            </span>
+                            <span
+                                v-else-if="row.minimumTermEndsAt"
+                                class="sp-plan-section__item-price"
+                            >
+                                {{ i18n.bundleMinimumTermUntil }}
+                                {{ formatDate(row.minimumTermEndsAt) }}
+                            </span>
+                        </div>
+                        <div class="sp-bundle-store__booked-actions">
+                            <span v-if="row.priceNet !== null" class="sp-plan-section__item-price">
+                                {{ formatCurrency(row.priceNet) }} {{ unitFor(row.billingCycle) }}
+                            </span>
+                            <TenantButton
+                                v-if="!row.canceledAt"
+                                variant="quiet"
+                                tone="danger"
+                                :loading="cancelingId === row.id"
+                                @click="emit('cancel', row.id)"
+                            >
+                                {{ i18n.bundleCancelAction }}
+                            </TenantButton>
+                            <TenantButton
+                                v-else
+                                variant="quiet"
+                                tone="accent"
+                                :loading="reactivatingId === row.id"
+                                @click="emit('reactivate', row.id)"
+                            >
+                                {{ i18n.bundleReactivateAction }}
+                            </TenantButton>
+                        </div>
+                    </li>
+                    <!-- Beside the add-on it is about: the version booked is being retired. -->
+                    <li v-if="row.retirement" class="sp-bundle-store__retired">
+                        <BundleRetiredNotice
+                            :notice="row.retirement"
+                            :label="row.label"
+                            :format-currency="formatCurrency"
+                            :format-date="formatDate"
+                            :quota-label="quotaLabel"
+                            :feature-label="featureLabel"
+                            :format-quota-value="formatQuotaValue"
+                        />
+                    </li>
+                </template>
             </ul>
         </div>
 
@@ -149,6 +166,8 @@ import { missingRequiresFor } from '@saasicat/core';
 import type { BillingCycleStr, CatalogBundle } from '@saasicat/ui-vue';
 import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
+import type { BundleVersionRetiredNotice } from '@saasicat/core';
+import BundleRetiredNotice from './BundleRetiredNotice.vue';
 
 // TenantBundleStore — bundle sales on the "Plan & usage" section (#15):
 // lists booked (cancelable) and available (bookable) catalog bundles.
@@ -177,6 +196,8 @@ const props = defineProps<{
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     featureLabel: (key: string) => string;
+    quotaLabel: (key: string) => string;
+    formatQuotaValue: (key: string, value: number) => string;
     /** bundleVersionId currently being booked (spinner). */
     buyingId: string | null;
     /** SubscriptionBundle id currently being canceled (spinner). */
@@ -211,6 +232,8 @@ interface BookedRow {
     minimumTermEndsAt: string | null;
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
+    /** The retirement of the version booked, as the subscriber was told it; null where none stands. */
+    retirement: BundleVersionRetiredNotice | null;
 }
 
 const bookedRows = computed<BookedRow[]>(() =>
@@ -241,6 +264,7 @@ const bookedRows = computed<BookedRow[]>(() =>
             minimumTermEndsAt: b.minimumTermEndsAt,
             canceledAt: b.canceledAt,
             canceledEffectiveAt: b.canceledEffectiveAt,
+            retirement: b.retirement ?? null,
         };
     }),
 );

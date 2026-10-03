@@ -13,6 +13,7 @@
 
 import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
+    type BundleVersionRetiredNotice,
     type VersionOfferView,
     type RetirementSwitchResult,
     type RetirementSwitchTerms,
@@ -253,6 +254,12 @@ export interface SubscriptionBundleShape {
     minimumTermEndsAt: string | null;
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
+    /**
+     * The retirement of the add-on version this booking is on, as the
+     * subscriber was told it, while it still stands; null where there is none.
+     * Optional because a platform without add-on retirements answers without it.
+     */
+    retirement?: BundleVersionRetiredNotice | null;
 }
 
 /**

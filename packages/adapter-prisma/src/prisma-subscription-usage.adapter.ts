@@ -94,6 +94,35 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
         );
     }
 
+    /** Two reads whatever the number of subscriptions: the subscriptions, and their versions. */
+    async listByIds(subscriptionIds: readonly string[]): Promise<TenantSubscriptionUsage[]> {
+        if (subscriptionIds.length === 0) return [];
+        const subscriptions = await this.subscriptions().findMany({
+            where: { id: { in: [...subscriptionIds] } },
+            orderBy: { id: 'asc' },
+        });
+        const versionIds = [...new Set(subscriptions.map((row) => row.planVersionId))];
+        const versions = new Map(
+            (await this.planVersions().findMany({ where: { id: { in: versionIds } } })).map(
+                (row) => [row.id, row],
+            ),
+        );
+        return Promise.all(
+            subscriptions.map(async (subscription) => {
+                const planVersion = versions.get(subscription.planVersionId);
+                if (!planVersion) {
+                    throw new Error(
+                        `Subscription ${subscription.id} references missing PlanVersion ${subscription.planVersionId}.`,
+                    );
+                }
+                return {
+                    tenantId: subscription.tenantId,
+                    subscription: await this.toRecord(subscription, planVersion),
+                };
+            }),
+        );
+    }
+
     /** Two reads whatever the number of subscriptions: the version, and the subscriptions on it. */
     async listBoundToVersion(planVersionId: string): Promise<TenantSubscriptionUsage[]> {
         const planVersion = await this.planVersions().findUnique({ where: { id: planVersionId } });

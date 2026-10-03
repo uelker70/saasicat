@@ -64,7 +64,10 @@ import {
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
-import { servesVersionRetirements } from './compose/version-retirement.js';
+import {
+    servesBundleVersionRetirements,
+    servesVersionRetirements,
+} from './compose/version-retirement.js';
 import { composeTenantManifest } from './compose/tenant-manifest.js';
 import { composeEnforcementRuntime, resolvePlanResolution } from './compose/enforcement-runtime.js';
 import {
@@ -210,6 +213,7 @@ export class SaaSiCatModule {
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
             const versionRetirements = servesVersionRetirements(composition);
+            const bundleVersionRetirements = servesBundleVersionRetirements(composition);
             lightweightProviders.push({
                 provide: STANDARD_MANIFEST_REGISTRATION_TOKEN,
                 // Retiring is offered only where the operator's terms are
@@ -224,6 +228,8 @@ export class SaaSiCatModule {
                             subscriberAccounts,
                             versionRetirements:
                                 versionRetirements && retirementTermsConfirmed(settings),
+                            bundleVersionRetirements:
+                                bundleVersionRetirements && retirementTermsConfirmed(settings),
                         },
                     );
                     manifest.register(contribution);

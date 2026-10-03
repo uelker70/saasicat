@@ -73,6 +73,17 @@
                     {{ effectiveI18n.myBundlesRunsUntil }}
                     <strong>{{ formatDate(b.canceledEffectiveAt) }}</strong>
                 </div>
+                <BundleRetiredNotice
+                    v-if="b.retirement"
+                    class="msb-retired"
+                    :notice="b.retirement"
+                    :label="resolveBundleKey(b)"
+                    :format-currency="formatAmount"
+                    :format-date="formatDate"
+                    :quota-label="quotaLabelOf"
+                    :feature-label="featureLabelOf"
+                    :format-quota-value="quotaValueOf"
+                />
             </article>
         </div>
 
@@ -178,6 +189,8 @@ import type { HttpClient } from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import { useTenantSubscriptionBundles } from '@saasicat/ui-vue';
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
+import { defaultQuotaValue } from './plan/quota-value.js';
+import BundleRetiredNotice from './tenant-plan-section/BundleRetiredNotice.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 
@@ -227,6 +240,16 @@ const props = withDefaults(
         currentPlanKey?: string | null;
         /** i18n overrides — missing keys fall back to the active locale's map. */
         i18n?: Partial<TenantPlanSectionI18n>;
+        /**
+         * The app's money formatter, for the prices a retirement notice compares.
+         * Without one an amount is shown in the reader's locale with no currency,
+         * which this page has no way to know.
+         */
+        formatCurrency?: (n: number) => string;
+        /** The app's names for quotas and features; the keys without them. */
+        quotaLabel?: (key: string) => string;
+        featureLabel?: (key: string) => string;
+        formatQuotaValue?: (key: string, value: number) => string;
     }>(),
     {
         bundleLabels: () => ({}),
@@ -236,6 +259,17 @@ const props = withDefaults(
 );
 
 const { locale, intlLocale } = useSuperAdminI18n();
+
+function formatAmount(n: number): string {
+    return (
+        props.formatCurrency?.(n) ??
+        n.toLocaleString(intlLocale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    );
+}
+const quotaLabelOf = (key: string): string => props.quotaLabel?.(key) ?? key;
+const featureLabelOf = (key: string): string => props.featureLabel?.(key) ?? key;
+const quotaValueOf = (key: string, value: number): string =>
+    props.formatQuotaValue?.(key, value) ?? defaultQuotaValue(key, value, intlLocale.value);
 
 const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
     ...defaultTenantPlanSectionI18n(locale.value),
@@ -495,6 +529,9 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-chip--canceled {
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
+}
+.msb-retired {
+    margin-top: var(--sa-space-3);
 }
 .msb-cancel-info {
     margin-top: var(--sa-space-3);

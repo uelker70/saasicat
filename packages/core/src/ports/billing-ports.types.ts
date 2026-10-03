@@ -201,6 +201,16 @@ export interface SubscriptionBundleRepository {
      * implementations to avoid drift.
      */
     countActiveByBundleVersionId(bundleVersionId: string, asOf?: Date): Promise<number>;
+    /**
+     * Every booking of the add-on version `bundleVersionId`, in every tenant,
+     * whatever its state. The platform reads it to find the bookings an add-on
+     * retirement reaches, inside the RLS bypass, and decides itself which of
+     * them are still running.
+     *
+     * Optional, so a repository written before it keeps working; retiring an
+     * add-on version over one without it is refused at start-up.
+     */
+    listOfVersion?(bundleVersionId: string): Promise<SubscriptionBundleRecord[]>;
 }
 
 /**
@@ -518,6 +528,16 @@ export interface SubscriptionUsagePort {
      * port without it is refused at start-up.
      */
     listBoundToVersion?(planVersionId: string): Promise<TenantSubscriptionUsage[]>;
+    /**
+     * The subscriptions `subscriptionIds`, in whichever tenant, each with the
+     * tenant it belongs to; an id that names none is left out. The platform
+     * reads it inside the RLS bypass to find the subscription of each booking
+     * an add-on retirement reaches.
+     *
+     * Optional, so a port written before it keeps working; retiring an add-on
+     * version over a port without it is refused at start-up.
+     */
+    listByIds?(subscriptionIds: readonly string[]): Promise<TenantSubscriptionUsage[]>;
 }
 
 /**

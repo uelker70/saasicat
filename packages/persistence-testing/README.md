@@ -119,6 +119,8 @@ persistenceAdapterContract({
         'subscriptionNotices',
         'versionRetirements',
         'boundSubscriptions',
+        'bundleVersionRetirements',
+        'subscriptionsById',
     ],
 });
 ```

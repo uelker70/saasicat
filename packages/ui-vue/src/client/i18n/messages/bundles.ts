@@ -51,7 +51,7 @@ export const bundlesMessages = defineMessages(
             scheduled: 'Mit geplanter Version',
             draft: 'Drafts',
             offSale: 'Nicht mehr im Verkauf',
-            retired: 'Retired',
+            retired: 'Gelöscht',
         },
         kpis: {
             total: 'Bundles gesamt',
@@ -68,7 +68,8 @@ export const bundlesMessages = defineMessages(
             emptyNoMatch: 'Keine Bundles entsprechen der Suche.',
         },
         // Where a BundleVersion / a bundle stem stands. The label is the sale
-        // state (`common.versionSale`); a retired bundle has its own.
+        // state (`common.versionSale`); a deleted bundle has its own. Its key
+        // stays `retired`, which an app's `i18n.overrides` may name.
         status: {
             draft: {
                 tooltip: 'Noch nicht veröffentlicht — frei editierbar',
@@ -83,8 +84,8 @@ export const bundlesMessages = defineMessages(
                 tooltip: 'Wird nicht mehr verkauft · Bestand bleibt',
             },
             retired: {
-                label: 'Retired',
-                tooltip: 'Bundle-Stamm wurde soft-deleted',
+                label: 'Gelöscht',
+                tooltip: 'Das Add-on wurde gelöscht und kann nicht mehr gebucht werden',
             },
         },
         // BundleDetailPanel — master data + translations of the open bundle.
@@ -156,6 +157,54 @@ export const bundlesMessages = defineMessages(
             offSaleTail: 'wird nicht mehr angeboten, Bestand bleibt für Abrechnung erhalten.',
             draftTail: 'noch nicht published, frei editierbar.',
             discardTooltip: 'Geplante Version verwerfen',
+            retireAction: 'Stilllegen…',
+            retireTitle: 'Version für laufende Buchungen stilllegen',
+            retiredChip: 'Stillgelegt → v{version}',
+            retiredTitle: 'Angekündigt am {date} von {by}',
+            retirementsUnreadable: 'Die Stilllegungen konnten nicht gelesen werden: {error}',
+        },
+        // BundleRetireDialog — retiring an add-on version for the bookings on
+        // it, onto the add-on's version on sale.
+        retireDialog: {
+            title: 'v{version} stilllegen',
+            intro: 'Die Buchungen von {bundleKey} v{version} laufen auf der Version weiter, die gerade im Verkauf ist — jeweils zum ersten Ende ihres Abrechnungszeitraums, das mindestens drei Monate nach der Zustellung ihrer Ankündigung liegt. Bis dahin können sie ohne Mindestlaufzeit gekündigt werden. Jedes betroffene Abonnement wird benachrichtigt.',
+            noVersionOnSale:
+                '{bundleKey} hat keine Version im Verkauf, auf der die Buchungen weiterlaufen könnten. Veröffentliche zuerst eine.',
+            replacement: 'Ersatz: {bundleKey} v{version}',
+            priceChange: '{from} → {to}',
+            notSold: 'nicht angeboten',
+            pricesNote:
+                'Listenpreise. Wo ein Plan einen eigenen Preis für das Add-on hat, erfährt die Buchung diesen.',
+            otherChanges: 'Dazu {count} Änderungen an Features oder Kontingenten.',
+            reachedTitle: 'Erreicht {count} Buchungen',
+            dateRow: '{count} wechseln am {date} — ohne Mindestlaufzeit kündbar bis {lastDay}',
+            skippedTitle: 'Nicht erreicht',
+            skipped: {
+                ended: '{count} beendet',
+                cancelledBefore: '{count} gekündigt, die Kündigung wirkt vorher',
+                noTerm: '{count} ohne erkennbaren Abrechnungszeitraum',
+                alreadyTold:
+                    '{count} schon durch eine frühere Stilllegung dieser Version benachrichtigt',
+            },
+            blockers: {
+                BUNDLE_RETIREMENT_VERSION_ON_SALE:
+                    'v{version} von {bundleKey} ist noch im Verkauf. Veröffentliche die Version, die sie ersetzt, und lege diese still, sobald ihr Verkauf geendet hat — damit sie nach der Ankündigung niemand mehr bucht.',
+                BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+                    'v{version} von {bundleKey} ist nicht im Verkauf, Buchungen können darauf nicht weiterlaufen.',
+                BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
+                    'Der Ersatz ist eine Version von {replacementBundleKey}, nicht von {bundleKey}. Eine Buchung läuft auf einer Version ihres eigenen Add-ons weiter.',
+                BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN:
+                    '{count} dieser Buchungen laufen neben einem Plan, neben dem v{version} von {bundleKey} nicht laufen kann — sie können darauf nicht weiterlaufen.',
+                BUNDLE_RETIREMENT_NOTHING_AFFECTED:
+                    'Keine laufende Buchung ist auf v{version} von {bundleKey} — es gibt niemanden zu benachrichtigen.',
+                RETIREMENT_WITHIN_TWELVE_MONTHS:
+                    '{count} dieser Buchungen gehören zu Abonnements, die in den letzten zwölf Monaten schon von einer Stilllegung erreicht wurden. Ein Abonnement wird höchstens einmal im Jahr erreicht.',
+            },
+            announce: 'Ankündigen',
+            mfa: 'v{version} von {bundleKey} für laufende Buchungen stilllegen.',
+            previewChanged:
+                'Die erreichten Buchungen haben sich geändert. Bitte die aktualisierte Vorschau prüfen und erneut ankündigen.',
+            done: 'Angekündigt. {told} Buchungen benachrichtigt, {failed} werden beim nächsten Lauf erneut versucht.',
         },
         // BundleVersionInlineEditor — features/quotas/pricing of one version.
         editor: {
@@ -277,7 +326,7 @@ export const bundlesMessages = defineMessages(
             scheduled: 'With scheduled version',
             draft: 'Drafts',
             offSale: 'Off sale',
-            retired: 'Retired',
+            retired: 'Deleted',
         },
         kpis: {
             total: 'Bundles total',
@@ -307,8 +356,8 @@ export const bundlesMessages = defineMessages(
                 tooltip: 'No longer on sale · existing contracts remain',
             },
             retired: {
-                label: 'Retired',
-                tooltip: 'Bundle master record was soft-deleted',
+                label: 'Deleted',
+                tooltip: 'The add-on was deleted and can no longer be booked',
             },
         },
         detail: {
@@ -373,6 +422,51 @@ export const bundlesMessages = defineMessages(
             offSaleTail: 'no longer offered, existing contracts remain for billing.',
             draftTail: 'not published yet, freely editable.',
             discardTooltip: 'Discard scheduled version',
+            retireAction: 'Retire…',
+            retireTitle: 'Retire this version for running bookings',
+            retiredChip: 'Retired → v{version}',
+            retiredTitle: 'Announced on {date} by {by}',
+            retirementsUnreadable: 'The retirements could not be read: {error}',
+        },
+        retireDialog: {
+            title: 'Retire v{version}',
+            intro: 'The bookings of {bundleKey} v{version} continue on the version on sale now, each at the first end of its billing period at least three months after its notice reached it. Until then they may be cancelled without their minimum term. Every subscription it reaches is told.',
+            noVersionOnSale:
+                '{bundleKey} has no version on sale for the bookings to continue on. Publish one first.',
+            replacement: 'Replacement: {bundleKey} v{version}',
+            priceChange: '{from} → {to}',
+            notSold: 'not sold',
+            pricesNote:
+                'List prices. Where a plan sets a price of its own for the add-on, the booking is told that one.',
+            otherChanges: 'Plus {count} changes to features or quotas.',
+            reachedTitle: 'Reaches {count} bookings',
+            dateRow: '{count} move on {date} — may cancel without the minimum term until {lastDay}',
+            skippedTitle: 'Not reached',
+            skipped: {
+                ended: '{count} ended',
+                cancelledBefore: '{count} cancelled, landing before then',
+                noTerm: '{count} without a billing period to count from',
+                alreadyTold: '{count} already told by an earlier retirement of this version',
+            },
+            blockers: {
+                BUNDLE_RETIREMENT_VERSION_ON_SALE:
+                    'v{version} of {bundleKey} is still on sale. Publish the version that replaces it, and retire this one once its sale has ended, so nobody books it after the announcement.',
+                BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+                    'v{version} of {bundleKey} is not on sale, so bookings cannot continue on it.',
+                BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
+                    'The replacement is a version of {replacementBundleKey}, not of {bundleKey}. A booking continues on a version of its own add-on.',
+                BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN:
+                    '{count} of these bookings run beside a plan that v{version} of {bundleKey} cannot run beside, so they cannot continue on it.',
+                BUNDLE_RETIREMENT_NOTHING_AFFECTED:
+                    'No running booking is on v{version} of {bundleKey}, so there is nobody to tell.',
+                RETIREMENT_WITHIN_TWELVE_MONTHS:
+                    '{count} of these bookings belong to subscriptions reached by a retirement within the last twelve months. A subscription is reached at most once a year.',
+            },
+            announce: 'Announce',
+            mfa: 'Retire v{version} of {bundleKey} for running bookings.',
+            previewChanged:
+                'The bookings it reaches have changed. Check the updated preview and announce again.',
+            done: 'Announced. {told} bookings told, {failed} to be tried again by the next run.',
         },
         editor: {
             overlapOne:

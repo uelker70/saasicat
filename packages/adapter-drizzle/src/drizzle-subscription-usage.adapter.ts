@@ -82,6 +82,42 @@ export class DrizzleSubscriptionUsageAdapter implements SubscriptionUsagePort {
         }));
     }
 
+    /** Two reads whatever the number of subscriptions: the subscriptions, and their versions. */
+    async listByIds(subscriptionIds: readonly string[]): Promise<TenantSubscriptionUsage[]> {
+        if (subscriptionIds.length === 0) return [];
+        const rows = await this.db
+            .select()
+            .from(subscriptions)
+            .where(inArray(subscriptions.id, [...subscriptionIds]))
+            .orderBy(asc(subscriptions.id));
+        if (rows.length === 0) return [];
+        const versions = new Map(
+            (
+                await this.db
+                    .select()
+                    .from(planVersions)
+                    .where(
+                        inArray(planVersions.id, [
+                            ...new Set(rows.map((row) => row.planVersionId)),
+                        ]),
+                    )
+            ).map((row) => [row.id, row]),
+        );
+        return rows.map((subscription) => {
+            const planVersion = versions.get(subscription.planVersionId);
+            if (!planVersion) {
+                throw new Error(
+                    `Subscription ${subscription.id} references missing PlanVersion ` +
+                        `${subscription.planVersionId}.`,
+                );
+            }
+            return {
+                tenantId: subscription.tenantId,
+                subscription: toRecord(subscription, planVersion),
+            };
+        });
+    }
+
     /** Two reads whatever the number of subscriptions: the version, and the subscriptions on it. */
     async listBoundToVersion(planVersionId: string): Promise<TenantSubscriptionUsage[]> {
         const [planVersion] = await this.db

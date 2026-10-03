@@ -51,6 +51,7 @@ export * from './platform-email.resource.js';
 export * from './settings.resource.js';
 export * from './maintenance.resource.js';
 export * from './version-retirements.resource.js';
+export * from './bundle-version-retirements.resource.js';
 
 import { auditResource } from './audit.resource.js';
 import { pilotsResource } from './pilots.resource.js';
@@ -69,6 +70,7 @@ import { subscriptionsResource } from './subscriptions.resource.js';
 import { tenantsResource } from './tenants.resource.js';
 import { usersResource } from './users.resource.js';
 import { versionRetirementsResource } from './version-retirements.resource.js';
+import { bundleVersionRetirementsResource } from './bundle-version-retirements.resource.js';
 
 /**
  * Every resource the shell offers by default.
@@ -95,6 +97,7 @@ export const platformResources = {
     settings: settingsResource,
     maintenance: maintenanceResource,
     versionRetirements: versionRetirementsResource,
+    bundleVersionRetirements: bundleVersionRetirementsResource,
     // ── App-served, platform-shaped ──────────────────────────────────────────
     //
     // The platform ships pages for these three and serves no route for any of

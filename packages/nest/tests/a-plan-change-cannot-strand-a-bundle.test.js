@@ -96,7 +96,7 @@ const REPORTS = {
     },
 };
 
-function preview(targetCycle, bookings) {
+function preview(targetCycle, bookings, { versions = REPORTS, addOnsAhead = null } = {}) {
     const service = new PlanChangePreviewService(
         givenPlanCatalogSource(CATALOG),
         entitlement,
@@ -107,7 +107,8 @@ function preview(targetCycle, bookings) {
         bookings === null ? null : bookingsRepo(bookings),
         null,
         null,
-        REPORTS,
+        versions,
+        addOnsAhead,
     );
     return service.preview('t1', 'PRO', targetCycle, NOW);
 }
@@ -116,6 +117,7 @@ const YEARLY_BOOKING = {
     id: 'sb-1',
     bundleVersionId: 'bv-reports',
     billingCycle: 'YEARLY',
+    canceledAt: null,
     canceledEffectiveAt: null,
     currentPeriodEnd: new Date('2027-01-01'),
     minimumTermEndsAt: null,
@@ -254,5 +256,151 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
         };
         assert.equal(await untilWithCommitment(new Date('2026-12-01')), '2027-01-01');
         assert.equal(await untilWithCommitment(new Date('2027-03-01')), '2027-03-01');
+    });
+});
+
+// @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+describe('a plan change, and an add-on told it continues on another version', () => {
+    // Reports v1 runs on any plan; v2, which the booking was told it continues
+    // on, is sold beside Enterprise only.
+    const versions = {
+        async findVersionById(id) {
+            const v2 = id === 'bv-reports-2';
+            return {
+                id,
+                label: 'Reports',
+                version: v2 ? 2 : 1,
+                compatibility: { planIds: v2 ? ['ENTERPRISE'] : [] },
+                pricingOverrides: [],
+                monthlyNet: '5.00',
+                yearlyNet: '50.00',
+            };
+        },
+    };
+    const monthly = { ...YEARLY_BOOKING, billingCycle: 'MONTHLY' };
+    const toldOnto = (replacementBundleVersionId, effectiveAt = '2026-10-01T00:00:00.000Z') => ({
+        of: async () => [
+            {
+                subscriptionBundleId: 'sb-1',
+                retiredBundleVersionId: 'bv-reports',
+                replacementBundleVersionId,
+                effectiveAt,
+            },
+        ],
+    });
+    const fitBlockers = (dto) =>
+        dto.blockers.filter((b) => b.code === 'BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN');
+    const continuationBlockers = (dto) =>
+        dto.blockers.filter((b) => b.code === 'BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN');
+
+    test('is refused where the version it continues on cannot run beside the target plan, naming that version', async () => {
+        const dto = await preview('MONTHLY', [monthly], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2'),
+        });
+
+        // v1 runs beside Pro; only v2 does not, and a cancelled booking never
+        // reaches it — so the refusal says to cancel, not how long to wait.
+        assert.deepEqual(fitBlockers(dto), []);
+        assert.deepEqual(
+            continuationBlockers(dto).map((b) => b.params),
+            [{ bundleName: 'Reports', version: '2', from: '2026-10-01', planName: 'Pro' }],
+        );
+    });
+
+    test('goes through where that version can run beside it', async () => {
+        const dto = await preview('MONTHLY', [monthly], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-1b'),
+        });
+
+        assert.deepEqual(fitBlockers(dto), []);
+        assert.deepEqual(continuationBlockers(dto), []);
+    });
+
+    test('asks nothing of a booking that ends before its version would change', async () => {
+        const dto = await preview(
+            'MONTHLY',
+            [{ ...monthly, canceledEffectiveAt: new Date('2026-07-01T00:00:00.000Z') }],
+            { versions, addOnsAhead: toldOnto('bv-reports-2') },
+        );
+
+        assert.deepEqual(fitBlockers(dto), []);
+        assert.deepEqual(continuationBlockers(dto), []);
+    });
+
+    test('tells a booking under a minimum term to cancel, which the retirement lets it do', async () => {
+        const committed = {
+            ...monthly,
+            currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
+            minimumTermEndsAt: new Date('2027-06-01T00:00:00.000Z'),
+        };
+
+        const dto = await preview('MONTHLY', [committed], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2'),
+        });
+
+        // No day to wait for: cancelled, it ends with its period on 1 July,
+        // before the date, the term lapsing under the retirement.
+        assert.deepEqual(Object.keys(continuationBlockers(dto)[0].params).sort(), [
+            'bundleName',
+            'from',
+            'planName',
+            'version',
+        ]);
+    });
+
+    test('names the end of its period as well where the version it is on cannot run beside the plan', async () => {
+        const yearly = {
+            ...YEARLY_BOOKING,
+            currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
+            minimumTermEndsAt: new Date('2027-06-01T00:00:00.000Z'),
+        };
+
+        const dto = await preview('MONTHLY', [yearly], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2'),
+        });
+
+        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
+        assert.equal(blocker?.params.until, '2026-07-01');
+    });
+
+    test('names the day it can end instead once the date has passed and the move is still to come', async () => {
+        const dto = await preview('MONTHLY', [monthly], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2', '2026-06-01T00:00:00.000Z'),
+        });
+
+        // Cancelled now, it would land after the date: cancelling no longer
+        // keeps it off version 2.
+        assert.deepEqual(continuationBlockers(dto), []);
+        assert.equal(fitBlockers(dto).length, 1);
+    });
+
+    test('names the day a booking cancelled already ends, which cancelling again cannot move', async () => {
+        const cancelled = {
+            ...monthly,
+            canceledAt: new Date('2026-05-01T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2027-01-01T00:00:00.000Z'),
+        };
+
+        const dto = await preview('MONTHLY', [cancelled], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2'),
+        });
+
+        assert.deepEqual(continuationBlockers(dto), []);
+        assert.equal(fitBlockers(dto)[0].params.until, '2027-01-01');
+    });
+
+    test('asks nothing of a retirement told for a version the booking is no longer on', async () => {
+        const dto = await preview('MONTHLY', [{ ...monthly, bundleVersionId: 'bv-reports-3' }], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2'),
+        });
+
+        assert.deepEqual(fitBlockers(dto), []);
     });
 });

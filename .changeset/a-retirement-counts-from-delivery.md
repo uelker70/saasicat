@@ -8,7 +8,7 @@ A retirement counts from the notice that reached the subscriber
 
 A retirement's date, its notice-free cancellation, its reminder and its move
 now count from its notice reaching at least one administrator of the tenant,
-not from the moment it was recorded (`SC-SUB-035`, `SC-SUB-036`). A notice the
+not from the moment it was recorded (`SC-SUB-035`, `SC-SUB-038`). A notice the
 announcement sends at once changes nothing. Where sending failed:
 
 - **Nothing happens before it arrives.** No move, no reminder, no switch
@@ -27,6 +27,5 @@ announcement sends at once changes nothing. Where sending failed:
 - **The plan cockpit** counts the subscriptions not told yet beside the retired
   version and marks them for a look, as it does a move overdue:
   `RetirementProgress.notTold`, the wording key
-  `planDetail.versions.retiredProgress.notTold`. The progress chip's modifier
-  class `pd-retirement-progress--overdue` is now
-  `pd-retirement-progress--attention`.
+  `common.retirementProgress.notTold`, and the progress chip's modifier class
+  `sa-retirement-progress--attention`.

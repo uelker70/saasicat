@@ -96,6 +96,16 @@ export const commonMessages = defineMessages(
             offSale: 'Nicht mehr im Verkauf',
             offSaleSince: 'Nicht mehr im Verkauf seit {date}',
         },
+        // How far the retirement of a plan or add-on version has come, as
+        // every retirement surface says it (`retirementProgressParts`).
+        retirementProgress: {
+            moved: '{count} umgezogen',
+            waiting: '{count} warten auf ihr Datum',
+            overdue: '{count} überfällig',
+            ended: '{count} beendet',
+            notTold: '{count} nicht zugestellt',
+            reminded: '{count} erinnert',
+        },
     },
     {
         save: 'Save',
@@ -185,6 +195,14 @@ export const commonMessages = defineMessages(
             onSaleUntil: 'On sale until {date}',
             offSale: 'Off sale',
             offSaleSince: 'Off sale since {date}',
+        },
+        retirementProgress: {
+            moved: '{count} moved',
+            waiting: '{count} waiting for their date',
+            overdue: '{count} overdue',
+            ended: '{count} ended',
+            notTold: '{count} not told',
+            reminded: '{count} reminded',
         },
     },
 );

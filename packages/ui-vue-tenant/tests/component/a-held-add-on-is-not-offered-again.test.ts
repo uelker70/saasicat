@@ -67,6 +67,8 @@ function storeWith(booked: SubscriptionBundleShape[], available = [REPORTS_V2]) 
                 formatCurrency: (n: number) => `${n.toFixed(2)} EUR`,
                 formatDate: (iso: string) => iso,
                 featureLabel: (key: string) => key,
+                quotaLabel: (key: string) => key,
+                formatQuotaValue: (_key: string, value: number) => String(value),
                 buyingId: null,
                 cancelingId: null,
                 reactivatingId: null,

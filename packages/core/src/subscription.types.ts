@@ -3,6 +3,7 @@
 import type { PlanId, QuotaKey, FeatureKey } from './plan-catalog.types.js';
 import type { BillingCycle } from './promo-code.types.js';
 import type { CustomLimits } from './custom-limits.js';
+import type { BundleVersionRetiredNotice } from './bundle-version-retirement.types.js';
 
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'PENDING_SALES';
 
@@ -175,6 +176,12 @@ export interface SubscriptionBundleView extends SubscriptionBundleRecord {
      * defect: a field called `monthlyNet` on a yearly booking cannot be right.
      */
     priceNet: number | null;
+    /**
+     * The retirement of the add-on version this booking is on, as the
+     * subscriber was told it (`SC-BUN-046`); absent or null where none was
+     * told, or once the booking is on another version.
+     */
+    retirement?: BundleVersionRetiredNotice | null;
 }
 
 export interface CreateSubscriptionBundleData {

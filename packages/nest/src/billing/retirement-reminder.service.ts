@@ -15,7 +15,7 @@
 // whom and how, once however many instances run.
 //
 // A reminder follows only a notice that reached the subscriber: a retirement
-// counts from its notice being told (`SC-SUB-036`), and before that there is
+// counts from its notice being told (`SC-SUB-038`), and before that there is
 // no date to remind of.
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';

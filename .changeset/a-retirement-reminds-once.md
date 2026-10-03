@@ -29,6 +29,6 @@ yourself.
   reminder as a second announcement.
 - **The plan cockpit** counts beside a retired version how many subscriptions
   were reminded: `RetirementProgress.reminded`, and the wording key
-  `planDetail.versions.retiredProgress.reminded`.
+  `common.retirementProgress.reminded`.
 - `retirementCostsTheSubscription`, `retirementReminderDueAt` and
   `retirementReminderIsDue` in `@saasicat/core` give the rule and the day.

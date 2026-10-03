@@ -69,7 +69,7 @@ export function deliveredAllBut(record, untold = []) {
 
 /**
  * A notice record holding what each announcement would tell, recorded and not
- * yet delivered: a retirement that has reached nobody (`SC-SUB-036`).
+ * yet delivered: a retirement that has reached nobody (`SC-SUB-038`).
  */
 export async function recorded(...notices) {
     const record = noticeRecord();

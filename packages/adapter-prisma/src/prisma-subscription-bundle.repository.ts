@@ -48,6 +48,14 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
         return rows.map(toSubscriptionBundleRecord);
     }
 
+    async listOfVersion(bundleVersionId: string): Promise<SubscriptionBundleRecord[]> {
+        const rows = await this.db().subscriptionBundle.findMany({
+            where: { bundleVersionId },
+            orderBy: [{ startedAt: 'desc' }, { id: 'asc' }],
+        });
+        return rows.map(toSubscriptionBundleRecord);
+    }
+
     async findById(subscriptionBundleId: string): Promise<SubscriptionBundleRecord | null> {
         const row = await this.db().subscriptionBundle.findUnique({
             where: { id: subscriptionBundleId },

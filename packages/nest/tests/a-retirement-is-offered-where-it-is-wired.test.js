@@ -9,13 +9,19 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
-import { VERSION_RETIREMENT_CAPABILITY } from '@saasicat/core';
+import {
+    BUNDLE_VERSION_RETIREMENT_CAPABILITY,
+    VERSION_RETIREMENT_CAPABILITY,
+} from '@saasicat/core';
 
 import { AdminManifestService } from '../dist/admin/index.js';
 import {
+    BundleVersionRetirementService,
+    PlanChangePreviewService,
     RetirementMoveService,
     RetirementReminderService,
     RetirementSwitchService,
+    SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     VersionRetirementService,
 } from '../dist/billing/index.js';
 import { PlanVersionsService } from '../dist/catalog/index.js';
@@ -183,5 +189,130 @@ describe('terms confirmed to allow a retirement', () => {
     test('unconfirmed, it starts without one too', async () => {
         const { moduleRef } = await started(installation(bundleWithoutRetirements));
         await moduleRef.close();
+    });
+});
+
+const ADD_ON_ROUTES = [
+    'GET admin/catalog/bundle-versions/:id/retirement',
+    'POST admin/catalog/bundle-versions/:id/retirement',
+    'GET admin/catalog/bundle-version-retirements',
+];
+
+const bundleWithoutAddOnRetirements = (options) => {
+    const { bundleVersionRetirements: _, ...tenantBilling } = options.persistence.tenantBilling;
+    return { ...options, persistence: { ...options.persistence, tenantBilling } };
+};
+const bundleWithoutBookings = (options) => {
+    const { subscriptionBundleRepository: _, ...entitlement } = options.persistence.entitlement;
+    return { ...options, persistence: { ...options.persistence, entitlement } };
+};
+
+/** The add-on routes an installation mounts, and what its manifest says. */
+async function addOnsStarted(options) {
+    const root = SaaSiCatModule.forRoot(bootable(options));
+    const moduleRef = await Test.createTestingModule({ imports: [root] }).compile();
+    const manifest = await moduleRef.get(AdminManifestService).getManifest();
+    const routes = controllersIn(root)
+        .flatMap(handlersOf)
+        .map(({ route }) => route)
+        .filter((route) => ADD_ON_ROUTES.includes(route));
+    return { moduleRef, manifest, routes };
+}
+
+// @requirement SC-BUN-038 — An add-on version is retired only off sale, onto a version of the same add-on on sale
+describe('retiring an add-on version is offered', () => {
+    test('where add-on announcements are kept and the terms are confirmed: routes and capability', async () => {
+        const { moduleRef, manifest, routes } = await addOnsStarted(installation(termsConfirmed));
+
+        assert.deepEqual(routes, ADD_ON_ROUTES);
+        assert.equal(manifest.capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY], true);
+        assert.ok(moduleRef.get(BundleVersionRetirementService, { strict: false }));
+        assert.ok(
+            manifest.audit.actions.some((action) => action.key === 'BUNDLE_VERSION_RETIRE'),
+            'and the audit log names what it records',
+        );
+        await moduleRef.close();
+    });
+
+    test('while the terms are not confirmed: the routes, but no capability', async () => {
+        const { moduleRef, manifest, routes } = await addOnsStarted(installation());
+
+        assert.deepEqual(routes, ADD_ON_ROUTES);
+        assert.equal(manifest.capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY], undefined);
+        await moduleRef.close();
+    });
+
+    for (const [without, change] of [
+        ['a place to keep add-on announcements', bundleWithoutAddOnRetirements],
+        ['bookings to reach', bundleWithoutBookings],
+    ]) {
+        test(`not without ${without}, while plan versions still are`, async () => {
+            const { moduleRef, manifest, routes } = await addOnsStarted(
+                installation((options) => termsConfirmed(change(options))),
+            );
+
+            assert.deepEqual(routes, []);
+            assert.equal(manifest.capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY], undefined);
+            assert.equal(manifest.capabilities[VERSION_RETIREMENT_CAPABILITY], true);
+            await moduleRef.close();
+        });
+    }
+});
+
+// @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+describe('where add-on versions are retired, every plan change asks about the replacements', () => {
+    /** A booking of the subscription told that version bv-1 continues on bv-2. */
+    const TOLD = {
+        id: 'notice-1',
+        subscriptionId: 'sub-1',
+        kind: 'bundle-version-retired',
+        subject: 'bv-1',
+        createdAt: new Date('2026-10-01T00:00:00.000Z'),
+        deliveredAt: new Date('2026-10-01T00:00:00.000Z'),
+        delivery: { recipients: ['admin@example.com'], channel: 'email' },
+        content: {
+            subscriptionBundleId: 'sb-1',
+            retired: { bundleVersionId: 'bv-1' },
+            replacement: { bundleVersionId: 'bv-2' },
+            effectiveAt: '2027-02-01T00:00:00.000Z',
+        },
+    };
+    /** What each way a plan changes is told lies ahead for the bookings of sub-1. */
+    async function asking(options) {
+        const moduleRef = await Test.createTestingModule({
+            imports: [SaaSiCatModule.forRoot(bootable(options))],
+        })
+            .overrideProvider(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN)
+            .useValue({ listForSubscription: async () => [TOLD] })
+            .compile();
+        const handed = await Promise.all(
+            [PlanChangePreviewService, VersionRetirementService, RetirementSwitchService].map(
+                (service) => moduleRef.get(service, { strict: false }).addOnsAhead?.of('sub-1'),
+            ),
+        );
+        await moduleRef.close();
+        return handed;
+    }
+
+    test('the tenant’s own change, a plan version’s retirement and the early switch', async () => {
+        const ahead = [
+            {
+                subscriptionBundleId: 'sb-1',
+                retiredBundleVersionId: 'bv-1',
+                replacementBundleVersionId: 'bv-2',
+                effectiveAt: '2027-02-01T00:00:00.000Z',
+            },
+        ];
+
+        assert.deepEqual(await asking(installation(termsConfirmed)), [ahead, ahead, ahead]);
+    });
+
+    test('and none of them where add-on retirements are not wired', async () => {
+        assert.deepEqual(
+            await asking(
+                installation((options) => termsConfirmed(bundleWithoutAddOnRetirements(options))),
+            ),
+            [undefined, undefined, undefined],
+        );
     });
 });
