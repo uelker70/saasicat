@@ -3365,6 +3365,9 @@ _Tested by:_
         - two different add-ons, each at its own price
     - what cannot be priced is refused, not priced at nothing
         - the same add-on twice, in two of its versions
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService
+        - consume refuses an offer naming two versions of one add-on, for that reason
 - `packages/nest/tests/subscription-bundle-repo.test.js`
     - SubscriptionBundleRepository — lifecycle
         - add + listBySubscription returns the new booking
@@ -3381,6 +3384,13 @@ _Tested by:_
         - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
         - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
         - custom defaultMinimumTermMonths from the config token takes effect
+- `packages/ui-vue-tenant/tests/component/a-held-add-on-is-not-offered-again.test.ts`
+    - the store, while a version of an add-on is held
+        - says a newer version of it is booked, and offers no button
+        - still says so while the booking is cancelled for a day to come
+        - offers it again once the cancellation has taken effect
+        - offers a different add-on beside it
+        - knows the add-on of a booking whose key the server did not send, from the catalogue
 
 <!-- END proof -->
 
@@ -9945,6 +9955,7 @@ _Tested by:_
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
         - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -9971,6 +9982,7 @@ _Tested by:_
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
         - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -10034,6 +10046,7 @@ _Tested by:_
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
         - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict

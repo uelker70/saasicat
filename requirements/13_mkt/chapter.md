@@ -375,6 +375,7 @@ _Tested by:_
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
         - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -401,6 +402,7 @@ _Tested by:_
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
         - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -464,6 +466,7 @@ _Tested by:_
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
         - consume blocks an add-on deleted after the offer was made
+        - consume refuses an offer naming two versions of one add-on, for that reason
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict

@@ -19,6 +19,7 @@ import {
 } from '@nestjs/common';
 import type {
     BundleRepository,
+    BundleVersionRow,
     CatalogEntryRepository,
     CheckoutOfferFilter,
     CheckoutOfferLineItem,
@@ -44,6 +45,7 @@ import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
+import { sameAddOn } from '../billing/add-on-already-booked.js';
 import { bundleVersionNotBookableReason, isValidUntilExpired } from './bundle-version-bookable.js';
 import {
     type CreateContractFromOfferOptions,
@@ -574,12 +576,21 @@ export class CheckoutOfferService {
         }
         const now = Date.now();
         const violations: Array<{ bundleVersionId: string; reason: string }> = [];
+        const named: BundleVersionRow[] = [];
         for (const bundleVersionId of offer.bundleVersionIds) {
             const version = await this.bundles.findVersionById(bundleVersionId);
             if (!version) {
                 violations.push({ bundleVersionId, reason: 'missing' });
                 continue;
             }
+            // Two versions of one add-on are the same add-on twice
+            // (`SC-BUN-027`), whenever the offer was made. Refused here for
+            // what it is, rather than further on as prices that changed.
+            if (named.some((other) => sameAddOn(other, version))) {
+                violations.push({ bundleVersionId, reason: 'duplicate' });
+                continue;
+            }
+            named.push(version);
             const reason = bundleVersionNotBookableReason(
                 version,
                 await this.bundles.findById(version.bundleId),
