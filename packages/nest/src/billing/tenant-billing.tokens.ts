@@ -175,6 +175,11 @@ export const VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
     'saasicat/nest/VersionRetirementTransactionRunner',
 );
 
+/** Where add-on retirement announcements are kept (`BundleVersionRetirementRepository`). */
+export const BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN = Symbol.for(
+    'saasicat/nest/BundleVersionRetirementRepository',
+);
+
 /**
  * The plans a subscription is already set to move to (`PlansAhead`).
  *

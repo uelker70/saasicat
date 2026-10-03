@@ -1,0 +1,44 @@
+// =============================================================================
+// SaaS platform Prisma fragment: BundleVersionRetirement
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per add-on retirement an operator announces: an add-on version ended
+// for the bookings already on it, with the version of the same add-on they
+// continue on. Kept as evidence of what was announced, when and by whom, as
+// `version_retirements` is for a plan version.
+//
+// What it means for each booking it reaches — the date it takes effect, the
+// last day to cancel without the minimum term, and to whom and how that was
+// told — is a `subscription_notices` row of kind bundle-version-retired,
+// written in the same transaction: its subject is the retired add-on version,
+// its content names this row's id as `retirementId`.
+//
+// The versions are kept as values, not as keys: the record outlives the
+// catalogue entries it names, as the notices do (ADR 0012).
+//
+// Optional: adopt it where an operator may retire add-on versions
+// (`tenantBilling.orderlyRetirement` in config/saas.yaml). Without it, retiring
+// an add-on version is off; retiring a plan version is not affected.
+//
+// Contract: @saasicat/core (BundleVersionRetirementRepository).
+
+model BundleVersionRetirement {
+    id String @id @default(uuid())
+
+    retiredBundleVersionId String
+    retiredBundleKey       String
+    retiredVersion         Int
+
+    replacementBundleVersionId String
+    replacementBundleKey       String
+    replacementVersion         Int
+
+    announcedAt DateTime @default(now())
+    // Who announced it — an actor tag, as the audit log writes it.
+    announcedBy String
+
+    @@index([retiredBundleVersionId])
+    @@map("bundle_version_retirements")
+}

@@ -27,7 +27,6 @@ import {
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
-    type BundleVersionRow,
     type PlanCatalogSettings,
     type PlanRepository,
     type PlanVersionRow,
@@ -37,7 +36,6 @@ import {
     type RetirementAnnounced,
     type RetirementBlocker,
     type RetirementPreview,
-    type RetirementProgress,
     type RetirementReachedRow,
     type RetirementSkippedRow,
     type RlsBypassPort,
@@ -77,9 +75,12 @@ import {
     groupByRetiredVersion,
     reachedSomebody,
     retirementNoticesOnRecord,
+    subscriptionsReachedSince,
     type RetirementNoticeOnRecord,
 } from './retirement-notices.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
+import { progressOf, sameSet, type ReachedState } from './retirement-progress.js';
+import { onceEach } from './versions-read-once.js';
 import {
     RETIREMENT_REPEAT_MONTHS,
     calendarMonthsAfter,
@@ -524,8 +525,10 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                     ...retirement,
                     progress: {
                         ...progressOf(
-                            told.filter(({ notice }) => notice.retirementId === retirement.id),
-                            await onVersion(retirement.retired.planVersionId),
+                            subscriptionStates(
+                                told.filter(({ notice }) => notice.retirementId === retirement.id),
+                                await onVersion(retirement.retired.planVersionId),
+                            ),
                             now,
                         ),
                         reminded: reminded.get(retirement.id) ?? 0,
@@ -693,18 +696,16 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     ): Promise<{ reached: RetirementReachedRow[]; skipped: RetirementSkippedRow[] }> {
         // `onModuleInit` refused a port without it.
         const bound = await this.subscriptions.listBoundToVersion!(planVersionId);
-        // Every retirement notice ever recorded: at most one per subscription
-        // and version retired, and a subscription is reached at most once a
-        // year, so this grows with subscriptions and years, not with runs.
-        const notices = await this.notices.listOfKindSince('version-retired', new Date(0));
-        const since = calendarMonthsAfter(now, -RETIREMENT_REPEAT_MONTHS);
-        const recently = new Set(
-            notices.filter((notice) => notice.createdAt >= since).map((n) => n.subscriptionId),
+        const recently = await subscriptionsReachedSince(
+            this.notices,
+            calendarMonthsAfter(now, -RETIREMENT_REPEAT_MONTHS),
         );
         // Told of this version's retirement already, by an earlier announcement:
-        // that one stands, and its notice is the one the subscription keeps.
+        // that one stands, and its notice is the one the subscription keeps. At
+        // most one per subscription and version retired, so this grows with
+        // subscriptions and years, not with runs.
         const told = new Set(
-            notices
+            (await this.notices.listOfKindSince('version-retired', new Date(0)))
                 .filter((notice) => notice.subject === planVersionId)
                 .map((notice) => notice.subscriptionId),
         );
@@ -792,12 +793,6 @@ function keyOf(notice: VersionRetiredNotice) {
     };
 }
 
-function sameSet(a: readonly string[], b: readonly string[]): boolean {
-    const left = new Set(a);
-    const right = new Set(b);
-    return left.size === right.size && [...left].every((id) => right.has(id));
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function startOfUtcDay(ms: number): number {
@@ -805,40 +800,18 @@ function startOfUtcDay(ms: number): number {
 }
 
 /** Where each subscription a retirement reached stands now. */
-function progressOf(
+function subscriptionStates(
     onRecord: readonly RetirementNoticeOnRecord[],
     stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
-    now: Date,
-): Omit<RetirementProgress, 'reminded'> {
-    const progress = { moved: 0, waiting: 0, overdue: 0, ended: 0, notTold: 0 };
-    for (const { notice, told } of onRecord) {
+): ReachedState[] {
+    return onRecord.map(({ notice, told }) => {
         const sub = stillOn.get(notice.subscriptionId);
-        const at = new Date(notice.effectiveAt);
-        if (!sub) progress.moved += 1;
-        else if (cancellationHasLanded(sub, at)) progress.ended += 1;
-        else if (!told) progress.notTold += 1;
-        else if (at > now) progress.waiting += 1;
-        else progress.overdue += 1;
-    }
-    return progress;
-}
-
-/**
- * The bundle versions `source` reads, each read once: a retirement reaching
- * many subscriptions meets the same few add-on versions over and over.
- */
-function onceEach(
-    source: Pick<BundleRepository, 'findVersionById'> | null,
-): Pick<BundleRepository, 'findVersionById'> | null {
-    if (!source) return null;
-    const read = new Map<string, Promise<BundleVersionRow | null>>();
-    return {
-        findVersionById(id: string) {
-            const known = read.get(id);
-            if (known) return known;
-            const fresh = source.findVersionById(id);
-            read.set(id, fresh);
-            return fresh;
-        },
-    };
+        const effectiveAt = new Date(notice.effectiveAt);
+        return {
+            stillOn: Boolean(sub),
+            endedByTheDate: Boolean(sub && cancellationHasLanded(sub, effectiveAt)),
+            told,
+            effectiveAt,
+        };
+    });
 }

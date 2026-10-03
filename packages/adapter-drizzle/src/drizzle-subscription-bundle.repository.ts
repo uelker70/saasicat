@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm';
 import {
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
@@ -40,6 +40,15 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             // handed over — so the page would reorder itself between reloads
             // for no reason a reader could see.
             .orderBy(desc(subscriptionBundles.startedAt));
+        return rows.map(toSubscriptionBundleRecord);
+    }
+
+    async listOfVersion(bundleVersionId: string): Promise<SubscriptionBundleRecord[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionBundles)
+            .where(eq(subscriptionBundles.bundleVersionId, bundleVersionId))
+            .orderBy(desc(subscriptionBundles.startedAt), asc(subscriptionBundles.id));
         return rows.map(toSubscriptionBundleRecord);
     }
 

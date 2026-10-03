@@ -206,6 +206,18 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         '{count} of these subscriptions were reached by a retirement within the last twelve months. A subscription is reached at most once a year.',
     RETIREMENT_PREVIEW_CHANGED:
         'The subscriptions this retirement reaches changed since they were shown. Look at them again before announcing it.',
+    BUNDLE_RETIREMENT_VERSION_ON_SALE:
+        'Version {version} of {bundleKey} is still on sale. Publish the version that replaces it, and retire this one once its sale has ended, so nobody books it after the announcement.',
+    BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+        'Version {version} of {bundleKey} is not on sale, so bookings cannot continue on it.',
+    BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
+        'The replacement is a version of {replacementBundleKey}, not of {bundleKey}. A booking continues on a version of its own add-on.',
+    BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN:
+        '{count} of these bookings run beside a plan that version {version} of {bundleKey} cannot run beside, so they cannot continue on it.',
+    BUNDLE_RETIREMENT_NOTHING_AFFECTED:
+        'No running booking is on version {version} of {bundleKey}, so there is nobody to tell.',
+    BUNDLE_RETIREMENT_REINSTATE_REFUSED:
+        'Version {version} of {bundleKey} is being retired, and this booking ends before it would move. Book version {replacementVersion} instead.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',

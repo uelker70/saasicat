@@ -16,6 +16,7 @@ import {
     retirementSkips,
     useVersionRetirement,
 } from '../dist/index.js';
+import { answeringSecondFactor, recordingRetirements } from './support/retirement-flow.mjs';
 
 const NOW = Date.now();
 const DAY = 24 * 60 * 60 * 1000;
@@ -229,27 +230,8 @@ function drive({
                 return versionsOf(planId);
             },
         },
-        retirements: {
-            list: async () => {
-                requests.push(['list']);
-                return list();
-            },
-            preview: async (...args) => {
-                requests.push(['preview', ...args]);
-                return typeof preview === 'function' ? preview(...args) : preview;
-            },
-            announce: async (...args) => {
-                requests.push(['announce', ...args]);
-                return announce(...args);
-            },
-        },
-        mfa: {
-            async run(description, _invalid, action) {
-                prompts.push(description);
-                if (code === null) return { done: false };
-                return { done: true, value: await action(code) };
-            },
-        },
+        retirements: recordingRetirements({ requests, list, preview, announce }),
+        mfa: answeringSecondFactor({ prompts, code }),
     });
     return { flow, requests, prompts };
 }

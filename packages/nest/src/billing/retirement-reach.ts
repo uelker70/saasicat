@@ -99,11 +99,17 @@ export function retirementReach(sub: RetiringSubscription, toldAt: Date): Retire
     return {
         reached: true,
         effectiveAt,
-        lastDayToCancel: new Date(startOfUtcDay(effectiveAt).getTime() - 1)
-            .toISOString()
-            .slice(0, 10),
+        lastDayToCancel: lastDayBefore(effectiveAt),
         billingCycle: effective.billingCycle,
     };
+}
+
+/**
+ * The last whole UTC day before `at`, as an ISO date: the day before the day
+ * `at` falls on — a term ends at the moment it was booked, not at midnight.
+ */
+export function lastDayBefore(at: Date): string {
+    return new Date(startOfUtcDay(at).getTime() - 1).toISOString().slice(0, 10);
 }
 
 /**
@@ -145,9 +151,10 @@ function scheduledRhythm(sub: RhythmOf): { at: Date; cycle: BillingCycle } | nul
 /**
  * The first term end at or after `earliest`, counted the way the subscription
  * is billed — in its new rhythm from the day a scheduled change of rhythm
- * lands — and the rhythm it is billed in from then.
+ * lands — and the rhythm it is billed in from then. An add-on billed with the
+ * plan ends with these terms too (`bundleRetirementReach`).
  */
-function effectiveDate(
+export function effectiveDate(
     sub: RetiringSubscription,
     earliest: Date,
 ): { at: Date; billingCycle: BillingCycle } | null {

@@ -168,6 +168,16 @@ export interface TenantPlanSectionI18n {
     versionRetiredSwitchConfirm: string;
     /** After the switch; `{version}` is the replacement's version. */
     versionRetiredSwitched: string;
+    /** An add-on version's retirement; `{bundle}` names the add-on, `{version}` the version retired. */
+    bundleRetiredTitle: string;
+    /** `{date}` is when it takes effect, `{bundle}` the add-on, `{version}` the replacement's version. */
+    bundleRetiredLead: string;
+    /** `{bundle}` names the add-on. */
+    bundleRetiredCaption: string;
+    /** `{date}` is the last day the add-on may be cancelled without its minimum term; `{bundle}` names it. */
+    bundleRetiredCancel: string;
+    /** `{bundle}` names the add-on. */
+    bundleRetiredNoAction: string;
     wizardTitle: string;
     wizardClose: string;
     wizardCurrent: string;
@@ -482,6 +492,14 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
         'Mit dem Wechsel entfällt die Kündigung ohne Frist. Ihre Laufzeit bleibt, wie sie ist.',
     versionRetiredSwitchConfirm: 'Wechsel bestätigen',
     versionRetiredSwitched: 'Sie nutzen jetzt Version {version}.',
+    bundleRetiredTitle: 'Version {version} von {bundle} wird eingestellt',
+    bundleRetiredLead:
+        'Ab dem {date} läuft {bundle} auf Version {version} weiter, zu den Bedingungen dieser Version.',
+    bundleRetiredCaption: 'Ihre Version und die, auf der {bundle} weiterläuft',
+    bundleRetiredCancel:
+        'Bis einschließlich {date} können Sie {bundle} ohne Mindestlaufzeit zum Ende des laufenden Abrechnungszeitraums kündigen.',
+    bundleRetiredNoAction:
+        'Wenn Sie nichts tun, läuft {bundle} ab dann auf der neuen Version weiter.',
     wizardTitle: 'Paket wechseln',
     wizardClose: 'Schließen',
     wizardCurrent: 'Aktuell',
@@ -770,6 +788,13 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
         'With the switch, cancelling without notice is no longer available. Your term stays as it is.',
     versionRetiredSwitchConfirm: 'Confirm switch',
     versionRetiredSwitched: 'You are on version {version} now.',
+    bundleRetiredTitle: 'Version {version} of {bundle} is being retired',
+    bundleRetiredLead:
+        'From {date}, {bundle} continues on version {version}, on that version’s terms.',
+    bundleRetiredCaption: 'Your version and the one {bundle} continues on',
+    bundleRetiredCancel:
+        'Up to and including {date}, you may cancel {bundle} without its minimum term, for the end of the billing period running.',
+    bundleRetiredNoAction: 'If you do nothing, {bundle} continues on the new version from then on.',
     wizardTitle: 'Change plan',
     wizardClose: 'Close',
     wizardCurrent: 'Current',

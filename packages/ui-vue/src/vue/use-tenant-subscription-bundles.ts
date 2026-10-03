@@ -5,7 +5,7 @@
 
 import { ref, type Ref } from 'vue';
 import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
-import type { SubscriptionBundleRecord } from '@saasicat/core';
+import type { BundleVersionRetiredNotice, SubscriptionBundleRecord } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
@@ -17,8 +17,17 @@ export interface UseTenantSubscriptionBundlesOptions {
     autoLoad?: boolean;
 }
 
+/**
+ * A booking as the tenant's list answers it: the record, and the retirement of
+ * the version booked as the subscriber was told it, where one stands. A
+ * platform without add-on retirements answers without the field.
+ */
+export type TenantSubscriptionBundle = SubscriptionBundleRecord & {
+    readonly retirement?: BundleVersionRetiredNotice | null;
+};
+
 export interface UseTenantSubscriptionBundlesResult {
-    bundles: Ref<SubscriptionBundleRecord[]>;
+    bundles: Ref<TenantSubscriptionBundle[]>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
 
@@ -63,7 +72,7 @@ export function useTenantSubscriptionBundles(
     const http = options.http ?? defaultHttpClient();
     const baseUrl = `${options.billingEndpoint}/billing/subscription-bundles`;
 
-    const bundles = ref<SubscriptionBundleRecord[]>([]);
+    const bundles = ref<TenantSubscriptionBundle[]>([]);
     const loading = ref(false);
     const error = ref<Error | null>(null);
 
@@ -103,7 +112,7 @@ export function useTenantSubscriptionBundles(
         loading.value = true;
         error.value = null;
         try {
-            const data = await fetchJson<SubscriptionBundleRecord[]>(baseUrl);
+            const data = await fetchJson<TenantSubscriptionBundle[]>(baseUrl);
             bundles.value = (data ?? []).map(rehydrateDates);
         } catch (err) {
             error.value = err instanceof Error ? err : new Error(String(err));
@@ -158,7 +167,7 @@ export function useTenantSubscriptionBundles(
  * The wire format returns an ISO string per date field; the platform type is
  * `Date`. We map once at the HTTP boundary.
  */
-function rehydrateDates(raw: SubscriptionBundleRecord): SubscriptionBundleRecord {
+function rehydrateDates(raw: TenantSubscriptionBundle): TenantSubscriptionBundle {
     return {
         ...raw,
         startedAt: new Date(raw.startedAt),

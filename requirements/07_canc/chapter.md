@@ -505,7 +505,7 @@ and a run that repeats sends no reminder twice. Each reminder sent is part of th
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
-### SC-CANC-023 — A retirement lets a subscription cancel without notice until it takes effect
+### SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 
 🟢 💰 Neither the notice period nor a minimum term holds it: those are the terms the operator is
 changing. A cancellation declared by the last day the notice names lands at the end of the period

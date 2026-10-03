@@ -46,6 +46,7 @@ import {
     PrismaTransactionRunner,
     PrismaSubscriptionUsageAdapter,
     PrismaVersionRetirementRepository,
+    PrismaBundleVersionRetirementRepository,
 } from '../../dist/index.js';
 import { generatedPrismaClient, rebuildFromReferenceSchema, testDatabaseUrl } from './database.js';
 
@@ -75,6 +76,7 @@ const PLATFORM_TABLES = [
     'maintenance_windows',
     'subscription_notices',
     'version_retirements',
+    'bundle_version_retirements',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -120,6 +122,7 @@ function createHarness() {
             maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),
             versionRetirements: new PrismaVersionRetirementRepository(prisma),
+            bundleVersionRetirements: new PrismaBundleVersionRetirementRepository(prisma),
             subscriptionUsage: new PrismaSubscriptionUsageAdapter(prisma),
         },
         seed: {

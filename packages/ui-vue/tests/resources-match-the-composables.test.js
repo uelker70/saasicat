@@ -20,6 +20,7 @@ import { nextTick, ref } from 'vue';
 import {
     auditResource,
     bindResource,
+    bundleVersionRetirementsResource,
     bundleVersionsResource,
     bundlesResource,
     catalogResource,
@@ -766,8 +767,10 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     settings: Object.keys(settingsResource.ops),
     // The same for maintenance windows: `tests/maintenance-resource.test.js`.
     maintenance: Object.keys(maintenanceResource.ops),
-    // And for retiring a version: `tests/version-retirements-resource.test.js`.
+    // And for retiring a version, a plan's or an add-on's:
+    // `tests/version-retirements-resource.test.js`.
     versionRetirements: Object.keys(versionRetirementsResource.ops),
+    bundleVersionRetirements: Object.keys(bundleVersionRetirementsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
     // `charges` is platform-served with no admin-client twin, like the

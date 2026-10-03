@@ -60,13 +60,7 @@
             @execute="executeTerminate"
         />
 
-        <PlanRetireDialog
-            v-if="retirement"
-            :flow="retirement"
-            :plan="plan"
-            :format-money="formatMoney"
-            :format-date="formatDate"
-        />
+        <PlanRetireDialog v-if="retirement" :flow="retirement" :plan="plan" />
 
         <PlanAuditLog
             v-if="auditRows.length > 0 || loadingAudit"
@@ -765,23 +759,6 @@ async function executeTerminate(): Promise<void> {
     color: var(--sa-color-warning-fg);
     border: 1px solid var(--sa-color-warning-border);
     white-space: nowrap;
-}
-/* How far a retirement has come: neutral, except where it asks for the operator. */
-.pd-retirement-progress {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--sa-space-1) var(--sa-space-3);
-    border-radius: var(--sa-radius-pill);
-    font: 600 var(--sa-text-xs) var(--sa-font-mono);
-    background: var(--sa-color-bg-surface);
-    color: var(--sa-color-fg-secondary);
-    border: 1px solid var(--sa-color-border);
-    white-space: nowrap;
-}
-.pd-retirement-progress--attention {
-    background: var(--sa-color-negative-surface);
-    color: var(--sa-color-negative-fg);
-    border-color: var(--sa-color-negative-border);
 }
 
 /* diff */

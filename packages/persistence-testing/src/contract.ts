@@ -26,12 +26,14 @@ import type {
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
+    NewBundleVersionRetirement,
     NewVersionRetirement,
     NoticeToRecord,
     SubscriptionNoticeKey,
     SubscriptionNoticeRepository,
     TransactionContext,
     VersionRetirementRepository,
+    BundleVersionRetirementRepository,
 } from '@saasicat/core';
 import {
     BILLING_ERROR_CODES,
@@ -467,6 +469,21 @@ const CONTRACT_GAPS: Record<
     boundSubscriptions: {
         reason: 'adapter provides no SubscriptionUsagePort that lists a version',
         present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listBoundToVersion),
+    },
+    bundleVersionRetirements: {
+        reason: 'adapter provides no BundleVersionRetirementRepository',
+        present: ({ adapter }) => Boolean(adapter.bundleVersionRetirements),
+    },
+    bookingsOfVersion: {
+        reason: 'adapter provides no SubscriptionBundleRepository that lists an add-on version',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriptionBundleRepository?.listOfVersion && seed.createBundleVersion,
+            ),
+    },
+    subscriptionsById: {
+        reason: 'adapter provides no SubscriptionUsagePort that reads subscriptions by id',
+        present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listByIds),
     },
 };
 
@@ -6932,6 +6949,215 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     'and the version a scheduled change binds',
                 );
                 assert.deepEqual(await usage.listBoundToVersion('no-such-version'), []);
+            });
+        });
+
+        describe('an add-on retirement announcement', () => {
+            const ANNOUNCED_AT = new Date('2026-03-15T10:30:00.250Z');
+            const ANNOUNCEMENT: NewBundleVersionRetirement = {
+                retired: { bundleVersionId: 'bv-reports-1', bundleKey: 'REPORTS', version: 1 },
+                replacement: { bundleVersionId: 'bv-reports-2', bundleKey: 'REPORTS', version: 2 },
+                announcedAt: ANNOUNCED_AT,
+                announcedBy: 'super-admin:ops@example.com',
+            };
+            const noticeOf = (retirementId: string): NoticeToRecord => ({
+                tenantId: 'tenant-add-on-retired',
+                subscriptionId: 'sub-add-on-retired',
+                kind: 'bundle-version-retired',
+                subject: 'bv-reports-1',
+                content: { retirementId },
+            });
+
+            /** A scenario of the announcement, skipped where the harness declares it has none. */
+            function scenario(
+                name: string,
+                body: (
+                    retirements: BundleVersionRetirementRepository,
+                    notices: SubscriptionNoticeRepository,
+                ) => Promise<void>,
+            ): void {
+                test(name, async (t) => {
+                    const retirements = harness.adapter.bundleVersionRetirements;
+                    if (!retirements) {
+                        missing(t, 'bundleVersionRetirements');
+                        return;
+                    }
+                    const notices = harness.adapter.subscriptionNotices;
+                    if (!notices) {
+                        missing(t, 'subscriptionNotices');
+                        return;
+                    }
+                    await body(retirements, notices);
+                });
+            }
+
+            scenario('is kept with both versions, when and by whom', async (retirements) => {
+                const created = await retirements.create(ANNOUNCEMENT);
+                assert.ok(created.id, 'the adapter assigns the id');
+                assert.deepEqual(created.retired, ANNOUNCEMENT.retired);
+                assert.deepEqual(created.replacement, ANNOUNCEMENT.replacement);
+                assert.equal(created.announcedAt.toISOString(), ANNOUNCED_AT.toISOString());
+                assert.equal(created.announcedBy, ANNOUNCEMENT.announcedBy);
+                assert.deepEqual(await retirements.findById(created.id), created);
+                assert.equal(await retirements.findById('no-such-retirement'), null);
+            });
+
+            scenario('is listed with the most recent first', async (retirements) => {
+                const first = await retirements.create(ANNOUNCEMENT);
+                const second = await retirements.create({
+                    ...ANNOUNCEMENT,
+                    announcedAt: new Date('2026-04-01T00:00:00.000Z'),
+                });
+                assert.deepEqual(
+                    (await retirements.list()).map((retirement) => retirement.id),
+                    [second.id, first.id],
+                );
+            });
+
+            scenario(
+                'is written with its notices in one transaction, or not at all',
+                async (retirements, notices) => {
+                    await assert.rejects(
+                        harness.adapter.transactionRunner.run(async (tx) => {
+                            const retirement = await retirements.create(ANNOUNCEMENT, tx);
+                            await notices.record([noticeOf(retirement.id)], ANNOUNCED_AT, tx);
+                            throw new Error('rolled back');
+                        }),
+                        /rolled back/,
+                    );
+                    assert.deepEqual(await retirements.list(), [], 'no announcement');
+                    assert.deepEqual(
+                        await notices.listForSubscription('sub-add-on-retired'),
+                        [],
+                        'and no notice',
+                    );
+
+                    const kept = await harness.adapter.transactionRunner.run(async (tx) => {
+                        const retirement = await retirements.create(ANNOUNCEMENT, tx);
+                        await notices.record([noticeOf(retirement.id)], ANNOUNCED_AT, tx);
+                        return retirement;
+                    });
+                    const [notice] = await notices.listForSubscription('sub-add-on-retired');
+                    assert.equal(notice?.kind, 'bundle-version-retired');
+                    assert.deepEqual(notice?.content, { retirementId: kept.id });
+                    assert.equal(notice?.claimedAt, null, 'recorded, not yet told');
+                },
+            );
+        });
+
+        describe('the bookings of one add-on version', () => {
+            test('are listed in every tenant, whatever their state, and none of another version', async (t) => {
+                const repository = harness.adapter.subscriptionBundleRepository;
+                const { seed } = harness;
+                if (!repository?.listOfVersion || !seed.createBundleVersion) {
+                    missing(t, 'bookingsOfVersion');
+                    return;
+                }
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'RETIRE_ADD_ON',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const v1 = await seed.createBundleVersion({
+                    bundleKey: 'RETIRING',
+                    features: ['REPORTS'],
+                });
+                const v2 = await seed.createBundleVersion({
+                    bundleKey: 'OTHER_ADD_ON',
+                    features: ['EXPORTS'],
+                });
+                const bookingIn = async (tenantId: string, bundleVersionId: string) => {
+                    const { subscriptionId } = await seed.createSubscription({
+                        tenantId,
+                        plan: 'RETIRE_ADD_ON',
+                        planVersionId,
+                    });
+                    return repository.add({
+                        subscriptionId,
+                        bundleVersionId,
+                        startedAt: new Date('2026-02-01T00:00:00.000Z'),
+                        minimumTermEndsAt: null,
+                    });
+                };
+                const running = await bookingIn('tenant-a', v1.bundleVersionId);
+                const cancelled = await bookingIn('tenant-b', v1.bundleVersionId);
+                await repository.cancel(cancelled.id, {
+                    canceledAt: new Date('2026-02-10T00:00:00.000Z'),
+                    canceledEffectiveAt: new Date('2026-03-01T00:00:00.000Z'),
+                });
+                await bookingIn('tenant-c', v2.bundleVersionId);
+
+                const listed = await repository.listOfVersion(v1.bundleVersionId);
+                assert.deepEqual(
+                    listed.map((booking) => booking.id).sort(),
+                    [running.id, cancelled.id].sort(),
+                );
+                assert.ok(
+                    listed.every((booking) => booking.bundleVersionId === v1.bundleVersionId),
+                    'each read with the version it is on',
+                );
+                assert.equal(
+                    listed
+                        .find((booking) => booking.id === cancelled.id)
+                        ?.canceledEffectiveAt?.toISOString(),
+                    '2026-03-01T00:00:00.000Z',
+                    'and a cancellation as it stands',
+                );
+                assert.deepEqual(await repository.listOfVersion(NO_SUCH_VERSION), []);
+            });
+        });
+
+        describe('subscriptions read by id', () => {
+            test('are each read with the tenant they belong to, and an unknown id is left out', async (t) => {
+                const usage = harness.adapter.subscriptionUsage;
+                if (!usage?.listByIds) {
+                    missing(t, 'subscriptionsById');
+                    return;
+                }
+                const { seed } = harness;
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'BY_ID',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const a = await seed.createSubscription({
+                    tenantId: 'tenant-by-id-a',
+                    plan: 'BY_ID',
+                    planVersionId,
+                });
+                const b = await seed.createSubscription({
+                    tenantId: 'tenant-by-id-b',
+                    plan: 'BY_ID',
+                    planVersionId,
+                    status: 'CANCELED',
+                });
+                await seed.createSubscription({
+                    tenantId: 'tenant-by-id-c',
+                    plan: 'BY_ID',
+                    planVersionId,
+                });
+
+                const read = await usage.listByIds([
+                    b.subscriptionId,
+                    a.subscriptionId,
+                    'no-such-subscription',
+                ]);
+                assert.deepEqual(
+                    read.map((row) => `${row.tenantId}/${row.subscription.id}`).sort(),
+                    [
+                        `tenant-by-id-a/${a.subscriptionId}`,
+                        `tenant-by-id-b/${b.subscriptionId}`,
+                    ].sort(),
+                );
+                assert.ok(
+                    read.every((row) => row.subscription.planVersion?.id === planVersionId),
+                    'each read with the version it is on',
+                );
+                assert.deepEqual(await usage.listByIds([]), []);
             });
         });
     });

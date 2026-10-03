@@ -1,5 +1,9 @@
 import type { DynamicModule } from '@nestjs/common';
-import type { TransactionRunner, VersionRetirementRepository } from '@saasicat/core';
+import type {
+    BundleVersionRetirementRepository,
+    TransactionRunner,
+    VersionRetirementRepository,
+} from '@saasicat/core';
 
 import { VersionRetirementAdminModule } from '../../billing/version-retirement-admin.module.js';
 import type { VersionRetirementsOptions } from '../../billing/tenant-billing.module.js';
@@ -22,9 +26,16 @@ export function versionRetirementsOf(
     const repository = ctx.persistence?.tenantBilling?.versionRetirements;
     const transactionRunner = ctx.adapters.transactionRunner;
     if (!repository || !transactionRunner) return undefined;
+    const bundleVersionRetirements = ctx.persistence?.tenantBilling?.bundleVersionRetirements;
     return {
         repository: repository as ProviderSpec<VersionRetirementRepository>,
         transactionRunner: transactionRunner as ProviderSpec<TransactionRunner>,
+        ...(bundleVersionRetirements
+            ? {
+                  bundleVersionRetirements:
+                      bundleVersionRetirements as ProviderSpec<BundleVersionRetirementRepository>,
+              }
+            : {}),
     };
 }
 
@@ -44,6 +55,22 @@ export function servesVersionRetirements(
 }
 
 /**
+ * Whether the operator is offered retiring an add-on version as well: plan
+ * versions can be retired, and there is a place to keep add-on announcements
+ * and bookings for them to reach — the bookings tenant billing reads, which
+ * it has only where the persistence bundle brings them.
+ */
+export function servesBundleVersionRetirements(
+    ctx: Pick<CompositionContext, 'options' | 'persistence' | 'adapters'>,
+): boolean {
+    return Boolean(
+        servesVersionRetirements(ctx) &&
+        versionRetirementsOf(ctx)?.bundleVersionRetirements &&
+        ctx.persistence?.entitlement?.subscriptionBundleRepository,
+    );
+}
+
+/**
  * The operator's retirement routes, beside the plan versions.
  *
  * Runs after `composeTenantBilling` and imports the module it built rather
@@ -56,6 +83,7 @@ export function composeVersionRetirement(ctx: CompositionContext): DynamicModule
         VersionRetirementAdminModule.forRoot({
             guards: operatorGuards(ctx.options),
             imports: [tenantBillingModule],
+            bundleVersions: servesBundleVersionRetirements(ctx),
         }),
     ];
 }

@@ -81,5 +81,6 @@ export { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repos
 export { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
 export { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';
 export { PrismaVersionRetirementRepository } from './prisma-version-retirement.repository.js';
+export { PrismaBundleVersionRetirementRepository } from './prisma-bundle-version-retirement.repository.js';
 export { type PrismaModelDelegateLike } from './prisma-client-token.js';
 export * from './admin-resources-schema.js';

@@ -52,6 +52,7 @@ import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog
 import type { AppliedSettingsPort } from './settings-ports.types.js';
 import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
 import type { SubscriptionNoticeRepository } from './subscription-notice-ports.types.js';
+import type { BundleVersionRetirementRepository } from './bundle-version-retirement-ports.types.js';
 import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
@@ -187,6 +188,12 @@ export interface SaaSiCatPersistenceTenantBilling {
      * retire versions without one is refused at start-up.
      */
     versionRetirements?: PersistenceProvider<VersionRetirementRepository>;
+    /**
+     * The record of every add-on retirement announcement. Optional so an
+     * adapter written before it keeps working; without it, retiring an add-on
+     * version is off, and retiring a plan version is not affected.
+     */
+    bundleVersionRetirements?: PersistenceProvider<BundleVersionRetirementRepository>;
 }
 
 /**

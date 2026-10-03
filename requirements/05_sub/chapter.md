@@ -887,6 +887,8 @@ _Tested by:_
         - one reached eleven months ago holds the announcement back, counted
         - one reached exactly twelve months ago still does
         - one reached a moment longer ago does not
+        - one whose notice reached somebody counts from then, though recorded long before
+        - an add-on retirement it was told of counts as well
         - a notice of another kind does not count
 
 <!-- END proof -->

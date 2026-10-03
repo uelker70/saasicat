@@ -164,6 +164,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             { key: 'PLAN_VERSION_RETIRE', label: 'Plan version retired', severity: 'high' },
+            { key: 'BUNDLE_VERSION_RETIRE', label: 'Add-on version retired', severity: 'high' },
             {
                 key: 'PLAN_VERSION_RETIREMENT_MOVE',
                 label: 'Subscription moved to the replacement of a retired version',

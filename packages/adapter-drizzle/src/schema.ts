@@ -444,6 +444,26 @@ export const versionRetirements = pgTable('version_retirements', {
 });
 
 // ---------------------------------------------------------------------------
+// Add-on retirement announcements — an add-on version ended for the bookings on it
+// ---------------------------------------------------------------------------
+//
+// As above, for an add-on version: what it means for each booking is a
+// `subscription_notices` row of kind `bundle-version-retired`, whose subject is
+// the retired add-on version.
+
+export const bundleVersionRetirements = pgTable('bundle_version_retirements', {
+    id: text('id').primaryKey(),
+    retiredBundleVersionId: text('retiredBundleVersionId').notNull(),
+    retiredBundleKey: text('retiredBundleKey').notNull(),
+    retiredVersion: integer('retiredVersion').notNull(),
+    replacementBundleVersionId: text('replacementBundleVersionId').notNull(),
+    replacementBundleKey: text('replacementBundleKey').notNull(),
+    replacementVersion: integer('replacementVersion').notNull(),
+    announcedAt: writtenAt('announcedAt'),
+    announcedBy: text('announcedBy').notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // Subscribers — the party a contract is concluded with
 // ---------------------------------------------------------------------------
 //

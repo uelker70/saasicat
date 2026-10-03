@@ -46,6 +46,7 @@ import {
     Req,
     type CanActivate,
     type Type,
+    UnprocessableEntityException,
     UseGuards,
 } from '@nestjs/common';
 import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
@@ -69,6 +70,7 @@ import {
     type SubscriptionBundlePreviewContext,
 } from './subscription-bundle-preview.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
+import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import {
     PLANS_AHEAD_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -150,18 +152,35 @@ export function buildTenantSubscriptionBundlesController(
             // set to move to, and nothing would say so.
             @Inject(PLANS_AHEAD_TOKEN)
             private readonly plansAhead: PlansAhead,
+            // Only where an operator may retire add-on versions.
+            @Optional()
+            @Inject(BundleVersionRetirementService)
+            private readonly bundleRetirements: BundleVersionRetirementService | null = null,
         ) {}
 
         @Get()
         async list(@Req() req: RequestLike) {
             const sub = await this.requireSubscription(this.requireTenantId(req));
+            const subscriptionId = this.requireSubscriptionPk(sub);
             // The plan and its rhythm travel with the request: a booking's
             // price depends on both, and neither is a property of the bundle.
-            return this.service.listForSubscription(
-                this.requireSubscriptionPk(sub),
+            const views = await this.service.listForSubscription(
+                subscriptionId,
                 sub.plan,
                 planCycleOf(sub),
             );
+            const told = (await this.bundleRetirements?.toldForSubscription(subscriptionId)) ?? [];
+            // A booking reads the retirement of the version it is on, until
+            // it has moved onto the replacement (`SC-BUN-046`).
+            return views.map((view) => ({
+                ...view,
+                retirement:
+                    told.find(
+                        (notice) =>
+                            notice.subscriptionBundleId === view.id &&
+                            notice.retired.bundleVersionId === view.bundleVersionId,
+                    ) ?? null,
+            }));
         }
 
         /**
@@ -257,6 +276,11 @@ export function buildTenantSubscriptionBundlesController(
                   })
                 : this.previewService.previewCancel(ctx, {
                       subscriptionBundleId: dto.subscriptionBundleId!,
+                      minimumTermLapses: await this.minimumTermLapses(
+                          ctx.subscriptionId,
+                          dto.subscriptionBundleId!,
+                          new Date(),
+                      ),
                   });
         }
 
@@ -270,10 +294,19 @@ export function buildTenantSubscriptionBundlesController(
         ) {
             const tenantId = this.requireTenantId(req);
             const sub = await this.requireSubscription(tenantId);
+            const subscriptionId = this.requireSubscriptionPk(sub);
+            const canceledAt = dto.canceledAt ? new Date(dto.canceledAt) : undefined;
             const result = await this.service.cancelBundleFromSubscription({
-                subscriptionId: this.requireSubscriptionPk(sub),
+                subscriptionId,
                 subscriptionBundleId,
-                canceledAt: dto.canceledAt ? new Date(dto.canceledAt) : undefined,
+                canceledAt,
+                // By the server's clock: a date the caller sends would let a
+                // cancellation declared after the date claim it.
+                minimumTermLapses: await this.minimumTermLapses(
+                    subscriptionId,
+                    subscriptionBundleId,
+                    new Date(),
+                ),
                 // A bundle cannot be held past the plan that pays for it, and
                 // the plan may have been cancelled since this was booked.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
@@ -294,6 +327,13 @@ export function buildTenantSubscriptionBundlesController(
             // Reactivating is buying again, so it closes with the till.
             const sub = await this.requireRunningSubscription(tenantId);
             await this.contractFreeze?.assertPartyFor(tenantId);
+            // A booking cancelled out of an add-on retirement stays cancelled:
+            // nothing would move it off the version retired (`SC-BUN-048`).
+            const refusal = await this.bundleRetirements?.refusalToReinstate(
+                this.requireSubscriptionPk(sub),
+                subscriptionBundleId,
+            );
+            if (refusal) throw new UnprocessableEntityException(refusal);
             const result = await this.service.reactivateBundle({
                 subscriptionId: this.requireSubscriptionPk(sub),
                 subscriptionBundleId,
@@ -313,6 +353,24 @@ export function buildTenantSubscriptionBundlesController(
                 );
             }
             return sub.id;
+        }
+
+        /**
+         * Whether the booking may be cancelled without its minimum term: an
+         * add-on retirement it was told of is still to take effect at `at`
+         * (`SC-BUN-045`).
+         */
+        private async minimumTermLapses(
+            subscriptionId: string,
+            subscriptionBundleId: string,
+            at: Date,
+        ): Promise<boolean> {
+            const pending = await this.bundleRetirements?.pendingForBooking(
+                subscriptionId,
+                subscriptionBundleId,
+                at,
+            );
+            return Boolean(pending);
         }
 
         /** The plans the subscription is already set to move to. */

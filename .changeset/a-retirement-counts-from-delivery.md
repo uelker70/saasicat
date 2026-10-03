@@ -27,6 +27,5 @@ announcement sends at once changes nothing. Where sending failed:
 - **The plan cockpit** counts the subscriptions not told yet beside the retired
   version and marks them for a look, as it does a move overdue:
   `RetirementProgress.notTold`, the wording key
-  `planDetail.versions.retiredProgress.notTold`. The progress chip's modifier
-  class `pd-retirement-progress--overdue` is now
-  `pd-retirement-progress--attention`.
+  `common.retirementProgress.notTold`, and the progress chip's modifier class
+  `sa-retirement-progress--attention`.

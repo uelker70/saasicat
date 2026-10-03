@@ -41,21 +41,26 @@
 </template>
 
 <script setup lang="ts">
-// Two versions of a plan side by side, as a subscriber compares them: the price
-// in each rhythm, each quota, and the features one has and the other does not.
-// A version offered and a replacement announced are read alike.
+// Two versions side by side, as a subscriber compares them: the price in each
+// rhythm, each quota, and the features one has and the other does not. A plan
+// version offered, a plan version's replacement and an add-on version's
+// replacement are read alike.
 
 import { computed } from 'vue';
-import type { VersionOfferSide } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
-import { offerFeatureChanges, offerPriceRows, offerQuotaRows } from './version-offer-comparison.js';
+import {
+    offerFeatureChanges,
+    offerPriceRows,
+    offerQuotaRows,
+    type ComparedVersion,
+} from './version-offer-comparison.js';
 
 const props = defineProps<{
     /** The version the subscriber has. */
-    bound: VersionOfferSide;
+    bound: ComparedVersion;
     /** The version it is compared with. */
-    other: VersionOfferSide;
+    other: ComparedVersion;
     caption: string;
     boundHeading: string;
     otherHeading: string;
