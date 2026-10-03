@@ -719,7 +719,7 @@ describe('the free switch before the date', () => {
         const error = await rejection(service.switchNow('t1', 'pv-9', BEFORE));
 
         assert.equal(error.getStatus(), 422);
-        assert.equal(error.getResponse().code, 'BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN');
+        assert.equal(error.getResponse().code, 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW');
         assert.deepEqual(error.getResponse().params, {
             bundleName: 'Reports',
             planName: 'PLUS',

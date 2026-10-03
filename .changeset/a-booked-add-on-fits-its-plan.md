@@ -20,7 +20,8 @@ since a scheduled change lands without looking at add-ons.
   plan chosen at onboarding, which is asked about today because it applies at
   once, and the early switch to the replacement of a retirement. The new code
   `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` names the add-on, the plan and the
-  earliest day the add-on could end. The rhythm part keeps
+  earliest day the add-on could end; the switch says the same with
+  `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW`. The rhythm part keeps
   `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`, which now names the add-on and that
   day too. The day is the one a cancellation would land on, never after the
   subscription ends, and both sentences say what gets past the refusal: the
@@ -40,7 +41,10 @@ since a scheduled change lands without looking at add-ons.
   which the plan cockpit words in English and German.
 - The tenant's add-on dialog shows each reason a booking cannot be made in the
   language chosen, through the message catalogue, rather than the English the
-  backend sends; two reasons with the same code are shown as two.
+  backend sends; two reasons with the same code are shown as two. The shipped
+  sentences of `BUNDLE_INCOMPATIBLE_WITH_PLAN` and
+  `BUNDLE_NOT_PRICED_FOR_THIS_PLAN` no longer show the version's id or the
+  rhythm's raw value.
 - The booking preview names every reason an add-on cannot run beside the plan
   of today at once, as before. `BUNDLE_INCOMPATIBLE_WITH_PLAN` from a booking
   carries `allowedPlanKeys` as one comma-separated string, as the preview's

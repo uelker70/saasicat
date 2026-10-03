@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 215 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 216 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -137,12 +137,12 @@ Subscriptions, plan changes, entitlements.
 | `BUNDLE_ALREADY_SUBSCRIBED`                   | Subscription '{subscriptionId}' has already actively booked this bundle.                                                                                                                                                |
 | `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN`     | {bundleName} cannot run on {planName} and runs until {until} at the earliest. Once it is cancelled, a change that takes effect on or after that day goes through — or choose another plan.                              |
 | `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`        | {bundleName} is billed yearly and runs until {until} at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after that day goes through — or keep the yearly cycle. |
-| `BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE`         | A yearly bundle cannot run beside the monthly billing the subscription moves to on {from}.                                                                                                                              |
-| `BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN`          | This bundle cannot run on the {planKey} plan, which the subscription moves to on {from}.                                                                                                                                |
+| `BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE`         | A yearly bundle cannot run beside the monthly billing the subscription moves to with effect from {from}.                                                                                                                |
+| `BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN`          | This bundle cannot run on the {planKey} plan, which the subscription moves to with effect from {from}.                                                                                                                  |
 | `BUNDLE_CYCLE_EXCEEDS_PLAN`                   | A yearly bundle cannot run beside a monthly plan: it would still be committed on every day the plan could end.                                                                                                          |
 | `BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED`       | The bundle requires [{features}] — present neither in the plan nor in the active bundles.                                                                                                                               |
-| `BUNDLE_INCOMPATIBLE_WITH_PLAN`               | BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].                                                                                                                |
-| `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`             | This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.                                                                                                                       |
+| `BUNDLE_INCOMPATIBLE_WITH_PLAN`               | This bundle cannot be booked on the {planKey} plan. The plans that can book it: {allowedPlanKeys}.                                                                                                                      |
+| `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`             | This bundle has no price for the {planKey} plan in this billing cycle, so it cannot be booked from here.                                                                                                                |
 | `BUNDLE_NOT_SELF_SERVICE`                     | Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.                                                                                                                     |
 | `BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS`           | Exactly one of bundleVersionId (add preview) or subscriptionBundleId (cancel preview) must be given.                                                                                                                    |
 | `CANCELLATION_LOCKS_THE_CYCLE`                | This subscription is cancelled, so its billing cycle cannot change. The plan can — keep the current cycle to change it today.                                                                                           |
@@ -173,6 +173,7 @@ Subscriptions, plan changes, entitlements.
 | `RETIREMENT_REPLACEMENT_IS_RETIRED`           | A version cannot be its own replacement.                                                                                                                                                                                |
 | `RETIREMENT_REPLACEMENT_NOT_ON_SALE`          | Version {version} of {planKey} is not on sale, so subscriptions cannot continue on it.                                                                                                                                  |
 | `RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM`   | {count} of these subscriptions are billed in a rhythm version {version} of {planKey} has no price for, so they cannot continue on it.                                                                                   |
+| `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW`      | {bundleName} cannot run on {planName} and runs until {until} at the earliest. Once it is cancelled, the switch can be made from that day.                                                                               |
 | `RETIREMENT_SWITCH_CHANGED`                   | The retirement changed since it was shown. Look at it again before switching.                                                                                                                                           |
 | `RETIREMENT_SWITCH_IN_TRIAL`                  | The switch opens when your trial ends.                                                                                                                                                                                  |
 | `RETIREMENT_SWITCH_NOT_OPEN`                  | This subscription cannot switch now: a change is scheduled, it has ended, or its plan is held for a special contract.                                                                                                   |

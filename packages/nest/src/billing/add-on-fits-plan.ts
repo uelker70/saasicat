@@ -141,7 +141,7 @@ function upcomingRefusal(misfit: AddOnMisfit, plan: PlanAhead): BundleBookingRef
             code: BILLING_ERROR_CODES.BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE,
             message:
                 'A yearly bundle cannot run beside the monthly billing the subscription moves ' +
-                `to on ${from}.`,
+                `to with effect from ${from}.`,
             params: { planKey: plan.planKey, billingCycle: plan.billingCycle, from },
         };
     }
@@ -149,7 +149,7 @@ function upcomingRefusal(misfit: AddOnMisfit, plan: PlanAhead): BundleBookingRef
         code: BILLING_ERROR_CODES.BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN,
         message:
             `This bundle cannot run on the ${plan.planKey} plan, which the subscription moves ` +
-            `to on ${from}.`,
+            `to with effect from ${from}.`,
         params: { planKey: plan.planKey, billingCycle: plan.billingCycle, from },
     };
 }
@@ -192,9 +192,9 @@ export async function heldAddOnMisfits(
 }
 
 /**
- * What a plan change, or a retirement's switch, says about an add-on still
- * booked that cannot run on the plan it moves to: its name, the earliest day
- * it can end (`addOnInTheWay`), and how to get past it.
+ * What a plan change says about an add-on still booked that cannot run on
+ * the plan it moves to: its name, the earliest day it can end
+ * (`addOnInTheWay`), and how to get past it.
  *
  * Two things have to hold, and either may be missing: the add-on has to be
  * cancelled, and the change has to take effect once it has ended. So the
@@ -237,5 +237,25 @@ export function heldMisfitRefusal(
             'earliest. Once it is cancelled, a change that takes effect on or after that day ' +
             'goes through — or choose another plan.',
         params: { bundleName, planName: target.planName, until },
+    };
+}
+
+/**
+ * What the early switch to a retirement's replacement says about an add-on
+ * running today that cannot run beside the replacement's plan. The switch
+ * moves today and has no other plan to offer, so the way past it is the
+ * add-on ending: cancelled, the switch can be made from the day it ends.
+ */
+export function heldBlocksTheSwitch(
+    held: { bundleName: string; until: string },
+    planName: string,
+): BundleBookingRefusal {
+    const { bundleName, until } = held;
+    return {
+        code: BILLING_ERROR_CODES.RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW,
+        message:
+            `${bundleName} cannot run on ${planName} and runs until ${until} at the earliest. ` +
+            'Once it is cancelled, the switch can be made from that day.',
+        params: { bundleName, planName, until },
     };
 }

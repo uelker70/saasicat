@@ -49,7 +49,7 @@ import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
-import { heldAddOnMisfits, heldMisfitRefusal } from './add-on-fits-plan.js';
+import { heldAddOnMisfits, heldBlocksTheSwitch } from './add-on-fits-plan.js';
 import { addOnInTheWay } from './add-on-in-the-way.js';
 import type { BundleBookingRefusal } from './bundle-version-not-on-sale.js';
 import { bindReplacement, bindRetiredAgain } from './retirement-binding.js';
@@ -242,10 +242,7 @@ export class RetirementSwitchService {
             now,
         );
         if (!first) return null;
-        return heldMisfitRefusal(first.misfit, addOnInTheWay(first, sub, now), {
-            planName: target.planKey,
-            billingCycle: target.billingCycle,
-        });
+        return heldBlocksTheSwitch(addOnInTheWay(first, sub, now), target.planKey);
     }
 
     /**

@@ -626,6 +626,8 @@ _Tested by:_
     - a reason the booking cannot be made reads in the chosen language
         - each of two reasons with one code, with its own values
         - and read again in another order, each still keeps its own
+    - a reason against the plan of today reads as a sentence, not as data
+        - naming the plan rather than the version, and the rhythm in words of its own
 
 <!-- END proof -->
 

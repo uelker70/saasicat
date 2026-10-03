@@ -40,6 +40,8 @@ const BASE: BundlePreviewShape = {
 
 const mounted: VueWrapper[] = [];
 const panel = () => document.body.querySelector<HTMLElement>('.sp-dialog__panel');
+/** The text of every list entry in the panel. */
+const listed = () => [...panel()!.querySelectorAll('li')].map((item) => item.textContent?.trim());
 
 function mountPreview(preview: unknown, locale?: 'de' | 'en') {
     // `as never` on the component collapses the options type along with it, so
@@ -147,11 +149,9 @@ describe('a reason the booking cannot be made reads in the chosen language', () 
     /** The refusal for a plan the subscription is set to move to, with the English the backend sends. */
     const upcoming = (planKey: string, from: string) => ({
         code: 'BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN',
-        message: `This bundle cannot run on the ${planKey} plan, which the subscription moves to on ${from}.`,
+        message: `This bundle cannot run on the ${planKey} plan, which the subscription moves to with effect from ${from}.`,
         params: { planKey, billingCycle: 'YEARLY', from },
     });
-    const listed = () =>
-        [...panel()!.querySelectorAll('li')].map((item) => item.textContent?.trim());
 
     test('each of two reasons with one code, with its own values', async () => {
         // A booking can meet two plans it is set to move to: a change it
@@ -163,8 +163,8 @@ describe('a reason the booking cannot be made reads in the chosen language', () 
         await nextTick();
         expect(listed()).toEqual(
             expect.arrayContaining([
-                'Dieses Bundle kann nicht im Plan BASIC laufen, auf den das Abonnement am 2027-01-01 wechselt.',
-                'Dieses Bundle kann nicht im Plan PRO laufen, auf den das Abonnement am 2027-03-01 wechselt.',
+                'Dieses Bundle kann nicht im Plan BASIC laufen, in den das Abonnement mit Wirkung ab 2027-01-01 wechselt.',
+                'Dieses Bundle kann nicht im Plan PRO laufen, in den das Abonnement mit Wirkung ab 2027-03-01 wechselt.',
             ]),
         );
     });
@@ -209,9 +209,49 @@ describe('a reason the booking cannot be made reads in the chosen language', () 
         expect(duplicates).toEqual([]);
         expect(listed()).toEqual(
             expect.arrayContaining([
-                'This bundle cannot run on the PRO plan, which the subscription moves to on 2027-03-01.',
-                'This bundle cannot run on the BASIC plan, which the subscription moves to on 2027-01-01.',
+                'This bundle cannot run on the PRO plan, which the subscription moves to with effect from 2027-03-01.',
+                'This bundle cannot run on the BASIC plan, which the subscription moves to with effect from 2027-01-01.',
             ]),
         );
+    });
+});
+
+// @requirement SC-LANG-005 — Every string on a screen follows the language that was chosen
+describe('a reason against the plan of today reads as a sentence, not as data', () => {
+    test('naming the plan rather than the version, and the rhythm in words of its own', async () => {
+        mountPreview(
+            {
+                ...BASE,
+                blockers: [
+                    {
+                        code: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
+                        message:
+                            "BundleVersion 'f3d1c0de-0000-4000-8000-000000000001' is not compatible",
+                        params: {
+                            bundleVersionId: 'f3d1c0de-0000-4000-8000-000000000001',
+                            planKey: 'BASIC',
+                            allowedPlanKeys: 'STANDARD, PRO',
+                        },
+                    },
+                    {
+                        code: 'BUNDLE_NOT_PRICED_FOR_THIS_PLAN',
+                        message: 'This bundle has no monthly price for the BASIC plan.',
+                        params: { billingCycle: 'MONTHLY', planKey: 'BASIC' },
+                    },
+                ],
+            },
+            'de',
+        );
+        await nextTick();
+        const text = panel()!.textContent ?? '';
+
+        expect(listed()).toEqual(
+            expect.arrayContaining([
+                'Dieses Bundle kann im Plan BASIC nicht gebucht werden. Buchbar ist es in: STANDARD, PRO.',
+                'Für dieses Bundle ist im Plan BASIC in diesem Abrechnungsrhythmus kein Preis hinterlegt, es kann hier deshalb nicht gebucht werden.',
+            ]),
+        );
+        expect(text).not.toContain('f3d1c0de');
+        expect(text).not.toContain('MONTHLY');
     });
 });

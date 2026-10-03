@@ -164,7 +164,8 @@ export const BILLING_ERROR_CODES = {
      * to — by a scheduled change, or by a retirement it has been told of — and
      * the booking would still be running then: that plan does not book it, or
      * has no price for it. Carries that plan's key, the rhythm it is billed in
-     * there, and the day of the move.
+     * there, and the day the move takes effect from, which can lie in the past
+     * while the move has not run yet.
      */
     BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN: 'BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN',
     /**
@@ -302,6 +303,14 @@ export const BILLING_ERROR_CODES = {
     RETIREMENT_SWITCH_NOT_PENDING: 'RETIREMENT_SWITCH_NOT_PENDING',
     /** The switch opens once the trial has converted: a trial has no contract to hold the price on. */
     RETIREMENT_SWITCH_IN_TRIAL: 'RETIREMENT_SWITCH_IN_TRIAL',
+    /**
+     * An add-on running today cannot run beside the replacement's plan, which
+     * the switch would move the subscription onto today. Carries the add-on,
+     * the plan and the earliest day the booking can end. Its own code rather
+     * than a plan change's: the switch has no other plan to choose and no day
+     * to pick, so the way past it is the add-on ending.
+     */
+    RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW: 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW',
     /**
      * The subscription takes no switch now: a change is scheduled, it has
      * ended, or its plan is held for a special contract.
