@@ -68,7 +68,7 @@ function bookingOf(bundleVersion) {
             listActiveBySubscription: async () => [],
             findById: async () => null,
         },
-        { findVersionById: async () => bundleVersion },
+        { findVersionById: async () => bundleVersion, findById: async () => ({ deletedAt: null }) },
         { defaultMinimumTermMonths: 0 },
     );
     const book = (startedAt) =>
@@ -154,7 +154,10 @@ describe('the preview of an add-on booking', () => {
     const previewOf = (bundleVersion, now) =>
         new SubscriptionBundlePreviewService(
             new FakeSubscriptionBundleRepository(),
-            { findVersionById: async () => bundleVersion },
+            {
+                findVersionById: async () => bundleVersion,
+                findById: async () => ({ deletedAt: null }),
+            },
             null,
         ).previewAdd(CTX, { bundleVersionId: bundleVersion.id }, now);
     const codes = (dto) => dto.blockers.map((blocker) => blocker.code);

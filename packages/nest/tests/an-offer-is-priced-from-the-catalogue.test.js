@@ -131,6 +131,23 @@ describe('where each amount comes from', () => {
         assert.equal(yearly.priceBreakdown.effectiveGross, 583.1);
     });
 
+    // @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
+    test('two different add-ons, each at its own price', async () => {
+        const other = {
+            ...BUNDLE_VERSION,
+            id: 'bv-other',
+            bundleId: 'b-other',
+            bundleKey: 'OTHER',
+        };
+        const { service } = buildOfferService({
+            bundles: fakeBundleRepo([BUNDLE_VERSION, other]),
+        });
+        const offer = await service.create(
+            select({ bundleVersionIds: [BUNDLE_VERSION.id, other.id] }),
+        );
+        assert.equal(offer.priceBreakdown.bundlesNet, 24);
+    });
+
     test("an add-on's price for that plan and rhythm, its override included", async () => {
         const withOverride = {
             ...BUNDLE_VERSION,
@@ -238,6 +255,32 @@ describe('what cannot be priced is refused, not priced at nothing', () => {
                     select({ bundleVersionIds: [BUNDLE_VERSION.id, BUNDLE_VERSION.id] }),
                 ),
             refusedWith(BUNDLE_NOT_OFFERED, { reason: 'duplicate' }),
+        );
+    });
+
+    // @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
+    test('the same add-on twice, in two of its versions', async () => {
+        const second = { ...BUNDLE_VERSION, id: 'bv-2', version: 2 };
+        const { service } = buildOfferService({
+            bundles: fakeBundleRepo([BUNDLE_VERSION, second]),
+        });
+        await assert.rejects(
+            () => service.create(select({ bundleVersionIds: [BUNDLE_VERSION.id, second.id] })),
+            refusedWith(BUNDLE_NOT_OFFERED, { bundleVersionId: second.id, reason: 'duplicate' }),
+        );
+    });
+
+    // @requirement SC-BUN-036 — A deleted add-on cannot be booked, whatever its versions' dates say
+    test('an add-on that has been deleted, though its version is on sale', async () => {
+        const bundles = fakeBundleRepo();
+        await bundles.softDelete(BUNDLE_VERSION.bundleId);
+        const { service } = buildOfferService({ bundles });
+        await assert.rejects(
+            () => service.create(select({ bundleVersionIds: [BUNDLE_VERSION.id] })),
+            refusedWith(BUNDLE_NOT_OFFERED, {
+                bundleVersionId: BUNDLE_VERSION.id,
+                reason: 'bundle_deleted',
+            }),
         );
     });
 

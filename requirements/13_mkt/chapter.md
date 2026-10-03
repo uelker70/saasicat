@@ -374,6 +374,7 @@ _Tested by:_
         - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
+        - consume blocks an add-on deleted after the offer was made
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -399,6 +400,7 @@ _Tested by:_
         - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
+        - consume blocks an add-on deleted after the offer was made
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -461,6 +463,7 @@ _Tested by:_
         - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
         - consume blocks a bundle version that went off sale after the offer was made
+        - consume blocks an add-on deleted after the offer was made
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -534,6 +537,7 @@ _Tested by:_
         - an update cannot bring amounts in either
     - where each amount comes from
         - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
+        - two different add-ons, each at its own price
         - an add-on's price for that plan and rhythm, its override included
         - the promotion the public catalogue picks, as a discount with its snapshot
         - a promotion tied to a code, or to another language, is not applied
@@ -544,6 +548,8 @@ _Tested by:_
         - a plan without a price for the rhythm
         - an add-on that is ${reason}
         - the same add-on twice
+        - the same add-on twice, in two of its versions
+        - an add-on that has been deleted, though its version is on sale
         - a promo code the promo module refuses
         - a promo code where no promo module is registered to check it
         - the module does not start without a plan repository to price from

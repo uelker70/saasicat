@@ -981,6 +981,20 @@ _Tested by:_
         - publishing is internally atomic and applies auto-succession
         - publishing refuses a version somebody else published first
         - publishing reuses a caller transaction instead of nesting one
+- `packages/nest/tests/an-add-on-is-booked-once.test.js`
+    - a tenant booking an add-on
+        - is refused a newer version while a booking of an older one runs
+        - is refused it while the older booking is cancelled but has not ended
+        - books it once the older booking has ended
+        - books a different add-on beside it
+    - the preview of that booking
+        - says what the booking would say
+        - has no word against a different add-on
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - where each amount comes from
+        - two different add-ons, each at its own price
+    - what cannot be priced is refused, not priced at nothing
+        - the same add-on twice, in two of its versions
 - `packages/nest/tests/subscription-bundle-repo.test.js`
     - SubscriptionBundleRepository — lifecycle
         - add + listBySubscription returns the new booking
@@ -1267,5 +1281,33 @@ _Tested by:_
         - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
         - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
         - custom defaultMinimumTermMonths from the config token takes effect
+
+<!-- END proof -->
+
+### SC-BUN-036 — A deleted add-on cannot be booked, whatever its versions' dates say
+
+🟢 Deleting an add-on takes it out of the catalogue with every version, and leaves their dates as
+they were, so a version can still be inside its window. A booking and its preview refuse it all the
+same, and so does a checkout offer, both when it is made and when it is concluded.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-deleted-add-on-cannot-be-booked.test.js`
+    - a tenant booking a version of an add-on
+        - books it while the add-on is in the catalogue
+        - is refused once the add-on is deleted, though the version is inside its window
+        - is refused where the add-on cannot be read at all
+    - the preview of that booking
+        - says what the booking would say
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - what cannot be priced is refused, not priced at nothing
+        - an add-on that has been deleted, though its version is on sale
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService
+        - consume blocks an add-on deleted after the offer was made
 
 <!-- END proof -->

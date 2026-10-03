@@ -2,9 +2,10 @@
 // `subscription_bundles` junction.
 //
 // Responsibilities:
-//   1. `addBundleToSubscription`: checks bundle existence + publication
-//      status + plan compatibility (`bundle.compatibility.planIds`) + idempotency
-//      (no duplicate active bookings of the same BundleVersion); sets the
+//   1. `addBundleToSubscription`: checks that the bundle is still in the
+//      catalogue and the version on sale + plan compatibility
+//      (`bundle.compatibility.planIds`) + idempotency (no second running
+//      booking of the same bundle, whichever version either names); sets the
 //      minimum-term default (none, configurable via token).
 //   2. `cancelBundleFromSubscription`: computes
 //      `canceledEffectiveAt = max(currentPeriodEnd, minimumTermEndsAt)`
@@ -35,6 +36,7 @@ import {
     bundleFirstPeriodEnd,
     DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS,
 } from './bundle-period.js';
+import { addOnAlreadyBooked, runningBundleVersions } from './add-on-already-booked.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
@@ -66,9 +68,9 @@ export interface AddBundleToSubscriptionInput {
     /** Default = now (service time). */
     startedAt?: Date;
     /**
-     * Override for the minimum term (months). Default = config or
-     * 12. `0` explicitly means "no minimum term"
-     * (`minimumTermEndsAt = null`).
+     * Override for the minimum term (months). Default = the configured
+     * `defaultMinimumTermMonths`, which is none unless an operator sets one.
+     * `0` explicitly means "no minimum term" (`minimumTermEndsAt = null`).
      */
     minimumTermMonths?: number;
     /**
@@ -201,16 +203,11 @@ export class SubscriptionBundlesService {
                 // Only what the tenant could have been shown. The caller names
                 // ids, and an authenticated tenant can name one that never
                 // appeared in their catalogue — a draft, a version that is not
-                // on sale, or one whose bundle has been retired — and would
+                // on sale, or one whose bundle has been deleted — and would
                 // then be told its plan-specific pricing.
-                //
-                // The version's own lifecycle is not enough: retiring a bundle
-                // soft-deletes the stem and leaves its live version untouched,
-                // so a check that looks only at the version says yes to
-                // something the catalogue stopped serving.
-                if (!bv || bundleVersionNotOnSale(bv, new Date()) !== null) return null;
-                const stem = await this.bundles.findById(bv.bundleId);
-                if (!stem || stem.deletedAt !== null) return null;
+                if (!bv) return null;
+                const bundle = await this.bundles.findById(bv.bundleId);
+                if (bundleVersionNotOnSale(bv, bundle, new Date()) !== null) return null;
                 return [
                     id,
                     {
@@ -237,7 +234,13 @@ export class SubscriptionBundlesService {
         // On sale by its window at the moment the booking starts, as the
         // catalogue shows it: a version whose start is still to come is
         // refused, and a superseded one is taken until its successor starts.
-        const notOnSale = bundleVersionNotOnSale(bundleVersion, input.startedAt ?? new Date());
+        // Nor is any version of a bundle that has been deleted, whatever its
+        // window says.
+        const notOnSale = bundleVersionNotOnSale(
+            bundleVersion,
+            await this.bundles.findById(bundleVersion.bundleId),
+            input.startedAt ?? new Date(),
+        );
         if (notOnSale) throw new UnprocessableEntityException(notOnSale);
 
         // Self-service policy (#37): block sales-only bundles.
@@ -267,15 +270,12 @@ export class SubscriptionBundlesService {
             });
         }
 
-        // Idempotency: already an active booking of this BundleVersion?
-        const active = await this.repo.listActiveBySubscription(input.subscriptionId);
-        if (active.some((b) => b.bundleVersionId === input.bundleVersionId)) {
-            throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.BUNDLE_ALREADY_SUBSCRIBED,
-                message: `Subscription '${input.subscriptionId}' has already actively booked this bundle.`,
-                params: { subscriptionId: input.subscriptionId },
-            });
-        }
+        const alreadyBooked = addOnAlreadyBooked(
+            input.subscriptionId,
+            await runningBundleVersions(this.repo, this.bundles, input.subscriptionId),
+            bundleVersion,
+        );
+        if (alreadyBooked) throw new UnprocessableEntityException(alreadyBooked);
 
         const startedAt = input.startedAt ?? new Date();
         const billingCycle = input.billingCycle ?? input.planCycle;

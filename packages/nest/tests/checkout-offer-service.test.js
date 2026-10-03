@@ -100,6 +100,26 @@ describe('CheckoutOfferService', () => {
         );
     });
 
+    // @requirement SC-BUN-036 — A deleted add-on cannot be booked, whatever its versions' dates say
+    test('consume blocks an add-on deleted after the offer was made', async () => {
+        const bundles = fakeBundleRepo([BUNDLE_VERSION]);
+        const { service } = buildOfferService({ bundles });
+        const offer = await service.create(select({ bundleVersionIds: [BUNDLE_VERSION.id] }));
+        await bundles.softDelete(BUNDLE_VERSION.bundleId);
+
+        await assert.rejects(
+            () => service.consume(offer.id),
+            (err) => {
+                assert.equal(err.status, 422);
+                assert.equal(err.response?.code, 'CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE');
+                assert.deepEqual(err.response?.violations, [
+                    { bundleVersionId: BUNDLE_VERSION.id, reason: 'bundle_deleted' },
+                ]);
+                return true;
+            },
+        );
+    });
+
     test('update on a consumed offer throws Conflict', async () => {
         const { service } = buildOfferService();
         const offer = await service.create(select());
@@ -137,12 +157,14 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
     const TURNIERE_BV = {
         ...BUNDLE_VERSION,
         id: 'bv-turniere',
+        bundleId: 'b-turniere',
         bundleKey: 'TURNIERE',
         features: ['TOURNAMENT_MANAGEMENT'],
     };
     const RESSOURCEN_BV = {
         ...BUNDLE_VERSION,
         id: 'bv-ressourcen',
+        bundleId: 'b-ressourcen',
         bundleKey: 'RESSOURCEN',
         features: ['RESOURCE_MANAGEMENT'],
     };

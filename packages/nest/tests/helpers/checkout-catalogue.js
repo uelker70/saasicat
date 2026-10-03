@@ -28,6 +28,7 @@ export const PLAN_VERSION = {
 
 export const BUNDLE_VERSION = {
     id: 'bv-1',
+    bundleId: 'b-finance-plus',
     bundleKey: 'FINANCE_PLUS',
     label: 'Finance Plus',
     features: ['FINANCE_EXPORT'],
@@ -124,10 +125,18 @@ export function fakePlanRepo({ versions = [PLAN_VERSION], plans = [PLAN] } = {})
     };
 }
 
+/** The versions given, each of an add-on that is in the catalogue until a test deletes it. */
 export function fakeBundleRepo(versions = [BUNDLE_VERSION]) {
+    const deleted = new Set();
     return {
         async findVersionById(id) {
             return versions.find((v) => v.id === id) ?? null;
+        },
+        async findById(id) {
+            return { id, deletedAt: deleted.has(id) ? '2026-05-01T00:00:00.000Z' : null };
+        },
+        async softDelete(id) {
+            deleted.add(id);
         },
     };
 }

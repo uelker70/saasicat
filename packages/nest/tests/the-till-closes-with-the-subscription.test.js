@@ -222,6 +222,7 @@ describe('what a bundle may commit to', () => {
                 findById: async () => null,
             },
             {
+                findById: async () => ({ deletedAt: null }),
                 findVersionById: async () => ({
                     id: 'bv-1',
                     bundleId: 'b-1',
@@ -318,6 +319,7 @@ describe('what the dialog promises before the booking', () => {
                 findById: async () => null,
             },
             {
+                findById: async () => ({ deletedAt: null }),
                 findVersionById: async () => ({
                     id: 'bv-1',
                     bundleId: 'b-1',

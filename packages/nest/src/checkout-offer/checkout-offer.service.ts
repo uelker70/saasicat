@@ -580,7 +580,11 @@ export class CheckoutOfferService {
                 violations.push({ bundleVersionId, reason: 'missing' });
                 continue;
             }
-            const reason = bundleVersionNotBookableReason(version, now);
+            const reason = bundleVersionNotBookableReason(
+                version,
+                await this.bundles.findById(version.bundleId),
+                now,
+            );
             if (reason) violations.push({ bundleVersionId, reason });
         }
         if (violations.length > 0) {

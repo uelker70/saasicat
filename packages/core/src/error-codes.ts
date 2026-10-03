@@ -86,6 +86,12 @@ export const CATALOG_ERROR_CODES = {
      * on sale on `validFrom`, and until then its predecessor is the one sold.
      */
     BUNDLE_VERSION_NOT_YET_ON_SALE: 'BUNDLE_VERSION_NOT_YET_ON_SALE',
+    /**
+     * The add-on itself has been deleted from the catalogue. Deleting it leaves
+     * its versions' dates as they were, so the version asked for can still be
+     * inside its window; it is not on offer all the same.
+     */
+    BUNDLE_DELETED: 'BUNDLE_DELETED',
     BUNDLE_VERSION_REGRESSION: 'BUNDLE_VERSION_REGRESSION',
     BUNDLE_VERSION_ZERO_PRICE: 'BUNDLE_VERSION_ZERO_PRICE',
     BUNDLE_VERSION_NO_PRICE: 'BUNDLE_VERSION_NO_PRICE',

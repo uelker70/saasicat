@@ -28,16 +28,27 @@ import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN } from '@saasicat/core';
 // side of the wire able to name them. A guard that covers one of two identical
 // surfaces reports on the half nobody was worried about. So is the quota
 // refusal the plan change shares with a version switch, where it is built.
+//
+// And so are the refusals the add-on preview shares with the booking: they are
+// built once and returned, the preview pushes what it is handed, and a scan of
+// the preview alone sees a variable where the code is. Read where they are
+// written, by the literal they return.
 
 const BILLING_SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'billing');
+const PUSHED = ['blockers.push({', 'warnings.push({'];
+const RETURNED = ['return {'];
 const SERVICES = [
-    'plan-change-preview.service.ts',
-    'subscription-bundle-preview.service.ts',
-    'quota-over-target.ts',
-].map((file) => join(BILLING_SRC, file));
+    ['plan-change-preview.service.ts', PUSHED],
+    ['subscription-bundle-preview.service.ts', PUSHED],
+    ['quota-over-target.ts', PUSHED],
+    ['bundle-version-not-on-sale.ts', RETURNED],
+    ['add-on-already-booked.ts', RETURNED],
+].map(([file, openers]) => [join(BILLING_SRC, file), openers]);
 
 /**
- * The `blockers.push({…})` and `warnings.push({…})` object literals, as text.
+ * The issue object literals `openers` start, as text: `blockers.push({…})` and
+ * `warnings.push({…})` where a service pushes its own, `return {…}` where a
+ * helper builds one for the preview and the booking alike.
  *
  * Scanned by hand rather than matched: `/push\(\{([\s\S]*?)\}\);/` puts two
  * quantifiers that can exchange characters next to each other, which is
@@ -50,9 +61,9 @@ const SERVICES = [
  * not — they ride inside a 200 response, which is why they needed a guard of
  * their own.
  */
-function issueBlocks(source) {
+function issueBlocks(source, openers) {
     const blocks = [];
-    for (const opener of ['blockers.push({', 'warnings.push({']) {
+    for (const opener of openers) {
         let at = source.indexOf(opener);
         while (at !== -1) {
             const bodyStart = at + opener.length;
@@ -122,9 +133,9 @@ function placeholdersOf(text) {
     return new Set(Array.from(text.matchAll(/\{(\w+)\}/g), (m) => m[1]));
 }
 
-const BLOCKS_PER_SERVICE = SERVICES.map((path) => [
+const BLOCKS_PER_SERVICE = SERVICES.map(([path, openers]) => [
     basename(path),
-    issueBlocks(readFileSync(path, 'utf8')),
+    issueBlocks(readFileSync(path, 'utf8'), openers),
 ]);
 const BLOCKS = BLOCKS_PER_SERVICE.flatMap(([, blocks]) => blocks);
 
