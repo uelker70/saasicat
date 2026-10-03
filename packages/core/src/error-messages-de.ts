@@ -145,13 +145,17 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_ALREADY_SUBSCRIBED:
         "Abonnement '{subscriptionId}' hat dieses Bundle bereits aktiv gebucht.",
     BUNDLE_INCOMPATIBLE_WITH_PLAN:
-        "BundleVersion '{bundleVersionId}' passt nicht zum Plan '{planKey}'. Erlaubt: [{allowedPlanKeys}].",
+        'Dieses Bundle kann im Plan {planKey} nicht gebucht werden. Buchbar ist es in: {allowedPlanKeys}.',
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wende dich an die Vertragsverwaltung.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
         'Ein jährlich abgerechnetes Bundle passt nicht zu einem monatlich abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
-        'Für dieses Bundle ist im Plan {planKey} kein {billingCycle} Preis hinterlegt, es kann hier deshalb nicht gebucht werden.',
+        'Für dieses Bundle ist im Plan {planKey} in diesem Abrechnungsrhythmus kein Preis hinterlegt, es kann hier deshalb nicht gebucht werden.',
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN:
+        'Dieses Bundle kann nicht im Plan {planKey} laufen, in den das Abonnement mit Wirkung ab {from} wechselt.',
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE:
+        'Ein jährlich abgerechnetes Bundle kann nicht neben der monatlichen Abrechnung laufen, auf die das Abonnement mit Wirkung ab {from} wechselt.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist bereits gekündigt.",
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
@@ -194,6 +198,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Version {version} von {planKey} wird nicht verkauft. Abonnements können nicht auf ihr weiterlaufen.',
     RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
         '{count} dieser Abonnements werden in einem Rhythmus abgerechnet, für den Version {version} von {planKey} keinen Preis hat. Sie können nicht auf ihr weiterlaufen.',
+    RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES:
+        '{count} dieser Abonnements halten ein Bundle, das in Version {version} von {planKey} nicht laufen kann. Sie können nicht auf ihr weiterlaufen.',
     RETIREMENT_REPLACEMENT_IS_RETIRED: 'Eine Version kann nicht ihr eigener Ersatz sein.',
     RETIREMENT_NOTHING_AFFECTED:
         'Kein laufendes Abonnement nutzt Version {version} von {planKey}. Es gibt niemanden zu benachrichtigen.',
@@ -204,6 +210,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',
+    RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW:
+        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, ist der Wechsel ab diesem Tag möglich.',
     RETIREMENT_SWITCH_NOT_OPEN:
         'Dieses Abonnement kann gerade nicht wechseln: Eine Änderung ist geplant, es ist beendet, oder sein Paket gilt für einen Sondervertrag.',
     RETIREMENT_SWITCH_CHANGED:
@@ -224,7 +232,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     CYCLE_SHORTENS_AT_TERM_END:
         'Ein monatlich abgerechnetes {planName} kann nicht innerhalb der laufenden Jahreslaufzeit beginnen. Das Upgrade greift zum Ende dieser Laufzeit; wer es sofort möchte, behält den jährlichen Rhythmus.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
-        'Ein jährlich abgerechnetes Bundle ist bis {until} gebucht. Ein monatlich abgerechnetes Paket kann es nicht tragen — kündigen Sie das Bundle zuerst, oder behalten Sie den jährlichen Rhythmus.',
+        '{bundleName} wird jährlich abgerechnet und läuft frühestens bis {until}; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
+    BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN:
+        '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder wählen Sie ein anderes Paket.',
     REDUNDANT_FEATURES:
         'Der Plan oder ein anderes gebuchtes Bundle enthält bereits {count} der Funktionen aus diesem Bundle — mit der Buchung werden sie doppelt bezahlt.',
     MINIMUM_TERM_BINDS:

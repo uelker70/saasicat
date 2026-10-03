@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { BillingCycle, RlsBypassPort, TenantSubscriptionWritePort } from '@saasicat/core';
+import type { RlsBypassPort, TenantSubscriptionWritePort } from '@saasicat/core';
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 
@@ -13,6 +13,7 @@ import {
 } from './tenant-billing.tokens.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { freezeContractAfter } from './freeze-contract-after.js';
+import { rhythmTheChangeLandsIn } from './scheduled-change.js';
 
 // PendingPlanMaterializationService (#19) — materializes scheduled plan changes
 // at the effective date. A scheduled change (downgrade/cycle) only sets
@@ -73,7 +74,7 @@ export class PendingPlanMaterializationService {
                 declined += 1;
                 continue;
             }
-            const cycle = (change.pendingBillingCycle ?? 'MONTHLY') as BillingCycle;
+            const cycle = rhythmTheChangeLandsIn(change);
             const period = initialPeriodWindow(now, cycle);
             try {
                 const result = await this.subscriptionWrite.changePlanImmediate(change.tenantId, {

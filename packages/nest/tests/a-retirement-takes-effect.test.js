@@ -510,7 +510,7 @@ describe('the move at the date', () => {
     });
 });
 
-/** The switch over `sub`, with the retirement pending until DATE. */
+/** The switch over `sub`, with the retirement pending until DATE, and the add-ons `bookings` holds. */
 function aSwitch({
     sub = subscriptionOf('t1'),
     notice = noticeFor('t1'),
@@ -519,6 +519,7 @@ function aSwitch({
     freeze,
     blockedPlans = null,
     ended,
+    bookings = null,
 } = {}) {
     const effects = sideEffects({ party, freeze });
     const subs = [sub];
@@ -539,8 +540,44 @@ function aSwitch({
         blockedPlans,
         effects.contractFreeze,
         effects.charges,
+        bookings,
+        bookings && ADD_ONS,
     );
     return { service, writes, sub, ...effects };
+}
+
+/** Reports, sold for Standard only, and Exports, which any plan may book. */
+const ADD_ONS = {
+    async findVersionById(id) {
+        const reports = id === 'bv-reports';
+        return {
+            id,
+            label: reports ? 'Reports' : 'Exports',
+            compatibility: { planIds: reports ? ['STANDARD'] : [] },
+            pricingOverrides: [],
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        };
+    },
+};
+
+/** The add-ons of the subscription of t1, each booked monthly and running to 1 April. */
+function bookingsOf(...bundleVersionIds) {
+    const rows = bundleVersionIds.map((bundleVersionId, index) => ({
+        id: `sb-${index + 1}`,
+        subscriptionId: 'sub-t1',
+        bundleVersionId,
+        billingCycle: 'MONTHLY',
+        currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+        minimumTermEndsAt: null,
+        canceledAt: null,
+        canceledEffectiveAt: null,
+    }));
+    return {
+        async listActiveBySubscription(subscriptionId) {
+            return rows.filter((row) => row.subscriptionId === subscriptionId);
+        },
+    };
 }
 
 // @requirement SC-SUB-032 — A subscriber may switch to the replacement early, at no more than they paid
@@ -671,6 +708,34 @@ describe('the free switch before the date', () => {
             assert.equal(error.getResponse().code, 'RETIREMENT_SWITCH_NOT_OPEN', name);
             assert.equal(writes.calls.length, 0, name);
         }
+    });
+
+    // @requirement SC-CHG-024 — A plan change is refused while a booked add-on cannot run on the target plan
+    test('is refused while an add-on running today cannot run on the replacement’s plan', async () => {
+        const { service, writes, frozen } = aSwitch({
+            bookings: bookingsOf('bv-exports', 'bv-reports'),
+        });
+
+        const error = await rejection(service.switchNow('t1', 'pv-9', BEFORE));
+
+        assert.equal(error.getStatus(), 422);
+        assert.equal(error.getResponse().code, 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW');
+        assert.deepEqual(error.getResponse().params, {
+            bundleName: 'Reports',
+            planName: 'PLUS',
+            until: '2026-04-01',
+        });
+        assert.equal(writes.calls.length, 0);
+        assert.deepEqual(frozen, []);
+    });
+
+    // @requirement SC-CHG-024 — A plan change is refused while a booked add-on cannot run on the target plan
+    test('goes through with the add-ons the replacement’s plan can carry', async () => {
+        const { service, writes } = aSwitch({ bookings: bookingsOf('bv-exports') });
+
+        await service.switchNow('t1', 'pv-9', BEFORE);
+
+        assert.equal(writes.calls.length, 1);
     });
 
     test('is refused where the subscription changed between the read and the write', async () => {

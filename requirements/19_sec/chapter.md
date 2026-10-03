@@ -29,6 +29,11 @@ _Tested by:_
         - terminate › ends a contract of the tenant it acts for
         - terminate › answers another tenant's contract as one that does not exist, and leaves it
         - terminate › does not tell another tenant that a contract of the first one is closed
+- `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
+    - the add-on route acts only on the bookings of the subscription it serves
+        - a cancellation names a booking it does not hold, and nothing changes
+        - a reinstatement names a booking it does not hold, and nothing changes
+        - its own booking it does reinstate
 
 <!-- END proof -->
 
@@ -48,6 +53,11 @@ _Tested by:_
 - `packages/nest/tests/tenant-billing-controller.test.js`
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
+- `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
+    - the add-on route acts only on the bookings of the subscription it serves
+        - a cancellation names a booking it does not hold, and nothing changes
+        - a reinstatement names a booking it does not hold, and nothing changes
+        - its own booking it does reinstate
 
 <!-- END proof -->
 

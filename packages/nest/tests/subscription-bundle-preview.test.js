@@ -26,6 +26,7 @@ const CTX = {
     currentPeriodEnd: new Date('2026-06-01T00:00:00Z'),
     // Nothing ends this plan, so nothing caps a bundle booked on it.
     parentEndsAt: null,
+    plansAhead: [],
 };
 
 let bundleRepo;

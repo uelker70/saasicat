@@ -42,6 +42,9 @@ const ENDED = subscription({
     canceledEffectiveAt: new Date(Date.now() - 60 * DAY),
 });
 
+/** A subscription set to move nowhere. */
+const NOTHING_AHEAD = { of: async () => [] };
+
 function controllerFor(sub) {
     const Ctrl = buildTenantSubscriptionBundlesController();
     const calls = { added: 0, previewed: 0, reactivated: 0, listed: 0, cancelled: 0, frozen: [] };
@@ -82,6 +85,8 @@ function controllerFor(sub) {
             },
             async endOnCancellation() {},
         },
+        null,
+        NOTHING_AHEAD,
     );
     return { ctrl, calls };
 }
@@ -253,6 +258,7 @@ describe('what a bundle may commit to', () => {
             planCycle: 'YEARLY',
             planPeriodEnd: null,
             planAnchorDay: null,
+            plansAhead: [],
         });
 
     test('never past the parent, when the parent ends first', async () => {
@@ -290,6 +296,7 @@ describe('what a bundle may commit to', () => {
             planCycle: 'YEARLY',
             planPeriodEnd: null,
             planAnchorDay: null,
+            plansAhead: [],
         });
 
         assert.equal(added[0].minimumTermEndsAt, null);
@@ -352,6 +359,7 @@ describe('what the dialog promises before the booking', () => {
                 currentPeriodStart: now,
                 currentPeriodEnd: new Date('2026-02-01'),
                 parentEndsAt,
+                plansAhead: [],
             },
             { bundleVersionId: 'bv-1' },
             now,

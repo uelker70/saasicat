@@ -37,6 +37,9 @@ function buildSub() {
     };
 }
 
+/** A subscription set to move nowhere. */
+const NOTHING_AHEAD = { of: async () => [] };
+
 function buildController({ contractFreeze = null, charges = null } = {}) {
     const Ctrl = buildTenantSubscriptionBundlesController();
     const serviceCalls = [];
@@ -57,6 +60,7 @@ function buildController({ contractFreeze = null, charges = null } = {}) {
         (req) => req.user?.tenantId ?? null,
         contractFreeze,
         charges,
+        NOTHING_AHEAD,
     );
     return { ctrl, serviceCalls };
 }
@@ -122,9 +126,17 @@ test('a failed mutation triggers no freeze', async () => {
         {},
         { findForTenant: async () => buildSub() },
         (req) => req.user?.tenantId ?? null,
-        { freezeOnPlanChange: async (...args) => freezeCalls.push(args) },
+        {
+            assertPartyFor: async () => {},
+            freezeOnPlanChange: async (...args) => freezeCalls.push(args),
+        },
+        null,
+        NOTHING_AHEAD,
     );
-    await assert.rejects(() => ctrl.add(REQ, { bundleVersionId: 'bv-1' }));
+    await assert.rejects(
+        () => ctrl.add(REQ, { bundleVersionId: 'bv-1' }),
+        /BUNDLE_INCOMPATIBLE_WITH_PLAN/,
+    );
     assert.equal(freezeCalls.length, 0);
 });
 

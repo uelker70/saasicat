@@ -159,6 +159,22 @@ export const BILLING_ERROR_CODES = {
     BUNDLE_NOT_SELF_SERVICE: 'BUNDLE_NOT_SELF_SERVICE',
     BUNDLE_CYCLE_EXCEEDS_PLAN: 'BUNDLE_CYCLE_EXCEEDS_PLAN',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN: 'BUNDLE_NOT_PRICED_FOR_THIS_PLAN',
+    /**
+     * The bundle cannot run on a plan the subscription is already set to move
+     * to — by a scheduled change, or by a retirement it has been told of — and
+     * the booking would still be running then: that plan does not book it, or
+     * has no price for it. Carries that plan's key, the rhythm it is billed in
+     * there, and the day the move takes effect from, which can lie in the past
+     * while the move has not run yet.
+     */
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN: 'BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN',
+    /**
+     * As `BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN`, where only the rhythm stands in
+     * the way: a yearly bundle, and the subscription billed monthly from the
+     * day of the move — a switch of rhythm on the plan it keeps, for one, where
+     * naming the plan would point at the one it is already on. Same values.
+     */
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE: 'BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED',
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED: 'SUBSCRIPTION_BUNDLE_NOT_CANCELLED',
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE: 'SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE',
@@ -262,6 +278,12 @@ export const BILLING_ERROR_CODES = {
      * and the replacement's plan key and version.
      */
     RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM: 'RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM',
+    /**
+     * Some of the subscriptions the retirement reaches hold an add-on that
+     * cannot run on the replacement's plan, so they cannot continue on it.
+     * Carries how many, and the replacement's plan key and version.
+     */
+    RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES: 'RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES',
     /** The replacement named is the version being retired. */
     RETIREMENT_REPLACEMENT_IS_RETIRED: 'RETIREMENT_REPLACEMENT_IS_RETIRED',
     /** No running subscription is on the version: there is nobody to tell. Carries plan key and version. */
@@ -281,6 +303,14 @@ export const BILLING_ERROR_CODES = {
     RETIREMENT_SWITCH_NOT_PENDING: 'RETIREMENT_SWITCH_NOT_PENDING',
     /** The switch opens once the trial has converted: a trial has no contract to hold the price on. */
     RETIREMENT_SWITCH_IN_TRIAL: 'RETIREMENT_SWITCH_IN_TRIAL',
+    /**
+     * An add-on running today cannot run beside the replacement's plan, which
+     * the switch would move the subscription onto today. Carries the add-on,
+     * the plan and the earliest day the booking can end. Its own code rather
+     * than a plan change's: the switch has no other plan to choose and no day
+     * to pick, so the way past it is the add-on ending.
+     */
+    RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW: 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW',
     /**
      * The subscription takes no switch now: a change is scheduled, it has
      * ended, or its plan is held for a special contract.
@@ -322,14 +352,23 @@ export const BILLING_ERROR_CODES = {
     CANCELLATION_LOCKS_THE_CYCLE: 'CANCELLATION_LOCKS_THE_CYCLE',
     /**
      * A bundle the tenant already holds runs past the cycle they are moving to.
+     * Carries the bundle, the earliest day the booking can end, and the two
+     * rhythms.
      *
      * Its own code rather than `BUNDLE_CYCLE_EXCEEDS_PLAN`, which states the
      * same rule about a booking that has not been made yet. The two need
      * different sentences: this one can name the day the obstacle lifts and
-     * tell the reader to cancel the booking, and that advice is wrong for
-     * someone who is only about to book. One template cannot serve both.
+     * tell the reader how to get past it, and that advice is wrong for someone
+     * who is only about to book. One template cannot serve both.
      */
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE: 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE',
+    /**
+     * A bundle the tenant already holds cannot run on the plan they are moving
+     * to: that plan may not book it, or it has no price there in the rhythm
+     * the booking is billed in. Carries the bundle, the plan and the earliest
+     * day the booking can end.
+     */
+    BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN: 'BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN',
     /**
      * Features of the previewed bundle are already covered by the plan or by
      * another booked bundle. A warning rather than a blocker: paying twice is

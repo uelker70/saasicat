@@ -2520,6 +2520,45 @@ What every installation has to do, whether or not it uses it:
   `retirement`, null where none is pending, and `retirementSwitch`, null where the subscription
   cannot switch early; `useTenantBilling` gains `switchToReplacement`.
 
+### A booked add-on and its plan always fit
+
+A plan change, a retirement and an add-on booking ask one question the same way: can this add-on
+run beside that plan — allowed there, priced there in the rhythm the booking is billed in, and in
+no longer a rhythm than the plan's. A plan change asked only about the rhythm, so an add-on sold
+for one plan went on running after a move to another; and a booking made after a change was
+scheduled could land on the plan that change moves to.
+
+- **New refusals.** A plan change and the plan chosen at onboarding:
+  `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` (`bundleName`, `planName`, `until`). The early switch to
+  a retirement's replacement: `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW` (the same three). A booking,
+  its preview and a reinstatement: `BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN`, or
+  `BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE` where only the rhythm is in the way (both `planKey`,
+  `billingCycle`, `from`). A retirement: `RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES`
+  (`count`, `planKey`, `version`). `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE` gains `bundleName`, and
+  its `until` is now the earliest day the booking could end. An application that words refusals
+  itself adds the new codes and the new value; the shipped texts cover English and German until it
+  does. The shipped sentences of `BUNDLE_INCOMPATIBLE_WITH_PLAN` and
+  `BUNDLE_NOT_PRICED_FOR_THIS_PLAN` no longer show the version's id or the rhythm's raw value,
+  since the tenant's add-on dialog now shows them.
+- **`TenantBillingModule.forRoot` by hand** takes `bundleRepository` beside
+  `subscriptionBundleRepository` and refuses to start with the one and without the other.
+  `SaaSiCatModule` passes both, and refuses a persistence bundle that has the bookings without the
+  add-on versions (`tenant-billing.requires-bundle-catalogue`).
+- **The add-on route** needs `PLANS_AHEAD_TOKEN`, which `TenantBillingModule` exports. An app that
+  mounts `SubscriptionBundleModule` by hand puts `TenantBillingModule` in its scope, or the route
+  does not start.
+- **Code of your own** that calls `SubscriptionBundlesService` or builds a
+  `SubscriptionBundlePreviewContext`:
+    - `addBundleToSubscription` and the preview context take `plansAhead`: what the provider behind
+      `PLANS_AHEAD_TOKEN` answers for the subscription, or an empty list only where nothing is
+      scheduled and no retirement was told;
+    - `cancelBundleFromSubscription` takes `subscriptionId`, the subscription the booking has to
+      belong to, and answers a booking of any other as not found;
+    - `reactivateBundle` takes one input — `subscriptionId`, `subscriptionBundleId`,
+      `currentPlanKey`, `planCycle`, `parentEndsAt` and `plansAhead` — and answers the same.
+- **`BUNDLE_INCOMPATIBLE_WITH_PLAN` from a booking** carries `allowedPlanKeys` as one
+  comma-separated string, as the preview's always did, rather than an array.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

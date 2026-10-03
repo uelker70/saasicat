@@ -22,8 +22,11 @@
                     {{ i18n.bundlePreviewBlockersTitle }}
                 </h3>
                 <ul>
-                    <li v-for="blocker in preview.blockers" :key="blocker.code">
-                        {{ blocker.message }}
+                    <li
+                        v-for="(blocker, index) in preview.blockers"
+                        :key="`${blocker.code}:${index}`"
+                    >
+                        {{ issueText(blocker) }}
                     </li>
                 </ul>
                 <!-- requires blocker with resolved feature labels (#35) -->
@@ -138,8 +141,8 @@
                     {{ i18n.bundlePreviewWarningsTitle }}
                 </h3>
                 <ul>
-                    <li v-for="warning in otherWarnings" :key="warning.code">
-                        {{ warning.message }}
+                    <li v-for="(warning, index) in otherWarnings" :key="`${warning.code}:${index}`">
+                        {{ issueText(warning) }}
                     </li>
                 </ul>
             </section>
@@ -170,6 +173,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { resolveErrorMessage } from '@saasicat/core';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
@@ -177,6 +181,7 @@ import '../ui/tenant-ui.css';
 import type {
     BundleAddPreviewShape,
     BundleCancelPreviewShape,
+    BundlePreviewIssueShape,
     BundlePreviewShape,
 } from '@saasicat/ui-vue';
 
@@ -243,6 +248,18 @@ const cycleUnit = computed(() =>
 
 function close() {
     emit('update:modelValue', false);
+}
+
+// A blocker or warning is text a person reads: the app's catalogue first,
+// then the shipped English one, then the English `message` the backend sent —
+// the ladder the plan-change wizard reads its issues through. Keyed by place
+// as well as code, since one code can come twice: a booking may meet two plans
+// it is set to move to.
+function issueText(issue: BundlePreviewIssueShape): string {
+    return resolveErrorMessage(
+        { code: issue.code, message: issue.message, params: issue.params },
+        i18n.value.issueMessages,
+    );
 }
 </script>
 

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    BundleRepository,
     PlanCatalog,
     PlanDef,
     PlanRepository,
@@ -20,7 +21,7 @@ import type {
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
-import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN, PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
@@ -32,7 +33,13 @@ import {
     planNotSoldInCycle,
 } from './plan-helpers.js';
 import { termEndOf } from './billing-period.js';
-import { bundleCycleFitsPlan } from './bundle-period.js';
+import {
+    heldAddOnMisfits,
+    heldMisfitRefusal,
+    type AddOnMisfit,
+    type PlanBeside,
+} from './add-on-fits-plan.js';
+import { addOnInTheWay } from './add-on-in-the-way.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import {
@@ -205,6 +212,16 @@ type BoundPlanReading =
     | { readonly kind: 'read'; readonly plan: PlanDef }
     | { readonly kind: 'unreadable'; readonly planVersionId: string };
 
+/** How a plan change is asked about. */
+export interface PlanChangeAsked {
+    /**
+     * When the caller applies the change itself, as onboarding does at once:
+     * the add-ons still booked are asked about then, rather than about the day
+     * the preview would schedule the change for.
+     */
+    appliedAt?: Date;
+}
+
 @Injectable()
 export class PlanChangePreviewService {
     private readonly logger = new Logger(PlanChangePreviewService.name);
@@ -242,6 +259,12 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(PLAN_REPOSITORY_TOKEN)
         private readonly plans: PlanRepository | null = null,
+        // The add-on versions the bookings name, to ask whether each can run
+        // on the target plan at all. `TenantBillingModule` refuses to start
+        // with bookings and without these.
+        @Optional()
+        @Inject(BUNDLE_REPOSITORY_TOKEN)
+        private readonly bundles: BundleRepository | null = null,
     ) {}
 
     async preview(
@@ -249,6 +272,7 @@ export class PlanChangePreviewService {
         targetPlan: string,
         targetCycle: string,
         now = new Date(),
+        options: PlanChangeAsked = {},
     ): Promise<PlanChangePreviewDto> {
         const sub = await this.subscriptions.findForTenant(tenantId);
         if (!sub) {
@@ -517,47 +541,39 @@ export class PlanChangePreviewService {
             });
         }
 
-        // A bundle may run in a shorter rhythm than its plan, never a longer
-        // one — and the rule was enforced only where a bundle is booked. A
-        // yearly bundle bought beside a yearly plan survives a move to a
-        // monthly one, and the booking then sits in the state the model calls
-        // impossible: committed for a year beside a plan that ends twelve times
-        // before its period does, each of those a moment the plan could stop
-        // and leave it with nothing to grant.
+        // Every add-on still booked when the change lands has to be able to
+        // run on the target plan: allowed there, priced there in the rhythm it
+        // is billed in, and in no longer a rhythm than the plan's
+        // (`addOnMisfits`). Otherwise the booking sits in a state the model
+        // calls impossible — a yearly bundle committed beside a plan that can
+        // end twelve times before its period does, or an add-on running on a
+        // plan it was never sold for, at a price nobody set.
         //
         // Refused rather than converted or ended. Ending it early owes the
-        // customer the difference — the thing this whole alignment exists to
-        // avoid — and converting it invents a price nobody agreed. Cancelling
-        // the bundle first is the tenant's own act, and then the change goes
-        // through.
-        // Asked as of the day the change lands, not today. A tenant following
-        // the advice below cancels the add-on for the same boundary the change
-        // takes effect at — and the booking is still active until then, so
-        // asking about today would refuse the very move the message told them
-        // to make.
-        const changeLandsAt = effectiveAt ?? now;
-        for (const booking of await this.bookingsOutlastingCycle(sub, targetCycle, changeLandsAt)) {
-            // Not `BUNDLE_CYCLE_EXCEEDS_PLAN`: that code states the same rule
-            // for a booking nobody has made yet, and its catalogue sentence
-            // says so. This one is about a booking the tenant already holds,
-            // so it can name the day the obstacle lifts and say to cancel it
-            // — advice that is wrong for someone who is only about to book.
-            //
-            // The two cycle words are baked into each locale's sentence rather
-            // than interpolated, because the direction is determined:
-            // `bundleCycleFitsPlan` refuses only a yearly bundle beside a
-            // monthly plan. They stay in `params` as data, not as prose.
-            blockers.push({
-                code: BILLING_ERROR_CODES.BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE,
-                message:
-                    `A yearly bundle is booked until ${booking.until}. A monthly plan ` +
-                    'cannot carry it — cancel the bundle first, or keep the yearly cycle.',
-                params: {
-                    billingCycle: 'yearly',
-                    planCycle: targetCycle.toLowerCase(),
-                    until: booking.until,
-                },
-            });
+        // customer the difference — the thing the alignment of add-on periods
+        // exists to avoid — and converting it invents a price nobody agreed.
+        // Once the add-on has ended, the change goes through.
+        //
+        // Asked as of the day the change lands, not today — or as of today
+        // where the caller applies the change itself (`appliedAt`). A tenant
+        // following the advice below cancels the add-on for the same boundary
+        // the change takes effect at, and the booking is still active until
+        // then, so asking about today would refuse the very move the message
+        // told them to make.
+        const changeLandsAt = options.appliedAt ?? effectiveAt ?? now;
+        const target = { planKey: targetPlan, billingCycle: targetCycle as BillingCycle };
+        for (const held of await this.bookingsTheTargetCannotCarry(
+            sub,
+            target,
+            changeLandsAt,
+            now,
+        )) {
+            blockers.push(
+                heldMisfitRefusal(held.misfit, held, {
+                    planName: targetSnap.name,
+                    billingCycle: target.billingCycle,
+                }),
+            );
         }
 
         // Trial projection (app-specific) — only relevant during an active trial.
@@ -597,8 +613,9 @@ export class PlanChangePreviewService {
         targetPlan: string,
         targetCycle: string,
         now = new Date(),
+        options: PlanChangeAsked = {},
     ): Promise<PlanChangePreviewIssue[]> {
-        const dto = await this.preview(tenantId, targetPlan, targetCycle, now);
+        const dto = await this.preview(tenantId, targetPlan, targetCycle, now, options);
         return dto.blockers;
     }
 
@@ -629,32 +646,31 @@ export class PlanChangePreviewService {
     }
 
     /**
-     * Active bookings whose own rhythm would not fit `targetCycle`.
-     *
-     * Reads the booking's stored rhythm, not the plan's: a booking with none
-     * follows the plan and therefore fits any plan by construction. Empty
-     * without the bundle module, which is a consumer that has no bookings at
-     * all rather than one whose bookings are being ignored.
+     * The bookings still running when the change lands whose add-on cannot run
+     * on the target plan, each with the first reason, its name and the earliest
+     * day it can end (`addOnInTheWay`). Empty without the bundle module, which
+     * is a consumer that has no bookings at all rather than one whose bookings
+     * are being ignored.
      */
-    private async bookingsOutlastingCycle(
-        sub: { id?: string | null },
-        targetCycle: string,
+    private async bookingsTheTargetCannotCarry(
+        sub: Pick<
+            SubscriptionUsageRecord,
+            'id' | 'currentPeriodEnd' | 'canceledAt' | 'canceledEffectiveAt'
+        >,
+        target: PlanBeside,
+        landsAt: Date,
         now: Date,
-    ): Promise<Array<{ until: string }>> {
+    ): Promise<Array<{ misfit: AddOnMisfit; bundleName: string; until: string }>> {
         const subscriptionId = sub.id;
         if (!this.subscriptionBundles || !subscriptionId) return [];
-        const active = await this.subscriptionBundles.listActiveBySubscription(subscriptionId, now);
-        return active
-            .filter(
-                (booking) =>
-                    booking.billingCycle != null &&
-                    !bundleCycleFitsPlan(booking.billingCycle, targetCycle as BillingCycle),
-            )
-            .map((booking) => ({
-                until: (booking.currentPeriodEnd ?? booking.minimumTermEndsAt ?? now)
-                    .toISOString()
-                    .slice(0, 10),
-            }));
+        const held = await heldAddOnMisfits(
+            this.subscriptionBundles,
+            this.bundles,
+            subscriptionId,
+            target,
+            landsAt,
+        );
+        return held.map((one) => ({ misfit: one.misfit, ...addOnInTheWay(one, sub, now) }));
     }
 
     /**

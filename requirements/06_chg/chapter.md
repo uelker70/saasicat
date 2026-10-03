@@ -624,3 +624,46 @@ _Tested by:_
         - refused because the plan changed, it shows the plan as it stands and says why
 
 <!-- END proof -->
+
+### SC-CHG-024 — A plan change is refused while a booked add-on cannot run on the target plan
+
+🟢 💰 Every add-on still booked on the day a plan change lands has to be able to run on the target
+plan: allowed there, priced there in the rhythm it is billed in, and in no longer a rhythm than the
+plan's. That holds for a change the tenant makes, at once or for the end of the term, for the plan
+chosen at onboarding, which applies at once, and for the early switch to the replacement of a
+retirement. Otherwise the change is refused, naming the add-on and the earliest day it could end;
+once the add-on is cancelled, a change taking effect on or after that day goes through. A change
+that lands at the end of the term is asked about that day, so an add-on cancelled to end by then
+does not stand in its way.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the free switch before the date
+        - is refused while an add-on running today cannot run on the replacement’s plan
+        - goes through with the add-ons the replacement’s plan can carry
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding, and an add-on still running today
+        - is refused where the add-on ends before the trial does, but after today
+        - goes through once the add-on has ended
+- `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
+    - the plan-change rule reaches the bookings in a real container
+        - a yearly add-on blocks a move to monthly when the module is composed normally
+        - it asks as of the day the change lands, not today
+        - nothing booked, nothing blocked
+    - a plan change, and the add-ons booked, in a real container
+        - an add-on sold for Pro only blocks a move to Basic
+        - an add-on with no price on the target plan in its rhythm blocks the move as well
+        - an add-on the target plan can carry does not block it
+        - a booking cancelled to end before the change lands does not block it
+        - it names the day a cancelled booking ends, where that comes after the change lands
+        - it names the end of the subscription where a cancelled booking would outlast it
+        - it names the earliest day the add-on could end: the later of its period and its commitment
+    - a module wired by hand
+        - refuses to start with the bookings and without the add-ons they name
+
+<!-- END proof -->

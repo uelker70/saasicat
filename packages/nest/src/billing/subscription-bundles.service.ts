@@ -3,10 +3,12 @@
 //
 // Responsibilities:
 //   1. `addBundleToSubscription`: checks that the bundle is still in the
-//      catalogue and the version on sale + plan compatibility
-//      (`bundle.compatibility.planIds`) + idempotency (no second running
-//      booking of the same bundle, whichever version either names); sets the
-//      minimum-term default (none, configurable via token).
+//      catalogue and the version on sale + that it can run beside the plan,
+//      and beside every plan the subscription is set to move to (allowed,
+//      priced in its rhythm, no longer rhythm than the plan's) + idempotency
+//      (no second running booking of the same bundle, whichever version
+//      either names); sets the minimum-term default (none, configurable via
+//      token).
 //   2. `cancelBundleFromSubscription`: computes
 //      `canceledEffectiveAt = max(currentPeriodEnd, minimumTermEndsAt)`
 //      — the booking thus stays active until the later of the two limits.
@@ -26,17 +28,21 @@ import {
 import type {
     BillingCycle,
     BundleRepository,
+    BundleVersionRow,
     SubscriptionBundleRecord,
     SubscriptionBundleRepository,
     SubscriptionBundleView,
 } from '@saasicat/core';
 
-import {
-    bundleCycleFitsPlan,
-    bundleFirstPeriodEnd,
-    DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS,
-} from './bundle-period.js';
+import { bundleFirstPeriodEnd, DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS } from './bundle-period.js';
 import { addOnAlreadyBooked, runningBundleVersions } from './add-on-already-booked.js';
+import {
+    addOnMisfits,
+    misfitRefusal,
+    plansAheadRefusals,
+    type PlanAhead,
+    type PlanBeside,
+} from './add-on-fits-plan.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
@@ -103,9 +109,22 @@ export interface AddBundleToSubscriptionInput {
     planAnchorDay: number | null;
     /** The bundle's own rhythm. Defaults to the plan's. */
     billingCycle?: BillingCycle;
+    /**
+     * The plans the subscription is already set to move to — a scheduled
+     * change, a retirement it has been told of — each from when it moves.
+     *
+     * Required rather than optional, like `parentEndsAt`: a booking made after
+     * a change was scheduled has to run on the plan that change moves to, and
+     * a caller that leaves the list out books an add-on onto a plan it was
+     * never sold for without anything saying so. An empty list says nothing
+     * is scheduled.
+     */
+    plansAhead: readonly PlanAhead[];
 }
 
 export interface CancelBundleFromSubscriptionInput {
+    /** The subscription the caller acts for; a booking of another reads as not found. */
+    subscriptionId: string;
     subscriptionBundleId: string;
     /** Default = now. */
     canceledAt?: Date;
@@ -125,6 +144,23 @@ export interface CancelBundleFromSubscriptionInput {
      * see a cancellation that had not happened yet.
      */
     parentEndsAt: Date | null;
+}
+
+export interface ReactivateBundleInput {
+    /** The subscription the caller acts for; a booking of another reads as not found. */
+    subscriptionId: string;
+    subscriptionBundleId: string;
+    /**
+     * The plan the subscription is on, its rhythm, when it ends, and the plans
+     * it is already set to move to — what a booking is checked against.
+     * Undoing a cancellation keeps the add-on running past the day it was
+     * going to end, and a change scheduled or a retirement told in the
+     * meantime may have been let through only because it was ending.
+     */
+    currentPlanKey: string;
+    planCycle: BillingCycle;
+    parentEndsAt: Date | null;
+    plansAhead: readonly PlanAhead[];
 }
 
 @Injectable()
@@ -254,21 +290,19 @@ export class SubscriptionBundlesService {
             });
         }
 
-        // Plan compatibility: empty planIds array = all plans allowed.
-        const planIds = bundleVersion.compatibility?.planIds ?? [];
-        if (planIds.length > 0 && !planIds.includes(input.currentPlanKey)) {
-            throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.BUNDLE_INCOMPATIBLE_WITH_PLAN,
-                message:
-                    `BundleVersion '${input.bundleVersionId}' is not compatible with plan ` +
-                    `'${input.currentPlanKey}'. Allowed: [${planIds.join(', ')}].`,
-                params: {
-                    bundleVersionId: input.bundleVersionId,
-                    planKey: input.currentPlanKey,
-                    allowedPlanKeys: planIds,
-                },
-            });
-        }
+        // Whether the add-on can run beside the plan in the rhythm it is to be
+        // billed in, and beside every plan the subscription is already set to
+        // move to while the booking still runs. Refused here as well as in the
+        // preview, for the same reason the publish gate refuses a priceless
+        // version: a booking with no price hands the features over for
+        // nothing, and the preview alone would be enforcement in the client.
+        const billingCycle = input.billingCycle ?? input.planCycle;
+        refuseWhereItCannotRun(
+            bundleVersion,
+            billingCycle,
+            { planKey: input.currentPlanKey, billingCycle: input.planCycle },
+            input,
+        );
 
         const alreadyBooked = addOnAlreadyBooked(
             input.subscriptionId,
@@ -278,31 +312,6 @@ export class SubscriptionBundlesService {
         if (alreadyBooked) throw new UnprocessableEntityException(alreadyBooked);
 
         const startedAt = input.startedAt ?? new Date();
-        const billingCycle = input.billingCycle ?? input.planCycle;
-        // Refused here as well as in the preview, and for the same reason the
-        // publish gate refuses a priceless version: a booking with no price
-        // hands the features over for nothing. The preview alone would be
-        // enforcement in the client — a caller that posts straight to this
-        // route never sees the blocker.
-        if (resolveBundlePriceNet(bundleVersion, input.currentPlanKey, billingCycle) === null) {
-            throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.BUNDLE_NOT_PRICED_FOR_THIS_PLAN,
-                message:
-                    `This bundle has no ${billingCycle.toLowerCase()} price for the ` +
-                    `${input.currentPlanKey} plan, so it cannot be booked.`,
-                params: { billingCycle, planKey: input.currentPlanKey },
-            });
-        }
-        if (!bundleCycleFitsPlan(billingCycle, input.planCycle)) {
-            throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
-                message:
-                    `A ${billingCycle.toLowerCase()} bundle cannot be booked on a ` +
-                    `${input.planCycle.toLowerCase()} plan: its term would outlast the plan that ` +
-                    'pays for it.',
-                params: { billingCycle, planCycle: input.planCycle },
-            });
-        }
         const currentPeriodEnd = bundleFirstPeriodEnd({
             startedAt,
             cycle: billingCycle,
@@ -339,14 +348,7 @@ export class SubscriptionBundlesService {
     async cancelBundleFromSubscription(
         input: CancelBundleFromSubscriptionInput,
     ): Promise<SubscriptionBundleRecord> {
-        const existing = await this.repo.findById(input.subscriptionBundleId);
-        if (!existing) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
-                message: `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
-                params: { subscriptionBundleId: input.subscriptionBundleId },
-            });
-        }
+        const existing = await this.ownBooking(input.subscriptionId, input.subscriptionBundleId);
         if (existing.canceledAt !== null) {
             throw new UnprocessableEntityException({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED,
@@ -379,21 +381,18 @@ export class SubscriptionBundlesService {
     /**
      * "Undo cancellation" — only as long as the cancellation is not yet effective
      * (the bundle runs until `canceledEffectiveAt`). After that, re-booking is the way.
+     *
+     * Checked like a booking: the add-on has to be able to run beside the plan
+     * and beside every plan the subscription is set to move to, since it now
+     * runs past the day it was going to end.
      */
-    async reactivateBundle(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
-        const existing = await this.repo.findById(subscriptionBundleId);
-        if (!existing) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
-                message: `SubscriptionBundle '${subscriptionBundleId}' not found`,
-                params: { subscriptionBundleId },
-            });
-        }
+    async reactivateBundle(input: ReactivateBundleInput): Promise<SubscriptionBundleRecord> {
+        const existing = await this.ownBooking(input.subscriptionId, input.subscriptionBundleId);
         if (existing.canceledAt === null) {
             throw new UnprocessableEntityException({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_CANCELLED,
-                message: `SubscriptionBundle '${subscriptionBundleId}' is not cancelled.`,
-                params: { subscriptionBundleId },
+                message: `SubscriptionBundle '${input.subscriptionBundleId}' is not cancelled.`,
+                params: { subscriptionBundleId: input.subscriptionBundleId },
             });
         }
         if (existing.canceledEffectiveAt !== null && existing.canceledEffectiveAt <= new Date()) {
@@ -402,8 +401,64 @@ export class SubscriptionBundlesService {
                 message: 'Cancellation already in effect — book the bundle again.',
             });
         }
-        return this.repo.reactivate(subscriptionBundleId);
+        const version = await this.bundles.findVersionById(existing.bundleVersionId);
+        if (!version) {
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
+                message: `BundleVersion '${existing.bundleVersionId}' not found`,
+                params: { bundleVersionId: existing.bundleVersionId },
+            });
+        }
+        refuseWhereItCannotRun(
+            version,
+            existing.billingCycle ?? input.planCycle,
+            { planKey: input.currentPlanKey, billingCycle: input.planCycle },
+            input,
+        );
+        return this.repo.reactivate(input.subscriptionBundleId);
     }
+
+    /**
+     * The booking `subscriptionBundleId`, where it belongs to `subscriptionId`.
+     *
+     * A booking of another subscription reads as not found, as a missing one
+     * does, so a request learns nothing about bookings that are not its own.
+     */
+    private async ownBooking(
+        subscriptionId: string,
+        subscriptionBundleId: string,
+    ): Promise<SubscriptionBundleRecord> {
+        const existing = await this.repo.findById(subscriptionBundleId);
+        if (!existing || existing.subscriptionId !== subscriptionId) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
+                message: `SubscriptionBundle '${subscriptionBundleId}' not found`,
+                params: { subscriptionBundleId },
+            });
+        }
+        return existing;
+    }
+}
+
+/**
+ * Refuses a booking of `version`, billed in `addOnCycle`, with the first reason
+ * it cannot run: beside `plan`, or beside a plan the subscription is set to
+ * move to while the booking still runs (`ahead`). One question for a booking
+ * and for undoing a cancellation, which books the add-on past the day it was
+ * going to end.
+ */
+function refuseWhereItCannotRun(
+    version: BundleVersionRow,
+    addOnCycle: BillingCycle,
+    plan: PlanBeside,
+    ahead: { readonly plansAhead: readonly PlanAhead[]; readonly parentEndsAt: Date | null },
+): void {
+    const [misfit] = addOnMisfits(version, plan, addOnCycle);
+    if (misfit) {
+        throw new UnprocessableEntityException(misfitRefusal(misfit, version, plan, addOnCycle));
+    }
+    const [refusal] = plansAheadRefusals(version, ahead.plansAhead, addOnCycle, ahead.parentEndsAt);
+    if (refusal) throw new UnprocessableEntityException(refusal);
 }
 
 /**

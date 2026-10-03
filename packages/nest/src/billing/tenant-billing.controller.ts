@@ -757,11 +757,16 @@ export class TenantBillingController {
             });
         }
 
-        // Plan-change blockers (defense-in-depth, as in changePlan)
+        // Plan-change blockers (defense-in-depth, as in changePlan). Asked
+        // about today: onboarding sets the plan at once, whatever day the
+        // preview would schedule the same change for.
+        const appliedAt = new Date();
         const blockers = await this.planPreview.assertChangeAllowed(
             tenantId,
             dto.plan,
             dto.billingCycle,
+            appliedAt,
+            { appliedAt },
         );
         if (blockers.length > 0) {
             throw new BadRequestException({
@@ -957,6 +962,9 @@ export class TenantBillingController {
                         planAnchorDay: resolvePlanAnchorDay({
                             currentPeriodStart: period?.start ?? null,
                         }),
+                        // The plan this onboarding just set is the one it runs
+                        // on: nothing is scheduled after an activation yet.
+                        plansAhead: [],
                     });
                     bundlesAdded += 1;
                 } catch (err) {

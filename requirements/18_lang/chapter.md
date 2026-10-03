@@ -337,6 +337,12 @@ _Tested by:_
         - version sale labels follow an app language
         - untranslated keys in those namespaces fall back, not blank
         - overrides reach the same namespaces
+- `packages/ui-vue-tenant/tests/component/a-booking-states-what-it-commits-to.test.ts`
+    - a reason the booking cannot be made reads in the chosen language
+        - each of two reasons with one code, with its own values
+        - and read again in another order, each still keeps its own
+    - a reason against the plan of today reads as a sentence, not as data
+        - naming the plan rather than the version, and the rhythm in words of its own
 
 <!-- END proof -->
 

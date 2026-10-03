@@ -413,6 +413,18 @@ const RULE_SPECS: readonly RuleSpec[] = [
             `adapters are missing: ${list(absent(tenantBillingPorts(c)))}.`,
     },
     {
+        id: 'tenant-billing.requires-bundle-catalogue',
+        when: (c) =>
+            Boolean(c.options.tenantBilling) &&
+            Boolean(bundle(c)?.entitlement?.subscriptionBundleRepository),
+        assert: (c) => Boolean(resolveBundleRepository(bundle(c))),
+        message:
+            'tenantBilling reads the add-on bookings of the persistence bundle, but the bundle ' +
+            'has no bundle repository. A plan change asks of every add-on still booked whether ' +
+            'it can run on the target plan, and that needs the add-on versions the bookings ' +
+            'name. Give the bundle a `catalog.bundleRepository`.',
+    },
+    {
         id: 'subscription-bundles.requires-tenant-billing',
         when: (c) => Boolean(c.options.subscriptionBundles),
         assert: (c) => Boolean(c.options.tenantBilling),

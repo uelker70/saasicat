@@ -365,6 +365,8 @@ describe('a change that ends in a contract asks for the subscriber before it is 
             { findForTenant: async () => SUBSCRIPTION },
             () => 'tenant-without',
             await freezeForTenantWithout(),
+            null,
+            { of: async () => [] },
         );
         return { ctrl, calls };
     }

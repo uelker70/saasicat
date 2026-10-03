@@ -145,13 +145,17 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     BUNDLE_ALREADY_SUBSCRIBED:
         "Subscription '{subscriptionId}' has already actively booked this bundle.",
     BUNDLE_INCOMPATIBLE_WITH_PLAN:
-        "BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].",
+        'This bundle cannot be booked on the {planKey} plan. The plans that can book it: {allowedPlanKeys}.',
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
         'A yearly bundle cannot run beside a monthly plan: it would still be committed on every day the plan could end.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
-        'This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.',
+        'This bundle has no price for the {planKey} plan in this billing cycle, so it cannot be booked from here.',
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_PLAN:
+        'This bundle cannot run on the {planKey} plan, which the subscription moves to with effect from {from}.',
+    BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE:
+        'A yearly bundle cannot run beside the monthly billing the subscription moves to with effect from {from}.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' is already cancelled.",
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
@@ -193,6 +197,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Version {version} of {planKey} is not on sale, so subscriptions cannot continue on it.',
     RETIREMENT_REPLACEMENT_NOT_SOLD_IN_RHYTHM:
         '{count} of these subscriptions are billed in a rhythm version {version} of {planKey} has no price for, so they cannot continue on it.',
+    RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES:
+        '{count} of these subscriptions hold a bundle that cannot run on version {version} of {planKey}, so they cannot continue on it.',
     RETIREMENT_REPLACEMENT_IS_RETIRED: 'A version cannot be its own replacement.',
     RETIREMENT_NOTHING_AFFECTED:
         'No running subscription is on version {version} of {planKey}, so there is nobody to tell.',
@@ -203,6 +209,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',
+    RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW:
+        '{bundleName} cannot run on {planName} and runs until {until} at the earliest. Once it is cancelled, the switch can be made from that day.',
     RETIREMENT_SWITCH_NOT_OPEN:
         'This subscription cannot switch now: a change is scheduled, it has ended, or its plan is held for a special contract.',
     RETIREMENT_SWITCH_CHANGED:
@@ -222,7 +230,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     CYCLE_SHORTENS_AT_TERM_END:
         'A monthly {planName} cannot start inside the yearly term you are in. The upgrade takes effect when that term ends; to have it today, keep the yearly cycle.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
-        'A yearly bundle is booked until {until}. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.',
+        '{bundleName} is billed yearly and runs until {until} at the earliest, which a monthly plan cannot carry. Once it is cancelled, a change that takes effect on or after that day goes through — or keep the yearly cycle.',
+    BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN:
+        '{bundleName} cannot run on {planName} and runs until {until} at the earliest. Once it is cancelled, a change that takes effect on or after that day goes through — or choose another plan.',
     REDUNDANT_FEATURES:
         'The plan or another booked bundle already includes {count} of the features in this bundle — booking it pays for them twice.',
     MINIMUM_TERM_BINDS:

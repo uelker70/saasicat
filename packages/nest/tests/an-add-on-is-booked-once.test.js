@@ -86,6 +86,7 @@ async function subscriptionHolding(holding) {
             planCycle: 'MONTHLY',
             planPeriodEnd: at('2026-06-01'),
             planAnchorDay: 1,
+            plansAhead: [],
         });
     const preview = (bundleVersionId) =>
         new SubscriptionBundlePreviewService(bookings, bundles, null).previewAdd(
@@ -99,6 +100,7 @@ async function subscriptionHolding(holding) {
                 currentPeriodEnd: at('2026-06-01'),
                 parentEndsAt: null,
                 planAnchorDay: 1,
+                plansAhead: [],
             },
             { bundleVersionId },
             NOW,

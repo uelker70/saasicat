@@ -110,6 +110,8 @@ function retiring({
     notices = noticeRecord(),
     port = sendingPort(),
     bypass = null,
+    bookings = null,
+    addOns = null,
 } = {}) {
     const retirements = retirementStore();
     const audited = [];
@@ -147,9 +149,47 @@ function retiring({
         settings,
         bypass,
         audit,
+        bookings,
+        addOns,
     );
     return { service, notices, port, retirements, audited, tx, reads, rolledBack };
 }
+
+/** Add-on bookings kept in memory, each running until its cancellation lands. */
+function bookingsOf(...rows) {
+    return {
+        async listActiveBySubscription(subscriptionId, asOf) {
+            return rows.filter(
+                (row) =>
+                    row.subscriptionId === subscriptionId &&
+                    (row.canceledEffectiveAt === null || row.canceledEffectiveAt > asOf),
+            );
+        },
+    };
+}
+
+/** A monthly booking of `bundleVersionId` on `subscriptionId`, ending where `canceledEffectiveAt` says. */
+const bookingOf = (subscriptionId, bundleVersionId, canceledEffectiveAt = null) => ({
+    subscriptionId,
+    bundleVersionId,
+    billingCycle: 'MONTHLY',
+    canceledEffectiveAt,
+});
+
+/** Two add-ons: one any plan may book, one sold for Standard only. */
+const ADD_ONS = {
+    async findVersionById(id) {
+        const planIds = id === 'bv-standard-only' ? ['STANDARD'] : [];
+        return {
+            id,
+            label: id,
+            compatibility: { planIds },
+            pricingOverrides: [],
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        };
+    },
+};
 
 const codesOf = (preview) => preview.blockers.map((blocker) => blocker.code);
 const idsOf = (rows) => rows.map((row) => row.subscriptionId);
@@ -228,6 +268,105 @@ describe('the preview of a retirement', () => {
 
         assert.deepEqual(preview.blockers, []);
         assert.equal(preview.replacement.planKey, 'PRO');
+    });
+
+    // @requirement SC-SUB-037 — A retirement cannot move a subscription onto a plan its add-ons cannot run on
+    describe('a replacement on another plan, and the add-ons the subscriptions hold', () => {
+        const pro = version({ id: 'pv-pro', planId: 'PRO', monthlyNet: '99.00' });
+        const retiringWith = (...bookings) =>
+            retiring({
+                rows: [RETIRED, REPLACEMENT, pro],
+                bookings: bookingsOf(...bookings),
+                addOns: ADD_ONS,
+            });
+
+        test('is refused where an add-on still booked at the date cannot run on its plan', async () => {
+            const { service } = retiringWith(bookingOf('sub-t1', 'bv-standard-only'));
+
+            const preview = await service.preview(RETIRED.id, pro.id, NOW);
+
+            assert.deepEqual(codesOf(preview), ['RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES']);
+            assert.deepEqual(preview.blockers[0].params, {
+                count: 1,
+                planKey: 'PRO',
+                version: 1,
+            });
+        });
+
+        test('and the announcement refuses it as well', async () => {
+            const { service } = retiringWith(bookingOf('sub-t1', 'bv-standard-only'));
+
+            const error = await rejection(
+                service.announce(RETIRED.id, pro.id, ['sub-t1', 'sub-t2'], ACTOR, NOW),
+            );
+
+            assert.ok(error instanceof UnprocessableEntityException);
+            assert.equal(error.getResponse().code, 'RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES');
+        });
+
+        test('takes no notice of an add-on the plan can carry', async () => {
+            const { service } = retiringWith(bookingOf('sub-t1', 'bv-any'));
+
+            assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), []);
+        });
+
+        test('nor of a booking that has ended on the date itself', async () => {
+            // The date of both subscriptions is 1 February 2027.
+            const { service } = retiringWith(
+                bookingOf('sub-t1', 'bv-standard-only', new Date('2027-02-01T00:00:00.000Z')),
+            );
+
+            assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), []);
+        });
+
+        test('but of one that ends a day after it', async () => {
+            const { service } = retiringWith(
+                bookingOf('sub-t1', 'bv-standard-only', new Date('2027-02-02T00:00:00.000Z')),
+            );
+
+            assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), [
+                'RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES',
+            ]);
+        });
+
+        test('a replacement on the same plan carries what that plan carries', async () => {
+            const { service } = retiringWith(bookingOf('sub-t1', 'bv-standard-only'));
+
+            assert.deepEqual(codesOf(await service.preview(RETIRED.id, REPLACEMENT.id, NOW)), []);
+        });
+
+        test('asks in the rhythm billed at the date, where a switch of rhythm lands before it', async () => {
+            // Yearly today, monthly from 1 January: at the date of 1 February a
+            // yearly add-on would sit beside a monthly plan.
+            const yearlyUntilJanuary = (pending) =>
+                boundTo('t1', {
+                    billingCycle: 'YEARLY',
+                    currentPeriodStart: new Date('2026-01-01T00:00:00.000Z'),
+                    currentPeriodEnd: new Date('2027-01-01T00:00:00.000Z'),
+                    ...pending,
+                });
+            const holdingAYearlyAddOn = (subscription) =>
+                retiring({
+                    bound: [subscription],
+                    bookings: bookingsOf({
+                        ...bookingOf('sub-t1', 'bv-any'),
+                        billingCycle: 'YEARLY',
+                    }),
+                    addOns: ADD_ONS,
+                }).service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+            const switching = await holdingAYearlyAddOn(
+                yearlyUntilJanuary({
+                    pendingPlan: 'STANDARD',
+                    pendingBillingCycle: 'MONTHLY',
+                    pendingEffectiveAt: new Date('2027-01-01T00:00:00.000Z'),
+                }),
+            );
+            const staying = await holdingAYearlyAddOn(yearlyUntilJanuary({}));
+
+            assert.deepEqual(codesOf(switching), ['RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES']);
+            assert.deepEqual(codesOf(staying), []);
+        });
     });
 
     // @requirement SC-SUB-025 — A version is retired only off sale, and only where the operator's terms allow it
@@ -1118,6 +1257,38 @@ describe('the retirement that reaches a subscription', () => {
         const { service } = retiring({ notices });
 
         assert.equal(await service.pendingFor(onRetired, NOW), null);
+    });
+});
+
+// @requirement SC-BUN-037 — An add-on cannot be booked where it cannot run on a plan the subscription moves to
+describe('the retirements a subscription was told of', () => {
+    const onRetired = { id: 'sub-t1', planVersion: { id: 'pv-1' } };
+
+    test('stay past their date, for as long as the subscription is on the version', async (t) => {
+        const { service, port } = retiring();
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+        // The date has come and the move has not run yet — on the clock too, so
+        // nothing that reads the time of day can tell this from a later run.
+        const afterTheDate = new Date('2027-02-02T00:00:00.000Z');
+        t.mock.timers.enable({ apis: ['Date'], now: afterTheDate });
+
+        assert.equal(await service.pendingFor(onRetired, afterTheDate), null);
+        assert.deepEqual(await service.toldRetirementsOf(onRetired), [port.sent[0]]);
+        assert.deepEqual(
+            await service.toldRetirementsOf({ id: 'sub-t1', planVersion: { id: 'pv-2' } }),
+            [],
+        );
+    });
+
+    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    test('are none while the notice has reached nobody', async () => {
+        const port = sendingPort(() => {
+            throw new Error('mail server down');
+        });
+        const { service } = retiring({ port });
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+
+        assert.deepEqual(await service.toldRetirementsOf(onRetired), []);
     });
 });
 

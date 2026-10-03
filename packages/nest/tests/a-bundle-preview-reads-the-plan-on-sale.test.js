@@ -21,6 +21,7 @@ const CTX = {
     currentPeriodEnd: new Date('2026-06-01T00:00:00Z'),
     parentEndsAt: null,
     planAnchorDay: 1,
+    plansAhead: [],
 };
 
 /** A version of PRO with `features`. */

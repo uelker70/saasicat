@@ -74,6 +74,7 @@ async function catalogue(change = async () => {}) {
             planCycle: 'MONTHLY',
             planPeriodEnd: at('2026-06-01'),
             planAnchorDay: 1,
+            plansAhead: [],
         });
     const preview = () =>
         new SubscriptionBundlePreviewService(bookings, bundles, null).previewAdd(
@@ -87,6 +88,7 @@ async function catalogue(change = async () => {}) {
                 currentPeriodEnd: at('2026-06-01'),
                 parentEndsAt: null,
                 planAnchorDay: 1,
+                plansAhead: [],
             },
             { bundleVersionId: REPORTS_V1.id },
             NOW,

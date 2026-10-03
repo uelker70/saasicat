@@ -1040,6 +1040,8 @@ _Tested by:_
         - is refused, with the retirement as it stands, where the page named another version
         - opens only after the trial
         - is refused while something is outstanding, as a version offer is
+        - is refused while an add-on running today cannot run on the replacement’s plan
+        - goes through with the add-ons the replacement’s plan can carry
         - is refused where the subscription changed between the read and the write
         - whose contract cannot be written is put back and refused, and nothing is charged, where
           the version retired ${offSale}
@@ -1223,6 +1225,8 @@ _Tested by:_
         - tells nobody whom the retirement no longer reaches, and still tells the others
     - the retirement that reaches a subscription
         - is none while its notice has reached nobody, and the notice once it has
+    - the retirements a subscription was told of
+        - are none while the notice has reached nobody
 - `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
     - how a preview reads
         - how far a retirement has come puts the subscriptions not told after the overdue ones,
@@ -1230,5 +1234,36 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - marks the subscriptions not told yet for a look
+
+<!-- END proof -->
+
+### SC-SUB-037 — A retirement cannot move a subscription onto a plan its add-ons cannot run on
+
+🟢 💰 The announcement is refused while a subscription it reaches still holds, at its date, an
+add-on that cannot run beside the replacement, on its plan and in the rhythm billed then. The
+preview counts those subscriptions, so the operator can name a replacement that fits.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the preview of a retirement
+        - a replacement on another plan, and the add-ons the subscriptions hold › is refused where
+          an add-on still booked at the date cannot run on its plan
+        - a replacement on another plan, and the add-ons the subscriptions hold › and the
+          announcement refuses it as well
+        - a replacement on another plan, and the add-ons the subscriptions hold › takes no notice of
+          an add-on the plan can carry
+        - a replacement on another plan, and the add-ons the subscriptions hold › nor of a booking
+          that has ended on the date itself
+        - a replacement on another plan, and the add-ons the subscriptions hold › but of one that
+          ends a day after it
+        - a replacement on another plan, and the add-ons the subscriptions hold › a replacement on
+          the same plan carries what that plan carries
+        - a replacement on another plan, and the add-ons the subscriptions hold › asks in the rhythm
+          billed at the date, where a switch of rhythm lands before it
 
 <!-- END proof -->
