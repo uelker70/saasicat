@@ -46,7 +46,6 @@ import {
     type SubscriptionUsageRecord,
     type TransactionRunner,
     type VersionRetiredNotice,
-    type VersionRetirementReminder,
     type VersionRetirementRepository,
     type VersionRetirementView,
     classifyVersionOffer,
@@ -78,6 +77,7 @@ import {
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import {
     groupByRetiredVersion,
+    remindedByRetirement,
     retirementNoticesOnRecord,
     retirementsOfItsVersion,
     subscriptionsReachedSince,
@@ -537,7 +537,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
             const [retirements, told, reminded] = await Promise.all([
                 this.retirements.list(),
                 this.allNotices(),
-                this.remindedByRetirement(),
+                remindedByRetirement(this.notices, 'version-retirement-reminder'),
             ]);
             const stillOn = new Map<string, Promise<Map<string, SubscriptionUsageRecord>>>();
             const onVersion = (planVersionId: string) => {
@@ -653,23 +653,6 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     /** Every retirement notice on record, as it was told, and whether it was. */
     private allNotices(): Promise<RetirementNoticeOnRecord[]> {
         return retirementNoticesOnRecord(this.notices);
-    }
-
-    /**
-     * How many subscriptions each retirement has reminded: reminders that went
-     * out to somebody. One the application could send to nobody reminded no one.
-     */
-    private async remindedByRetirement(): Promise<Map<string, number>> {
-        const counts = new Map<string, number>();
-        for (const record of await this.notices.listOfKindSince(
-            'version-retirement-reminder',
-            new Date(0),
-        )) {
-            if (!record.delivery || record.delivery.recipients.length === 0) continue;
-            const { retirementId } = record.content as VersionRetirementReminder;
-            counts.set(retirementId, (counts.get(retirementId) ?? 0) + 1);
-        }
-        return counts;
     }
 
     /** The subscriptions on a version, by id. */

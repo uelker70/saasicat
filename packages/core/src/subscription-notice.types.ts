@@ -5,7 +5,10 @@
 // when one is due and keeps the record; the application says who it went to
 // and how.
 
-import type { BundleVersionRetiredNotice } from './bundle-version-retirement.types.js';
+import type {
+    BundleVersionRetiredNotice,
+    BundleVersionRetirementReminder,
+} from './bundle-version-retirement.types.js';
 import type { VersionOfferView } from './version-offer.js';
 import type {
     VersionRetiredNotice,
@@ -17,7 +20,8 @@ export type SubscriptionNoticeKind =
     | 'version-offered'
     | 'version-retired'
     | 'version-retirement-reminder'
-    | 'bundle-version-retired';
+    | 'bundle-version-retired'
+    | 'bundle-version-retirement-reminder';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -33,7 +37,8 @@ export interface SubscriptionNoticeKey {
      * subscription is reminded of a version's retirement once. For
      * `bundle-version-retired`, the id of the add-on version retired: a
      * subscription holds one booking of an add-on, so that booking is told of
-     * the retirement once.
+     * the retirement once. For `bundle-version-retirement-reminder`, the id of
+     * the add-on version retired as well: that booking is reminded of it once.
      */
     readonly subject: string;
 }
@@ -81,4 +86,5 @@ export type SubscriptionNotice =
     | VersionOfferedNotice
     | VersionRetiredNotice
     | VersionRetirementReminder
-    | BundleVersionRetiredNotice;
+    | BundleVersionRetiredNotice
+    | BundleVersionRetirementReminder;

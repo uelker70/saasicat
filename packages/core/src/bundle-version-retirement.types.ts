@@ -106,6 +106,19 @@ export interface BundleRetirementSwitchTerms extends RetirementSwitchTerms {
     readonly billingCycle: string;
 }
 
+/**
+ * The one reminder of an add-on retirement (`SC-BUN-056`): sent once, 14 days
+ * before the booking's date, where staying put costs it something. It says
+ * again what the booking was told, with both versions priced for the plan the
+ * add-on runs beside at the date as the catalogue prices them when it is sent,
+ * in the rhythm the booking is billed in then.
+ */
+export interface BundleVersionRetirementReminder extends Omit<BundleVersionRetiredNotice, 'kind'> {
+    readonly kind: 'bundle-version-retirement-reminder';
+    /** What switching to the replacement now costs (`SC-BUN-054`), or null where the booking cannot. */
+    readonly switchTerms: BundleRetirementSwitchTerms | null;
+}
+
 /** What switching a booking to its retirement's replacement before the date did. */
 export interface BundleRetirementSwitchResult {
     readonly subscriptionBundleId: string;

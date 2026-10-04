@@ -2054,3 +2054,49 @@ _Tested by:_
         - takes nothing off a period in another rhythm than it was agreed in
 
 <!-- END proof -->
+
+### SC-BUN-056 — Where staying put costs something, a booking is reminded once
+
+🟢 💰 A booking told of its add-on version's retirement is reminded once, 14 days before the date it
+was told, where staying put costs it something: the replacement takes a feature away or lowers a
+quota, or is dearer for the plan the add-on runs beside at that date in the rhythm the booking is
+billed in then — or is not sold in it. Both versions are priced from the catalogue as it stands when
+the reminder is sent, for that plan, so a plan changed since the notice decides the price rather
+than the one the notice was told for. The reminder goes through the same notice port as the
+announcement, says again what the booking was told — priced as it then compares — and what a switch
+taken now would cost (`SC-BUN-054`), and is recorded once per booking with whom it went to and how.
+A run that did not happen on the day is caught up by the next, until the date. It is not sent where
+the booking has switched, where the booking has declared a cancellation or has ended, where its
+subscription ends by the date, or where the notice reached nobody; a booking whose subscription is
+cancelled to end after the date is reminded, since it can still cancel without its minimum term or
+switch. Beside each retired add-on version, the administration counts the bookings reminded.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-add-on-booking-is-reminded-once.test.js`
+    - the one reminder of an add-on retirement
+        - reminds 14 days before the date, as it was told, with what a switch now would cost
+        - reminds nothing before its day, and catches up a run that did not happen until the date
+        - reminds once, however often the run comes
+        - reminds nobody where staying put costs nothing: no dearer, nothing taken away
+        - reminds where a feature is taken away, whatever the price
+        - prices it for the plan the add-on runs beside at the date, not as the notice said
+        - judges a booking billed with its plan in the rhythm that plan is billed in at the date
+        - leaves alone a booking that switched or has cancelled, and one whose subscription ends by
+          the date
+        - reminds a booking whose subscription ends after the date, which can still cancel or switch
+        - reads each add-on version once a run, however many bookings it judges
+        - reminds nobody whose notice reached nobody: there is no date to remind of
+        - reminds a trial, which cannot switch before it ends
+        - a reminder the application could not send is sent by the next run
+        - a reminder that cannot be put together fails for that booking alone
+        - runs across tenants: the reminder is sent inside the bypass
+        - the operator sees how many were reminded: reminders that reached somebody
+    - the quarter-hour run and the add-on reminders
+        - reminds add-on bookings after the plans and before any move
+
+<!-- END proof -->

@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../maintenance/maintenance.service.js';
 import { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
+import { BundleRetirementReminderService } from './bundle-retirement-reminder.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
@@ -13,17 +14,18 @@ import { VersionRetirementService } from './version-retirement.service.js';
  * Sends the version notices that are due, every quarter of an hour, so an
  * offer that appears is told within one — the retirement notices an
  * announcement could not send at once, of a plan version or of an add-on
- * version, and the reminders whose day has come (`SC-SUB-034`) — and moves the
- * subscriptions and the add-on bookings whose retirement has taken effect
- * (`SC-SUB-031`, `SC-BUN-049`).
+ * version, and the reminders whose day has come (`SC-SUB-034`, `SC-BUN-056`) —
+ * and moves the subscriptions and the add-on bookings whose retirement has
+ * taken effect (`SC-SUB-031`, `SC-BUN-049`).
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.versionNotices.includeCron: false` — for a CLI boot, or an
  * application that calls `VersionNoticeService.sendDue`,
  * `VersionRetirementService.sendUndelivered`,
  * `BundleVersionRetirementService.sendUndelivered`,
- * `RetirementReminderService.remindDue`, `RetirementMoveService.moveDue` and
- * `BundleRetirementMoveService.moveDue` from a scheduler of its own. A
+ * `RetirementReminderService.remindDue`,
+ * `BundleRetirementReminderService.remindDue`, `RetirementMoveService.moveDue`
+ * and `BundleRetirementMoveService.moveDue` from a scheduler of its own. A
  * retirement whose notice is not sent waits for it (`SC-SUB-038`), so a
  * scheduler that leaves out a `sendUndelivered` leaves those retirements
  * waiting.
@@ -59,6 +61,10 @@ export class VersionNoticeCron {
         @Optional()
         @Inject(BundleRetirementMoveService)
         private readonly bundleMoves: BundleRetirementMoveService | null = null,
+        // Present where an operator may retire add-on versions as well.
+        @Optional()
+        @Inject(BundleRetirementReminderService)
+        private readonly bundleReminders: BundleRetirementReminderService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'versionNotices' })
@@ -104,6 +110,15 @@ export class VersionNoticeCron {
             if (reminded && (reminded.told > 0 || reminded.failed > 0)) {
                 this.logger.log(
                     `Retirement reminders: ${reminded.told} sent, ${reminded.failed} to try again.`,
+                );
+            }
+            const addOnsReminded = await this.step('Add-on retirement reminders', () =>
+                this.bundleReminders?.remindDue(new Date()),
+            );
+            if (addOnsReminded && (addOnsReminded.told > 0 || addOnsReminded.failed > 0)) {
+                this.logger.log(
+                    `Add-on retirement reminders: ${addOnsReminded.told} sent, ` +
+                        `${addOnsReminded.failed} to try again.`,
                 );
             }
             const moves = await this.step('Retirement moves', () =>

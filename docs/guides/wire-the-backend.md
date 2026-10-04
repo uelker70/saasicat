@@ -1227,6 +1227,19 @@ beside every plan the booking would meet from its date (`SC-BUN-044`). The tenan
 `MySubscriptionBundlesPage` show the same notice beside the add-on, which the booking list carries
 as `retirement` (`SC-BUN-046`).
 
+**The reminder.** 14 days before a booking's date, the quarter-hour run reminds it once where
+staying put costs it something (`SC-BUN-056`): the replacement takes a feature away or lowers a
+quota, or is dearer for the plan the add-on runs beside at the date, in the rhythm the booking is
+billed in then — or not sold in it. Your port is handed a `bundle-version-retirement-reminder`: the
+notice again, with both versions priced as the catalogue holds them for that plan when it is sent,
+and `switchTerms`, what switching now costs (null where the booking may not switch). A port that
+tells the kinds apart has to know this one too. A booking that switched, that has declared a
+cancellation, whose subscription ends by the date, or whose notice reached nobody is not reminded —
+one whose subscription ends after the date can still cancel or switch, and is; an answer with no
+recipients counts as sent, and the reminder is not tried again. The add-on page counts the bookings
+reminded beside each retired version. An application that runs the steps from a scheduler of its own
+calls `BundleRetirementReminderService.remindDue` beside the others.
+
 ## Admin Module
 
 `SaaSiCatModule` owns `PlatformAdminModule`, `AdminManifestModule` and the
