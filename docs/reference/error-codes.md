@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 230 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 232 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -239,6 +239,7 @@ Checkout offers and subscription contracts.
 | `SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH`      | A line item's taxAmount must be exactly priceGross minus priceNet.                                                                                                                          |
 | `SUBSCRIPTION_CONTRACT_NOT_FOUND`                   | SubscriptionContract '{contractId}' not found                                                                                                                                               |
 | `SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED`     | A subscription contract requires exactly one plan base item.                                                                                                                                |
+| `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`        | The contract states {stated} % in {field}, and the tax adapter decides {decided} %.                                                                                                         |
 | `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT`        | A subscription contract states a tax rate of {taxRate} at {field}, which is not a percentage: a rate lies from 0 to 100, and a value between 0 and 1 is refused as a fraction.              |
 | `SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START`    | effectiveUntil must be after the effectiveFrom of the contract.                                                                                                                             |
 
@@ -301,6 +302,14 @@ The record of the applied configuration.
 | Code                        | Shipped English text                     |
 | --------------------------- | ---------------------------------------- |
 | `SETTINGS_CHANGE_NOT_FOUND` | No recorded settings change has this id. |
+
+## Tax
+
+The installation's tax adapter and what it does not support.
+
+| Code                          | Shipped English text                                           |
+| ----------------------------- | -------------------------------------------------------------- |
+| `TAX_TREATMENT_NOT_SUPPORTED` | The tax adapter {adapter} does not support this case: {reason} |
 
 ## Maintenance
 

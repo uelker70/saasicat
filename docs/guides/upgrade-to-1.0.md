@@ -1613,6 +1613,70 @@ counts as checked until it is checked, and a contract concluded before records n
   and the contracts. One that empties its tables by name adds `subscriber_tax_origin_changes` and
   `subscriber_vat_id_checks`.
 
+### A tax adapter decides the rate of every contract
+
+An installation can name a tax adapter in `config/saas.yaml` — `@saasicat/tax-de` for an issuer in
+Germany ([ADR 0013](../explanation/adr/0013-tax-law-is-an-adapter.md)). It then decides the rate of
+every contract from the subscriber's origin, and the rate shown before the subscriber is known. An
+installation that names none changes nothing: `vatRate` stays required, and a file naming neither
+`vatRate` nor `tax` is refused with the sentence it got before.
+
+To name the German adapter:
+
+1. Record each subscriber's country, and whether it is a business, before the adapter is named. The
+   adapter refuses a case it cannot decide, and a subscriber whose country is unknown — or who is
+   outside Germany and has not said whether it is a business — gets no new contract: a plan change,
+   an add-on booking or a retirement move answers `422 TAX_TREATMENT_NOT_SUPPORTED`. A retirement
+   move that is refused this way is logged as `tax-not-supported`.
+2. Add `@saasicat/tax-de` and bind its factory where payment gateways are bound:
+
+    ```ts
+    import { germanTaxAdapterFactory } from '@saasicat/tax-de';
+
+    SaaSiCatModule.forRoot({
+        // …
+        tax: { adapter: germanTaxAdapterFactory() },
+    });
+    ```
+
+3. In `config/saas.yaml`, replace `vatRate` with the time zone the days of a period count in and
+   the adapter's name, with what the operator declares to it:
+
+    ```yaml
+    timeZone: Europe/Berlin
+    tax:
+        adapter: '@saasicat/tax-de'
+        options:
+            smallBusiness: false
+    ```
+
+    The file is refused where it names both `vatRate` and `tax`, the start where the file names an
+    adapter the application binds no factory for or the other way round, an unknown time zone, or
+    an issuer the adapter cannot decide a domestic charge for.
+
+4. Remove every rate the application passes in code: `catalog.publicMarketingCatalog.vatRate`
+   (the start refuses it beside an adapter) and `ConfiguratorMarketingProvider.getVatRate` (the
+   configurator refuses it). Both now take the adapter's rate for a subscriber in the issuer's
+   country, and `GET public/marketing-catalog` says which country with `vatRateShownFor`.
+
+What changes with an adapter:
+
+- **An offer** still shows the rate for a subscriber in the issuer's country. **The contract** it
+  becomes is concluded at the rate decided for the subscriber who takes it, records the treatment
+  with the adapter's name and version (`taxTreatment`), and keeps the net amounts as offered. A
+  business elsewhere in the Union with a validated VAT number is concluded under the reverse charge
+  at 0 %, a business outside the Union as not taxable at 0 %.
+- **Every later contract** — a plan change, an add-on, a refresh — is decided again from the origin
+  as it stands. A contract stating another rate than the decided one is refused with
+  `422 SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`; code that hands `SubscriptionContractService.create`
+  lines of its own states the decided rate on each.
+- **A promo code with a fixed amount** takes that amount off what the subscriber pays: "10 € off" is
+  8.40 € net at 19 % and 10 € net at 0 %. Since a subscriber at 0 % pays the net, an absolute code
+  must stay below the lowest **net** price it applies to; `PROMO_WOULD_PRODUCE_ZERO_INVOICE` then
+  names `lowestApplicablePlanNet` instead of `lowestApplicablePlanGross`.
+- **An application that words refusals itself** adds `TAX_TREATMENT_NOT_SUPPORTED` and
+  `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`.
+
 ### The operator's own legal identity changes only as a declared correction
 
 `config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract

@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 25 rules, in 14 areas.
+There are 28 rules, in 15 areas.
 
 ## core
 
@@ -61,6 +61,12 @@ config/saas.yaml.
 
 Catalog is enabled, but `persistence.catalog` is missing. Use a complete
 persistence bundle, or wire `CatalogModule` directly.
+
+### catalog.public-catalogue-names-a-rate
+
+The public marketing catalogue is mounted without `vatRate`, and
+config/saas.yaml names no tax adapter to take it from. Pass the rate the pricing
+page shows.
 
 ## admin-resources
 
@@ -144,6 +150,21 @@ them come from one persistence bundle.
 
 Payments is enabled, and config/saas.yaml has no `payments` block naming the
 gateway accounts the bound gateways belong to.
+
+## tax
+
+### tax.adapter-bound-as-the-file-names
+
+Config/saas.yaml#tax names the tax adapter (none), and `tax.adapter` binds
+(none). Bind the factory of the adapter the file names — `tax: { adapter:
+germanTaxAdapterFactory() }` for `@saasicat/tax-de` — or name the bound one in
+the file.
+
+### tax.rate-has-one-source
+
+Config/saas.yaml names a tax adapter, and
+`catalog.publicMarketingCatalog.vatRate` names a rate beside it. The adapter is
+the one source of every rate, the pricing page's too: delete `vatRate` there.
 
 ## tenant-billing
 

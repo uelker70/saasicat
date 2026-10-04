@@ -795,6 +795,38 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   that port which needs a request context, or answers with the caller's tenant scope, turns the
   check that exists to refuse into one that passes.
 
+## The Tax Adapter
+
+Where `config/saas.yaml` names a tax adapter, the application binds its factory the way it binds a
+payment gateway, and every rate comes from the adapter
+([ADR 0013](../explanation/adr/0013-tax-law-is-an-adapter.md)):
+
+```ts
+import { germanTaxAdapterFactory } from '@saasicat/tax-de';
+
+SaaSiCatModule.forRoot({
+    // …
+    tax: { adapter: germanTaxAdapterFactory() },
+});
+```
+
+```yaml
+timeZone: Europe/Berlin
+tax:
+    adapter: '@saasicat/tax-de'
+    options:
+        smallBusiness: false
+```
+
+What the operator declares — `smallBusiness` — lives in the file; what only code can give — the
+`fetch` that reaches VIES, its timeout — goes to the factory. The start refuses a name the file and
+the factory do not share, `vatRate` beside `tax`, and an unknown time zone. The adapter decides the
+rate a contract is concluded at from its subscriber's origin, and the rate the pricing page and the
+configurator show for a subscriber in the issuer's country; `TAX_TREATMENTS_TOKEN` from
+`@saasicat/nest/billing` answers the same for code of your own. What the German adapter decides is
+in its [README](../../packages/tax-de/README.md); the steps for an existing installation are in the
+[upgrade guide](upgrade-to-1.0.md#a-tax-adapter-decides-the-rate-of-every-contract).
+
 ## The Subscriber's Account
 
 The journal of what each subscriber owes: one charge per contract line and period — the plan, each

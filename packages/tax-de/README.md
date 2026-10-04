@@ -80,11 +80,29 @@ sent it, every text field of it, dated by the platform's clock when it arrived
 Greek numbers carry the prefix `EL`, as VIES knows them; a number entered as
 `GR…` is found invalid.
 
-```ts
-import { GermanTaxAdapter } from '@saasicat/tax-de';
+An installation names the adapter in `config/saas.yaml` and binds its factory, which builds it
+from the options the file gives:
 
-const taxes = new GermanTaxAdapter({ smallBusiness: false });
+```ts
+import { germanTaxAdapterFactory } from '@saasicat/tax-de';
+
+SaaSiCatModule.forRoot({
+    // …
+    tax: { adapter: germanTaxAdapterFactory() },
+});
 ```
+
+```yaml
+timeZone: Europe/Berlin
+tax:
+    adapter: '@saasicat/tax-de'
+    options:
+        smallBusiness: false
+```
+
+The file may name `smallBusiness` and nothing else; another key is an error at the start. What only
+code can give goes to the factory, `germanTaxAdapterFactory({ fetch, viesTimeoutMs, now })`, and
+`new GermanTaxAdapter({ … })` builds one directly with every option.
 
 | Option          | Default        | What it does                                                           |
 | --------------- | -------------- | ---------------------------------------------------------------------- |
