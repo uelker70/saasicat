@@ -1,5 +1,311 @@
 # @saasicat/spec
 
+## 1.0.0-rc.24
+
+### Major Changes
+
+- f905b7f: Retire the pending version: a newer version is only offered
+
+    A subscription keeps its plan version across every renewal until the
+    subscriber takes another (`SC-SUB-024`); a newer version is an offer beside
+    the plan (`SC-SUB-020`). The pending version — set by a notice job, accepted by
+    the tenant, rolled forward at the end of the term — is gone with everything
+    that carried it.
+
+    - `POST billing/subscription/accept-pending-version`,
+      `TenantSubscriptionWritePort.acceptPendingPlanVersion`,
+      `useTenantBilling().acceptPendingPlanVersion`, `PendingVersionBanner`, the
+      seven `pendingVersion*` strings of `TenantPlanSectionI18n`, the error code
+      `NO_PENDING_PLAN_VERSION` and its refusal `noPendingPlanVersion` are removed.
+      A switch is taken through `POST billing/version-offer/accept`.
+    - `decideRenewal` and `clearPendingPlanVersionFields` are removed; a renewal
+      keeps the version, and `computeNextPeriod` stays.
+    - `SubscriptionUsageRecord`, `GET billing/usage` and `Subscription` carry no
+      `pendingPlanVersion*` fields. `prisma-fragments/01-subscription.prisma` and
+      `03-plan-versions.prisma` drop the seven columns and their relation, and
+      `sql/1.0-a-newer-version-is-only-offered.postgres.sql` drops them from an
+      existing database — run it once nothing reads them any more; it discards
+      every pending version still recorded, accepted ones included.
+    - `countByPlanVersionId` counts the version a scheduled change will bind
+      (`pendingChangeVersionId`) beside the version bound, so an operator cannot
+      edit a version somebody's switch is waiting for. Both adapters count it, and
+      the persistence contract holds a store of your own to it; the harness seed
+      writes it as `pendingChangeVersionId`.
+
+- 7cd9d27: Let an operator retire a plan version for the subscriptions on it
+
+    A subscription keeps its version (`SC-SUB-024`). Retiring one is the orderly
+    way out: an operator names a replacement on sale, of the same plan or another,
+    and every subscription on the version is told that it continues on it at the
+    end of one of its terms at least three calendar months after its notice
+    reached an administrator (`SC-SUB-035`). Until then it may cancel without
+    notice (`SC-CANC-023`). A price increase is a
+    retirement whose replacement costs more.
+
+    - **`config/saas.yaml` needs `tenantBilling.orderlyRetirement.termsConfirmed`.**
+      It is required, like the notice periods beside it, and a file without it no
+      longer loads. `true` states that your terms carry the clause a retirement
+      rests on; without it the administration does not offer the action and the
+      server refuses it with `RETIREMENT_TERMS_NOT_CONFIRMED` (`SC-SUB-025`).
+      The loader names the field it is missing; `saasicat init` writes `false`.
+    - Only a version no longer on sale can be retired, for a replacement priced in
+      the rhythm each subscription is billed in by then; a retirement that reaches
+      nobody is refused, and a subscription is reached at most once in twelve
+      months (`SC-SUB-028`) and hears of a version's retirement once. The operator
+      sees every subscription it reaches with its date, and every one it does not
+      with the reason, before announcing; the announcement names them and is
+      refused with `RETIREMENT_PREVIEW_CHANGED` where they changed meanwhile
+      (`SC-SUB-026`).
+    - Routes: `GET` and `POST /admin/catalog/plan-versions/:id/retirement`, the
+      second behind the second factor and audited as `PLAN_VERSION_RETIRE`, and
+      `GET /admin/catalog/version-retirements`. The manifest carries
+      `planVersions.retire` (`VERSION_RETIREMENT_CAPABILITY`) where they are
+      served and the terms are confirmed.
+    - Each announcement is kept in the new `version_retirements` table, and each
+      subscription it reaches gets a `version-retired` notice in the same
+      transaction (`SC-SUB-029`). Adopt
+      `prisma-fragments/18-version-retirement.prisma` and run
+      `sql/1.0-a-retirement-is-announced.postgres.sql`; both bundles provide
+      `tenantBilling.versionRetirements`, which
+      `notAdopted: ['VersionRetirement']` leaves out. Confirmed terms with nowhere
+      to keep an announcement refuse the start.
+    - `SubscriptionNotice` is `version-offered` or `version-retired`. A retirement
+      notice carries both versions with their prices (`retired`, `replacement`,
+      `changes`), the `billingCycle` it is billed in when the retirement takes
+      effect, `effectiveAt` and `lastDayToCancel`. A `SubscriptionNoticePort`
+      narrows on `kind`. A notice the port could not send, or the platform could
+      not take on, is sent by the quarter-hourly run.
+    - `SubscriptionUsagePort.listBoundToVersion` is new and optional; both shipped
+      adapters have it, and confirmed terms over a port without it refuse to
+      start. A port of your own returns each subscription's
+      `pendingChangeVersionId` (new, optional on `SubscriptionUsageRecord`) with
+      it, or a subscriber who took a newer version's offer is reached as if they
+      stayed.
+      `SubscriptionNoticeRepository` gains `record`, `listOfKindSince` and
+      `listUndelivered`. The persistence contract holds both; a harness gains the
+      `versionRetirements` and `subscriptionUsage` members, or declares
+      `gaps: ['versionRetirements', 'boundSubscriptions']`.
+    - `versionSale`, `versionOnSale` and `versionOnSaleOrNext` move to
+      `@saasicat/core`, where the server decides by them; `@saasicat/ui-vue`
+      re-exports them unchanged.
+    - `@saasicat/ui-vue`: the plan cockpit offers "Retire…" on a version no
+      longer on sale, with a dialog that shows the replacement's prices, the
+      dates, the subscriptions not reached and every blocker before anything is
+      sent, and marks a retired version with its replacement. New:
+      `useVersionRetirement`, the `versionRetirements` resource, and the catalogue
+      keys `planDetail.versions.retire*`/`retired*` and `planDetail.retireDialog`.
+      The tenant usage carries `retirement`.
+    - `@saasicat/ui-vue-tenant`: the plan section shows a retirement beside the
+      plan — when the subscription continues on which version, at what price, and
+      until when it may cancel without notice — and says the last again in the
+      cancellation confirmation (`SC-SUB-030`). New wording keys
+      `versionRetired*` and `cancelConfirmRetirement`.
+
+### Minor Changes
+
+- 60e875d: A retirement reminds a subscription once, 14 days before its date
+
+    Where staying put costs a subscription something, the quarter-hourly run
+    reminds it once, 14 days before the date it was told (`SC-SUB-034`). Staying
+    put costs something where the replacement is dearer in the rhythm the
+    subscription is billed in at that date, is not sold in that rhythm, or takes a
+    feature away or lowers a quota. A price that rises only in another rhythm is no
+    reason to remind. A run that did not happen on the day is caught up until the
+    date. Nobody is reminded who has cancelled, switched, or leaves the version by
+    the date through a change of their own. With
+    `versionNotices.includeCron: false`, call `RetirementReminderService.remindDue`
+    yourself.
+
+    - **A third kind of notice.** `SubscriptionNotice` gains
+      `version-retirement-reminder`: what the retirement notice said — its
+      `billingCycle` the rhythm billed at the date, read again as the subscription
+      stands when reminded — and `switchTerms`, what a switch taken now would cost,
+      or `null` where the subscription cannot switch now. It is recorded like the
+      others, with its recipients and channel, once per subscription and retired
+      version. A `SubscriptionNoticePort` of your own narrows on `notice.kind`: one
+      that treats every notice that is not an offer as a retirement would send the
+      reminder as a second announcement.
+    - **The plan cockpit** counts beside a retired version how many subscriptions
+      were reminded: `RetirementProgress.reminded`, and the wording key
+      `planDetail.versions.retiredProgress.reminded`.
+    - `retirementCostsTheSubscription`, `retirementReminderDueAt` and
+      `retirementReminderIsDue` in `@saasicat/core` give the rule and the day.
+
+- d556622: A retired version's subscriptions move to the replacement at their date
+
+    At the date each subscription was told, the platform moves it from the retired
+    version onto the replacement, at the replacement's price, keeping its period
+    and its term (`SC-SUB-031`). The quarter-hourly run that sends version notices
+    does it, and catches up a run that did not happen; with
+    `versionNotices.includeCron: false`, call `RetirementMoveService.moveDue`
+    yourself. A subscription that has ended by its date, or whose own scheduled
+    change takes it off the version by then, is left alone; a change scheduled for
+    later survives the move.
+
+    - **What a moved subscription pays.** A plan line of the retired version prices
+      no period that starts on or after the date the subscriber was told: the period
+      waits for the contract the move writes and is charged at the replacement's
+      price, however late that contract comes (`SC-PRIC-062`). A contract a
+      retirement writes adds no prorated difference.
+    - **Switching early.** Until the date, a subscriber may switch to the
+      replacement at once from the plan section — `POST /billing/retirement/switch`,
+      for the tenant's administrators, audited as `SWITCH_TO_RETIREMENT_REPLACEMENT`
+      (`SC-SUB-032`). The term stays. Where the replacement costs more, the contract
+      holds the difference as a discount line until the date, so the subscriber
+      pays what they paid until then (`SC-PRIC-063`); where it costs the same or
+      less, its price applies from the next period. The switch opens after a trial,
+      not while a change is scheduled, and ends the right to cancel without notice.
+      New codes: `RETIREMENT_SWITCH_NOT_PENDING`, `RETIREMENT_SWITCH_IN_TRIAL`,
+      `RETIREMENT_SWITCH_NOT_OPEN`, `RETIREMENT_SWITCH_CHANGED`.
+    - **Ending a replacement.** A version subscriptions still move onto cannot be
+      terminated before the day after the last of their dates:
+      `PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` (`SC-PLAN-029`). While a move onto
+      it is past its date and not made, it cannot be terminated at all:
+      `PLAN_TERMINATE_WHILE_MOVES_OVERDUE`.
+    - **Audit.** Each move is recorded as `PLAN_VERSION_RETIREMENT_MOVE`, and a move
+      that cannot be made once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, by the new
+      platform job actor: `AuditActor` is `AdminActor` or `PlatformJobActor`
+      (`source: 'job'`, `userId: null`, tag `job:platform:retirement-moves`). An
+      `AuditPort` of your own accepts a `null` user; the canonical
+      `audit_logs.userId` already is nullable.
+    - **`TenantSubscriptionWritePort.changePlanImmediate`** takes
+      `keepsPendingChange`: the scheduled change survives the write, and one that
+      only moves the rhythm on the plan being left follows the subscription to its
+      new plan (`scheduledChangeAfterWrite` in `@saasicat/core`). It also takes
+      `restoresQuotedVersion`, which binds the version named whether or not it
+      still takes bookings: a move or a switch whose contract cannot be written is
+      put back with it, onto the retired version, which is off sale. Both shipped
+      adapters honour both and the persistence contract holds them to it; a port of
+      your own has to.
+    - **The plan cockpit** shows beside a retired version how many of its
+      subscriptions moved, wait for their date, are overdue or ended
+      (`SC-SUB-033`); `versionRetirements.list` answers `VersionRetirementView`
+      with `progress`. The tenant usage carries `retirementSwitch`, and
+      `useTenantBilling` gains `switchToReplacement`. New wording keys:
+      `planDetail.versions.retiredProgress.*` and `versionRetiredSwitch*`.
+
+- c3b87c8: Bind a scheduled change to another plan at the version it was quoted at
+
+    A change scheduled for the end of the term bound whichever version of the
+    target plan was in effect the day it came due. A version published in between
+    reached the customer through a change they had confirmed at another price
+    (`SC-CHG-022`).
+
+    - The plan-change preview prices another plan at its version live now, read as
+      a row, and names it as `target.planVersionId`; a change that keeps the plan
+      names the version it keeps.
+    - `schedulePlanChange` takes `pendingChangeVersionId` and stores it; the
+      subscriptions table gains the column, with a foreign key to `plan_versions`.
+      `1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql` adds it to an
+      existing installation and gives a change already scheduled to another plan
+      the version live and in effect when it runs. It finds that plan by its key
+      in `plan_versions."planId"`, or — under the Prisma adapter's
+      `normalized-plan-id` binding — through the row of `plans` carrying the key.
+    - `ImmediatePlanChangeInput` takes `quotedPlanVersionId`: where set, and no
+      version is kept by `keepsBoundVersion`, the write binds it rather than the
+      version in effect — while it can still be booked for that plan on the day
+      the change lands: a version of another plan, one that has ended
+      (`SC-PLAN-016`), or one published ahead of a date that has not come yet is
+      not bound, and the version in effect is. Materialisation passes the recorded
+      version; a sale and onboarding pass `null`.
+    - `DuePendingPlanChange` requires `pendingChangeVersionId`. A
+      `PendingPlanQueryPort` of your own returns it, and a
+      `TenantSubscriptionWritePort` of your own stores, clears and binds it; the
+      persistence contract checks the binding against PostgreSQL.
+
+- edb496b: Tell a subscriber once that a newer version of their plan is offered to them
+
+    A subscription keeps its version, and a newer one is an offer beside the plan
+    (`SC-SUB-020`). With `tenantBilling.versionNotices: { port }` the tenant's
+    administrators now hear of it once, in the application's words
+    (`SC-SUB-022`): when the offer appears — not when the version is published —
+    so a version whose window opens later is told when it opens, and a
+    subscription with a change still to land is told once it has landed. Each
+    newer version is told once per subscription; there is no reminder.
+
+    - `SubscriptionNoticePort` in `@saasicat/core` is the application's: it finds
+      the tenant's administrators, words and sends the message, and answers to
+      whom and through which channel. A throw is tried again by the next run; an
+      answer with no recipients is recorded as told to nobody.
+    - The platform keeps a record of every notice (`SC-SUB-023`) in the new
+      `subscription_notices` table: the subscription, what it said, when it went
+      out, to whom and how, one per subscription and subject. Adopt
+      `prisma-fragments/17-subscription-notice.prisma` and run
+      `sql/1.0-a-subscriber-is-told-once.postgres.sql`. Both bundles provide the
+      record as `tenantBilling.subscriptionNotices`, which
+      `notAdopted: ['SubscriptionNotice']` leaves out.
+    - `VersionNoticeService.sendDue` sends what is due, across tenants inside the
+      RLS bypass. `VersionNoticeCron` runs it every quarter of an hour where
+      `ScheduleModule` is registered, and pauses under a maintenance lock;
+      `includeCron: false` leaves it to a scheduler of the application's own.
+    - `SubscriptionUsagePort.listBoundToEarlierVersions` is new and optional; both
+      shipped adapters have it. Version notices over a port without it, or over a
+      plan repository without `findVersionById`, refuse to start, and so does a
+      start with no record (`version-notices.requires-notice-record`).
+    - The persistence contract holds a notice record to one claim at a time. A
+      harness gains the `subscriptionNotices` member, or declares
+      `gaps: ['subscriptionNotices']`.
+
+### Patch Changes
+
+- 4470181: Seal a SuperAdmin's second factor before it is stored
+
+    The TOTP secret behind a SuperAdmin's second factor was stored as it is, so
+    whoever held a dump, a backup or a replica of the database held the second
+    factor of the accounts that can change every tenant's plan, codes and
+    contracts (`SC-SEC-016`).
+
+    - `MfaService` seals the secret before `MfaPort.setSecret` sees it and opens it
+      after `getSecret`, through a `SecretSealer` — a new interface in
+      `@saasicat/core`, bound as `adapters.secretSealer`.
+    - `@saasicat/nest` ships two: `aesGcmSecretSealer(key)`, AES-256-GCM under a
+      key of 32 bytes given as base64, and `storeSecretsInPlainText()` for an
+      installation that means it. A key that is unset or of another length stops
+      the boot with a message saying which; pass `process.env.…` as it is.
+    - `SaaSiCatModule.forRoot` refuses to start without a sealer
+      (`core.secret-sealer-bound`). The persistence bundle does not supply one: the
+      key belongs to the installation, not to the database.
+    - A stored secret the sealer cannot open — sealed under another key, or stored
+      before this release — turns the code away rather than accepting it, and the
+      log names the user, who enrols again with `<app> admin mfa-setup --force`.
+    - `createSaaSiCatTestModule` binds `storeSecretsInPlainText()` unless
+      `overrides.secretSealer` names another.
+    - `saasicat init` wires `aesGcmSecretSealer(process.env.SECRET_SEALER_KEY)` and
+      says how to generate the key.
+
+    **After upgrading, each SuperAdmin enrols once more** with
+    `<app> admin mfa-setup --force`, since secrets stored before are plain text. An
+    `MfaPort` of your own that already encrypts the secret moves that encryption
+    into a `SecretSealer` instead: what it wrote stays readable and nobody enrols
+    again. `MfaService` takes the sealer as its second constructor argument.
+
+- 42b21ab: Give negotiated limits one shape, and report a stored value in any other
+
+    The subscription fragment documented `customLimits` as
+    `{ maxUsers?, maxVehicles?, maxStorageGb?, features? }`, while the
+    platform reads `{ quotas?: { <quotaKey>: number }, features?: string[] }`
+    — and `@saasicat/core` itself declared both. A consumer that followed the
+    fragment stored limits the entitlement read nothing from, without an error.
+
+    - `CustomLimits` in `@saasicat/core` is the one type, used by `Subscription`
+      and `SubscriptionRecord`. `CustomLimitsShape` is gone from
+      `@saasicat/nest/entitlement`; use `CustomLimits`. `Subscription.customLimits`
+      was declared flat, which nothing ever read; it now has the shape that is
+      applied.
+    - Both adapters read the stored JSON through `readCustomLimits`. A key the
+      platform does not read, and a quota value nothing can count, are left out
+      and named in a warning, once per subscription: the tenant stays on its
+      plan's limits rather than being blocked or handed an unlimited quota, and
+      the operator sees what was not applied.
+    - The fragment, `examples/notesapp` and the normative admin API schema document
+      the shape that is read: `customLimits` in the application's subscription
+      `PATCH` route and in `SubscriptionDetail` was a flat map of integers, and now
+      refers to a `CustomLimits` schema. A repository test holds that schema to
+      `CUSTOM_LIMITS_KEYS`, the keys the platform reads.
+    - The persistence contract reads negotiated limits back, in the platform's
+      shape and in one it does not read. Its `createSubscription` seed writer
+      takes `customLimits`; a harness of your own writes it to the column.
+
 ## 1.0.0-rc.23
 
 ### Minor Changes

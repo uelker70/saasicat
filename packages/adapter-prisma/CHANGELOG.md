@@ -1,5 +1,758 @@
 # @saasicat/adapter-prisma
 
+## 1.0.0-rc.24
+
+### Major Changes
+
+- f905b7f: Retire the pending version: a newer version is only offered
+
+    A subscription keeps its plan version across every renewal until the
+    subscriber takes another (`SC-SUB-024`); a newer version is an offer beside
+    the plan (`SC-SUB-020`). The pending version — set by a notice job, accepted by
+    the tenant, rolled forward at the end of the term — is gone with everything
+    that carried it.
+
+    - `POST billing/subscription/accept-pending-version`,
+      `TenantSubscriptionWritePort.acceptPendingPlanVersion`,
+      `useTenantBilling().acceptPendingPlanVersion`, `PendingVersionBanner`, the
+      seven `pendingVersion*` strings of `TenantPlanSectionI18n`, the error code
+      `NO_PENDING_PLAN_VERSION` and its refusal `noPendingPlanVersion` are removed.
+      A switch is taken through `POST billing/version-offer/accept`.
+    - `decideRenewal` and `clearPendingPlanVersionFields` are removed; a renewal
+      keeps the version, and `computeNextPeriod` stays.
+    - `SubscriptionUsageRecord`, `GET billing/usage` and `Subscription` carry no
+      `pendingPlanVersion*` fields. `prisma-fragments/01-subscription.prisma` and
+      `03-plan-versions.prisma` drop the seven columns and their relation, and
+      `sql/1.0-a-newer-version-is-only-offered.postgres.sql` drops them from an
+      existing database — run it once nothing reads them any more; it discards
+      every pending version still recorded, accepted ones included.
+    - `countByPlanVersionId` counts the version a scheduled change will bind
+      (`pendingChangeVersionId`) beside the version bound, so an operator cannot
+      edit a version somebody's switch is waiting for. Both adapters count it, and
+      the persistence contract holds a store of your own to it; the harness seed
+      writes it as `pendingChangeVersionId`.
+
+- 8a3ee1d: Sell a plan version by its dates, everywhere
+
+    Which version of a plan is on sale is now decided once, by its dates —
+    published, begun, not past its last day, not ended — and the tenant's plan
+    list, the plan-change preview, the public catalogue, checkout, the add-on
+    preview, every booking, the offer to existing subscribers and the entitlement
+    fallback all ask that question (`SC-PLAN-027`). Switches used to decide whether
+    the dates were kept at all; off by default, a version published with a later
+    start was sold at once, and with them on, the plan list and the preview showed
+    the newest version while a booking bound its predecessor. The dates now always
+    apply.
+
+    - `@saasicat/adapter-prisma`: `schema.planVersionFields` (with `catalog` and
+      `entitlement`), `tenantSubscription.activeVersionSelection`,
+      `tenantSubscription.withEndsAt` and the types
+      `PrismaPlanVersionFieldOptions` and `PrismaPlanVersionFieldCapabilities` are
+      removed. Every plan-version model carries `validFrom`, `validUntil` and
+      `endsAt`; `findActivePlanVersion`, `terminate` and `findActive` are always
+      there.
+    - `@saasicat/adapter-drizzle`: the `plan: { validityWindows }` option of
+      `drizzlePersistence()`, the options argument of `DrizzlePlanRepository` and
+      `DrizzlePlanRepositoryOptions` are removed; the entitlement read gains
+      `findActive`.
+    - `@saasicat/core`: `PlanVersionRepository.findLatestLive` is removed and
+      `findActive` is required; `PlanCatalogReadSink.loadSnapshot(asOf)` takes the
+      moment and answers `versionsOnSale` instead of `livePlanVersions`;
+      `toPlanVersionRow` takes no field flags and `PlanVersionMappingFields` is
+      removed; `PlanVersionRow.endsAt` is always present.
+    - `@saasicat/nest`: the plan editor and checkout refuse to start over a plan
+      repository without `findActivePlanVersion`. `FakePlanVersionRepository`
+      drops `findLatestLive`.
+    - `@saasicat/persistence-testing`: a new part, `planCatalogRead`, holds the
+      catalogue read to the version a booking binds; a harness wires
+      `planCatalogReadSink` or names the part in `gaps`.
+
+    Nothing to migrate: a version without dates counts as on sale since it was
+    published, and the next one published with a start date closes it on the day
+    before. A superseded version is on sale only within a last day it carries, so
+    ending the successor of an undated one leaves nothing on sale rather than
+    bringing back the old price.
+
+- a576414: Sell an add-on version by its dates, as a plan version is
+
+    Which version of an add-on is on sale is now decided by its dates, as for a
+    plan (`SC-BUN-035`, superseding `SC-BUN-023`): published, begun, not past its
+    last day, and — once superseded — only within a last day it carries. The
+    public catalogue and the upsell showed the newest published version, and a
+    booking refused every superseded one, so an add-on whose successor starts next
+    month could not be sold until then, while a version whose start was still to
+    come could be booked at once. The public catalogue, the upsell, the add-on
+    preview, checkout and a tenant's booking now read it the same way.
+
+    - `@saasicat/adapter-prisma`: the `bundle` option of `prismaPersistence()`,
+      the options argument of `PrismaBundleRepository`,
+      `PrismaBundleRepositoryOptions` and `PRISMA_BUNDLE_REPOSITORY_OPTIONS` are
+      removed; the dates are always written and read, so the bundle-version model
+      carries `validFrom` and `validUntil` as the shipped fragment does.
+    - `@saasicat/adapter-drizzle`: the `bundle` option of `drizzlePersistence()`
+      and the options argument of `DrizzleBundleRepository` are removed.
+    - `@saasicat/core`: `BundleRepository.findActiveBundleVersion` is required.
+      A new code, `BUNDLE_VERSION_NOT_YET_ON_SALE`, refuses a booking of a version
+      whose start is still to come.
+    - `@saasicat/nest`: a superseded add-on version is booked until its successor
+      starts. `FakePlanRepository` and `FakeBundleRepository` answer the version on
+      sale by the adapters' rule, including the one for a superseded version
+      without a last day. A version's start and end are days: publishing a plan or
+      an add-on version with a time of day is refused with its `…_VALID_FROM_INVALID`
+      or `…_VALID_UNTIL_INVALID`, which would otherwise leave the hours before it
+      with neither the predecessor nor the successor on sale.
+    - `@saasicat/ui-vue`: the add-on admin calls a version live while it is on
+      sale — a predecessor until its successor starts, for the whole of its last
+      day — rather than superseded from the moment a successor is published.
+
+- 5a6b34a: Lift row policies for the platform's cross-tenant work in the Prisma bundle
+
+    `prismaPersistence()` created its RLS bypass inline, where no Prisma client
+    could see it, and the README's recipe for applying it used `$use`, which
+    Prisma 7 no longer has, and `SET LOCAL row_security = off`, which makes a
+    filtered query fail rather than lift a policy (`SC-COMP-019`).
+
+    - `rlsIntegration: true` now does the lifting. Every statement the bundle's
+      adapters run inside the platform's `runWithBypass` — a read, a write, a raw
+      statement, and an interactive transaction the runner or a repository opens —
+      runs in one transaction with `set_config('app.bypass_rls', 'true', true)`,
+      and a policy that accepts that setting beside the tenant lets it through.
+      The setting ends with the transaction. The README gives the policy.
+    - A statement that enters the bypass inside a transaction opened outside it is
+      refused with an error, since the setting would outlast the bypass there. A
+      statement on the client itself, sent from inside a transaction, runs on
+      another connection and is lifted on its own; a batch carries the setting at
+      its head, and a lifted statement in a batch opened on another client is
+      refused.
+    - `PrismaRlsBypass` is the building block: pass one as `rlsIntegration` to name
+      another setting, or to run statements of your own through the same port with
+      `bypass.extend(prisma)`.
+    - `runWithBypass` in both shipped ports awaits the work inside the frame. A
+      query builder's promise runs when it is awaited, so a query handed back
+      unawaited ran after the frame had closed — outside the bypass.
+    - The Drizzle bundle does not lift a policy, and its documentation no longer
+      says `row_security = off` would: with row policies, bind an `RlsBypassPort`
+      of your own there.
+
+    **If you set `rlsIntegration: true` with a middleware of your own**, remove the
+    middleware — the bundle now lifts the policy itself, for the platform's
+    statements — and give your policies the `app.bypass_rls` clause. An
+    installation with a bypass of its own, over its own tenant context, binds its
+    `RlsBypassPort` in `adapters` and leaves `rlsIntegration` out.
+
+### Minor Changes
+
+- ce7241e: Keep the plan version a subscriber bought when a scheduled change only moves
+  the rhythm
+
+    A change of rhythm is scheduled for the period end, and when it came due both
+    adapters bound the subscription to the newest version of the plan — a new
+    price and new features the subscriber had not accepted, held by the contract
+    frozen after it. Moving a subscriber to a newer version is theirs to decide
+    (`SC-SUB-024`).
+
+    - `ImmediatePlanChangeInput` carries `keepsBoundVersion`, which the platform
+      sets: `true` where a scheduled change comes due, `false` for a change of
+      plan and for onboarding, which sell at the version in effect. A store keeps
+      the version the subscription is bound to where the flag is set and the plan
+      does not change; another plan is bound to its version in effect either way.
+      A store of your own reads the flag; code that builds the input passes it.
+    - The plan-change preview quotes a change of rhythm at the version kept, and
+      shows the price of the version bound as the current one, where the plan
+      repository reads versions (`findVersionById`); a subscriber on an older
+      version was quoted the catalogue's newest price, which the write no longer
+      bills. It prices that version by the rules the contract freeze bills it by,
+      and refuses a rhythm the version kept is not sold in with
+      `PLAN_NOT_SOLD_IN_CYCLE` — rather than a free year.
+    - The Prisma write claims the row only while it is bound to the version it
+      read, so a switch landing between its read and its write is not written
+      over; the caller is told the subscription changed. The Drizzle
+      write already decides under a row lock.
+    - The persistence contract checks all three: a change of rhythm keeps the
+      version, a sale binds the version in effect, and another plan is bound to
+      its own whatever the flag says.
+
+- 49e93ab: Name the tenant when a contract is superseded or ended, so a wrong id cannot
+  reach another tenant's contract
+
+    `SubscriptionContractRepository.supersede` and `terminate` identified the
+    contract by id alone. On an installation with a row policy on
+    `subscription_contracts`, the policy was then the only thing keeping a wrong
+    id from ending another tenant's contract.
+
+    - `SupersedeSubscriptionContractData` and `TerminateSubscriptionContractData`
+      carry `tenantId`, and both shipped adapters match it in the statement.
+    - `terminate` of a contract that no contract of that tenant carries is refused
+      with `SUBSCRIPTION_CONTRACT_NOT_FOUND`, where Prisma failed with its own
+      error and Drizzle with a plain one.
+    - `SubscriptionContractService.terminate` now requires `tenantId` in its
+      input: the tenant the caller acts for. A contract of another tenant is
+      answered as one that does not exist, also where it is closed already, so a
+      call that leaves `tenantId` out is answered 404. `writeSuccessor` refuses a
+      successor for one tenant in place of another tenant's contract.
+    - The persistence contract supersedes and terminates under another tenant's
+      id and expects nothing to change. A store of your own matches the tenant,
+      and code that calls `supersede` or `terminate` on the port passes it.
+
+- 21ba667: Answer a request that loses a race the way the check answers it, not with a 500
+
+    The platform checks before it writes, and where two requests pass that check
+    together — two operators creating one key, a double click asking for a second
+    draft, a cancellation arriving after another — the store decides. Both
+    adapters then threw a plain `Error` or let the database's unique violation
+    through, and the loser read a 500 that looked like a crash in the log. It now
+    reads the status, code and parameters the check gives a request arriving a
+    moment later.
+
+    - `@saasicat/core` builds the refusals: `planKeyTaken`, `bundleKeyTaken`,
+      `marketingProjectionTaken`, `catalogDraftExists`, `subscriptionBundleGone`,
+      `subscriptionBundleAlreadyCancelled`, `subscriptionGone`,
+      `noActivePlanVersion` and `planNotInCatalog`, each worded by the shipped
+      English catalogue.
+    - Both adapters create catalogue keys, drafts and marketing projections with
+      `ON CONFLICT DO NOTHING`, so a refused create leaves a caller's transaction
+      usable. `PrismaModelDelegateLike` declares `createManyAndReturn`, which
+      Prisma has had since 5.14. A conflict on a unique index of your own is not
+      reported as a key taken: Drizzle aims the conflict at the key, and Prisma,
+      which cannot, looks the key up and otherwise fails with an error of its own.
+    - The Prisma and Drizzle subscription writes refuse a missing subscription and
+      a plan with no version in effect by code; a booking cancellation tells a
+      booking that is gone from one cancelled first. The three configuration
+      checks the Prisma write makes when it is constructed stay plain errors.
+    - Onboarding answers a refusal of the store the same way on both of its
+      paths; the atomic one reported it as `ONBOARDING_CREATE_FAILED` before.
+    - `FakePlanRepository`, `FakeBundleRepository`,
+      `FakeMarketingProjectionRepository` and `FakeSubscriptionBundleRepository`
+      from `@saasicat/nest/testing` refuse the same way, and the plan fake refuses
+      a second draft as the stores do.
+    - The persistence contract checks these refusals by code: a taken plan or
+      bundle key, a second plan or bundle draft — also two asked for at once — a
+      booking that is not there or already cancelled, and a plan change for a
+      tenant without a subscription or to a plan with no version in effect. A
+      store of your own throws `PersistenceRefusal` for these, built with the
+      functions above.
+
+- c69e2af: Reverse any redemption not reversed yet, and give its slot back once
+
+    `PromoCodesService.reverse` reversed a redemption only while its status read
+    `ACTIVE`, so for one whose term had ended the answer depended on whether the
+    nightly sweep had marked it `EXPIRED` yet: before the sweep its slot came back,
+    after it not. And two reversals at the same moment both gave the slot back.
+
+    - `reverse` rolls back any redemption not reversed yet, an expired one
+      included, and gives its slot to the code again (`SC-PROMO-001`). It is what
+      a withdrawal or a rollback calls; an ordinary end never calls it.
+    - `PromoCodeRedemptionRepository.setReversed` claims: it reverses the
+      redemption only while it is not reversed, in one conditional statement, and
+      answers `null` where it already was. Only the reversal that wins gives the
+      slot back. Both shipped adapters do; a repository of your own does the same,
+      and the persistence contract runs two reversals at once against it.
+
+- d556622: A retired version's subscriptions move to the replacement at their date
+
+    At the date each subscription was told, the platform moves it from the retired
+    version onto the replacement, at the replacement's price, keeping its period
+    and its term (`SC-SUB-031`). The quarter-hourly run that sends version notices
+    does it, and catches up a run that did not happen; with
+    `versionNotices.includeCron: false`, call `RetirementMoveService.moveDue`
+    yourself. A subscription that has ended by its date, or whose own scheduled
+    change takes it off the version by then, is left alone; a change scheduled for
+    later survives the move.
+
+    - **What a moved subscription pays.** A plan line of the retired version prices
+      no period that starts on or after the date the subscriber was told: the period
+      waits for the contract the move writes and is charged at the replacement's
+      price, however late that contract comes (`SC-PRIC-062`). A contract a
+      retirement writes adds no prorated difference.
+    - **Switching early.** Until the date, a subscriber may switch to the
+      replacement at once from the plan section — `POST /billing/retirement/switch`,
+      for the tenant's administrators, audited as `SWITCH_TO_RETIREMENT_REPLACEMENT`
+      (`SC-SUB-032`). The term stays. Where the replacement costs more, the contract
+      holds the difference as a discount line until the date, so the subscriber
+      pays what they paid until then (`SC-PRIC-063`); where it costs the same or
+      less, its price applies from the next period. The switch opens after a trial,
+      not while a change is scheduled, and ends the right to cancel without notice.
+      New codes: `RETIREMENT_SWITCH_NOT_PENDING`, `RETIREMENT_SWITCH_IN_TRIAL`,
+      `RETIREMENT_SWITCH_NOT_OPEN`, `RETIREMENT_SWITCH_CHANGED`.
+    - **Ending a replacement.** A version subscriptions still move onto cannot be
+      terminated before the day after the last of their dates:
+      `PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` (`SC-PLAN-029`). While a move onto
+      it is past its date and not made, it cannot be terminated at all:
+      `PLAN_TERMINATE_WHILE_MOVES_OVERDUE`.
+    - **Audit.** Each move is recorded as `PLAN_VERSION_RETIREMENT_MOVE`, and a move
+      that cannot be made once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, by the new
+      platform job actor: `AuditActor` is `AdminActor` or `PlatformJobActor`
+      (`source: 'job'`, `userId: null`, tag `job:platform:retirement-moves`). An
+      `AuditPort` of your own accepts a `null` user; the canonical
+      `audit_logs.userId` already is nullable.
+    - **`TenantSubscriptionWritePort.changePlanImmediate`** takes
+      `keepsPendingChange`: the scheduled change survives the write, and one that
+      only moves the rhythm on the plan being left follows the subscription to its
+      new plan (`scheduledChangeAfterWrite` in `@saasicat/core`). It also takes
+      `restoresQuotedVersion`, which binds the version named whether or not it
+      still takes bookings: a move or a switch whose contract cannot be written is
+      put back with it, onto the retired version, which is off sale. Both shipped
+      adapters honour both and the persistence contract holds them to it; a port of
+      your own has to.
+    - **The plan cockpit** shows beside a retired version how many of its
+      subscriptions moved, wait for their date, are overdue or ended
+      (`SC-SUB-033`); `versionRetirements.list` answers `VersionRetirementView`
+      with `progress`. The tenant usage carries `retirementSwitch`, and
+      `useTenantBilling` gains `switchToReplacement`. New wording keys:
+      `planDetail.versions.retiredProgress.*` and `versionRetiredSwitch*`.
+
+- c3b87c8: Bind a scheduled change to another plan at the version it was quoted at
+
+    A change scheduled for the end of the term bound whichever version of the
+    target plan was in effect the day it came due. A version published in between
+    reached the customer through a change they had confirmed at another price
+    (`SC-CHG-022`).
+
+    - The plan-change preview prices another plan at its version live now, read as
+      a row, and names it as `target.planVersionId`; a change that keeps the plan
+      names the version it keeps.
+    - `schedulePlanChange` takes `pendingChangeVersionId` and stores it; the
+      subscriptions table gains the column, with a foreign key to `plan_versions`.
+      `1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql` adds it to an
+      existing installation and gives a change already scheduled to another plan
+      the version live and in effect when it runs. It finds that plan by its key
+      in `plan_versions."planId"`, or — under the Prisma adapter's
+      `normalized-plan-id` binding — through the row of `plans` carrying the key.
+    - `ImmediatePlanChangeInput` takes `quotedPlanVersionId`: where set, and no
+      version is kept by `keepsBoundVersion`, the write binds it rather than the
+      version in effect — while it can still be booked for that plan on the day
+      the change lands: a version of another plan, one that has ended
+      (`SC-PLAN-016`), or one published ahead of a date that has not come yet is
+      not bound, and the version in effect is. Materialisation passes the recorded
+      version; a sale and onboarding pass `null`.
+    - `DuePendingPlanChange` requires `pendingChangeVersionId`. A
+      `PendingPlanQueryPort` of your own returns it, and a
+      `TenantSubscriptionWritePort` of your own stores, clears and binds it; the
+      persistence contract checks the binding against PostgreSQL.
+
+- edb496b: Tell a subscriber once that a newer version of their plan is offered to them
+
+    A subscription keeps its version, and a newer one is an offer beside the plan
+    (`SC-SUB-020`). With `tenantBilling.versionNotices: { port }` the tenant's
+    administrators now hear of it once, in the application's words
+    (`SC-SUB-022`): when the offer appears — not when the version is published —
+    so a version whose window opens later is told when it opens, and a
+    subscription with a change still to land is told once it has landed. Each
+    newer version is told once per subscription; there is no reminder.
+
+    - `SubscriptionNoticePort` in `@saasicat/core` is the application's: it finds
+      the tenant's administrators, words and sends the message, and answers to
+      whom and through which channel. A throw is tried again by the next run; an
+      answer with no recipients is recorded as told to nobody.
+    - The platform keeps a record of every notice (`SC-SUB-023`) in the new
+      `subscription_notices` table: the subscription, what it said, when it went
+      out, to whom and how, one per subscription and subject. Adopt
+      `prisma-fragments/17-subscription-notice.prisma` and run
+      `sql/1.0-a-subscriber-is-told-once.postgres.sql`. Both bundles provide the
+      record as `tenantBilling.subscriptionNotices`, which
+      `notAdopted: ['SubscriptionNotice']` leaves out.
+    - `VersionNoticeService.sendDue` sends what is due, across tenants inside the
+      RLS bypass. `VersionNoticeCron` runs it every quarter of an hour where
+      `ScheduleModule` is registered, and pauses under a maintenance lock;
+      `includeCron: false` leaves it to a scheduler of the application's own.
+    - `SubscriptionUsagePort.listBoundToEarlierVersions` is new and optional; both
+      shipped adapters have it. Version notices over a port without it, or over a
+      plan repository without `findVersionById`, refuse to start, and so does a
+      start with no record (`version-notices.requires-notice-record`).
+    - The persistence contract holds a notice record to one claim at a time. A
+      harness gains the `subscriptionNotices` member, or declares
+      `gaps: ['subscriptionNotices']`.
+
+- 2cafe45: Take a version offer: switch a subscription to a newer version of its plan
+
+    `POST billing/version-offer/accept` takes the offer `GET billing/version-offer`
+    shows (`SC-SUB-021`). The body names the version the page showed; the offer is
+    read again, and the switch goes ahead only while that version is still the one
+    offered — otherwise `409 VERSION_OFFER_CHANGED` with the offer as it now
+    stands. The route asks for the tenant's administrator and writes an audit
+    entry (`SWITCH_PLAN_VERSION`, or `SCHEDULE_PLAN_VERSION_SWITCH`).
+
+    - **An improvement and more for more** switch at once, on the plan and in the
+      rhythm the subscription has. The term and the period stay. What it costs is
+      what the account charges for any contract taking effect inside a paid
+      period: the difference for the rest of the period where the price in the
+      subscriber's own rhythm is higher, nothing where it is not — so an
+      improvement is free, and so is a version dearer only in the other rhythm.
+      Where contracts are frozen, the successor contract is written at once.
+    - **One that takes something away** is scheduled for the end of the term,
+      bound to the version offered, and written when it comes due. It is refused
+      with `400 PLAN_CHANGE_BLOCKED` (`QUOTA_OVER_TARGET`) while today's usage
+      exceeds a quota it lowers, with `409 VERSION_SWITCH_AFTER_CANCELLATION`
+      where a cancellation lands before it would take effect, and with
+      `409 VERSION_ENDS_BEFORE_SWITCH` where the version stops being sold — its
+      window closes, or an operator ended it — before then. Each side of the offer
+      now carries `validUntil` and `endsAt` for that.
+    - A change that names a version of the plan it keeps, and finds that version
+      no longer taking bookings when it lands, keeps the version bound rather than
+      binding one nobody was offered — in both adapters, held by the contract.
+    - `PendingPlanMaterializationService` binds the version a due change names,
+      also where the plan stays; a change that names none keeps the version bound,
+      as before.
+    - `useTenantBilling().acceptVersionOffer(planVersionId)` in `@saasicat/ui-vue`
+      takes it and reloads; the result type is `VersionSwitchResult` from
+      `@saasicat/core`.
+    - The switch is written only while the subscription is as it was read. Three
+      optional fields on `TenantSubscriptionWritePort` carry that:
+      `expectedPlanVersionId` (on both writes) claims the row only while it is
+      still bound to that version, `expectedPendingPlan` (on `schedulePlanChange`)
+      only while that change — `null` for none — is still what is scheduled, and
+      `quotedVersionOnly` (on `changePlanImmediate`) binds `quotedPlanVersionId`
+      or nothing, instead of the version in effect. A write
+      that finds any of them moved answers `claimed: false`, and the route answers
+      `VERSION_OFFER_CHANGED` with the offer as it stands, or
+      `SUBSCRIPTION_CHANGED`. A plan change a second administrator makes at the
+      same moment is therefore refused rather than written back over.
+    - Both adapters implement the three, and the persistence contract holds them
+      to it: a newer version of the same plan a change was quoted at is bound; a
+      binding that moved, a required version that stopped taking bookings, and a
+      schedule or binding that moved under a scheduled change each claim nothing.
+
+    **If you implement `TenantSubscriptionWritePort` yourself**, honour the three
+    fields — the contract suite in `@saasicat/persistence-testing` now asks for
+    them. A write that ignores them lets a version switch overwrite a plan change
+    made at the same moment.
+
+    **If your `PendingPlanQueryPort` does not return `pendingChangeVersionId`**, a
+    switch taken at the end of the term comes due as a change that keeps the
+    version bound — return the column, as a scheduled change to another plan
+    already needs.
+
+- b152580: Wire a schema that leaves canonical models out, without a cast and without a
+  failure at the first request
+
+    An application that keeps its SuperAdmins in its own user table leaves the
+    SuperAdmin fragment out, as the fragment itself recommends, and its client
+    then has no `superAdminUser` or `superAdminMfa`. Six Prisma adapters that
+    never touch those tables still demanded the whole client type, so wiring one
+    needed `as unknown as PrismaLike`. They now ask only for the delegates they
+    use: the subscription contract repository, the four promo code repositories
+    and the promo subscription lookup. The two audit adapters ask only for the
+    reads they make, so a generated client whose audit `create` types `changes`
+    as its own JSON input — Prisma 7 does — no longer fails to compile against
+    them.
+
+    `prismaPersistence()` and `drizzlePersistence()` built every member whatever
+    the schema held, so a schema without `promo_code_holds` failed in the middle
+    of a redemption. Both now take `notAdopted`, in the model names
+    `saasicat schema check` prints under "Not adopted" — which now hands over the
+    list for the models the bundle can leave out — and leave out the members that
+    need them.
+    A ready Prisma client passed to `prismaPersistence()` needs no delegate of a
+    model named there.
+
+    - `OPTIONAL_CANONICAL_MODELS` and `membersLeftOut` are new in
+      `@saasicat/core`. A name the bundle cannot do without is refused with the
+      ones it can.
+    - `SaaSiCatPersistenceCore.mfa` is optional: a bundle for a schema without
+      `SuperAdminMfa` has none, and a start without an `MfaPort` of your own in
+      `adapters` is refused.
+    - `passwordHasher` together with `notAdopted: ['SuperAdminUser']` is refused,
+      since the hasher provisions into that table.
+    - `RegistrationModule` does not start beside checkout offers and promo
+      codes without a `PromoCodeHoldRepository`, and says what to wire: a sign-up
+      that names an offer holds its code from step 4 on, and an operator can put
+      a code on an offer at any time. This stops an installation that starts
+      today: one that wires `PromoCodesModule` by hand without `holdRepository`
+      beside checkout offers and self-registration, and until now failed only at
+      the first checkout of an offer carrying a code. Pass `holdRepository`, or
+      drop `'PromoCodeHold'` from `notAdopted`, before you upgrade.
+
+- 7cd9d27: Let an operator retire a plan version for the subscriptions on it
+
+    A subscription keeps its version (`SC-SUB-024`). Retiring one is the orderly
+    way out: an operator names a replacement on sale, of the same plan or another,
+    and every subscription on the version is told that it continues on it at the
+    end of one of its terms at least three calendar months after its notice
+    reached an administrator (`SC-SUB-035`). Until then it may cancel without
+    notice (`SC-CANC-023`). A price increase is a
+    retirement whose replacement costs more.
+
+    - **`config/saas.yaml` needs `tenantBilling.orderlyRetirement.termsConfirmed`.**
+      It is required, like the notice periods beside it, and a file without it no
+      longer loads. `true` states that your terms carry the clause a retirement
+      rests on; without it the administration does not offer the action and the
+      server refuses it with `RETIREMENT_TERMS_NOT_CONFIRMED` (`SC-SUB-025`).
+      The loader names the field it is missing; `saasicat init` writes `false`.
+    - Only a version no longer on sale can be retired, for a replacement priced in
+      the rhythm each subscription is billed in by then; a retirement that reaches
+      nobody is refused, and a subscription is reached at most once in twelve
+      months (`SC-SUB-028`) and hears of a version's retirement once. The operator
+      sees every subscription it reaches with its date, and every one it does not
+      with the reason, before announcing; the announcement names them and is
+      refused with `RETIREMENT_PREVIEW_CHANGED` where they changed meanwhile
+      (`SC-SUB-026`).
+    - Routes: `GET` and `POST /admin/catalog/plan-versions/:id/retirement`, the
+      second behind the second factor and audited as `PLAN_VERSION_RETIRE`, and
+      `GET /admin/catalog/version-retirements`. The manifest carries
+      `planVersions.retire` (`VERSION_RETIREMENT_CAPABILITY`) where they are
+      served and the terms are confirmed.
+    - Each announcement is kept in the new `version_retirements` table, and each
+      subscription it reaches gets a `version-retired` notice in the same
+      transaction (`SC-SUB-029`). Adopt
+      `prisma-fragments/18-version-retirement.prisma` and run
+      `sql/1.0-a-retirement-is-announced.postgres.sql`; both bundles provide
+      `tenantBilling.versionRetirements`, which
+      `notAdopted: ['VersionRetirement']` leaves out. Confirmed terms with nowhere
+      to keep an announcement refuse the start.
+    - `SubscriptionNotice` is `version-offered` or `version-retired`. A retirement
+      notice carries both versions with their prices (`retired`, `replacement`,
+      `changes`), the `billingCycle` it is billed in when the retirement takes
+      effect, `effectiveAt` and `lastDayToCancel`. A `SubscriptionNoticePort`
+      narrows on `kind`. A notice the port could not send, or the platform could
+      not take on, is sent by the quarter-hourly run.
+    - `SubscriptionUsagePort.listBoundToVersion` is new and optional; both shipped
+      adapters have it, and confirmed terms over a port without it refuse to
+      start. A port of your own returns each subscription's
+      `pendingChangeVersionId` (new, optional on `SubscriptionUsageRecord`) with
+      it, or a subscriber who took a newer version's offer is reached as if they
+      stayed.
+      `SubscriptionNoticeRepository` gains `record`, `listOfKindSince` and
+      `listUndelivered`. The persistence contract holds both; a harness gains the
+      `versionRetirements` and `subscriptionUsage` members, or declares
+      `gaps: ['versionRetirements', 'boundSubscriptions']`.
+    - `versionSale`, `versionOnSale` and `versionOnSaleOrNext` move to
+      `@saasicat/core`, where the server decides by them; `@saasicat/ui-vue`
+      re-exports them unchanged.
+    - `@saasicat/ui-vue`: the plan cockpit offers "Retire…" on a version no
+      longer on sale, with a dialog that shows the replacement's prices, the
+      dates, the subscriptions not reached and every blocker before anything is
+      sent, and marks a retired version with its replacement. New:
+      `useVersionRetirement`, the `versionRetirements` resource, and the catalogue
+      keys `planDetail.versions.retire*`/`retired*` and `planDetail.retireDialog`.
+      The tenant usage carries `retirement`.
+    - `@saasicat/ui-vue-tenant`: the plan section shows a retirement beside the
+      plan — when the subscription continues on which version, at what price, and
+      until when it may cancel without notice — and says the last again in the
+      cancellation confirmation (`SC-SUB-030`). New wording keys
+      `versionRetired*` and `cancelConfirmRetirement`.
+
+- 536982d: Bound how many of the platform's transactions hold a connection at once
+
+    Both transaction runners opened a transaction for every request that asked,
+    and the Prisma runner used Prisma's defaults. The platform's transactions take
+    row locks and then read further, so under a burst at a quota limit every
+    pooled connection could end up held by a transaction waiting for a read that
+    needed one, until Prisma's five-second `timeout` aborted them with `P2028`.
+
+    - `prismaPersistence({ transactions })` takes `maxConcurrent`, `timeout` and
+      `maxWait`; `drizzlePersistence({ transactions })` takes `maxConcurrent`.
+      Transactions beyond `maxConcurrent` wait in arrival order before they open.
+      Your pool size minus five is a sound start. Unset, nothing changes.
+    - Wired by hand, the runners read the same options from
+      `PRISMA_TRANSACTION_OPTIONS_TOKEN` and `DRIZZLE_TRANSACTION_OPTIONS_TOKEN`.
+    - The bound is the pool's: every runner on one client shares it — also where
+      Nest builds a runner for each module that asks for one — and a second,
+      different bound for the same client is refused. The wait for a place has no
+      deadline: a sustained overload queues rather than fails.
+    - `concurrencyGate` and `concurrencyGateOf` in `@saasicat/core` are the queue
+      both runners use.
+
+### Patch Changes
+
+- 109fcce: A deleted promo code keeps its name, and a taken name answers 400
+
+    Creating a code under the name of a deleted one passed the platform's
+    duplicate check, because `findByCode` hid deleted codes, and then ran into the
+    unique index: a 500 where the platform meant to say the code exists. The name
+    stays taken now, since contracts, offers and redemptions name a code by its
+    text; `findByCode` returns deleted codes too, and every caller that redeems or
+    previews already checks `deletedAt`. Two creates of one name that race past the
+    check are answered the same way: the adapters insert with
+    `ON CONFLICT DO NOTHING` and refuse with `promoCodeTaken`, and the service
+    turns that into `400 PROMO_CODE_ALREADY_EXISTS`.
+
+    The message for `PROMO_CODE_ALREADY_EXISTS` now says that a deleted code may
+    carry the name, since the admin list does not show deleted codes, and the
+    refusal from the duplicate check carries `params.deleted` so an interface can
+    tell the two cases apart.
+
+    The nightly expiry no longer writes to deleted codes.
+
+    - `promoCodeTaken` is new in `@saasicat/core`.
+    - A promo code repository of your own returns deleted codes from `findByCode`,
+      refuses a taken name with `promoCodeTaken`, and leaves deleted codes out of
+      `expireDueCodes`; the persistence contract checks all three.
+
+- f78c15d: Keep a promo code's amounts as entered, and save every field of a change
+
+    Both adapters rounded a promo code's discount and minimum amount with
+    `toFixed(2)` before storing them, which rounds the binary double rather than
+    the decimal the operator typed: 1.005 was stored as 1.00, 10.005 as 10.01. The
+    decimal that was entered now goes to the column, and the admin API refuses an
+    amount with more than two decimal places, or larger than its column holds
+    (999,999.99 for a discount, 99,999,999.99 for a minimum), with a 400 instead of
+    rounding it or failing in the database. Exponent notation such as `1e-7` is
+    counted too.
+
+    `@saasicat/adapter-drizzle` also dropped most of a change to a code: an edit of
+    the discount, its type, the minimum, the plans and cycle it applies to, the
+    duration, the start date and the accounting fields reported success and kept
+    the old values. It now writes every field the change names.
+
+    - `toDecimalString` is new in `@saasicat/core`: the decimal a number was
+      written as, for a `numeric` column.
+    - The persistence contract creates a code with amounts that binary rounding
+      would send the wrong way and changes every field of one. A promo code
+      repository of your own that runs the contract has to pass both.
+
+- b17333a: Publish a draft once, and tell the second publisher so by code
+
+    Two operators, or one double click, could publish the same plan draft with
+    `@saasicat/adapter-prisma`: both requests passed the check, and the second
+    overwrote when, by whom and from when the version was published, and closed its
+    predecessor a second time. The same held for add-on drafts outside validity
+    mode, where the two writes did not even share a transaction. Discarding a plan
+    draft that was published in between reported success. Both adapters now claim
+    the draft while it still is one, close the predecessor in the same
+    transaction, and refuse otherwise.
+
+    The refusal reaches the operator as the platform's own check would answer:
+    `422 PLAN_VERSION_ALREADY_PUBLISHED` or `BUNDLE_VERSION_ALREADY_PUBLISHED`, and
+    `404` for a version that is gone — not a 500. The English and German texts of
+    the two `…_ALREADY_PUBLISHED` codes no longer say "cannot be discarded" to
+    somebody who was publishing: they say the version is neither published again
+    nor discarded.
+
+    - `PersistenceRefusal` is new in `@saasicat/core`: an error an adapter throws
+      when a row is no longer what its caller read, carrying the platform's code.
+      `catalogVersionGone` and `catalogVersionAlreadyPublished` build the two
+      catalogue cases, with the parameters each code's message interpolates.
+    - `FakePlanRepository` and `FakeBundleRepository` from `@saasicat/nest/testing`
+      refuse the same way: a version published once is not published again, and
+      the refusal carries the code. A test of yours that published one draft twice
+      through them now sees the refusal.
+    - The persistence contract publishes a plan draft twice, one after the other
+      and at the same moment, discards one published meanwhile, and publishes a
+      version that is not there. A plan repository of your own throws
+      `PersistenceRefusal` for these, or its harness declares the new gaps
+      `planDraftPublish` and `planDraftDiscard`.
+
+- 4470181: Seal a SuperAdmin's second factor before it is stored
+
+    The TOTP secret behind a SuperAdmin's second factor was stored as it is, so
+    whoever held a dump, a backup or a replica of the database held the second
+    factor of the accounts that can change every tenant's plan, codes and
+    contracts (`SC-SEC-016`).
+
+    - `MfaService` seals the secret before `MfaPort.setSecret` sees it and opens it
+      after `getSecret`, through a `SecretSealer` — a new interface in
+      `@saasicat/core`, bound as `adapters.secretSealer`.
+    - `@saasicat/nest` ships two: `aesGcmSecretSealer(key)`, AES-256-GCM under a
+      key of 32 bytes given as base64, and `storeSecretsInPlainText()` for an
+      installation that means it. A key that is unset or of another length stops
+      the boot with a message saying which; pass `process.env.…` as it is.
+    - `SaaSiCatModule.forRoot` refuses to start without a sealer
+      (`core.secret-sealer-bound`). The persistence bundle does not supply one: the
+      key belongs to the installation, not to the database.
+    - A stored secret the sealer cannot open — sealed under another key, or stored
+      before this release — turns the code away rather than accepting it, and the
+      log names the user, who enrols again with `<app> admin mfa-setup --force`.
+    - `createSaaSiCatTestModule` binds `storeSecretsInPlainText()` unless
+      `overrides.secretSealer` names another.
+    - `saasicat init` wires `aesGcmSecretSealer(process.env.SECRET_SEALER_KEY)` and
+      says how to generate the key.
+
+    **After upgrading, each SuperAdmin enrols once more** with
+    `<app> admin mfa-setup --force`, since secrets stored before are plain text. An
+    `MfaPort` of your own that already encrypts the secret moves that encryption
+    into a `SecretSealer` instead: what it wrote stays readable and nobody enrols
+    again. `MfaService` takes the sealer as its second constructor argument.
+
+- e99d6c0: Find a person's audit entries by their e-mail, through both adapters
+
+    `<app> audit tail --actor <email>` passed the address on as an actor tag, and
+    every tag the platform writes reads `<source>:<email>:<context>`, so the filter
+    never matched anything. And the two shipped adapters read a pattern
+    differently: Prisma took a star at either end, Drizzle only at the end and with
+    case (`SC-AUD-018`).
+
+    - `AuditQuery.actorTag` states its grammar: a tag, matched exactly, or a
+      pattern with a star at its start, its end or both, matched without regard to
+      case, everything between the stars literal. The Drizzle adapter reads it as
+      the Prisma adapter already did.
+    - `audit tail --actor` turns an address into `*:<email>:*`, so it lists that
+      person's entries from the web and the command line alike. A value with a
+      colon or a star is passed on as the tag or pattern it already is.
+    - **If you implement `AuditQueryPort` yourself**, it now receives that
+      pattern: read the grammar on `AuditQuery.actorTag`, or `--actor` answers
+      with an empty list — no error, since nothing matched. An adapter that
+      searched the address as a substring, or knew only a trailing star, finds
+      nothing for `*:<email>:*`. The shipped adapters read it, and the persistence
+      contract now holds any adapter to it.
+    - The Prisma adapter matches `%` and `_` in a searched value literally. Prisma
+      hands `contains`, `startsWith` and `endsWith` to `LIKE` as they are, so an
+      underscore stood for any character: a search for the promo code `BLACK_25`
+      also found `BLACKX25`, and the tenant, user and audit searches likewise. The
+      Drizzle adapter already escaped them.
+    - The persistence contract searches a promo code with an underscore and an
+      audit log by a pattern, for any adapter.
+    - The flow no longer promises a cap of 500 on `--limit`: the adapter sets it,
+      and the shipped ones cap at 200.
+
+- 42b21ab: Give negotiated limits one shape, and report a stored value in any other
+
+    The subscription fragment documented `customLimits` as
+    `{ maxUsers?, maxVehicles?, maxStorageGb?, features? }`, while the
+    platform reads `{ quotas?: { <quotaKey>: number }, features?: string[] }`
+    — and `@saasicat/core` itself declared both. A consumer that followed the
+    fragment stored limits the entitlement read nothing from, without an error.
+
+    - `CustomLimits` in `@saasicat/core` is the one type, used by `Subscription`
+      and `SubscriptionRecord`. `CustomLimitsShape` is gone from
+      `@saasicat/nest/entitlement`; use `CustomLimits`. `Subscription.customLimits`
+      was declared flat, which nothing ever read; it now has the shape that is
+      applied.
+    - Both adapters read the stored JSON through `readCustomLimits`. A key the
+      platform does not read, and a quota value nothing can count, are left out
+      and named in a warning, once per subscription: the tenant stays on its
+      plan's limits rather than being blocked or handed an unlimited quota, and
+      the operator sees what was not applied.
+    - The fragment, `examples/notesapp` and the normative admin API schema document
+      the shape that is read: `customLimits` in the application's subscription
+      `PATCH` route and in `SubscriptionDetail` was a flat map of integers, and now
+      refers to a `CustomLimits` schema. A repository test holds that schema to
+      `CUSTOM_LIMITS_KEYS`, the keys the platform reads.
+    - The persistence contract reads negotiated limits back, in the platform's
+      shape and in one it does not read. Its `createSubscription` seed writer
+      takes `customLimits`; a harness of your own writes it to the column.
+
+- Updated dependencies [05b9e78]
+- Updated dependencies [f7839c2]
+- Updated dependencies [ce7241e]
+- Updated dependencies [49e93ab]
+- Updated dependencies [109fcce]
+- Updated dependencies [f78c15d]
+- Updated dependencies [b17333a]
+- Updated dependencies [fe07088]
+- Updated dependencies [f905b7f]
+- Updated dependencies [21ba667]
+- Updated dependencies [c69e2af]
+- Updated dependencies [381c516]
+- Updated dependencies [60e875d]
+- Updated dependencies [d556622]
+- Updated dependencies [c3b87c8]
+- Updated dependencies [4470181]
+- Updated dependencies [edb496b]
+- Updated dependencies [8a3ee1d]
+- Updated dependencies [2cafe45]
+- Updated dependencies [b152580]
+- Updated dependencies [7063891]
+- Updated dependencies [a576414]
+- Updated dependencies [e444a9b]
+- Updated dependencies [7cd9d27]
+- Updated dependencies [e99d6c0]
+- Updated dependencies [71937ba]
+- Updated dependencies [42b21ab]
+- Updated dependencies [c25f062]
+- Updated dependencies [5a6b34a]
+- Updated dependencies [536982d]
+    - @saasicat/core@1.0.0-rc.24
+
 ## 1.0.0-rc.23
 
 ### Minor Changes

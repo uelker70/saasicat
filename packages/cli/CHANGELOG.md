@@ -1,5 +1,220 @@
 # @saasicat/cli
 
+## 1.0.0-rc.24
+
+### Major Changes
+
+- e99d6c0: Find a person's audit entries by their e-mail, through both adapters
+
+    `<app> audit tail --actor <email>` passed the address on as an actor tag, and
+    every tag the platform writes reads `<source>:<email>:<context>`, so the filter
+    never matched anything. And the two shipped adapters read a pattern
+    differently: Prisma took a star at either end, Drizzle only at the end and with
+    case (`SC-AUD-018`).
+
+    - `AuditQuery.actorTag` states its grammar: a tag, matched exactly, or a
+      pattern with a star at its start, its end or both, matched without regard to
+      case, everything between the stars literal. The Drizzle adapter reads it as
+      the Prisma adapter already did.
+    - `audit tail --actor` turns an address into `*:<email>:*`, so it lists that
+      person's entries from the web and the command line alike. A value with a
+      colon or a star is passed on as the tag or pattern it already is.
+    - **If you implement `AuditQueryPort` yourself**, it now receives that
+      pattern: read the grammar on `AuditQuery.actorTag`, or `--actor` answers
+      with an empty list — no error, since nothing matched. An adapter that
+      searched the address as a substring, or knew only a trailing star, finds
+      nothing for `*:<email>:*`. The shipped adapters read it, and the persistence
+      contract now holds any adapter to it.
+    - The Prisma adapter matches `%` and `_` in a searched value literally. Prisma
+      hands `contains`, `startsWith` and `endsWith` to `LIKE` as they are, so an
+      underscore stood for any character: a search for the promo code `BLACK_25`
+      also found `BLACKX25`, and the tenant, user and audit searches likewise. The
+      Drizzle adapter already escaped them.
+    - The persistence contract searches a promo code with an underscore and an
+      audit log by a pattern, for any adapter.
+    - The flow no longer promises a cap of 500 on `--limit`: the adapter sets it,
+      and the shipped ones cap at 200.
+
+### Minor Changes
+
+- 4470181: Seal a SuperAdmin's second factor before it is stored
+
+    The TOTP secret behind a SuperAdmin's second factor was stored as it is, so
+    whoever held a dump, a backup or a replica of the database held the second
+    factor of the accounts that can change every tenant's plan, codes and
+    contracts (`SC-SEC-016`).
+
+    - `MfaService` seals the secret before `MfaPort.setSecret` sees it and opens it
+      after `getSecret`, through a `SecretSealer` — a new interface in
+      `@saasicat/core`, bound as `adapters.secretSealer`.
+    - `@saasicat/nest` ships two: `aesGcmSecretSealer(key)`, AES-256-GCM under a
+      key of 32 bytes given as base64, and `storeSecretsInPlainText()` for an
+      installation that means it. A key that is unset or of another length stops
+      the boot with a message saying which; pass `process.env.…` as it is.
+    - `SaaSiCatModule.forRoot` refuses to start without a sealer
+      (`core.secret-sealer-bound`). The persistence bundle does not supply one: the
+      key belongs to the installation, not to the database.
+    - A stored secret the sealer cannot open — sealed under another key, or stored
+      before this release — turns the code away rather than accepting it, and the
+      log names the user, who enrols again with `<app> admin mfa-setup --force`.
+    - `createSaaSiCatTestModule` binds `storeSecretsInPlainText()` unless
+      `overrides.secretSealer` names another.
+    - `saasicat init` wires `aesGcmSecretSealer(process.env.SECRET_SEALER_KEY)` and
+      says how to generate the key.
+
+    **After upgrading, each SuperAdmin enrols once more** with
+    `<app> admin mfa-setup --force`, since secrets stored before are plain text. An
+    `MfaPort` of your own that already encrypts the secret moves that encryption
+    into a `SecretSealer` instead: what it wrote stays readable and nobody enrols
+    again. `MfaService` takes the sealer as its second constructor argument.
+
+- b152580: Wire a schema that leaves canonical models out, without a cast and without a
+  failure at the first request
+
+    An application that keeps its SuperAdmins in its own user table leaves the
+    SuperAdmin fragment out, as the fragment itself recommends, and its client
+    then has no `superAdminUser` or `superAdminMfa`. Six Prisma adapters that
+    never touch those tables still demanded the whole client type, so wiring one
+    needed `as unknown as PrismaLike`. They now ask only for the delegates they
+    use: the subscription contract repository, the four promo code repositories
+    and the promo subscription lookup. The two audit adapters ask only for the
+    reads they make, so a generated client whose audit `create` types `changes`
+    as its own JSON input — Prisma 7 does — no longer fails to compile against
+    them.
+
+    `prismaPersistence()` and `drizzlePersistence()` built every member whatever
+    the schema held, so a schema without `promo_code_holds` failed in the middle
+    of a redemption. Both now take `notAdopted`, in the model names
+    `saasicat schema check` prints under "Not adopted" — which now hands over the
+    list for the models the bundle can leave out — and leave out the members that
+    need them.
+    A ready Prisma client passed to `prismaPersistence()` needs no delegate of a
+    model named there.
+
+    - `OPTIONAL_CANONICAL_MODELS` and `membersLeftOut` are new in
+      `@saasicat/core`. A name the bundle cannot do without is refused with the
+      ones it can.
+    - `SaaSiCatPersistenceCore.mfa` is optional: a bundle for a schema without
+      `SuperAdminMfa` has none, and a start without an `MfaPort` of your own in
+      `adapters` is refused.
+    - `passwordHasher` together with `notAdopted: ['SuperAdminUser']` is refused,
+      since the hasher provisions into that table.
+    - `RegistrationModule` does not start beside checkout offers and promo
+      codes without a `PromoCodeHoldRepository`, and says what to wire: a sign-up
+      that names an offer holds its code from step 4 on, and an operator can put
+      a code on an offer at any time. This stops an installation that starts
+      today: one that wires `PromoCodesModule` by hand without `holdRepository`
+      beside checkout offers and self-registration, and until now failed only at
+      the first checkout of an offer carrying a code. Pass `holdRepository`, or
+      drop `'PromoCodeHold'` from `notAdopted`, before you upgrade.
+
+- 7cd9d27: Let an operator retire a plan version for the subscriptions on it
+
+    A subscription keeps its version (`SC-SUB-024`). Retiring one is the orderly
+    way out: an operator names a replacement on sale, of the same plan or another,
+    and every subscription on the version is told that it continues on it at the
+    end of one of its terms at least three calendar months after its notice
+    reached an administrator (`SC-SUB-035`). Until then it may cancel without
+    notice (`SC-CANC-023`). A price increase is a
+    retirement whose replacement costs more.
+
+    - **`config/saas.yaml` needs `tenantBilling.orderlyRetirement.termsConfirmed`.**
+      It is required, like the notice periods beside it, and a file without it no
+      longer loads. `true` states that your terms carry the clause a retirement
+      rests on; without it the administration does not offer the action and the
+      server refuses it with `RETIREMENT_TERMS_NOT_CONFIRMED` (`SC-SUB-025`).
+      The loader names the field it is missing; `saasicat init` writes `false`.
+    - Only a version no longer on sale can be retired, for a replacement priced in
+      the rhythm each subscription is billed in by then; a retirement that reaches
+      nobody is refused, and a subscription is reached at most once in twelve
+      months (`SC-SUB-028`) and hears of a version's retirement once. The operator
+      sees every subscription it reaches with its date, and every one it does not
+      with the reason, before announcing; the announcement names them and is
+      refused with `RETIREMENT_PREVIEW_CHANGED` where they changed meanwhile
+      (`SC-SUB-026`).
+    - Routes: `GET` and `POST /admin/catalog/plan-versions/:id/retirement`, the
+      second behind the second factor and audited as `PLAN_VERSION_RETIRE`, and
+      `GET /admin/catalog/version-retirements`. The manifest carries
+      `planVersions.retire` (`VERSION_RETIREMENT_CAPABILITY`) where they are
+      served and the terms are confirmed.
+    - Each announcement is kept in the new `version_retirements` table, and each
+      subscription it reaches gets a `version-retired` notice in the same
+      transaction (`SC-SUB-029`). Adopt
+      `prisma-fragments/18-version-retirement.prisma` and run
+      `sql/1.0-a-retirement-is-announced.postgres.sql`; both bundles provide
+      `tenantBilling.versionRetirements`, which
+      `notAdopted: ['VersionRetirement']` leaves out. Confirmed terms with nowhere
+      to keep an announcement refuse the start.
+    - `SubscriptionNotice` is `version-offered` or `version-retired`. A retirement
+      notice carries both versions with their prices (`retired`, `replacement`,
+      `changes`), the `billingCycle` it is billed in when the retirement takes
+      effect, `effectiveAt` and `lastDayToCancel`. A `SubscriptionNoticePort`
+      narrows on `kind`. A notice the port could not send, or the platform could
+      not take on, is sent by the quarter-hourly run.
+    - `SubscriptionUsagePort.listBoundToVersion` is new and optional; both shipped
+      adapters have it, and confirmed terms over a port without it refuse to
+      start. A port of your own returns each subscription's
+      `pendingChangeVersionId` (new, optional on `SubscriptionUsageRecord`) with
+      it, or a subscriber who took a newer version's offer is reached as if they
+      stayed.
+      `SubscriptionNoticeRepository` gains `record`, `listOfKindSince` and
+      `listUndelivered`. The persistence contract holds both; a harness gains the
+      `versionRetirements` and `subscriptionUsage` members, or declares
+      `gaps: ['versionRetirements', 'boundSubscriptions']`.
+    - `versionSale`, `versionOnSale` and `versionOnSaleOrNext` move to
+      `@saasicat/core`, where the server decides by them; `@saasicat/ui-vue`
+      re-exports them unchanged.
+    - `@saasicat/ui-vue`: the plan cockpit offers "Retire…" on a version no
+      longer on sale, with a dialog that shows the replacement's prices, the
+      dates, the subscriptions not reached and every blocker before anything is
+      sent, and marks a retired version with its replacement. New:
+      `useVersionRetirement`, the `versionRetirements` resource, and the catalogue
+      keys `planDetail.versions.retire*`/`retired*` and `planDetail.retireDialog`.
+      The tenant usage carries `retirement`.
+    - `@saasicat/ui-vue-tenant`: the plan section shows a retirement beside the
+      plan — when the subscription continues on which version, at what price, and
+      until when it may cancel without notice — and says the last again in the
+      cancellation confirmation (`SC-SUB-030`). New wording keys
+      `versionRetired*` and `cancelConfirmRetirement`.
+
+### Patch Changes
+
+- Updated dependencies [05b9e78]
+- Updated dependencies [f7839c2]
+- Updated dependencies [ce7241e]
+- Updated dependencies [49e93ab]
+- Updated dependencies [109fcce]
+- Updated dependencies [f78c15d]
+- Updated dependencies [b17333a]
+- Updated dependencies [fe07088]
+- Updated dependencies [f905b7f]
+- Updated dependencies [21ba667]
+- Updated dependencies [c69e2af]
+- Updated dependencies [381c516]
+- Updated dependencies [60e875d]
+- Updated dependencies [d556622]
+- Updated dependencies [c3b87c8]
+- Updated dependencies [4470181]
+- Updated dependencies [edb496b]
+- Updated dependencies [8a3ee1d]
+- Updated dependencies [2cafe45]
+- Updated dependencies [b152580]
+- Updated dependencies [7063891]
+- Updated dependencies [a576414]
+- Updated dependencies [e444a9b]
+- Updated dependencies [7cd9d27]
+- Updated dependencies [34cb4d4]
+- Updated dependencies [e99d6c0]
+- Updated dependencies [71937ba]
+- Updated dependencies [42b21ab]
+- Updated dependencies [c25f062]
+- Updated dependencies [5a6b34a]
+- Updated dependencies [d050e42]
+- Updated dependencies [536982d]
+    - @saasicat/core@1.0.0-rc.24
+    - @saasicat/nest@1.0.0-rc.24
+    - @saasicat/spec@1.0.0-rc.24
+
 ## 1.0.0-rc.23
 
 ### Minor Changes
