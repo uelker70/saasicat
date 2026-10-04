@@ -310,6 +310,7 @@ _Tested by:_
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -1597,6 +1598,8 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
     - a sign-up concludes its offer at the rate decided for the subscriber it creates
@@ -1677,6 +1680,8 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
     - a sign-up concludes its offer at the rate decided for the subscriber it creates
@@ -1696,6 +1701,10 @@ _Tested by:_
           run
         - a subscriber the adapter supports no treatment for is refused with its sentence
         - re-freezing in full at a newly decided rate is a change of money, refused
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - a plan change asks the party about the contract it ends in
+        - one made today: from today, in the rhythm asked for
+        - one scheduled: from the date it takes effect, before anything is scheduled
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
         - the rate the offer states is recorded as the percentage it is

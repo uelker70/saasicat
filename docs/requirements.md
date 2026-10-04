@@ -4213,6 +4213,7 @@ _Tested by:_
         - a trial converted since gets the contract the move writes
     - a move that cannot be made
         - fails without a party to the contract, audited once though every run fails
+        - asks the party about the contract each move then writes
         - fails for a subscriber the tax adapter supports no treatment for, and says so
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
@@ -4335,6 +4336,7 @@ _Tested by:_
     - the switch before the date
         - moves the booking onto the replacement at once and writes the contract that holds its
           price
+        - asks the party about the contract it writes, before the booking moves
         - writes the contract to end where the subscription does
         - holds nothing where the replacement costs no more
         - holds the difference for the plan it runs beside now, as the catalogue prices it
@@ -4985,9 +4987,12 @@ _Tested by:_
         - the term and the period are kept: no window is opened and the status stays
         - the successor contract is frozen from now and the account brought up to date
         - a subscription cancelled for later is switched, and its contract still ends then
+        - the party is asked about the contract the switch freezes: from now, in its rhythm, to its
+          end
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
         - scheduled for the term end and bound to the version offered
+        - the party is asked about the contract that runs from the term end
         - usage up to the lower quota fits
         - usage one above the lower quota is refused like a downgrade, with the numbers
         - a quota the version offered no longer carries allows nothing
@@ -5415,6 +5420,7 @@ _Tested by:_
         - a replacement the write refuses is a failure, recorded once however often it is tried
         - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
+        - the party is asked about the contract the move then writes
         - a subscriber the tax adapter supports no treatment for is not moved, and the failure says
           so
         - a move whose contract cannot be written is put back, and the next run makes both, where
@@ -5459,6 +5465,7 @@ _Tested by:_
     - the free switch before the date
         - moves at once, keeps the term, and holds the price until the date where the replacement
           costs more
+        - asks the party about the contract it writes, before anything moves
         - holds the difference of the subscriber’s own rhythm
         - holds nothing where the replacement costs the same or less
         - is refused where no retirement waits for its date
@@ -7474,6 +7481,7 @@ _Tested by:_
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -8761,6 +8769,8 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
     - a sign-up concludes its offer at the rate decided for the subscriber it creates
@@ -8841,6 +8851,8 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
     - a sign-up concludes its offer at the rate decided for the subscriber it creates
@@ -8860,6 +8872,10 @@ _Tested by:_
           run
         - a subscriber the adapter supports no treatment for is refused with its sentence
         - re-freezing in full at a newly decided rate is a change of money, refused
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - a plan change asks the party about the contract it ends in
+        - one made today: from today, in the rhythm asked for
+        - one scheduled: from the date it takes effect, before anything is scheduled
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
         - the rate the offer states is recorded as the percentage it is
@@ -11192,6 +11208,7 @@ _Tested by:_
         - getActiveInvoiceSnapshotForTenant throws without an active contract
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -11447,6 +11464,8 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
 - `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`

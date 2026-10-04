@@ -87,7 +87,7 @@ import {
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
-import { freezeContractAfter } from './freeze-contract-after.js';
+import { freezeContractAfter, intendedContractOf } from './freeze-contract-after.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -477,11 +477,6 @@ export class TenantBillingController {
             throw subscriptionNotFound(tenantId);
         }
 
-        // Where contracts are frozen, a plan change ends in one naming the
-        // tenant's subscriber. Refused here, while nothing has moved: the
-        // freeze runs after the plan is written and only logs its refusal.
-        await this.contractFreeze?.assertPartyFor(tenantId);
-
         // A contract that is over cannot be changed, only started again — and
         // there is no route for that yet, deliberately. Without this the
         // immediate branch would prorate an upgrade and charge for it while
@@ -538,6 +533,24 @@ export class TenantBillingController {
                 blockers: decision.blockers,
             });
         }
+        // The preview already resolved this against the trial, the period and
+        // the term; recomputing it here is a second answer waiting to differ.
+        const scheduledAt = decision.effectiveAt ?? sub.currentPeriodEnd ?? new Date();
+
+        // Where contracts are frozen, a plan change ends in one naming the
+        // tenant's subscriber, at the tax decided for it. Refused here, while
+        // nothing has moved: the freeze runs after the plan is written and only
+        // logs its refusal. Asked of the contract the change ends in, which
+        // only the preview can say: from today, or from the date it is
+        // scheduled for, in the rhythm asked for.
+        await this.contractFreeze?.assertPartyFor(
+            tenantId,
+            intendedContractOf(
+                sub,
+                decision.isImmediate ? new Date() : scheduledAt,
+                dto.billingCycle as BillingCycle,
+            ),
+        );
 
         // The version a change binds is the one its preview showed
         // (`SC-CHG-023`). The preview is read again here, at the moment the
@@ -680,13 +693,10 @@ export class TenantBillingController {
             return { plan: result.plan, billingCycle: result.billingCycle, immediate: true };
         }
 
-        // The preview already resolved this against the trial, the period and
-        // the term; recomputing it here is a second answer waiting to differ.
-        const effectiveAt = decision.effectiveAt ?? sub.currentPeriodEnd ?? new Date();
         const scheduled = await this.subscriptionWrite.schedulePlanChange(tenantId, {
             pendingPlan: dto.plan,
             pendingBillingCycle: dto.billingCycle,
-            pendingEffectiveAt: effectiveAt,
+            pendingEffectiveAt: scheduledAt,
             expectedCanceledAt: sub.canceledAt ?? null,
             ...claimsBinding,
             // The version the preview priced and the caller named, bound when
@@ -704,14 +714,14 @@ export class TenantBillingController {
             fromCycle: sub.billingCycle,
             pendingPlan: dto.plan,
             pendingCycle: dto.billingCycle,
-            effectiveAt: effectiveAt.toISOString(),
+            effectiveAt: scheduledAt.toISOString(),
         });
         return {
             plan: sub.plan,
             billingCycle: sub.billingCycle,
             pendingPlan: dto.plan,
             pendingBillingCycle: dto.billingCycle,
-            pendingEffectiveAt: effectiveAt,
+            pendingEffectiveAt: scheduledAt,
             immediate: false,
         };
     }
@@ -781,6 +791,18 @@ export class TenantBillingController {
         const period = wasTrial
             ? null
             : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
+
+        // Outside a trial the activation ends in a contract naming the
+        // subscriber at the tax decided for it: refused here, while nothing has
+        // moved, as the plan route refuses. A trial commits to no period; its
+        // contract is frozen when it converts.
+        if (!wasTrial) {
+            await this.contractFreeze?.assertPartyFor(tenantId, {
+                effectiveFrom: appliedAt,
+                cycle: dto.billingCycle as BillingCycle,
+                endsAt: null,
+            });
+        }
 
         // Promo-redeem callback: only when all preconditions are met
         // (PromoCodesModule loaded + code in the DTO + subscription id in the sub record).

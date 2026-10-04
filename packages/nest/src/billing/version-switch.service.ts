@@ -48,7 +48,7 @@ import { answeringRefusals } from '../errors/answering-refusals.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
-import { freezeContractAfter } from './freeze-contract-after.js';
+import { freezeContractAfter, intendedContractOf } from './freeze-contract-after.js';
 import { quotaOverTargetBlockers } from './quota-over-target.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import {
@@ -95,10 +95,16 @@ export class VersionSwitchService {
 
         // Where contracts are frozen, a switch ends in one naming the tenant's
         // subscriber. Refused here, while nothing has moved: the freeze runs
-        // after the switch is written and only logs its refusal.
-        await this.contractFreeze?.assertPartyFor(tenantId);
+        // after the switch is written and only logs its refusal. Asked of the
+        // contract it ends in: from today, or from the end of the term where
+        // the switch waits for it.
+        const atTermEnd = offer.class === 'takes-something-away';
+        await this.contractFreeze?.assertPartyFor(
+            tenantId,
+            intendedContractOf(sub, atTermEnd ? new Date(offer.takesEffectAt) : now),
+        );
 
-        return offer.class === 'takes-something-away'
+        return atTermEnd
             ? this.scheduleAtTermEnd(tenantId, sub, offer, now)
             : this.switchNow(tenantId, sub, offer, now);
     }

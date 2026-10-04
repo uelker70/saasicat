@@ -38,6 +38,7 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js'
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { intendedContractOf } from './freeze-contract-after.js';
 import { bindReplacement, bindRetiredAgain } from './retirement-binding.js';
 import { leavesTheVersionBy } from './retirement-reach.js';
 import { groupByRetiredVersion, retirementNoticesDue } from './retirement-notices.js';
@@ -132,7 +133,7 @@ export class RetirementMoveService {
         // contract that cannot name its party would leave the subscription on
         // one version and its contract on the other.
         try {
-            await this.contractFreeze?.assertPartyFor(tenantId);
+            await this.contractFreeze?.assertPartyFor(tenantId, intendedContractOf(sub, now));
         } catch (error) {
             return this.failed(notice, isTaxNotSupported(error) ? 'tax-not-supported' : 'no-party');
         }

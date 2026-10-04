@@ -426,10 +426,11 @@ test('atomic path: applyOnboardingSelection is used, sequential calls are avoide
     assert.equal(result.plan, 'SPORT');
 });
 
-test('atomic path: successful non-trial plan change freezes the subscription contract', async () => {
-    const freezeCalls = [];
-    const atomicWrite = {
+/** An atomic onboarding write that records when it ran among `events`. */
+function atomicWriteRecording(events) {
+    return {
         async applyOnboardingSelection(tenantId, input) {
+            events.push('write');
             return {
                 plan: input.planId,
                 billingCycle: input.cycle,
@@ -446,17 +447,31 @@ test('atomic path: successful non-trial plan change freezes the subscription con
             return { canceledAt: null, status: 'ACTIVE' };
         },
     };
+}
+
+/** A freeze port that records what it is asked, and what it freezes. */
+function freezeRecording(events, asked, freezeCalls) {
+    return {
+        async assertPartyFor(...args) {
+            events.push('asked');
+            asked.push(args);
+        },
+        async freezeOnPlanChange(tenantId, plan, cycle, now, endsAt) {
+            freezeCalls.push({ tenantId, plan, cycle, now, endsAt });
+        },
+    };
+}
+
+test('atomic path: successful non-trial plan change freezes the subscription contract', async () => {
+    const freezeCalls = [];
+    const asked = [];
+    const events = [];
     const ctrl = buildController({
-        subscriptionWrite: atomicWrite,
+        subscriptionWrite: atomicWriteRecording(events),
         subscriptionUsage: {
             findForTenant: async () => buildSub({ status: 'ACTIVE' }),
         },
-        contractFreeze: {
-            async assertPartyFor() {},
-            async freezeOnPlanChange(tenantId, plan, cycle, now) {
-                freezeCalls.push({ tenantId, plan, cycle, now });
-            },
-        },
+        contractFreeze: freezeRecording(events, asked, freezeCalls),
     });
 
     await ctrl.completeOnboardingSubscription(
@@ -474,6 +489,32 @@ test('atomic path: successful non-trial plan change freezes the subscription con
         { tenantId: 't1', plan: 'SPORT', cycle: 'YEARLY' },
     );
     assert.ok(freezeCalls[0].now instanceof Date);
+    // Asked before the write, about the contract the freeze then writes.
+    assert.deepEqual(events, ['asked', 'write']);
+    const [[tenantId, intended]] = asked;
+    assert.equal(tenantId, 't1');
+    assert.deepEqual([intended.cycle, intended.endsAt], ['YEARLY', freezeCalls[0].endsAt ?? null]);
+    assert.ok(freezeCalls[0].now - intended.effectiveFrom < 1000);
+});
+
+test('a trial is not asked: it commits to no period, and its contract is frozen when it converts', async () => {
+    const asked = [];
+    const freezeCalls = [];
+    const ctrl = buildController({
+        subscriptionWrite: atomicWriteRecording([]),
+        subscriptionUsage: {
+            findForTenant: async () => buildSub({ status: 'TRIAL' }),
+        },
+        contractFreeze: freezeRecording([], asked, freezeCalls),
+    });
+
+    await ctrl.completeOnboardingSubscription(
+        { user: { tenantId: 't1', sub: 'u1' } },
+        { plan: 'SPORT', billingCycle: 'YEARLY' },
+    );
+
+    assert.deepEqual(asked, []);
+    assert.deepEqual(freezeCalls, []);
 });
 
 test('atomic path: adapter error throws BadRequestException (no half-state)', async () => {

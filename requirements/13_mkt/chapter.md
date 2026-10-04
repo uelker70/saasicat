@@ -502,6 +502,7 @@ _Tested by:_
         - getActiveInvoiceSnapshotForTenant throws without an active contract
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -757,6 +758,8 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
 - `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`

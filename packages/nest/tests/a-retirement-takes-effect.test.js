@@ -319,6 +319,22 @@ describe('the move at the date', () => {
         assert.equal(audited[0].changes.reason, 'no-party');
     });
 
+    test('the party is asked about the contract the move then writes', async () => {
+        const asked = [];
+        const { service, frozen } = await aRun({
+            subs: [subscriptionOf('t1', { billingCycle: 'YEARLY' })],
+            party: async (...args) => {
+                asked.push(args);
+            },
+        });
+
+        await service.moveDue(DATE);
+
+        const [, , cycle, effectiveFrom, endsAt] = frozen[0];
+        assert.deepEqual(asked, [['t1', { effectiveFrom, cycle, endsAt }]]);
+        assert.equal(cycle, 'YEARLY');
+    });
+
     test('a subscriber the tax adapter supports no treatment for is not moved, and the failure says so', async () => {
         const { service, writes, audited } = await aRun({
             party: async () => {
@@ -636,6 +652,23 @@ describe('the free switch before the date', () => {
             ],
         ]);
         assert.deepEqual(recorded, ['t1']);
+    });
+
+    test('asks the party about the contract it writes, before anything moves', async () => {
+        const asked = [];
+        const { service, frozen, writes } = aSwitch({
+            sub: subscriptionOf('t1', { billingCycle: 'YEARLY' }),
+            party: async (...args) => {
+                asked.push({ args, writtenBefore: writes.calls.length });
+            },
+        });
+
+        await service.switchNow('t1', 'pv-9', BEFORE);
+
+        const [, , cycle, effectiveFrom, endsAt] = frozen[0];
+        assert.deepEqual(asked, [
+            { args: ['t1', { effectiveFrom, cycle, endsAt }], writtenBefore: 0 },
+        ]);
     });
 
     test('holds the difference of the subscriber’s own rhythm', async () => {

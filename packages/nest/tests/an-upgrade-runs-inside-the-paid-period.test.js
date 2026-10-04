@@ -112,14 +112,26 @@ const STILL_ON_STANDARD = {
 function writePort() {
     return {
         immediate: [],
+        scheduled: [],
         async changePlanImmediate(tenantId, input) {
             this.immediate.push(input);
             return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
+        async schedulePlanChange(tenantId, input) {
+            this.scheduled.push(input);
+            return { claimed: true };
+        },
     };
 }
 
-async function upgradeThroughTheRoute(
+async function upgradeThroughTheRoute(subscription, target, ports) {
+    const writes = await changeThroughTheRoute(subscription, target, ports);
+    assert.equal(writes.immediate.length, 1, 'the upgrade was not made today');
+    return writes.immediate[0];
+}
+
+/** A plan change through the tenant route, today or scheduled as its preview decides. */
+async function changeThroughTheRoute(
     subscription,
     target,
     { contractFreeze = null, charges = null } = {},
@@ -145,8 +157,7 @@ async function upgradeThroughTheRoute(
         charges,
     );
     await controller.changePlan({ user: { tenantId: 't1', sub: 'u1' }, headers: {} }, target);
-    assert.equal(writes.immediate.length, 1, 'the upgrade was not made today');
-    return writes.immediate[0];
+    return writes;
 }
 
 /** A window around the real clock, since the route asks its preview about now. */
@@ -395,5 +406,66 @@ describe('an immediate upgrade brings the account up to date', () => {
 
         assert.equal(write.planId, 'STANDARD');
         assert.deepEqual(events, ['contract', 'charges for t1']);
+    });
+});
+
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+describe('a plan change asks the party about the contract it ends in', () => {
+    /** A freeze port that records what it is asked and what it freezes. */
+    function recordingFreeze() {
+        const seen = { asked: [], frozen: [] };
+        return {
+            seen,
+            contractFreeze: {
+                async assertPartyFor(...args) {
+                    seen.asked.push(args);
+                },
+                async freezeOnPlanChange(...args) {
+                    seen.frozen.push(args);
+                },
+            },
+        };
+    }
+
+    test('one made today: from today, in the rhythm asked for', async () => {
+        const { seen, contractFreeze } = recordingFreeze();
+        const [start, end] = runningWindow();
+
+        await upgradeThroughTheRoute(
+            starterMonthly(start, end),
+            { plan: 'STANDARD', billingCycle: 'YEARLY' },
+            { contractFreeze },
+        );
+
+        const [, , cycle, effectiveFrom, endsAt] = seen.frozen[0];
+        const [[tenantId, intended]] = seen.asked;
+        assert.equal(tenantId, 't1');
+        assert.deepEqual([intended.cycle, intended.endsAt], ['YEARLY', null]);
+        assert.deepEqual([cycle, endsAt], ['YEARLY', null]);
+        assert.ok(effectiveFrom - intended.effectiveFrom < 1000, 'from when it is frozen');
+    });
+
+    test('one scheduled: from the date it takes effect, before anything is scheduled', async () => {
+        const { seen, contractFreeze } = recordingFreeze();
+        const [start, end] = runningWindow();
+
+        const writes = await changeThroughTheRoute(
+            starterMonthly(start, end, { plan: 'STANDARD' }),
+            { plan: 'STARTER', billingCycle: 'MONTHLY' },
+            { contractFreeze },
+        );
+
+        assert.equal(writes.immediate.length, 0);
+        assert.deepEqual(seen.asked, [
+            [
+                't1',
+                {
+                    effectiveFrom: writes.scheduled[0].pendingEffectiveAt,
+                    cycle: 'MONTHLY',
+                    endsAt: null,
+                },
+            ],
+        ]);
+        assert.deepEqual(writes.scheduled[0].pendingEffectiveAt, end);
     });
 });

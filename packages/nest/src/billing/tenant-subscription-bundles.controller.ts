@@ -57,6 +57,8 @@ import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { intendedContractOf } from './freeze-contract-after.js';
+import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import {
@@ -99,6 +101,15 @@ interface RequestLike {
  */
 function planCycleOf(sub: SubscriptionUsageRecord): BillingCycle {
     return sub.billingCycle as BillingCycle;
+}
+
+/**
+ * The contract a booking's change re-freezes: the plan as it is, in the plan's
+ * rhythm, from now, ending when the subscription does. The question asked
+ * before the change and the freeze after it both read it here.
+ */
+function refrozenContractOf(sub: SubscriptionUsageRecord): IntendedContract {
+    return intendedContractOf(sub, new Date(), planCycleOf(sub));
 }
 
 // Auth stack, the same shape `tenant-billing.controller.ts` uses:
@@ -228,7 +239,7 @@ export function buildTenantSubscriptionBundlesController(
             const sub = await this.requireRunningSubscription(tenantId);
             // The booking re-freezes the contract, after it is written. Without
             // the party that contract is between, it is refused before.
-            await this.contractFreeze?.assertPartyFor(tenantId);
+            await this.contractFreeze?.assertPartyFor(tenantId, refrozenContractOf(sub));
             const result = await this.service.addBundleToSubscription({
                 subscriptionId: this.requireSubscriptionPk(sub),
                 bundleVersionId: dto.bundleVersionId,
@@ -379,7 +390,7 @@ export function buildTenantSubscriptionBundlesController(
             const tenantId = this.requireTenantId(req);
             // Reactivating is buying again, so it closes with the till.
             const sub = await this.requireRunningSubscription(tenantId);
-            await this.contractFreeze?.assertPartyFor(tenantId);
+            await this.contractFreeze?.assertPartyFor(tenantId, refrozenContractOf(sub));
             // A booking cancelled out of an add-on retirement stays cancelled:
             // nothing would move it off the version retired (`SC-BUN-048`).
             const refusal = await this.bundleRetirements?.refusalToReinstate(
@@ -509,16 +520,17 @@ export function buildTenantSubscriptionBundlesController(
             // backwards, added to the ledger during what is only cleanup. The
             // contract that governed this tenant was closed when they left.
             if (cancellationHasLanded(sub, new Date())) return;
+            // Cancelling a bundle stays open on a cancelled subscription, and it
+            // re-freezes: the replacement contract ends when the subscription
+            // does, like the one it succeeds.
+            const refrozen = refrozenContractOf(sub);
             try {
                 await this.contractFreeze.freezeOnPlanChange(
                     tenantId,
                     sub.planVersion.planId,
-                    planCycleOf(sub),
-                    new Date(),
-                    // Cancelling a bundle stays open on a cancelled
-                    // subscription, and it re-freezes: the replacement contract
-                    // ends when the subscription does, like the one it succeeds.
-                    sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                    refrozen.cycle,
+                    refrozen.effectiveFrom,
+                    refrozen.endsAt,
                 );
             } catch (err) {
                 this.logger.error(

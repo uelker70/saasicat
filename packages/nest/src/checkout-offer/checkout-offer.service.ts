@@ -380,7 +380,7 @@ export class CheckoutOfferService {
             }),
         );
         const checked = contracts.prepareFromOffer(existing, contractOptions, rate);
-        await this.assertParty(subscribers, contracts, tenantId, subscriber);
+        await this.assertParty(subscribers, tenantId, subscriber);
         let consumeFailed = false;
         const concludeOn = async (tx: TransactionContext): Promise<ConcludedCheckoutOffer> => {
             // Per attempt: a runner may run this again, and a consume refused
@@ -484,12 +484,13 @@ export class CheckoutOfferService {
      */
     private async assertParty(
         subscribers: SubscriberService,
-        contracts: SubscriptionContractService,
         tenantId: string,
         subscriber: NewSubscriberDetails | undefined,
     ): Promise<void> {
+        // The party only: the tax was decided above, over the contract's own
+        // first period.
         if (!subscriber) {
-            await contracts.assertPartyFor(tenantId);
+            await subscribers.requireForTenant(tenantId);
             return;
         }
         settleNewSubscriberDetails(subscriber);

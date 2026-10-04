@@ -7,6 +7,7 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import type {
+    BillingCycle,
     CheckoutOfferLineItem,
     CheckoutOfferPriceBreakdown,
     CheckoutOfferRow,
@@ -112,6 +113,17 @@ export interface SuccessorOptions {
     keepParties?: boolean;
 }
 
+/**
+ * The contract a change ends in, as the change knows it before it is written:
+ * from when, in which rhythm, and until when.
+ */
+export interface IntendedContract {
+    effectiveFrom: Date;
+    cycle: BillingCycle;
+    /** When the subscription ends, or null while it runs on. */
+    endsAt: Date | null;
+}
+
 @Injectable()
 export class SubscriptionContractService {
     constructor(
@@ -215,17 +227,27 @@ export class SubscriptionContractService {
      * Refuses, with `SUBSCRIBER_REQUIRED`, a contract this tenant could not
      * have. For callers that change something before the contract is written —
      * closing the one in force, changing a plan — and must refuse before that
-     * rather than after.
+     * rather than after. `intended` is the contract the change will end in.
      */
-    async assertPartyFor(tenantId: string, tx?: TransactionContext): Promise<void> {
+    async assertPartyFor(
+        tenantId: string,
+        intended: IntendedContract,
+        tx?: TransactionContext,
+    ): Promise<void> {
         await this.subscribers.requireForTenant(tenantId, tx);
         // A subscriber the tax adapter cannot treat gets no new contract: refused
-        // here, before a plan change or a booking moves anything (`SC-PRIC-039`).
+        // here, before a plan change or a booking moves anything (`SC-PRIC-039`),
+        // over the period the contract will have — an adapter may answer a
+        // yearly period, or one starting later, otherwise than another.
         if (this.taxes?.adapter) {
             const origin = await this.subscribers.taxOriginFor({ tenantId }, tx);
             this.taxes.decide(
                 origin,
-                contractTaxPeriod({ effectiveFrom: new Date(), billingCycle: 'MONTHLY' }),
+                contractTaxPeriod({
+                    effectiveFrom: intended.effectiveFrom,
+                    effectiveUntil: intended.endsAt,
+                    billingCycle: intended.cycle,
+                }),
             );
         }
     }
@@ -360,7 +382,8 @@ export class SubscriptionContractService {
         }
         if (previous) this.assertTerminable(previous, { effectiveUntil: at, status: 'superseded' });
         const kept = options.keepParties && previous ? previous : null;
-        if (!kept) await this.assertPartyFor(next.tenantId);
+        // The party only: the decision below is made over `next` itself.
+        if (!kept) await this.subscribers.requireForTenant(next.tenantId);
         const decided = await this.decidedTaxFor(
             next,
             kept ? { subscriberId: kept.subscriberId } : { tenantId: next.tenantId },

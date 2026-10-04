@@ -17,11 +17,12 @@ at the rate it decides for its subscriber (`SC-PRIC-065` supersedes
   `SaaSiCatModule.forRoot({ tax: { adapter: germanTaxAdapterFactory() } })`.
   `vatRate` is no longer required by the schema; the loader refuses `vatRate`
   beside `tax`, a file naming neither, and a time zone the runtime does not
-  know, and `tax` requires `timeZone`. Three start rules guard the binding:
-  `tax.adapter-bound-as-the-file-names`, `tax.rate-has-one-source` (no
-  `catalog.publicMarketingCatalog.vatRate` beside an adapter) and
-  `catalog.public-catalogue-names-a-rate` (without an adapter, the public
-  catalogue still needs it).
+  know, and `tax` requires `timeZone`; the start refuses the same for a
+  catalogue handed over in code, which never meets the loader. Three start rules
+  guard the binding: `tax.adapter-bound-as-the-file-names`,
+  `tax.rate-has-one-source` (no `catalog.publicMarketingCatalog.vatRate` beside
+  an adapter) and `catalog.public-catalogue-names-a-rate` (without an adapter,
+  the public catalogue still needs it).
 - **The contract.** An offer is priced at the rate for a subscriber in the
   issuer's country; concluding it restates its money at the rate decided for
   the subscriber, from the billing address, the business flag and a validated
@@ -35,6 +36,16 @@ at the rate it decides for its subscriber (`SC-PRIC-065` supersedes
   A contract handed to `SubscriptionContractService.create` at another rate is
   refused with `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`, naming the field
   and the decided rate.
+- **Asked before a change, over the contract it ends in.**
+  `ContractFreezePort.assertPartyFor(tenantId, intended)` and
+  `SubscriptionContractService.assertPartyFor(tenantId, intended, tx?)` take the
+  contract the change ends in — `IntendedContract` from
+  `@saasicat/nest/subscription-contract`: `effectiveFrom`, `cycle`, `endsAt` —
+  and, with an adapter, decide over its first period: a plan change from today
+  or from the date it is scheduled for, in the rhythm asked for; a booking, a
+  version switch, a retirement's move or switch from when it freezes. A port of
+  your own takes the second argument, and code that calls it passes it. An
+  activation through onboarding outside a trial asks too, before it writes.
 - **A promo code with a fixed amount** comes off what the subscriber pays: at
   19 % its net share, at 0 % the whole amount. Every net price and promotion
   stays as offered (`SC-MKT-027` supersedes `SC-MKT-023`). With an adapter, the

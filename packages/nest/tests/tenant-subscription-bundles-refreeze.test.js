@@ -13,7 +13,7 @@ import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.
 
 const REQ = { user: { tenantId: 't1' } };
 
-function buildSub() {
+function buildSub(overrides = {}) {
     return {
         id: 'sub-1',
         plan: 'STANDARD',
@@ -34,13 +34,14 @@ function buildSub() {
             supersededAt: null,
             changeNote: null,
         },
+        ...overrides,
     };
 }
 
 /** A subscription set to move nowhere. */
 const NOTHING_AHEAD = { of: async () => [] };
 
-function buildController({ contractFreeze = null, charges = null } = {}) {
+function buildController({ contractFreeze = null, charges = null, sub = buildSub() } = {}) {
     const Ctrl = buildTenantSubscriptionBundlesController();
     const serviceCalls = [];
     const service = {
@@ -52,11 +53,15 @@ function buildController({ contractFreeze = null, charges = null } = {}) {
             serviceCalls.push(['cancel', input]);
             return { id: input.subscriptionBundleId, canceledAt: new Date() };
         },
+        reactivateBundle: async (input) => {
+            serviceCalls.push(['reactivate', input]);
+            return { id: input.subscriptionBundleId, canceledAt: null };
+        },
     };
     const ctrl = new Ctrl(
         service,
         {},
-        { findForTenant: async () => buildSub() },
+        { findForTenant: async () => sub },
         (req) => req.user?.tenantId ?? null,
         contractFreeze,
         charges,
@@ -80,6 +85,41 @@ test('add re-freezes the contract with an unchanged plan', async () => {
     assert.equal(plan, 'STANDARD');
     assert.equal(cycle, 'MONTHLY');
 });
+
+// The party is asked before the booking moves anything, about the contract
+// its re-freeze then writes: a tax adapter may treat one period otherwise than
+// another.
+for (const [route, call] of [
+    ['add', (ctrl) => ctrl.add(REQ, { bundleVersionId: 'bv-1' })],
+    ['reactivate', (ctrl) => ctrl.reactivate(REQ, 'sb-1')],
+]) {
+    test(`${route} asks the party about the contract it re-freezes`, async () => {
+        const asked = [];
+        const frozen = [];
+        const { ctrl } = buildController({
+            sub: buildSub({
+                billingCycle: 'YEARLY',
+                canceledAt: new Date('2026-06-10'),
+                canceledEffectiveAt: new Date('2027-01-01'),
+            }),
+            contractFreeze: {
+                assertPartyFor: async (...args) => asked.push(args),
+                freezeOnPlanChange: async (...args) => frozen.push(args),
+            },
+        });
+        await call(ctrl);
+        const [, , cycle, effectiveFrom, endsAt] = frozen[0];
+        assert.equal(asked.length, 1);
+        const [tenantId, intended] = asked[0];
+        assert.equal(tenantId, 't1');
+        assert.deepEqual([intended.cycle, intended.endsAt], [cycle, endsAt]);
+        assert.deepEqual([cycle, endsAt], ['YEARLY', new Date('2027-01-01')]);
+        assert.ok(
+            effectiveFrom - intended.effectiveFrom < 1000,
+            'asked of the contract that starts when the re-freeze writes it',
+        );
+    });
+}
 
 test('cancel re-freezes the contract', async () => {
     const freezeCalls = [];

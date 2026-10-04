@@ -1835,6 +1835,7 @@ _Tested by:_
         - a trial converted since gets the contract the move writes
     - a move that cannot be made
         - fails without a party to the contract, audited once though every run fails
+        - asks the party about the contract each move then writes
         - fails for a subscriber the tax adapter supports no treatment for, and says so
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
@@ -1957,6 +1958,7 @@ _Tested by:_
     - the switch before the date
         - moves the booking onto the replacement at once and writes the contract that holds its
           price
+        - asks the party about the contract it writes, before the booking moves
         - writes the contract to end where the subscription does
         - holds nothing where the replacement costs no more
         - holds the difference for the plan it runs beside now, as the catalogue prices it

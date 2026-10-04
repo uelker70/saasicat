@@ -566,9 +566,12 @@ _Tested by:_
         - the term and the period are kept: no window is opened and the status stays
         - the successor contract is frozen from now and the account brought up to date
         - a subscription cancelled for later is switched, and its contract still ends then
+        - the party is asked about the contract the switch freezes: from now, in its rhythm, to its
+          end
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
         - scheduled for the term end and bound to the version offered
+        - the party is asked about the contract that runs from the term end
         - usage up to the lower quota fits
         - usage one above the lower quota is refused like a downgrade, with the numbers
         - a quota the version offered no longer carries allows nothing
@@ -996,6 +999,7 @@ _Tested by:_
         - a replacement the write refuses is a failure, recorded once however often it is tried
         - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
+        - the party is asked about the contract the move then writes
         - a subscriber the tax adapter supports no treatment for is not moved, and the failure says
           so
         - a move whose contract cannot be written is put back, and the next run makes both, where
@@ -1040,6 +1044,7 @@ _Tested by:_
     - the free switch before the date
         - moves at once, keeps the term, and holds the price until the date where the replacement
           costs more
+        - asks the party about the contract it writes, before anything moves
         - holds the difference of the subscriber’s own rhythm
         - holds nothing where the replacement costs the same or less
         - is refused where no retirement waits for its date

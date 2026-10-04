@@ -4,6 +4,7 @@ export {
     subscriptionContractToInvoiceSnapshot,
     SubscriptionContractService,
     type CreateContractFromOfferOptions,
+    type IntendedContract,
     type SuccessorOptions,
 } from './subscription-contract.service.js';
 export {

@@ -33,6 +33,18 @@ const FILE_SETTINGS = { ...SETTINGS, tax: undefined, timeZone: undefined, vatRat
 
 const EFFECTIVE_FROM = new Date('2026-06-01T00:00:00.000Z');
 
+/** A month's contract from the first of June, as a change ending in it names it. */
+const A_MONTH_FROM_JUNE = { effectiveFrom: EFFECTIVE_FROM, cycle: 'MONTHLY', endsAt: null };
+
+/** The test adapter, which besides knows no rate past 2026: a case decided by the period. */
+const knowingNothingPast2026 = {
+    ...TEST_TAX_ADAPTER,
+    decide: (request) =>
+        request.period.until > new Date('2027-01-01T00:00:00.000Z')
+            ? { supported: false, reason: 'No rate is known past 2026.' }
+            : TEST_TAX_ADAPTER.decide(request),
+};
+
 /** A monthly offer for a plan at 100 € net, priced at 19 %, with a code "10 € off". */
 function consumedOffer() {
     return {
@@ -212,11 +224,33 @@ describe('a contract takes the rate the tax adapter decides for its subscriber',
     test('a subscriber the adapter cannot treat gets no new contract: refused before a change moves anything', async () => {
         const { service } = await serviceWith({ country: 'FR', business: false });
         await assert.rejects(
-            () => service.assertPartyFor('tenant-1'),
+            () => service.assertPartyFor('tenant-1', A_MONTH_FROM_JUNE),
             refusedWith('TAX_TREATMENT_NOT_SUPPORTED'),
         );
         const domestic = await serviceWith({ country: 'DE', business: false });
-        await domestic.service.assertPartyFor('tenant-1');
+        await domestic.service.assertPartyFor('tenant-1', A_MONTH_FROM_JUNE);
+    });
+
+    test('the question before a change is asked over the contract it ends in: its start, its rhythm and its end', async () => {
+        const { service } = await serviceWith(
+            { country: 'DE', business: false },
+            { adapter: knowingNothingPast2026 },
+        );
+        await service.assertPartyFor('tenant-1', A_MONTH_FROM_JUNE);
+        for (const intended of [
+            { ...A_MONTH_FROM_JUNE, cycle: 'YEARLY' },
+            { ...A_MONTH_FROM_JUNE, effectiveFrom: new Date('2027-02-01T00:00:00.000Z') },
+        ]) {
+            await assert.rejects(
+                () => service.assertPartyFor('tenant-1', intended),
+                refusedWith('TAX_TREATMENT_NOT_SUPPORTED'),
+            );
+        }
+        await service.assertPartyFor('tenant-1', {
+            ...A_MONTH_FROM_JUNE,
+            cycle: 'YEARLY',
+            endsAt: new Date('2026-09-01T00:00:00.000Z'),
+        });
     });
 
     test('a successor is decided before the contract in force ends, so a refusal leaves that one running', async () => {

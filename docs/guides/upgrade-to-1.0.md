@@ -1350,9 +1350,10 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
   the prefix and the issuer from `PLAN_CATALOG_SETTINGS_TOKEN`, so a `SubscriptionContractModule`
   wired by hand needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides
   globally.
-- **`ContractFreezePort`** gains `assertPartyFor(tenantId)`, which the plan-change and add-on routes
-  call before they write. An implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds
-  it: refuse a tenant without a subscriber, as `SubscriptionContractService.assertPartyFor` does.
+- **`ContractFreezePort`** gains `assertPartyFor(tenantId, intended)`, which the plan-change and
+  add-on routes call before they write; `intended` is the contract the change ends in. An
+  implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds it: refuse a tenant without
+  a subscriber, as `SubscriptionContractService.assertPartyFor` does.
 - **`SubscriptionContractRecord`** gains `subscriberId`, `subscriber` and `issuer` — the parties as
   copied at conclusion, the issuer `null` where none was named — and `partiesMigrated`. A
   `SubscriptionContractRepository` of your own writes `data.parties` on `create`.
@@ -1626,8 +1627,9 @@ To name the German adapter:
 1. Record each subscriber's country, and whether it is a business, before the adapter is named. The
    adapter refuses a case it cannot decide, and a subscriber whose country is unknown — or who is
    outside Germany and has not said whether it is a business — gets no new contract: a plan change,
-   an add-on booking or a retirement move answers `422 TAX_TREATMENT_NOT_SUPPORTED`. A retirement
-   move that is refused this way is logged as `tax-not-supported`.
+   an activation outside a trial, an add-on booking, a version switch or a retirement's switch
+   answers `422 TAX_TREATMENT_NOT_SUPPORTED` before it writes anything. A retirement move that is
+   refused this way is logged as `tax-not-supported`.
 2. Add `@saasicat/tax-de` and bind its factory where payment gateways are bound:
 
     ```ts
@@ -1674,6 +1676,11 @@ What changes with an adapter:
   8.40 € net at 19 % and 10 € net at 0 %. Since a subscriber at 0 % pays the net, an absolute code
   must stay below the lowest **net** price it applies to; `PROMO_WOULD_PRODUCE_ZERO_INVOICE` then
   names `lowestApplicablePlanNet` instead of `lowestApplicablePlanGross`.
+- **Before a change writes anything** it is asked about the contract it ends in, since an adapter
+  may treat a yearly period, or one that starts later, otherwise than a month from today. Code that
+  calls `ContractFreezePort.assertPartyFor` or `SubscriptionContractService.assertPartyFor` passes
+  that contract as `intended` (`IntendedContract` from `@saasicat/nest/subscription-contract`:
+  `effectiveFrom`, `cycle`, `endsAt`).
 - **An application that words refusals itself** adds `TAX_TREATMENT_NOT_SUPPORTED` and
   `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`.
 

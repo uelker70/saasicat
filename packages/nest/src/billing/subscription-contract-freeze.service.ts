@@ -15,6 +15,7 @@ import {
     contractChanged,
     SUCCESSOR_ATTEMPTS,
     SubscriptionContractService,
+    type IntendedContract,
 } from '../subscription-contract/subscription-contract.service.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
@@ -97,8 +98,8 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         }
     }
 
-    assertPartyFor(tenantId: string): Promise<void> {
-        return this.contracts.assertPartyFor(tenantId);
+    assertPartyFor(tenantId: string, intended: IntendedContract): Promise<void> {
+        return this.contracts.assertPartyFor(tenantId, intended);
     }
 
     async endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void> {
@@ -195,7 +196,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         if (isPlanNotSoldInCycle(planDef, billingCycle)) {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
         }
-        await this.contracts.assertPartyFor(tenantId);
+        await this.contracts.assertPartyFor(tenantId, {
+            effectiveFrom,
+            cycle: billingCycle,
+            endsAt,
+        });
         // Where a tax adapter decides, the rate is the one decided for the
         // subscriber's origin as it stands, over the contract's first period.
         const vatRate =

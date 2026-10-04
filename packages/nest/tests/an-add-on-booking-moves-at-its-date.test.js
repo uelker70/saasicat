@@ -44,8 +44,10 @@ function mover(world, { noParty = [], untreated = [], freezeFails = false, charg
     const frozen = [];
     const invalidated = [];
     const audited = [];
+    const asked = [];
     const contractFreeze = {
-        async assertPartyFor(tenantId) {
+        async assertPartyFor(tenantId, intended) {
+            asked.push([tenantId, intended]);
             if (noParty.includes(tenantId)) throw new Error('no party');
             if (untreated.includes(tenantId)) throw unsupportedTaxCase();
         },
@@ -64,7 +66,7 @@ function mover(world, { noParty = [], untreated = [], freezeFails = false, charg
         charges,
         { log: async (entry) => audited.push(entry) },
     );
-    return { service, frozen, invalidated, audited };
+    return { service, frozen, invalidated, audited, asked };
 }
 
 const versionOf = (world, id) =>
@@ -557,6 +559,22 @@ describe('a move that cannot be made', () => {
                 .map((entry) => [entry.entityId, entry.changes.reason]),
             [['sb-t1', 'no-party']],
         );
+    });
+
+    test('asks the party about the contract each move then writes', async () => {
+        const world = await announced();
+        const { service, frozen, asked } = mover(world);
+
+        await service.moveDue(AT_THE_DATE);
+
+        assert.deepEqual(
+            asked,
+            frozen.map(([tenantId, , cycle, effectiveFrom, endsAt]) => [
+                tenantId,
+                { effectiveFrom, cycle, endsAt },
+            ]),
+        );
+        assert.equal(asked.length, 2);
     });
 
     test('fails for a subscriber the tax adapter supports no treatment for, and says so', async () => {
