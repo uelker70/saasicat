@@ -96,6 +96,15 @@ export interface BundleVersionRetiredNotice {
  */
 export type BundleRetirementSkipReason = 'ended' | 'cancelled-before' | 'no-term' | 'already-told';
 
+/** What switching a booking to its retirement's replacement before the date did. */
+export interface BundleRetirementSwitchResult {
+    readonly subscriptionBundleId: string;
+    readonly fromBundleVersionId: string;
+    readonly bundleVersionId: string;
+    /** ISO date of the last day the price is held, or null where none is. */
+    readonly heldUntilDay: string | null;
+}
+
 /** A booking an add-on retirement reaches, with what it means there. */
 export interface BundleRetirementReachedRow {
     readonly tenantId: string;

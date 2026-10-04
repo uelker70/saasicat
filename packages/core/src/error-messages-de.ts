@@ -225,6 +225,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Version {replacementVersion}, die sie ersetzt, kann neben Ihrem Paket oder einem Paket, zu dem Ihr Abonnement wechselt, nicht laufen.',
     BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS:
         'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Ihr Abonnement endet bis dahin ebenfalls.',
+    BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES:
+        '{bundleName} zieht am {date} auf seine neue Version um, und Ihr Paket ändert sich vorher. Der Preis, den ein Wechsel halten würde, steht deshalb noch nicht fest. Wechseln Sie, sobald Ihr Paket gewechselt hat, oder lassen Sie es an diesem Tag umziehen.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',

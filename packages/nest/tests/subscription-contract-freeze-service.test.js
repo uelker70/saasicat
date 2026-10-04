@@ -896,6 +896,58 @@ describe('a contract a retirement writes', () => {
         assert.equal(calls.created.length, 0);
     });
 
+    test('an add-on switch holds the add-on’s price in the booking’s rhythm, and nothing on the plan', async () => {
+        const { calls, service } = makeService({
+            bundles: {
+                lineItems: [
+                    {
+                        ...monthlyAddOn(129),
+                        sourceVersionId: 'bv-2',
+                        titleSnapshot: 'Reports',
+                        billingCycle: 'yearly',
+                    },
+                ],
+                bundleVersionIds: ['bv-2'],
+            },
+        });
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
+            retirementId: 'bret-1',
+            addOn: { bundleVersionId: 'bv-2' },
+            priceHold: {
+                amountNet: 30,
+                until: new Date('2027-02-01T00:00:00.000Z'),
+                lastDay: '2027-01-31',
+            },
+        });
+
+        const [data] = calls.created;
+        const discounts = data.lineItems.filter((line) => line.kind === 'discount');
+        assert.deepEqual(
+            discounts.map((line) => [
+                line.sourceKey,
+                line.titleSnapshot,
+                line.priceNet,
+                line.billingCycle,
+                line.metadata.priceHold,
+            ]),
+            [
+                [
+                    'retirement-hold:bret-1',
+                    'Price of Reports held until 2027-01-31',
+                    -30,
+                    'yearly',
+                    {
+                        retirementId: 'bret-1',
+                        bundleVersionId: 'bv-2',
+                        until: '2027-02-01T00:00:00.000Z',
+                        resolvedAmountNet: 30,
+                    },
+                ],
+            ],
+        );
+    });
+
     test('a contract written for anything else marks nothing and holds nothing', async () => {
         const { calls, service } = makeService();
 

@@ -94,6 +94,7 @@ export {
     type RetirementNoticeRun,
 } from './version-retirement.service.js';
 export { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
+export { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
 export { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 export { RetirementMoveService } from './retirement-move.service.js';
 export { RetirementReminderService } from './retirement-reminder.service.js';

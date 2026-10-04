@@ -128,10 +128,13 @@
                     :buying-id="buyingBundleId"
                     :canceling-id="cancelingBundleId"
                     :reactivating-id="reactivatingBundleId"
+                    :switching-id="switchingBundleId"
                     :error="bundleError"
+                    :note="bundleNote"
                     @buy="onBuyBundle"
                     @cancel="onCancelBundle"
                     @reactivate="onReactivateBundle"
+                    @switch="onSwitchBundle"
                 />
             </TenantCard>
 
@@ -406,6 +409,9 @@ const showWizard = ref(false);
 const buyingBundleId = ref<string | null>(null);
 const cancelingBundleId = ref<string | null>(null);
 const reactivatingBundleId = ref<string | null>(null);
+const switchingBundleId = ref<string | null>(null);
+/** What the last add-on action did, where it says something. */
+const bundleNote = ref<string | null>(null);
 const reactivateConfirmId = ref<string | null>(null);
 
 const showCancelConfirm = ref(false);
@@ -724,6 +730,7 @@ async function onCancelBundle(subscriptionBundleId: string) {
 // the mutation.
 function onReactivateBundle(subscriptionBundleId: string) {
     bundleError.value = null;
+    bundleNote.value = null;
     reactivateConfirmId.value = subscriptionBundleId;
 }
 
@@ -749,8 +756,33 @@ async function confirmReactivateBundle() {
     }
 }
 
+// The early switch to the replacement an add-on retirement names. The notice
+// confirmed it with the tenant; this writes it, and says what happened.
+async function onSwitchBundle(subscriptionBundleId: string, bundleVersionId: string) {
+    const booking = bookedBundles.value.find((b) => b.id === subscriptionBundleId);
+    const label = booking?.label ?? booking?.bundleVersionId ?? '';
+    const version = String(booking?.retirement?.replacement.version ?? '');
+    switchingBundleId.value = subscriptionBundleId;
+    bundleError.value = null;
+    bundleNote.value = null;
+    try {
+        await billing.switchBundleToReplacement(subscriptionBundleId, bundleVersionId);
+        bundleNote.value = effectiveI18n.value.bundleRetiredSwitched
+            .replace('{bundle}', label)
+            .replace('{version}', version);
+    } catch (err) {
+        bundleError.value = refusalText(err);
+        // The retirement as it now stands is read with the reload, so the
+        // notice shows that rather than the one the switch was refused against.
+        await billing.reload();
+    } finally {
+        switchingBundleId.value = null;
+    }
+}
+
 async function openBundlePreview(load: () => Promise<BundlePreviewShape>) {
     bundleError.value = null;
+    bundleNote.value = null;
     bundlePreview.value = null;
     bundlePreviewError.value = null;
     bundlePreviewOpen.value = true;

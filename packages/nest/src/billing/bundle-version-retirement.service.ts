@@ -389,8 +389,10 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
     /**
      * The add-on retirement that reaches the booking `subscriptionBundleId` and
      * has not taken effect at `now`, or null — as the subscriber was told, and
-     * only once they were (`SC-BUN-043`). Until then the booking may be
-     * cancelled without its minimum term (`SC-BUN-045`).
+     * only once they were (`SC-BUN-043`), and only while the booking is still
+     * on the version retired. Until then the booking may be cancelled without
+     * its minimum term (`SC-BUN-045`); a switch to the replacement ends that,
+     * since the right rests on the version being retired (`SC-BUN-054`).
      */
     async pendingForBooking(
         subscriptionId: string,
@@ -398,13 +400,14 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
         now: Date,
     ): Promise<BundleVersionRetiredNotice | null> {
         const told = await this.toldForSubscription(subscriptionId);
-        return (
-            told.find(
-                (notice) =>
-                    notice.subscriptionBundleId === subscriptionBundleId &&
-                    new Date(notice.effectiveAt) > now,
-            ) ?? null
+        const notice = told.find(
+            (candidate) =>
+                candidate.subscriptionBundleId === subscriptionBundleId &&
+                new Date(candidate.effectiveAt) > now,
         );
+        if (!notice) return null;
+        const booking = await this.bookings.findById(subscriptionBundleId);
+        return booking?.bundleVersionId === notice.retired.bundleVersionId ? notice : null;
     }
 
     /**

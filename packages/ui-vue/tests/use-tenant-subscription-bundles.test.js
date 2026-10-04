@@ -171,6 +171,26 @@ describe('useTenantSubscriptionBundles', () => {
         assert.ok(view.bundles.value[0].canceledAt instanceof Date);
     });
 
+    // @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+    test('switchToReplacement() posts the version shown to the booking’s switch, then reloads', async () => {
+        const { http, calls } = httpReturning({ body: { heldUntilDay: '2027-01-31' } });
+
+        const result = await bundles({ http }).switchToReplacement('sb-1', 'bv-2');
+
+        assert.deepEqual(result, { heldUntilDay: '2027-01-31' });
+        assert.deepEqual(
+            calls.map(({ url, init }) => [init?.method ?? 'GET', url, init?.body]),
+            [
+                [
+                    'POST',
+                    '/api/v1/billing/subscription-bundles/sb-1/retirement/switch',
+                    JSON.stringify({ bundleVersionId: 'bv-2' }),
+                ],
+                ['GET', '/api/v1/billing/subscription-bundles', undefined],
+            ],
+        );
+    });
+
     test('a mutation the server answered without a body says the change may have landed', async () => {
         // The empty-body sentinel, at one of the sites that raises it. `add`
         // is a POST the caller awaited: the server accepted it and returned

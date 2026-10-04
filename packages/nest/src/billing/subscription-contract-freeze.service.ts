@@ -230,7 +230,13 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // the place that knows them writes them once rather than each source
         // carrying its own copy.
         const held = retirement?.priceHold
-            ? priceHoldLine(cycle, retirement.retirementId, bound.id, retirement.priceHold)
+            ? retirement.addOn
+                ? addOnPriceHoldLine(
+                      retirement.retirementId,
+                      lineOfTheMovedBooking(bundles.lineItems, retirement.addOn.bundleVersionId),
+                      retirement.priceHold,
+                  )
+                : priceHoldLine(cycle, retirement.retirementId, bound.id, retirement.priceHold)
             : null;
         const lineItems = recordContractLinesMoney(
             [
@@ -413,6 +419,56 @@ function assertTheMovedBookingHasItsLine(
             `version ${target}, but loadBookedBundles returned no line for that version. Put the ` +
             'bundle version of each running booking on its line as sourceVersionId.',
     );
+}
+
+/**
+ * The line of the booking an add-on retirement moves onto `bundleVersionId`,
+ * which `assertTheMovedBookingHasItsLine` has asked for before.
+ */
+function lineOfTheMovedBooking(
+    lines: readonly PricedContractLineItem[],
+    bundleVersionId: string,
+): PricedContractLineItem {
+    return lines.find(
+        (line) => line.kind === 'bundle' && line.sourceVersionId === bundleVersionId,
+    )!;
+}
+
+/**
+ * The add-on price a retirement's switch holds until the date the booking was
+ * told, as a discount line for the difference in the booking's own rhythm:
+ * generated, as the plan's is, so the journal reads how long it runs from the
+ * line itself, and keyed by the add-on version it is held on (`SC-BUN-055`).
+ */
+function addOnPriceHoldLine(
+    retirementId: string,
+    addOn: PricedContractLineItem,
+    hold: NonNullable<RetirementContractTerms['priceHold']>,
+): PricedContractLineItem {
+    return {
+        kind: 'discount',
+        sourceKey: `retirement-hold:${retirementId}`,
+        sourceVersionId: null,
+        titleSnapshot: `Price of ${addOn.titleSnapshot} held until ${hold.lastDay}`,
+        descriptionSnapshot: null,
+        quantity: 1,
+        unit: null,
+        priceNet: -hold.amountNet,
+        billingCycle: addOn.billingCycle,
+        minimumTermUntil: null,
+        featuresSnapshot: [],
+        quotaEffectsSnapshot: {},
+        metadata: {
+            generated: true,
+            source: 'retirement',
+            priceHold: {
+                retirementId,
+                bundleVersionId: addOn.sourceVersionId,
+                until: hold.until.toISOString(),
+                resolvedAmountNet: hold.amountNet,
+            },
+        },
+    };
 }
 
 /**

@@ -13,6 +13,7 @@
 
 import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
+    type BundleRetirementSwitchResult,
     type BundleVersionRetiredNotice,
     type VersionOfferView,
     type RetirementSwitchResult,
@@ -255,11 +256,23 @@ export interface SubscriptionBundleShape {
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
     /**
+     * Where the booking's running period ends, which is when its next one
+     * starts. Optional because an adapter predating booking periods answers
+     * without it.
+     */
+    currentPeriodEnd?: string | null;
+    /**
      * The retirement of the add-on version this booking is on, as the
      * subscriber was told it, while it still stands; null where there is none.
      * Optional because a platform without add-on retirements answers without it.
      */
     retirement?: BundleVersionRetiredNotice | null;
+    /**
+     * What switching to the replacement now would cost, where the booking may
+     * (`retirement` stands, after the trial, nothing changing the plan before
+     * the date); null where it may not. Optional as `retirement` is.
+     */
+    retirementSwitch?: RetirementSwitchTerms | null;
 }
 
 /**
@@ -496,6 +509,16 @@ export interface UseTenantBillingResult {
     /** Reverses a cancellation that has not yet taken effect + reloads. */
     reactivateBundle: (subscriptionBundleId: string) => Promise<void>;
     /**
+     * Switches a booking to the replacement its retirement names —
+     * `bundleVersionId`, the version the page showed — before the date, and
+     * reloads. Refused with `RETIREMENT_SWITCH_CHANGED` when that is no longer
+     * the replacement; the refusal carries the retirement as it stands.
+     */
+    switchBundleToReplacement: (
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ) => Promise<BundleRetirementSwitchResult>;
+    /**
      * Add preview (#37): proration, next-period price, redundancy hint,
      * requires check and blockers — show BEFORE booking.
      */
@@ -650,6 +673,19 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         await loadBundles();
     }
 
+    async function switchBundleToReplacement(
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ): Promise<BundleRetirementSwitchResult> {
+        const result = await fetchOrThrow<BundleRetirementSwitchResult>(
+            `/subscription-bundles/${subscriptionBundleId}/retirement/switch`,
+            { method: 'POST', body: { bundleVersionId } },
+        );
+        // The add-on's features and quotas follow the version: the usage too.
+        await reload();
+        return result;
+    }
+
     async function previewAddBundle(
         bundleVersionId: string,
         options: BundleBookingOptions = {},
@@ -760,6 +796,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         loadBundlePrices,
         cancelBundle,
         reactivateBundle,
+        switchBundleToReplacement,
         previewAddBundle,
         previewCancelBundle,
     };

@@ -5,7 +5,12 @@
 
 import { ref, type Ref } from 'vue';
 import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
-import type { BundleVersionRetiredNotice, SubscriptionBundleRecord } from '@saasicat/core';
+import type {
+    BundleRetirementSwitchResult,
+    BundleVersionRetiredNotice,
+    RetirementSwitchTerms,
+    SubscriptionBundleRecord,
+} from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
@@ -18,12 +23,14 @@ export interface UseTenantSubscriptionBundlesOptions {
 }
 
 /**
- * A booking as the tenant's list answers it: the record, and the retirement of
- * the version booked as the subscriber was told it, where one stands. A
- * platform without add-on retirements answers without the field.
+ * A booking as the tenant's list answers it: the record, the retirement of the
+ * version booked as the subscriber was told it, where one stands, and what
+ * switching to its replacement now would cost, where the booking may. A
+ * platform without add-on retirements answers without either field.
  */
 export type TenantSubscriptionBundle = SubscriptionBundleRecord & {
     readonly retirement?: BundleVersionRetiredNotice | null;
+    readonly retirementSwitch?: RetirementSwitchTerms | null;
 };
 
 export interface UseTenantSubscriptionBundlesResult {
@@ -45,6 +52,16 @@ export interface UseTenantSubscriptionBundlesResult {
         subscriptionBundleId: string,
         opts?: { canceledAt?: string },
     ) => Promise<SubscriptionBundleRecord>;
+    /**
+     * Switches the booking to the replacement its retirement names —
+     * `bundleVersionId`, the version the page showed — before the date, and
+     * reloads. Refused with `RETIREMENT_SWITCH_CHANGED` when that is no longer
+     * the replacement; the refusal carries the retirement as it stands.
+     */
+    switchToReplacement: (
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ) => Promise<BundleRetirementSwitchResult>;
 }
 
 export class TenantSubscriptionBundlesApiError extends Error {
@@ -158,9 +175,27 @@ export function useTenantSubscriptionBundles(
         return hydrated;
     }
 
+    async function switchToReplacement(
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ): Promise<BundleRetirementSwitchResult> {
+        const result = await fetchJson<BundleRetirementSwitchResult>(
+            `${baseUrl}/${subscriptionBundleId}/retirement/switch`,
+            { method: 'POST', body: JSON.stringify({ bundleVersionId }) },
+        );
+        if (!result) {
+            throw markEmptyResponse(
+                new TenantSubscriptionBundlesApiError(0, null, 'switch returned no body'),
+            );
+        }
+        // The booking is on another version now, with another price beside it.
+        await load();
+        return result;
+    }
+
     if (options.autoLoad) void load();
 
-    return { bundles, loading, error, load, add, cancel };
+    return { bundles, loading, error, load, add, cancel, switchToReplacement };
 }
 
 /**

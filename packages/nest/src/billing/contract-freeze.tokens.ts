@@ -92,7 +92,11 @@ export interface RetirementContractTerms {
     /** The add-on version an add-on retirement moves a booking onto; its line is the one marked. */
     readonly addOn?: { readonly bundleVersionId: string } | null;
     readonly priceHold?: {
-        /** The difference held, net, for one period of the contract's rhythm. */
+        /**
+         * The difference held, net, for one period of the contract's rhythm —
+         * or, where `addOn` names a version, of the rhythm that add-on's
+         * booking is billed in.
+         */
         readonly amountNet: number;
         /** The date the subscriber was told: periods starting before it are held. */
         readonly until: Date;

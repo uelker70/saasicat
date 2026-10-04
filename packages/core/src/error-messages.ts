@@ -224,6 +224,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Version {version} of {bundleKey} is being retired, and this booking ends before it would move. Version {replacementVersion}, which replaces it, cannot run beside your plan, or beside one your subscription is set to move to.',
     BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS:
         'Version {version} of {bundleKey} is being retired, and this booking ends before it would move. Your subscription ends by then as well.',
+    BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES:
+        '{bundleName} moves to its new version on {date}, and your plan changes before then, so the price a switch would keep is not known yet. Switch once your plan has changed, or let it move on that date.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',

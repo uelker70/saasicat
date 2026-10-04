@@ -205,6 +205,7 @@ _Tested by:_
         - add() prepends the new bundle and sends the token
         - without a token no Authorization header is invented
         - cancel() replaces the row it cancelled
+        - switchToReplacement() posts the version shown to the booking’s switch, then reloads
         - a mutation the server answered without a body says the change may have landed
         - a mutation that failed outright is not that — it says check the status
         - autoLoad fetches without being asked
@@ -1707,6 +1708,7 @@ _Tested by:_
         - lists each booking with the retirement of the version it is on
         - lists no retirement on a booking cancelled to end by its date, and keeps it on one that
           runs past
+        - and none where the subscription paying for it ends by the date
 - `packages/ui-vue-tenant/tests/component/a-retired-add-on-version-is-announced-beside-the-add-on.test.ts`
     - a retired add-on version, in the add-on store
         - says when the booking moves on, to which version, at what price, and until when it may go
@@ -1920,5 +1922,114 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
     - retiring an add-on version where the add-on is managed
         - says on a version that it was retired, onto which version, and how far that has come
+
+<!-- END proof -->
+
+### SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+
+🟢 💰 Until its date, a booking on an add-on version being retired may move to the named replacement
+at once, beside the add-on's notice in the plan section and on the tenant's add-on page, for the
+tenant's administrators. The switch keeps the booking, its period, its terms and its rhythm, and its
+contract marks the add-on's line as the move's does, so nothing is left to move at the date
+(`SC-BUN-050`). Where the replacement costs more for the plan the add-on runs beside, in the
+booking's rhythm, the subscription goes on paying what it paid for the add-on until the date
+(`SC-BUN-055`); where it costs the same or less, its price applies from the booking's next period.
+The switch opens after a trial, for a booking that runs past the date — one whose cancellation lands
+after the date may switch, and its cancellation stands, while one that ends by the date, or whose
+subscription does, has nothing to move to — and not while the plan the add-on runs beside, or the
+rhythm it is billed in, changes before the date: a change scheduled to land before it, or a
+retirement told to move the subscription to another plan before it. A retirement onto another
+version of the same plan changes neither. The confirmation says what the switch costs until the date
+and after it, and that cancelling without the minimum term is no longer available once switched:
+that right rests on the booking being on the version retired (`SC-BUN-045`). A page that named
+another version than the replacement is refused with the retirement as it stands, and a switch whose
+contract cannot be written is put back and refused, so nothing has changed unless putting it back
+fails as well, which the server log names.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-add-on-booking-switches-before-its-date.test.js`
+    - the switch before the date
+        - moves the booking onto the replacement at once and writes the contract that holds its
+          price
+        - writes the contract to end where the subscription does
+        - holds nothing where the replacement costs no more
+        - holds the difference for the plan it runs beside now, as the catalogue prices it
+        - lets a booking whose cancellation lands after the date switch, its cancellation standing
+        - says what it would cost on the page, and nothing where it is not open
+    - what the switch refuses
+        - a booking no retirement waits for: not told, past its date, or switched already
+        - a booking whose cancellation has landed
+        - a booking whose cancellation lands on the date, which it never runs past
+        - a booking whose subscription ends before the date
+        - a subscription in its trial
+        - a version other than the replacement, answered with the retirement as it stands
+        - a booking of another subscription, as a missing one
+        - a subscriber without a party to the contract, before anything moves
+        - a booking that left the version while the request was decided
+        - a replacement that cannot run beside the plan the subscription is on
+    - a plan that changes before the date
+        - refuses a change of plan landing before the date, naming the add-on and its date
+        - and a change of rhythm alone, but not a change landing on the date itself
+        - refuses where a retirement moves it to another plan before the date
+        - but not where it moves it to another version of the same plan
+    - a switch whose contract cannot be written
+        - is put back and refused as it came, and nothing has changed
+        - is refused as it came where it cannot be put back either
+    - the cancellation without the minimum term, once switched
+        - is over: the retirement no longer waits for the booking
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - the tenant’s add-on route and a retirement told
+        - lists beside the retirement what switching now would cost, where it may
+        - switches for the tenant’s administrators, and has nothing to switch to where nothing
+          retires add-ons
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - switchBundleToReplacement posts the version shown to the booking’s switch, then reloads
+- `packages/ui-vue/tests/use-tenant-subscription-bundles.test.js`
+    - useTenantSubscriptionBundles
+        - switchToReplacement() posts the version shown to the booking’s switch, then reloads
+- `packages/ui-vue-tenant/tests/component/a-retired-add-on-version-is-announced-beside-the-add-on.test.ts`
+    - the switch beside a retired add-on version
+        - says before it is taken what it holds until the day, and what it gives up
+        - names the next period where nothing is held, and switches to the version shown
+        - is not offered where the booking may not switch
+        - is written from the plan section, which says it went through
+        - is refused in the reader’s language where the plan changes before the date
+        - is written from the page of the tenant’s add-ons too
+
+<!-- END proof -->
+
+### SC-BUN-055 — An early switch to a dearer replacement holds the add-on's price until the date
+
+🟢 💰 The contract the switch writes names the replacement at its own price and holds the difference
+as a discount line until the date the booking was told. The difference is the one between the two
+versions' prices for the plan the add-on runs beside, in the booking's rhythm, as the catalogue
+prices them at the switch, and it stays as agreed: a change of plan after the switch prices the
+add-on anew, and the same difference comes off, up to what the period costs. The journal takes it
+off every period of the booking on the replacement that starts before that date, also where a later
+contract was written in between; a period that starts on the date or after it is charged in full,
+and so is a period in another rhythm than the one it was agreed in, which only a booking billed in
+the plan's rhythm can come to.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-add-on-price-is-held-until-the-date.test.js`
+    - the price held after an early switch
+        - comes off each period on the replacement that starts before the date, and none after
+        - leaves February as it was charged before the switch
+        - takes nothing off a period priced at the version left, though charged after the switch
+        - holds where a contract written in between carries no hold
+        - takes off the difference agreed at the switch where a change of plan prices the add-on
+          anew
+        - takes off no more than the period costs
+        - takes nothing off a period in another rhythm than it was agreed in
 
 <!-- END proof -->
