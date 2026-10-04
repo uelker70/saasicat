@@ -41,6 +41,7 @@ import type {
     SubscriptionNoticeRepository,
     SubscriptionRepository,
     SubscriptionUsagePort,
+    TaxAdapterFactory,
     TenantSubscriptionWritePort,
     TransactionRunner,
     UsageSnapshotPort,
@@ -213,6 +214,11 @@ export interface SaaSiCatPaymentsOptions extends Pick<
      * payment method routes require. Default: the tenant's administrator.
      */
     billingPermissionGuards?: PaymentsTenantRoutesOptions['billingPermissionGuards'];
+}
+
+export interface SaaSiCatTaxOptions {
+    /** The factory of the adapter `config/saas.yaml#tax.adapter` names. */
+    adapter: TaxAdapterFactory;
 }
 
 export interface SaaSiCatSubscriptionBundlesOptions extends Omit<
@@ -564,6 +570,13 @@ export interface SaaSiCatModuleOptions {
      * takes a sign-up's payment method through it.
      */
     payments?: false | SaaSiCatPaymentsOptions;
+    /**
+     * The tax adapter `config/saas.yaml#tax` names, bound by its factory the
+     * way a payment gateway is bound: `{ adapter: germanTaxAdapterFactory() }`.
+     * The start refuses a factory the file does not name, and a file naming an
+     * adapter no factory is bound for.
+     */
+    tax?: SaaSiCatTaxOptions;
     /**
      * Add-on bundle service and tenant controller. `true` uses defaults and
      * reuses tenant-billing auth/usage; an object customizes policy.

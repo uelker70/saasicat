@@ -46,6 +46,8 @@ import { sameAddOn } from '../billing/add-on-already-booked.js';
 import { addOnMisfits, type AddOnMisfit } from '../billing/add-on-fits-plan.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { rateOfTheFile, type TaxTreatments } from '../tax/tax-treatments.js';
 
 /** The language a promotion's texts fall back to, as the public catalogue reads them. */
 const DEFAULT_LOCALE = 'de';
@@ -104,6 +106,9 @@ export class CheckoutOfferPricing {
         @Optional()
         @Inject(PromoCodesService)
         private readonly promoCodes: PromoCodesService | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {
         // Checkout prices the version on sale and nothing else; a repository
         // that cannot name it would refuse every checkout as not offered.
@@ -174,13 +179,18 @@ export class CheckoutOfferPricing {
         bundleVersions: BundleVersionRow[],
         asOf: Date,
     ): Promise<PricedCheckoutOffer> {
-        const vatRate = this.settings.vatRate;
+        // The subscriber's origin is not known yet: the offer shows the rate for
+        // a subscriber in the issuer's country, and the contract is concluded
+        // at the rate decided for the subscriber who takes it.
+        const vatRate = this.taxes
+            ? this.taxes.shown(asOf, input.billingCycle).rate
+            : rateOfTheFile(this.settings).rate;
         const promotions = this.promotions ? await this.promotions.list() : [];
         const plan = await this.plans.findByKey(input.planKey);
 
-        const planLine = this.pricePlan(input, planVersion, plan?.label, promotions, asOf);
+        const planLine = this.pricePlan(input, planVersion, plan?.label, promotions, asOf, vatRate);
         const bundleLines = bundleVersions.map((version) =>
-            this.priceBundle(input, version, promotions, asOf),
+            this.priceBundle(input, version, promotions, asOf, vatRate),
         );
         const promotionSnapshots = [planLine, ...bundleLines]
             .map((priced) => priced.promotion)
@@ -303,6 +313,7 @@ export class CheckoutOfferPricing {
         label: string | undefined,
         promotions: PromotionRow[],
         asOf: Date,
+        vatRate: number,
     ): PricedLine {
         const priceNet = priceOf(version, input.billingCycle) as number;
         return {
@@ -312,6 +323,7 @@ export class CheckoutOfferPricing {
                 sourceVersionId: version.id,
                 title: label ?? input.planKey,
                 priceNet,
+                vatRate,
                 billingCycle: input.billingCycle,
                 features: version.features ?? [],
                 quotas: version.quotas ?? {},
@@ -325,6 +337,7 @@ export class CheckoutOfferPricing {
         version: BundleVersionRow,
         promotions: PromotionRow[],
         asOf: Date,
+        vatRate: number,
     ): PricedLine {
         const priceNet = resolveBundlePriceNet(
             version,
@@ -338,6 +351,7 @@ export class CheckoutOfferPricing {
                 sourceVersionId: version.id,
                 title: version.label,
                 priceNet,
+                vatRate,
                 billingCycle: input.billingCycle,
                 features: version.features ?? [],
                 quotas: version.quotas ?? {},
@@ -352,6 +366,7 @@ export class CheckoutOfferPricing {
         sourceVersionId: string;
         title: string;
         priceNet: number;
+        vatRate: number;
         billingCycle: Cycle;
         features: string[];
         quotas: Record<string, number>;
@@ -365,7 +380,7 @@ export class CheckoutOfferPricing {
             quantity: 1,
             unit: null,
             priceNet: fields.priceNet,
-            priceGross: grossFromNet(fields.priceNet, this.settings.vatRate),
+            priceGross: grossFromNet(fields.priceNet, fields.vatRate),
             billingCycle: fields.billingCycle,
             featuresSnapshot: [...fields.features],
             quotaEffectsSnapshot: { ...fields.quotas },

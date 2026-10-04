@@ -42,11 +42,21 @@ export const ALL_TERMS: ReadonlySet<CodeTermField> = new Set<CodeTermField>([
     'allowZeroInvoice',
 ]);
 
+/**
+ * The lowest price a subscriber can pay for a plan the code applies to, and
+ * what it is: the gross at the file's rate, or — where a tax adapter decides —
+ * the net, which is what a subscriber outside the issuer's VAT pays.
+ */
+export interface LowestPayablePrice {
+    amount: number;
+    basis: 'gross' | 'net';
+}
+
 /** What the rules need to know beyond the code itself. */
 export interface CodeRuleContext {
     nonRedeemablePlans: readonly string[];
-    /** The lowest price the code can apply to — read only when the zero-invoice rule is asked. */
-    lowestApplicablePlanGross(plans: readonly string[]): Promise<number | null>;
+    /** Read only when the zero-invoice rule is asked. */
+    lowestPayablePlanPrice(plans: readonly string[]): Promise<LowestPayablePrice | null>;
 }
 
 /**
@@ -179,13 +189,16 @@ function assertMinimumAmount(terms: CodeTerms): void {
 
 async function assertNoZeroInvoice(terms: CodeTerms, context: CodeRuleContext): Promise<void> {
     if (terms.valueType !== 'ABSOLUTE' || terms.allowZeroInvoice) return;
-    const lowest = await context.lowestApplicablePlanGross(terms.appliesToPlans);
-    if (lowest != null && terms.value >= lowest) {
+    const lowest = await context.lowestPayablePlanPrice(terms.appliesToPlans);
+    if (lowest != null && terms.value >= lowest.amount) {
         throw new BadRequestException({
             code: PROMO_ERROR_CODES.PROMO_WOULD_PRODUCE_ZERO_INVOICE,
             message:
                 'For absolute amounts the discount must stay below the lowest applicable plan price, or allowZeroInvoice must be enabled.',
-            params: { value: terms.value, lowestApplicablePlanGross: lowest },
+            params:
+                lowest.basis === 'net'
+                    ? { value: terms.value, lowestApplicablePlanNet: lowest.amount }
+                    : { value: terms.value, lowestApplicablePlanGross: lowest.amount },
         });
     }
 }

@@ -115,8 +115,12 @@ export function composePlanCatalog(
     catalog: PlanCatalog,
     sink: ProviderSpec<PlanCatalogReadSink> | undefined,
 ): DynamicModule {
+    const taxAdapter = options.tax ? options.tax.adapter : undefined;
     if (options.planCatalog) {
-        return PlanCatalogModule.forRootWithCatalog(options.planCatalog, { global: true });
+        return PlanCatalogModule.forRootWithCatalog(options.planCatalog, {
+            global: true,
+            taxAdapter,
+        });
     }
     // The settings come from the file `dbCatalog` named, which is `catalog`
     // here; the plans and the features come from the sink, which
@@ -125,6 +129,7 @@ export function composePlanCatalog(
         ...planCatalogSettingsOf(catalog),
         sink: sink as ProviderSpec<PlanCatalogReadSink>,
         imports: options.imports,
+        taxAdapter,
     });
 }
 

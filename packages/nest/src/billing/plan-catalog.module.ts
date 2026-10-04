@@ -19,9 +19,13 @@ import {
     type PlanCatalog,
     type PlanCatalogReadSink,
     type PlanCatalogSettings,
+    type TaxAdapterFactory,
 } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
+import { bindTaxAdapter } from '../tax/tax-binding.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { TaxTreatments } from '../tax/tax-treatments.js';
 import { databasePlanCatalogSource, givenPlanCatalogSource } from './plan-catalog-source.js';
 
 // `Symbol.for` (not a local `Symbol`): these tokens cross subpath-bundle
@@ -51,6 +55,12 @@ export const PLAN_CATALOG_READ_SINK_TOKEN = Symbol.for('saasicat/nest/PLAN_CATAL
 export interface PlanCatalogModuleOptions extends PlanCatalogSettings {
     /** App-specific adapter for DB reads. */
     sink: ProviderSpec<PlanCatalogReadSink>;
+    /**
+     * The factory of the tax adapter `config/saas.yaml#tax` names, bound in
+     * code. Kept out of the settings: it is code, and the settings record what
+     * the file says.
+     */
+    taxAdapter?: TaxAdapterFactory;
     /** Modules that must be visible in the DI scope (analogous to CatalogModule). */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     extraProviders?: Provider[];
@@ -61,7 +71,14 @@ export interface PlanCatalogModuleOptions extends PlanCatalogSettings {
 @Module({})
 export class PlanCatalogModule {
     static forRoot(options: PlanCatalogModuleOptions): DynamicModule {
-        const { sink: sinkSpec, imports, extraProviders, global, ...settings } = options;
+        const {
+            sink: sinkSpec,
+            imports,
+            extraProviders,
+            global,
+            taxAdapter,
+            ...settings
+        } = options;
         return {
             module: PlanCatalogModule,
             global: global ?? true,
@@ -70,6 +87,7 @@ export class PlanCatalogModule {
                 ...(extraProviders ?? []),
                 asProvider(PLAN_CATALOG_READ_SINK_TOKEN, sinkSpec),
                 { provide: PLAN_CATALOG_SETTINGS_TOKEN, useValue: settings },
+                taxTreatmentsProvider(settings, taxAdapter),
                 {
                     provide: PLAN_CATALOG_SOURCE_TOKEN,
                     useFactory: async (sink: PlanCatalogReadSink) => {
@@ -88,6 +106,7 @@ export class PlanCatalogModule {
                 PLAN_CATALOG_SETTINGS_TOKEN,
                 PLAN_CATALOG_SOURCE_TOKEN,
                 PLAN_CATALOG_READ_SINK_TOKEN,
+                TAX_TREATMENTS_TOKEN,
             ],
         };
     }
@@ -98,16 +117,33 @@ export class PlanCatalogModule {
      */
     static forRootWithCatalog(
         catalog: PlanCatalog,
-        opts: { global?: boolean } = {},
+        opts: { global?: boolean; taxAdapter?: TaxAdapterFactory } = {},
     ): DynamicModule {
+        const settings = planCatalogSettingsOf(catalog);
         return {
             module: PlanCatalogModule,
             providers: [
-                { provide: PLAN_CATALOG_SETTINGS_TOKEN, useValue: planCatalogSettingsOf(catalog) },
+                { provide: PLAN_CATALOG_SETTINGS_TOKEN, useValue: settings },
                 { provide: PLAN_CATALOG_SOURCE_TOKEN, useValue: givenPlanCatalogSource(catalog) },
+                taxTreatmentsProvider(settings, opts.taxAdapter),
             ],
-            exports: [PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN],
+            exports: [PLAN_CATALOG_SETTINGS_TOKEN, PLAN_CATALOG_SOURCE_TOKEN, TAX_TREATMENTS_TOKEN],
             global: opts.global ?? true,
         };
     }
+}
+
+/**
+ * The installation's `TaxTreatments`, built where the settings are, so that a
+ * tax adapter bound without the file naming it — or the other way round —
+ * stops the start here (`bindTaxAdapter`).
+ */
+function taxTreatmentsProvider(
+    settings: PlanCatalogSettings,
+    taxAdapter: TaxAdapterFactory | undefined,
+): Provider {
+    return {
+        provide: TAX_TREATMENTS_TOKEN,
+        useFactory: () => new TaxTreatments(settings, bindTaxAdapter(settings, taxAdapter)),
+    };
 }

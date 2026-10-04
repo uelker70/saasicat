@@ -17,6 +17,7 @@ import {
 import { grossFromNet } from '../promo/math.js';
 import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
 import { assertTaxRatePercent } from '../subscription-contract/contract-refusals.js';
+import { rateOfTheFile } from '../tax/tax-treatments.js';
 
 /**
  * Finds a plan in the catalog. `undefined` if it does not exist.
@@ -134,7 +135,7 @@ export function getPlanPriceGross(
 ): number | null {
     const net = getPlanPriceNet(catalog, planId, cycle);
     if (net === null) return null;
-    const rate = vatRate ?? catalog.vatRate;
+    const rate = vatRate ?? rateOfTheFile(catalog).rate;
     assertTaxRatePercent(vatRate === undefined ? 'catalog.vatRate' : 'vatRate', rate);
     return grossFromNet(net, rate);
 }

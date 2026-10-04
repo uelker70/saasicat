@@ -48,6 +48,7 @@ import {
     assertOnePlanLine,
     assertTaxRatePercent,
 } from '../subscription-contract/contract-refusals.js';
+import { rateOfTheFile } from '../tax/tax-treatments.js';
 
 // SubscriptionContractFreezeService (#18) — on a plan change, freezes the
 // agreed service as a `SubscriptionContract` with `entitlementSnapshot`.
@@ -170,7 +171,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // sold under, and it is the reading the entitlement snapshot below is
         // filtered against.
         const catalog = await this.catalogs.current();
-        const vatRate = catalog.vatRate;
+        const vatRate = rateOfTheFile(catalog).rate;
         // Checked before anything is written: the new contract records this
         // rate, this window and a plan sold in this cycle, and a refusal after
         // the contract in force had ended would leave the tenant with none.

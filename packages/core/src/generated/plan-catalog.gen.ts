@@ -40,9 +40,28 @@ export interface PlanCatalog {
      */
     currency: string;
     /**
-     * VAT rate as a percentage: 19 means 19 %. Required (even when 0). Every tax rate in SaaSiCat is a percentage, so a value between 0 and 1, the shape of a fraction such as 0.19, is refused.
+     * VAT rate as a percentage: 19 means 19 %. Required (even when 0) unless `tax` names a tax adapter, and not allowed beside one: the adapter is then the one source of every rate. Every tax rate in SaaSiCat is a percentage, so a value between 0 and 1, the shape of a fraction such as 0.19, is refused.
      */
-    vatRate: number;
+    vatRate?: number;
+    /**
+     * The tax adapter that decides each charge's treatment for this installation's issuer (ADR 0013), and the options the operator gives it. The application binds the adapter's factory in code, as it binds a payment gateway; the start refuses a name the bound factory does not carry. With `tax`, `timeZone` is required and `vatRate` is not allowed.
+     */
+    tax?: {
+        /**
+         * The adapter's package name, such as `@saasicat/tax-de`.
+         */
+        adapter: string;
+        /**
+         * What the operator declares to the adapter, such as `smallBusiness: true`. The adapter checks them when it is built.
+         */
+        options?: {
+            [k: string]: unknown;
+        };
+    };
+    /**
+     * The installation's time zone, an IANA name such as `Europe/Berlin`: the calendar in which the days of a period count for its tax (SC-PRIC-045). Required with `tax`; the start refuses a name the runtime does not know.
+     */
+    timeZone?: string;
     /**
      * Commercial settings for the tenant-facing self-service routes. Required, and required member by member: every one of these has a money or a legal consequence, and a value left out is still a decision — just an invisible one. The file is read at boot, so a change lands on the next restart.
      */

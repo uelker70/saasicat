@@ -30,15 +30,17 @@ import {
 import { SETTINGS_SOURCE_TOKEN, storeSecretsInPlainText } from '../dist/index.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 
-// Every settings block the schema declares, so that a block the chain dropped
-// shows up as missing rather than never being compared. `plans` is here on
-// purpose: it is what a database-path file keeps as the seed for
-// `saasicat catalog import`, and it must not become the catalogue.
+// Every settings block the schema declares but `tax`, which excludes `vatRate`
+// and has a file of its own below, so that a block the chain dropped shows up
+// as missing rather than never being compared. `plans` is here on purpose: it
+// is what a database-path file keeps as the seed for `saasicat catalog
+// import`, and it must not become the catalogue.
 const LINES = [
     'schemaVersion: 1',
     'app: { name: FromFile, version: 1.2.3 }',
     'currency: EUR',
     'vatRate: ${VAT}',
+    'timeZone: Europe/Berlin',
     'tenantBilling:',
     '  cancellationNoticeDays: { monthly: 14, yearly: 90 }',
     '  selfServiceBlockedPlans: { asTarget: [ENTERPRISE], asSource: [] }',
@@ -110,8 +112,32 @@ function fileWith(lines = LINES) {
     return path;
 }
 
+/** The same file naming a tax adapter where the other names `vatRate`. */
+const TAX_LINES = LINES.map((line) =>
+    line === 'vatRate: ${VAT}' ? 'tax: { adapter: test-tax, options: { flat: true } }' : line,
+);
+
+/** A tax adapter that charges 19 % to everybody, bound under the name the file gives. */
+const testTaxFactory = {
+    adapterName: 'test-tax',
+    create: () => ({
+        name: 'test-tax',
+        version: '1.0.0',
+        decide: () => ({
+            supported: true,
+            treatment: {
+                kind: 'standard',
+                rate: 19,
+                note: null,
+                adapter: { name: 'test-tax', version: '1.0.0' },
+            },
+        }),
+        checkVatId: async () => ({ completed: false, reason: 'not asked' }),
+    }),
+};
+
 /** Composed the way a consumer on the database path composes it. */
-function forRootWith(dbCatalog, port = new FakeAppliedSettingsPort()) {
+function forRootWith(dbCatalog, port = new FakeAppliedSettingsPort(), extra = {}) {
     return SaaSiCatModule.forRoot({
         dbCatalog,
         controller: { guards: [FakeJwtGuard] },
@@ -119,12 +145,13 @@ function forRootWith(dbCatalog, port = new FakeAppliedSettingsPort()) {
         persistence: persistenceWith(port),
         adapters: { secretSealer: storeSecretsInPlainText(), planCatalogReadSink: fakeSink() },
         defaultPlanId: 'PRO',
+        ...extra,
     });
 }
 
-async function boot(dbCatalog, port) {
+async function boot(dbCatalog, port, extra) {
     const app = await Test.createTestingModule({
-        imports: [forRootWith(dbCatalog, port)],
+        imports: [forRootWith(dbCatalog, port, extra)],
     }).compile();
     await app.init();
     apps.push(app);
@@ -132,22 +159,33 @@ async function boot(dbCatalog, port) {
 }
 
 describe('the settings an installation with a database catalogue runs on', () => {
+    // `vatRate` and `tax` exclude each other, so the two files between them
+    // carry every settings block the schema declares.
+    const declaredBut = (left) =>
+        Object.keys(planCatalogSchema.properties)
+            .filter((key) => !CATALOGUE_KEYS.has(key) && key !== left)
+            .sort();
+    const NOT_ASKED =
+        'a settings block the schema declares is not in the fixture, or did not reach the ' +
+        'running catalogue — either way this test no longer asks its question';
+
     test('are the ones in the file dbCatalog names, every block the schema declares', async () => {
         const path = fileWith();
         const app = await boot({ path, env: ENV });
         const running = settingsSubtreeOf(app.get(PLAN_CATALOG_SETTINGS_TOKEN));
 
         assert.deepEqual(running, settingsSubtreeOf(loadPlanCatalogFromFile({ path, env: ENV })));
+        assert.deepEqual(Object.keys(running).sort(), declaredBut('tax'), NOT_ASKED);
+    });
 
-        const declared = Object.keys(planCatalogSchema.properties).filter(
-            (key) => !CATALOGUE_KEYS.has(key),
-        );
-        assert.deepEqual(
-            Object.keys(running).sort(),
-            declared.sort(),
-            'a settings block the schema declares is not in the fixture, or did not reach the ' +
-                'running catalogue — either way this test no longer asks its question',
-        );
+    test('are the ones in the file dbCatalog names where it names a tax adapter instead of a rate', async () => {
+        const path = fileWith(TAX_LINES);
+        const app = await boot({ path, env: ENV }, undefined, { tax: { adapter: testTaxFactory } });
+        const running = settingsSubtreeOf(app.get(PLAN_CATALOG_SETTINGS_TOKEN));
+
+        assert.deepEqual(running, settingsSubtreeOf(loadPlanCatalogFromFile({ path, env: ENV })));
+        assert.deepEqual(Object.keys(running).sort(), declaredBut('vatRate'), NOT_ASKED);
+        assert.deepEqual(running.tax, { adapter: 'test-tax', options: { flat: true } });
     });
 
     test('a variable the file names resolves through the environment dbCatalog is given', async () => {

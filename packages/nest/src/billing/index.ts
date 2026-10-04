@@ -46,6 +46,8 @@ export * from './limit-exceeded.filter.js';
 export * from './plan-catalog-loader.js';
 export type { EnvironmentVariables } from './plan-catalog-environment.js';
 export * from './plan-catalog.module.js';
+export { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+export { TaxTreatments, type AppliedTax } from '../tax/tax-treatments.js';
 export {
     givenPlanCatalogSource,
     type PlanCatalogOrigin,
