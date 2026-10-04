@@ -205,6 +205,9 @@ export function retiring({
         async listByIds(ids) {
             return subscriptions.filter(({ subscription }) => ids.includes(subscription.id));
         },
+        async findForTenant(tenantId) {
+            return subscriptions.find((row) => row.tenantId === tenantId)?.subscription ?? null;
+        },
     };
     const transactions = {
         async run(work) {

@@ -130,7 +130,7 @@ export class BundleRetirementMoveService {
                         if (ranPastItsDate) await this.endedBeforeItsMove(notice, sub);
                         continue;
                     }
-                    const outcome = await this.move(notice, booking, sub, now);
+                    const outcome = await this.move(notice, booking, now);
                     if (outcome === 'moved') moved += 1;
                     if (outcome === 'failed') failed += 1;
                 }
@@ -142,7 +142,6 @@ export class BundleRetirementMoveService {
     private async move(
         notice: BundleVersionRetiredNotice,
         booking: SubscriptionBundleRecord,
-        sub: SubscriptionUsageRecord,
         now: Date,
     ): Promise<'moved' | 'failed' | 'changed'> {
         const { tenantId } = notice;
@@ -164,6 +163,21 @@ export class BundleRetirementMoveService {
         );
         if (!moved) return 'changed';
         this.entitlements.invalidateTenant(tenantId);
+        // The subscription as it stands now that the booking is claimed, not
+        // as the run read it, possibly minutes before: a cancellation declared
+        // since has ended the contract in force on its date, and the contract
+        // the move writes has to end on the same one; a trial may have
+        // converted since, and needs that contract now.
+        const sub = await this.subscriptions.findForTenant(tenantId);
+        if (
+            sub?.id !== notice.subscriptionId ||
+            bookingOverBy(moved, cancellationLandsAt(sub), now)
+        ) {
+            // Over since the run read it: nothing is left to move, and the
+            // next run finds it ended on the version retired.
+            if (await this.putBack(notice)) return 'changed';
+            return this.failed(notice, 'contract-not-written', { putBack: false });
+        }
         // A trial commits to no period and is charged nothing; its contract is
         // frozen when it converts, from the bookings as they stand by then.
         const isTrial = sub.status === 'TRIAL';
@@ -221,23 +235,31 @@ export class BundleRetirementMoveService {
     }
 
     /**
-     * Moves the booking back onto the version retired, where the move's
-     * contract could not be written; whether that was written.
+     * Moves the booking back onto the version retired, where the move cannot
+     * stand; whether that was written. Where it was not — the booking changed
+     * in between, or the store failed — the booking is on the replacement
+     * without its contract, the log says so, and the run goes on with the next.
      */
     private async putBack(notice: BundleVersionRetiredNotice): Promise<boolean> {
-        const back = await this.bookings.moveToVersion!(
-            notice.subscriptionBundleId,
-            notice.replacement.bundleVersionId,
-            notice.retired.bundleVersionId,
-        );
-        this.entitlements.invalidateTenant(notice.tenantId);
-        if (!back) {
-            this.logger.error(
-                `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} is on the ` +
-                    `replacement without its contract, and could not be put back.`,
+        let why: string;
+        try {
+            const back = await this.bookings.moveToVersion!(
+                notice.subscriptionBundleId,
+                notice.replacement.bundleVersionId,
+                notice.retired.bundleVersionId,
             );
+            if (back) return true;
+            why = 'it changed in between';
+        } catch (error) {
+            why = String(error);
+        } finally {
+            this.entitlements.invalidateTenant(notice.tenantId);
         }
-        return back !== null;
+        this.logger.error(
+            `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} is on the ` +
+                `replacement without its contract, and could not be put back: ${why}.`,
+        );
+        return false;
     }
 
     /**

@@ -1826,9 +1826,15 @@ _Tested by:_
         - waits for nothing in another booking on the version, which the notice did not reach
         - is charged as before where the notice reached nobody: nothing moves it
 - `packages/nest/tests/an-add-on-booking-moves-at-its-date.test.js`
+    - what changed since the run read the subscription
+        - a cancellation declared since ends the contract the move writes on its date
+        - a subscription that ended since takes the booking back, and writes nothing
+        - a tenant on another subscription by now takes the booking back
+        - a trial converted since gets the contract the move writes
     - a move that cannot be made
         - fails without a party to the contract, audited once though every run fails
         - puts the booking back where its contract cannot be written, and the next run makes both
+        - goes on with the next booking where putting one back fails, and says so
         - says so where the booking cannot be put back either
     - a booking that ended before its move came
         - is not moved, and the journal is asked once for the periods it ran on

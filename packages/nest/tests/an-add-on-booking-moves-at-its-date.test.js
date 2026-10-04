@@ -380,6 +380,89 @@ describe('the replacement the notice promised', () => {
     });
 });
 
+/**
+ * An announcement whose run reads the subscriptions as they were when it
+ * began — t1's as `before` — while t1's has become `changed` by the time its
+ * booking is moved.
+ */
+async function readBeforeT1Changed(changed, before = {}) {
+    const subscriptions = [subscriptionOf('t1', before), subscriptionOf('t2')];
+    const world = await announced({ subscriptions });
+    const asRead = [...subscriptions];
+    world.usage.listByIds = async (ids) =>
+        asRead.filter(({ subscription }) => ids.includes(subscription.id));
+    subscriptions[0] = subscriptionOf('t1', changed);
+    return world;
+}
+
+// @requirement SC-BUN-050 — A booking's move and its contract are one, and its periods from the date wait for both
+describe('what changed since the run read the subscription', () => {
+    test('a cancellation declared since ends the contract the move writes on its date', async () => {
+        const world = await readBeforeT1Changed({
+            canceledAt: new Date('2027-01-20T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2027-06-01T00:00:00.000Z'),
+        });
+        const { service, frozen } = mover(world);
+
+        await service.moveDue(AT_THE_DATE);
+
+        assert.equal(versionOf(world, 'sb-t1'), REPLACEMENT.id);
+        assert.deepEqual(
+            frozen.map(([tenantId, , , , endsAt]) => [tenantId, endsAt]),
+            [
+                ['t1', new Date('2027-06-01T00:00:00.000Z')],
+                ['t2', null],
+            ],
+        );
+    });
+
+    test('a subscription that ended since takes the booking back, and writes nothing', async () => {
+        const world = await readBeforeT1Changed({
+            canceledAt: new Date('2027-01-20T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2027-02-01T00:10:00.000Z'),
+        });
+        const { service, frozen, audited } = mover(world);
+
+        const run = await service.moveDue(AT_THE_DATE);
+
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(run, { moved: 1, failed: 0 });
+        assert.deepEqual(
+            frozen.map(([tenantId]) => tenantId),
+            ['t2'],
+        );
+        assert.deepEqual(
+            audited.map((entry) => entry.entityId),
+            ['sb-t2'],
+        );
+    });
+
+    test('a tenant on another subscription by now takes the booking back', async () => {
+        const world = await readBeforeT1Changed({ id: 'sub-t1-again' });
+        const { service, frozen } = mover(world);
+
+        await service.moveDue(AT_THE_DATE);
+
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(
+            frozen.map(([tenantId]) => tenantId),
+            ['t2'],
+        );
+    });
+
+    test('a trial converted since gets the contract the move writes', async () => {
+        const world = await readBeforeT1Changed({}, { status: 'TRIAL' });
+        const { service, frozen } = mover(world);
+
+        await service.moveDue(AT_THE_DATE);
+
+        assert.deepEqual(
+            frozen.map(([tenantId]) => tenantId),
+            ['t1', 't2'],
+        );
+    });
+});
+
 // @requirement SC-BUN-050 — A booking's move and its contract are one, and its periods from the date wait for both
 describe('a move that cannot be made', () => {
     test('fails without a party to the contract, audited once though every run fails', async () => {
@@ -434,6 +517,27 @@ describe('a move that cannot be made', () => {
 
         assert.equal(retried.moved, 2);
         assert.equal(versionOf(world, 'sb-t1'), REPLACEMENT.id);
+    });
+
+    test('goes on with the next booking where putting one back fails, and says so', async () => {
+        const world = await announced();
+        const write = world.bookingRepository.moveToVersion;
+        world.bookingRepository.moveToVersion = async (id, from, to) => {
+            if (from === REPLACEMENT.id) throw new Error('the database is gone');
+            return write(id, from, to);
+        };
+        const { service, audited } = mover(world, { freezeFails: true });
+
+        const run = await service.moveDue(AT_THE_DATE);
+
+        assert.deepEqual(run, { moved: 0, failed: 2 });
+        assert.deepEqual(
+            audited.map((entry) => [entry.entityId, entry.changes.putBack]),
+            [
+                ['sb-t1', false],
+                ['sb-t2', false],
+            ],
+        );
     });
 
     test('says so where the booking cannot be put back either', async () => {
