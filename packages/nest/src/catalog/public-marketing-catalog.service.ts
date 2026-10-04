@@ -116,7 +116,17 @@ export class PublicMarketingCatalogService {
         vatRate: number | null,
         asOf: Date,
     ): { rate: number; shownFor: string | null } {
-        if (vatRate !== null) return { rate: vatRate, shownFor: null };
+        if (vatRate !== null) {
+            // One source of the rate: the start rule refuses this where
+            // `SaaSiCatModule` composes the catalogue, and a `CatalogModule`
+            // mounted on its own meets it here.
+            if (this.taxes?.adapter) {
+                throw new Error(
+                    'catalog.publicMarketingCatalog.vatRate names a rate beside the tax adapter config/saas.yaml names. The adapter is the one source of the rate: remove vatRate.',
+                );
+            }
+            return { rate: vatRate, shownFor: null };
+        }
         if (!this.taxes) {
             throw new Error(
                 'The public marketing catalogue has no vatRate and no tax adapter to take one from.',

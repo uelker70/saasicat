@@ -78,7 +78,9 @@ export interface PublicMarketingCatalogOptions {
     /**
      * The rate the pricing page shows. Leave it out where config/saas.yaml names
      * a tax adapter: the page then shows the adapter's rate for a subscriber in
-     * the issuer's country, and the start refuses a rate beside an adapter.
+     * the issuer's country, and a rate beside an adapter is refused — by the
+     * start where `SaaSiCatModule` composes the catalogue, by the page where a
+     * `CatalogModule` is mounted on its own.
      */
     vatRate?: number;
     /**

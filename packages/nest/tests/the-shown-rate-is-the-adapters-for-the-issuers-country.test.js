@@ -136,6 +136,13 @@ describe('the shown rate is the tax adapter answer for the issuer country', () =
         assert.equal(small.vatRate, 0);
     });
 
+    test('a rate passed beside the adapter is refused, not shown', async () => {
+        await assert.rejects(
+            () => catalogueService(withAdapter()).getCatalog('de', 'EUR', 19),
+            /beside the tax adapter/,
+        );
+    });
+
     test('without an adapter the page shows the rate passed, for everybody', async () => {
         const page = await catalogueService(withoutAdapter).getCatalog('de', 'EUR', 19);
         assert.deepEqual([page.vatRate, page.vatRateShownFor], [19, null]);
