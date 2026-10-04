@@ -765,6 +765,38 @@ describe('the free switch before the date', () => {
     });
 
     // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+    test('asks nothing of an add-on whose subscription ends by the date it continues from, and asks one that runs past it', async () => {
+        const ahead = [
+            {
+                subscriptionBundleId: 'sb-1',
+                retiredBundleVersionId: 'bv-exports',
+                replacementBundleVersionId: 'bv-reports',
+                effectiveAt: '2026-09-01T00:00:00.000Z',
+            },
+        ];
+        const subscriptionEnding = (endsAt) =>
+            aSwitch({
+                sub: subscriptionOf('t1', {
+                    canceledAt: new Date('2026-03-01T00:00:00.000Z'),
+                    canceledEffectiveAt: new Date(endsAt),
+                }),
+                bookings: bookingsOf('bv-exports'),
+                addOnsAhead: { of: async () => ahead },
+            });
+        const endingBy = subscriptionEnding('2026-09-01T00:00:00.000Z');
+        const endingAfter = subscriptionEnding('2026-10-01T00:00:00.000Z');
+
+        await endingBy.service.switchNow('t1', 'pv-9', BEFORE);
+        const error = await rejection(endingAfter.service.switchNow('t1', 'pv-9', BEFORE));
+
+        assert.equal(endingBy.writes.calls.length, 1);
+        assert.equal(
+            error.getResponse().code,
+            'RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW',
+        );
+    });
+
+    // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
     test('names the day an add-on cancelled already ends, which cancelling again cannot move', async () => {
         const ahead = [
             {

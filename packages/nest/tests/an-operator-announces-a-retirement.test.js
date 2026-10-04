@@ -281,6 +281,24 @@ describe('the preview of a retirement', () => {
                 bookings: bookingsOf(...bookings),
                 addOns: ADD_ONS,
             });
+        /** t1's add-on, told it continues from 1 March 2027 on a version sold beside Standard only. */
+        const continuesOnStandardOnly = {
+            subscriptionBundleId: 'sb-1',
+            retiredBundleVersionId: 'bv-any',
+            replacementBundleVersionId: 'bv-standard-only',
+            effectiveAt: '2027-03-01T00:00:00.000Z',
+        };
+        /** `bound`, with t1's add-on told as `continuesOnStandardOnly` says. */
+        const retiringTold = (bound) =>
+            retiring({
+                bound,
+                rows: [RETIRED, REPLACEMENT, pro],
+                bookings: bookingsOf({ ...bookingOf('sub-t1', 'bv-any'), id: 'sb-1' }),
+                addOns: ADD_ONS,
+                addOnsAhead: {
+                    of: async (id) => (id === 'sub-t1' ? [continuesOnStandardOnly] : []),
+                },
+            });
 
         test('is refused where an add-on still booked at the date cannot run on its plan', async () => {
             const { service } = retiringWith(bookingOf('sub-t1', 'bv-standard-only'));
@@ -312,31 +330,30 @@ describe('the preview of a retirement', () => {
             assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), []);
         });
 
-        // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
-        test('a notice that waited is not sent while its plan cannot carry what is held by then', async () => {
+        /**
+         * Whether t1 and t2 were told, where their notices waited for a recipient
+         * and t1's add-on was told meanwhile that it continues on a version Pro
+         * cannot carry.
+         */
+        async function toldAfterWaiting(bound) {
             let answer = { recipients: [], channel: 'email' };
             let ahead = [];
-            const told = { ...bookingOf('sub-t1', 'bv-any'), id: 'sb-1' };
             const notices = noticeRecord();
             const { service } = retiring({
+                bound,
                 rows: [RETIRED, REPLACEMENT, pro],
-                bookings: bookingsOf(told),
+                bookings: bookingsOf({ ...bookingOf('sub-t1', 'bv-any'), id: 'sb-1' }),
                 addOns: ADD_ONS,
                 notices,
                 port: sendingPort(() => answer),
                 addOnsAhead: { of: async (id) => (id === 'sub-t1' ? ahead : []) },
             });
             await service.announce(RETIRED.id, pro.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
-            // While it waits, the add-on is told it continues on a version Pro cannot carry.
-            ahead = [
-                {
-                    subscriptionBundleId: 'sb-1',
-                    retiredBundleVersionId: 'bv-any',
-                    replacementBundleVersionId: 'bv-standard-only',
-                    effectiveAt: '2027-03-01T00:00:00.000Z',
-                },
-            ];
+            ahead = [continuesOnStandardOnly];
             answer = { recipients: ['admin@example.com'], channel: 'email' };
+
+            await service.sendUndelivered(new Date('2026-10-20T09:00:00.000Z'));
+
             const toldOfThis = (subscriptionId) =>
                 [...notices.rows.values()].some(
                     (row) =>
@@ -344,31 +361,56 @@ describe('the preview of a retirement', () => {
                         row.kind === 'version-retired' &&
                         row.deliveredAt !== null,
                 );
+            return [toldOfThis('sub-t1'), toldOfThis('sub-t2')];
+        }
 
-            await service.sendUndelivered(new Date('2026-10-20T09:00:00.000Z'));
+        // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
+        test('a notice that waited is not sent while its plan cannot carry what is held by then', async () => {
+            assert.deepEqual(await toldAfterWaiting(), [false, true]);
+        });
 
-            assert.deepEqual([toldOfThis('sub-t1'), toldOfThis('sub-t2')], [false, true]);
+        // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+        test('but is sent where the subscription ends by the date the add-on continues from', async () => {
+            const t1Ending = (endsAt) => [
+                boundTo('t1', {
+                    canceledAt: new Date('2026-10-01T00:00:00.000Z'),
+                    canceledEffectiveAt: new Date(endsAt),
+                }),
+                boundTo('t2'),
+            ];
+
+            assert.deepEqual(await toldAfterWaiting(t1Ending('2027-03-01T00:00:00.000Z')), [
+                true,
+                true,
+            ]);
+            assert.deepEqual(await toldAfterWaiting(t1Ending('2027-04-01T00:00:00.000Z')), [
+                false,
+                true,
+            ]);
         });
 
         // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
         test('asks too about the version an add-on was told it continues on', async () => {
-            const told = { ...bookingOf('sub-t1', 'bv-any'), id: 'sb-1' };
-            const ahead = [
-                {
-                    subscriptionBundleId: 'sb-1',
-                    retiredBundleVersionId: 'bv-any',
-                    replacementBundleVersionId: 'bv-standard-only',
-                    effectiveAt: '2027-03-01T00:00:00.000Z',
-                },
-            ];
-            const { service } = retiring({
-                rows: [RETIRED, REPLACEMENT, pro],
-                bookings: bookingsOf(told),
-                addOns: ADD_ONS,
-                addOnsAhead: { of: async (id) => (id === 'sub-t1' ? ahead : []) },
-            });
+            const { service } = retiringTold();
 
             assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), [
+                'RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES',
+            ]);
+        });
+
+        // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+        test('but not where the subscription ends by the date the add-on continues from', async () => {
+            const subscriptionEnding = (endsAt) =>
+                retiringTold([
+                    boundTo('t1', {
+                        canceledAt: new Date('2026-10-01T00:00:00.000Z'),
+                        canceledEffectiveAt: new Date(endsAt),
+                    }),
+                    boundTo('t2'),
+                ]).service.preview(RETIRED.id, pro.id, NOW);
+
+            assert.deepEqual(codesOf(await subscriptionEnding('2027-03-01T00:00:00.000Z')), []);
+            assert.deepEqual(codesOf(await subscriptionEnding('2027-04-01T00:00:00.000Z')), [
                 'RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES',
             ]);
         });

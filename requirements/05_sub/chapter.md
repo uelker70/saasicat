@@ -1047,6 +1047,8 @@ _Tested by:_
         - is refused while an add-on running today cannot run on the replacement’s plan
         - is refused as well where an add-on was told it continues on a version the plan cannot
           carry, naming that version
+        - asks nothing of an add-on whose subscription ends by the date it continues from, and asks
+          one that runs past it
         - names the day an add-on cancelled already ends, which cancelling again cannot move
         - goes through with the add-ons the replacement’s plan can carry
         - is refused where the subscription changed between the read and the write
@@ -1230,8 +1232,12 @@ _Tested by:_
           an add-on the plan can carry
         - a replacement on another plan, and the add-ons the subscriptions hold › a notice that
           waited is not sent while its plan cannot carry what is held by then
+        - a replacement on another plan, and the add-ons the subscriptions hold › but is sent where
+          the subscription ends by the date the add-on continues from
         - a replacement on another plan, and the add-ons the subscriptions hold › asks too about the
           version an add-on was told it continues on
+        - a replacement on another plan, and the add-ons the subscriptions hold › but not where the
+          subscription ends by the date the add-on continues from
         - a replacement on another plan, and the add-ons the subscriptions hold › nor of a booking
           that has ended on the date itself
         - a replacement on another plan, and the add-ons the subscriptions hold › but of one that

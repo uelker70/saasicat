@@ -45,7 +45,7 @@ import {
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
-import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
+import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
@@ -248,7 +248,7 @@ export class RetirementSwitchService {
         const [first] = await heldAddOnMisfits(
             this.subscriptionBundles,
             this.bundles,
-            sub.id,
+            { id: sub.id, endsAt: cancellationLandsAt(sub) },
             target,
             now,
             (await this.addOnsAhead?.of(sub.id)) ?? [],
