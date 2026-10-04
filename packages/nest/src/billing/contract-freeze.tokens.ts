@@ -82,9 +82,15 @@ export interface ContractFreezePort {
  * charge the move as an upgrade the subscriber chose; and a switch to a
  * replacement that costs more holds the price the subscriber paid until the date
  * they were told, as a discount line for the difference (`SC-PRIC-063`).
+ *
+ * An add-on retirement marks the line of the version it moves a booking onto
+ * instead (`addOn`), and leaves the plan line as it is: the journal waits for
+ * that line to price the booking's periods from its date (`SC-BUN-049`).
  */
 export interface RetirementContractTerms {
     readonly retirementId: string;
+    /** The add-on version an add-on retirement moves a booking onto; its line is the one marked. */
+    readonly addOn?: { readonly bundleVersionId: string } | null;
     readonly priceHold?: {
         /** The difference held, net, for one period of the contract's rhythm. */
         readonly amountNet: number;

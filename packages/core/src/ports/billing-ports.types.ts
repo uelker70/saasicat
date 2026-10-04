@@ -217,6 +217,23 @@ export interface SubscriptionBundleRepository {
      * add-on version over one without it is refused at start-up.
      */
     listOfVersion?(bundleVersionId: string): Promise<SubscriptionBundleRecord[]>;
+    /**
+     * Moves the booking `subscriptionBundleId` from the add-on version `from`
+     * onto `to` and answers it as it now stands, or null where it is not on
+     * `from` any more, or gone. Nothing else changes: its period, its terms,
+     * its rhythm and its cancellation stay as they are. Conditional on `from`,
+     * so a move and the put-back of a move that could not write its contract
+     * never write over each other, nor two runs over one booking.
+     *
+     * Only an add-on retirement moves a booking, at its date. Optional, so a
+     * repository written before it keeps working; retiring an add-on version
+     * over one without it is refused at start-up.
+     */
+    moveToVersion?(
+        subscriptionBundleId: string,
+        from: string,
+        to: string,
+    ): Promise<SubscriptionBundleRecord | null>;
 }
 
 /**

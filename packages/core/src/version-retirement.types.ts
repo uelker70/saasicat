@@ -162,8 +162,32 @@ export interface RetirementAnnounced {
 }
 
 /**
- * How far a retirement has come, counted over the subscriptions it reached
- * (`SC-SUB-033`).
+ * Why a notice not told yet waits — for a subscription a plan version's
+ * retirement reached, or a booking an add-on version's did. The run that sends
+ * the notices asks the same questions in the same order.
+ */
+export interface NotToldReasons {
+    /**
+     * What the notice announces would not fit at its date: the replacement's
+     * plan could not carry the add-ons held then, or the replacement add-on
+     * could not run beside a plan the booking meets. It waits until it would.
+     */
+    readonly doesNotFit: number;
+    /** Told of another retirement within the last twelve months: it waits until those are over. */
+    readonly twelveMonths: number;
+    /**
+     * No longer reached: something of the subscriber's own — a change taking
+     * it off the version, a cancellation landing first — came before the date.
+     * It will not be sent.
+     */
+    readonly noLongerReached: number;
+    /** Nothing holds it back: it has reached nobody yet, and the next run tries again. */
+    readonly nobodyYet: number;
+}
+
+/**
+ * How far a retirement has come, counted over the subscriptions — or, for an
+ * add-on version, the bookings — it reached (`SC-SUB-033`, `SC-BUN-053`).
  */
 export interface RetirementProgress {
     /** Off the retired version: moved at their date, switched early, or changed on their own. */
@@ -172,13 +196,22 @@ export interface RetirementProgress {
     readonly waiting: number;
     /** Still on the retired version after their date: the run has not moved them yet, or cannot. */
     readonly overdue: number;
-    /** Still on the retired version, and ended by their date: there is nothing to move. */
+    /**
+     * Still on the retired version, and ended by their date: there is nothing
+     * to move. A booking that ended after its date, before a move came, counts
+     * here too: nothing moves a booking that has ended.
+     */
     readonly ended: number;
     /**
      * Still on the retired version, and not told yet: their notice has reached
      * nobody, so their date is not set and nothing moves them (`SC-SUB-038`).
      */
     readonly notTold: number;
+    /**
+     * Why those counted `notTold` are not told yet, each counted once. Absent
+     * from a server that does not count them.
+     */
+    readonly notToldReasons?: NotToldReasons;
     /**
      * Reminded 14 days before their date (`SC-SUB-034`) — counted beside the
      * four above, not instead of one: a subscription reminded moves later.
@@ -193,7 +226,10 @@ export interface VersionRetirementView extends VersionRetirementRecord {
 
 /** What one run of the moves at the date did. */
 export interface RetirementMoveRun {
-    /** Subscriptions moved onto their replacement, with the contract the move writes. */
+    /**
+     * Subscriptions, or bookings, moved onto their replacement, with the
+     * contract the move writes.
+     */
     readonly moved: number;
     /** Moves that could not be made, and are tried again by the next run. */
     readonly failed: number;

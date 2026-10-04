@@ -221,7 +221,7 @@ describe('retiring an add-on version where the add-on is managed', () => {
         expect(retireButton(mountedPage)).toBeUndefined();
     });
 
-    // @requirement SC-BUN-047 — The operator sees how far each add-on retirement has come
+    // @requirement SC-BUN-053 — The operator sees how far an add-on retirement has come, and what is still to move
     test('says on a version that it was retired, onto which version, and how far that has come', async () => {
         const mountedPage = mountPage({ list: async () => [RECORD] });
         await showVersion(mountedPage, OFF_SALE.id);

@@ -203,6 +203,25 @@ describe('what is not charged', () => {
 
         assert.deepEqual(account.entries(), [['2026-01-01', 'plan', 'activation', 49]]);
     });
+
+    test('an add-on period from the end an older row records in canceledAt alone', async () => {
+        // Written before `canceledEffectiveAt` existed, `canceledAt` is the
+        // date the booking ended on.
+        const account = anAccount();
+        await account.contract({ lineItems: [STANDARD(), ARCHIVE()] });
+        const booking = account.book({ canceledAt: utc('2026-02-01'), canceledEffectiveAt: null });
+        await account.charge(utc('2026-01-21'));
+
+        account.roll(utc('2026-02-01'), utc('2026-03-01'));
+        booking.currentPeriodStart = utc('2026-02-01');
+        booking.currentPeriodEnd = utc('2026-03-01');
+        await account.charge(utc('2026-02-02'));
+
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'bundle'),
+            [['2026-01-21', 'bundle', 'bundleBooking', 3.55]],
+        );
+    });
 });
 
 // @requirement SC-PRIC-058 — An account begins with the current window, and nothing before it is guessed

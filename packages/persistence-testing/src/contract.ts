@@ -487,6 +487,13 @@ const CONTRACT_GAPS: Record<
                 adapter.subscriptionBundleRepository?.listOfVersion && seed.createBundleVersion,
             ),
     },
+    bookingsMoved: {
+        reason: 'adapter provides no SubscriptionBundleRepository that moves a booking to another version',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriptionBundleRepository?.moveToVersion && seed.createBundleVersion,
+            ),
+    },
     subscriptionsById: {
         reason: 'adapter provides no SubscriptionUsagePort that reads subscriptions by id',
         present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listByIds),
@@ -7625,6 +7632,103 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     'and a cancellation as it stands',
                 );
                 assert.deepEqual(await repository.listOfVersion(NO_SUCH_VERSION), []);
+            });
+        });
+
+        describe('a booking moved to another add-on version', () => {
+            test('takes the version, keeps everything else, and only while it is on the one named', async (t) => {
+                const repository = harness.adapter.subscriptionBundleRepository;
+                const { seed } = harness;
+                if (!repository?.moveToVersion || !seed.createBundleVersion) {
+                    missing(t, 'bookingsMoved');
+                    return;
+                }
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'MOVE_ADD_ON',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const retired = await seed.createBundleVersion({
+                    bundleKey: 'MOVED_FROM',
+                    features: ['REPORTS'],
+                });
+                const replacement = await seed.createBundleVersion({
+                    bundleKey: 'MOVED_TO',
+                    features: ['REPORTS'],
+                });
+                const { subscriptionId } = await seed.createSubscription({
+                    tenantId: 'tenant-moved',
+                    plan: 'MOVE_ADD_ON',
+                    planVersionId,
+                });
+                const booked = await repository.add({
+                    subscriptionId,
+                    bundleVersionId: retired.bundleVersionId,
+                    startedAt: new Date('2026-02-01T00:00:00.000Z'),
+                    minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
+                    billingCycle: 'MONTHLY',
+                    currentPeriodStart: new Date('2026-03-01T00:00:00.000Z'),
+                    currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+                });
+                const cancelled = await repository.cancel(booked.id, {
+                    canceledAt: new Date('2026-03-10T00:00:00.000Z'),
+                    canceledEffectiveAt: new Date('2027-02-01T00:00:00.000Z'),
+                });
+
+                const moved = await repository.moveToVersion(
+                    booked.id,
+                    retired.bundleVersionId,
+                    replacement.bundleVersionId,
+                );
+
+                assert.ok(moved, 'the booking is moved');
+                assert.equal(moved.bundleVersionId, replacement.bundleVersionId);
+                /** A booking without its version and the moment it was last written. */
+                const unmoved = ({
+                    bundleVersionId: _version,
+                    updatedAt: _written,
+                    ...rest
+                }: typeof cancelled) => rest;
+                assert.deepEqual(
+                    unmoved(moved),
+                    unmoved(cancelled),
+                    'its period, terms, rhythm and cancellation',
+                );
+                assert.equal(
+                    (await repository.findById(booked.id))?.bundleVersionId,
+                    replacement.bundleVersionId,
+                    'and read so afterwards',
+                );
+                assert.equal(
+                    await repository.moveToVersion(
+                        booked.id,
+                        retired.bundleVersionId,
+                        replacement.bundleVersionId,
+                    ),
+                    null,
+                    'a second move from the version it has left claims nothing',
+                );
+                assert.equal(
+                    (
+                        await repository.moveToVersion(
+                            booked.id,
+                            replacement.bundleVersionId,
+                            retired.bundleVersionId,
+                        )
+                    )?.bundleVersionId,
+                    retired.bundleVersionId,
+                    'and a put-back from where it now is takes it back',
+                );
+                assert.equal(
+                    await repository.moveToVersion(
+                        NO_SUCH_BOOKING,
+                        retired.bundleVersionId,
+                        replacement.bundleVersionId,
+                    ),
+                    null,
+                );
             });
         });
 

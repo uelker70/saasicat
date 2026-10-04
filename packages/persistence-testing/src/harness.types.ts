@@ -312,6 +312,7 @@ export type ContractGap =
     | 'boundSubscriptions'
     | 'bundleVersionRetirements'
     | 'bookingsOfVersion'
+    | 'bookingsMoved'
     | 'subscriptionsById';
 
 export interface PersistenceAdapterContractOptions {

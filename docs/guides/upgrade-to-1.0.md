@@ -2651,9 +2651,10 @@ scheduled could land on the plan that change moves to.
 
 New: an operator can retire an add-on version no longer on sale for the bookings still on it; they
 continue on the add-on's version on sale, each told, and may be cancelled without their minimum term
-until then. How it works and how to wire it:
-[Retiring an Add-on Version](wire-the-backend.md#retiring-an-add-on-version). What every
-installation has to do, whether or not it uses it:
+until then. At its date the platform moves each booking and writes the contract that charges it. How
+it works and how to wire it: [Retiring an Add-on
+Version](wire-the-backend.md#retiring-an-add-on-version). What every installation has to do, whether
+or not it uses it:
 
 1. **Adopt the add-on announcement table, or declare it not adopted.** `BundleVersionRetirement`
    from `prisma-fragments/19-bundle-version-retirement.prisma`, and the migration once, before
@@ -2671,13 +2672,39 @@ installation has to do, whether or not it uses it:
    did not name as a reminder sends an add-on's retirement as a plan version's reminder; a port that
    checks every kind is exhaustive no longer compiles until it names this one.
 
-- **A `SubscriptionBundleRepository` of your own** gains the optional `listOfVersion`, and **a
-  `SubscriptionUsagePort` of your own** the optional `listByIds`; retiring an add-on version needs
-  both, both shipped adapters have them, and a start with confirmed terms is refused without them.
+- **A `SubscriptionBundleRepository` of your own** gains the optional `listOfVersion` and
+  `moveToVersion`, and **a `SubscriptionUsagePort` of your own** the optional `listByIds`; retiring
+  an add-on version needs all three, both shipped adapters have them, and a start with confirmed
+  terms is refused without them. `moveToVersion(id, from, to)` writes `to` only while the booking is
+  still on `from`, and answers `null` where it is not, so a second run or a concurrent change is
+  never written over.
 - **A persistence contract harness** gains the `bundleVersionRetirements` member; a harness without
-  it, or without the two methods above, declares
-  `gaps: ['bundleVersionRetirements', 'bookingsOfVersion', 'subscriptionsById']` as far as it lacks
-  them.
+  it, or without the three methods above, declares
+  `gaps: ['bundleVersionRetirements', 'bookingsOfVersion', 'bookingsMoved', 'subscriptionsById']` as
+  far as it lacks them.
+- **With `versionNotices.includeCron: false`**, your scheduler calls
+  `BundleRetirementMoveService.moveDue(new Date())` every quarter of an hour, beside
+  `BundleVersionRetirementService.sendUndelivered(new Date())`. Without it no booking moves, and its
+  periods from the date wait for the move.
+- **`ContractFreezeSourcePort.loadBookedBundles`** hands each running booking's line with its
+  version as `sourceVersionId`, as the charge journal already asks. A move whose contract would hold
+  no line for the replacement is refused, and the booking goes back onto the version retired.
+- **Two audit actions**, `BUNDLE_VERSION_RETIREMENT_MOVE` and
+  `BUNDLE_VERSION_RETIREMENT_MOVE_FAILED`, on the entity `SubscriptionBundle` by the actor
+  `job:platform:add-on-retirement-moves`. A move that cannot be made is recorded once per process,
+  with its `reason`.
+- **Deleting an add-on** is refused while bookings still move onto one of its versions:
+  `BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING` (`count`, `bundleKey`). An application that words
+  refusals itself adds it; the shipped texts cover English and German until it does.
+- **A booking that ended before its move came** — the run having missed its date, and the booking or
+  its subscription ending since — is not moved: its periods from the date are charged at the version
+  it ran on, and the add-on's retirement list counts it as `ended` rather than `overdue` or
+  `notTold`.
+- **The retirement lists** answer `progress.notToldReasons` beside `notTold`, for plan and add-on
+  versions alike, and the administration shows them.
+- **The charge journal** reads a booking's end as every other reader does,
+  `canceledEffectiveAt ?? canceledAt`: a booking on a row from before the two dates separated is no
+  longer charged past its `canceledAt`.
 - **Code of your own that cancels a booking** through `SubscriptionBundlesService` or previews it
   through `SubscriptionBundlePreviewService` passes `minimumTermLapses` where a retirement told for
   the booking is still to take effect; the shipped route decides it from the server's clock.

@@ -596,6 +596,12 @@ export function createMemoryHarness() {
             row.canceledEffectiveAt = canceledEffectiveAt;
             return toSubscriptionBundleRecord(row);
         },
+        async moveToVersion(id, from, to) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row || row.bundleVersionId !== from) return null;
+            row.bundleVersionId = to;
+            return toSubscriptionBundleRecord(row);
+        },
         async reactivate(id) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
             if (!row) throw new Error(`SubscriptionBundle '${id}' not found`);

@@ -70,3 +70,20 @@ export interface PlanVersionEndingCheck {
 }
 
 export const PLAN_VERSION_ENDING_CHECK_TOKEN = Symbol.for('saasicat/nest/PlanVersionEndingCheck');
+
+/**
+ * Asked before an add-on is deleted, by whatever above the catalogue knows of
+ * bookings that still have to reach one of its versions — an add-on
+ * retirement's moves onto its replacement. The catalogue defines the question
+ * and asks it; tenant billing answers it where add-on versions are retired.
+ * Absent, nothing stops a deletion.
+ */
+export interface BundleDeletionCheck {
+    /**
+     * Refuses deleting the add-on `bundleId` while bookings still have to move
+     * onto one of its versions.
+     */
+    assertMayDelete(bundleId: string): Promise<void>;
+}
+
+export const BUNDLE_DELETION_CHECK_TOKEN = Symbol.for('saasicat/nest/BundleDeletionCheck');

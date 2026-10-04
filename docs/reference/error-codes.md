@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 228 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 229 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -68,6 +68,7 @@ Plans, versions, bundles, marketing entries.
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BUNDLE_ALREADY_EXISTS`                        | Bundle '{bundleKey}' already exists                                                                                                                                                                                                                     |
 | `BUNDLE_DELETED`                               | Bundle '{bundleKey}' has been deleted from the catalogue and cannot be booked.                                                                                                                                                                          |
+| `BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING` | {count} bookings still move onto a version of {bundleKey}, as a retirement told them. The add-on can be deleted once they have.                                                                                                                         |
 | `BUNDLE_DRAFT_ALREADY_EXISTS`                  | Bundle '{bundleKey}' already has a draft version v{draftVersion}; publish or discard it first                                                                                                                                                           |
 | `BUNDLE_NOT_FOUND`                             | Bundle '{bundleId}' not found                                                                                                                                                                                                                           |
 | `BUNDLE_VERSION_ALREADY_PUBLISHED`             | BundleVersion '{versionId}' is already published; it is not published again or discarded.                                                                                                                                                               |

@@ -41,9 +41,11 @@ import { VersionNoticeCron } from './version-notice.cron.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
+import { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import type { AddOnsAhead } from './add-on-fits-plan.js';
 import {
+    BUNDLE_DELETION_CHECK_TOKEN,
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_VERSION_ENDING_CHECK_TOKEN,
 } from '../catalog/catalog.tokens.js';
@@ -528,6 +530,13 @@ export class TenantBillingModule {
             providers.push(
                 asProvider(BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN, bundleRetirements),
                 BundleVersionRetirementService,
+                BundleRetirementMoveService,
+                // The catalogue asks before it deletes an add-on whether
+                // bookings still move onto one of its versions.
+                {
+                    provide: BUNDLE_DELETION_CHECK_TOKEN,
+                    useExisting: BundleVersionRetirementService,
+                },
                 {
                     provide: ADD_ONS_AHEAD_TOKEN,
                     useFactory: (service: BundleVersionRetirementService): AddOnsAhead => ({
@@ -610,7 +619,13 @@ export class TenantBillingModule {
                           PLAN_VERSION_ENDING_CHECK_TOKEN,
                       ]
                     : []),
-                ...(bundleRetirements ? [BundleVersionRetirementService] : []),
+                ...(bundleRetirements
+                    ? [
+                          BundleVersionRetirementService,
+                          BundleRetirementMoveService,
+                          BUNDLE_DELETION_CHECK_TOKEN,
+                      ]
+                    : []),
                 ...(options.extraExports ?? []),
             ],
         };

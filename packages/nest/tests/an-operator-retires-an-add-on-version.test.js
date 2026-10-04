@@ -14,233 +14,23 @@ import {
     buildTenantSubscriptionBundlesController,
     bundleRetirementReach,
 } from '../dist/billing/index.js';
-import { FakeBundleRepository } from '../dist/testing/index.js';
-import { usageRecord } from './helpers/subscription-fixtures.js';
+import {
+    ACTOR,
+    NOW,
+    REPLACEMENT,
+    RETIRED,
+    addOnVersion,
+    announcementStore,
+    bookingIdsOf,
+    bookingOf,
+    catalogueOf,
+    codesOf,
+    rejection,
+    retiring,
+    subscriptionOf,
+    toldOfAPlanRetirementOntoPro,
+} from './helpers/add-on-retirement-fixtures.js';
 import { noticeRecord, sendingPort } from './helpers/version-notices.js';
-
-const NOW = new Date('2026-10-15T09:00:00.000Z');
-const ACTOR = { userId: 'op-1', email: 'operator@example.com', source: 'web', context: 'admin' };
-
-/** An add-on version as the catalogue keeps it. */
-function addOnVersion(id, fields = {}) {
-    return {
-        id,
-        bundleId: 'b-reports',
-        bundleKey: 'REPORTS',
-        label: 'Reports',
-        version: 1,
-        baseVersionId: null,
-        features: ['REPORTS'],
-        quotas: { reports: 10 },
-        compatibility: {},
-        pricingOverrides: [],
-        monthlyNet: '9.90',
-        yearlyNet: '99.00',
-        marketed: true,
-        publishedAt: '2026-01-01T00:00:00.000Z',
-        supersededAt: null,
-        validFrom: '2026-01-01T00:00:00.000Z',
-        validUntil: null,
-        publishedChanges: [],
-        changeNote: '',
-        nonRegressive: true,
-        createdByUserId: null,
-        publishedByUserId: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-        ...fields,
-    };
-}
-
-/** Reports v1, whose sale ended on 30 September. */
-const RETIRED = addOnVersion('bv-1', { validUntil: '2026-09-30T00:00:00.000Z' });
-/** Reports v2, on sale since 1 October, dearer, and cheaper again beside Pro. */
-const REPLACEMENT = addOnVersion('bv-2', {
-    version: 2,
-    monthlyNet: '12.90',
-    yearlyNet: '129.00',
-    validFrom: '2026-10-01T00:00:00.000Z',
-    pricingOverrides: [{ planId: 'PRO', monthlyNet: '10.90', yearlyNet: '109.00' }],
-});
-
-/** The add-on catalogue over `versions`, each add-on live unless `deleted` names it. */
-function catalogueOf(versions, { deleted = [] } = {}) {
-    const bundles = new FakeBundleRepository();
-    for (const bundleId of new Set(versions.map((version) => version.bundleId))) {
-        const first = versions.find((version) => version.bundleId === bundleId);
-        bundles.seedBundle({
-            id: bundleId,
-            bundleKey: first.bundleKey,
-            label: first.label,
-            description: null,
-            icon: null,
-            sortOrder: 0,
-            i18n: {},
-            createdAt: '2026-01-01T00:00:00.000Z',
-            updatedAt: '2026-01-01T00:00:00.000Z',
-            deletedAt: deleted.includes(bundleId) ? '2026-09-01T00:00:00.000Z' : null,
-        });
-    }
-    for (const version of versions) bundles.seedVersion(version);
-    return bundles;
-}
-
-/** A yearly Standard subscription of `tenantId`, its year ending on 1 January. */
-function subscriptionOf(tenantId, overrides = {}) {
-    return {
-        tenantId,
-        subscription: usageRecord({
-            id: `sub-${tenantId}`,
-            plan: 'STANDARD',
-            billingCycle: 'YEARLY',
-            currentPeriodStart: new Date('2026-01-01T00:00:00.000Z'),
-            currentPeriodEnd: new Date('2027-01-01T00:00:00.000Z'),
-            planVersion: { id: 'pv-standard-1', planId: 'STANDARD', version: 1 },
-            ...overrides,
-        }),
-    };
-}
-
-/** A booking of `bundleVersionId` on the subscription of `tenantId`, monthly to 1 November unless said. */
-function bookingOf(tenantId, overrides = {}) {
-    return {
-        id: `sb-${tenantId}`,
-        subscriptionId: `sub-${tenantId}`,
-        bundleVersionId: RETIRED.id,
-        startedAt: new Date('2026-03-01T00:00:00.000Z'),
-        minimumTermEndsAt: null,
-        billingCycle: 'MONTHLY',
-        currentPeriodStart: new Date('2026-10-01T00:00:00.000Z'),
-        currentPeriodEnd: new Date('2026-11-01T00:00:00.000Z'),
-        canceledAt: null,
-        canceledEffectiveAt: null,
-        createdAt: new Date('2026-03-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
-        ...overrides,
-    };
-}
-
-/**
- * A notice record in which the subscription of t1 was told on 2 October 2025
- * that Standard v1 retires onto Pro on 1 January 2027 — the first end of its
- * yearly term three months after — before its bookings' date, 1 February.
- */
-async function toldOfAPlanRetirementOntoPro() {
-    const notices = noticeRecord();
-    const told = new Date('2025-10-02T09:00:00.000Z');
-    await notices.record(
-        [
-            {
-                tenantId: 't1',
-                subscriptionId: 'sub-t1',
-                kind: 'version-retired',
-                subject: 'pv-standard-1',
-                content: {
-                    kind: 'version-retired',
-                    subscriptionId: 'sub-t1',
-                    retired: { planVersionId: 'pv-standard-1', planKey: 'STANDARD' },
-                    replacement: { planVersionId: 'pv-pro-2', planKey: 'PRO' },
-                    billingCycle: 'YEARLY',
-                    effectiveAt: '2027-01-01T00:00:00.000Z',
-                },
-            },
-        ],
-        told,
-    );
-    for (const row of notices.rows.values()) {
-        Object.assign(row, {
-            deliveredAt: told,
-            delivery: { recipients: ['admin@example.com'], channel: 'email' },
-        });
-    }
-    return notices;
-}
-
-/** An announcement store kept in memory. */
-function announcementStore() {
-    const rows = [];
-    return {
-        rows,
-        createdIn: [],
-        async create(data, tx) {
-            this.createdIn.push(tx);
-            const row = { id: `bundle-retirement-${rows.length + 1}`, ...data };
-            rows.push(row);
-            return row;
-        },
-        async list() {
-            return [...rows].reverse();
-        },
-        async findById(id) {
-            return rows.find((row) => row.id === id) ?? null;
-        },
-    };
-}
-
-/** The service over `subscriptions` and `bookings`, with every part kept in memory. */
-function retiring({
-    subscriptions = [subscriptionOf('t1'), subscriptionOf('t2')],
-    bookings = [bookingOf('t1'), bookingOf('t2')],
-    versions = [RETIRED, REPLACEMENT],
-    deleted = [],
-    termsConfirmed = true,
-    notices = noticeRecord(),
-    port = sendingPort(),
-} = {}) {
-    const retirements = announcementStore();
-    const audited = [];
-    const rolledBack = [];
-    const tx = { transaction: 'tx-1' };
-    const bookingRepository = {
-        rows: bookings,
-        async listOfVersion(bundleVersionId) {
-            return bookings.filter((row) => row.bundleVersionId === bundleVersionId);
-        },
-        async findById(id) {
-            return bookings.find((row) => row.id === id) ?? null;
-        },
-    };
-    const usage = {
-        async listByIds(ids) {
-            return subscriptions.filter(({ subscription }) => ids.includes(subscription.id));
-        },
-    };
-    const transactions = {
-        async run(work) {
-            try {
-                return await work(tx);
-            } catch (error) {
-                rolledBack.push(error);
-                throw error;
-            }
-        },
-    };
-    const service = new BundleVersionRetirementService(
-        catalogueOf(versions, { deleted }),
-        bookingRepository,
-        usage,
-        notices,
-        port,
-        retirements,
-        transactions,
-        { tenantBilling: { orderlyRetirement: { termsConfirmed } } },
-        null,
-        { log: async (entry) => audited.push(entry) },
-    );
-    return { service, notices, port, retirements, audited, tx, rolledBack };
-}
-
-const codesOf = (preview) => preview.blockers.map((blocker) => blocker.code);
-const bookingIdsOf = (rows) => rows.map((row) => row.subscriptionBundleId);
-
-async function rejection(promise) {
-    try {
-        await promise;
-    } catch (error) {
-        return error;
-    }
-    assert.fail('expected a refusal');
-}
 
 describe('an installation that retires add-on versions', () => {
     /** The service over the given booking repository and subscription port. */
@@ -257,7 +47,11 @@ describe('an installation that retires add-on versions', () => {
             null,
             null,
         );
-    const listing = { listOfVersion: async () => [], findById: async () => null };
+    const listing = {
+        listOfVersion: async () => [],
+        moveToVersion: async () => null,
+        findById: async () => null,
+    };
     const reading = { listByIds: async () => [] };
 
     test('does not start without a way to list the bookings of a version, naming it', () => {
@@ -270,7 +64,14 @@ describe('an installation that retires add-on versions', () => {
         assert.throws(() => over(listing, {}).onModuleInit(), { message: /listByIds/ });
     });
 
-    test('starts with both, and without either while the terms are not confirmed', () => {
+    test('nor without a way to move a booking onto another version, naming it', () => {
+        const { moveToVersion: _moves, ...withoutMoving } = listing;
+        assert.throws(() => over(withoutMoving, reading).onModuleInit(), {
+            message: /moveToVersion/,
+        });
+    });
+
+    test('starts with all three, and without any while the terms are not confirmed', () => {
         over(listing, reading).onModuleInit();
         over({}, {}, false).onModuleInit();
     });
@@ -961,7 +762,7 @@ describe('cancelling a booking a retirement was told of', () => {
     });
 });
 
-// @requirement SC-BUN-047 — The operator sees how far each add-on retirement has come
+// @requirement SC-BUN-053 — The operator sees how far an add-on retirement has come, and what is still to move
 describe('how far an add-on retirement has come', () => {
     test('counts its bookings waiting, not told, ended by their date and overdue', async () => {
         const failing = sendingPort((notice) => {
@@ -991,9 +792,103 @@ describe('how far an add-on retirement has come', () => {
             overdue: 0,
             ended: 1,
             notTold: 1,
+            notToldReasons: { doesNotFit: 0, twelveMonths: 0, noLongerReached: 0, nobodyYet: 1 },
             reminded: 0,
         });
         assert.equal(after.progress.overdue, 1, 'past its date and not moved');
+    });
+
+    test('counts a booking that ended past its date before anything moved it as ended', async () => {
+        const failing = sendingPort((notice) => {
+            if (notice.subscriptionBundleId === 'sb-t2') throw new Error('mail server down');
+            return { recipients: ['admin@example.com'], channel: 'email' };
+        });
+        const tenants = ['t1', 't2', 't3', 't4'];
+        const bookings = tenants.map((tenantId) => bookingOf(tenantId));
+        const subscriptions = tenants.map((tenantId) => subscriptionOf(tenantId));
+        const { service } = retiring({ port: failing, bookings, subscriptions });
+        await service.announce(
+            RETIRED.id,
+            REPLACEMENT.id,
+            bookings.map((booking) => booking.id),
+            ACTOR,
+            NOW,
+        );
+        // Nothing moves them, and all end on 1 March, a month after the date:
+        // t1's booking, told; t2's, never told; t3's subscription. t4 runs on.
+        const cancelled = {
+            canceledAt: new Date('2027-02-10T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2027-03-01T00:00:00.000Z'),
+        };
+        for (const index of [0, 1]) bookings[index] = { ...bookings[index], ...cancelled };
+        subscriptions[2] = subscriptionOf('t3', cancelled);
+        const counted = ({ progress }) => [progress.overdue, progress.notTold, progress.ended];
+
+        const [running] = await service.list(new Date('2027-02-15T00:00:00.000Z'));
+        const [ended] = await service.list(new Date('2027-03-02T00:00:00.000Z'));
+
+        assert.deepEqual(counted(running), [3, 1, 0]);
+        assert.deepEqual(counted(ended), [1, 0, 3]);
+    });
+
+    // @requirement SC-BUN-052 — The operator sees why an add-on retirement's notice still waits
+    test('says why each notice not told yet waits, as the run that sends them would', async () => {
+        // v2 here runs beside Standard only. None is told: t1 has nothing
+        // holding it back; t2's subscription now ends before the date a notice
+        // sent on 1 December would set; t3 was told of a plan retirement on
+        // 1 November; t4 sets a move to Pro before its date, and was told of
+        // one on 1 November too, counted by the first that holds it.
+        const standardOnly = { ...REPLACEMENT, compatibility: { planIds: ['STANDARD'] } };
+        const subscriptions = ['t1', 't2', 't3', 't4'].map((tenantId) => subscriptionOf(tenantId));
+        const { service, notices } = retiring({
+            subscriptions,
+            bookings: ['t1', 't2', 't3', 't4'].map((tenantId) => bookingOf(tenantId)),
+            versions: [RETIRED, standardOnly],
+            port: sendingPort({ recipients: [], channel: 'email' }),
+        });
+        await service.announce(
+            RETIRED.id,
+            REPLACEMENT.id,
+            ['sb-t1', 'sb-t2', 'sb-t3', 'sb-t4'],
+            ACTOR,
+            NOW,
+        );
+        subscriptions[1] = subscriptionOf('t2', {
+            canceledAt: new Date('2026-11-20T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2027-02-15T00:00:00.000Z'),
+        });
+        await notices.record(
+            ['t3', 't4'].map((tenantId) => ({
+                tenantId,
+                subscriptionId: `sub-${tenantId}`,
+                kind: 'version-retired',
+                subject: 'pv-other',
+                content: {},
+            })),
+            new Date('2026-11-01T00:00:00.000Z'),
+        );
+        for (const row of notices.rows.values()) {
+            if (row.kind !== 'version-retired') continue;
+            Object.assign(row, {
+                deliveredAt: new Date('2026-11-01T00:00:00.000Z'),
+                delivery: { recipients: ['admin@example.com'], channel: 'email' },
+            });
+        }
+        subscriptions[3] = subscriptionOf('t4', {
+            pendingPlan: 'PRO',
+            pendingBillingCycle: 'YEARLY',
+            pendingEffectiveAt: new Date('2027-01-01T00:00:00.000Z'),
+        });
+
+        const [retirement] = await service.list(new Date('2026-12-01T00:00:00.000Z'));
+
+        assert.equal(retirement.progress.notTold, 4);
+        assert.deepEqual(retirement.progress.notToldReasons, {
+            doesNotFit: 1,
+            twelveMonths: 1,
+            noLongerReached: 1,
+            nobodyYet: 1,
+        });
     });
 });
 
@@ -1423,5 +1318,23 @@ describe('the quarter-hour run', () => {
         await cron.sendDueNotices();
 
         assert.deepEqual(calls, ['offers', 'plan retirements', 'add-on retirements']);
+    });
+
+    // @requirement SC-BUN-049 — A booking continues on the replacement at the date it was told
+    test('moves the add-on bookings whose date has come, after the plan’s subscriptions', async () => {
+        const calls = [];
+        const cron = new VersionNoticeCron(
+            { sendDue: async () => ({ told: 0, failed: 0 }) },
+            null,
+            null,
+            { moveDue: async () => (calls.push('plan moves'), { moved: 0, failed: 0 }) },
+            null,
+            null,
+            { moveDue: async () => (calls.push('add-on moves'), { moved: 1, failed: 0 }) },
+        );
+
+        await cron.sendDueNotices();
+
+        assert.deepEqual(calls, ['plan moves', 'add-on moves']);
     });
 });

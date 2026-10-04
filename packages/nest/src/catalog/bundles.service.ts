@@ -56,10 +56,12 @@ import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import {
+    BUNDLE_DELETION_CHECK_TOKEN,
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
     PLAN_REPOSITORY_TOKEN,
+    type BundleDeletionCheck,
 } from './catalog.tokens.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
 import { loadApprovedCatalogKeys } from './approved-keys.js';
@@ -119,6 +121,10 @@ export class BundlesService {
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        // Answered by tenant billing where add-on versions are retired.
+        @Optional()
+        @Inject(BUNDLE_DELETION_CHECK_TOKEN)
+        private readonly deletionCheck: BundleDeletionCheck | null = null,
     ) {
         this.mode = config.strictModeCheckMode ?? 'blocking';
         this.marketedOnly = new Set(config.marketedOnlyFeatures ?? []);
@@ -192,6 +198,7 @@ export class BundlesService {
             });
         }
         if (existing.deletedAt !== null) return; // idempotent
+        await this.deletionCheck?.assertMayDelete(bundleId);
         await this.repo.softDelete(bundleId);
     }
 

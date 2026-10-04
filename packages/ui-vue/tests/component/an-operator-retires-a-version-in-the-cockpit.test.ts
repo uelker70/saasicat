@@ -243,6 +243,45 @@ describe('retiring a version in the plan cockpit', () => {
         expect(parts[1]!.classes()).not.toContain('sa-retirement-progress--attention');
     });
 
+    // @requirement SC-SUB-039 — The operator sees why a retirement's notice still waits
+    test('says beside them why they wait, quieter than the count', async () => {
+        const { wrapper } = mountCockpit({
+            list: async () => [
+                {
+                    id: 'r-1',
+                    retired: { planVersionId: 'pv-1', planKey: 'STANDARD', version: 1 },
+                    replacement: { planVersionId: 'pv-2', planKey: 'STANDARD', version: 2 },
+                    announcedAt: '2026-10-02T09:00:00.000Z',
+                    announcedBy: 'web:operator@example.com:admin',
+                    progress: {
+                        moved: 0,
+                        waiting: 0,
+                        overdue: 0,
+                        ended: 0,
+                        notTold: 3,
+                        notToldReasons: {
+                            doesNotFit: 1,
+                            twelveMonths: 0,
+                            noLongerReached: 0,
+                            nobodyYet: 2,
+                        },
+                        reminded: 0,
+                    },
+                },
+            ],
+        });
+        await settle();
+
+        const parts = wrapper.findAll('.sa-retirement-progress');
+        expect(parts.map((part) => part.text())).toEqual([
+            '3 not told',
+            'of which 1: the replacement does not fit',
+            'of which 2: nobody reached yet',
+        ]);
+        expect(parts[1]!.classes()).toContain('sa-retirement-progress--reason');
+        expect(parts[1]!.classes()).not.toContain('sa-retirement-progress--attention');
+    });
+
     // @requirement SC-SUB-034 — Where staying put costs something, a subscription is reminded once
     test('counts the subscriptions reminded beside the states, unmarked', async () => {
         const { wrapper } = mountCockpit({

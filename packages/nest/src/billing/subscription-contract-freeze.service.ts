@@ -197,6 +197,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         await this.contracts.assertPartyFor(tenantId);
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle);
+        assertTheMovedBookingHasItsLine(tenantId, bundles.lineItems, retirement);
 
         const planPriceNet = listPriceNet(planDef, billingCycle) ?? 0;
 
@@ -213,7 +214,8 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             minimumTermUntil: null,
             featuresSnapshot: planDef.features,
             quotaEffectsSnapshot: planDef.quotas,
-            metadata: retirement ? { retirementId: retirement.retirementId } : null,
+            metadata:
+                retirement && !retirement.addOn ? { retirementId: retirement.retirementId } : null,
         };
 
         const redeemed = await this.redeemedCodeNotYetRecorded(
@@ -233,7 +235,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const lineItems = recordContractLinesMoney(
             [
                 planLineItem,
-                ...bundles.lineItems,
+                ...bundles.lineItems.map((line) => markedForAddOnMove(line, retirement)),
                 ...(redeemed ? [redeemed.line] : []),
                 ...(held ? [held] : []),
             ],
@@ -371,6 +373,45 @@ function recordsPromoCode(contract: SubscriptionContractRecord, code: string): b
             snapshot !== null &&
             typeof snapshot === 'object' &&
             (snapshot as { code?: unknown }).code === code,
+    );
+}
+
+/**
+ * The add-on line an add-on retirement moves a booking onto, marked with it:
+ * the line the journal waits for to price the booking's periods from its date.
+ * Every other line, and every line of a freeze no add-on retirement writes,
+ * stays as the source handed it.
+ */
+function markedForAddOnMove(
+    line: PricedContractLineItem,
+    retirement: RetirementContractTerms | undefined,
+): PricedContractLineItem {
+    const target = retirement?.addOn?.bundleVersionId;
+    if (!retirement || !target || line.kind !== 'bundle' || line.sourceVersionId !== target) {
+        return line;
+    }
+    return { ...line, metadata: { ...line.metadata, retirementId: retirement.retirementId } };
+}
+
+/**
+ * Refuses the contract of an add-on retirement's move where the source hands
+ * no line for the version the booking moves onto. Written without it, the
+ * contract would name nothing the journal could price the booking's periods
+ * from the date with, and they would wait for good; refused, the move puts the
+ * booking back and the next run makes both (`SC-BUN-050`).
+ */
+function assertTheMovedBookingHasItsLine(
+    tenantId: string,
+    lines: readonly PricedContractLineItem[],
+    retirement: RetirementContractTerms | undefined,
+): void {
+    const target = retirement?.addOn?.bundleVersionId;
+    if (!target) return;
+    if (lines.some((line) => line.kind === 'bundle' && line.sourceVersionId === target)) return;
+    throw new Error(
+        `The contract for tenant ${tenantId} was asked to record a booking moved onto add-on ` +
+            `version ${target}, but loadBookedBundles returned no line for that version. Put the ` +
+            'bundle version of each running booking on its line as sourceVersionId.',
     );
 }
 

@@ -208,6 +208,31 @@ export function anAccount({
                 },
             });
         },
+        /**
+         * Records that the booking `subscriptionBundleId` was told its add-on
+         * version `retired` is retired onto `replacement`, taking effect on
+         * `effectiveAt`; with `{ delivered: false }` it has reached nobody.
+         */
+        toldOfAddOnRetirement(
+            subscriptionBundleId,
+            { retired, replacement, effectiveAt },
+            { delivered = true } = {},
+        ) {
+            told.push({
+                kind: 'bundle-version-retired',
+                subscriptionId: subscription.id,
+                delivery: delivered
+                    ? { recipients: ['admin@example.com'], channel: 'email' }
+                    : null,
+                content: {
+                    retirementId: 'bret-1',
+                    subscriptionBundleId,
+                    retired: { bundleVersionId: retired },
+                    replacement: { bundleVersionId: replacement },
+                    effectiveAt: effectiveAt.toISOString(),
+                },
+            });
+        },
         /** Moves the plan's window, as a renewal job does. */
         roll(start, end) {
             subscription.currentPeriodStart = start;

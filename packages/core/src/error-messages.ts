@@ -117,6 +117,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_NOT_FOUND: "Plan '{planId}' not found",
     PLAN_VERSION_NOT_FOUND: "PlanVersion '{versionId}' not found",
     BUNDLE_NOT_FOUND: "Bundle '{bundleId}' not found",
+    BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING:
+        '{count} bookings still move onto a version of {bundleKey}, as a retirement told them. The add-on can be deleted once they have.',
     BUNDLE_VERSION_NOT_FOUND: "BundleVersion '{bundleVersionId}' not found",
     FEATURE_NOT_FOUND: "Feature '{featureKey}' not found",
     QUOTA_NOT_FOUND: "Quota '{quotaKey}' not found",

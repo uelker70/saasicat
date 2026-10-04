@@ -118,9 +118,9 @@ export interface VersionedEntityBase {
  * their own minimum term + their own cancellation (user requirement from
  * P11.7.3).
  *
- * - `bundleVersionId` binds the booking to an *exact* BundleVersion
- *   (immutable; bundle updates only take effect after a new version with its
- *   own migration).
+ * - `bundleVersionId` binds the booking to an *exact* BundleVersion. A newer
+ *   version of the add-on does not change it; only an add-on retirement moves
+ *   the booking onto its replacement, at its date (`SC-BUN-049`).
  * - `startedAt` is the contract start of this booking.
  * - `minimumTermEndsAt` = end of the minimum term; `null` = no minimum term
  *   (platform default = no commitment, set service-side).
