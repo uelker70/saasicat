@@ -12,6 +12,7 @@
     "@saasicat/nest": "0.27.0",
     "@saasicat/persistence-testing": "0.27.0",
     "@saasicat/payment-stripe": "0.27.0",
+    "@saasicat/tax-de": "0.27.0",
     "@saasicat/spec": "0.27.0",
     "@saasicat/core": "0.27.0",
     "@saasicat/ui-vue": "0.27.0",

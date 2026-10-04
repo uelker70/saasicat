@@ -1,0 +1,52 @@
+{
+    "name": "@saasicat/tax-de",
+    "version": "1.0.0-rc.24",
+    "description": "German tax adapter for SaaSiCat: decides each charge's treatment for an issuer in Germany — the German rate, the reverse charge for a business elsewhere in the European Union, not taxable for a business outside it, the small business exemption — and checks a VAT identification number through VIES. Implements the TaxAdapter port from @saasicat/core. A template, not tax advice.",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-and-prune.mjs tsup",
+        "pretest": "pnpm run build",
+        "test": "node --test 'tests/*.test.js'"
+    },
+    "dependencies": {
+        "@saasicat/core": "workspace:^"
+    },
+    "devDependencies": {
+        "@types/node": "^25.6.0",
+        "tsup": "^8.0.0",
+        "typescript": "^6.0.0"
+    },
+    "license": "PolyForm-Shield-1.0.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/tax-de"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

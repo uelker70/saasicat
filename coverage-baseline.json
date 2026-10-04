@@ -58,5 +58,10 @@
         "line": 95.58,
         "branch": 83.33,
         "funcs": 100
+    },
+    "tax-de": {
+        "line": 99.17,
+        "branch": 94.05,
+        "funcs": 95.65
     }
 }

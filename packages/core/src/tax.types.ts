@@ -90,8 +90,17 @@ export interface TaxIssuer {
 export interface TaxDecisionRequest {
     issuer: TaxIssuer;
     origin: SubscriberTaxOrigin;
-    /** The period the charge covers; a rate that changed in between is the adapter's to see. */
+    /**
+     * The period the charge covers, as a charge records it: from `from` up to
+     * `until`, which is the first moment after it. A rate that changed in
+     * between is the adapter's to see.
+     */
     period: { from: Date; until: Date };
+    /**
+     * The installation's time zone, an IANA name such as `Europe/Berlin`: the
+     * calendar in which the days of the period count (`SC-PRIC-045`).
+     */
+    timeZone: string;
 }
 
 /**

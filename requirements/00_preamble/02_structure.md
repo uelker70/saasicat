@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 63      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 64      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
-🔵 9 superseded, 🔴 3 withdrawn.
+Of 584 entries: 🟢 507 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 10 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -135,7 +135,6 @@ Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-PRIC-041](#sc-pric-041--an-invoice-computes-its-tax-once-per-rate-by-the-rule-its-tax-adapter-names),
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
-[SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-045](#sc-pric-045--invoice-dates-and-tax-periods-count-in-the-installations-time-zone),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
@@ -175,6 +174,7 @@ Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
