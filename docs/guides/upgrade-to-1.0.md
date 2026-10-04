@@ -2337,8 +2337,9 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-newer-version-is-o
 ```
 
 Remove the seven columns, their relation and the back-relation `subscriptionsPending` from your
-schema as `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma` show;
-`saasicat schema check` names what is left.
+schema as `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma` show.
+`saasicat schema check` does not remind you: it reports what a schema lacks against the fragments,
+never what it carries beyond them, so it stays green while the columns remain.
 
 ### A version is on sale by its dates, everywhere
 
