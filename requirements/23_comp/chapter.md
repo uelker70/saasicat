@@ -529,6 +529,11 @@ _Tested by:_
     - and the shipped fragments really carry such a relation
     - and a narrowed run behaves like a full one, given the shipped models
     - a type neither schema declares is still drift
+    - a model left out of a fragment whose other model is adopted fails, naming both
+    - an optional model may be left out of an adopted fragment
+    - a fragment left out whole is a decision, not drift
+    - a model adopted alone counts for its fragment, whichever it is
+    - without the fragments named, no fragment is held to being whole
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
@@ -560,6 +565,8 @@ _Tested by:_
         - handles escaped quotes without leaving the string early
         - leaves a line without strings untouched
         - is linear on pathological input
+    - the shipped fragments
+        - the subscriber fragment is one unit: the shipped repository writes all of it
 
 <!-- END proof -->
 

@@ -1,5 +1,6 @@
 import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
+import type { TaxTreatment } from './tax.types.js';
 
 export type ContractLineItemKind = 'plan' | 'bundle' | 'discount';
 export type SubscriptionContractStatus = 'active' | 'scheduled' | 'terminated' | 'superseded';
@@ -126,6 +127,14 @@ export interface SubscriptionContractRecord extends SubscriptionContractParties 
      * never presented as what was agreed.
      */
     partiesMigrated: boolean;
+    /**
+     * The tax treatment the installation's tax adapter decided when the
+     * contract was concluded, with the adapter's name and version
+     * (`SC-PRIC-038`). `null` for a contract concluded without an adapter,
+     * before one existed, or by a path that does not ask one yet; each invoice
+     * then takes the adapter's answer when it is issued.
+     */
+    taxTreatment: TaxTreatment | null;
     status: SubscriptionContractStatus;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -178,6 +187,11 @@ export interface NewSubscriptionContractData extends CreateSubscriptionContractD
      * means `false`.
      */
     partiesMigrated?: boolean;
+    /**
+     * The treatment the platform had the tax adapter decide, recorded as it
+     * was answered and never rewritten. Absent means `null`.
+     */
+    taxTreatment?: TaxTreatment | null;
 }
 
 export interface TerminateSubscriptionContractData {

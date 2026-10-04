@@ -1271,6 +1271,25 @@ the subscriber's favour on an identifier it could not check.
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tax-origin-reads-what-was-checked.test.js`
+    - a VAT id counts as validated only on a counting check that found that number valid
+        - a valid check of the number the subscriber has validates it
+        - a check that found it invalid does not
+        - nor does a valid check of another number
+        - nor no check at all, and a subscriber without a number has none to validate
+    - a check counts only for the number held, completed while held, never over a later one
+        - over no check, an older check, or one of a number corrected away
+        - not over a check that completed later, so an older valid never replaces a newer invalid
+        - of two with the same date, the one written last
+        - not for a number the subscriber does not hold
+        - not when it completed before the number was last set, and from that moment on
+
+<!-- END proof -->
+
 ### SC-PRIC-041 — An invoice computes its tax once per rate, by the rule its tax adapter names
 
 🟡 _(Decided, not yet delivered.)_ 💰 The German adapter names the rule of EN 16931: the tax of each
@@ -1303,6 +1322,21 @@ is validated first (`SC-PRIC-040`). An invoice already issued keeps its treatmen
 a detail that was wrong is corrected by cancelling it (`SC-PRIC-025`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-says-whether-it-is-a-business.test.js`
+    - the business status
+        - changes as a change of the tax origin, recorded with its date and who made it
+    - the changes of the tax origin
+        - are listed the latest first, whichever way each arrived, and only those that moved it
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant changes how it is reached
+        - a change of the country is recorded with the user who made it, as the audit log tags them
+
+<!-- END proof -->
 
 ### SC-PRIC-044 — The German tax adapter covers Germany, businesses abroad and small businesses
 

@@ -12,6 +12,7 @@ import type { PendingRegistration } from './registration.types.js';
 import type {
     NewSubscriberDetails,
     SubscriberCorrectionRecord,
+    SubscriberTaxOriginChangeRecord,
     SubscriberIdentityDelta,
     SubscriberIdentityValues,
     SubscriberRecord,
@@ -21,6 +22,7 @@ import type {
     ContractSubscriberParty,
     SubscriptionContractParties,
 } from './subscription-contract.types.js';
+import { toTaxOriginValues } from './tax-origin.js';
 
 /** A `subscribers` row as either adapter reads it back. */
 export interface CanonicalSubscriberRow {
@@ -36,9 +38,20 @@ export interface CanonicalSubscriberRow {
     vatId: string | null;
     taxNumber: string | null;
     invoiceEmail: string | null;
+    business: boolean | null;
     migrated: boolean;
     createdAt: Date;
     updatedAt: Date;
+}
+
+/** A `subscriber_tax_origin_changes` row as either adapter reads it back. */
+export interface CanonicalSubscriberTaxOriginChangeRow {
+    id: string;
+    subscriberId: string;
+    previous: unknown;
+    changed: unknown;
+    changedBy: string;
+    changedAt: Date;
 }
 
 /** A `subscriber_corrections` row as either adapter reads it back. */
@@ -78,6 +91,7 @@ export function toSubscriberRecord(
         vatId: row.vatId,
         taxNumber: row.taxNumber,
         invoiceEmail: row.invoiceEmail,
+        business: row.business,
         tenantId,
         migrated: row.migrated,
         createdAt: row.createdAt,
@@ -96,6 +110,19 @@ export function toSubscriberCorrectionRecord(
         reason: row.reason,
         correctedBy: row.correctedBy,
         correctedAt: row.correctedAt,
+    };
+}
+
+export function toSubscriberTaxOriginChangeRecord(
+    row: CanonicalSubscriberTaxOriginChangeRow,
+): SubscriberTaxOriginChangeRecord {
+    return {
+        id: row.id,
+        subscriberId: row.subscriberId,
+        previous: toTaxOriginValues(row.previous),
+        changed: toTaxOriginValues(row.changed),
+        changedBy: row.changedBy,
+        changedAt: row.changedAt,
     };
 }
 

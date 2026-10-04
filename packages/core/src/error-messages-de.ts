@@ -356,6 +356,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Korrektur ändert nichts: Jeder genannte Wert ist bereits erfasst.',
     SUBSCRIBER_TAKEOVER_IS_A_TRANSFER:
         'Übernimmt eine andere Rechtsperson, ist das eine Übertragung und keine Korrektur; sie lässt sich nicht als Änderung erfassen.',
+    SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT:
+        'Ob der Vertragspartner ein Unternehmen ist, gehört zu seiner steuerlichen Herkunft und ändert sich nur als erfasste Änderung, die nennt, wer sie vornimmt.',
+    SUBSCRIBER_CHANGE_ACTOR_REQUIRED:
+        'Eine Änderung der Angaben des Vertragspartners muss nennen, wer sie vornimmt.',
     // ── registration ──
     PENDING_REGISTRATION_NOT_FOUND:
         'Diese Registrierung konnten wir nicht finden. Vielleicht ist sie bereits abgeschlossen oder verworfen.',

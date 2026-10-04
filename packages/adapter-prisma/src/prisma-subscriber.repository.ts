@@ -2,24 +2,41 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
     CanonicalSubscriberCorrectionRow,
     CanonicalSubscriberRow,
+    CanonicalSubscriberTaxOriginChangeRow,
+    CanonicalSubscriberVatIdCheckRow,
     CreateSubscriberData,
+    RecordedVatIdCheck,
+    SubscriberBusinessStatusData,
+    SubscriberBusinessStatusResult,
     SubscriberContactChange,
     SubscriberCorrectionData,
     SubscriberCorrectionRecord,
     SubscriberCorrectionResult,
     SubscriberRecord,
     SubscriberRepository,
+    SubscriberTaxOriginChangeRecord,
+    SubscriberVatIdCheckRecord,
+    TaxOriginWrite,
     TransactionContext,
+    VatIdCheck,
 } from '@saasicat/core';
 import {
     identityCorrectionDelta,
+    keepsVatIdCheck,
+    taxOriginWrite,
     toSubscriberCorrectionRecord,
     toSubscriberRecord,
+    toSubscriberTaxOriginChangeRecord,
+    toSubscriberVatIdCheckRecord,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** A subscriber row with its live tenant link, when it has one. */
-type SubscriberDbRow = CanonicalSubscriberRow & { tenants?: Array<{ tenantId: string }> };
+type SubscriberDbRow = CanonicalSubscriberRow & {
+    currentVatIdCheckId: string | null;
+    vatIdSince: Date | null;
+    tenants?: Array<{ tenantId: string }>;
+};
 
 interface SubscriberTenantDbRow {
     id: string;
@@ -32,6 +49,8 @@ interface SubscriberPrisma {
     subscriber: PrismaModelDelegateLike<SubscriberDbRow>;
     subscriberTenant: PrismaModelDelegateLike<SubscriberTenantDbRow>;
     subscriberCorrection: PrismaModelDelegateLike<CanonicalSubscriberCorrectionRow>;
+    subscriberTaxOriginChange: PrismaModelDelegateLike<CanonicalSubscriberTaxOriginChangeRow>;
+    subscriberVatIdCheck: PrismaModelDelegateLike<CanonicalSubscriberVatIdCheckRow>;
     $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
 }
 
@@ -48,7 +67,8 @@ const WITH_LIVE_TENANT = {
 
 /**
  * `SubscriberRepository` against the canonical `subscribers`,
- * `subscriber_tenants` and `subscriber_corrections` tables.
+ * `subscriber_tenants`, `subscriber_corrections`,
+ * `subscriber_tax_origin_changes` and `subscriber_vat_id_checks` tables.
  *
  * The customer number is the column default: the database counts, from where
  * `constraints.postgres.sql` starts it, so two subscribers created at once
@@ -121,15 +141,24 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
     async updateContact(
         subscriberId: string,
         change: SubscriberContactChange,
+        changedBy: string,
         tx?: TransactionContext,
     ): Promise<SubscriberRecord | null> {
-        const db = this.db(tx);
-        const { count } = await db.subscriber.updateMany({
-            where: { id: subscriberId },
-            data: change,
+        return this.inTransaction(tx, async (db) => {
+            // Locked as a correction is, so the country recorded as replaced is
+            // the one this write replaced.
+            const current = await lockedSubscriber(db, subscriberId);
+            if (!current) return null;
+            const changedAt = new Date();
+            const origin = taxOriginWrite(current, { country: change.country });
+            const updated = await db.subscriber.update({
+                where: { id: subscriberId },
+                data: change,
+                include: WITH_LIVE_TENANT,
+            });
+            await recordTaxOriginChange(db, subscriberId, origin, changedBy, changedAt);
+            return toRecord(updated);
         });
-        if (count === 0) return null;
-        return this.findById(subscriberId, tx);
     }
 
     async correctIdentity(
@@ -141,19 +170,22 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
             // Held until the transaction ends, so a correction arriving at the
             // same time reads the values this one wrote, and records those as
             // the ones it replaces.
-            await db.$queryRaw`SELECT "id" FROM "subscribers" WHERE "id" = ${subscriberId} FOR UPDATE`;
-            const current = await db.subscriber.findUnique({
-                where: { id: subscriberId },
-                include: WITH_LIVE_TENANT,
-            });
+            const current = await lockedSubscriber(db, subscriberId);
             if (!current) return null;
             const delta = identityCorrectionDelta(current, data.corrected);
             if (Object.keys(delta.corrected).length === 0) {
                 return { subscriber: toRecord(current), correction: null };
             }
+            const changedAt = new Date();
+            const origin = taxOriginWrite(current, { vatId: delta.corrected.vatId });
             const updated = await db.subscriber.update({
                 where: { id: subscriberId },
-                data: delta.corrected,
+                data: {
+                    ...delta.corrected,
+                    ...(origin.endsCountingVatIdCheck
+                        ? { currentVatIdCheckId: null, vatIdSince: changedAt }
+                        : {}),
+                },
                 include: WITH_LIVE_TENANT,
             });
             const correction = await db.subscriberCorrection.create({
@@ -163,9 +195,10 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
                     corrected: delta.corrected,
                     reason: data.reason,
                     correctedBy: data.correctedBy,
-                    correctedAt: data.correctedAt,
+                    correctedAt: changedAt,
                 },
             });
+            await recordTaxOriginChange(db, subscriberId, origin, data.correctedBy, changedAt);
             return {
                 subscriber: toRecord(updated),
                 correction: toSubscriberCorrectionRecord(correction),
@@ -176,10 +209,138 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
     async listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]> {
         const rows = await this.db().subscriberCorrection.findMany({
             where: { subscriberId },
-            orderBy: [{ correctedAt: 'desc' }, { id: 'desc' }],
+            orderBy: [{ seq: 'desc' }],
         });
         return rows.map(toSubscriberCorrectionRecord);
     }
+
+    async changeBusinessStatus(
+        subscriberId: string,
+        data: SubscriberBusinessStatusData,
+        tx?: TransactionContext,
+    ): Promise<SubscriberBusinessStatusResult | null> {
+        return this.inTransaction(tx, async (db) => {
+            const current = await lockedSubscriber(db, subscriberId);
+            if (!current) return null;
+            const origin = taxOriginWrite(current, { business: data.business });
+            if (!origin.moved) return { subscriber: toRecord(current), change: null };
+            const changedAt = new Date();
+            const updated = await db.subscriber.update({
+                where: { id: subscriberId },
+                data: { business: data.business },
+                include: WITH_LIVE_TENANT,
+            });
+            const change = await recordTaxOriginChange(
+                db,
+                subscriberId,
+                origin,
+                data.changedBy,
+                changedAt,
+            );
+            return { subscriber: toRecord(updated), change };
+        });
+    }
+
+    async recordVatIdCheck(
+        subscriberId: string,
+        check: VatIdCheck,
+        tx?: TransactionContext,
+    ): Promise<RecordedVatIdCheck | null> {
+        return this.inTransaction(tx, async (db) => {
+            const current = await lockedSubscriber(db, subscriberId);
+            if (!current) return null;
+            const recorded = toSubscriberVatIdCheckRecord(
+                await db.subscriberVatIdCheck.create({
+                    data: {
+                        subscriberId,
+                        vatId: check.vatId,
+                        checkedAt: check.checkedAt,
+                        valid: check.valid,
+                        service: check.service,
+                        confirmation: { ...check.confirmation },
+                    },
+                }),
+            );
+            const counting = await vatIdCheckById(db, current.currentVatIdCheckId);
+            if (!keepsVatIdCheck(current, counting, recorded)) {
+                return { recorded, current: counting };
+            }
+            await db.subscriber.update({
+                where: { id: subscriberId },
+                data: { currentVatIdCheckId: recorded.id },
+            });
+            return { recorded, current: recorded };
+        });
+    }
+
+    async findCurrentVatIdCheck(
+        subscriberId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberVatIdCheckRecord | null> {
+        const db = this.db(tx);
+        const row = await db.subscriber.findUnique({ where: { id: subscriberId } });
+        return vatIdCheckById(db, row?.currentVatIdCheckId ?? null);
+    }
+
+    async listVatIdChecks(subscriberId: string): Promise<SubscriberVatIdCheckRecord[]> {
+        const rows = await this.db().subscriberVatIdCheck.findMany({
+            where: { subscriberId },
+            orderBy: [{ checkedAt: 'desc' }, { recordedAt: 'desc' }, { id: 'desc' }],
+        });
+        return rows.map(toSubscriberVatIdCheckRecord);
+    }
+
+    async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {
+        const rows = await this.db().subscriberTaxOriginChange.findMany({
+            where: { subscriberId },
+            orderBy: [{ seq: 'desc' }],
+        });
+        return rows.map(toSubscriberTaxOriginChangeRecord);
+    }
+}
+
+/**
+ * The subscriber with its live tenant, its row locked until the transaction
+ * ends: a correction, a contact change and a change of the business status
+ * arriving at once each read the values the other wrote.
+ */
+async function lockedSubscriber(
+    db: SubscriberPrisma,
+    subscriberId: string,
+): Promise<SubscriberDbRow | null> {
+    await db.$queryRaw`SELECT "id" FROM "subscribers" WHERE "id" = ${subscriberId} FOR UPDATE`;
+    return db.subscriber.findUnique({ where: { id: subscriberId }, include: WITH_LIVE_TENANT });
+}
+
+/** A recorded check by its id; `null` for no id, or one that names no row. */
+async function vatIdCheckById(
+    db: SubscriberPrisma,
+    checkId: string | null,
+): Promise<SubscriberVatIdCheckRecord | null> {
+    if (checkId === null) return null;
+    const row = await db.subscriberVatIdCheck.findUnique({ where: { id: checkId } });
+    return row ? toSubscriberVatIdCheckRecord(row) : null;
+}
+
+/** Records what a write moved of the tax origin; nothing when it moved nothing. */
+async function recordTaxOriginChange(
+    db: SubscriberPrisma,
+    subscriberId: string,
+    origin: TaxOriginWrite,
+    changedBy: string,
+    changedAt: Date,
+): Promise<SubscriberTaxOriginChangeRecord | null> {
+    if (!origin.moved) return null;
+    const row = await db.subscriberTaxOriginChange.create({
+        data: {
+            subscriberId,
+            previous: origin.previous,
+            changed: origin.changed,
+            changedBy,
+            changedAt,
+        },
+    });
+    return toSubscriberTaxOriginChangeRecord(row);
 }
 
 function toRecord(row: SubscriberDbRow): SubscriberRecord {

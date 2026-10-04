@@ -20,8 +20,14 @@ import type {
     SubscriberCorrectionData,
     SubscriberCorrectionRecord,
     SubscriberCorrectionResult,
+    RecordedVatIdCheck,
+    SubscriberBusinessStatusData,
+    SubscriberBusinessStatusResult,
     SubscriberRecord,
+    SubscriberTaxOriginChangeRecord,
+    SubscriberVatIdCheckRecord,
 } from '../subscriber.types.js';
+import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
 
 // -----------------------------------------------------------------------------
@@ -335,27 +341,80 @@ export interface SubscriberRepository {
     findById(subscriberId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
     /** The subscriber live for this tenant, or `null` when it has none. */
     findByTenantId(tenantId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
-    /** Writes the members given and keeps the rest; `null` when no such subscriber exists. */
+    /**
+     * Writes the members given and keeps the rest; `null` when no such
+     * subscriber exists. Read and written under the lock a correction takes. A
+     * change of the country is a change of the tax origin and is recorded as
+     * one in the same step, by `changedBy` and dated while the lock is held.
+     */
     updateContact(
         subscriberId: string,
         change: SubscriberContactChange,
+        changedBy: string,
         tx?: TransactionContext,
     ): Promise<SubscriberRecord | null>;
     /**
      * Writes a correction of the legal identity and records it, in one step:
      * the subscriber is read and changed under a lock, so the values recorded
      * as replaced are the ones this write replaced even when two corrections
-     * arrive at once. A field whose stored value already equals the corrected
-     * one is left out of the record, and when none differs nothing is written
-     * and `correction` is `null`. `null` when no such subscriber exists.
+     * arrive at once. The correction is dated while the lock is held and
+     * numbered by the database as it is written. A field whose stored value
+     * already equals the corrected one is left out of the record, and when none
+     * differs nothing is written and `correction` is `null`. `null` when no
+     * such subscriber exists.
+     *
+     * A corrected VAT identification number is a change of the tax origin and
+     * is recorded as one too, by the same actor and with the same date.
+     * The check that counted for the number it replaced counts no more — it
+     * would otherwise validate that number again should it come back — and
+     * stays recorded (`listVatIdChecks`); the number written is held from that
+     * date (`vatIdSince`), so no check completed before it counts for it.
      */
     correctIdentity(
         subscriberId: string,
         data: SubscriberCorrectionData,
         tx?: TransactionContext,
     ): Promise<SubscriberCorrectionResult | null>;
-    /** Every correction of this subscriber, the latest first. */
+    /** Every correction of this subscriber, the latest written first. */
     listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]>;
+    /**
+     * Writes whether the subscriber is a business and records the change of
+     * its tax origin, in one step and under the same lock as a correction,
+     * dated while the lock is held. When the stored status already equals the
+     * one given nothing is written and `change` is `null`. `null` when no such
+     * subscriber exists.
+     */
+    changeBusinessStatus(
+        subscriberId: string,
+        data: SubscriberBusinessStatusData,
+        tx?: TransactionContext,
+    ): Promise<SubscriberBusinessStatusResult | null>;
+    /**
+     * Records a completed check of the subscriber's VAT identification number.
+     * Every check is recorded and none is rewritten or removed: it is the
+     * evidence a reverse charge rests on. Under the lock a correction takes it
+     * then decides whether the check counts from now on — only for the number
+     * the subscriber holds, completed since it holds it, and never over a check
+     * that completed later (`keepsVatIdCheck` from `@saasicat/core` decides).
+     * `null` when no such subscriber exists.
+     */
+    recordVatIdCheck(
+        subscriberId: string,
+        check: VatIdCheck,
+        tx?: TransactionContext,
+    ): Promise<RecordedVatIdCheck | null>;
+    /**
+     * The check that counts for the subscriber's number now, or `null` while
+     * none does: never checked, or corrected since.
+     */
+    findCurrentVatIdCheck(
+        subscriberId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberVatIdCheckRecord | null>;
+    /** Every check recorded for this subscriber, counting or not, the latest checked first. */
+    listVatIdChecks(subscriberId: string): Promise<SubscriberVatIdCheckRecord[]>;
+    /** Every recorded change of this subscriber's tax origin, the latest written first. */
+    listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]>;
 }
 
 /**

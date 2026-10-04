@@ -8140,6 +8140,25 @@ the subscriber's favour on an identifier it could not check.
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tax-origin-reads-what-was-checked.test.js`
+    - a VAT id counts as validated only on a counting check that found that number valid
+        - a valid check of the number the subscriber has validates it
+        - a check that found it invalid does not
+        - nor does a valid check of another number
+        - nor no check at all, and a subscriber without a number has none to validate
+    - a check counts only for the number held, completed while held, never over a later one
+        - over no check, an older check, or one of a number corrected away
+        - not over a check that completed later, so an older valid never replaces a newer invalid
+        - of two with the same date, the one written last
+        - not for a number the subscriber does not hold
+        - not when it completed before the number was last set, and from that moment on
+
+<!-- END proof -->
+
 ### SC-PRIC-041 — An invoice computes its tax once per rate, by the rule its tax adapter names
 
 🟡 _(Decided, not yet delivered.)_ 💰 The German adapter names the rule of EN 16931: the tax of each
@@ -8172,6 +8191,21 @@ is validated first (`SC-PRIC-040`). An invoice already issued keeps its treatmen
 a detail that was wrong is corrected by cancelling it (`SC-PRIC-025`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-says-whether-it-is-a-business.test.js`
+    - the business status
+        - changes as a change of the tax origin, recorded with its date and who made it
+    - the changes of the tax origin
+        - are listed the latest first, whichever way each arrived, and only those that moved it
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant changes how it is reached
+        - a change of the country is recorded with the user who made it, as the audit log tags them
+
+<!-- END proof -->
 
 ### SC-PRIC-044 — The German tax adapter covers Germany, businesses abroad and small businesses
 
@@ -17025,6 +17059,11 @@ _Tested by:_
     - and the shipped fragments really carry such a relation
     - and a narrowed run behaves like a full one, given the shipped models
     - a type neither schema declares is still drift
+    - a model left out of a fragment whose other model is adopted fails, naming both
+    - an optional model may be left out of an adopted fragment
+    - a fragment left out whole is a decision, not drift
+    - a model adopted alone counts for its fragment, whichever it is
+    - without the fragments named, no fragment is held to being whole
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
@@ -17056,6 +17095,8 @@ _Tested by:_
         - handles escaped quotes without leaving the string early
         - leaves a line without strings untouched
         - is linear on pathological input
+    - the shipped fragments
+        - the subscriber fragment is one unit: the shipped repository writes all of it
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a shipped migration survives a second run
         - there are migrations to check
@@ -17128,6 +17169,15 @@ _Tested by:_
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
         - a second run finds nothing to drop and changes nothing
+    - a subscriber has a tax origin, and a contract its treatment
+        - a database from before ends up with the schema the fragments declare
+        - a subscriber and a contract from before keep their rows, with nothing stated and nothing
+          decided
+        - an installation without subscribers gets the treatment column and nothing else
+    - a correction carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
 
 <!-- END proof -->
 
@@ -17229,6 +17279,15 @@ _Tested by:_
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
         - a second run finds nothing to drop and changes nothing
+    - a subscriber has a tax origin, and a contract its treatment
+        - a database from before ends up with the schema the fragments declare
+        - a subscriber and a contract from before keep their rows, with nothing stated and nothing
+          decided
+        - an installation without subscribers gets the treatment column and nothing else
+    - a correction carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -18101,6 +18160,11 @@ _Tested by:_
     - and the shipped fragments really carry such a relation
     - and a narrowed run behaves like a full one, given the shipped models
     - a type neither schema declares is still drift
+    - a model left out of a fragment whose other model is adopted fails, naming both
+    - an optional model may be left out of an adopted fragment
+    - a fragment left out whole is a decision, not drift
+    - a model adopted alone counts for its fragment, whichever it is
+    - without the fragments named, no fragment is held to being whole
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
@@ -18132,6 +18196,8 @@ _Tested by:_
         - handles escaped quotes without leaving the string early
         - leaves a line without strings untouched
         - is linear on pathological input
+    - the shipped fragments
+        - the subscriber fragment is one unit: the shipped repository writes all of it
 
 <!-- END proof -->
 

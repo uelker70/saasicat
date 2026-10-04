@@ -562,6 +562,13 @@ export const SUBSCRIBER_ERROR_CODES = {
     SUBSCRIBER_CORRECTION_CHANGES_NOTHING: 'SUBSCRIBER_CORRECTION_CHANGES_NOTHING',
     /** The operator declared another legal entity: that is a transfer, not an edit. */
     SUBSCRIBER_TAKEOVER_IS_A_TRANSFER: 'SUBSCRIBER_TAKEOVER_IS_A_TRANSFER',
+    /**
+     * A contact change named whether the subscriber is a business. That is part
+     * of its tax origin and changes as a recorded change naming who made it.
+     */
+    SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT: 'SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT',
+    /** A change of the subscriber's contact details or business status did not say who makes it. */
+    SUBSCRIBER_CHANGE_ACTOR_REQUIRED: 'SUBSCRIBER_CHANGE_ACTOR_REQUIRED',
 } as const;
 
 export type SubscriberErrorCode =

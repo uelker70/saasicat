@@ -39,6 +39,7 @@ import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
+    TENANT_SELF_SERVICE_CONTEXT,
     TRIAL_PROJECTION_PORT_TOKEN,
     USAGE_SNAPSHOT_PORT_TOKEN,
     USER_ID_RESOLVER_TOKEN,
@@ -1274,7 +1275,7 @@ export class TenantBillingController {
                 if (Array.isArray(sid)) return sid[0] ?? null;
                 return sid ?? null;
             });
-        const context = contextResolver(req) ?? 'tenant-self-service';
+        const context = contextResolver(req) ?? TENANT_SELF_SERVICE_CONTEXT;
         return {
             userId,
             email,

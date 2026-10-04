@@ -27,6 +27,8 @@ import {
     subscriptionBundleGone,
     subscriptionContractGone,
     subscriptionGone,
+    keepsVatIdCheck,
+    taxOriginWrite,
     toSubscriptionBundleRecord,
 } from '@saasicat/core';
 
@@ -71,6 +73,8 @@ export function createMemoryHarness() {
         ledgerEntries: [],
         subscribers: [],
         subscriberCorrections: [],
+        subscriberTaxOriginChanges: [],
+        subscriberVatIdChecks: [],
         paymentEvents: [],
         paymentMethods: [],
         paymentMethodSetups: [],
@@ -640,6 +644,7 @@ export function createMemoryHarness() {
                 subscriber: structuredClone(data.parties.subscriber),
                 issuer: structuredClone(data.parties.issuer),
                 partiesMigrated: data.partiesMigrated ?? false,
+                taxTreatment: structuredClone(data.taxTreatment ?? null),
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
@@ -748,10 +753,39 @@ export function createMemoryHarness() {
 
     // Subscribers, one live per tenant. The link lives on the row as `tenantId`,
     // which is all a harness without history needs.
-    const subscriberRecord = ({ customerSequence, customerNumberPrefix, ...row }) => ({
+    // The reference to the counting check is the row's, not the record's.
+    const subscriberRecord = ({
+        customerSequence,
+        customerNumberPrefix,
+        currentVatIdCheckId: _counting,
+        vatIdSince: _since,
+        ...row
+    }) => ({
         ...structuredClone(row),
+        business: row.business ?? null,
         customerNumber: formatCustomerNumber(customerNumberPrefix, customerSequence),
     });
+    // The changes of the tax origin and the checks of a VAT id are dated when
+    // they are written, as the adapters date them — the places this harness
+    // reads a clock, because the scenarios hold those dates to the moment of
+    // the call.
+    const recordTaxOriginChange = (subscriberId, origin, changedBy, changedAt = new Date()) => {
+        if (!origin.moved) return null;
+        const change = {
+            id: nextId('tax-origin-change'),
+            subscriberId,
+            previous: origin.previous,
+            changed: origin.changed,
+            changedBy,
+            changedAt,
+        };
+        state.subscriberTaxOriginChanges.push(change);
+        return structuredClone(change);
+    };
+    const vatIdCheckById = (checkId) => {
+        const check = state.subscriberVatIdChecks.find((candidate) => candidate.id === checkId);
+        return check ? structuredClone(check) : null;
+    };
     const subscriberRepository = {
         async createForTenant(data) {
             if (state.subscribers.some((row) => row.tenantId === data.tenantId)) return null;
@@ -760,6 +794,8 @@ export function createMemoryHarness() {
                 id: nextId('subscriber'),
                 customerSequence: state.nextCustomerSequence++,
                 migrated: false,
+                currentVatIdCheckId: null,
+                vatIdSince: null,
                 createdAt: FIXED_NOW,
                 updatedAt: FIXED_NOW,
             };
@@ -774,10 +810,12 @@ export function createMemoryHarness() {
             const row = state.subscribers.find((candidate) => candidate.tenantId === tenantId);
             return row ? subscriberRecord(row) : null;
         },
-        async updateContact(subscriberId, change) {
+        async updateContact(subscriberId, change, changedBy) {
             const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
             if (!row) return null;
+            const origin = taxOriginWrite(row, { country: change.country });
             Object.assign(row, structuredClone(change));
+            recordTaxOriginChange(subscriberId, origin, changedBy);
             return subscriberRecord(row);
         },
         async correctIdentity(subscriberId, data) {
@@ -787,7 +825,14 @@ export function createMemoryHarness() {
             if (Object.keys(delta.corrected).length === 0) {
                 return { subscriber: subscriberRecord(row), correction: null };
             }
+            const changedAt = new Date();
+            const origin = taxOriginWrite(row, { vatId: delta.corrected.vatId });
             Object.assign(row, delta.corrected);
+            recordTaxOriginChange(subscriberId, origin, data.correctedBy, changedAt);
+            if (origin.endsCountingVatIdCheck) {
+                row.currentVatIdCheckId = null;
+                row.vatIdSince = changedAt;
+            }
             const correction = {
                 id: nextId('correction'),
                 subscriberId,
@@ -795,16 +840,71 @@ export function createMemoryHarness() {
                 corrected: delta.corrected,
                 reason: data.reason,
                 correctedBy: data.correctedBy,
-                correctedAt: data.correctedAt,
+                correctedAt: changedAt,
             };
             state.subscriberCorrections.push(correction);
             return { subscriber: subscriberRecord(row), correction: structuredClone(correction) };
         },
         async listCorrections(subscriberId) {
+            // The latest written first, as the adapters read them by the number
+            // the database gave each.
             return state.subscriberCorrections
                 .filter((correction) => correction.subscriberId === subscriberId)
                 .reverse()
                 .map((correction) => structuredClone(correction));
+        },
+        async changeBusinessStatus(subscriberId, data) {
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            if (!row) return null;
+            const origin = taxOriginWrite(
+                { ...row, business: row.business ?? null },
+                { business: data.business },
+            );
+            if (!origin.moved) return { subscriber: subscriberRecord(row), change: null };
+            row.business = data.business;
+            const change = recordTaxOriginChange(subscriberId, origin, data.changedBy);
+            return { subscriber: subscriberRecord(row), change };
+        },
+        async recordVatIdCheck(subscriberId, check) {
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            if (!row) return null;
+            const recorded = {
+                ...structuredClone(check),
+                id: nextId('vat-id-check'),
+                subscriberId,
+                recordedAt: new Date(),
+            };
+            state.subscriberVatIdChecks.push(recorded);
+            const counting = vatIdCheckById(row.currentVatIdCheckId);
+            if (!keepsVatIdCheck(row, counting, recorded)) {
+                return { recorded: structuredClone(recorded), current: counting };
+            }
+            row.currentVatIdCheckId = recorded.id;
+            return { recorded: structuredClone(recorded), current: structuredClone(recorded) };
+        },
+        async findCurrentVatIdCheck(subscriberId) {
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            return row ? vatIdCheckById(row.currentVatIdCheckId) : null;
+        },
+        async listVatIdChecks(subscriberId) {
+            // The latest checked first; of two checked at once, the later written.
+            return state.subscriberVatIdChecks
+                .map((check, index) => ({ check, index }))
+                .filter(({ check }) => check.subscriberId === subscriberId)
+                .sort(
+                    (a, b) =>
+                        b.check.checkedAt.getTime() - a.check.checkedAt.getTime() ||
+                        b.index - a.index,
+                )
+                .map(({ check }) => structuredClone(check));
+        },
+        async listTaxOriginChanges(subscriberId) {
+            // The latest written first, as the adapters read them by the number
+            // the database gave each.
+            return state.subscriberTaxOriginChanges
+                .filter((change) => change.subscriberId === subscriberId)
+                .reverse()
+                .map((change) => structuredClone(change));
         },
     };
 

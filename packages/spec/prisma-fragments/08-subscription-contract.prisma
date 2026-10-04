@@ -47,6 +47,13 @@ model SubscriptionContract {
     // what was agreed.
     partiesMigrated    Boolean @default(false)
 
+    // The tax treatment the installation's tax adapter decided when the
+    // contract was concluded: its kind, rate and note, with the adapter's name
+    // and version (ADR 0013). Null where no adapter was asked — an installation
+    // without one, a contract from before, or a path that does not ask one
+    // yet; each invoice then takes the adapter's answer when it is issued.
+    taxTreatment Json?
+
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
     effectiveUntil DateTime?

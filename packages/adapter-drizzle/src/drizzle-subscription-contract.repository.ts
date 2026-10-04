@@ -15,6 +15,7 @@ import type {
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
     subscriptionContractGone,
+    taxTreatmentToJson,
     toRunningContractIssuer,
     toSubscriptionContractRecord,
 } from '@saasicat/core';
@@ -147,6 +148,7 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                     subscriberSnapshot: data.parties.subscriber,
                     issuerSnapshot: data.parties.issuer,
                     partiesMigrated: data.partiesMigrated ?? false,
+                    taxTreatment: data.taxTreatment ? taxTreatmentToJson(data.taxTreatment) : null,
                     createdAt: now,
                     updatedAt: now,
                 })

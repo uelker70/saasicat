@@ -13,6 +13,7 @@ import type {
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
     subscriptionContractGone,
+    taxTreatmentToJson,
     toRunningContractIssuer,
     toSubscriptionContractRecord,
     type CanonicalContractLineItemRow,
@@ -171,6 +172,9 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
                     : {}),
                 ...(data.termsSnapshot != null ? { termsSnapshot: data.termsSnapshot } : {}),
                 ...(data.parties.issuer != null ? { issuerSnapshot: data.parties.issuer } : {}),
+                ...(data.taxTreatment != null
+                    ? { taxTreatment: taxTreatmentToJson(data.taxTreatment) }
+                    : {}),
                 lineItems: { create: data.lineItems.map(toLineItemCreate) },
             },
             include: { lineItems: true },

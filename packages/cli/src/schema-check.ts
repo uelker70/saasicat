@@ -103,8 +103,29 @@ export interface TenantCascade {
     field: string;
 }
 
+/**
+ * A model the consumer left out of a fragment it adopted another model of.
+ * The repository behind that fragment writes every model in it, so a schema
+ * that takes the fragment halfway fails at the first such write.
+ */
+export interface MissingCompanion {
+    model: string;
+    /** A model of the same fragment the consumer did adopt. */
+    besides: string;
+}
+
+/**
+ * Which shipped models belong together: one entry per fragment, holding the
+ * models it declares, and the models any fragment may leave out because the
+ * persistence bundle can do without them (`OPTIONAL_CANONICAL_MODELS`).
+ */
+export interface FragmentUnits {
+    fragments: readonly (readonly string[])[];
+    optional: ReadonlySet<string>;
+}
+
 export interface SchemaCheckReport {
-    /** Platform models the consumer does not carry — informational. */
+    /** Platform models the consumer does not carry — informational, unless listed as a companion. */
     absentModels: string[];
     /** Platform enums the consumer does not carry — informational. */
     absentEnums: string[];
@@ -121,6 +142,8 @@ export interface SchemaCheckReport {
      * after the tenant is gone, such as a contract.
      */
     tenantCascades: TenantCascade[];
+    /** Models left out of a fragment the consumer adopted another model of. */
+    missingCompanions: MissingCompanion[];
     /** Models present in both schemas, i.e. actually compared. */
     checkedModelCount: number;
     /** Enums present in both schemas, i.e. actually compared. */
@@ -353,11 +376,14 @@ function cascadesFromTenant(model: string, block: string): TenantCascade[] {
  * @param knownModels Every model the shipped fragments declare, where the spec
  * passed in is a narrowed selection of them (`schema check --fragments=…`).
  * Omitted, the spec is taken to be the whole of it.
+ * @param units The models of each checked fragment and the ones that may be
+ * left out. Omitted, no fragment is held to being taken whole.
  */
 export function checkSchema(
     specSchema: string,
     appSchema: string,
     knownModels?: ReadonlySet<string>,
+    units?: FragmentUnits,
 ): SchemaCheckReport {
     const spec = parseSchema(specSchema);
     const app = parseSchema(appSchema);
@@ -409,6 +435,8 @@ export function checkSchema(
         return block ? cascadesFromTenant(model, block) : [];
     });
 
+    const missingCompanions = units ? companionsLeftOut(units, app.models) : [];
+
     const missingEnumValues: MissingEnumValue[] = [];
 
     for (const [name, specValues] of spec.enums) {
@@ -429,6 +457,7 @@ export function checkSchema(
         fieldMismatches,
         missingBlockAttributes,
         tenantCascades,
+        missingCompanions,
         checkedModelCount: spec.models.size - absentModels.length,
         checkedEnumCount: spec.enums.size - absentEnums.length,
         ok:
@@ -436,6 +465,28 @@ export function checkSchema(
             missingEnumValues.length === 0 &&
             fieldMismatches.length === 0 &&
             tenantCascades.length === 0 &&
+            missingCompanions.length === 0 &&
             !missingBlockAttributes.some(breaksContract),
     };
+}
+
+/**
+ * The models a consumer left out of a fragment it adopted another model of,
+ * the optional ones aside. A fragment left out whole is a decision; one taken
+ * halfway is a schema the repository behind it cannot write to.
+ */
+function companionsLeftOut(
+    units: FragmentUnits,
+    adopted: ReadonlyMap<string, unknown>,
+): MissingCompanion[] {
+    const found: MissingCompanion[] = [];
+    for (const models of units.fragments) {
+        const besides = models.find((model) => adopted.has(model));
+        if (besides === undefined) continue;
+        for (const model of models) {
+            if (adopted.has(model) || units.optional.has(model)) continue;
+            found.push({ model, besides });
+        }
+    }
+    return found;
 }

@@ -29,12 +29,19 @@ import type {
     EffectiveLimitsSnapshot,
     NewSubscriptionContractData,
     RunningContractIssuers,
+    SubscriberBusinessStatusData,
+    SubscriberBusinessStatusResult,
     SubscriberContactChange,
     SubscriberCorrectionData,
     SubscriberCorrectionRecord,
     SubscriberCorrectionResult,
     SubscriberRecord,
     SubscriberRepository,
+    RecordedVatIdCheck,
+    SubscriberTaxOriginChangeRecord,
+    SubscriberVatIdCheckRecord,
+    TaxOriginWrite,
+    VatIdCheck,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -65,6 +72,8 @@ import {
     subscriptionContractGone,
     formatCustomerNumber,
     identityCorrectionDelta,
+    keepsVatIdCheck,
+    taxOriginWrite,
     isVersionActiveAt,
 } from '@saasicat/core';
 
@@ -311,6 +320,9 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             subscriber: { ...data.parties.subscriber },
             issuer: data.parties.issuer ? { ...data.parties.issuer } : null,
             partiesMigrated: data.partiesMigrated ?? false,
+            taxTreatment: data.taxTreatment
+                ? { ...data.taxTreatment, adapter: { ...data.taxTreatment.adapter } }
+                : null,
             status: data.status ?? 'active',
             effectiveFrom: new Date(data.effectiveFrom),
             effectiveUntil: data.effectiveUntil ? new Date(data.effectiveUntil) : null,
@@ -455,6 +467,13 @@ export class FakeSubscriberRepository implements SubscriberRepository {
 
     private readonly byId = new Map<string, SubscriberRecord>();
     private readonly corrections: SubscriberCorrectionRecord[] = [];
+    private readonly taxOriginChanges: SubscriberTaxOriginChangeRecord[] = [];
+    private nextTaxOriginChangeId = 1;
+    private readonly vatIdChecks: SubscriberVatIdCheckRecord[] = [];
+    /** Which recorded check counts now, by subscriber. */
+    private readonly currentVatIdCheck = new Map<string, string>();
+    /** Since when the VAT id is held, by subscriber, where a correction set it. */
+    private readonly vatIdSince = new Map<string, Date>();
     private nextSequence = FakeSubscriberRepository.FIRST_CUSTOMER_NUMBER;
     private nextCorrectionId = 1;
 
@@ -489,11 +508,15 @@ export class FakeSubscriberRepository implements SubscriberRepository {
     async updateContact(
         subscriberId: string,
         change: SubscriberContactChange,
+        changedBy: string,
     ): Promise<SubscriberRecord | null> {
         const record = this.byId.get(subscriberId);
         if (!record) return null;
-        const updated = { ...record, ...change, updatedAt: new Date() };
+        const changedAt = new Date();
+        const origin = taxOriginWrite(record, { country: change.country });
+        const updated = { ...record, ...change, updatedAt: changedAt };
         this.byId.set(subscriberId, updated);
+        this.recordTaxOriginChange(subscriberId, origin, changedBy, changedAt);
         return { ...updated };
     }
 
@@ -507,12 +530,19 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         if (Object.keys(delta.corrected).length === 0) {
             return { subscriber: { ...record }, correction: null };
         }
+        const changedAt = new Date();
+        const origin = taxOriginWrite(record, { vatId: delta.corrected.vatId });
         const updated = {
             ...record,
             ...delta.corrected,
-            updatedAt: new Date(),
+            updatedAt: changedAt,
         } as SubscriberRecord;
         this.byId.set(subscriberId, updated);
+        if (origin.endsCountingVatIdCheck) {
+            this.currentVatIdCheck.delete(subscriberId);
+            this.vatIdSince.set(subscriberId, changedAt);
+        }
+        this.recordTaxOriginChange(subscriberId, origin, data.correctedBy, changedAt);
         const correction: SubscriberCorrectionRecord = {
             id: `correction-${this.nextCorrectionId++}`,
             subscriberId,
@@ -520,7 +550,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             corrected: delta.corrected,
             reason: data.reason,
             correctedBy: data.correctedBy,
-            correctedAt: data.correctedAt,
+            correctedAt: changedAt,
         };
         this.corrections.push(correction);
         return { subscriber: { ...updated }, correction: { ...correction } };
@@ -531,6 +561,88 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             .filter((correction) => correction.subscriberId === subscriberId)
             .reverse()
             .map((correction) => ({ ...correction }));
+    }
+
+    async changeBusinessStatus(
+        subscriberId: string,
+        data: SubscriberBusinessStatusData,
+    ): Promise<SubscriberBusinessStatusResult | null> {
+        const record = this.byId.get(subscriberId);
+        if (!record) return null;
+        const origin = taxOriginWrite(record, { business: data.business });
+        if (!origin.moved) return { subscriber: { ...record }, change: null };
+        const changedAt = new Date();
+        const updated = { ...record, business: data.business, updatedAt: changedAt };
+        this.byId.set(subscriberId, updated);
+        const change = this.recordTaxOriginChange(subscriberId, origin, data.changedBy, changedAt);
+        return { subscriber: { ...updated }, change };
+    }
+
+    async recordVatIdCheck(
+        subscriberId: string,
+        check: VatIdCheck,
+    ): Promise<RecordedVatIdCheck | null> {
+        const record = this.byId.get(subscriberId);
+        if (!record) return null;
+        const recorded: SubscriberVatIdCheckRecord = {
+            ...check,
+            confirmation: { ...check.confirmation },
+            id: `vat-id-check-${this.vatIdChecks.length + 1}`,
+            subscriberId,
+            recordedAt: new Date(),
+        };
+        this.vatIdChecks.push(recorded);
+        const counting = this.countingCheck(subscriberId);
+        const held = { vatId: record.vatId, vatIdSince: this.vatIdSince.get(subscriberId) ?? null };
+        if (!keepsVatIdCheck(held, counting, recorded)) {
+            return { recorded: { ...recorded }, current: counting && { ...counting } };
+        }
+        this.currentVatIdCheck.set(subscriberId, recorded.id);
+        return { recorded: { ...recorded }, current: { ...recorded } };
+    }
+
+    async findCurrentVatIdCheck(subscriberId: string): Promise<SubscriberVatIdCheckRecord | null> {
+        const counting = this.countingCheck(subscriberId);
+        return counting && { ...counting };
+    }
+
+    async listVatIdChecks(subscriberId: string): Promise<SubscriberVatIdCheckRecord[]> {
+        return this.vatIdChecks
+            .filter((check) => check.subscriberId === subscriberId)
+            .reverse()
+            .sort((a, b) => b.checkedAt.getTime() - a.checkedAt.getTime())
+            .map((check) => ({ ...check }));
+    }
+
+    async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {
+        return this.taxOriginChanges
+            .filter((change) => change.subscriberId === subscriberId)
+            .reverse()
+            .map((change) => ({ ...change }));
+    }
+
+    private countingCheck(subscriberId: string): SubscriberVatIdCheckRecord | null {
+        const id = this.currentVatIdCheck.get(subscriberId);
+        return this.vatIdChecks.find((check) => check.id === id) ?? null;
+    }
+
+    private recordTaxOriginChange(
+        subscriberId: string,
+        origin: TaxOriginWrite,
+        changedBy: string,
+        changedAt: Date,
+    ): SubscriberTaxOriginChangeRecord | null {
+        if (!origin.moved) return null;
+        const change: SubscriberTaxOriginChangeRecord = {
+            id: `tax-origin-change-${this.nextTaxOriginChangeId++}`,
+            subscriberId,
+            previous: origin.previous,
+            changed: origin.changed,
+            changedBy,
+            changedAt,
+        };
+        this.taxOriginChanges.push(change);
+        return { ...change };
     }
 
     private liveFor(tenantId: string): SubscriberRecord | undefined {

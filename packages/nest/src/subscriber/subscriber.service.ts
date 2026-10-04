@@ -8,11 +8,13 @@ import {
 import type {
     NewSubscriberDetails,
     PlanCatalogSettings,
+    SubscriberBusinessStatusResult,
     SubscriberContactChange,
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
     SubscriberRecord,
     SubscriberRepository,
+    SubscriberTaxOriginChangeRecord,
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
@@ -22,6 +24,7 @@ import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
 import {
     INVOICE_ADDRESS_FIELDS,
+    settleBusinessStatus,
     settleContactChange,
     settleIdentityCorrection,
     settleNewSubscriberDetails,
@@ -118,12 +121,18 @@ export class SubscriberService {
      * invoice email — at any time. A contract keeps the copy it was concluded
      * with; what comes later reads the new details. The legal name and the tax
      * identifiers are refused here: they change by `correctIdentity`.
+     *
+     * `changedBy` names who makes the change, as an actor tag the audit log
+     * would write: the country is part of the tax origin, and its change is
+     * recorded with who made it (`SUBSCRIBER_CHANGE_ACTOR_REQUIRED` without).
      */
     async changeContact(
         subscriberId: string,
         change: SubscriberContactChange,
+        changedBy: string,
     ): Promise<SubscriberRecord> {
-        return this.writeContact(subscriberId, settleContactChange(change));
+        const actor = settleActor(changedBy);
+        return this.writeContact(subscriberId, settleContactChange(change), actor);
     }
 
     /**
@@ -132,12 +141,14 @@ export class SubscriberService {
      * `SUBSCRIBER_DETAIL_INVALID` names the field — since without them nothing
      * can be invoiced. The legal name and the tax identifiers are refused as
      * with `changeContact`: they are the party, and only the operator corrects
-     * them.
+     * them. `changedBy` names the tenant's user, as with `changeContact`.
      */
     async changeContactOfTenant(
         tenantId: string,
         change: SubscriberContactChange,
+        changedBy: string,
     ): Promise<SubscriberRecord> {
+        const actor = settleActor(changedBy);
         const subscriber = await this.requireForTenant(tenantId);
         const settled = settleContactChange(change);
         const cleared = KEPT_BY_A_TENANT.find((field) => settled[field] === null);
@@ -146,15 +157,16 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field: cleared }),
             );
         }
-        return this.writeContact(subscriber.id, settled);
+        return this.writeContact(subscriber.id, settled, actor);
     }
 
     /** Writes contact details already settled; settling twice would check one copy and write another. */
     private async writeContact(
         subscriberId: string,
         settled: SubscriberContactChange,
+        changedBy: string,
     ): Promise<SubscriberRecord> {
-        const updated = await this.repo.updateContact(subscriberId, settled);
+        const updated = await this.repo.updateContact(subscriberId, settled, changedBy);
         if (!updated) throw subscriberNotFound(subscriberId);
         return updated;
     }
@@ -195,7 +207,6 @@ export class SubscriberService {
             corrected: settleIdentityCorrection(correction),
             reason,
             correctedBy,
-            correctedAt: new Date(),
         });
         if (!result) throw subscriberNotFound(subscriberId);
         if (!result.correction) {
@@ -210,6 +221,52 @@ export class SubscriberService {
     listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]> {
         return this.repo.listCorrections(subscriberId);
     }
+
+    /**
+     * Records whether the subscriber is a business — `true`, `false`, or `null`
+     * for not stated — as a change of its tax origin with its date and who made
+     * it (`SC-PRIC-043`). It is never derived from a tax identifier: a business
+     * outside the European Union may have none. A contract keeps the treatment
+     * it was concluded with; the change applies from the next invoice. The
+     * change is dated when the write holds the subscriber's lock, so the list
+     * of changes reads in the order they were made.
+     *
+     * Setting the status it already has records nothing and answers the
+     * subscriber as it is, with `change` `null`.
+     */
+    async changeBusinessStatus(
+        subscriberId: string,
+        change: { business: boolean | null; changedBy: string },
+    ): Promise<SubscriberBusinessStatusResult> {
+        const changedBy = settleActor(change.changedBy);
+        const business = settleBusinessStatus(change.business);
+        const result = await this.repo.changeBusinessStatus(subscriberId, { business, changedBy });
+        if (!result) throw subscriberNotFound(subscriberId);
+        return result;
+    }
+
+    /**
+     * Every recorded change of the subscriber's tax origin — its country,
+     * whether it is a business, its VAT identification number — the latest
+     * first, whichever way each arrived.
+     */
+    listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {
+        return this.repo.listTaxOriginChanges(subscriberId);
+    }
+}
+
+/**
+ * Who makes a change of the subscriber's details, trimmed; refused when it
+ * names nobody, since the change of a tax origin has to say who made it.
+ */
+function settleActor(changedBy: unknown): string {
+    const actor = typeof changedBy === 'string' ? changedBy.trim() : '';
+    if (actor === '') {
+        throw new UnprocessableEntityException(
+            codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_CHANGE_ACTOR_REQUIRED),
+        );
+    }
+    return actor;
 }
 
 /** The refusal every way a contract arises gives a tenant without its party. */

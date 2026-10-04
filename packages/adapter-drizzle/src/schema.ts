@@ -149,6 +149,9 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     subscriberSnapshot: jsonb('subscriberSnapshot').notNull(),
     issuerSnapshot: jsonb('issuerSnapshot'),
     partiesMigrated: boolean('partiesMigrated').notNull().default(false),
+    // The tax adapter's answer when the contract was concluded, with its name
+    // and version; null where no adapter was asked.
+    taxTreatment: jsonb('taxTreatment'),
     createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
@@ -486,6 +489,12 @@ export const subscribers = pgTable('subscribers', {
     city: text('city'),
     country: text('country'),
     invoiceEmail: text('invoiceEmail'),
+    // The tax origin beside the country and the VAT id: whether the subscriber
+    // is a business; which recorded check of the VAT id counts now, as a
+    // reference without a key; and since when the VAT id is held.
+    business: boolean('business'),
+    currentVatIdCheckId: text('currentVatIdCheckId'),
+    vatIdSince: ts('vatIdSince'),
     migrated: boolean('migrated').notNull().default(false),
     createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
@@ -499,14 +508,39 @@ export const subscriberTenants = pgTable('subscriber_tenants', {
     unlinkedAt: ts('unlinkedAt'),
 });
 
+// Numbered by the database in the order they were written, and read in it.
 export const subscriberCorrections = pgTable('subscriber_corrections', {
     id: text('id').primaryKey(),
+    seq: serial('seq').notNull(),
     subscriberId: text('subscriberId').notNull(),
     previous: jsonb('previous').notNull(),
     corrected: jsonb('corrected').notNull(),
     reason: text('reason').notNull(),
     correctedBy: text('correctedBy').notNull(),
     correctedAt: ts('correctedAt').notNull(),
+});
+
+// Numbered by the database in the order they were written, and read in it.
+export const subscriberTaxOriginChanges = pgTable('subscriber_tax_origin_changes', {
+    id: text('id').primaryKey(),
+    seq: serial('seq').notNull(),
+    subscriberId: text('subscriberId').notNull(),
+    previous: jsonb('previous').notNull(),
+    changed: jsonb('changed').notNull(),
+    changedBy: text('changedBy').notNull(),
+    changedAt: ts('changedAt').notNull(),
+});
+
+// Every completed check of a subscriber's VAT id, never rewritten.
+export const subscriberVatIdChecks = pgTable('subscriber_vat_id_checks', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    vatId: text('vatId').notNull(),
+    checkedAt: ts('checkedAt').notNull(),
+    valid: boolean('valid').notNull(),
+    service: text('service').notNull(),
+    confirmation: jsonb('confirmation').notNull(),
+    recordedAt: writtenAt('recordedAt'),
 });
 
 // ---------------------------------------------------------------------------

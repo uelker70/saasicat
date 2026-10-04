@@ -911,16 +911,17 @@ describe('every contract names the subscriber it is concluded with', () => {
      */
     async function beforeTheMigration({ foreignKey = true } = {}) {
         await freshGround();
-        // Payment methods and the charge journal came later still, and point at
-        // the subscribers.
+        // Payment methods, the charge journal and the tax origin came later
+        // still, and point at the subscribers.
         await client.query(
             'DROP TABLE "subscriber_ledger_entries", "subscriber_payment_method_setups", ' +
-                '"subscriber_payment_methods", "subscriber_corrections", "subscriber_tenants"',
+                '"subscriber_payment_methods", "subscriber_tax_origin_changes", ' +
+                '"subscriber_vat_id_checks", "subscriber_corrections", "subscriber_tenants"',
         );
         await client.query(
             'ALTER TABLE "subscription_contracts" DROP COLUMN "subscriberId", ' +
                 'DROP COLUMN "subscriberSnapshot", DROP COLUMN "issuerSnapshot", ' +
-                'DROP COLUMN "partiesMigrated"',
+                'DROP COLUMN "partiesMigrated", DROP COLUMN "taxTreatment"',
         );
         await client.query('DROP TABLE "subscribers"');
         await client.query('CREATE TABLE "tenants" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL)');
@@ -1792,5 +1793,192 @@ describe('the pending version is dropped', () => {
         await apply(MIGRATION);
 
         assert.deepEqual(await leftOver(), { columns: 0, index: 0, key: 0 });
+    });
+});
+
+describe('a subscriber has a tax origin, and a contract its treatment', () => {
+    // The migration adds what a tax adapter decides from — whether the
+    // subscriber is a business, every check of its VAT id and which one counts,
+    // the changes of its tax origin in the order they were written — and where
+    // its answer is kept on a contract. The
+    // second-run suite runs it on the reference schema, where every object is
+    // already there; these start from the schema as it stood before.
+
+    const MIGRATION = '1.0-a-subscriber-has-a-tax-origin.postgres.sql';
+
+    /** The reference schema with this migration's objects taken back out. */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query(
+            'DROP TABLE "subscriber_tax_origin_changes", "subscriber_vat_id_checks"',
+        );
+        await client.query(
+            'ALTER TABLE "subscribers" DROP COLUMN "business", ' +
+                'DROP COLUMN "currentVatIdCheckId", DROP COLUMN "vatIdSince"',
+        );
+        await client.query('ALTER TABLE "subscription_contracts" DROP COLUMN "taxTreatment"');
+    }
+
+    async function referenceFingerprint() {
+        await freshGround();
+        return fingerprint(client);
+    }
+
+    test('a database from before ends up with the schema the fragments declare', async () => {
+        const reference = await referenceFingerprint();
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        const { rows } = await client.query(
+            `SELECT conname FROM pg_constraint WHERE conname IN ` +
+                `('subscriber_tax_origin_changes_subscriberId_fkey', ` +
+                `'subscriber_vat_id_checks_subscriberId_fkey') ORDER BY conname`,
+        );
+        assert.deepEqual(
+            rows.map((row) => row.conname),
+            [
+                'subscriber_tax_origin_changes_subscriberId_fkey',
+                'subscriber_vat_id_checks_subscriberId_fkey',
+            ],
+            'the changes or the checks do not point at their subscriber',
+        );
+    });
+
+    test('a subscriber and a contract from before keep their rows, with nothing stated and nothing decided', async () => {
+        await beforeTheMigration();
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "vatId", "updatedAt") ` +
+                `VALUES ('s-1', 'Vorher GmbH', 'ATU12345678', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const subscriber = await client.query(
+            'SELECT "legalName", "vatId", "business", "currentVatIdCheckId", "vatIdSince" ' +
+                'FROM "subscribers"',
+        );
+        // A VAT id stored before is not taken as checked: no check ran.
+        assert.deepEqual(subscriber.rows, [
+            {
+                legalName: 'Vorher GmbH',
+                vatId: 'ATU12345678',
+                business: null,
+                currentVatIdCheckId: null,
+                vatIdSince: null,
+            },
+        ]);
+        const checks = await client.query('SELECT 1 FROM "subscriber_vat_id_checks"');
+        assert.equal(checks.rows.length, 0, 'a check was recorded that never ran');
+        const contract = await client.query(
+            'SELECT "id", "taxTreatment" FROM "subscription_contracts"',
+        );
+        assert.deepEqual(contract.rows, [{ id: 'c-1', taxTreatment: null }]);
+        const changes = await client.query('SELECT 1 FROM "subscriber_tax_origin_changes"');
+        assert.equal(changes.rows.length, 0, 'a change was recorded that nobody made');
+    });
+
+    test('an installation without subscribers gets the treatment column and nothing else', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "subscribers" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_tax_origin_changes') AS changes, ` +
+                `to_regclass('subscriber_vat_id_checks') AS checks, ` +
+                `(SELECT count(*)::int FROM information_schema.columns ` +
+                `  WHERE table_schema = current_schema() ` +
+                `    AND table_name = 'subscription_contracts' ` +
+                `    AND column_name = 'taxTreatment') AS treatment`,
+        );
+        assert.deepEqual(rows[0], { changes: null, checks: null, treatment: 1 });
+    });
+});
+
+describe('a correction carries the order it was recorded in', () => {
+    // `seq` arrives on a table that may already hold rows, and the list an
+    // operator saw was ordered by `correctedAt`, then `id`. The migration
+    // numbers those rows in that order, so nothing changes place, continues the
+    // numbering after them, trades the index over `correctedAt` for one over
+    // `seq` — and, run again, leaves every number alone.
+    const MIGRATION = '1.0-a-correction-carries-its-order.postgres.sql';
+    const insert = (id, correctedAt) =>
+        client.query(
+            'INSERT INTO "subscriber_corrections" ' +
+                '("id", "subscriberId", "previous", "corrected", "reason", "correctedBy", "correctedAt") ' +
+                "VALUES ($1, 's-1', '{}', '{}', 'typo', 'operator:anna', $2)",
+            [id, correctedAt],
+        );
+    const numbered = async () =>
+        (
+            await client.query('SELECT "id", "seq" FROM "subscriber_corrections" ORDER BY "seq"')
+        ).rows.map((row) => `${row.id}:${row.seq}`);
+
+    /** The table as it shipped before the column, with rows an operator has seen. */
+    async function tableBeforeTheColumn() {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriber_corrections" DROP COLUMN "seq"');
+        await client.query(
+            'CREATE INDEX "subscriber_corrections_subscriberId_correctedAt_idx" ' +
+                'ON "subscriber_corrections"("subscriberId", "correctedAt")',
+        );
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") ` +
+                `VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await insert('b', '2026-09-01T06:30:00.000Z');
+        await insert('a', '2026-09-01T06:30:00.000Z');
+        await insert('c', '2026-08-01T06:30:00.000Z');
+        // Rewriting a row moves it in the heap, so the table no longer holds
+        // the rows in the order they were inserted — the case a naive backfill
+        // would number wrongly.
+        await client.query(
+            `UPDATE "subscriber_corrections" SET "reason" = 'typo, as registered' WHERE "id" = 'c'`,
+        );
+    }
+
+    test('rows recorded before the column keep the order they were listed in, and the numbering continues', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await tableBeforeTheColumn();
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        assert.deepEqual(await numbered(), ['c:1', 'a:2', 'b:3']);
+        // Recorded after the migration, dated earlier than everything: the
+        // number is the order of the write, and the sequence carried on.
+        await insert('d', '2026-07-01T06:30:00.000Z');
+        assert.deepEqual(await numbered(), ['c:1', 'a:2', 'b:3', 'd:4']);
+    });
+
+    test('a second run leaves every number where the first one put it', async () => {
+        await tableBeforeTheColumn();
+        await apply(MIGRATION);
+        await insert('d', '2026-07-01T06:30:00.000Z');
+        const afterFirst = await numbered();
+
+        await apply(MIGRATION);
+        assert.deepEqual(await numbered(), afterFirst, 'the second run renumbered rows');
+        await insert('e', '2026-06-01T06:30:00.000Z');
+        assert.deepEqual(
+            (await numbered()).at(-1),
+            'e:5',
+            'the sequence was reset by the second run',
+        );
     });
 });

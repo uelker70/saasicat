@@ -301,6 +301,17 @@ function printCheckReport(report) {
         console.log('');
     }
 
+    if (report.missingCompanions.length > 0) {
+        console.log(`✗ Fragments taken halfway (${report.missingCompanions.length}):`);
+        for (const { model, besides } of report.missingCompanions) {
+            console.log(`    ${model.padEnd(28)} belongs with ${besides}`);
+        }
+        console.log('  The repository behind a fragment writes every model in it: the shipped one');
+        console.log('  fails at the first write to a model the schema leaves out, and one of your');
+        console.log('  own for the same port records the same rows. Add them.');
+        console.log('');
+    }
+
     const breaking = report.missingBlockAttributes.filter((a) => a.kind !== 'index');
     if (breaking.length > 0) {
         console.log(`✗ Missing constraints (${breaking.length}):`);
@@ -327,8 +338,9 @@ function printCheckReport(report) {
     // this check exists to avoid — which is exactly what it used to do for a
     // relation pointing at an unadopted model.
     const named = new Set(report.missingFields.map((field) => field.type));
+    const companions = new Set(report.missingCompanions.map((companion) => companion.model));
     const absent = [
-        ...report.absentModels,
+        ...report.absentModels.filter((model) => !companions.has(model)),
         ...report.absentEnums.filter((name) => !named.has(name)),
     ];
     if (absent.length > 0) {
@@ -382,8 +394,15 @@ async function cmdSchemaCheck(args) {
           )
         : fragments;
     const knownModels = new Set(extractModelNames(allFragments.join('\n')));
+    // Each fragment is one unit: the repository behind it writes every model
+    // in it, so adopting one and leaving out another is drift — unless the
+    // bundle can do without it, which `OPTIONAL_CANONICAL_MODELS` says.
+    const units = {
+        fragments: fragments.map((fragment) => extractModelNames(fragment)),
+        optional: new Set(Object.keys(OPTIONAL_CANONICAL_MODELS)),
+    };
 
-    const report = checkSchema(fragments.join('\n'), schema, knownModels);
+    const report = checkSchema(fragments.join('\n'), schema, knownModels, units);
     printCheckReport(report);
 
     const checked = `${report.checkedModelCount} Model(s), ${report.checkedEnumCount} Enum(s)`;
