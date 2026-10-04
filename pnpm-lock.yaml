@@ -105,6 +105,9 @@ importers:
       '@saasicat/spec':
         specifier: workspace:^
         version: link:../../packages/spec
+      '@saasicat/tax-de':
+        specifier: workspace:^
+        version: link:../../packages/tax-de
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
