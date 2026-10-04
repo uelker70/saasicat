@@ -445,6 +445,20 @@ describe('a plan change asks the party about the contract it ends in', () => {
         assert.ok(effectiveFrom - intended.effectiveFrom < 1000, 'from when it is frozen');
     });
 
+    test('one made today in a trial ends in no contract: the party is asked, the tax is not', async () => {
+        const { seen, contractFreeze } = recordingFreeze();
+        const [start, end] = runningWindow();
+
+        await upgradeThroughTheRoute(
+            starterMonthly(start, end, { status: 'TRIAL', trialEndsAt: end }),
+            { plan: 'STANDARD', billingCycle: 'YEARLY' },
+            { contractFreeze },
+        );
+
+        assert.deepEqual(seen.asked, [['t1', null]]);
+        assert.deepEqual(seen.frozen, [], 'its contract is frozen when it converts');
+    });
+
     test('one scheduled: from the date it takes effect, before anything is scheduled', async () => {
         const { seen, contractFreeze } = recordingFreeze();
         const [start, end] = runningWindow();

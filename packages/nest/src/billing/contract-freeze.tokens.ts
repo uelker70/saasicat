@@ -38,9 +38,11 @@ export interface ContractFreezePort {
      * tenant would be on the new plan with the old contract still in force.
      * So the question is asked of the contract the freeze will write, not of
      * one that resembles it: an adapter may treat a yearly period, or one that
-     * starts later, otherwise than a month from today.
+     * starts later, otherwise than a month from today. `null` where the change
+     * ends in no contract now — a plan change in a trial — asks for the party
+     * alone.
      */
-    assertPartyFor(tenantId: string, intended: IntendedContract): Promise<void>;
+    assertPartyFor(tenantId: string, intended: IntendedContract | null): Promise<void>;
 
     /**
      * Freezes the agreed service at `effectiveFrom` as the new active

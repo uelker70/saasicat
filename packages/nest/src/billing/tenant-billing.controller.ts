@@ -542,14 +542,20 @@ export class TenantBillingController {
         // nothing has moved: the freeze runs after the plan is written and only
         // logs its refusal. Asked of the contract the change ends in, which
         // only the preview can say: from today, or from the date it is
-        // scheduled for, in the rhythm asked for.
+        // scheduled for, in the rhythm asked for. A change made today in a
+        // trial ends in none — its contract is frozen when it converts — and
+        // asks for the party alone.
+        const wasTrial = sub.status === 'TRIAL';
+        const endsInNoContract = decision.isImmediate && wasTrial;
         await this.contractFreeze?.assertPartyFor(
             tenantId,
-            intendedContractOf(
-                sub,
-                decision.isImmediate ? new Date() : scheduledAt,
-                dto.billingCycle as BillingCycle,
-            ),
+            endsInNoContract
+                ? null
+                : intendedContractOf(
+                      sub,
+                      decision.isImmediate ? new Date() : scheduledAt,
+                      dto.billingCycle as BillingCycle,
+                  ),
         );
 
         // The version a change binds is the one its preview showed
@@ -613,7 +619,6 @@ export class TenantBillingController {
         };
 
         if (decision.isImmediate) {
-            const wasTrial = sub.status === 'TRIAL';
             // The window is the one the preview priced. In the same rhythm the
             // new plan runs inside the period already paid, on the same billing
             // day, charged the difference (`SC-CHG-020`); a longer rhythm, or a

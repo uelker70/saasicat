@@ -231,6 +231,16 @@ describe('a contract takes the rate the tax adapter decides for its subscriber',
         await domestic.service.assertPartyFor('tenant-1', A_MONTH_FROM_JUNE);
     });
 
+    test('a change that ends in no contract asks for the party alone', async () => {
+        const { service } = await serviceWith({ country: 'FR', business: false });
+        await service.assertPartyFor('tenant-1', null);
+        const nobody = await serviceWith({ country: 'DE', business: false });
+        await assert.rejects(
+            () => nobody.service.assertPartyFor('tenant-without', null),
+            (error) => error.getResponse().code === 'SUBSCRIBER_REQUIRED',
+        );
+    });
+
     test('the question before a change is asked over the contract it ends in: its start, its rhythm and its end', async () => {
         const { service } = await serviceWith(
             { country: 'DE', business: false },
@@ -397,6 +407,18 @@ describe('a sign-up concludes its offer at the rate decided for the subscriber i
         assert.equal(offers.rows.get(offer.id).status, 'open');
         assert.deepEqual(subscriberRepo.rows, []);
         assert.deepEqual(contractRepo.rows, []);
+    });
+
+    test('a tenant with its subscriber already is refused as such, before the new details are asked about', async () => {
+        const { service, offer } = await signingUp({
+            subscribed: { country: 'DE', business: false },
+        });
+        await assert.rejects(
+            () => service.conclude(offer.id, signingUpAs({ country: 'FR', business: false })),
+            (error) =>
+                error.getStatus() === 409 &&
+                error.getResponse().code === 'SUBSCRIBER_ALREADY_EXISTS',
+        );
     });
 
     test('a tenant with its subscriber already is decided from that one', async () => {

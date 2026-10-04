@@ -98,7 +98,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         }
     }
 
-    assertPartyFor(tenantId: string, intended: IntendedContract): Promise<void> {
+    assertPartyFor(tenantId: string, intended: IntendedContract | null): Promise<void> {
         return this.contracts.assertPartyFor(tenantId, intended);
     }
 

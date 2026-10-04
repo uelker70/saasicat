@@ -368,6 +368,9 @@ export class CheckoutOfferService {
         if (standing) return standing;
 
         const existing = await this.assertConsumable(id);
+        // The party first: a subscriber that may not be created, or a tenant
+        // without one, is refused as such before its tax is asked about.
+        await this.assertParty(subscribers, tenantId, subscriber);
         // The offer shows the rate for a subscriber in the issuer's country; the
         // contract is concluded at the one decided for the subscriber who takes
         // it, and a case the tax adapter does not support is refused here.
@@ -380,7 +383,6 @@ export class CheckoutOfferService {
             }),
         );
         const checked = contracts.prepareFromOffer(existing, contractOptions, rate);
-        await this.assertParty(subscribers, tenantId, subscriber);
         let consumeFailed = false;
         const concludeOn = async (tx: TransactionContext): Promise<ConcludedCheckoutOffer> => {
             // Per attempt: a runner may run this again, and a consume refused
@@ -487,7 +489,7 @@ export class CheckoutOfferService {
         tenantId: string,
         subscriber: NewSubscriberDetails | undefined,
     ): Promise<void> {
-        // The party only: the tax was decided above, over the contract's own
+        // The party only: the tax is decided after it, over the contract's own
         // first period.
         if (!subscriber) {
             await subscribers.requireForTenant(tenantId);

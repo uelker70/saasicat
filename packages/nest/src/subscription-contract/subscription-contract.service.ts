@@ -227,11 +227,13 @@ export class SubscriptionContractService {
      * Refuses, with `SUBSCRIBER_REQUIRED`, a contract this tenant could not
      * have. For callers that change something before the contract is written —
      * closing the one in force, changing a plan — and must refuse before that
-     * rather than after. `intended` is the contract the change will end in.
+     * rather than after. `intended` is the contract the change will end in, or
+     * `null` where it ends in none now — a plan change in a trial, whose
+     * contract is frozen when it converts — and only the party is asked.
      */
     async assertPartyFor(
         tenantId: string,
-        intended: IntendedContract,
+        intended: IntendedContract | null,
         tx?: TransactionContext,
     ): Promise<void> {
         await this.subscribers.requireForTenant(tenantId, tx);
@@ -239,7 +241,7 @@ export class SubscriptionContractService {
         // here, before a plan change or a booking moves anything (`SC-PRIC-039`),
         // over the period the contract will have — an adapter may answer a
         // yearly period, or one starting later, otherwise than another.
-        if (this.taxes?.adapter) {
+        if (this.taxes?.adapter && intended) {
             const origin = await this.subscribers.taxOriginFor({ tenantId }, tx);
             this.taxes.decide(
                 origin,
