@@ -869,7 +869,7 @@ export class PromoCodesService {
      * With a whitelist it takes the minimum from the whitelist, otherwise
      * across all marketed plans of the catalog (except non-redeemable). Where a
      * tax adapter decides, a subscriber outside the issuer's VAT pays the net,
-     * so the net is the bar (`SC-PROMO-008`); otherwise the gross at the file's
+     * so the net is the bar (`SC-PROMO-029`); otherwise the gross at the file's
      * rate.
      */
     private lowestPayablePlanPrice(
