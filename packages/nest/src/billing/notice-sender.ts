@@ -37,7 +37,7 @@ export interface NoticeSenderOptions {
     /**
      * Whether a notice the application tells nobody of is tried again, rather
      * than recorded as sent to no one. A retirement's notice is: the date it
-     * names counts from its reaching somebody (`SC-SUB-036`).
+     * names counts from its reaching somebody (`SC-SUB-038`).
      */
     readonly retriesNobody?: boolean;
 }

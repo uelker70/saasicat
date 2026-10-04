@@ -34,6 +34,7 @@ import {
     saasicatSchema,
     DrizzleSubscriptionUsageAdapter,
     DrizzleVersionRetirementRepository,
+    DrizzleBundleVersionRetirementRepository,
 } from '../../dist/index.js';
 import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '../../dist/index.js';
 import {
@@ -74,6 +75,7 @@ const PLATFORM_TABLES = [
     'maintenance_windows',
     'subscription_notices',
     'version_retirements',
+    'bundle_version_retirements',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -115,6 +117,7 @@ function createHarness() {
             maintenanceWindows: new DrizzleMaintenanceWindowRepository(db),
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),
             versionRetirements: new DrizzleVersionRetirementRepository(db),
+            bundleVersionRetirements: new DrizzleBundleVersionRetirementRepository(db),
             subscriptionUsage: new DrizzleSubscriptionUsageAdapter(db),
         },
         seed: {

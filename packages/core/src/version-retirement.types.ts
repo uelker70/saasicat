@@ -176,7 +176,7 @@ export interface RetirementProgress {
     readonly ended: number;
     /**
      * Still on the retired version, and not told yet: their notice has reached
-     * nobody, so their date is not set and nothing moves them (`SC-SUB-036`).
+     * nobody, so their date is not set and nothing moves them (`SC-SUB-038`).
      */
     readonly notTold: number;
     /**

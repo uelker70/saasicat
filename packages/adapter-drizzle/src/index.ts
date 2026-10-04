@@ -51,3 +51,4 @@ export { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.rep
 export { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 export { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
 export { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
+export { DrizzleBundleVersionRetirementRepository } from './drizzle-bundle-version-retirement.repository.js';

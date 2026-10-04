@@ -1084,6 +1084,80 @@ paths:
                                 type: array
                                 items: { $ref: '#/components/schemas/VersionRetirement' }
 
+    # Served where the manifest carries the capability `bundleVersions.retire`. The bookings
+    # on an add-on version no longer on sale continue on a version of the same add-on on
+    # sale, each at the first end of its own period at least three calendar months after
+    # its notice reached the subscriber, and may be cancelled without their minimum term
+    # until then. Where the operator's terms are not confirmed to allow it, both routes
+    # refuse with `RETIREMENT_TERMS_NOT_CONFIRMED` before reading anything.
+
+    /catalog/bundle-versions/{id}/retirement:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: What retiring the add-on version for its running bookings would do now
+            parameters:
+                - name: replacement
+                  in: query
+                  required: true
+                  description: The version of the same add-on the bookings continue on
+                  schema: { type: string, format: uuid }
+            responses:
+                '200':
+                    description: >-
+                        Which bookings it reaches and when, which it does not and why, and every
+                        blocker the announcement would refuse with
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/BundleRetirementPreview' }
+                '404':
+                    description: Either version does not exist (`BUNDLE_VERSION_NOT_FOUND`)
+                '422':
+                    description: >-
+                        The terms are not confirmed (`RETIREMENT_TERMS_NOT_CONFIRMED`), or the
+                        replacement is the version itself (`RETIREMENT_REPLACEMENT_IS_RETIRED`)
+        post:
+            tags: [catalog]
+            summary: Announce the add-on retirement to every booking it reaches
+            description: >-
+                The announcement and one notice per booking are recorded in one transaction,
+                then handed to the application's `SubscriptionNoticePort` as
+                `bundle-version-retired`; a notice that cannot be sent now is sent by the next
+                run. Audited as BUNDLE_VERSION_RETIRE.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/BundleRetirementAnnouncement' }
+            responses:
+                '201':
+                    description: Announced
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/BundleRetirementAnnounced' }
+                '409':
+                    description: >-
+                        The bookings it reaches are no longer the ones named
+                        (`RETIREMENT_PREVIEW_CHANGED`); the body carries the preview as it stands
+                '422':
+                    description: >-
+                        The first blocker the preview reports (`BUNDLE_RETIREMENT_*`,
+                        `RETIREMENT_WITHIN_TWELVE_MONTHS`), with every blocker beside it
+
+    /catalog/bundle-version-retirements:
+        get:
+            tags: [catalog]
+            summary: Every add-on retirement announced, the most recent first
+            responses:
+                '200':
+                    description: List, each with how far it has come over the bookings it reached
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/BundleVersionRetirement' }
+
     # ── Bundles ──
     /catalog/bundles:
         get:
@@ -2111,6 +2185,144 @@ components:
             required: [retirement, told, failed]
             properties:
                 retirement: { $ref: '#/components/schemas/VersionRetirement' }
+                told: { type: integer, description: 'Notices sent at once' }
+                failed: { type: integer, description: 'Notices the next run sends' }
+
+        RetiredBundleVersionRef:
+            type: object
+            required: [bundleVersionId, bundleKey, version]
+            properties:
+                bundleVersionId: { type: string }
+                bundleKey: { type: string }
+                version: { type: integer }
+
+        BundleRetirementSide:
+            description: >-
+                An add-on version as the subscribers compare it, at its own prices; each booking
+                is told the prices beside its plan. A price of null is a rhythm it is not sold in
+            allOf:
+                - $ref: '#/components/schemas/RetiredBundleVersionRef'
+                - type: object
+                  required: [label, features, quotas, monthlyNet, yearlyNet]
+                  properties:
+                      label: { type: string }
+                      features: { type: array, items: { type: string } }
+                      quotas: { type: object, additionalProperties: { type: number } }
+                      monthlyNet: { type: [number, 'null'] }
+                      yearlyNet: { type: [number, 'null'] }
+
+        BundleRetirementPreview:
+            type: object
+            required: [retired, replacement, changes, asOf, reached, skipped, blockers]
+            properties:
+                retired: { $ref: '#/components/schemas/BundleRetirementSide' }
+                replacement: { $ref: '#/components/schemas/BundleRetirementSide' }
+                changes:
+                    type: array
+                    description: 'Every difference at the two versions own prices'
+                    items: { type: object }
+                asOf: { type: string, description: 'ISO-8601: the moment it is computed for' }
+                reached:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            [
+                                tenantId,
+                                subscriptionId,
+                                subscriptionBundleId,
+                                planKey,
+                                planCycle,
+                                billingCycle,
+                                effectiveAt,
+                                lastDayToCancel,
+                                reachedRecently,
+                            ]
+                        properties:
+                            tenantId: { type: string }
+                            subscriptionId: { type: string }
+                            subscriptionBundleId: { type: string }
+                            planKey: { type: string, description: 'The plan beside it at the date' }
+                            planCycle: { type: string }
+                            billingCycle: { type: string, description: 'The booking rhythm' }
+                            effectiveAt:
+                                { type: string, description: 'ISO-8601: an end of its period' }
+                            lastDayToCancel:
+                                { type: string, description: 'ISO date, UTC: the day before' }
+                            reachedRecently:
+                                {
+                                    type: boolean,
+                                    description: 'Its subscription was reached by a retirement within twelve months',
+                                }
+                skipped:
+                    type: array
+                    items:
+                        type: object
+                        required: [tenantId, subscriptionId, subscriptionBundleId, reason]
+                        properties:
+                            tenantId: { type: string }
+                            subscriptionId: { type: string }
+                            subscriptionBundleId: { type: string }
+                            reason:
+                                {
+                                    type: string,
+                                    enum: [ended, cancelled-before, no-term, already-told],
+                                }
+                blockers:
+                    type: array
+                    description: 'Empty where it may be announced as it stands'
+                    items:
+                        type: object
+                        required: [code, message, params]
+                        properties:
+                            code: { type: string, description: 'BUNDLE_RETIREMENT_*, RETIREMENT_*' }
+                            message: { type: string }
+                            params: { type: object }
+
+        BundleRetirementAnnouncement:
+            type: object
+            required: [replacementBundleVersionId, subscriptionBundleIds]
+            properties:
+                replacementBundleVersionId: { type: string, format: uuid }
+                subscriptionBundleIds:
+                    type: array
+                    description: 'The bookings the operator was shown in the preview'
+                    items: { type: string }
+
+        BundleVersionRetirementRecord:
+            type: object
+            required: [id, retired, replacement, announcedAt, announcedBy]
+            properties:
+                id: { type: string }
+                retired: { $ref: '#/components/schemas/RetiredBundleVersionRef' }
+                replacement: { $ref: '#/components/schemas/RetiredBundleVersionRef' }
+                announcedAt: { type: string }
+                announcedBy: { type: string }
+
+        BundleVersionRetirement:
+            description: 'An add-on announcement as the list answers it, with how far it has come'
+            allOf:
+                - $ref: '#/components/schemas/BundleVersionRetirementRecord'
+                - type: object
+                  required: [progress]
+                  properties:
+                      progress:
+                          type: object
+                          description: 'Counted over the bookings it reached'
+                          required: [moved, waiting, overdue, ended, notTold, reminded]
+                          properties:
+                              moved: { type: integer }
+                              waiting: { type: integer }
+                              overdue: { type: integer }
+                              ended: { type: integer }
+                              notTold: { type: integer }
+                              reminded: { type: integer }
+
+        BundleRetirementAnnounced:
+            type: object
+            required: [retirement, told, failed]
+            properties:
+                retirement: { $ref: '#/components/schemas/BundleVersionRetirementRecord' }
                 told: { type: integer, description: 'Notices sent at once' }
                 failed: { type: integer, description: 'Notices the next run sends' }
 

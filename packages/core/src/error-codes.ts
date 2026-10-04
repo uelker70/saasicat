@@ -312,6 +312,17 @@ export const BILLING_ERROR_CODES = {
      */
     RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW: 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW',
     /**
+     * As `RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW`, where only the version the
+     * add-on continues on from a retirement's date cannot run beside the
+     * replacement's plan. The version it is on can, so cancelling it — it then
+     * ends before that date — lets the switch through. Given while that date
+     * is ahead and the add-on is not cancelled yet; otherwise the earlier code
+     * names the day it can end. Carries the add-on, that version, its date and
+     * the plan.
+     */
+    RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW:
+        'RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW',
+    /**
      * The subscription takes no switch now: a change is scheduled, it has
      * ended, or its plan is held for a special contract.
      */
@@ -321,6 +332,61 @@ export const BILLING_ERROR_CODES = {
      * the retirement as it now stands.
      */
     RETIREMENT_SWITCH_CHANGED: 'RETIREMENT_SWITCH_CHANGED',
+
+    // ── retiring an add-on version for running bookings ──
+    //
+    // An add-on retirement answers with the plan retirement's codes where the
+    // sentence is the same — terms not confirmed, a version named as its own
+    // replacement, twelve months, a preview that changed — and with these
+    // where it names an add-on rather than a plan.
+    /**
+     * The add-on version is still on sale: a booking made after the
+     * announcement would be on it without having been told. Carries the
+     * add-on key and the version.
+     */
+    BUNDLE_RETIREMENT_VERSION_ON_SALE: 'BUNDLE_RETIREMENT_VERSION_ON_SALE',
+    /** The replacement is not on sale, so no booking can continue on it. Carries add-on key and version. */
+    BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE: 'BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE',
+    /**
+     * The replacement is a version of another add-on. A booking continues on
+     * a version of its own add-on, so it stays the same booking with its term.
+     * Carries both add-on keys.
+     */
+    BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
+        'BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE',
+    /**
+     * Some of the bookings it reaches run, at their date, beside a plan the
+     * replacement cannot run beside: not allowed there, without a price there
+     * in the booking's rhythm, or in a longer rhythm than the plan's. Carries
+     * how many, and the replacement's add-on key and version.
+     */
+    BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN: 'BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN',
+    /** No running booking is on the version: there is nobody to tell. Carries add-on key and version. */
+    BUNDLE_RETIREMENT_NOTHING_AFFECTED: 'BUNDLE_RETIREMENT_NOTHING_AFFECTED',
+    /**
+     * The booking is on an add-on version being retired, and was cancelled to
+     * end before it would move, so it was never told and nothing moves it.
+     * Reinstated, it would run on past the date on a version nobody sells;
+     * booking the replacement once it has ended is the way. Carries the add-on
+     * key, the version, the replacement's version and the day it can be booked
+     * from.
+     */
+    BUNDLE_RETIREMENT_REINSTATE_REFUSED: 'BUNDLE_RETIREMENT_REINSTATE_REFUSED',
+    /**
+     * As `BUNDLE_RETIREMENT_REINSTATE_REFUSED`, where the replacement cannot
+     * run beside the plan the subscription is on when the booking ends, or
+     * beside one it is already set to move to after that, in any rhythm it
+     * could be booked in, so there is no version of the add-on to book.
+     * Carries the add-on key, the version and the replacement's version.
+     */
+    BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN:
+        'BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN',
+    /**
+     * As `BUNDLE_RETIREMENT_REINSTATE_REFUSED`, where the subscription ends by
+     * the day the replacement could be booked from, so there is no day to
+     * name. Carries the add-on key, the version and the replacement's version.
+     */
+    BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS: 'BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS',
 
     // ── the preview routes' own blockers and warnings ──
     //
@@ -369,6 +435,16 @@ export const BILLING_ERROR_CODES = {
      * day the booking can end.
      */
     BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN: 'BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN',
+    /**
+     * A bundle the tenant already holds can run on the plan they are moving
+     * to, but the version it continues on from a retirement's date cannot.
+     * Cancelling it lets the change through at once: the booking then ends
+     * before that date and never reaches the version. Given while that date is
+     * ahead and the booking is not cancelled yet; otherwise
+     * `BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN` names the day it can end.
+     * Carries the bundle, that version, its date and the plan.
+     */
+    BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN: 'BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN',
     /**
      * Features of the previewed bundle are already covered by the plan or by
      * another booked bundle. A warning rather than a blocker: paying twice is

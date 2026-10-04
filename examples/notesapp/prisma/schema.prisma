@@ -1349,6 +1349,28 @@ model VersionRetirement {
 }
 
 // =============================================================================
+// BundleVersionRetirement — every add-on retirement an operator announces (19-bundle-version-retirement.prisma)
+// =============================================================================
+
+model BundleVersionRetirement {
+    id String @id @default(uuid())
+
+    retiredBundleVersionId String
+    retiredBundleKey       String
+    retiredVersion         Int
+
+    replacementBundleVersionId String
+    replacementBundleKey       String
+    replacementVersion         Int
+
+    announcedAt DateTime @default(now())
+    announcedBy String
+
+    @@index([retiredBundleVersionId])
+    @@map("bundle_version_retirements")
+}
+
+// =============================================================================
 // Subscriber — the party a contract is concluded with (13-subscriber.prisma)
 // =============================================================================
 

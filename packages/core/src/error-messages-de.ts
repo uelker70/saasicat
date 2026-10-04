@@ -207,11 +207,29 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{count} dieser Abonnements waren in den letzten zwölf Monaten schon von einer Stilllegung betroffen. Ein Abonnement ist höchstens einmal im Jahr betroffen.',
     RETIREMENT_PREVIEW_CHANGED:
         'Die Abonnements, die diese Stilllegung betrifft, haben sich seit der Anzeige geändert. Sieh sie dir noch einmal an, bevor du sie ankündigst.',
+    BUNDLE_RETIREMENT_VERSION_ON_SALE:
+        'Version {version} von {bundleKey} wird noch verkauft. Veröffentliche die Version, die sie ersetzt, und lege diese still, sobald ihr Verkauf geendet hat, damit sie nach der Ankündigung niemand mehr bucht.',
+    BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE:
+        'Version {version} von {bundleKey} wird nicht verkauft. Buchungen können nicht auf ihr weiterlaufen.',
+    BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE:
+        'Der Ersatz ist eine Version von {replacementBundleKey}, nicht von {bundleKey}. Eine Buchung läuft auf einer Version ihres eigenen Add-ons weiter.',
+    BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN:
+        '{count} dieser Buchungen laufen neben einem Plan, neben dem Version {version} von {bundleKey} nicht laufen kann. Sie können nicht auf ihr weiterlaufen.',
+    BUNDLE_RETIREMENT_NOTHING_AFFECTED:
+        'Keine laufende Buchung nutzt Version {version} von {bundleKey}. Es gibt niemanden zu benachrichtigen.',
+    BUNDLE_RETIREMENT_REINSTATE_REFUSED:
+        'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Buchen Sie Version {replacementVersion} ab dem {bookableFrom}, wenn diese Buchung beendet ist.',
+    BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN:
+        'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Version {replacementVersion}, die sie ersetzt, kann neben Ihrem Paket oder einem Paket, zu dem Ihr Abonnement wechselt, nicht laufen.',
+    BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS:
+        'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Ihr Abonnement endet bis dahin ebenfalls.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',
     RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW:
         '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, ist der Wechsel ab diesem Tag möglich.',
+    RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW:
+        '{bundleName} läuft ab dem {from} auf Version {version} weiter, die im Paket {planName} nicht laufen kann. Ist es gekündigt, ist der Wechsel möglich.',
     RETIREMENT_SWITCH_NOT_OPEN:
         'Dieses Abonnement kann gerade nicht wechseln: Eine Änderung ist geplant, es ist beendet, oder sein Paket gilt für einen Sondervertrag.',
     RETIREMENT_SWITCH_CHANGED:
@@ -235,6 +253,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{bundleName} wird jährlich abgerechnet und läuft frühestens bis {until}; ein monatlich abgerechnetes Paket kann es nicht tragen. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder behalten Sie den jährlichen Rhythmus.',
     BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN:
         '{bundleName} kann im Paket {planName} nicht laufen und läuft frühestens bis {until}. Ist es gekündigt, geht ein Wechsel durch, der an diesem Tag oder später wirksam wird — oder wählen Sie ein anderes Paket.',
+    BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN:
+        '{bundleName} läuft ab dem {from} auf Version {version} weiter, die im Paket {planName} nicht laufen kann. Kündigen Sie es, dann geht der Wechsel durch — oder wählen Sie ein anderes Paket.',
     REDUNDANT_FEATURES:
         'Der Plan oder ein anderes gebuchtes Bundle enthält bereits {count} der Funktionen aus diesem Bundle — mit der Buchung werden sie doppelt bezahlt.',
     MINIMUM_TERM_BINDS:

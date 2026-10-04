@@ -887,6 +887,10 @@ _Tested by:_
         - one reached eleven months ago holds the announcement back, counted
         - one reached exactly twelve months ago still does
         - one reached a moment longer ago does not
+        - one whose notice reached somebody counts from then, though recorded long before
+        - an add-on retirement it was told of counts as well
+        - a notice still waiting for somebody to tell holds nothing back
+        - a waiting notice goes out only twelve months after the subscription was told of another
         - a notice of another kind does not count
 
 <!-- END proof -->
@@ -1041,6 +1045,9 @@ _Tested by:_
         - opens only after the trial
         - is refused while something is outstanding, as a version offer is
         - is refused while an add-on running today cannot run on the replacement’s plan
+        - is refused as well where an add-on was told it continues on a version the plan cannot
+          carry, naming that version
+        - names the day an add-on cancelled already ends, which cancelling again cannot move
         - goes through with the add-ons the replacement’s plan can carry
         - is refused where the subscription changed between the read and the write
         - whose contract cannot be written is put back and refused, and nothing is charged, where
@@ -1189,53 +1196,16 @@ _Tested by:_
 
 ### SC-SUB-036 — A retirement waits for its notice to reach the subscriber
 
-🟢 💰 Until its notice has reached at least one administrator of the tenant, a retirement changes
-nothing for the subscription: no move, no reminder, no switch offered and nothing shown beside its
-plan, and its periods are charged from the version it is on. A notice the application could not
-send, or sent to nobody, is tried again by every run until somebody is told; one whose subscription
-has left the version, or that the retirement no longer reaches, is not sent. A replacement cannot be
-terminated while a notice onto it has not reached its subscriber. Beside each retired version, the
-administration counts the subscriptions not told yet.
+🔵 _(Superseded on 2026-10-03 by `SC-SUB-038`.)_ Until its notice has reached at least one
+administrator of the tenant, a retirement changes nothing for the subscription: no move, no
+reminder, no switch offered and nothing shown beside its plan, and its periods are charged from the
+version it is on. A notice the application could not send, or sent to nobody, is tried again by
+every run until somebody is told; one whose subscription has left the version, or that the
+retirement no longer reaches, is not sent. A replacement cannot be terminated while a notice onto it
+has not reached its subscriber. Beside each retired version, the administration counts the
+subscriptions not told yet.
 
 _Source:_ #357
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
-    - a retirement whose notice has reached nobody
-        - charges nothing differently: the version the subscription is on prices its periods
-- `packages/nest/tests/a-retirement-reminds-once.test.js`
-    - the one reminder of a retirement
-        - reminds nobody whose notice has reached nobody: there is no date to remind of
-- `packages/nest/tests/a-retirement-takes-effect.test.js`
-    - the move at the date
-        - moves nothing whose notice has reached nobody, however late it is
-    - ending a version subscriptions still move onto
-        - is refused while a notice onto it has reached nobody, whatever end is asked for
-    - how far a retirement has come
-        - counts a subscription whose notice has reached nobody as not told, not as overdue
-- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
-    - the run that sends what an announcement could not
-        - a notice answered too late with nobody to tell is tried again, not recorded as told
-        - a notice the application tells nobody of is tried again until somebody is told
-        - says once a day, not on every run, that a notice still reaches nobody
-        - tells nobody who has left the version, and still tells the others
-        - tells nobody whom the retirement no longer reaches, and still tells the others
-    - the retirement that reaches a subscription
-        - is none while its notice has reached nobody, and the notice once it has
-    - the retirements a subscription was told of
-        - are none while the notice has reached nobody
-- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
-    - how a preview reads
-        - how far a retirement has come puts the subscriptions not told after the overdue ones,
-          asking for a look
-- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
-    - retiring a version in the plan cockpit
-        - marks the subscriptions not told yet for a look
-
-<!-- END proof -->
 
 ### SC-SUB-037 — A retirement cannot move a subscription onto a plan its add-ons cannot run on
 
@@ -1257,6 +1227,10 @@ _Tested by:_
           announcement refuses it as well
         - a replacement on another plan, and the add-ons the subscriptions hold › takes no notice of
           an add-on the plan can carry
+        - a replacement on another plan, and the add-ons the subscriptions hold › a notice that
+          waited is not sent while its plan cannot carry what is held by then
+        - a replacement on another plan, and the add-ons the subscriptions hold › asks too about the
+          version an add-on was told it continues on
         - a replacement on another plan, and the add-ons the subscriptions hold › nor of a booking
           that has ended on the date itself
         - a replacement on another plan, and the add-ons the subscriptions hold › but of one that
@@ -1265,5 +1239,63 @@ _Tested by:_
           the same plan carries what that plan carries
         - a replacement on another plan, and the add-ons the subscriptions hold › asks in the rhythm
           billed at the date, where a switch of rhythm lands before it
+
+<!-- END proof -->
+
+### SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
+
+🟢 💰 Until its notice has reached at least one administrator of the tenant, a retirement changes
+nothing for the subscription: no move, no reminder, no switch offered and nothing shown beside its
+plan, and its periods are charged from the version it is on. A notice the application could not
+send, or sent to nobody, is tried again by every run until somebody is told; one whose subscription
+has left the version, or that the retirement no longer reaches, is not sent. Where this stops: while
+the subscription was told of another retirement — of a plan version or of an add-on version — within
+the last twelve months, or while the replacement's plan could not carry the add-ons it holds at the
+date (`SC-SUB-037`), the notice is not sent but waits, and its date counts from when it goes out
+(`SC-BUN-041`). A replacement cannot be terminated while a notice onto it has not reached its
+subscriber. Beside each retired version, the administration counts the subscriptions not told yet.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-version-is-charged-to-its-date.test.js`
+    - a retirement whose notice has reached nobody
+        - charges nothing differently: the version the subscription is on prices its periods
+- `packages/nest/tests/a-retirement-reminds-once.test.js`
+    - the one reminder of a retirement
+        - reminds nobody whose notice has reached nobody: there is no date to remind of
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - the move at the date
+        - moves nothing whose notice has reached nobody, however late it is
+    - ending a version subscriptions still move onto
+        - is refused while a notice onto it has reached nobody, whatever end is asked for
+    - how far a retirement has come
+        - counts a subscription whose notice has reached nobody as not told, not as overdue
+- `packages/nest/tests/an-operator-announces-a-retirement.test.js`
+    - the preview of a retirement
+        - a replacement on another plan, and the add-ons the subscriptions hold › a notice that
+          waited is not sent while its plan cannot carry what is held by then
+    - a subscription is reached at most once in twelve months
+        - a waiting notice goes out only twelve months after the subscription was told of another
+    - the run that sends what an announcement could not
+        - a notice answered too late with nobody to tell is tried again, not recorded as told
+        - a notice the application tells nobody of is tried again until somebody is told
+        - says once a day, not on every run, that a notice still reaches nobody
+        - tells nobody who has left the version, and still tells the others
+        - tells nobody whom the retirement no longer reaches, and still tells the others
+    - the retirement that reaches a subscription
+        - is none while its notice has reached nobody, and the notice once it has
+    - the retirements a subscription was told of
+        - are none while the notice has reached nobody
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - how far a retirement has come puts the subscriptions not told after the overdue ones,
+          asking for a look
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - marks the subscriptions not told yet for a look
 
 <!-- END proof -->

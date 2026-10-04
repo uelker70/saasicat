@@ -112,6 +112,7 @@ function retiring({
     bypass = null,
     bookings = null,
     addOns = null,
+    addOnsAhead = null,
 } = {}) {
     const retirements = retirementStore();
     const audited = [];
@@ -151,6 +152,7 @@ function retiring({
         audit,
         bookings,
         addOns,
+        addOnsAhead,
     );
     return { service, notices, port, retirements, audited, tx, reads, rolledBack };
 }
@@ -308,6 +310,67 @@ describe('the preview of a retirement', () => {
             const { service } = retiringWith(bookingOf('sub-t1', 'bv-any'));
 
             assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), []);
+        });
+
+        // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
+        test('a notice that waited is not sent while its plan cannot carry what is held by then', async () => {
+            let answer = { recipients: [], channel: 'email' };
+            let ahead = [];
+            const told = { ...bookingOf('sub-t1', 'bv-any'), id: 'sb-1' };
+            const notices = noticeRecord();
+            const { service } = retiring({
+                rows: [RETIRED, REPLACEMENT, pro],
+                bookings: bookingsOf(told),
+                addOns: ADD_ONS,
+                notices,
+                port: sendingPort(() => answer),
+                addOnsAhead: { of: async (id) => (id === 'sub-t1' ? ahead : []) },
+            });
+            await service.announce(RETIRED.id, pro.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+            // While it waits, the add-on is told it continues on a version Pro cannot carry.
+            ahead = [
+                {
+                    subscriptionBundleId: 'sb-1',
+                    retiredBundleVersionId: 'bv-any',
+                    replacementBundleVersionId: 'bv-standard-only',
+                    effectiveAt: '2027-03-01T00:00:00.000Z',
+                },
+            ];
+            answer = { recipients: ['admin@example.com'], channel: 'email' };
+            const toldOfThis = (subscriptionId) =>
+                [...notices.rows.values()].some(
+                    (row) =>
+                        row.subscriptionId === subscriptionId &&
+                        row.kind === 'version-retired' &&
+                        row.deliveredAt !== null,
+                );
+
+            await service.sendUndelivered(new Date('2026-10-20T09:00:00.000Z'));
+
+            assert.deepEqual([toldOfThis('sub-t1'), toldOfThis('sub-t2')], [false, true]);
+        });
+
+        // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+        test('asks too about the version an add-on was told it continues on', async () => {
+            const told = { ...bookingOf('sub-t1', 'bv-any'), id: 'sb-1' };
+            const ahead = [
+                {
+                    subscriptionBundleId: 'sb-1',
+                    retiredBundleVersionId: 'bv-any',
+                    replacementBundleVersionId: 'bv-standard-only',
+                    effectiveAt: '2027-03-01T00:00:00.000Z',
+                },
+            ];
+            const { service } = retiring({
+                rows: [RETIRED, REPLACEMENT, pro],
+                bookings: bookingsOf(told),
+                addOns: ADD_ONS,
+                addOnsAhead: { of: async (id) => (id === 'sub-t1' ? ahead : []) },
+            });
+
+            assert.deepEqual(codesOf(await service.preview(RETIRED.id, pro.id, NOW)), [
+                'RETIREMENT_REPLACEMENT_CANNOT_CARRY_BUNDLES',
+            ]);
         });
 
         test('nor of a booking that has ended on the date itself', async () => {
@@ -522,20 +585,31 @@ describe('the preview of a retirement', () => {
 
 // @requirement SC-SUB-028 — A subscription is reached by a retirement at most once in twelve months
 describe('a subscription is reached at most once in twelve months', () => {
-    /** A retirement notice recorded for `sub-t1` at `at`. */
-    async function reachedAt(notices, at) {
+    /** Marks every notice in `notices` as delivered to somebody at `at`. */
+    function deliveredAt(notices, at) {
+        for (const row of notices.rows.values()) {
+            Object.assign(row, {
+                deliveredAt: at,
+                delivery: { recipients: ['admin@example.com'], channel: 'email' },
+            });
+        }
+    }
+
+    /** A notice of `kind` recorded for `sub-t1` at `at`, and told to somebody then unless `told` is false. */
+    async function reachedAt(notices, at, { kind = 'version-retired', told = true } = {}) {
         await notices.record(
             [
                 {
                     tenantId: 't1',
                     subscriptionId: 'sub-t1',
-                    kind: 'version-retired',
+                    kind,
                     subject: 'ret-earlier',
-                    content: { kind: 'version-retired' },
+                    content: { kind },
                 },
             ],
             at,
         );
+        if (told) deliveredAt(notices, at);
     }
 
     test('one reached eleven months ago holds the announcement back, counted', async () => {
@@ -574,6 +648,81 @@ describe('a subscription is reached at most once in twelve months', () => {
         const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
 
         assert.deepEqual(codesOf(preview), []);
+    });
+
+    test('one whose notice reached somebody counts from then, though recorded long before', async () => {
+        const notices = noticeRecord();
+        await reachedAt(notices, new Date('2025-08-15T09:00:00.000Z'));
+        deliveredAt(notices, new Date('2026-09-15T09:00:00.000Z'));
+        const { service } = retiring({ notices });
+
+        const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+        assert.deepEqual(codesOf(preview), ['RETIREMENT_WITHIN_TWELVE_MONTHS']);
+    });
+
+    // @requirement SC-BUN-041 — Retirements of plan and add-on reach a subscription at most once in twelve months
+    test('an add-on retirement it was told of counts as well', async () => {
+        const notices = noticeRecord();
+        await reachedAt(notices, new Date('2026-06-15T09:00:00.000Z'), {
+            kind: 'bundle-version-retired',
+        });
+        const { service } = retiring({ notices });
+
+        const preview = await service.preview(RETIRED.id, REPLACEMENT.id, NOW);
+
+        assert.deepEqual(codesOf(preview), ['RETIREMENT_WITHIN_TWELVE_MONTHS']);
+        assert.deepEqual(preview.blockers[0].params, { count: 1 });
+    });
+
+    // @requirement SC-BUN-041 — Retirements of plan and add-on reach a subscription at most once in twelve months
+    test('a notice still waiting for somebody to tell holds nothing back', async () => {
+        const notices = noticeRecord();
+        await reachedAt(notices, new Date('2026-09-15T09:00:00.000Z'), { told: false });
+        const { service } = retiring({ notices });
+
+        assert.deepEqual(codesOf(await service.preview(RETIRED.id, REPLACEMENT.id, NOW)), []);
+    });
+
+    // @requirement SC-BUN-041 — Retirements of plan and add-on reach a subscription at most once in twelve months
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
+    test('a waiting notice goes out only twelve months after the subscription was told of another', async () => {
+        let answer = { recipients: [], channel: 'email' };
+        const notices = noticeRecord();
+        const { service } = retiring({ notices, port: sendingPort(() => answer) });
+        await service.announce(RETIRED.id, REPLACEMENT.id, ['sub-t1', 'sub-t2'], ACTOR, NOW);
+        // Meanwhile sub-t1 is told of the retirement of an add-on it holds.
+        await notices.record(
+            [
+                {
+                    tenantId: 't1',
+                    subscriptionId: 'sub-t1',
+                    kind: 'bundle-version-retired',
+                    subject: 'bv-other',
+                    content: { kind: 'bundle-version-retired' },
+                },
+            ],
+            NOW,
+        );
+        const addOn = [...notices.rows.values()].find((row) => row.subject === 'bv-other');
+        Object.assign(addOn, {
+            deliveredAt: NOW,
+            delivery: { recipients: ['admin@example.com'], channel: 'email' },
+        });
+        answer = { recipients: ['admin@example.com'], channel: 'email' };
+        const toldOfThis = (subscriptionId) =>
+            [...notices.rows.values()].some(
+                (row) =>
+                    row.subscriptionId === subscriptionId &&
+                    row.kind === 'version-retired' &&
+                    row.deliveredAt !== null,
+            );
+
+        await service.sendUndelivered(new Date('2026-10-20T09:00:00.000Z'));
+        assert.deepEqual([toldOfThis('sub-t1'), toldOfThis('sub-t2')], [false, true]);
+
+        await service.sendUndelivered(new Date('2027-10-16T09:00:00.000Z'));
+        assert.equal(toldOfThis('sub-t1'), true);
     });
 
     test('a notice of another kind does not count', async () => {
@@ -1008,7 +1157,7 @@ describe('the run that sends what an announcement could not', () => {
         );
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('a notice answered too late with nobody to tell is tried again, not recorded as told', async () => {
         let delayMs = 60;
         let recipients = [];
@@ -1044,7 +1193,7 @@ describe('the run that sends what an announcement could not', () => {
         );
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('a notice the application tells nobody of is tried again until somebody is told', async () => {
         let recipients = [];
         const port = sendingPort(() => ({ recipients, channel: 'email' }));
@@ -1069,7 +1218,7 @@ describe('the run that sends what an announcement could not', () => {
         assert.deepEqual(kept.delivery, { recipients: ['admin@example.com'], channel: 'email' });
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('says once a day, not on every run, that a notice still reaches nobody', async () => {
         const port = sendingPort(() => ({ recipients: [], channel: 'email' }));
         const { service } = retiring({ port });
@@ -1094,7 +1243,7 @@ describe('the run that sends what an announcement could not', () => {
         );
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('tells nobody who has left the version, and still tells the others', async () => {
         const bound = [boundTo('t1'), boundTo('t2')];
         const { service, notices, port, sends } = await unsent({ bound });
@@ -1110,7 +1259,7 @@ describe('the run that sends what an announcement could not', () => {
         assert.equal(kept.deliveredAt, null, "t1's notice stays on record, unsent");
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('tells nobody whom the retirement no longer reaches, and still tells the others', async () => {
         const bound = [boundTo('t1'), boundTo('t2')];
         const { service, notices, port, sends } = await unsent({ bound });
@@ -1192,7 +1341,7 @@ describe('the run every quarter of an hour', () => {
     });
 });
 
-// @requirement SC-CANC-023 — A retirement lets a subscription cancel without notice until it takes effect
+// @requirement SC-CANC-023 — A plan retirement lets a subscription cancel without notice until it takes effect
 describe('the retirement that reaches a subscription', () => {
     const onRetired = { id: 'sub-t1', planVersion: { id: 'pv-1' } };
 
@@ -1220,7 +1369,7 @@ describe('the retirement that reaches a subscription', () => {
         assert.equal(await service.pendingFor({ id: 'sub-t1', planVersion: null }, NOW), null);
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('is none while its notice has reached nobody, and the notice once it has', async () => {
         let sending = false;
         const port = sendingPort(() => {
@@ -1280,7 +1429,7 @@ describe('the retirements a subscription was told of', () => {
         );
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('are none while the notice has reached nobody', async () => {
         const port = sendingPort(() => {
             throw new Error('mail server down');

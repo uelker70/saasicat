@@ -111,6 +111,7 @@ function mountPage(confirmPort?: unknown) {
                     plans: { list: async () => [] },
                     planVersions: { listForPlan: async () => [] },
                     discovery: { read: async () => ({ status: 'unchanged' }) },
+                    bundleVersionRetirements: {},
                 } as never),
             },
         },

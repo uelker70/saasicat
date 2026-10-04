@@ -1,25 +1,27 @@
 // What an operator reads off a retirement before announcing it, framework-free:
-// which versions may be retired, the dates the subscriptions move on, and the
-// ones it does not reach.
+// which versions may be retired, the dates the subscriptions — or, for an
+// add-on version, the bookings — move on, and the ones it does not reach.
 
 import type {
-    PlanVersionRow,
+    BundleVersionRetirementView,
     RetirementBlocker,
-    RetirementPreview,
     RetirementProgress,
+    RetirementReachedRow,
     RetirementSkipReason,
     VersionRetirementView,
+    VersionSaleDates,
 } from '@saasicat/core';
 
 import { formatMessage } from './i18n/format.js';
 import { versionSale } from './version-sale.js';
 
 /**
- * Whether a retirement may be started for `version` at `now`: published and no
- * longer on sale, so nobody books it after the announcement. The server
- * decides again; this only says where the action is offered.
+ * Whether a retirement may be started for `version` at `now` — a plan's or an
+ * add-on's: published and no longer on sale, so nobody books it after the
+ * announcement. The server decides again; this only says where the action is
+ * offered.
  */
-export function isRetirable(version: PlanVersionRow, now: Date): boolean {
+export function isRetirable(version: VersionSaleDates, now: Date): boolean {
     return versionSale(version, now).kind === 'off-sale';
 }
 
@@ -32,8 +34,10 @@ export interface RetirementDate {
     readonly count: number;
 }
 
-/** The dates the subscriptions a preview reaches move on, the earliest first. */
-export function retirementDates(preview: RetirementPreview): RetirementDate[] {
+/** The dates what a preview reaches moves on, the earliest first. */
+export function retirementDates(preview: {
+    readonly reached: readonly Pick<RetirementReachedRow, 'effectiveAt' | 'lastDayToCancel'>[];
+}): RetirementDate[] {
     const byDate = new Map<string, RetirementDate>();
     for (const row of preview.reached) {
         const seen = byDate.get(row.effectiveAt);
@@ -55,14 +59,30 @@ const SKIP_ORDER: readonly RetirementSkipReason[] = [
     'already-told',
 ];
 
-/** The subscriptions on the version a preview does not reach, counted by reason. */
-export function retirementSkips(
-    preview: RetirementPreview,
-): Array<{ reason: RetirementSkipReason; count: number }> {
-    return SKIP_ORDER.map((reason) => ({
+/** What is on the version and a preview does not reach, counted by reason. */
+export function retirementSkips<R extends RetirementSkipReason>(preview: {
+    readonly skipped: readonly { readonly reason: R }[];
+}): Array<{ reason: R; count: number }> {
+    return (SKIP_ORDER as readonly R[])
+        .map((reason) => ({
+            reason,
+            count: preview.skipped.filter((row) => row.reason === reason).length,
+        }))
+        .filter((entry) => entry.count > 0);
+}
+
+/**
+ * Whom a preview misses, one line per reason in the order `retirementSkips`
+ * gives, each worded by the area's sentence for its reason.
+ */
+export function retirementSkipLines<R extends RetirementSkipReason>(
+    preview: { readonly skipped: readonly { readonly reason: R }[] },
+    sentences: Readonly<Record<R, string>>,
+): Array<{ reason: R; text: string }> {
+    return retirementSkips(preview).map(({ reason, count }) => ({
         reason,
-        count: preview.skipped.filter((row) => row.reason === reason).length,
-    })).filter((entry) => entry.count > 0);
+        text: formatMessage(sentences[reason], { count }),
+    }));
 }
 
 /**
@@ -74,6 +94,17 @@ export function retirementOf(
     planVersionId: string,
 ): VersionRetirementView | null {
     return records.find((record) => record.retired.planVersionId === planVersionId) ?? null;
+}
+
+/**
+ * The most recent announcement that retired the add-on version
+ * `bundleVersionId`, or null — the first in `records`, most recent first.
+ */
+export function bundleRetirementOf(
+    records: readonly BundleVersionRetirementView[],
+    bundleVersionId: string,
+): BundleVersionRetirementView | null {
+    return records.find((record) => record.retired.bundleVersionId === bundleVersionId) ?? null;
 }
 
 /**

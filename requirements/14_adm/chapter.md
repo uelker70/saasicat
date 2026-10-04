@@ -432,6 +432,20 @@ _Tested by:_
         - shows the replacement, its price, the dates and whom it misses before anything is sent
         - a blocker is said in words, and nothing can be announced
         - announcing names the subscriptions shown, and says what was sent
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - retiring an add-on version where the add-on is managed
+        - is offered on the version no longer on sale
+        - is not offered on the version on sale
+        - is not offered where the platform does not serve it
+        - says on a version that it was retired, onto which version, and how far that has come
+        - says so where the announcements could not be read
+        - shows the replacement, its list prices, the dates and whom it misses before anything is
+          sent
+        - an add-on with no version on sale says so, and asks for no preview
+        - a blocker is said in words, and nothing can be announced
+        - announcing asks for the code, names the bookings shown, and says what was sent
+    - a deleted add-on
+        - reads "Deleted", in its row and in the status filter
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - the lock strip in the administration’s shell
         - an installation that keeps no windows is not asked about them
@@ -872,5 +886,23 @@ _Tested by:_
         - stops asking when the shell unmounts
         - asks nothing where the installation keeps no windows
         - a failed read keeps what it knew rather than hiding the lock
+
+<!-- END proof -->
+
+### SC-ADM-031 — A deleted add-on is called deleted, so retiring names one thing
+
+🟢 The administration labels a deleted add-on, and the filter for it, "Deleted". "Retired" is what
+an add-on version is when it is retired for the bookings on it (`SC-BUN-038`), and one word naming
+two things would leave an operator guessing which happened.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - a deleted add-on
+        - reads "Deleted", in its row and in the status filter
 
 <!-- END proof -->

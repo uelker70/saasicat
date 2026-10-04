@@ -123,6 +123,8 @@
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     :feature-label="featureLabelResolved"
+                    :quota-label="quotaLabelResolved"
+                    :format-quota-value="quotaValueResolved"
                     :buying-id="buyingBundleId"
                     :canceling-id="cancelingBundleId"
                     :reactivating-id="reactivatingBundleId"
@@ -740,7 +742,7 @@ async function confirmReactivateBundle() {
         // Re-freeze server-side → reload features/quotas, not just the list.
         await billing.reload();
     } catch (err) {
-        bundleError.value = err instanceof Error ? err.message : String(err);
+        bundleError.value = refusalText(err);
     } finally {
         reactivatingBundleId.value = null;
         reactivateConfirmId.value = null;

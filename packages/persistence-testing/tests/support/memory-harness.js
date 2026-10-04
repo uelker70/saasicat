@@ -81,6 +81,7 @@ export function createMemoryHarness() {
         maintenanceWindows: [],
         subscriptionNotices: [],
         versionRetirements: [],
+        bundleVersionRetirements: [],
     });
 
     let transactionCounter = 0;
@@ -561,6 +562,15 @@ export function createMemoryHarness() {
         async findById(id) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
             return row ? toSubscriptionBundleRecord(row) : null;
+        },
+        async listOfVersion(bundleVersionId) {
+            return state.subscriptionBundles
+                .filter((row) => row.bundleVersionId === bundleVersionId)
+                .sort(
+                    (a, b) =>
+                        b.startedAt.getTime() - a.startedAt.getTime() || (a.id < b.id ? -1 : 1),
+                )
+                .map(toSubscriptionBundleRecord);
         },
         async listActiveBySubscription(subscriptionId, now = new Date()) {
             return state.subscriptionBundles
@@ -1445,6 +1455,26 @@ export function createMemoryHarness() {
         },
     };
 
+    /** Add-on retirement announcements, kept as they were announced. */
+    const bundleVersionRetirements = {
+        async create(data) {
+            const row = { id: nextId('bundle-retirement'), ...structuredClone(data) };
+            state.bundleVersionRetirements.push(row);
+            return structuredClone(row);
+        },
+        async list() {
+            return structuredClone(
+                [...state.bundleVersionRetirements].sort(
+                    (a, b) => b.announcedAt - a.announcedAt || (a.id < b.id ? 1 : -1),
+                ),
+            );
+        },
+        async findById(id) {
+            const row = state.bundleVersionRetirements.find((candidate) => candidate.id === id);
+            return row ? structuredClone(row) : null;
+        },
+    };
+
     /** A subscription row as the usage read answers it: with its version, and what it scheduled. */
     function usageOf(row) {
         const planVersion = state.planVersions.find((version) => version.id === row.planVersionId);
@@ -1477,6 +1507,12 @@ export function createMemoryHarness() {
             if (!state.planVersions.some((row) => row.id === planVersionId)) return [];
             return state.subscriptions
                 .filter((row) => row.planVersionId === planVersionId)
+                .map((row) => ({ tenantId: row.tenantId, subscription: usageOf(row) }));
+        },
+        async listByIds(subscriptionIds) {
+            return state.subscriptions
+                .filter((row) => subscriptionIds.includes(row.id))
+                .sort((a, b) => (a.id < b.id ? -1 : 1))
                 .map((row) => ({ tenantId: row.tenantId, subscription: usageOf(row) }));
         },
     };
@@ -1611,6 +1647,7 @@ export function createMemoryHarness() {
             maintenanceWindows,
             subscriptionNotices,
             versionRetirements,
+            bundleVersionRetirements,
             subscriptionUsage,
         },
         seed,

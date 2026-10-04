@@ -318,14 +318,19 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         assert.deepEqual(dto.warnings, []);
     });
 
-    test('minimum term binds beyond period end → effectiveAt + warning', async () => {
+    /** A booking whose minimum term runs to 1 March 2027, past the period end. */
+    async function bookedWithATerm() {
         const bv = await createPublishedBundle({ key: 'B1' });
-        const booking = await subBundleRepo.add({
+        return subBundleRepo.add({
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,
             startedAt: new Date('2026-03-01T00:00:00Z'),
             minimumTermEndsAt: new Date('2027-03-01T00:00:00Z'),
         });
+    }
+
+    test('minimum term binds beyond period end → effectiveAt + warning', async () => {
+        const booking = await bookedWithATerm();
 
         const dto = await buildService().previewCancel(
             CTX,
@@ -334,6 +339,19 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         );
         assert.equal(dto.effectiveAt.toISOString(), '2027-03-01T00:00:00.000Z');
         assert.ok(dto.warnings.some((w) => w.code === 'MINIMUM_TERM_BINDS'));
+    });
+
+    // @requirement SC-BUN-045 — A retirement lets a booking be cancelled without its minimum term until it takes effect
+    test('a retirement told for the booking lets it go at the period end, with no term to warn of', async () => {
+        const booking = await bookedWithATerm();
+
+        const dto = await buildService().previewCancel(
+            CTX,
+            { subscriptionBundleId: booking.id, minimumTermLapses: true },
+            NOW,
+        );
+        assert.equal(dto.effectiveAt.toISOString(), '2026-06-01T00:00:00.000Z');
+        assert.deepEqual(dto.warnings, []);
     });
 
     test('already canceled → blocker', async () => {

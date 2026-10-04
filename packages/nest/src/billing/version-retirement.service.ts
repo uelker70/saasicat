@@ -27,7 +27,6 @@ import {
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
-    type BundleVersionRow,
     type PlanCatalogSettings,
     type PlanRepository,
     type PlanVersionRow,
@@ -37,7 +36,6 @@ import {
     type RetirementAnnounced,
     type RetirementBlocker,
     type RetirementPreview,
-    type RetirementProgress,
     type RetirementReachedRow,
     type RetirementSkippedRow,
     type RlsBypassPort,
@@ -63,7 +61,7 @@ import {
     PLAN_REPOSITORY_TOKEN,
     type PlanVersionEndingCheck,
 } from '../catalog/catalog.tokens.js';
-import { heldAddOnMisfits } from './add-on-fits-plan.js';
+import { heldAddOnMisfits, type AddOnsAhead, type PlanBeside } from './add-on-fits-plan.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { actorTagOf } from '../core/web-audit.js';
@@ -75,17 +73,23 @@ import {
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import {
     groupByRetiredVersion,
-    reachedSomebody,
     retirementNoticesOnRecord,
+    retirementsOfItsVersion,
+    subscriptionsReachedSince,
+    toldOfAnotherRetirementWithinAYear,
+    toldRetirementNotices,
     type RetirementNoticeOnRecord,
 } from './retirement-notices.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
+import { progressOf, sameSet, type ReachedState } from './retirement-progress.js';
+import { onceEach } from './versions-read-once.js';
 import {
     RETIREMENT_REPEAT_MONTHS,
     calendarMonthsAfter,
     retirementReach,
 } from './retirement-reach.js';
 import {
+    ADD_ONS_AHEAD_TOKEN,
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -143,6 +147,11 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository | null = null,
+        // Where add-on versions are retired: a booking told of one continues
+        // on the replacement, which has to run beside the new plan too.
+        @Optional()
+        @Inject(ADD_ONS_AHEAD_TOKEN)
+        private readonly addOnsAhead: AddOnsAhead | null = null,
     ) {
         // A retirement counts from its notice reaching somebody, so one the
         // application tells nobody of is tried again.
@@ -417,13 +426,16 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     /**
      * Sends every retirement notice that is recorded and has reached nobody
      * yet. A retirement counts from its notice reaching the subscriber
-     * (`SC-SUB-036`), so a notice sent now names the date counted from now —
+     * (`SC-SUB-038`), so a notice sent now names the date counted from now —
      * the first end of a term at least three calendar months away — and the
      * last day to cancel with it, from the subscription as it stands. One that
      * has left the version, or that the retirement no longer reaches, is not
-     * told: its notice stays on record, unsent. One the application tells
-     * nobody of counts as neither told nor failed here: it is tried again by
-     * every run and said in the log once a day, not by every run.
+     * told: its notice stays on record, unsent. Nor, while they last, is one
+     * whose replacement could not carry the subscription's add-ons at its date,
+     * or one whose subscription was told of another retirement within twelve
+     * months: those wait. One the application tells nobody of counts as
+     * neither told nor failed here: the next run tries it again, and it is
+     * said in the log once a day, not by every run.
      */
     async sendUndelivered(now: Date): Promise<RetirementNoticeRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
@@ -442,8 +454,38 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 const onIt = await this.boundTo(retiredId);
                 for (const stored of notices) {
                     const sub = onIt.get(stored.subscriptionId);
-                    const reach = sub ? retirementReach(sub, sendingAt()) : null;
+                    const at = sendingAt();
+                    const reach = sub ? retirementReach(sub, at) : null;
                     if (!reach?.reached) continue;
+                    // The add-ons may have changed while the notice waited:
+                    // it says what happens only where the replacement's plan
+                    // can carry them at the date (`SC-SUB-037`), and waits
+                    // where it cannot.
+                    if (
+                        await this.holdsWhatThePlanCannotCarry(
+                            stored.subscriptionId,
+                            {
+                                planKey: stored.replacement.planKey,
+                                billingCycle: reach.billingCycle,
+                            },
+                            reach.effectiveAt,
+                        )
+                    ) {
+                        continue;
+                    }
+                    // One retirement in twelve months: this one waits until
+                    // those since the last the subscription was told of are
+                    // over (`SC-BUN-041`).
+                    if (
+                        await toldOfAnotherRetirementWithinAYear(
+                            this.notices,
+                            stored.subscriptionId,
+                            retiredId,
+                            at,
+                        )
+                    ) {
+                        continue;
+                    }
                     const outcome = await this.sender.tell(
                         {
                             ...stored,
@@ -465,7 +507,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     /**
      * The retirement that reaches the subscription and has not taken effect at
      * `now`, or null. What it says is what the subscriber was told, and only
-     * once it was: a notice that has reached nobody sets no date (`SC-SUB-036`).
+     * once it was: a notice that has reached nobody sets no date (`SC-SUB-038`).
      * One the subscription has already left the retired version for — a newer
      * version taken, say — no longer reaches it.
      */
@@ -489,18 +531,17 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         readonly id: string;
         readonly planVersion?: { readonly id: string } | null;
     }): Promise<VersionRetiredNotice[]> {
-        const bound = subscription.planVersion?.id;
-        if (!bound) return [];
-        return (await this.notices.listForSubscription(subscription.id))
-            .filter((record) => record.kind === 'version-retired' && reachedSomebody(record))
-            .map((record) => record.content as VersionRetiredNotice)
-            .filter((notice) => notice.retired.planVersionId === bound);
+        if (!subscription.planVersion?.id) return [];
+        return retirementsOfItsVersion(
+            toldRetirementNotices(await this.notices.listForSubscription(subscription.id)),
+            subscription,
+        );
     }
 
     /**
      * Every announcement, the most recent first, with how far it has come
      * (`SC-SUB-033`): counted over the subscriptions it reached, from where
-     * each one is now — not told yet among them (`SC-SUB-036`) — and how many
+     * each one is now — not told yet among them (`SC-SUB-038`) — and how many
      * of them were reminded (`SC-SUB-034`).
      */
     async list(now = new Date()): Promise<VersionRetirementView[]> {
@@ -524,8 +565,10 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                     ...retirement,
                     progress: {
                         ...progressOf(
-                            told.filter(({ notice }) => notice.retirementId === retirement.id),
-                            await onVersion(retirement.retired.planVersionId),
+                            subscriptionStates(
+                                told.filter(({ notice }) => notice.retirementId === retirement.id),
+                                await onVersion(retirement.retired.planVersionId),
+                            ),
                             now,
                         ),
                         reminded: reminded.get(retirement.id) ?? 0,
@@ -541,7 +584,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
      * binds a version that has ended. While one has not been told yet — its
      * date counts from its notice reaching it, so it is not set — or is past
      * its date and still to move, a move the run could not make yet, it cannot
-     * end at all (`SC-SUB-036`); otherwise it may end from the day after the
+     * end at all (`SC-SUB-038`); otherwise it may end from the day after the
      * last of their dates, which leaves the run a day to catch up.
      */
     async assertMayEnd(versionId: string, endsAt: Date, now = new Date()): Promise<void> {
@@ -668,22 +711,40 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         reached: readonly RetirementReachedRow[],
         planKey: string,
     ): Promise<number> {
-        const bookings = this.subscriptionBundles;
-        if (!bookings) return 0;
+        // The add-on versions are read once for every subscription reached.
         const versions = onceEach(this.bundles);
         let holding = 0;
         for (const row of reached) {
             const plan = { planKey, billingCycle: row.billingCycle as BillingCycle };
-            const held = await heldAddOnMisfits(
-                bookings,
-                versions,
-                row.subscriptionId,
-                plan,
-                new Date(row.effectiveAt),
-            );
-            if (held.length > 0) holding += 1;
+            const at = new Date(row.effectiveAt);
+            if (await this.holdsWhatThePlanCannotCarry(row.subscriptionId, plan, at, versions)) {
+                holding += 1;
+            }
         }
         return holding;
+    }
+
+    /**
+     * Whether the subscription holds, at `at`, an add-on that cannot run beside
+     * `plan` — the version it is on, or the one it was told it continues on.
+     */
+    private async holdsWhatThePlanCannotCarry(
+        subscriptionId: string,
+        plan: PlanBeside,
+        at: Date,
+        versions = onceEach(this.bundles),
+    ): Promise<boolean> {
+        const bookings = this.subscriptionBundles;
+        if (!bookings) return false;
+        const held = await heldAddOnMisfits(
+            bookings,
+            versions,
+            subscriptionId,
+            plan,
+            at,
+            (await this.addOnsAhead?.of(subscriptionId)) ?? [],
+        );
+        return held.length > 0;
     }
 
     /** Which subscriptions on the version a retirement now reaches, and which it does not. */
@@ -693,18 +754,16 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     ): Promise<{ reached: RetirementReachedRow[]; skipped: RetirementSkippedRow[] }> {
         // `onModuleInit` refused a port without it.
         const bound = await this.subscriptions.listBoundToVersion!(planVersionId);
-        // Every retirement notice ever recorded: at most one per subscription
-        // and version retired, and a subscription is reached at most once a
-        // year, so this grows with subscriptions and years, not with runs.
-        const notices = await this.notices.listOfKindSince('version-retired', new Date(0));
-        const since = calendarMonthsAfter(now, -RETIREMENT_REPEAT_MONTHS);
-        const recently = new Set(
-            notices.filter((notice) => notice.createdAt >= since).map((n) => n.subscriptionId),
+        const recently = await subscriptionsReachedSince(
+            this.notices,
+            calendarMonthsAfter(now, -RETIREMENT_REPEAT_MONTHS),
         );
         // Told of this version's retirement already, by an earlier announcement:
-        // that one stands, and its notice is the one the subscription keeps.
+        // that one stands, and its notice is the one the subscription keeps. At
+        // most one per subscription and version retired, so this grows with
+        // subscriptions and years, not with runs.
         const told = new Set(
-            notices
+            (await this.notices.listOfKindSince('version-retired', new Date(0)))
                 .filter((notice) => notice.subject === planVersionId)
                 .map((notice) => notice.subscriptionId),
         );
@@ -792,12 +851,6 @@ function keyOf(notice: VersionRetiredNotice) {
     };
 }
 
-function sameSet(a: readonly string[], b: readonly string[]): boolean {
-    const left = new Set(a);
-    const right = new Set(b);
-    return left.size === right.size && [...left].every((id) => right.has(id));
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function startOfUtcDay(ms: number): number {
@@ -805,40 +858,18 @@ function startOfUtcDay(ms: number): number {
 }
 
 /** Where each subscription a retirement reached stands now. */
-function progressOf(
+function subscriptionStates(
     onRecord: readonly RetirementNoticeOnRecord[],
     stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
-    now: Date,
-): Omit<RetirementProgress, 'reminded'> {
-    const progress = { moved: 0, waiting: 0, overdue: 0, ended: 0, notTold: 0 };
-    for (const { notice, told } of onRecord) {
+): ReachedState[] {
+    return onRecord.map(({ notice, told }) => {
         const sub = stillOn.get(notice.subscriptionId);
-        const at = new Date(notice.effectiveAt);
-        if (!sub) progress.moved += 1;
-        else if (cancellationHasLanded(sub, at)) progress.ended += 1;
-        else if (!told) progress.notTold += 1;
-        else if (at > now) progress.waiting += 1;
-        else progress.overdue += 1;
-    }
-    return progress;
-}
-
-/**
- * The bundle versions `source` reads, each read once: a retirement reaching
- * many subscriptions meets the same few add-on versions over and over.
- */
-function onceEach(
-    source: Pick<BundleRepository, 'findVersionById'> | null,
-): Pick<BundleRepository, 'findVersionById'> | null {
-    if (!source) return null;
-    const read = new Map<string, Promise<BundleVersionRow | null>>();
-    return {
-        findVersionById(id: string) {
-            const known = read.get(id);
-            if (known) return known;
-            const fresh = source.findVersionById(id);
-            read.set(id, fresh);
-            return fresh;
-        },
-    };
+        const effectiveAt = new Date(notice.effectiveAt);
+        return {
+            stillOn: Boolean(sub),
+            endedByTheDate: Boolean(sub && cancellationHasLanded(sub, effectiveAt)),
+            told,
+            effectiveAt,
+        };
+    });
 }

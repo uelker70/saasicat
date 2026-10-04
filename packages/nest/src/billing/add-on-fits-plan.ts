@@ -8,6 +8,7 @@ import {
 } from '@saasicat/core';
 
 import { bundleCycleFitsPlan } from './bundle-period.js';
+import { bookingEndsBy } from './bundle-retirement-reach.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import type { BundleBookingRefusal } from './bundle-version-not-on-sale.js';
 
@@ -32,6 +33,8 @@ export interface PlanBeside {
 /** A plan a subscription is already set to move to, and when it moves there. */
 export interface PlanAhead extends PlanBeside {
     readonly from: Date;
+    /** What moves it there: a change it scheduled itself, or a retirement it was told of. */
+    readonly by?: 'change' | 'retirement';
 }
 
 /**
@@ -56,6 +59,18 @@ export function addOnMisfits(
     }
     if (!bundleCycleFitsPlan(addOnCycle, plan.billingCycle)) misfits.push('longer-rhythm');
     return misfits;
+}
+
+/**
+ * Whether `version` can be booked to run beside each of `plans` in one rhythm:
+ * monthly, or yearly where they are all billed yearly. Asked where the rhythm
+ * of a booking not made yet is open; a booking keeps its rhythm, so one rhythm
+ * has to serve every plan it meets.
+ */
+export function bookableBeside(version: BundleVersionRow, plans: readonly PlanBeside[]): boolean {
+    return (['MONTHLY', 'YEARLY'] as const).some((cycle) =>
+        plans.every((plan) => addOnMisfits(version, plan, cycle).length === 0),
+    );
 }
 
 /**
@@ -159,6 +174,34 @@ export interface HeldAddOnMisfit {
     readonly booking: SubscriptionBundleRecord;
     readonly version: BundleVersionRow | null;
     readonly misfit: AddOnMisfit;
+    /**
+     * The retirement the booking was told of, where there is one: until its
+     * date the booking may be cancelled without its minimum term (`SC-BUN-045`).
+     */
+    readonly ahead?: AddOnAhead | null;
+    /**
+     * Whether `version` is the one the booking continues on from the date of
+     * `ahead`, not the one it is on. Cancelled, the booking ends before that
+     * date and never reaches it, so the way past is different.
+     */
+    readonly continuesOn?: boolean;
+}
+
+/**
+ * A booking whose add-on version the subscriber was told is being retired, and
+ * the version it continues on (`SC-BUN-044`).
+ */
+export interface AddOnAhead {
+    readonly subscriptionBundleId: string;
+    readonly retiredBundleVersionId: string;
+    readonly replacementBundleVersionId: string;
+    /** When the booking continues on the replacement; ISO 8601. */
+    readonly effectiveAt: string;
+}
+
+/** The bookings of a subscription told that their version is being retired (`ADD_ONS_AHEAD_TOKEN`). */
+export interface AddOnsAhead {
+    of(subscriptionId: string): Promise<readonly AddOnAhead[]>;
 }
 
 /**
@@ -169,6 +212,11 @@ export interface HeldAddOnMisfit {
  * that plan's and fits its rhythm by construction. Where the version booked
  * cannot be read — a booked version cannot be deleted, so the row is broken —
  * only its rhythm is asked, which needs nothing else.
+ *
+ * A booking told that its version is being retired (`ahead`) continues on the
+ * replacement from its date, whenever the plan changes, so the replacement has
+ * to run beside `plan` as well; the version it is on is asked first. One that
+ * ends by that date never reaches the replacement, and is not asked about it.
  */
 export async function heldAddOnMisfits(
     bookings: Pick<SubscriptionBundleRepository, 'listActiveBySubscription'>,
@@ -176,17 +224,41 @@ export async function heldAddOnMisfits(
     subscriptionId: string,
     plan: PlanBeside,
     at: Date,
+    ahead: readonly AddOnAhead[] = [],
 ): Promise<HeldAddOnMisfit[]> {
     const held: HeldAddOnMisfit[] = [];
     for (const booking of await bookings.listActiveBySubscription(subscriptionId, at)) {
         const addOnCycle = booking.billingCycle ?? plan.billingCycle;
         const version = bundles ? await bundles.findVersionById(booking.bundleVersionId) : null;
+        const told =
+            ahead.find(
+                (one) =>
+                    one.subscriptionBundleId === booking.id &&
+                    one.retiredBundleVersionId === booking.bundleVersionId,
+            ) ?? null;
         const [misfit] = version
             ? addOnMisfits(version, plan, addOnCycle)
             : bundleCycleFitsPlan(addOnCycle, plan.billingCycle)
               ? []
               : (['longer-rhythm'] as const);
-        if (misfit) held.push({ booking, version, misfit });
+        if (misfit) {
+            held.push({ booking, version, misfit, ahead: told });
+            continue;
+        }
+        if (!told || bookingEndsBy(booking, new Date(told.effectiveAt))) continue;
+        const replacement = bundles
+            ? await bundles.findVersionById(told.replacementBundleVersionId)
+            : null;
+        const [replacementMisfit] = replacement ? addOnMisfits(replacement, plan, addOnCycle) : [];
+        if (replacementMisfit) {
+            held.push({
+                booking,
+                version: replacement,
+                misfit: replacementMisfit,
+                ahead: told,
+                continuesOn: true,
+            });
+        }
     }
     return held;
 }
@@ -257,5 +329,56 @@ export function heldBlocksTheSwitch(
             `${bundleName} cannot run on ${planName} and runs until ${until} at the earliest. ` +
             'Once it is cancelled, the switch can be made from that day.',
         params: { bundleName, planName, until },
+    };
+}
+
+/** The version a booking continues on from a retirement's date, and that date (`YYYY-MM-DD`). */
+export interface ContinuesOn {
+    readonly version: number;
+    readonly from: string;
+}
+
+/**
+ * What a plan change says where only the version a booking continues on from
+ * a retirement's date cannot run beside the target plan. The version it is on
+ * can, so the way past is cancelling it: the booking then ends before that
+ * date, never reaches the version, and the change goes through whenever it
+ * lands.
+ */
+export function continuationMisfitRefusal(
+    held: { bundleName: string; continuesOn: ContinuesOn },
+    target: { planName: string },
+): BundleBookingRefusal {
+    const { bundleName } = held;
+    const version = String(held.continuesOn.version);
+    const { from } = held.continuesOn;
+    const { planName } = target;
+    return {
+        code: BILLING_ERROR_CODES.BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN,
+        message:
+            `${bundleName} continues on version ${version} from ${from}, which cannot run on ` +
+            `${planName}. Cancel it, and the change goes through — or choose another plan.`,
+        params: { bundleName, version, from, planName },
+    };
+}
+
+/**
+ * What the early switch says where only the version an add-on continues on
+ * cannot run beside the replacement's plan: cancelled, the add-on ends before
+ * it reaches that version, and the switch can be made.
+ */
+export function continuationBlocksTheSwitch(
+    held: { bundleName: string; continuesOn: ContinuesOn },
+    planName: string,
+): BundleBookingRefusal {
+    const { bundleName } = held;
+    const version = String(held.continuesOn.version);
+    const { from } = held.continuesOn;
+    return {
+        code: BILLING_ERROR_CODES.RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW,
+        message:
+            `${bundleName} continues on version ${version} from ${from}, which cannot run on ` +
+            `${planName}. Once it is cancelled, the switch can be made.`,
+        params: { bundleName, version, from, planName },
     };
 }

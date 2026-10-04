@@ -19,6 +19,17 @@
                 {{ msg.statusBanner.offSaleTail }}
             </template>
             <template v-else>{{ msg.statusBanner.draftTail }}</template>
+            <div v-if="retirement" class="bv-status-retirement">
+                <span class="bv-status-retired" :title="retiredTitle(retirement)">{{
+                    formatMessage(msg.statusBanner.retiredChip, {
+                        version: retirement.replacement.version,
+                    })
+                }}</span>
+                <RetirementProgressPills :progress="retirement.progress" />
+            </div>
+            <div v-if="retirementsUnreadable" class="bv-status-warn">
+                {{ retirementsUnreadable }}
+            </div>
         </div>
         <q-btn
             v-if="status === 'scheduled' || status === 'draft'"
@@ -30,20 +41,35 @@
             :title="msg.statusBanner.discardTooltip"
             @click="$emit('discard')"
         />
+        <q-btn
+            v-if="flow?.canRetire(version)"
+            class="bv-status-retire"
+            flat
+            dense
+            no-caps
+            :label="msg.statusBanner.retireAction"
+            :title="msg.statusBanner.retireTitle"
+            @click="flow.open(version)"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { BundleVersionRow } from '@saasicat/core';
+import type { BundleVersionRetirementView, BundleVersionRow } from '@saasicat/core';
 
 import { bundleVersionStatus } from './bundle-version-status';
+import { formatDay, formatMessage } from '../../../client/i18n/format.js';
 import { describeVersionSale, versionSale } from '../../../client/version-sale.js';
+import { injectBundleVersionRetirement } from '../../../vue/use-bundle-version-retirement.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
+import RetirementProgressPills from '../../retirement/RetirementProgressPills.vue';
 
 // BundleStatusBanner — inline hint per bundle version: where it stands, with
 // its day, and what that means for editing (on sale = read-only, scheduled =
-// editable until it starts).
+// editable until it starts). Where the page offers retiring add-on versions,
+// a version off sale can be retired from here, and one that was says onto
+// which version and how far that has come.
 
 const props = defineProps<{
     version: BundleVersionRow;
@@ -60,6 +86,20 @@ const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 
 const status = computed(() => bundleVersionStatus(props.version, props.now));
+
+const flow = injectBundleVersionRetirement();
+const retirement = computed(() => flow?.retirementOf(props.version) ?? null);
+const retirementsUnreadable = computed(() => {
+    const error = flow?.recordsError.value;
+    return error ? formatMessage(msg.value.statusBanner.retirementsUnreadable, { error }) : '';
+});
+
+function retiredTitle(record: BundleVersionRetirementView): string {
+    return formatMessage(msg.value.statusBanner.retiredTitle, {
+        date: formatDay(String(record.announcedAt), intlLocale.value),
+        by: record.announcedBy,
+    });
+}
 
 function saleText(version: BundleVersionRow): string {
     return describeVersionSale(
@@ -133,5 +173,18 @@ function saleText(version: BundleVersionRow): string {
 .bv-status-discard:hover {
     background: var(--sa-color-negative-surface);
     border-color: var(--sa-color-negative-border);
+}
+.bv-status-retirement {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-2);
+}
+.bv-status-retired {
+    font-weight: 600;
+}
+.bv-status-retire {
+    flex: 0 0 auto;
 }
 </style>

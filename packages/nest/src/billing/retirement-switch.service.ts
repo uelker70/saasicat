@@ -49,7 +49,12 @@ import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
-import { heldAddOnMisfits, heldBlocksTheSwitch } from './add-on-fits-plan.js';
+import {
+    continuationBlocksTheSwitch,
+    heldAddOnMisfits,
+    heldBlocksTheSwitch,
+    type AddOnsAhead,
+} from './add-on-fits-plan.js';
 import { addOnInTheWay } from './add-on-in-the-way.js';
 import type { BundleBookingRefusal } from './bundle-version-not-on-sale.js';
 import { bindReplacement, bindRetiredAgain } from './retirement-binding.js';
@@ -57,6 +62,7 @@ import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
+    ADD_ONS_AHEAD_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
@@ -98,6 +104,11 @@ export class RetirementSwitchService {
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository | null = null,
+        // Where add-on versions are retired: a booking told of one continues
+        // on the replacement, which has to run beside the plan switched to.
+        @Optional()
+        @Inject(ADD_ONS_AHEAD_TOKEN)
+        private readonly addOnsAhead: AddOnsAhead | null = null,
     ) {}
 
     /** The switch the subscription could take now, or null where it can take none. */
@@ -240,9 +251,17 @@ export class RetirementSwitchService {
             sub.id,
             target,
             now,
+            (await this.addOnsAhead?.of(sub.id)) ?? [],
         );
         if (!first) return null;
-        return heldBlocksTheSwitch(addOnInTheWay(first, sub, now), target.planKey);
+        const inTheWay = addOnInTheWay(first, sub, now);
+        const { continuesOn } = inTheWay;
+        return continuesOn
+            ? continuationBlocksTheSwitch(
+                  { bundleName: inTheWay.bundleName, continuesOn },
+                  target.planKey,
+              )
+            : heldBlocksTheSwitch(inTheWay, target.planKey);
     }
 
     /**

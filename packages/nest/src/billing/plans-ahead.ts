@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { SubscriptionUsageRecord } from '@saasicat/core';
+import type { SubscriptionUsageRecord, VersionRetiredNotice } from '@saasicat/core';
 
 import type { PlanAhead } from './add-on-fits-plan.js';
 import { rhythmAt } from './retirement-reach.js';
@@ -24,7 +24,8 @@ export interface PlansAhead {
 }
 
 /**
- * A subscription is set to move to another plan in two ways.
+ * The plans `subscription` is set to move to, given `told`: the retirements of
+ * the version it is on that reached it. It gets there in two ways.
  *
  * - A change it scheduled itself, from the day that change lands, in the
  *   rhythm it lands in. A change of rhythm alone is one too: the same plan in
@@ -32,11 +33,37 @@ export interface PlansAhead {
  * - The retirement of the version it is on, from the date it was told, in the
  *   rhythm billed then, for as long as the subscription is on that version —
  *   the date passing does not end it, only the move does. Before its notice
- *   reached the subscription a retirement moves nothing (`SC-SUB-036`), so it
+ *   reached the subscription a retirement moves nothing (`SC-SUB-038`), so it
  *   sets no plan ahead either. It counts even where a scheduled change would
  *   take the subscription off the version first, since that change can still
  *   be withdrawn, and the retirement would then move it after all.
  */
+export function plansAheadOf(
+    subscription: PlansAheadSubject,
+    told: readonly VersionRetiredNotice[],
+): PlanAhead[] {
+    const ahead: PlanAhead[] = [];
+    if (subscription.pendingPlan && subscription.pendingEffectiveAt) {
+        ahead.push({
+            planKey: subscription.pendingPlan,
+            billingCycle: rhythmTheChangeLandsIn(subscription),
+            from: subscription.pendingEffectiveAt,
+            by: 'change',
+        });
+    }
+    for (const retirement of told) {
+        const from = new Date(retirement.effectiveAt);
+        ahead.push({
+            planKey: retirement.replacement.planKey,
+            billingCycle: rhythmAt(subscription, from),
+            from,
+            by: 'retirement',
+        });
+    }
+    return ahead;
+}
+
+/** The plans a subscription is set to move to (`plansAheadOf`), its retirements read where they are configured. */
 @Injectable()
 export class PlansAheadService implements PlansAhead {
     constructor(
@@ -48,14 +75,6 @@ export class PlansAheadService implements PlansAhead {
     ) {}
 
     async of(subscription: PlansAheadSubject): Promise<readonly PlanAhead[]> {
-        const ahead: PlanAhead[] = [];
-        if (subscription.pendingPlan && subscription.pendingEffectiveAt) {
-            ahead.push({
-                planKey: subscription.pendingPlan,
-                billingCycle: rhythmTheChangeLandsIn(subscription),
-                from: subscription.pendingEffectiveAt,
-            });
-        }
         const told =
             subscription.id && this.retirements
                 ? await this.retirements.toldRetirementsOf({
@@ -63,14 +82,6 @@ export class PlansAheadService implements PlansAhead {
                       planVersion: subscription.planVersion,
                   })
                 : [];
-        for (const retirement of told) {
-            const from = new Date(retirement.effectiveAt);
-            ahead.push({
-                planKey: retirement.replacement.planKey,
-                billingCycle: rhythmAt(subscription, from),
-                from,
-            });
-        }
-        return ahead;
+        return plansAheadOf(subscription, told);
     }
 }

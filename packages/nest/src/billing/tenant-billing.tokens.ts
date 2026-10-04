@@ -175,6 +175,11 @@ export const VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
     'saasicat/nest/VersionRetirementTransactionRunner',
 );
 
+/** Where add-on retirement announcements are kept (`BundleVersionRetirementRepository`). */
+export const BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN = Symbol.for(
+    'saasicat/nest/BundleVersionRetirementRepository',
+);
+
 /**
  * The plans a subscription is already set to move to (`PlansAhead`).
  *
@@ -183,3 +188,13 @@ export const VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
  * book an add-on that cannot run on any of them.
  */
 export const PLANS_AHEAD_TOKEN = Symbol.for('saasicat/nest/PlansAhead');
+
+/**
+ * The bookings of a subscription told that their add-on version is being
+ * retired, each with the version it continues on (`AddOnsAhead`).
+ *
+ * Provided by `TenantBillingModule` where add-on versions are retired, and read
+ * by every plan change, which must not move a subscription beside a plan the
+ * replacement cannot run beside (`SC-BUN-044`).
+ */
+export const ADD_ONS_AHEAD_TOKEN = Symbol.for('saasicat/nest/AddOnsAhead');

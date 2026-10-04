@@ -294,7 +294,7 @@ describe('the move at the date', () => {
         );
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('moves nothing whose notice has reached nobody, however late it is', async () => {
         const { service, writes } = await aRun({ delivered: false });
 
@@ -520,6 +520,7 @@ function aSwitch({
     blockedPlans = null,
     ended,
     bookings = null,
+    addOnsAhead = null,
 } = {}) {
     const effects = sideEffects({ party, freeze });
     const subs = [sub];
@@ -542,6 +543,7 @@ function aSwitch({
         effects.charges,
         bookings,
         bookings && ADD_ONS,
+        addOnsAhead,
     );
     return { service, writes, sub, ...effects };
 }
@@ -553,6 +555,7 @@ const ADD_ONS = {
         return {
             id,
             label: reports ? 'Reports' : 'Exports',
+            version: reports ? 2 : 1,
             compatibility: { planIds: reports ? ['STANDARD'] : [] },
             pricingOverrides: [],
             monthlyNet: '5.00',
@@ -727,6 +730,78 @@ describe('the free switch before the date', () => {
         });
         assert.equal(writes.calls.length, 0);
         assert.deepEqual(frozen, []);
+    });
+
+    // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+    test('is refused as well where an add-on was told it continues on a version the plan cannot carry, naming that version', async () => {
+        const ahead = [
+            {
+                subscriptionBundleId: 'sb-1',
+                retiredBundleVersionId: 'bv-exports',
+                replacementBundleVersionId: 'bv-reports',
+                effectiveAt: '2026-06-01T00:00:00.000Z',
+            },
+        ];
+        const { service, writes } = aSwitch({
+            bookings: bookingsOf('bv-exports'),
+            addOnsAhead: { of: async () => ahead },
+        });
+
+        const error = await rejection(service.switchNow('t1', 'pv-9', BEFORE));
+
+        // Exports itself can follow; only the version it continues on cannot,
+        // and cancelled it never reaches that version.
+        assert.equal(
+            error.getResponse().code,
+            'RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW',
+        );
+        assert.deepEqual(error.getResponse().params, {
+            bundleName: 'Reports',
+            version: '2',
+            from: '2026-06-01',
+            planName: 'PLUS',
+        });
+        assert.equal(writes.calls.length, 0);
+    });
+
+    // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
+    test('names the day an add-on cancelled already ends, which cancelling again cannot move', async () => {
+        const ahead = [
+            {
+                subscriptionBundleId: 'sb-1',
+                retiredBundleVersionId: 'bv-exports',
+                replacementBundleVersionId: 'bv-reports',
+                effectiveAt: '2026-06-01T00:00:00.000Z',
+            },
+        ];
+        // Cancelled under a minimum term, it lands after the date: reached, and
+        // told the day it ends rather than to cancel it.
+        const cancelled = {
+            async listActiveBySubscription() {
+                return [
+                    {
+                        id: 'sb-1',
+                        subscriptionId: 'sub-t1',
+                        bundleVersionId: 'bv-exports',
+                        billingCycle: 'MONTHLY',
+                        currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+                        minimumTermEndsAt: new Date('2026-09-01T00:00:00.000Z'),
+                        canceledAt: new Date('2026-03-01T00:00:00.000Z'),
+                        canceledEffectiveAt: new Date('2026-09-01T00:00:00.000Z'),
+                    },
+                ];
+            },
+        };
+        const { service, writes } = aSwitch({
+            bookings: cancelled,
+            addOnsAhead: { of: async () => ahead },
+        });
+
+        const error = await rejection(service.switchNow('t1', 'pv-9', BEFORE));
+
+        assert.equal(error.getResponse().code, 'RETIREMENT_SWITCH_BUNDLE_CANNOT_FOLLOW');
+        assert.equal(error.getResponse().params.until, '2026-09-01');
+        assert.equal(writes.calls.length, 0);
     });
 
     // @requirement SC-CHG-024 — A plan change is refused while a booked add-on cannot run on the target plan
@@ -906,7 +981,7 @@ describe('ending a version subscriptions still move onto', () => {
         await service.assertMayEnd('pv-9', new Date('2026-04-01T00:00:00.000Z'), BEFORE);
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('is refused while a notice onto it has reached nobody, whatever end is asked for', async () => {
         const service = await announced({
             subs: [subscriptionOf('t1'), subscriptionOf('t2')],
@@ -1010,7 +1085,7 @@ describe('how far a retirement has come', () => {
         });
     });
 
-    // @requirement SC-SUB-036 — A retirement waits for its notice to reach the subscriber
+    // @requirement SC-SUB-038 — A retirement waits for its notice to arrive, and a year after the last one told
     test('counts a subscription whose notice has reached nobody as not told, not as overdue', async () => {
         const service = await announced({
             subs: [subscriptionOf('t1'), subscriptionOf('t2')],

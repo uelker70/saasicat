@@ -11,6 +11,7 @@ import { planCatalogSchema } from '@saasicat/spec';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
     BundleRepository,
+    BundleVersionRetirementRepository,
     PlanCatalogSettings,
     SubscriberLedgerRepository,
     SubscriberRepository,
@@ -40,6 +41,8 @@ import { VersionNoticeCron } from './version-notice.cron.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
+import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
+import type { AddOnsAhead } from './add-on-fits-plan.js';
 import {
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_VERSION_ENDING_CHECK_TOKEN,
@@ -66,6 +69,7 @@ import {
 import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
+    BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN,
     PENDING_PLAN_QUERY_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
@@ -85,6 +89,7 @@ import {
     type TrialProjectionPort,
     type UserEmailResolver,
     type UserIdResolver,
+    ADD_ONS_AHEAD_TOKEN,
     CANCELLATION_NOTICE_DAYS_TOKEN,
     PLANS_AHEAD_TOKEN,
 } from './tenant-billing.tokens.js';
@@ -212,6 +217,14 @@ export interface VersionNoticesOptions {
 export interface VersionRetirementsOptions {
     repository: ProviderSpec<VersionRetirementRepository>;
     transactionRunner: ProviderSpec<TransactionRunner>;
+    /**
+     * Where each add-on retirement announcement is kept. Lets an operator
+     * retire an add-on version for the bookings already on it, on the same
+     * terms and the same runner; needs `subscriptionBundleRepository` and
+     * `bundleRepository` as well. Without it, retiring an add-on version is
+     * off, and retiring a plan version is not affected.
+     */
+    bundleVersionRetirements?: ProviderSpec<BundleVersionRetirementRepository>;
 }
 
 export interface TenantBillingModuleOptions {
@@ -505,6 +518,25 @@ export class TenantBillingModule {
                 { provide: PLAN_VERSION_ENDING_CHECK_TOKEN, useExisting: VersionRetirementService },
             );
         }
+        // Retiring an add-on version reads the bookings and the versions they
+        // name, which tenant billing has only where bookings are wired.
+        const bundleRetirements =
+            retirements?.bundleVersionRetirements && options.subscriptionBundleRepository
+                ? retirements.bundleVersionRetirements
+                : undefined;
+        if (bundleRetirements) {
+            providers.push(
+                asProvider(BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN, bundleRetirements),
+                BundleVersionRetirementService,
+                {
+                    provide: ADD_ONS_AHEAD_TOKEN,
+                    useFactory: (service: BundleVersionRetirementService): AddOnsAhead => ({
+                        of: (subscriptionId) => service.addOnsAhead(subscriptionId),
+                    }),
+                    inject: [BundleVersionRetirementService],
+                },
+            );
+        }
         // Confirmed terms are the operator's statement that they mean to retire
         // versions. Starting without anything that could announce one would
         // leave them looking for an action that is not there.
@@ -578,6 +610,7 @@ export class TenantBillingModule {
                           PLAN_VERSION_ENDING_CHECK_TOKEN,
                       ]
                     : []),
+                ...(bundleRetirements ? [BundleVersionRetirementService] : []),
                 ...(options.extraExports ?? []),
             ],
         };

@@ -924,6 +924,9 @@ export class VersionNoticeMailer implements SubscriptionNoticePort {
             } else if (notice.kind === 'version-retired') {
                 // A retirement: see "Retiring a Version for Running Subscriptions" below.
                 await this.mail.send(admin.email, 'plan-version-retired', { retirement: notice });
+            } else if (notice.kind === 'bundle-version-retired') {
+                // An add-on version's retirement: see "Retiring an Add-on Version" below.
+                await this.mail.send(admin.email, 'add-on-version-retired', { retirement: notice });
             } else {
                 // Its one reminder, 14 days before the date, where staying put costs something.
                 await this.mail.send(admin.email, 'plan-version-reminder', { reminder: notice });
@@ -1031,15 +1034,21 @@ announcement of the same version skips the ones the first one told. The tenant's
 shows the same notice beside the plan (`SC-SUB-030`).
 
 **Nothing happens before the notice arrives.** A retirement counts from its notice reaching at least
-one administrator (`SC-SUB-036`). Until then it moves nothing, reminds nobody, offers no switch,
+one administrator (`SC-SUB-038`). Until then it moves nothing, reminds nobody, offers no switch,
 shows nothing beside the plan and changes no charge. For a retirement notice, an answer from your
 port with no recipients counts as not sent: the run tries again every quarter of an hour and says so
 in the log once a day, so a tenant without an administrator is told once one exists. A notice that
 goes out late names the date counted from then — the first end of a term at least three calendar
 months after its sending (`SC-SUB-035`) — and its last day to cancel with it. A subscription that
-left the version before its notice could go out is not sent one. The plan cockpit counts the
-subscriptions not told yet beside the retired version, and the replacement cannot be terminated
-while any of them waits: `PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED`.
+left the version before its notice could go out is not sent one. A subscription is told of one
+retirement in twelve months, of a plan version or of an add-on version, counted from delivery
+(`SC-BUN-041`): a notice still waiting holds no announcement back, and when it can go out at last it
+waits instead while another was told within the twelve months, until those are over. A notice that
+waited is sent only while the replacement's plan can carry the add-ons the subscription holds at the
+date (`SC-SUB-037`), counting the versions they were told they continue on; it waits while it
+cannot. The plan cockpit counts the subscriptions not told yet beside the retired version, and the
+replacement cannot be terminated while any of them waits:
+`PLAN_TERMINATE_WHILE_NOTICES_UNDELIVERED`.
 
 **The one reminder.** Where staying put costs a subscription something — the replacement is
 dearer in the rhythm it is billed in at the date, or takes a feature away or lowers a quota — the
@@ -1064,8 +1073,11 @@ are one: where the contract cannot be written, the move is put back. A move that
 audited once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, tried again by every run, and shown
 as overdue beside the retired version in the plan cockpit, with the ones moved, waiting and ended
 (`SC-SUB-033`). With `versionNotices.includeCron: false`, call
+`VersionRetirementService.sendUndelivered(new Date())`,
 `RetirementReminderService.remindDue(new Date())` and `RetirementMoveService.moveDue(new Date())`
-from your own scheduler, as you call `VersionNoticeService.sendDue`.
+from your own scheduler, as you call `VersionNoticeService.sendDue`. The first sends the notices an
+announcement could not send at once; a scheduler without it leaves those retirements waiting for
+their notice.
 
 **Switching early.** Until the date, the plan section offers the switch to the replacement
 (`SC-SUB-032`, `POST /billing/retirement/switch`, for the tenant's administrators). It takes effect
@@ -1079,6 +1091,73 @@ day after the last of their dates; the catalogue refuses with
 `PLAN_TERMINATE_BEFORE_RETIREMENT_MOVES` and names the first day it may end (`SC-PLAN-029`). While a
 move onto it is past its date and not made, it cannot be terminated at all:
 `PLAN_TERMINATE_WHILE_MOVES_OVERDUE`, with how many are waiting.
+
+## Retiring an Add-on Version
+
+An add-on version can be retired the way a plan version is, and for the same reasons. The bookings
+on it continue on the add-on's version on sale — a version of the same add-on, so each stays the
+same booking with the same term (`SC-BUN-038`).
+
+**Wiring.** It needs the wiring of the section above, the same confirmed terms, and a place to keep
+each announcement: adopt `prisma-fragments/19-bundle-version-retirement.prisma` and run
+`sql/1.0-an-add-on-retirement-is-announced.postgres.sql` once. Both shipped bundles then provide
+`persistence.tenantBilling.bundleVersionRetirements`, and the bookings come from
+`persistence.entitlement.subscriptionBundleRepository`. Without either, the administration does not
+offer retiring an add-on version and its routes do not exist; retiring plan versions is unaffected.
+A `SubscriptionBundleRepository` of your own needs `listOfVersion`, and a `SubscriptionUsagePort`
+of your own `listByIds` — both shipped adapters have them — or a start with confirmed terms is
+refused, naming the method. With `versionNotices.includeCron: false`, call
+`BundleVersionRetirementService.sendUndelivered(new Date())` from your scheduler as well.
+
+**What the operator does.** On the add-ons page, the status of a version no longer on sale offers
+"Retire…". There is nothing to choose: the replacement is the add-on's version on sale. The preview
+shows both versions' list prices — each booking is told the price for its own plan, overrides
+included — how many bookings move on which date, and the ones it does not reach and why
+(`SC-BUN-039`). The announcement asks for the second factor, and it is refused where the version is
+still on sale, the replacement is not or is a version of another add-on, nobody would be reached, a
+booking runs at its date, or after it, beside a plan the replacement cannot run beside in its rhythm
+— the plan at the date counts a scheduled change and a retirement of the plan version told to take
+effect by then, and every plan the subscription is set to move to after it counts too (`SC-BUN-044`)
+— or a subscription was told of a retirement — of its plan version or of an add-on version — within
+twelve months (`SC-BUN-041`). After the announcement, every plan change asks the replacement too:
+the tenant's own change, a plan version's retirement onto another plan and its early switch are
+refused where the version a booking continues on could not run beside the plan the subscription
+moves to (`SC-BUN-044`): while that date is ahead and the booking is not cancelled yet,
+`BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`, or
+`RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW` for the switch, names that version and its
+date, since cancelling it then ends it before the date and the change goes through; otherwise the
+refusal names the day the booking can end. The add-on's prices follow the plan, as they do for every
+booking. The routes are `GET` and `POST /admin/catalog/bundle-versions/:id/retirement` and `GET
+/admin/catalog/bundle-version-retirements`. The add-on page shows beside the retired version how far
+its retirement has come (`SC-BUN-047`).
+
+**When it takes effect.** At the first end of the booking's own period — in the rhythm the booking
+is billed in — at least three calendar months after its notice reached an administrator; a booking
+without a period of its own counts the plan's (`SC-BUN-040`). Until that day the booking may be
+cancelled without its minimum term, and the cancellation lands at the end of the period running
+(`SC-BUN-045`). A booking cancelled to end by its date is not reached, and it is not reactivated on
+the retired version: `BUNDLE_RETIREMENT_REINSTATE_REFUSED` names the version to book and the day it
+can be booked from: the one the cancelled booking ends on, or the next where it ends during one
+(`SC-BUN-048`). Where the subscription ends by then as well,
+`BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS` says so instead, and where that version cannot run
+beside the plan the subscription is on then, or one it is set to move to after it,
+`BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN` does. A booking whose cancellation has landed
+is answered by the booking route, as any other. A booking a retirement reached and then cancelled to
+end by its date no longer shows the retirement. Moving the bookings at their date is not part of
+this release yet; until it is, a booking past its date is counted as overdue beside the retired
+version.
+
+**What your port is handed.** One `bundle-version-retired` notice per booking, recorded with the
+announcement in one transaction and sent through the same `SubscriptionNoticePort` (`SC-BUN-042`).
+It carries the booking (`subscriptionBundleId`), the plan the add-on runs beside at the date
+(`planKey`), both versions with their prices for that plan (`retired`, `replacement`, `changes`),
+the rhythm the booking is billed in (`billingCycle`), `effectiveAt` and `lastDayToCancel`. A port
+that tells the kinds apart has to know this one. As for a plan version, an answer with no recipients
+counts as not sent: the retirement waits for its notice, and its date counts from the notice
+reaching somebody (`SC-BUN-043`). A notice that waited is sent only while the replacement can run
+beside every plan the booking would meet from its date (`SC-BUN-044`). The tenant's plan section and
+`MySubscriptionBundlesPage` show the same notice beside the add-on, which the booking list carries
+as `retirement` (`SC-BUN-046`).
 
 ## Admin Module
 

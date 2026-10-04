@@ -129,6 +129,13 @@ export interface CancelBundleFromSubscriptionInput {
     /** Default = now. */
     canceledAt?: Date;
     /**
+     * Whether the minimum term lapses: while an add-on retirement the
+     * subscription was told of is still to take effect, the booking may be
+     * cancelled without it (`SC-BUN-045`) — the term is what the operator is
+     * changing.
+     */
+    minimumTermLapses?: boolean;
+    /**
      * Period end of the subscription from which the cancellation could take effect.
      * Effective date = `max(currentPeriodEnd, minimumTermEndsAt)`.
      * If not set, `canceledAt` is interpreted as the period end
@@ -367,7 +374,7 @@ export class SubscriptionBundlesService {
             // fallback for a booking made before bundles had periods, which is
             // what those were billed against.
             currentPeriodEnd: existing.currentPeriodEnd ?? input.currentPeriodEnd ?? null,
-            minimumTermEndsAt: existing.minimumTermEndsAt,
+            minimumTermEndsAt: input.minimumTermLapses ? null : existing.minimumTermEndsAt,
             parentEndsAt: input.parentEndsAt,
         });
 

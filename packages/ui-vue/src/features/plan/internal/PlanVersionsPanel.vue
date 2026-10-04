@@ -188,18 +188,10 @@
                     >
                         {{ retiredChip(retirementOf(v)!) }}
                     </span>
-                    <span
-                        v-for="part in retiredProgress(retirementOf?.(v) ?? null)"
-                        :key="part.state"
-                        class="pd-retirement-progress"
-                        :class="{ 'pd-retirement-progress--attention': part.attention }"
-                    >
-                        {{
-                            formatMessage(msg.versions.retiredProgress[part.state], {
-                                count: part.count,
-                            })
-                        }}
-                    </span>
+                    <RetirementProgressPills
+                        v-if="retirementOf?.(v)"
+                        :progress="retirementOf(v)!.progress"
+                    />
                     <q-btn
                         v-if="canRetire?.(v)"
                         class="btn btn--sm"
@@ -220,9 +212,9 @@
 import { computed } from 'vue';
 import AdminBanner from '../../../ui/feedback/AdminBanner.vue';
 import AdminSection from '../../../ui/page/AdminSection.vue';
+import RetirementProgressPills from '../../retirement/RetirementProgressPills.vue';
 import type { PlanVersionRow, VersionRetirementView } from '@saasicat/core';
 import { formatMessage } from '../../../client/i18n/format.js';
-import { retirementProgressParts } from '../../../client/version-retirement.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 import { useVersionSaleText } from '../../../vue/use-version-sale-text.js';
 import type { EditabilityOf, StatusChipOf, StatusOf } from './plan-detail.types.js';
@@ -287,10 +279,6 @@ function retiredChip(record: VersionRetirementView): string {
         planKey: record.replacement.planKey,
         version: record.replacement.version,
     });
-}
-
-function retiredProgress(record: VersionRetirementView | null) {
-    return record ? retirementProgressParts(record.progress) : [];
 }
 
 function retiredTitle(record: VersionRetirementView): string {
