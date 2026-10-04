@@ -1660,6 +1660,9 @@ To name the German adapter:
    (the start refuses it beside an adapter) and `ConfiguratorMarketingProvider.getVatRate` (the
    configurator refuses it). Both now take the adapter's rate for a subscriber in the issuer's
    country, and `GET public/marketing-catalog` says which country with `vatRateShownFor`.
+5. Review the promo codes with a fixed amount. One at or above the net price of a plan it applies
+   to is refused where it is redeemed once the adapter is named (see below): lower it below the net,
+   or allow an invoice of zero where that is meant.
 
 What changes with an adapter:
 
@@ -1675,12 +1678,15 @@ What changes with an adapter:
 - **A promo code with a fixed amount** takes that amount off what the subscriber pays: "10 € off" is
   8.40 € net at 19 % and 10 € net at 0 %. Since a subscriber at 0 % pays the net, an absolute code
   must stay below the lowest **net** price it applies to; `PROMO_WOULD_PRODUCE_ZERO_INVOICE` then
-  names `lowestApplicablePlanNet` instead of `lowestApplicablePlanGross`.
+  names `lowestApplicablePlanNet` instead of `lowestApplicablePlanGross`. The same bar holds where a
+  code is previewed and redeemed, so a code stored before, or a plan made cheaper since, is refused
+  there with `WOULD_PRODUCE_ZERO_INVOICE`.
 - **Before a change writes anything** it is asked about the contract it ends in, since an adapter
   may treat a yearly period, or one that starts later, otherwise than a month from today. Code that
   calls `ContractFreezePort.assertPartyFor` or `SubscriptionContractService.assertPartyFor` passes
   that contract as `intended` (`IntendedContract` from `@saasicat/nest/subscription-contract`:
-  `effectiveFrom`, `cycle`, `endsAt`).
+  `effectiveFrom`, `cycle`, `endsAt`), or `null` where the change ends in no contract now — a plan
+  change in a trial — and only the party is asked.
 - **An application that words refusals itself** adds `TAX_TREATMENT_NOT_SUPPORTED` and
   `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`.
 

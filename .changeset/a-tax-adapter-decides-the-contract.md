@@ -43,21 +43,27 @@ at the rate it decides for its subscriber (`SC-PRIC-065` supersedes
   `@saasicat/nest/subscription-contract`: `effectiveFrom`, `cycle`, `endsAt` —
   and, with an adapter, decide over its first period: a plan change from today
   or from the date it is scheduled for, in the rhythm asked for; a booking, a
-  version switch, a retirement's move or switch from when it freezes. A port of
-  your own takes the second argument, and code that calls it passes it. An
-  activation through onboarding outside a trial asks too, before it writes.
+  version switch, a retirement's move or switch from when it freezes; `null`
+  where the change ends in no contract now — a plan change in a trial — asks
+  for the party alone. A port of your own takes the second argument, and code
+  that calls it passes it. An activation through onboarding outside a trial
+  asks too, before it writes.
 - **A promo code with a fixed amount** comes off what the subscriber pays: at
   19 % its net share, at 0 % the whole amount. Every net price and promotion
   stays as offered (`SC-MKT-027` supersedes `SC-MKT-023`). With an adapter, the
   zero-invoice rule measures the amount against the lowest net price instead
   of the gross (`SC-PROMO-029` supersedes `SC-PROMO-008`), and
-  `PROMO_WOULD_PRODUCE_ZERO_INVOICE` names it as `lowestApplicablePlanNet`.
+  `PROMO_WOULD_PRODUCE_ZERO_INVOICE` names it as `lowestApplicablePlanNet`. The
+  preview and the redemption measure against the net too, so a code stored at
+  or above a plan's net price is refused there with
+  `WOULD_PRODUCE_ZERO_INVOICE`: review the codes before naming the adapter.
 - **What is shown.** The pricing page, the configurator, the admin manifest
   and the offer show the adapter's rate for a subscriber in the issuer's
   country. `PublicMarketingCatalogResponse` carries `vatRateShownFor`: that
   country, or `null` where the file's one rate applies to everybody.
   `MarketingCatalogProvider.getVatRate` and `publicMarketingCatalog.vatRate`
-  become optional: required without an adapter, refused beside one.
+  become optional: required without an adapter, refused beside one — by the
+  start, and by the page where a `CatalogModule` is mounted on its own.
 - **For code of your own,** `TAX_TREATMENTS_TOKEN` from
   `@saasicat/nest/billing` resolves `TaxTreatments`, the one source of the
   shown and the decided rate.

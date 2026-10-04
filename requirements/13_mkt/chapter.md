@@ -758,6 +758,7 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - a change that ends in no contract asks for the party alone
         - the question before a change is asked over the contract it ends in: its start, its rhythm
           and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one

@@ -1598,6 +1598,7 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - a change that ends in no contract asks for the party alone
         - the question before a change is asked over the contract it ends in: its start, its rhythm
           and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
@@ -1608,12 +1609,15 @@ _Tested by:_
         - a business in Austria is refused before anything is written: nothing of a subscriber not
           created yet is validated
         - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is refused as such, before the new details are asked
+          about
         - a tenant with its subscriber already is decided from that one
 - `packages/nest/tests/the-shown-rate-is-the-adapters-for-the-issuers-country.test.js`
     - the shown rate is the tax adapter answer for the issuer country
         - the adapter is asked for a subscriber in the issuer country whose other details are
           unknown
         - the pricing page shows it, and says it is the rate for the issuer country
+        - a rate passed beside the adapter is refused, not shown
         - without an adapter the page shows the rate passed, for everybody
         - the configurator shows the adapter rate, and refuses a provider rate beside it
         - the admin manifest shows it, in the application as composed
@@ -1680,6 +1684,7 @@ _Tested by:_
         - a contract handed over at a rate other than the decided one is refused, naming the field
         - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
           anything
+        - a change that ends in no contract asks for the party alone
         - the question before a change is asked over the contract it ends in: its start, its rhythm
           and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
@@ -1690,6 +1695,8 @@ _Tested by:_
         - a business in Austria is refused before anything is written: nothing of a subscriber not
           created yet is validated
         - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is refused as such, before the new details are asked
+          about
         - a tenant with its subscriber already is decided from that one
     - a plan change is frozen at the rate decided for the subscriber
         - a business in Switzerland: 0 %, the treatment recorded
@@ -1704,6 +1711,7 @@ _Tested by:_
 - `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
     - a plan change asks the party about the contract it ends in
         - one made today: from today, in the rhythm asked for
+        - one made today in a trial ends in no contract: the party is asked, the tax is not
         - one scheduled: from the date it takes effect, before anything is scheduled
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer

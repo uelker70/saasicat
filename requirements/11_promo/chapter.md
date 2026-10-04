@@ -760,6 +760,10 @@ _Tested by:_
         - the net price itself is refused, naming it as the net, and a cent below it accepted
         - an amount between the net and the gross price is refused, which without an adapter is
           accepted
+        - a stored amount between the net and the gross is refused where it is redeemed and
+          previewed
+        - a cent below the net is redeemed, and the net itself only where an invoice of zero is
+          allowed
     - redeeming takes off no more than the price
         - ${what}, ${allowance}: ${outcome}
         - a percentage of 100 is refused where an invoice of zero is not allowed
