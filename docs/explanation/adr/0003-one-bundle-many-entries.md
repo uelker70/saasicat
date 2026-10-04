@@ -43,10 +43,10 @@ consumer never has to know which entry a class "really" lives in.
 
 ## Consequences
 
-- **A new public entry point touches four places together:** `exports` in
-  `package.json`, `entry` in `tsup.config.ts`, the namespace list in
-  `src/_all-entries.ts`, and `ENTRY_NAMESPACES` in both `tsup.shared.ts` and
-  `scripts/build-cjs-stubs.mjs`.
+- **A new public entry point touches two places:** `exports` in `package.json`,
+  from which the tsup entry list, the stub generator and the identity test
+  derive theirs (`scripts/entries.mjs`), and its namespace in
+  `src/_all-entries.ts`.
 - **No two entries export the same name for different things.** One pair did
   until 1.0 — `FEATURE_UI_REGISTRY_TOKEN` meant one registry in `billing` and
   another in `catalog` — and the identity test carried it as an exception. They
@@ -62,6 +62,7 @@ second copy of everything it exports. Consumers who mix that entry with another
 get two classes of the same name, and Nest reports a missing dependency for a
 provider that is plainly registered.
 
-`scripts/build-cjs-stubs.mjs` fails the build when the two namespace lists
-drift apart, and `packages/nest/tests/cjs-entry-identity.test.js` fails when any
-export resolves to two identities.
+`scripts/build-cjs-stubs.mjs` fails the build when `src/_all-entries.ts` lacks
+the namespace of an exported entry, and
+`packages/nest/tests/cjs-entry-identity.test.js` fails when any export resolves
+to two identities.

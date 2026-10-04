@@ -63,12 +63,13 @@ CommonJS build is done in three passes and every entry re-exports one shared
 bundle. Why, and what it costs, is
 [ADR 0003](docs/explanation/adr/0003-one-bundle-many-entries.md).
 
-**When adding a public entry point**, update all four places together:
-`package.json` `exports`, `tsup.config.ts` `entry`, the namespace list in
-`src/_all-entries.ts`, and `ENTRY_NAMESPACES` in both `tsup.shared.ts` and
-`scripts/build-cjs-stubs.mjs`. The stub script fails the build if the last two
-drift apart, and `tests/cjs-entry-identity.test.js` fails if any export ends up
-with two identities.
+**When adding a public entry point**, add it to `package.json` `exports` and its
+namespace to `src/_all-entries.ts`. The tsup entry list, the stub generator and
+the identity test read the entries from `exports` (`scripts/entries.mjs`), so
+there is no second list to keep. `scripts/build-cjs-stubs.mjs` fails the build
+when `src/_all-entries.ts` lacks the namespace of an exported entry, and
+`tests/cjs-entry-identity.test.js` fails if any export ends up with two
+identities.
 
 No two entries export the same name for different things.
 
