@@ -1,4 +1,4 @@
-import { UnprocessableEntityException } from '@nestjs/common';
+import { HttpException, UnprocessableEntityException } from '@nestjs/common';
 import {
     TAX_ERROR_CODES,
     type BillingCycle,
@@ -50,9 +50,16 @@ export function domesticOrigin(issuer: TaxIssuer): SubscriberTaxOrigin {
     return { country: issuer.country, business: null, vatId: null, validatedVatId: null };
 }
 
+/** A billing rhythm in either spelling the platform uses. */
+export type TaxRhythm = BillingCycle | 'monthly' | 'yearly';
+
+function billingCycleOf(rhythm: TaxRhythm): BillingCycle {
+    return rhythm === 'yearly' || rhythm === 'YEARLY' ? 'YEARLY' : 'MONTHLY';
+}
+
 /** The first period of `cycle` from `asOf`: what a price shown at `asOf` would first charge. */
-export function shownTaxPeriod(asOf: Date, cycle: BillingCycle): TaxPeriod {
-    const { start, end } = initialPeriodWindow(asOf, cycle);
+export function shownTaxPeriod(asOf: Date, cycle: TaxRhythm): TaxPeriod {
+    const { start, end } = initialPeriodWindow(asOf, billingCycleOf(cycle));
     return { from: start, until: end };
 }
 
@@ -63,9 +70,12 @@ export function shownTaxPeriod(asOf: Date, cycle: BillingCycle): TaxPeriod {
 export function contractTaxPeriod(contract: {
     effectiveFrom: Date;
     effectiveUntil?: Date | null;
-    billingCycle: BillingCycle;
+    billingCycle: TaxRhythm;
 }): TaxPeriod {
-    const { start, end } = initialPeriodWindow(contract.effectiveFrom, contract.billingCycle);
+    const { start, end } = initialPeriodWindow(
+        contract.effectiveFrom,
+        billingCycleOf(contract.billingCycle),
+    );
     const until = contract.effectiveUntil;
     const endsEarlier = until != null && until.getTime() > start.getTime() && until < end;
     return { from: start, until: endsEarlier ? until : end };
@@ -91,14 +101,9 @@ export class TaxTreatments {
      * The rate a price shows before the subscriber's origin is known: the
      * adapter's answer for a subscriber in the issuer's country.
      */
-    shown(asOf: Date, cycle: BillingCycle | 'monthly' | 'yearly'): AppliedTax {
+    shown(asOf: Date, cycle: TaxRhythm): AppliedTax {
         if (!this.bound) return rateOfTheFile(this.settings);
-        const rhythm: BillingCycle =
-            cycle === 'yearly' || cycle === 'YEARLY' ? 'YEARLY' : 'MONTHLY';
-        return this.decide(
-            domesticOrigin(taxIssuerOf(this.settings)),
-            shownTaxPeriod(asOf, rhythm),
-        );
+        return this.decide(domesticOrigin(taxIssuerOf(this.settings)), shownTaxPeriod(asOf, cycle));
     }
 
     /**
@@ -125,4 +130,11 @@ export class TaxTreatments {
         }
         return { rate: decision.treatment.rate, treatment: decision.treatment };
     }
+}
+
+/** Whether `error` is the refusal of a case the tax adapter does not support. */
+export function isTaxNotSupported(error: unknown): boolean {
+    const response =
+        error instanceof HttpException ? (error.getResponse() as { code?: unknown }) : null;
+    return response?.code === TAX_ERROR_CODES.TAX_TREATMENT_NOT_SUPPORTED;
 }

@@ -61,6 +61,7 @@ import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
     CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
 } from './checkout-offer.tokens.js';
+import { contractTaxPeriod } from '../tax/tax-treatments.js';
 
 /** The language an offer is described in when the caller names none. */
 const DEFAULT_OFFER_LOCALE = 'de';
@@ -367,7 +368,18 @@ export class CheckoutOfferService {
         if (standing) return standing;
 
         const existing = await this.assertConsumable(id);
-        const checked = contracts.prepareFromOffer(existing, contractOptions);
+        // The offer shows the rate for a subscriber in the issuer's country; the
+        // contract is concluded at the one decided for the subscriber who takes
+        // it, and a case the tax adapter does not support is refused here.
+        const rate = await contracts.contractTaxRateFor(
+            subscriber ? { newSubscriber: subscriber } : { tenantId },
+            contractTaxPeriod({
+                effectiveFrom: contractOptions.effectiveFrom,
+                effectiveUntil: contractOptions.effectiveUntil ?? null,
+                billingCycle: existing.billingCycle,
+            }),
+        );
+        const checked = contracts.prepareFromOffer(existing, contractOptions, rate);
         await this.assertParty(subscribers, contracts, tenantId, subscriber);
         let consumeFailed = false;
         const concludeOn = async (tx: TransactionContext): Promise<ConcludedCheckoutOffer> => {
@@ -390,7 +402,7 @@ export class CheckoutOfferService {
             // to exist to be compared: lines emptied in the window, or a
             // minimum term that stopped being a date. Either way nothing is
             // written.
-            const data = contracts.createDataFromOffer(offer, contractOptions);
+            const data = contracts.createDataFromOffer(offer, contractOptions, rate);
             if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
             if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
             const contract = await contracts.create(data, tx);

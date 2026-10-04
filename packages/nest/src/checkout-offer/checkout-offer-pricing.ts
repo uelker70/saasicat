@@ -48,6 +48,7 @@ import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
 import { rateOfTheFile, type TaxTreatments } from '../tax/tax-treatments.js';
+import { effectiveNetOf } from './offer-money-at-rate.js';
 
 /** The language a promotion's texts fall back to, as the public catalogue reads them. */
 const DEFAULT_LOCALE = 'de';
@@ -207,13 +208,10 @@ export class CheckoutOfferPricing {
             -(planLine.promotion?.resolvedAmountNet ?? 0),
         );
         const promoCodeSnapshot = await this.pricePromoCode(input, planNetAfterPromotion, vatRate);
-        const effectiveNet = Math.max(
-            0,
-            sumToCents(
-                regularNet,
-                -promotionDiscount,
-                -(promoCodeSnapshot?.resolvedAmountNet ?? 0),
-            ),
+        const effectiveNet = effectiveNetOf(
+            regularNet,
+            promotionDiscount,
+            promoCodeSnapshot?.resolvedAmountNet ?? 0,
         );
 
         const priceBreakdown: CheckoutOfferPriceBreakdown = {

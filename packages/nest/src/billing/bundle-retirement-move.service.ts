@@ -53,12 +53,13 @@ import {
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
+import { isTaxNotSupported } from '../tax/tax-treatments.js';
 
 /** The name the run writes its audit entries under: `job:platform:add-on-retirement-moves`. */
 const JOB = 'add-on-retirement-moves';
 
 /** Why a move was not made, as its audit entry and the log say it. */
-type MoveFailure = 'no-party' | 'contract-not-written';
+type MoveFailure = 'no-party' | 'tax-not-supported' | 'contract-not-written';
 
 @Injectable()
 export class BundleRetirementMoveService {
@@ -150,8 +151,8 @@ export class BundleRetirementMoveService {
         // version and its contract on the other.
         try {
             await this.contractFreeze?.assertPartyFor(tenantId);
-        } catch {
-            return this.failed(notice, 'no-party');
+        } catch (error) {
+            return this.failed(notice, isTaxNotSupported(error) ? 'tax-not-supported' : 'no-party');
         }
         // `moveToVersion` is required where retiring is on. Nothing claimed:
         // the booking left the version between the read and the write, and the

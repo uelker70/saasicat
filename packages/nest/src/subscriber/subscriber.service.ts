@@ -14,11 +14,12 @@ import type {
     SubscriberIdentityCorrection,
     SubscriberRecord,
     SubscriberRepository,
+    SubscriberTaxOrigin,
     SubscriberTaxOriginChangeRecord,
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
-import { SUBSCRIBER_ERROR_CODES, contractPartiesOf } from '@saasicat/core';
+import { SUBSCRIBER_ERROR_CODES, contractPartiesOf, taxOriginOf } from '@saasicat/core';
 
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
@@ -108,6 +109,40 @@ export class SubscriberService {
     ): Promise<SubscriptionContractParties> {
         const subscriber = await this.requireForTenant(tenantId, tx);
         return contractPartiesOf(subscriber, this.settings.issuer);
+    }
+
+    /**
+     * The tax origin a tax adapter decides from: the subscriber's country,
+     * business status and VAT id as the record stands, and the VAT id only as
+     * validated where the check that counts for it found it valid. Refused with
+     * `SUBSCRIBER_REQUIRED` for a tenant without a subscriber.
+     */
+    async taxOriginFor(
+        subject: { tenantId: string } | { subscriberId: string },
+        tx?: TransactionContext,
+    ): Promise<SubscriberTaxOrigin> {
+        const subscriber =
+            'tenantId' in subject
+                ? await this.requireForTenant(subject.tenantId, tx)
+                : await this.requireById(subject.subscriberId, tx);
+        return taxOriginOf(subscriber, await this.repo.findCurrentVatIdCheck(subscriber.id, tx));
+    }
+
+    /**
+     * The tax origin of a subscriber that is about to be created from these
+     * details: nothing of it has been checked yet, so no VAT id is validated.
+     */
+    taxOriginOfNew(details: NewSubscriberDetails): SubscriberTaxOrigin {
+        return taxOriginOf(settleNewSubscriberDetails(details), null);
+    }
+
+    private async requireById(
+        subscriberId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberRecord> {
+        const subscriber = await this.repo.findById(subscriberId, tx);
+        if (!subscriber) throw subscriberNotFound(subscriberId);
+        return subscriber;
     }
 
     async getById(subscriberId: string): Promise<SubscriberRecord> {

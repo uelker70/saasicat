@@ -48,7 +48,7 @@ import {
     assertOnePlanLine,
     assertTaxRatePercent,
 } from '../subscription-contract/contract-refusals.js';
-import { rateOfTheFile } from '../tax/tax-treatments.js';
+import { contractTaxPeriod, rateOfTheFile } from '../tax/tax-treatments.js';
 
 // SubscriptionContractFreezeService (#18) — on a plan change, freezes the
 // agreed service as a `SubscriptionContract` with `entitlementSnapshot`.
@@ -167,15 +167,15 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         retirement?: RetirementContractTerms,
     ): Promise<CreateSubscriptionContractData> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
-        // The catalogue gives the rate, the currency and the name the plan is
-        // sold under, and it is the reading the entitlement snapshot below is
-        // filtered against.
+        // The catalogue gives the currency and the name the plan is sold under,
+        // and the rate where no tax adapter decides; it is the reading the
+        // entitlement snapshot below is filtered against.
         const catalog = await this.catalogs.current();
-        const vatRate = rateOfTheFile(catalog).rate;
+        const fileRate = this.contracts.taxAdapterDecides ? null : rateOfTheFile(catalog).rate;
         // Checked before anything is written: the new contract records this
         // rate, this window and a plan sold in this cycle, and a refusal after
         // the contract in force had ended would leave the tenant with none.
-        assertTaxRatePercent('catalog.vatRate', vatRate);
+        if (fileRate !== null) assertTaxRatePercent('catalog.vatRate', fileRate);
         assertContractWindow(effectiveFrom, endsAt);
         // What the plan line records — id, price, features, quotas — is the
         // version the subscription is bound to, from one row. After a plan
@@ -196,6 +196,14 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
         }
         await this.contracts.assertPartyFor(tenantId);
+        // Where a tax adapter decides, the rate is the one decided for the
+        // subscriber's origin as it stands, over the contract's first period.
+        const vatRate =
+            fileRate ??
+            ((await this.contracts.contractTaxRateFor(
+                { tenantId },
+                contractTaxPeriod({ effectiveFrom, effectiveUntil: endsAt, billingCycle }),
+            )) as number);
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle);
         assertTheMovedBookingHasItsLine(tenantId, bundles.lineItems, retirement);
