@@ -8,7 +8,7 @@ import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     BundleRetirementSwitchResult,
     BundleVersionRetiredNotice,
-    RetirementSwitchTerms,
+    BundleRetirementSwitchTerms,
     SubscriptionBundleRecord,
 } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
@@ -30,7 +30,7 @@ export interface UseTenantSubscriptionBundlesOptions {
  */
 export type TenantSubscriptionBundle = SubscriptionBundleRecord & {
     readonly retirement?: BundleVersionRetiredNotice | null;
-    readonly retirementSwitch?: RetirementSwitchTerms | null;
+    readonly retirementSwitch?: BundleRetirementSwitchTerms | null;
 };
 
 export interface UseTenantSubscriptionBundlesResult {

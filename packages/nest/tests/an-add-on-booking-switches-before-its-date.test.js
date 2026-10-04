@@ -16,6 +16,7 @@ import {
     NOW,
     REPLACEMENT,
     RETIRED,
+    bookingOf,
     rejection,
     retiring,
     subscriptionOf,
@@ -96,7 +97,7 @@ describe('the switch before the date', () => {
                 'YEARLY',
                 BEFORE,
                 null,
-                { bundleVersionId: REPLACEMENT.id },
+                { bundleVersionId: REPLACEMENT.id, subscriptionBundleId: 'sb-t1' },
                 { amountNet: 3, until: THE_DATE, lastDay: '2027-01-31' },
             ],
         );
@@ -174,8 +175,31 @@ describe('the switch before the date', () => {
         assert.deepEqual(await service.openFor(sub1, booking1, BEFORE), {
             priceNet: 12.9,
             held: { priceNet: 9.9, amountNet: 3, lastDay: '2027-01-31' },
+            billingCycle: 'MONTHLY',
         });
         assert.equal(await service.openFor(sub2, booking2, BEFORE), null);
+    });
+
+    test('prices it in the rhythm the booking is billed in now, which its notice may not name', async () => {
+        const subscriptions = [subscriptionOf('t1'), subscriptionOf('t2')];
+        // Billed with the plan, which was billed yearly when it was told.
+        const world = await announced({
+            subscriptions,
+            bookings: [bookingOf('t1', { billingCycle: null }), bookingOf('t2')],
+        });
+        subscriptions[0] = subscriptionOf('t1', { billingCycle: 'MONTHLY' });
+        const notice = await world.service.pendingForBooking('sub-t1', 'sb-t1', BEFORE);
+
+        const terms = await switching(world).service.openFor(
+            await world.usage.findForTenant('t1'),
+            world.bookingRepository.rows[0],
+            BEFORE,
+        );
+
+        assert.deepEqual(
+            [notice.billingCycle, terms.billingCycle, terms.priceNet],
+            ['YEARLY', 'MONTHLY', 12.9],
+        );
     });
 });
 
@@ -419,6 +443,31 @@ describe('a plan that changes before the date', () => {
         );
 
         assert.equal(versionOf(world, 'sb-t1'), REPLACEMENT.id);
+    });
+});
+
+// @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+describe('a subscription that changes while the switch is decided', () => {
+    test('is refused, the booking put back and no contract written', async () => {
+        const subscriptions = [subscriptionOf('t1'), subscriptionOf('t2')];
+        const world = await announced({ subscriptions });
+        const claim = world.bookingRepository.moveToVersion;
+        world.bookingRepository.moveToVersion = async (...args) => {
+            const moved = await claim(...args);
+            // A cancellation declared after the switch read the subscription.
+            subscriptions[0] = subscriptionOf('t1', {
+                canceledAt: new Date('2026-11-10T09:00:01.000Z'),
+                canceledEffectiveAt: new Date('2027-01-01T00:00:00.000Z'),
+            });
+            return moved;
+        };
+        const { service, frozen } = switching(world);
+
+        const answer = await refusedWith(service.switchNow('t1', 'sb-t1', REPLACEMENT.id, BEFORE));
+
+        assert.deepEqual([answer.status, answer.code], [409, 'SUBSCRIPTION_CHANGED']);
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(frozen, []);
     });
 });
 

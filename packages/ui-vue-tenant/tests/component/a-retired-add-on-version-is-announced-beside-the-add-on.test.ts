@@ -312,7 +312,11 @@ describe('a booking the platform will not reinstate', () => {
 });
 
 /** What switching Seats now costs: 9 a month held until 31 January, 11 from 1 February. */
-const HELD = { priceNet: 11, held: { priceNet: 9, amountNet: 2, lastDay: '2027-01-31' } };
+const HELD = {
+    priceNet: 11,
+    held: { priceNet: 9, amountNet: 2, lastDay: '2027-01-31' },
+    billingCycle: 'MONTHLY',
+};
 
 /** The booking of Seats version 1, told of its retirement, as the server lists it while it may switch. */
 const switchable = (fields: Partial<SubscriptionBundleShape> = {}) =>
@@ -364,7 +368,7 @@ describe('the switch beside a retired add-on version', () => {
     test('names the next period where nothing is held, and switches to the version shown', async () => {
         const wrapper = storeWith([
             switchable({
-                retirementSwitch: { priceNet: 8, held: null },
+                retirementSwitch: { priceNet: 8, held: null, billingCycle: 'MONTHLY' },
                 currentPeriodEnd: '2026-11-01T00:00:00.000Z',
             }),
         ]);
@@ -381,6 +385,23 @@ describe('the switch beside a retired add-on version', () => {
         await flushPromises();
 
         expect(wrapper.emitted('switch')).toEqual([['sb-1', 'bv-2']]);
+    });
+
+    test('names the rhythm the booking is billed in now, where its notice was told in another', async () => {
+        const wrapper = storeWith([
+            switchable({ retirementSwitch: { ...HELD, billingCycle: 'YEARLY' } }),
+        ]);
+
+        const button = wrapper
+            .findAll('.sp-bundle-retired button')
+            .find((candidate) => candidate.text() === DEFAULT_I18N_EN.versionRetiredSwitch);
+        await button!.trigger('click');
+        await flushPromises();
+
+        const unit = DEFAULT_I18N_EN.wizardPriceUnitYearly;
+        expect(confirmation().text).toContain(
+            `you keep paying 9.00 EUR ${unit} for it, from 2027-02-01 11.00 EUR ${unit}.`,
+        );
     });
 
     test('is not offered where the booking may not switch', () => {

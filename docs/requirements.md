@@ -4333,6 +4333,7 @@ _Tested by:_
         - holds the difference for the plan it runs beside now, as the catalogue prices it
         - lets a booking whose cancellation lands after the date switch, its cancellation standing
         - says what it would cost on the page, and nothing where it is not open
+        - prices it in the rhythm the booking is billed in now, which its notice may not name
     - what the switch refuses
         - a booking no retirement waits for: not told, past its date, or switched already
         - a booking whose cancellation has landed
@@ -4349,6 +4350,8 @@ _Tested by:_
         - and a change of rhythm alone, but not a change landing on the date itself
         - refuses where a retirement moves it to another plan before the date
         - but not where it moves it to another version of the same plan
+    - a subscription that changes while the switch is decided
+        - is refused, the booking put back and no contract written
     - a switch whose contract cannot be written
         - is put back and refused as it came, and nothing has changed
         - is refused as it came where it cannot be put back either
@@ -4368,6 +4371,7 @@ _Tested by:_
     - the switch beside a retired add-on version
         - says before it is taken what it holds until the day, and what it gives up
         - names the next period where nothing is held, and switches to the version shown
+        - names the rhythm the booking is billed in now, where its notice was told in another
         - is not offered where the booking may not switch
         - is written from the plan section, which says it went through
         - is refused in the reader’s language where the plan changes before the date
@@ -4402,6 +4406,7 @@ _Tested by:_
         - takes off the difference agreed at the switch where a change of plan prices the add-on
           anew
         - takes off no more than the period costs
+        - takes nothing off a later booking of the add-on, which agreed to no hold
         - takes nothing off a period in another rhythm than it was agreed in
 
 <!-- END proof -->

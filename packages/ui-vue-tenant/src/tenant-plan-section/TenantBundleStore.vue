@@ -171,7 +171,7 @@ import { missingRequiresFor } from '@saasicat/core';
 import type { BillingCycleStr, CatalogBundle } from '@saasicat/ui-vue';
 import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
-import type { BundleVersionRetiredNotice, RetirementSwitchTerms } from '@saasicat/core';
+import type { BundleRetirementSwitchTerms, BundleVersionRetiredNotice } from '@saasicat/core';
 import BundleRetiredNotice from './BundleRetiredNotice.vue';
 
 // TenantBundleStore — bundle sales on the "Plan & usage" section (#15):
@@ -246,7 +246,7 @@ interface BookedRow {
     /** The retirement of the version booked, as the subscriber was told it; null where none stands. */
     retirement: BundleVersionRetiredNotice | null;
     /** What switching to its replacement now costs, where the booking may; null where it may not. */
-    retirementSwitch: RetirementSwitchTerms | null;
+    retirementSwitch: BundleRetirementSwitchTerms | null;
     /** Where the booking's running period ends: when a price that is not held applies. */
     nextPeriodStart: string | null;
 }

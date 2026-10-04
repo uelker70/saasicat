@@ -2708,7 +2708,8 @@ or not it uses it:
 - **A booking may switch early** to its retirement's replacement (`SC-BUN-054`):
   `POST /billing/subscription-bundles/:id/retirement/switch` with `{ bundleVersionId }`, the version
   the page showed, behind `TenantAdminGuard`. The tenant's booking list carries `retirementSwitch`
-  beside `retirement`; `useTenantBilling().switchBundleToReplacement` and
+  beside `retirement` — `BundleRetirementSwitchTerms`, which names the rhythm its prices are for;
+  `useTenantBilling().switchBundleToReplacement` and
   `useTenantSubscriptionBundles().switchToReplacement` take it, and `TenantBundleStore` emits
   `switch` and takes `switchingId` and `note`. One new refusal,
   `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES` (`bundleName`, `date`), where the plan or its rhythm
@@ -2716,9 +2717,9 @@ or not it uses it:
   and `RETIREMENT_SWITCH_CHANGED` answer for add-ons too. An application that words refusals itself
   adds the new code; the shipped texts cover English and German until it does.
 - **A contract written by an early switch** to a dearer replacement carries a generated discount
-  line for the add-on (`SC-BUN-055`): its `metadata.priceHold` names a `bundleVersionId` where a
-  plan's names a `planVersionId`. Code of your own that reads contract lines tells the two apart by
-  that field.
+  line for the add-on (`SC-BUN-055`): its `metadata.priceHold` names the booking that switched
+  (`subscriptionBundleId`) and a `bundleVersionId` where a plan's names a `planVersionId`. Code of
+  your own that reads contract lines tells the two apart by that field.
 - **The cancellation without the minimum term ends** once a booking has switched:
   `BundleVersionRetirementService.pendingForBooking` answers only while the booking is still on the
   version retired.

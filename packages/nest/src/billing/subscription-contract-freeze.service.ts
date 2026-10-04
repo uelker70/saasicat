@@ -234,6 +234,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 ? addOnPriceHoldLine(
                       retirement.retirementId,
                       lineOfTheMovedBooking(bundles.lineItems, retirement.addOn.bundleVersionId),
+                      retirement.addOn.subscriptionBundleId,
                       retirement.priceHold,
                   )
                 : priceHoldLine(cycle, retirement.retirementId, bound.id, retirement.priceHold)
@@ -438,11 +439,14 @@ function lineOfTheMovedBooking(
  * The add-on price a retirement's switch holds until the date the booking was
  * told, as a discount line for the difference in the booking's own rhythm:
  * generated, as the plan's is, so the journal reads how long it runs from the
- * line itself, and keyed by the add-on version it is held on (`SC-BUN-055`).
+ * line itself, and keyed by the booking that switched and the add-on version
+ * it is held on: a later booking of the same add-on agreed to no hold
+ * (`SC-BUN-055`).
  */
 function addOnPriceHoldLine(
     retirementId: string,
     addOn: PricedContractLineItem,
+    subscriptionBundleId: string,
     hold: NonNullable<RetirementContractTerms['priceHold']>,
 ): PricedContractLineItem {
     return {
@@ -463,6 +467,7 @@ function addOnPriceHoldLine(
             source: 'retirement',
             priceHold: {
                 retirementId,
+                subscriptionBundleId,
                 bundleVersionId: addOn.sourceVersionId,
                 until: hold.until.toISOString(),
                 resolvedAmountNet: hold.amountNet,

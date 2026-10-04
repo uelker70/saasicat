@@ -42,9 +42,9 @@ import {
     type BillingCycle,
     type BundleRepository,
     type BundleRetirementSwitchResult,
+    type BundleRetirementSwitchTerms,
     type BundleVersionRetiredNotice,
     type BundleVersionRow,
-    type RetirementSwitchTerms,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type SubscriptionUsagePort,
@@ -69,7 +69,7 @@ import { PLANS_AHEAD_TOKEN, SUBSCRIPTION_USAGE_PORT_TOKEN } from './tenant-billi
 
 /** The switch a booking could take now, or why it cannot. */
 type Decided =
-    | { readonly notice: BundleVersionRetiredNotice; readonly terms: RetirementSwitchTerms }
+    | { readonly notice: BundleVersionRetiredNotice; readonly terms: BundleRetirementSwitchTerms }
     | { readonly refusal: UnprocessableEntityException };
 
 @Injectable()
@@ -102,7 +102,7 @@ export class BundleRetirementSwitchService {
         sub: SubscriptionUsageRecord,
         booking: SubscriptionBundleRecord,
         now: Date,
-    ): Promise<RetirementSwitchTerms | null> {
+    ): Promise<BundleRetirementSwitchTerms | null> {
         const decided = await this.decide(sub, booking, now);
         return 'terms' in decided ? decided.terms : null;
     }
@@ -150,14 +150,17 @@ export class BundleRetirementSwitchService {
             notice.retired.bundleVersionId,
             notice.replacement.bundleVersionId,
         );
-        if (!moved) {
-            throw new ConflictException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
-                message:
-                    'This subscription changed while the request was being decided. Reload it.',
-            });
-        }
+        if (!moved) throw subscriptionChanged();
         this.entitlements.invalidateTenant(tenantId);
+        // Decided on the subscription read before the claim: a cancellation
+        // declared or a change of plan scheduled in between would leave the
+        // contract an end, and the hold a price, the subscription no longer
+        // has. Read again, and put back where it changed.
+        const reread = await this.subscriptions.findForTenant(tenantId);
+        if (!reread || !decidedAlike(sub, reread)) {
+            await this.putBack(notice);
+            throw subscriptionChanged();
+        }
         try {
             await this.contractFreeze?.freezeOnPlanChange(
                 tenantId,
@@ -167,7 +170,10 @@ export class BundleRetirementSwitchService {
                 cancellationLandsAt(sub),
                 {
                     retirementId: notice.retirementId,
-                    addOn: { bundleVersionId: notice.replacement.bundleVersionId },
+                    addOn: {
+                        bundleVersionId: notice.replacement.bundleVersionId,
+                        subscriptionBundleId: booking.id,
+                    },
                     priceHold: terms.held
                         ? {
                               amountNet: terms.held.amountNet,
@@ -275,7 +281,7 @@ export class BundleRetirementSwitchService {
             },
             rhythm,
         )!;
-        return { notice, terms };
+        return { notice, terms: { ...terms, billingCycle: rhythm } };
     }
 
     /**
@@ -316,6 +322,38 @@ export class BundleRetirementSwitchService {
                 `replacement without its contract, and could not be put back: ${why}.`,
         );
     }
+}
+
+/**
+ * The subscription's fields the switch is decided on: which one it is, its
+ * state, its plan and rhythm, a change it scheduled, and a cancellation.
+ */
+const DECIDED_ON = [
+    'id',
+    'status',
+    'plan',
+    'billingCycle',
+    'pendingPlan',
+    'pendingBillingCycle',
+    'pendingEffectiveAt',
+    'canceledAt',
+    'canceledEffectiveAt',
+] as const satisfies readonly (keyof SubscriptionUsageRecord)[];
+
+/** Whether `after` is the subscription the switch was decided on as `before`. */
+function decidedAlike(before: SubscriptionUsageRecord, after: SubscriptionUsageRecord): boolean {
+    return DECIDED_ON.every((field) => sameValue(before[field], after[field]));
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+    return a instanceof Date && b instanceof Date ? a.getTime() === b.getTime() : a === b;
+}
+
+function subscriptionChanged(): ConflictException {
+    return new ConflictException({
+        code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
+        message: 'This subscription changed while the request was being decided. Reload it.',
+    });
 }
 
 /** A version's price in each rhythm for `planKey`, as the switch reads a side. */

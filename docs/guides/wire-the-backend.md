@@ -1179,7 +1179,8 @@ with `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES`. Once agreed, the difference stays:
 after the switch prices the add-on anew and takes the same difference off. It opens after a trial,
 for a booking that runs past the date, and it ends the cancellation without the minimum term, which
 rests on the booking being on the version retired. The booking list carries `retirementSwitch` —
-what switching now costs — beside `retirement`, null where the booking may not switch.
+what switching now costs, in the rhythm the booking is billed in now — beside `retirement`, null
+where the booking may not switch.
 
 **What your port is handed.** One `bundle-version-retired` notice per booking, recorded with the
 announcement in one transaction and sent through the same `SubscriptionNoticePort` (`SC-BUN-042`).

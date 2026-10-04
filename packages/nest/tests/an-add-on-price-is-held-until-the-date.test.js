@@ -16,6 +16,8 @@ const RETIRED = 'bv-archive';
 const REPLACEMENT = 'bv-archive-2';
 const TOLD = utc('2026-04-01');
 const SWITCHED = utc('2026-02-15');
+/** The booking that switches: the account's first. */
+const SWITCHING = 'booking-1';
 
 const standard = () => line('plan', 'STANDARD', 49, { sourceVersionId: 'pv-standard' });
 const archive = () => line('bundle', 'ARCHIVE', 10, { sourceVersionId: RETIRED });
@@ -32,6 +34,7 @@ const held = (overrides = {}) =>
             source: 'retirement',
             priceHold: {
                 retirementId: 'bret-1',
+                subscriptionBundleId: SWITCHING,
                 bundleVersionId: REPLACEMENT,
                 until: TOLD.toISOString(),
                 resolvedAmountNet: 2,
@@ -172,6 +175,32 @@ describe('the price held after an early switch', () => {
             ['2026-03-01', 'discount', -1],
             ['2026-04-01', 'bundle', 1],
         ]);
+    });
+
+    test('takes nothing off a later booking of the add-on, which agreed to no hold', async () => {
+        const { account, booking } = await switchedEarly();
+        // The booking that switched ends with February, and the add-on is
+        // booked again on the replacement from March.
+        booking.canceledAt = utc('2026-02-16');
+        booking.canceledEffectiveAt = utc('2026-03-01');
+        account.book({
+            bundleVersionId: REPLACEMENT,
+            startedAt: utc('2026-03-01'),
+            currentPeriodStart: utc('2026-03-01'),
+            currentPeriodEnd: utc('2026-04-01'),
+            createdAt: utc('2026-03-01'),
+        });
+        account.roll(utc('2026-03-01'), utc('2026-04-01'));
+
+        await account.charge(utc('2026-03-01'));
+
+        assert.deepEqual(
+            account
+                .entries()
+                .filter(([day, source]) => day === '2026-03-01' && source !== 'plan')
+                .map(([day, source, , amount]) => [day, source, amount]),
+            [['2026-03-01', 'bundle', 12]],
+        );
     });
 
     test('takes nothing off a period in another rhythm than it was agreed in', async () => {

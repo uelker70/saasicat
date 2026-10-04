@@ -65,7 +65,7 @@
 // and says what it costs; taking it is the parent's, which owns the request.
 
 import { computed, ref, useId } from 'vue';
-import type { BundleVersionRetiredNotice, RetirementSwitchTerms } from '@saasicat/core';
+import type { BundleRetirementSwitchTerms, BundleVersionRetiredNotice } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
@@ -78,7 +78,7 @@ const props = defineProps<{
     /** The add-on's display name. */
     label: string;
     /** What switching now costs, where the booking may; null or absent where it may not. */
-    switchTerms?: RetirementSwitchTerms | null;
+    switchTerms?: BundleRetirementSwitchTerms | null;
     /** While the switch is being written. */
     busy?: boolean;
     /** When the booking's next period starts, which is when a price that is not held applies. */
@@ -122,17 +122,17 @@ const cancelText = computed(() =>
         .replace('{bundle}', props.label),
 );
 
-/** A price in the rhythm the booking is billed in, which the notice names. */
-const priced = (amount: number) =>
-    `${props.formatCurrency(amount)} ${
-        props.notice.billingCycle === 'YEARLY'
-            ? i18n.value.wizardPriceUnitYearly
-            : i18n.value.wizardPriceUnitMonthly
-    }`;
-
 const switchText = computed(() => {
     const terms = props.switchTerms;
     if (!terms) return '';
+    // In the rhythm the booking is billed in now, which the terms name: the
+    // notice's may have changed since it was told.
+    const priced = (amount: number) =>
+        `${props.formatCurrency(amount)} ${
+            terms.billingCycle === 'YEARLY'
+                ? i18n.value.wizardPriceUnitYearly
+                : i18n.value.wizardPriceUnitMonthly
+        }`;
     const named = (sentence: string) =>
         sentence.replace('{bundle}', props.label).replace('{version}', replacementVersion.value);
     if (terms.held) {

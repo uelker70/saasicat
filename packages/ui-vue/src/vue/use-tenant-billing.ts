@@ -14,6 +14,7 @@
 import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
     type BundleRetirementSwitchResult,
+    type BundleRetirementSwitchTerms,
     type BundleVersionRetiredNotice,
     type VersionOfferView,
     type RetirementSwitchResult,
@@ -272,7 +273,7 @@ export interface SubscriptionBundleShape {
      * (`retirement` stands, after the trial, nothing changing the plan before
      * the date); null where it may not. Optional as `retirement` is.
      */
-    retirementSwitch?: RetirementSwitchTerms | null;
+    retirementSwitch?: BundleRetirementSwitchTerms | null;
 }
 
 /**

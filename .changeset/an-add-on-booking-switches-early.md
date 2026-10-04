@@ -29,8 +29,9 @@ would have written, so nothing is left to move then.
 - **The route** is `POST /billing/subscription-bundles/:id/retirement/switch`
   with `{ bundleVersionId }`, behind `TenantAdminGuard`; a page that showed
   another version is refused with `RETIREMENT_SWITCH_CHANGED` and the retirement
-  as it stands. The booking list carries `retirementSwitch`, what switching now
-  costs.
+  as it stands. The booking list carries `retirementSwitch`
+  (`BundleRetirementSwitchTerms`): what switching now costs, and in which
+  rhythm.
 - **UI.** `useTenantBilling().switchBundleToReplacement` and
   `useTenantSubscriptionBundles().switchToReplacement`; `BundleRetiredNotice`
   offers the switch with a confirmation that says what it costs until the date

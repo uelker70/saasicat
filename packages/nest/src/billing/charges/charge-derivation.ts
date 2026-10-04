@@ -507,12 +507,13 @@ function deriveBundleCharges(
             });
             charges.push(charged);
             // A switch to a dearer replacement holds the price it had until
-            // the date: the difference comes off each period on the
-            // replacement that starts before it, in the rhythm it was agreed
-            // in, wherever the contract pricing the period was written
-            // (`SC-BUN-055`).
+            // the date: the difference comes off each period of the booking
+            // that switched, on the replacement, that starts before it, in
+            // the rhythm it was agreed in, wherever the contract pricing the
+            // period was written (`SC-BUN-055`).
             for (const held of holds) {
                 if (
+                    held.hold.subscriptionBundleId !== booking.id ||
                     held.hold.bundleVersionId !== line.sourceVersionId ||
                     held.line.billingCycle !== line.billingCycle ||
                     period.start >= held.hold.until
@@ -765,6 +766,8 @@ function discountSnapshotsOf(line: ContractLineItemRecord): DiscountSnapshots | 
 
 /** The add-on price a retirement's switch holds, per period of its line's rhythm. */
 interface AddOnHold {
+    /** The booking that switched: the only one the price is held for. */
+    readonly subscriptionBundleId: string;
     readonly bundleVersionId: string;
     readonly until: Date;
     readonly amountNet: number;
@@ -772,19 +775,26 @@ interface AddOnHold {
 
 /**
  * The add-on price a retirement's switch holds on a generated discount line,
- * or null for any other line: the version it is held on, until when, and how
- * much per period (`SC-BUN-055`). A plan's held price names a plan version
- * instead, and is read by `priceHoldOf`.
+ * or null for any other line: the booking it is held for, the version it is
+ * held on, until when, and how much per period (`SC-BUN-055`). A plan's held
+ * price names a plan version instead, and is read by `priceHoldOf`.
  */
 function addOnHoldOf(line: ContractLineItemRecord): AddOnHold | null {
     const metadata = line.metadata;
     if (line.kind !== 'discount' || !isRecord(metadata) || metadata.generated !== true) return null;
     const hold = metadata.priceHold;
-    if (!isRecord(hold) || typeof hold.bundleVersionId !== 'string') return null;
+    if (
+        !isRecord(hold) ||
+        typeof hold.subscriptionBundleId !== 'string' ||
+        typeof hold.bundleVersionId !== 'string'
+    ) {
+        return null;
+    }
     if (typeof hold.until !== 'string') return null;
     const until = new Date(hold.until);
     if (Number.isNaN(until.getTime())) return null;
     return {
+        subscriptionBundleId: hold.subscriptionBundleId,
         bundleVersionId: hold.bundleVersionId,
         until,
         amountNet: numberOr0(hold.resolvedAmountNet),

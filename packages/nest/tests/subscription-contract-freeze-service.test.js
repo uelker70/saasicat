@@ -861,7 +861,7 @@ describe('a contract a retirement writes', () => {
 
         await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
             retirementId: 'bret-1',
-            addOn: { bundleVersionId: 'bv-2' },
+            addOn: { bundleVersionId: 'bv-2', subscriptionBundleId: 'sb-1' },
         });
 
         const [data] = calls.created;
@@ -889,7 +889,7 @@ describe('a contract a retirement writes', () => {
             () =>
                 service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
                     retirementId: 'bret-1',
-                    addOn: { bundleVersionId: 'bv-2' },
+                    addOn: { bundleVersionId: 'bv-2', subscriptionBundleId: 'sb-1' },
                 }),
             /returned no line for that version/,
         );
@@ -913,7 +913,7 @@ describe('a contract a retirement writes', () => {
 
         await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
             retirementId: 'bret-1',
-            addOn: { bundleVersionId: 'bv-2' },
+            addOn: { bundleVersionId: 'bv-2', subscriptionBundleId: 'sb-1' },
             priceHold: {
                 amountNet: 30,
                 until: new Date('2027-02-01T00:00:00.000Z'),
@@ -939,6 +939,7 @@ describe('a contract a retirement writes', () => {
                     'yearly',
                     {
                         retirementId: 'bret-1',
+                        subscriptionBundleId: 'sb-1',
                         bundleVersionId: 'bv-2',
                         until: '2027-02-01T00:00:00.000Z',
                         resolvedAmountNet: 30,
