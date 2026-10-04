@@ -1,4 +1,4 @@
-// @requirement SC-MKT-023 — An offer's amounts are computed from the catalogue, never taken from the request
+// @requirement SC-MKT-027 — An offer's amounts are computed from the catalogue, never taken from the request
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -88,7 +88,7 @@ describe('a changed percentage stays between 0 and 100', () => {
     });
 });
 
-// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
 describe('a changed amount stays below the lowest price it can apply to', () => {
     test('an amount of nothing, or less, is refused', async () => {
         const { service, promo } = withCode(absolute(5));
@@ -139,6 +139,7 @@ describe('a changed amount stays below the lowest price it can apply to', () => 
 
 // With a tax adapter a subscriber outside the issuer's VAT pays the net, so the
 // net is the price an absolute code must stay below. BASIC is 9.90 net.
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
 describe('with a tax adapter, an absolute code stays below the net price', () => {
     const taxes = new TaxTreatments(
         {
@@ -221,7 +222,7 @@ describe('a change is held to the rules its fields bear on', () => {
     });
 });
 
-// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
 describe('redeeming takes off no more than the price', () => {
     const cases = [
         { what: 'a cent below the price', value: JUST_BELOW, allow: false, applied: '11.77' },

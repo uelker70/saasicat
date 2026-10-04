@@ -322,7 +322,7 @@ describe('PromoCodesService.create — a name that is taken', () => {
 
 // @requirement SC-PROMO-006 — A discount runs for at most 24 months or billing periods
 // @requirement SC-PROMO-007 — A one-off discount carries no duration and applies to the first invoice only
-// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
 describe('PromoCodesService.preview — eligibility', () => {
     test('NOT_FOUND when no code exists', async () => {
         const svc = buildSvc();

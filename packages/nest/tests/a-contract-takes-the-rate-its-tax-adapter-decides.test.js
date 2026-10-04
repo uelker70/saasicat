@@ -151,6 +151,9 @@ function refusedWith(code) {
     return (error) => error.getStatus() === 422 && error.getResponse().code === code;
 }
 
+// @requirement SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+// @requirement SC-MKT-027 — An offer's amounts are computed from the catalogue, never taken from the request
 describe('a contract takes the rate the tax adapter decides for its subscriber', () => {
     test('a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded', async () => {
         const { service } = await serviceWith({ country: 'DE', business: false });

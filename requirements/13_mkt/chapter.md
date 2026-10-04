@@ -515,7 +515,8 @@ _Tested by:_
 
 ### SC-MKT-023 — An offer's amounts are computed from the catalogue, never taken from the request
 
-🟢 💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
+🔵 _(Superseded on 2026-10-04 by `SC-MKT-027`.)_
+💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
 the plan version on sale, an add-on's from its bundle version with the price it carries for that
 plan, the promotion from the same choice the public catalogue makes, a promo code's discount from
 what the promo module accepts, and the currency and VAT rate from the installation. A plan without a
@@ -529,51 +530,12 @@ anything else becomes a contract.
 
 _Source:_ release 1.0.0-rc.13
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
-    - what a request says is not an amount
-        - the public bodies strip amounts before the service sees them
-        - a service called without that pipe still prices from the catalogue
-        - an update cannot bring amounts in either
-    - where each amount comes from
-        - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
-        - two different add-ons, each at its own price
-        - an add-on's price for that plan and rhythm, its override included
-        - the promotion the public catalogue picks, as a discount with its snapshot
-        - a promotion tied to a code, or to another language, is not applied
-        - a promo code the promo module accepts, on the plan price after its promotion
-    - what cannot be priced is refused, not priced at nothing
-        - a plan with no version on sale
-        - a plan that is not marketed
-        - a plan without a price for the rhythm
-        - an add-on that is ${reason}
-        - the same add-on twice
-        - the same add-on twice, in two of its versions
-        - an add-on that has been deleted, though its version is on sale
-        - a promo code the promo module refuses
-        - a promo code where no promo module is registered to check it
-        - the module does not start without a plan repository to price from
-    - an offer becomes a contract only with the amounts the catalogue gave it
-        - an offer as priced is consumed
-        - ${what} written into the stored row is refused
-        - a promotion that starts after the offer was priced does not unsettle it
-        - a promo code the promo module no longer accepts is refused at consumption
-        - an add-on renamed after the offer keeps the offer valid
-    - the plan version checkout prices
-        - is the one on sale at the moment the offer is priced
-        - a repository that cannot say which version is on sale stops the start
-
-<!-- END proof -->
-
 ### SC-MKT-024 — An offer is concluded into its contract in one step, or not at all
 
 🟢 💰 Consuming the offer, writing the contract it becomes and the application's own writes for it,
 such as starting the subscription, commit together or not at all (`CheckoutOfferService.conclude`).
 Everything that can refuse is asked first: the offer is open, its add-ons bookable, its amounts the
-catalogue's (`SC-MKT-023`), and the contract passes the checks every contract is held to. A failure
+catalogue's (`SC-MKT-027`), and the contract passes the checks every contract is held to. A failure
 after that undoes the consume and the contract, and the offer can be concluded again. The contract
 is built from the offer as the transaction consumes it, and an offer changed after its checks is
 refused with `CHECKOUT_OFFER_CHANGED` rather than concluded into a contract it no longer describes.
@@ -757,5 +719,77 @@ _Tested by:_
         - the registry reaches the catalogue in a wired application
         - a catalogue told there is no source takes none
         - a source out of the catalogue’s scope refuses the boot instead of answering
+
+<!-- END proof -->
+
+### SC-MKT-027 — An offer's amounts are computed from the catalogue, never taken from the request
+
+🟢 💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
+the plan version on sale, an add-on's from its bundle version with the price it carries for that
+plan, the promotion from the same choice the public catalogue makes, a promo code's discount from
+what the promo module accepts, the currency from the installation, and the VAT rate from the
+installation's one source — the file's rate, or where a tax adapter decides, its rate for a
+subscriber in the issuer's country, since the subscriber is not known yet. A plan without a price
+for the rhythm, an add-on that is not on sale, not marketed, not compatible or not priced for the
+plan, and a code the promo module refuses or cannot check are refused rather than priced at nothing.
+When the offer is consumed its stored amounts are computed again from the versions it froze and the
+promotions as they stood when it was priced, and its promo code with the promo module as it stands
+then, since a code is redeemed when the contract is concluded; an offer whose amounts differ, or
+whose code has since expired or run out of redemptions, is refused, so no amount written by anything
+else becomes a contract. Where a tax adapter decides, the contract is concluded at the rate decided
+for the subscriber who takes the offer, with the net amounts as offered, and a code with a fixed
+amount takes that amount off what the subscriber pays.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - a contract takes the rate the tax adapter decides for its subscriber
+        - a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded
+        - a business in Austria with a validated number: reverse charge at 0 %, and the code takes
+          10 € off
+        - a business in Switzerland: not taxable, at 0 %
+        - a consumer in France is refused with the adapter sentence, and nothing is written
+        - a business in Austria whose number is not validated is refused
+        - a contract handed over at a rate other than the decided one is refused, naming the field
+        - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
+          anything
+        - a successor is decided before the contract in force ends, so a refusal leaves that one
+          running
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - what a request says is not an amount
+        - the public bodies strip amounts before the service sees them
+        - a service called without that pipe still prices from the catalogue
+        - an update cannot bring amounts in either
+    - where each amount comes from
+        - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
+        - two different add-ons, each at its own price
+        - an add-on's price for that plan and rhythm, its override included
+        - the promotion the public catalogue picks, as a discount with its snapshot
+        - a promotion tied to a code, or to another language, is not applied
+        - a promo code the promo module accepts, on the plan price after its promotion
+    - what cannot be priced is refused, not priced at nothing
+        - a plan with no version on sale
+        - a plan that is not marketed
+        - a plan without a price for the rhythm
+        - an add-on that is ${reason}
+        - the same add-on twice
+        - the same add-on twice, in two of its versions
+        - an add-on that has been deleted, though its version is on sale
+        - a promo code the promo module refuses
+        - a promo code where no promo module is registered to check it
+        - the module does not start without a plan repository to price from
+    - an offer becomes a contract only with the amounts the catalogue gave it
+        - an offer as priced is consumed
+        - ${what} written into the stored row is refused
+        - a promotion that starts after the offer was priced does not unsettle it
+        - a promo code the promo module no longer accepts is refused at consumption
+        - an add-on renamed after the offer keeps the offer valid
+    - the plan version checkout prices
+        - is the one on sale at the moment the offer is priced
+        - a repository that cannot say which version is on sale stops the start
 
 <!-- END proof -->

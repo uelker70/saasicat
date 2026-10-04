@@ -269,36 +269,11 @@ _Tested by:_
 
 ### SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
 
-🟢 Both when the code is created and when it is redeemed, unless the operator deliberately allows an
+🔵 _(Superseded on 2026-10-04 by `SC-PROMO-029`.)_
+Both when the code is created and when it is redeemed, unless the operator deliberately allows an
 invoice of zero. Otherwise a code quietly makes a plan free.
 
 _Source:_ `docs/reference/error-codes.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-code-takes-off-no-more-than-the-price.test.js`
-    - a changed amount stays below the lowest price it can apply to
-        - an amount of nothing, or less, is refused
-        - the lowest price itself is refused, and a cent below it accepted
-        - more than the price is accepted where the operator allows an invoice of zero
-        - taking back the allowance of an invoice of zero is refused while the amount needs it
-        - limiting it to a plan it would make free is refused
-    - redeeming takes off no more than the price
-        - ${what}, ${allowance}: ${outcome}
-        - a percentage of 100 is refused where an invoice of zero is not allowed
-        - a percentage stored above 100 is recorded at 100
-        - a plan made cheaper than the code after it was created refuses the redemption
-- `packages/nest/tests/promo-service.test.js`
-    - PromoCodesService.preview — eligibility
-        - NOT_FOUND when no code exists
-        - PLAN_MISMATCH when the whitelist excludes the plan
-        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
-        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
-        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
-
-<!-- END proof -->
 
 ### SC-PROMO-009 — A plan may be marked as not discountable
 
@@ -759,5 +734,43 @@ _Tested by:_
         - not again once a contract records it — an earlier freeze or the offer it came with
         - not where a contract written since the redemption does not record it
         - nothing without a redemption, or for a subscription the adapter gives no id
+
+<!-- END proof -->
+
+### SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
+
+🟢 💰 Both when the code is created and when it is redeemed, unless the operator deliberately allows
+an invoice of zero. The bar is the gross at the file's rate, or where a tax adapter decides, the net,
+which a subscriber outside the issuer's VAT pays. Otherwise a code quietly makes a plan free.
+
+_Source:_ #331 · `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-code-takes-off-no-more-than-the-price.test.js`
+    - a changed amount stays below the lowest price it can apply to
+        - an amount of nothing, or less, is refused
+        - the lowest price itself is refused, and a cent below it accepted
+        - more than the price is accepted where the operator allows an invoice of zero
+        - taking back the allowance of an invoice of zero is refused while the amount needs it
+        - limiting it to a plan it would make free is refused
+    - with a tax adapter, an absolute code stays below the net price
+        - the net price itself is refused, naming it as the net, and a cent below it accepted
+        - an amount between the net and the gross price is refused, which without an adapter is
+          accepted
+    - redeeming takes off no more than the price
+        - ${what}, ${allowance}: ${outcome}
+        - a percentage of 100 is refused where an invoice of zero is not allowed
+        - a percentage stored above 100 is recorded at 100
+        - a plan made cheaper than the code after it was created refuses the redemption
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
 
 <!-- END proof -->

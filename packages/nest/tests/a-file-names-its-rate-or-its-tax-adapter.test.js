@@ -79,6 +79,7 @@ async function bootWith(catalog, taxAdapter) {
     return moduleRef.get(TAX_TREATMENTS_TOKEN);
 }
 
+// @requirement SC-PRIC-066 — An installation sells in one currency, and its rate comes from one source named once
 describe('a file names its rate or its tax adapter, one of the two', () => {
     test('vatRate alone loads, as it always did', () => {
         assert.equal(load('vatRate: 19\n').vatRate, 19);
@@ -126,6 +127,7 @@ describe('a file names its rate or its tax adapter, one of the two', () => {
     });
 });
 
+// @requirement SC-PRIC-066 — An installation sells in one currency, and its rate comes from one source named once
 describe('the bound adapter is the one the file names, and it can decide', () => {
     test('a file with vatRate and no bound adapter takes the file rate', async () => {
         const taxes = await bootWith(load('vatRate: 7\n'));

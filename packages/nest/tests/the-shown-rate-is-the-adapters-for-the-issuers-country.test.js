@@ -55,6 +55,7 @@ const marketing = (vatRate) => ({
 });
 const NO_PLANS = { listLivePlans: async () => [] };
 
+// @requirement SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
 describe('the shown rate is the tax adapter answer for the issuer country', () => {
     test('the adapter is asked for a subscriber in the issuer country whose other details are unknown', () => {
         let seen;

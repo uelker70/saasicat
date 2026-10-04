@@ -9,7 +9,7 @@
 // an application still passing the values is told rather than obeyed. These
 // boot real applications against a fake sink for the plans.
 
-// @requirement SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
+// @requirement SC-CFG-037 — An installation whose plans live in the database reads its settings from the file
 
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
