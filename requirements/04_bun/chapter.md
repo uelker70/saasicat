@@ -496,6 +496,8 @@ _Tested by:_
           that version
         - goes through where that version can run beside it
         - asks nothing of a booking that ends before its version would change
+        - asks nothing of a booking whose subscription ends by its date, and asks one that runs past
+          it
         - tells a booking under a minimum term to cancel, which the retirement lets it do
         - names the end of its period as well where the version it is on cannot run beside the plan
         - names the day it can end instead once the date has passed and the move is still to come
@@ -1125,6 +1127,8 @@ _Tested by:_
           that version
         - goes through where that version can run beside it
         - asks nothing of a booking that ends before its version would change
+        - asks nothing of a booking whose subscription ends by its date, and asks one that runs past
+          it
         - tells a booking under a minimum term to cancel, which the retirement lets it do
         - names the end of its period as well where the version it is on cannot run beside the plan
         - names the day it can end instead once the date has passed and the move is still to come
@@ -1627,6 +1631,8 @@ _Tested by:_
           that version
         - goes through where that version can run beside it
         - asks nothing of a booking that ends before its version would change
+        - asks nothing of a booking whose subscription ends by its date, and asks one that runs past
+          it
         - tells a booking under a minimum term to cancel, which the retirement lets it do
         - names the end of its period as well where the version it is on cannot run beside the plan
         - names the day it can end instead once the date has passed and the move is still to come
@@ -1640,11 +1646,17 @@ _Tested by:_
     - the free switch before the date
         - is refused as well where an add-on was told it continues on a version the plan cannot
           carry, naming that version
+        - asks nothing of an add-on whose subscription ends by the date it continues from, and asks
+          one that runs past it
         - names the day an add-on cancelled already ends, which cancelling again cannot move
 - `packages/nest/tests/an-operator-announces-a-retirement.test.js`
     - the preview of a retirement
+        - a replacement on another plan, and the add-ons the subscriptions hold › but is sent where
+          the subscription ends by the date the add-on continues from
         - a replacement on another plan, and the add-ons the subscriptions hold › asks too about the
           version an add-on was told it continues on
+        - a replacement on another plan, and the add-ons the subscriptions hold › but not where the
+          subscription ends by the date the add-on continues from
 - `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
     - a replacement and the plans its bookings run beside
         - is refused where it cannot run beside the plan a booking runs beside at the date, counted

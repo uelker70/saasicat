@@ -21,6 +21,7 @@ import type {
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
+import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { BUNDLE_REPOSITORY_TOKEN, PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
@@ -689,7 +690,7 @@ export class PlanChangePreviewService {
         const held = await heldAddOnMisfits(
             this.subscriptionBundles,
             this.bundles,
-            subscriptionId,
+            { id: subscriptionId, endsAt: cancellationLandsAt(sub) },
             target,
             landsAt,
             (await this.addOnsAhead?.of(subscriptionId)) ?? [],

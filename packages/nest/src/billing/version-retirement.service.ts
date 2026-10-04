@@ -61,9 +61,14 @@ import {
     PLAN_REPOSITORY_TOKEN,
     type PlanVersionEndingCheck,
 } from '../catalog/catalog.tokens.js';
-import { heldAddOnMisfits, type AddOnsAhead, type PlanBeside } from './add-on-fits-plan.js';
+import {
+    heldAddOnMisfits,
+    type AddOnHolder,
+    type AddOnsAhead,
+    type PlanBeside,
+} from './add-on-fits-plan.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
-import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
+import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { actorTagOf } from '../core/web-audit.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
@@ -238,7 +243,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
             );
         }
 
-        const { reached, skipped } = await this.reachOf(retired.id, now);
+        const { reached, skipped, endsOf } = await this.reachOf(retired.id, now);
         if (reached.length === 0) {
             blockers.push(blocker(BILLING_ERROR_CODES.RETIREMENT_NOTHING_AFFECTED, retired));
         }
@@ -267,6 +272,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         const stranded = await this.holdingWhatTheReplacementCannotCarry(
             reached,
             replacement.planId,
+            endsOf,
         );
         if (stranded > 0) {
             blockers.push({
@@ -694,6 +700,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     private async holdingWhatTheReplacementCannotCarry(
         reached: readonly RetirementReachedRow[],
         planKey: string,
+        endsOf: ReadonlyMap<string, Date | null>,
     ): Promise<number> {
         // The add-on versions are read once for every subscription reached.
         const versions = onceEach(this.bundles);
@@ -701,7 +708,11 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         for (const row of reached) {
             const plan = { planKey, billingCycle: row.billingCycle as BillingCycle };
             const at = new Date(row.effectiveAt);
-            if (await this.holdsWhatThePlanCannotCarry(row.subscriptionId, plan, at, versions)) {
+            const subscription = {
+                id: row.subscriptionId,
+                endsAt: endsOf.get(row.subscriptionId) ?? null,
+            };
+            if (await this.holdsWhatThePlanCannotCarry(subscription, plan, at, versions)) {
                 holding += 1;
             }
         }
@@ -723,10 +734,10 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         at: Date,
     ): Promise<NoticeReadiness<Extract<RetirementReach, { reached: true }>>> {
         const reach = sub ? retirementReach(sub, at) : null;
-        if (!reach?.reached) return { waits: 'noLongerReached' };
+        if (!sub || !reach?.reached) return { waits: 'noLongerReached' };
         if (
             await this.holdsWhatThePlanCannotCarry(
-                stored.subscriptionId,
+                { id: stored.subscriptionId, endsAt: cancellationLandsAt(sub) },
                 { planKey: stored.replacement.planKey, billingCycle: reach.billingCycle },
                 reach.effectiveAt,
             )
@@ -769,7 +780,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
      * `plan` — the version it is on, or the one it was told it continues on.
      */
     private async holdsWhatThePlanCannotCarry(
-        subscriptionId: string,
+        subscription: AddOnHolder,
         plan: PlanBeside,
         at: Date,
         versions = onceEach(this.bundles),
@@ -779,10 +790,10 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         const held = await heldAddOnMisfits(
             bookings,
             versions,
-            subscriptionId,
+            subscription,
             plan,
             at,
-            (await this.addOnsAhead?.of(subscriptionId)) ?? [],
+            (await this.addOnsAhead?.of(subscription.id)) ?? [],
         );
         return held.length > 0;
     }
@@ -791,7 +802,12 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     private async reachOf(
         planVersionId: string,
         now: Date,
-    ): Promise<{ reached: RetirementReachedRow[]; skipped: RetirementSkippedRow[] }> {
+    ): Promise<{
+        reached: RetirementReachedRow[];
+        skipped: RetirementSkippedRow[];
+        /** When each subscription reached is cancelled to end, or null. */
+        endsOf: ReadonlyMap<string, Date | null>;
+    }> {
         // `onModuleInit` refused a port without it.
         const bound = await this.subscriptions.listBoundToVersion!(planVersionId);
         const recently = await subscriptionsReachedSince(
@@ -809,6 +825,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
         );
         const reached: RetirementReachedRow[] = [];
         const skipped: RetirementSkippedRow[] = [];
+        const endsOf = new Map<string, Date | null>();
         for (const { tenantId, subscription } of bound) {
             if (told.has(subscription.id)) {
                 skipped.push({ tenantId, subscriptionId: subscription.id, reason: 'already-told' });
@@ -819,6 +836,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 skipped.push({ tenantId, subscriptionId: subscription.id, reason: reach.reason });
                 continue;
             }
+            endsOf.set(subscription.id, cancellationLandsAt(subscription));
             reached.push({
                 tenantId,
                 subscriptionId: subscription.id,
@@ -829,7 +847,7 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 reachedRecently: recently.has(subscription.id),
             });
         }
-        return { reached, skipped };
+        return { reached, skipped, endsOf };
     }
 }
 

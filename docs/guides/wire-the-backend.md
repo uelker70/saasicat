@@ -1130,12 +1130,13 @@ moves to (`SC-BUN-044`): while that date is ahead and the booking is not cancell
 `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`, or
 `RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW` for the switch, names that version and its
 date, since cancelling it then ends it before the date and the change goes through; otherwise the
-refusal names the day the booking can end. The add-on's prices follow the plan, as they do for every
-booking. The routes are `GET` and `POST /admin/catalog/bundle-versions/:id/retirement` and `GET
-/admin/catalog/bundle-version-retirements`. The add-on page shows beside the retired version how far
-its retirement has come (`SC-BUN-053`), and of the bookings not told yet why each notice waits
-(`SC-BUN-052`). The add-on cannot be deleted while bookings still move onto one of its versions:
-`BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING` says how many (`SC-BUN-051`).
+refusal names the day the booking can end. A booking that ends by that date, or whose subscription
+does, is not asked about it. The add-on's prices follow the plan, as they do for every booking. The
+routes are `GET` and `POST /admin/catalog/bundle-versions/:id/retirement` and
+`GET /admin/catalog/bundle-version-retirements`. The add-on page shows beside the retired version
+how far its retirement has come (`SC-BUN-053`), and of the bookings not told yet why each notice
+waits (`SC-BUN-052`). The add-on cannot be deleted while bookings still move onto one of its
+versions: `BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING` says how many (`SC-BUN-051`).
 
 **When it takes effect.** At the first end of the booking's own period — in the rhythm the booking
 is billed in — at least three calendar months after its notice reached an administrator; a booking

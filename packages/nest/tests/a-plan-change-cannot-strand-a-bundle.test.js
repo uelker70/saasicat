@@ -96,11 +96,20 @@ const REPORTS = {
     },
 };
 
-function preview(targetCycle, bookings, { versions = REPORTS, addOnsAhead = null } = {}) {
+function preview(
+    targetCycle,
+    bookings,
+    { versions = REPORTS, addOnsAhead = null, subscription = {} } = {},
+) {
     const service = new PlanChangePreviewService(
         givenPlanCatalogSource(CATALOG),
         entitlement,
-        subscriptions,
+        {
+            findForTenant: async () => ({
+                ...(await subscriptions.findForTenant()),
+                ...subscription,
+            }),
+        },
         { snapshot: async () => ({ users: 1 }) },
         null,
         null,
@@ -327,6 +336,24 @@ describe('a plan change, and an add-on told it continues on another version', ()
 
         assert.deepEqual(fitBlockers(dto), []);
         assert.deepEqual(continuationBlockers(dto), []);
+    });
+
+    test('asks nothing of a booking whose subscription ends by its date, and asks one that runs past it', async () => {
+        const subscriptionEnding = (endsAt) =>
+            preview('MONTHLY', [monthly], {
+                versions,
+                addOnsAhead: toldOnto('bv-reports-2'),
+                subscription: {
+                    canceledAt: new Date('2026-06-01T00:00:00.000Z'),
+                    canceledEffectiveAt: new Date(endsAt),
+                },
+            });
+
+        const endingBy = await subscriptionEnding('2026-10-01T00:00:00.000Z');
+        const endingAfter = await subscriptionEnding('2026-11-01T00:00:00.000Z');
+
+        assert.deepEqual(continuationBlockers(endingBy), []);
+        assert.equal(continuationBlockers(endingAfter).length, 1);
     });
 
     test('tells a booking under a minimum term to cancel, which the retirement lets it do', async () => {

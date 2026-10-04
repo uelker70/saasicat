@@ -8,7 +8,7 @@ import {
 } from '@saasicat/core';
 
 import { bundleCycleFitsPlan } from './bundle-period.js';
-import { bookingEndsBy } from './bundle-retirement-reach.js';
+import { bookingOverBy } from './bundle-retirement-reach.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import type { BundleBookingRefusal } from './bundle-version-not-on-sale.js';
 
@@ -204,6 +204,13 @@ export interface AddOnsAhead {
     of(subscriptionId: string): Promise<readonly AddOnAhead[]>;
 }
 
+/** The subscription whose add-ons are asked, and when its cancellation lands. */
+export interface AddOnHolder {
+    readonly id: string;
+    /** Null while no cancellation was declared. */
+    readonly endsAt: Date | null;
+}
+
 /**
  * The bookings of a subscription still running at `at` whose add-on cannot run
  * beside `plan` — what stands in the way of moving it there.
@@ -216,18 +223,19 @@ export interface AddOnsAhead {
  * A booking told that its version is being retired (`ahead`) continues on the
  * replacement from its date, whenever the plan changes, so the replacement has
  * to run beside `plan` as well; the version it is on is asked first. One that
- * ends by that date never reaches the replacement, and is not asked about it.
+ * ends by that date — or whose subscription does — never reaches the
+ * replacement, and is not asked about it (`SC-BUN-044`).
  */
 export async function heldAddOnMisfits(
     bookings: Pick<SubscriptionBundleRepository, 'listActiveBySubscription'>,
     bundles: Pick<BundleRepository, 'findVersionById'> | null,
-    subscriptionId: string,
+    subscription: AddOnHolder,
     plan: PlanBeside,
     at: Date,
     ahead: readonly AddOnAhead[] = [],
 ): Promise<HeldAddOnMisfit[]> {
     const held: HeldAddOnMisfit[] = [];
-    for (const booking of await bookings.listActiveBySubscription(subscriptionId, at)) {
+    for (const booking of await bookings.listActiveBySubscription(subscription.id, at)) {
         const addOnCycle = booking.billingCycle ?? plan.billingCycle;
         const version = bundles ? await bundles.findVersionById(booking.bundleVersionId) : null;
         const told =
@@ -245,7 +253,9 @@ export async function heldAddOnMisfits(
             held.push({ booking, version, misfit, ahead: told });
             continue;
         }
-        if (!told || bookingEndsBy(booking, new Date(told.effectiveAt))) continue;
+        if (!told || bookingOverBy(booking, subscription.endsAt, new Date(told.effectiveAt))) {
+            continue;
+        }
         const replacement = bundles
             ? await bundles.findVersionById(told.replacementBundleVersionId)
             : null;
