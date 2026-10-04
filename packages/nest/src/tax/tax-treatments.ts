@@ -92,6 +92,14 @@ export class TaxTreatments {
         private readonly bound: TaxAdapter | null,
     ) {}
 
+    /**
+     * The country a shown rate applies to: the issuer's where an adapter
+     * decides, `null` where the file's one rate applies to everyone.
+     */
+    get shownFor(): string | null {
+        return this.bound ? taxIssuerOf(this.settings).country : null;
+    }
+
     /** The adapter that decides, or `null` where the file's rate applies. */
     get adapter(): TaxAdapterIdentity | null {
         return this.bound && { name: this.bound.name, version: this.bound.version };

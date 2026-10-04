@@ -13,6 +13,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { TaxTreatments } from '../dist/billing/index.js';
 import {
     BASIC_GROSS,
     MemoryPromoCodes,
@@ -28,12 +29,17 @@ const JUST_BELOW = 11.77;
 const JUST_ABOVE = 11.79;
 
 /** A code as it stands in the store, and the promo service over it. */
-function withCode(terms, { catalog } = {}) {
+function withCode(terms, { catalog, taxes } = {}) {
     const codes = new MemoryPromoCodes();
     const promo = codes.add({ code: 'MONEY-OFF', ...terms });
     const subscriptions = new MemorySubscriptions();
     subscriptions.add({ id: 'subscription-1', tenantId: 'tenant-1', plan: 'BASIC' });
-    const built = promoCodesOver({ codes, subscriptions, ...(catalog ? { catalog } : {}) });
+    const built = promoCodesOver({
+        codes,
+        subscriptions,
+        ...(catalog ? { catalog } : {}),
+        ...(taxes ? { taxes } : {}),
+    });
     return { ...built, promo };
 }
 
@@ -127,6 +133,60 @@ describe('a changed amount stays below the lowest price it can apply to', () => 
         await assert.rejects(
             service.update(promo.id, { appliesToPlans: ['BASIC'] }),
             refusedWith('PROMO_WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+    });
+});
+
+// With a tax adapter a subscriber outside the issuer's VAT pays the net, so the
+// net is the price an absolute code must stay below. BASIC is 9.90 net.
+describe('with a tax adapter, an absolute code stays below the net price', () => {
+    const taxes = new TaxTreatments(
+        {
+            currency: 'EUR',
+            timeZone: 'Europe/Berlin',
+            tax: { adapter: 'test-tax' },
+            issuer: { legalName: 'Issuer GmbH', country: 'DE', vatId: 'DE123456789' },
+        },
+        {
+            name: 'test-tax',
+            version: '1.0.0',
+            decide: () => ({
+                supported: true,
+                treatment: {
+                    kind: 'standard',
+                    rate: 19,
+                    note: null,
+                    adapter: { name: 'test-tax', version: '1.0.0' },
+                },
+            }),
+            checkVatId: async () => ({ completed: false, reason: 'not asked' }),
+        },
+    );
+
+    test('the net price itself is refused, naming it as the net, and a cent below it accepted', async () => {
+        const { service, promo } = withCode(absolute(5), { taxes });
+
+        await assert.rejects(service.update(promo.id, { value: 9.9 }), (error) => {
+            const body = error.getResponse();
+            return (
+                body.code === 'PROMO_WOULD_PRODUCE_ZERO_INVOICE' &&
+                body.params.lowestApplicablePlanNet === 9.9 &&
+                !('lowestApplicablePlanGross' in body.params)
+            );
+        });
+        assert.equal(Number((await service.update(promo.id, { value: 9.89 })).value), 9.89);
+    });
+
+    test('an amount between the net and the gross price is refused, which without an adapter is accepted', async () => {
+        const withAdapter = withCode(absolute(5), { taxes });
+        await assert.rejects(
+            withAdapter.service.update(withAdapter.promo.id, { value: 11 }),
+            refusedWith('PROMO_WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+        const without = withCode(absolute(5));
+        assert.equal(
+            Number((await without.service.update(without.promo.id, { value: 11 })).value),
+            11,
         );
     });
 });

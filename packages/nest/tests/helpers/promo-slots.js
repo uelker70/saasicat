@@ -375,6 +375,7 @@ export function promoCodesOver({
     existingCustomers = [],
     catalog = PROMO_CATALOG,
     holds = true,
+    taxes = null,
 } = {}) {
     const service = new PromoCodesService(
         codes,
@@ -387,6 +388,7 @@ export function promoCodesOver({
         givenPlanCatalogSource(catalog),
         { nonRedeemablePlans: [] },
         holds ? codes.holdRepository : null,
+        taxes,
     );
     return { service, codes, redemptions, subscriptions, transactions };
 }

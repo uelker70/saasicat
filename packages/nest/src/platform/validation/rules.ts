@@ -390,6 +390,38 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'accounts the bound gateways belong to.',
     },
     {
+        id: 'tax.adapter-bound-as-the-file-names',
+        when: (c) => Boolean(catalogOf(c)?.tax || c.options.tax),
+        assert: (c) =>
+            catalogOf(c)?.tax?.adapter !== undefined &&
+            catalogOf(c)?.tax?.adapter === c.options.tax?.adapter.adapterName,
+        message: (c) =>
+            `config/saas.yaml#tax names the tax adapter ${catalogOf(c)?.tax?.adapter ?? '(none)'}, ` +
+            `and \`tax.adapter\` binds ${c.options.tax?.adapter.adapterName ?? '(none)'}. Bind the ` +
+            'factory of the adapter the file names — `tax: { adapter: germanTaxAdapterFactory() }` ' +
+            'for `@saasicat/tax-de` — or name the bound one in the file.',
+    },
+    {
+        id: 'tax.rate-has-one-source',
+        when: (c) => Boolean(catalogOf(c)?.tax),
+        assert: (c) => optionsOf(c.options.catalog)?.publicMarketingCatalog?.vatRate === undefined,
+        message:
+            'config/saas.yaml names a tax adapter, and `catalog.publicMarketingCatalog.vatRate` ' +
+            'names a rate beside it. The adapter is the one source of every rate, the pricing ' +
+            "page's too: delete `vatRate` there.",
+    },
+    {
+        id: 'catalog.public-catalogue-names-a-rate',
+        when: (c) =>
+            Boolean(optionsOf(c.options.catalog)?.publicMarketingCatalog) &&
+            catalogOf(c) !== undefined &&
+            !catalogOf(c)?.tax,
+        assert: (c) => optionsOf(c.options.catalog)?.publicMarketingCatalog?.vatRate !== undefined,
+        message:
+            'the public marketing catalogue is mounted without `vatRate`, and config/saas.yaml ' +
+            'names no tax adapter to take it from. Pass the rate the pricing page shows.',
+    },
+    {
         id: 'promo-codes.public-preview-requires-first-time-check',
         when: (c) => {
             const config = optionsOf(c.options.promoCodes);
