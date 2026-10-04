@@ -1149,19 +1149,38 @@ can be booked from: the one the cancelled booking ends on, or the next where it 
 beside the plan the subscription is on then, or one it is set to move to after it,
 `BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN` does. A booking whose cancellation has landed
 is answered by the booking route, as any other. A booking a retirement reached and then cancelled to
-end by its date no longer shows the retirement. At its date, the quarter-hour run moves the booking
-onto the replacement, keeping its period, its terms and its rhythm, and binds the replacement
-whatever its sale by then (`SC-BUN-049`, `SC-BUN-051`). The move writes the contract with the
-booking's line on the replacement, marked with the retirement, and the charge journal charges the
-booking's periods from the date from that line only, however late the move came; where that contract
-cannot be written, the booking goes back and the next run makes both (`SC-BUN-050`). A booking that
-has ended by the time a run comes, or whose subscription has, is not moved, even past its date: it
-ran on the retired version until it ended, its periods from the date are charged at that version,
-and the run asks the journal for them once. Each move is audited as `BUNDLE_VERSION_RETIREMENT_MOVE`
-by the actor `job:platform:add-on-retirement-moves`, and one that cannot be made once as
-`BUNDLE_VERSION_RETIREMENT_MOVE_FAILED`. Your `ContractFreezeSourcePort.loadBookedBundles` sees the
-moved booking on the replacement and prices that version for the plan, as it does any booking; a
-contract it hands no line for the replacement is refused, and the booking goes back.
+end by its date — or whose subscription was — no longer shows the retirement. At its date, the
+quarter-hour run moves the booking onto the replacement, keeping its period, its terms and its
+rhythm, and binds the replacement whatever its sale by then (`SC-BUN-049`, `SC-BUN-051`). The move
+writes the contract with the booking's line on the replacement, marked with the retirement, and the
+charge journal charges the booking's periods from the date from that line only, however late the
+move came; where that contract cannot be written, the booking goes back and the next run makes both
+(`SC-BUN-050`). A booking that has ended by the time a run comes, or whose subscription has, is not
+moved, even past its date: it ran on the retired version until it ended, its periods from the date
+are charged at that version, and the run asks the journal for them once. Each move is audited as
+`BUNDLE_VERSION_RETIREMENT_MOVE` by the actor `job:platform:add-on-retirement-moves`, and one that
+cannot be made once as `BUNDLE_VERSION_RETIREMENT_MOVE_FAILED`. Your
+`ContractFreezeSourcePort.loadBookedBundles` sees the moved booking on the replacement and prices
+that version for the plan, as it does any booking; a contract it hands no line for the replacement
+is refused, and the booking goes back.
+
+**Switching early.** Until its date, the add-on's notice — in the plan section and on
+`MySubscriptionBundlesPage` — offers the switch to the replacement (`SC-BUN-054`,
+`POST /billing/subscription-bundles/:id/retirement/switch`, for the tenant's administrators, naming
+the version the page showed). It takes effect at once and keeps the booking, its period, its terms
+and its rhythm; its contract marks the add-on's line as the move's does, so the run at the date
+finds nothing left to do. Where the replacement costs more for the plan the add-on runs beside, in
+the booking's rhythm, the subscription goes on paying what it paid until the date: the contract
+records the difference as a discount line "Price of … held until …", taken off each of the booking's
+periods before the date (`SC-BUN-055`). The difference is priced from the catalogue for the plan the
+subscription is on, so the switch opens only while neither that plan nor its rhythm changes before
+the date — by a scheduled change, or by a told retirement onto another plan — and refuses otherwise
+with `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES`. Once agreed, the difference stays: a change of plan
+after the switch prices the add-on anew and takes the same difference off. It opens after a trial,
+for a booking that runs past the date, and it ends the cancellation without the minimum term, which
+rests on the booking being on the version retired. The booking list carries `retirementSwitch` —
+what switching now costs, in the rhythm the booking is billed in now — beside `retirement`, null
+where the booking may not switch.
 
 **What your port is handed.** One `bundle-version-retired` notice per booking, recorded with the
 announcement in one transaction and sent through the same `SubscriptionNoticePort` (`SC-BUN-042`).

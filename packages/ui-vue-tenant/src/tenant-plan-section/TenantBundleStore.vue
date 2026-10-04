@@ -51,11 +51,15 @@
                         <BundleRetiredNotice
                             :notice="row.retirement"
                             :label="row.label"
+                            :switch-terms="row.retirementSwitch"
+                            :busy="switchingId === row.id"
+                            :next-period-start="row.nextPeriodStart"
                             :format-currency="formatCurrency"
                             :format-date="formatDate"
                             :quota-label="quotaLabel"
                             :feature-label="featureLabel"
                             :format-quota-value="formatQuotaValue"
+                            @switch="(bundleVersionId) => emit('switch', row.id, bundleVersionId)"
                         />
                     </li>
                 </template>
@@ -152,6 +156,7 @@
         </div>
 
         <div v-if="error" class="sp-plan-section__error">{{ error }}</div>
+        <p v-if="note" class="sp-plan-section__note" role="status">{{ note }}</p>
     </TenantCardSection>
 </template>
 
@@ -166,7 +171,7 @@ import { missingRequiresFor } from '@saasicat/core';
 import type { BillingCycleStr, CatalogBundle } from '@saasicat/ui-vue';
 import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
-import type { BundleVersionRetiredNotice } from '@saasicat/core';
+import type { BundleRetirementSwitchTerms, BundleVersionRetiredNotice } from '@saasicat/core';
 import BundleRetiredNotice from './BundleRetiredNotice.vue';
 
 // TenantBundleStore — bundle sales on the "Plan & usage" section (#15):
@@ -204,7 +209,11 @@ const props = defineProps<{
     cancelingId: string | null;
     /** SubscriptionBundle id currently being reactivated (spinner). */
     reactivatingId: string | null;
+    /** SubscriptionBundle id currently being switched to its replacement (spinner). */
+    switchingId?: string | null;
     error: string | null;
+    /** What the last action did, where it says something: a switch that went through. */
+    note?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -212,6 +221,8 @@ const emit = defineEmits<{
     buy: [bundleVersionId: string, billingCycle?: BillingCycleStr];
     cancel: [subscriptionBundleId: string];
     reactivate: [subscriptionBundleId: string];
+    /** The early switch to the replacement a retirement names, the version as the notice showed it. */
+    switch: [subscriptionBundleId: string, bundleVersionId: string];
 }>();
 
 const catalogByVersion = computed(
@@ -234,6 +245,10 @@ interface BookedRow {
     canceledEffectiveAt: string | null;
     /** The retirement of the version booked, as the subscriber was told it; null where none stands. */
     retirement: BundleVersionRetiredNotice | null;
+    /** What switching to its replacement now costs, where the booking may; null where it may not. */
+    retirementSwitch: BundleRetirementSwitchTerms | null;
+    /** Where the booking's running period ends: when a price that is not held applies. */
+    nextPeriodStart: string | null;
 }
 
 const bookedRows = computed<BookedRow[]>(() =>
@@ -265,6 +280,8 @@ const bookedRows = computed<BookedRow[]>(() =>
             canceledAt: b.canceledAt,
             canceledEffectiveAt: b.canceledEffectiveAt,
             retirement: b.retirement ?? null,
+            retirementSwitch: b.retirementSwitch ?? null,
+            nextPeriodStart: b.currentPeriodEnd ?? null,
         };
     }),
 );

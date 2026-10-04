@@ -293,7 +293,10 @@ export class BundleRetirementMoveService {
                 sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 {
                     retirementId: notice.retirementId,
-                    addOn: { bundleVersionId: notice.replacement.bundleVersionId },
+                    addOn: {
+                        bundleVersionId: notice.replacement.bundleVersionId,
+                        subscriptionBundleId: notice.subscriptionBundleId,
+                    },
                 },
             );
             return true;

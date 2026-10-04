@@ -3,7 +3,7 @@
 // contract that records it.
 
 import { sumToCents } from './money.js';
-import type { VersionRetiredNotice } from './version-retirement.types.js';
+import type { RetirementSide } from './version-retirement.types.js';
 
 /** What the switch costs, per period of the subscriber's rhythm. */
 export interface RetirementSwitchTerms {
@@ -22,15 +22,23 @@ export interface RetirementSwitchTerms {
     } | null;
 }
 
+/** A side of a retirement as the switch reads it: its price in each rhythm. */
+type PricedSide = Pick<RetirementSide, 'monthlyNet' | 'yearlyNet'>;
+
 /**
  * What switching to the replacement now costs in `billingCycle`, or null where
- * the replacement has no price in it.
+ * the replacement has no price in it. A plan version's retirement and an add-on
+ * version's are priced alike: each side by what it costs in each rhythm.
  */
 export function retirementSwitchTerms(
-    notice: Pick<VersionRetiredNotice, 'retired' | 'replacement' | 'lastDayToCancel'>,
+    notice: {
+        readonly retired: PricedSide;
+        readonly replacement: PricedSide;
+        readonly lastDayToCancel: string;
+    },
     billingCycle: string,
 ): RetirementSwitchTerms | null {
-    const priceIn = (side: VersionRetiredNotice['retired']) =>
+    const priceIn = (side: PricedSide) =>
         billingCycle === 'YEARLY' ? side.yearlyNet : side.monthlyNet;
     const replacement = priceIn(notice.replacement);
     if (replacement === null) return null;

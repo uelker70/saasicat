@@ -394,6 +394,15 @@ export const BILLING_ERROR_CODES = {
      * name. Carries the add-on key, the version and the replacement's version.
      */
     BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS: 'BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS',
+    /**
+     * The plan the add-on runs beside, or the rhythm it is billed in, changes
+     * before the date the booking was told — by a change scheduled, or by a
+     * retirement told that moves the subscription to another plan — so the
+     * price a switch now would hold is not the one the booking pays until
+     * then. Switching once the plan has changed, or waiting for the
+     * date, is the way. Carries the add-on and the date.
+     */
+    BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES: 'BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES',
 
     // ── the preview routes' own blockers and warnings ──
     //

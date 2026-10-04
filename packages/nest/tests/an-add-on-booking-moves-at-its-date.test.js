@@ -148,7 +148,7 @@ describe('the move at the date', () => {
                     'YEARLY',
                     AT_THE_DATE,
                     null,
-                    { bundleVersionId: REPLACEMENT.id },
+                    { bundleVersionId: REPLACEMENT.id, subscriptionBundleId: 'sb-t1' },
                 ],
                 [
                     't2',
@@ -156,7 +156,7 @@ describe('the move at the date', () => {
                     'YEARLY',
                     AT_THE_DATE,
                     null,
-                    { bundleVersionId: REPLACEMENT.id },
+                    { bundleVersionId: REPLACEMENT.id, subscriptionBundleId: 'sb-t2' },
                 ],
             ],
         );

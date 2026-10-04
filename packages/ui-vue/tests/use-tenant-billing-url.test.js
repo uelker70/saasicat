@@ -145,6 +145,27 @@ test('switchToReplacement posts the version shown to /billing/retirement/switch,
     );
 });
 
+// @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+test('switchBundleToReplacement posts the version shown to the booking’s switch, then reloads', async () => {
+    const { client, calls } = makeRecordingHttp();
+    const billing = useTenantBilling({ http: client, autoLoad: false });
+
+    await billing.switchBundleToReplacement('sb-1', 'bv-2');
+
+    assert.deepEqual(
+        calls.map((c) => [c.method, c.url, c.body]),
+        [
+            [
+                'POST',
+                '/billing/subscription-bundles/sb-1/retirement/switch',
+                { bundleVersionId: 'bv-2' },
+            ],
+            ['GET', '/billing/usage', undefined],
+            ['GET', '/billing/subscription-bundles', undefined],
+        ],
+    );
+});
+
 describe('useTenantBillingCatalog URL construction', () => {
     test('default apiPrefix is /billing — catalog endpoints land under /billing/{plans,bundles,feature-registry}', async () => {
         const { client, calls } = makeRecordingHttp();

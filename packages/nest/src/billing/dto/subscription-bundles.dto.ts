@@ -85,6 +85,16 @@ export class PreviewSubscriptionBundleDto {
     billingCycle?: 'MONTHLY' | 'YEARLY';
 }
 
+/**
+ * The early switch to an add-on retirement's replacement: the version the page
+ * showed as the replacement, so a retirement that changed meanwhile is refused
+ * rather than taken.
+ */
+export class SwitchSubscriptionBundleDto {
+    @IsUUID()
+    bundleVersionId!: string;
+}
+
 export class CancelSubscriptionBundleDto {
     /**
      * Optional — default = `new Date()` server-side. Format: ISO-8601

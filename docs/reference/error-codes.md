@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 229 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 230 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -154,6 +154,7 @@ Subscriptions, plan changes, entitlements.
 | `BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN`           | {count} of these bookings run beside a plan that version {version} of {bundleKey} cannot run beside, so they cannot continue on it.                                                                                             |
 | `BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE`          | Version {version} of {bundleKey} is not on sale, so bookings cannot continue on it.                                                                                                                                             |
 | `BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE`    | The replacement is a version of {replacementBundleKey}, not of {bundleKey}. A booking continues on a version of its own add-on.                                                                                                 |
+| `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES`              | {bundleName} moves to its new version on {date}, and your plan changes before then, so the price a switch would keep is not known yet. Switch once your plan has changed, or let it move on that date.                          |
 | `BUNDLE_RETIREMENT_VERSION_ON_SALE`                  | Version {version} of {bundleKey} is still on sale. Publish the version that replaces it, and retire this one once its sale has ended, so nobody books it after the announcement.                                                |
 | `CANCELLATION_LOCKS_THE_CYCLE`                       | This subscription is cancelled, so its billing cycle cannot change. The plan can — keep the current cycle to change it today.                                                                                                   |
 | `CANCELLATION_TERMS_CHANGED`                         | The effective date changed since it was shown. Confirm the new one.                                                                                                                                                             |

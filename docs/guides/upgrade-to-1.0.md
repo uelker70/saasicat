@@ -2705,6 +2705,24 @@ or not it uses it:
 - **The charge journal** reads a booking's end as every other reader does,
   `canceledEffectiveAt ?? canceledAt`: a booking on a row from before the two dates separated is no
   longer charged past its `canceledAt`.
+- **A booking may switch early** to its retirement's replacement (`SC-BUN-054`):
+  `POST /billing/subscription-bundles/:id/retirement/switch` with `{ bundleVersionId }`, the version
+  the page showed, behind `TenantAdminGuard`. The tenant's booking list carries `retirementSwitch`
+  beside `retirement` — `BundleRetirementSwitchTerms`, which names the rhythm its prices are for;
+  `useTenantBilling().switchBundleToReplacement` and
+  `useTenantSubscriptionBundles().switchToReplacement` take it, and `TenantBundleStore` emits
+  `switch` and takes `switchingId` and `note`. One new refusal,
+  `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES` (`bundleName`, `date`), where the plan or its rhythm
+  changes before the date; the plan's `RETIREMENT_SWITCH_NOT_PENDING`, `RETIREMENT_SWITCH_IN_TRIAL`
+  and `RETIREMENT_SWITCH_CHANGED` answer for add-ons too. An application that words refusals itself
+  adds the new code; the shipped texts cover English and German until it does.
+- **A contract written by an early switch** to a dearer replacement carries a generated discount
+  line for the add-on (`SC-BUN-055`): its `metadata.priceHold` names the booking that switched
+  (`subscriptionBundleId`) and a `bundleVersionId` where a plan's names a `planVersionId`. Code of
+  your own that reads contract lines tells the two apart by that field.
+- **The cancellation without the minimum term ends** once a booking has switched:
+  `BundleVersionRetirementService.pendingForBooking` answers only while the booking is still on the
+  version retired.
 - **Code of your own that cancels a booking** through `SubscriptionBundlesService` or previews it
   through `SubscriptionBundlePreviewService` passes `minimumTermLapses` where a retirement told for
   the booking is still to take effect; the shipped route decides it from the server's clock.

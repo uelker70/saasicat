@@ -19,6 +19,40 @@
         <p class="sp-bundle-retired__note">
             {{ i18n.bundleRetiredNoAction.replace('{bundle}', label) }}
         </p>
+
+        <div v-if="switchTerms" class="sp-bundle-retired__actions">
+            <TenantButton variant="solid" tone="accent" :loading="busy" @click="confirming = true">
+                {{ i18n.versionRetiredSwitch }}
+            </TenantButton>
+        </div>
+
+        <!-- What the switch costs until the date and after it, and what it gives up. -->
+        <TenantDialog
+            :model-value="confirming"
+            :title="
+                i18n.bundleRetiredSwitchTitle
+                    .replace('{bundle}', label)
+                    .replace('{version}', replacementVersion)
+            "
+            size="sm"
+            @update:model-value="
+                (open: boolean) => {
+                    if (!open) confirming = false;
+                }
+            "
+        >
+            <p class="sp-bundle-retired__text">{{ switchText }}</p>
+            <p class="sp-bundle-retired__text">{{ i18n.bundleRetiredSwitchCancelLapses }}</p>
+
+            <template #footer>
+                <TenantButton @click="confirming = false">
+                    {{ i18n.bundlePreviewClose }}
+                </TenantButton>
+                <TenantButton variant="solid" tone="accent" @click="confirm">
+                    {{ i18n.versionRetiredSwitchConfirm }}
+                </TenantButton>
+            </template>
+        </TenantDialog>
     </section>
 </template>
 
@@ -27,12 +61,15 @@
 // booking continues on the replacement, what changes — at the prices for the
 // plan the add-on runs beside — and until when it may be cancelled without its
 // minimum term. What it says is what the subscriber was told, read off the
-// notice.
+// notice. Where the booking may switch before the date, the notice offers it
+// and says what it costs; taking it is the parent's, which owns the request.
 
-import { computed, useId } from 'vue';
-import type { BundleVersionRetiredNotice } from '@saasicat/core';
+import { computed, ref, useId } from 'vue';
+import type { BundleRetirementSwitchTerms, BundleVersionRetiredNotice } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
+import TenantButton from '../ui/TenantButton.vue';
+import TenantDialog from '../ui/TenantDialog.vue';
 import VersionComparison from './VersionComparison.vue';
 import { dayAsInstant } from './version-retirement-day.js';
 
@@ -40,6 +77,12 @@ const props = defineProps<{
     notice: BundleVersionRetiredNotice;
     /** The add-on's display name. */
     label: string;
+    /** What switching now costs, where the booking may; null or absent where it may not. */
+    switchTerms?: BundleRetirementSwitchTerms | null;
+    /** While the switch is being written. */
+    busy?: boolean;
+    /** When the booking's next period starts, which is when a price that is not held applies. */
+    nextPeriodStart?: string | Date | null;
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     quotaLabel: (key: string) => string;
@@ -47,8 +90,11 @@ const props = defineProps<{
     formatQuotaValue: (key: string, value: number) => string;
 }>();
 
+const emit = defineEmits<{ switch: [bundleVersionId: string] }>();
+
 const i18n = useTenantI18n();
 const titleId = useId();
+const confirming = ref(false);
 
 const retiredVersion = computed(() => String(props.notice.retired.version));
 const replacementVersion = computed(() => String(props.notice.replacement.version));
@@ -75,6 +121,42 @@ const cancelText = computed(() =>
         .replace('{date}', props.formatDate(dayAsInstant(props.notice.lastDayToCancel)))
         .replace('{bundle}', props.label),
 );
+
+const switchText = computed(() => {
+    const terms = props.switchTerms;
+    if (!terms) return '';
+    // In the rhythm the booking is billed in now, which the terms name: the
+    // notice's may have changed since it was told.
+    const priced = (amount: number) =>
+        `${props.formatCurrency(amount)} ${
+            terms.billingCycle === 'YEARLY'
+                ? i18n.value.wizardPriceUnitYearly
+                : i18n.value.wizardPriceUnitMonthly
+        }`;
+    const named = (sentence: string) =>
+        sentence.replace('{bundle}', props.label).replace('{version}', replacementVersion.value);
+    if (terms.held) {
+        return named(i18n.value.bundleRetiredSwitchHeld)
+            .replace('{held}', priced(terms.held.priceNet))
+            .replace('{day}', props.formatDate(dayAsInstant(terms.held.lastDay)))
+            .replace('{date}', effectiveDate.value)
+            .replace('{price}', priced(terms.priceNet));
+    }
+    const next = props.nextPeriodStart;
+    return named(i18n.value.bundleRetiredSwitchNextPeriod)
+        .replace(
+            '{date}',
+            next
+                ? props.formatDate(next instanceof Date ? next.toISOString() : next)
+                : effectiveDate.value,
+        )
+        .replace('{price}', priced(terms.priceNet));
+});
+
+function confirm(): void {
+    confirming.value = false;
+    emit('switch', props.notice.replacement.bundleVersionId);
+}
 </script>
 
 <style scoped>
@@ -95,6 +177,10 @@ const cancelText = computed(() =>
 .sp-bundle-retired__text {
     margin: 0;
     color: var(--sa-color-fg-body);
+}
+.sp-bundle-retired__actions {
+    display: flex;
+    justify-content: flex-end;
 }
 .sp-bundle-retired__note {
     margin: 0;

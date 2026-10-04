@@ -178,6 +178,18 @@ export interface TenantPlanSectionI18n {
     bundleRetiredCancel: string;
     /** `{bundle}` names the add-on. */
     bundleRetiredNoAction: string;
+    /** `{bundle}` names the add-on, `{version}` the replacement's version. */
+    bundleRetiredSwitchTitle: string;
+    /**
+     * A dearer replacement: `{bundle}` and `{version}` name it, `{held}` is the
+     * price paid up to and including `{day}`, `{price}` its own from `{date}`.
+     */
+    bundleRetiredSwitchHeld: string;
+    /** The same price or less: `{price}` applies from the booking's next period, on `{date}`. */
+    bundleRetiredSwitchNextPeriod: string;
+    bundleRetiredSwitchCancelLapses: string;
+    /** After the switch; `{bundle}` names the add-on, `{version}` the replacement's version. */
+    bundleRetiredSwitched: string;
     wizardTitle: string;
     wizardClose: string;
     wizardCurrent: string;
@@ -500,6 +512,14 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
         'Bis einschließlich {date} können Sie {bundle} ohne Mindestlaufzeit zum Ende des laufenden Abrechnungszeitraums kündigen.',
     bundleRetiredNoAction:
         'Wenn Sie nichts tun, läuft {bundle} ab dann auf der neuen Version weiter.',
+    bundleRetiredSwitchTitle: '{bundle} jetzt auf Version {version} umstellen?',
+    bundleRetiredSwitchHeld:
+        '{bundle} läuft ab sofort auf Version {version}. Bis einschließlich {day} zahlen Sie dafür weiter {held}, ab {date} {price}.',
+    bundleRetiredSwitchNextPeriod:
+        '{bundle} läuft ab sofort auf Version {version}. Ab dem nächsten Abrechnungszeitraum am {date} zahlen Sie dafür {price}.',
+    bundleRetiredSwitchCancelLapses:
+        'Mit dem Wechsel entfällt die Kündigung ohne Mindestlaufzeit. Die Laufzeit der Buchung bleibt, wie sie ist.',
+    bundleRetiredSwitched: '{bundle} läuft jetzt auf Version {version}.',
     wizardTitle: 'Paket wechseln',
     wizardClose: 'Schließen',
     wizardCurrent: 'Aktuell',
@@ -795,6 +815,14 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundleRetiredCancel:
         'Up to and including {date}, you may cancel {bundle} without its minimum term, for the end of the billing period running.',
     bundleRetiredNoAction: 'If you do nothing, {bundle} continues on the new version from then on.',
+    bundleRetiredSwitchTitle: 'Switch {bundle} to version {version} now?',
+    bundleRetiredSwitchHeld:
+        '{bundle} runs on version {version} from now on. Up to and including {day} you keep paying {held} for it, from {date} {price}.',
+    bundleRetiredSwitchNextPeriod:
+        '{bundle} runs on version {version} from now on. From its next billing period on {date}, you pay {price} for it.',
+    bundleRetiredSwitchCancelLapses:
+        'With the switch, cancelling without the minimum term is no longer available. The booking’s term stays as it is.',
+    bundleRetiredSwitched: '{bundle} runs on version {version} now.',
     wizardTitle: 'Change plan',
     wizardClose: 'Close',
     wizardCurrent: 'Current',

@@ -209,40 +209,62 @@ describe('a retired add-on version, on the page of the tenant’s add-ons', () =
     });
 });
 
+/** A JSON answer with `status`. */
+const reply = (status: number, body: unknown) => ({
+    status,
+    headers: { get: () => 'application/json' },
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+});
+
+const USAGE = {
+    plan: 'STANDARD',
+    effectivePlan: 'STANDARD',
+    billingCycle: 'MONTHLY',
+    status: 'ACTIVE',
+    limits: { plan: 'STANDARD', quotas: {}, features: [] },
+    usage: {},
+};
+
+/**
+ * A server holding `bookings`, answering a request to `endsWith` with
+ * `answer` — and recording what was asked.
+ */
+function aServer(
+    bookings: () => unknown[],
+    endsWith: string,
+    answer: () => { status: number; body: unknown },
+): HttpClient & { asked: string[] } {
+    const asked: string[] = [];
+    const client = async (url: string, init?: { method?: string; body?: string }) => {
+        asked.push(`${init?.method ?? 'GET'} ${url}${init?.body ? ` ${init.body}` : ''}`);
+        if (url.endsWith(endsWith) && init?.method === 'POST') {
+            const { status, body } = answer();
+            return reply(status, body);
+        }
+        if (url.endsWith('/subscription-bundles')) return reply(200, bookings());
+        if (url.endsWith('/bundles')) return reply(200, [REPORTS]);
+        if (url.endsWith('/usage')) return reply(200, USAGE);
+        return reply(200, []);
+    };
+    return Object.assign(client, { asked }) as HttpClient & { asked: string[] };
+}
+
 /**
  * The plan section of a subscription holding a cancelled booking of Seats
  * version 1, whose reinstatement the server refuses with `refusal`.
  */
 function aRefusingServer(refusal: { code: string; message: string; params: object }): HttpClient {
-    const reply = (status: number, body: unknown) => ({
-        status,
-        headers: { get: () => 'application/json' },
-        json: async () => body,
-        text: async () => JSON.stringify(body),
-    });
-    return async (url, init) => {
-        if (url.endsWith('/reactivate') && init?.method === 'POST') return reply(422, refusal);
-        if (url.endsWith('/subscription-bundles')) {
-            return reply(200, [
-                seatsV1({
-                    canceledAt: '2026-10-01T00:00:00.000Z',
-                    canceledEffectiveAt: '2026-11-01T00:00:00.000Z',
-                }),
-            ]);
-        }
-        if (url.endsWith('/bundles')) return reply(200, [REPORTS]);
-        if (url.endsWith('/usage')) {
-            return reply(200, {
-                plan: 'STANDARD',
-                effectivePlan: 'STANDARD',
-                billingCycle: 'MONTHLY',
-                status: 'ACTIVE',
-                limits: { plan: 'STANDARD', quotas: {}, features: [] },
-                usage: {},
-            });
-        }
-        return reply(200, []);
-    };
+    return aServer(
+        () => [
+            seatsV1({
+                canceledAt: '2026-10-01T00:00:00.000Z',
+                canceledEffectiveAt: '2026-11-01T00:00:00.000Z',
+            }),
+        ],
+        '/reactivate',
+        () => ({ status: 422, body: refusal }),
+    );
 }
 
 describe('a booking the platform will not reinstate', () => {
@@ -286,5 +308,198 @@ describe('a booking the platform will not reinstate', () => {
         expect(wrapper.text()).toContain(
             'Version 1 von SEATS wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Buchen Sie Version 2 ab dem 2026-11-01, wenn diese Buchung beendet ist.',
         );
+    });
+});
+
+/** What switching Seats now costs: 9 a month held until 31 January, 11 from 1 February. */
+const HELD = {
+    priceNet: 11,
+    held: { priceNet: 9, amountNet: 2, lastDay: '2027-01-31' },
+    billingCycle: 'MONTHLY',
+};
+
+/** The booking of Seats version 1, told of its retirement, as the server lists it while it may switch. */
+const switchable = (fields: Partial<SubscriptionBundleShape> = {}) =>
+    seatsV1({ retirement: RETIREMENT, retirementSwitch: HELD, ...fields });
+
+/** The confirmation open in the document, and its buttons by their words. */
+function confirmation() {
+    const panel = document.body.querySelector('.sp-dialog__panel');
+    const button = (words: string) =>
+        [...(panel?.querySelectorAll('button') ?? [])].find(
+            (candidate) => candidate.textContent?.trim() === words,
+        ) as HTMLButtonElement | undefined;
+    return { text: panel?.textContent ?? '', button };
+}
+
+/** Clicks the notice's switch, and the confirmation's. */
+async function switchAndConfirm(wrapper: VueWrapper, i18n = DEFAULT_I18N_EN) {
+    const button = wrapper
+        .findAll('.sp-bundle-retired button')
+        .find((candidate) => candidate.text() === i18n.versionRetiredSwitch);
+    expect(button, 'no switch beside the notice').toBeTruthy();
+    await button!.trigger('click');
+    await flushPromises();
+    const confirm = confirmation().button(i18n.versionRetiredSwitchConfirm);
+    expect(confirm, 'no confirmation').toBeTruthy();
+    confirm!.click();
+    await flushPromises();
+}
+
+// @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+describe('the switch beside a retired add-on version', () => {
+    test('says before it is taken what it holds until the day, and what it gives up', async () => {
+        const wrapper = storeWith([switchable()]);
+
+        const button = wrapper
+            .findAll('.sp-bundle-retired button')
+            .find((candidate) => candidate.text() === DEFAULT_I18N_EN.versionRetiredSwitch);
+        await button!.trigger('click');
+        await flushPromises();
+        const { text } = confirmation();
+
+        const unit = DEFAULT_I18N_EN.wizardPriceUnitMonthly;
+        expect(text).toContain(
+            `Seats runs on version 2 from now on. Up to and including 2027-01-31 you keep paying 9.00 EUR ${unit} for it, from 2027-02-01 11.00 EUR ${unit}.`,
+        );
+        expect(text).toContain(DEFAULT_I18N_EN.bundleRetiredSwitchCancelLapses);
+    });
+
+    test('names the next period where nothing is held, and switches to the version shown', async () => {
+        const wrapper = storeWith([
+            switchable({
+                retirementSwitch: { priceNet: 8, held: null, billingCycle: 'MONTHLY' },
+                currentPeriodEnd: '2026-11-01T00:00:00.000Z',
+            }),
+        ]);
+
+        const button = wrapper
+            .findAll('.sp-bundle-retired button')
+            .find((candidate) => candidate.text() === DEFAULT_I18N_EN.versionRetiredSwitch);
+        await button!.trigger('click');
+        await flushPromises();
+        expect(confirmation().text).toContain(
+            `From its next billing period on 2026-11-01, you pay 8.00 EUR ${DEFAULT_I18N_EN.wizardPriceUnitMonthly} for it.`,
+        );
+        confirmation().button(DEFAULT_I18N_EN.versionRetiredSwitchConfirm)!.click();
+        await flushPromises();
+
+        expect(wrapper.emitted('switch')).toEqual([['sb-1', 'bv-2']]);
+    });
+
+    test('names the rhythm the booking is billed in now, where its notice was told in another', async () => {
+        const wrapper = storeWith([
+            switchable({ retirementSwitch: { ...HELD, billingCycle: 'YEARLY' } }),
+        ]);
+
+        const button = wrapper
+            .findAll('.sp-bundle-retired button')
+            .find((candidate) => candidate.text() === DEFAULT_I18N_EN.versionRetiredSwitch);
+        await button!.trigger('click');
+        await flushPromises();
+
+        const unit = DEFAULT_I18N_EN.wizardPriceUnitYearly;
+        expect(confirmation().text).toContain(
+            `you keep paying 9.00 EUR ${unit} for it, from 2027-02-01 11.00 EUR ${unit}.`,
+        );
+    });
+
+    test('is not offered where the booking may not switch', () => {
+        const wrapper = storeWith([switchable({ retirementSwitch: null })]);
+
+        expect(notices(wrapper.element)).toHaveLength(1);
+        expect(
+            wrapper
+                .findAll('.sp-bundle-retired button')
+                .some((candidate) => candidate.text() === DEFAULT_I18N_EN.versionRetiredSwitch),
+        ).toBe(false);
+    });
+
+    test('is written from the plan section, which says it went through', async () => {
+        let switched = false;
+        const http = aServer(
+            () => [switched ? seatsV1({ bundleVersionId: 'bv-2' }) : switchable()],
+            '/sb-1/retirement/switch',
+            () => {
+                switched = true;
+                return { status: 200, body: { heldUntilDay: '2027-01-31' } };
+            },
+        );
+        const wrapper = mount(TenantPlanSection, {
+            attachTo: document.body,
+            props: {
+                http,
+                formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
+                formatDate: (value: string | Date) => String(value).slice(0, 10),
+                showBundleStore: true,
+            },
+        });
+        mounted.push(wrapper as VueWrapper);
+        await flushPromises();
+
+        await switchAndConfirm(wrapper as VueWrapper);
+
+        expect(http.asked).toContain(
+            'POST /billing/subscription-bundles/sb-1/retirement/switch {"bundleVersionId":"bv-2"}',
+        );
+        expect(wrapper.text()).toContain('Seats runs on version 2 now.');
+        expect(notices(wrapper.element)).toEqual([]);
+    });
+
+    test('is refused in the reader’s language where the plan changes before the date', async () => {
+        const wrapper = mount(TenantPlanSection, {
+            attachTo: document.body,
+            props: {
+                http: aServer(
+                    () => [switchable()],
+                    '/sb-1/retirement/switch',
+                    () => ({
+                        status: 422,
+                        body: {
+                            code: 'BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES',
+                            message: 'Seats moves to its new version on 2027-02-01.',
+                            params: { bundleName: 'Seats', date: '2027-02-01' },
+                        },
+                    }),
+                ),
+                formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
+                formatDate: (value: string | Date) => String(value).slice(0, 10),
+                i18n: DEFAULT_I18N_DE,
+                showBundleStore: true,
+            },
+        });
+        mounted.push(wrapper as VueWrapper);
+        await flushPromises();
+
+        await switchAndConfirm(wrapper as VueWrapper, DEFAULT_I18N_DE);
+
+        expect(wrapper.text()).toContain(
+            'Seats zieht am 2027-02-01 auf seine neue Version um, und Ihr Paket ändert sich vorher.',
+        );
+    });
+
+    test('is written from the page of the tenant’s add-ons too', async () => {
+        let switched = false;
+        const http = aServer(
+            () => [switched ? seatsV1({ bundleVersionId: 'bv-2' }) : switchable()],
+            '/sb-1/retirement/switch',
+            () => {
+                switched = true;
+                return { status: 200, body: { heldUntilDay: '2027-01-31' } };
+            },
+        );
+        const wrapper = mount(MySubscriptionBundlesPage, {
+            attachTo: document.body,
+            props: { billingEndpoint: '/api', http },
+        });
+        mounted.push(wrapper as VueWrapper);
+        await flushPromises();
+
+        await switchAndConfirm(wrapper as VueWrapper);
+
+        expect(http.asked).toContain(
+            'POST /api/billing/subscription-bundles/sb-1/retirement/switch {"bundleVersionId":"bv-2"}',
+        );
+        expect(wrapper.text()).toContain('runs on version 2 now.');
     });
 });

@@ -418,6 +418,10 @@ function deriveBundleCharges(
     const { subscription } = input;
     const anchorDay = subscription.anchorDay;
     const charges: NewSubscriberCharge[] = [];
+    const holds = discountsWhereAgreed(input.contracts).flatMap(({ contract, line }) => {
+        const hold = addOnHoldOf(line);
+        return hold ? [{ contract, line, hold }] : [];
+    });
     for (const booking of input.bookings) {
         const window = windowOf(booking.currentPeriodStart, booking.currentPeriodEnd);
         if (!window) continue;
@@ -482,29 +486,51 @@ function deriveBundleCharges(
             );
             if (!priced) continue;
             const { contract, line } = priced;
-            charges.push(
-                chargeOf(input, contract, line, {
-                    origin:
-                        !lastEnd && sameInstant(period.start, chainStart)
-                            ? 'bundleBooking'
-                            : 'renewal',
-                    source: 'bundle',
-                    sourceRef: booking.id,
-                    period,
-                    // Every period is charged for its share of the whole cycle
-                    // it ends, which is all of it except for the short first
-                    // one — the same arithmetic the preview quoted
-                    // (`SC-BUN-003`, `SC-PRIC-002`).
-                    amountNet: computeProration({
-                        periodStart: bundleFirstPeriodStart(period.end, cycle, anchorDay),
-                        periodEnd: period.end,
-                        now: period.start,
-                        currentPriceNet: 0,
-                        targetPriceNet: line.priceNet,
-                    }).prorataDeltaNet,
-                    bookedAt: period.start,
-                }),
-            );
+            const charged = chargeOf(input, contract, line, {
+                origin:
+                    !lastEnd && sameInstant(period.start, chainStart) ? 'bundleBooking' : 'renewal',
+                source: 'bundle',
+                sourceRef: booking.id,
+                period,
+                // Every period is charged for its share of the whole cycle
+                // it ends, which is all of it except for the short first
+                // one — the same arithmetic the preview quoted
+                // (`SC-BUN-003`, `SC-PRIC-002`).
+                amountNet: computeProration({
+                    periodStart: bundleFirstPeriodStart(period.end, cycle, anchorDay),
+                    periodEnd: period.end,
+                    now: period.start,
+                    currentPriceNet: 0,
+                    targetPriceNet: line.priceNet,
+                }).prorataDeltaNet,
+                bookedAt: period.start,
+            });
+            charges.push(charged);
+            // A switch to a dearer replacement holds the price it had until
+            // the date: the difference comes off each period of the booking
+            // that switched, on the replacement, that starts before it, in
+            // the rhythm it was agreed in, wherever the contract pricing the
+            // period was written (`SC-BUN-055`).
+            for (const held of holds) {
+                if (
+                    held.hold.subscriptionBundleId !== booking.id ||
+                    held.hold.bundleVersionId !== line.sourceVersionId ||
+                    held.line.billingCycle !== line.billingCycle ||
+                    period.start >= held.hold.until
+                ) {
+                    continue;
+                }
+                charges.push(
+                    chargeOf(input, held.contract, held.line, {
+                        origin: charged.origin,
+                        source: 'discount',
+                        sourceRef: held.line.sourceKey,
+                        period,
+                        amountNet: -Math.min(held.hold.amountNet, charged.amountNet),
+                        bookedAt: period.start,
+                    }),
+                );
+            }
         }
     }
     return charges;
@@ -735,6 +761,43 @@ function discountSnapshotsOf(line: ContractLineItemRecord): DiscountSnapshots | 
               }
             : null,
         priceHold: priceHoldOf(metadata.priceHold),
+    };
+}
+
+/** The add-on price a retirement's switch holds, per period of its line's rhythm. */
+interface AddOnHold {
+    /** The booking that switched: the only one the price is held for. */
+    readonly subscriptionBundleId: string;
+    readonly bundleVersionId: string;
+    readonly until: Date;
+    readonly amountNet: number;
+}
+
+/**
+ * The add-on price a retirement's switch holds on a generated discount line,
+ * or null for any other line: the booking it is held for, the version it is
+ * held on, until when, and how much per period (`SC-BUN-055`). A plan's held
+ * price names a plan version instead, and is read by `priceHoldOf`.
+ */
+function addOnHoldOf(line: ContractLineItemRecord): AddOnHold | null {
+    const metadata = line.metadata;
+    if (line.kind !== 'discount' || !isRecord(metadata) || metadata.generated !== true) return null;
+    const hold = metadata.priceHold;
+    if (
+        !isRecord(hold) ||
+        typeof hold.subscriptionBundleId !== 'string' ||
+        typeof hold.bundleVersionId !== 'string'
+    ) {
+        return null;
+    }
+    if (typeof hold.until !== 'string') return null;
+    const until = new Date(hold.until);
+    if (Number.isNaN(until.getTime())) return null;
+    return {
+        subscriptionBundleId: hold.subscriptionBundleId,
+        bundleVersionId: hold.bundleVersionId,
+        until,
+        amountNet: numberOr0(hold.resolvedAmountNet),
     };
 }
 

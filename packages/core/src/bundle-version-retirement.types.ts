@@ -11,6 +11,7 @@
 // replacement is a version of the same add-on, so the booking stays the same
 // booking and keeps its term.
 
+import type { RetirementSwitchTerms } from './retirement-switch.js';
 import type { RetirementBlocker, RetirementProgress } from './version-retirement.types.js';
 import type { VersionChange } from './subscription.types.js';
 
@@ -95,6 +96,24 @@ export interface BundleVersionRetiredNotice {
  *   stands.
  */
 export type BundleRetirementSkipReason = 'ended' | 'cancelled-before' | 'no-term' | 'already-told';
+
+/**
+ * What switching a booking to its retirement's replacement now would cost
+ * (`SC-BUN-054`), in the rhythm the booking is billed in now — its own, or
+ * else its plan's — which need not be the one its notice was told in.
+ */
+export interface BundleRetirementSwitchTerms extends RetirementSwitchTerms {
+    readonly billingCycle: string;
+}
+
+/** What switching a booking to its retirement's replacement before the date did. */
+export interface BundleRetirementSwitchResult {
+    readonly subscriptionBundleId: string;
+    readonly fromBundleVersionId: string;
+    readonly bundleVersionId: string;
+    /** ISO date of the last day the price is held, or null where none is. */
+    readonly heldUntilDay: string | null;
+}
 
 /** A booking an add-on retirement reaches, with what it means there. */
 export interface BundleRetirementReachedRow {

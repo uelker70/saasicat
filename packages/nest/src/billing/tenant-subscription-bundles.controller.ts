@@ -52,7 +52,7 @@ import {
 import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
 import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
 
-import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
+import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
@@ -64,6 +64,7 @@ import {
     CancelSubscriptionBundleDto,
     PreviewSubscriptionBundleDto,
     BundlePriceLookupDto,
+    SwitchSubscriptionBundleDto,
 } from './dto/subscription-bundles.dto.js';
 import {
     SubscriptionBundlePreviewService,
@@ -71,7 +72,8 @@ import {
 } from './subscription-bundle-preview.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
-import { bookingEndsBy } from './bundle-retirement-reach.js';
+import { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
+import { bookingOverBy } from './bundle-retirement-reach.js';
 import {
     PLANS_AHEAD_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -157,6 +159,9 @@ export function buildTenantSubscriptionBundlesController(
             @Optional()
             @Inject(BundleVersionRetirementService)
             private readonly bundleRetirements: BundleVersionRetirementService | null = null,
+            @Optional()
+            @Inject(BundleRetirementSwitchService)
+            private readonly bundleSwitches: BundleRetirementSwitchService | null = null,
         ) {}
 
         @Get()
@@ -171,20 +176,32 @@ export function buildTenantSubscriptionBundlesController(
                 planCycleOf(sub),
             );
             const told = (await this.bundleRetirements?.toldForSubscription(subscriptionId)) ?? [];
+            const now = new Date();
             // A booking reads the retirement of the version it is on, until
             // it has moved onto the replacement (`SC-BUN-046`) — and only
-            // while it runs to the date: one cancelled to end before it never
-            // moves, and the notice would say it does.
-            return views.map((view) => ({
-                ...view,
-                retirement:
-                    told.find(
-                        (notice) =>
-                            notice.subscriptionBundleId === view.id &&
-                            notice.retired.bundleVersionId === view.bundleVersionId &&
-                            !bookingEndsBy(view, new Date(notice.effectiveAt)),
-                    ) ?? null,
-            }));
+            // while it runs to the date: one that ends by then, or whose
+            // subscription does, never moves, and the notice would say it
+            // does. Beside it, what switching now would cost, where it may
+            // (`SC-BUN-054`).
+            return Promise.all(
+                views.map(async (view) => {
+                    const retirement =
+                        told.find(
+                            (notice) =>
+                                notice.subscriptionBundleId === view.id &&
+                                notice.retired.bundleVersionId === view.bundleVersionId &&
+                                !bookingOverBy(
+                                    view,
+                                    cancellationLandsAt(sub),
+                                    new Date(notice.effectiveAt),
+                                ),
+                        ) ?? null;
+                    const retirementSwitch = retirement
+                        ? ((await this.bundleSwitches?.openFor(sub, view, now)) ?? null)
+                        : null;
+                    return { ...view, retirement, retirementSwitch };
+                }),
+            );
         }
 
         /**
@@ -318,6 +335,38 @@ export function buildTenantSubscriptionBundlesController(
             });
             await this.refreezeContract(tenantId, sub);
             return result;
+        }
+
+        /**
+         * The early switch to the replacement an add-on retirement names
+         * (`SC-BUN-054`): at once, and at no more than the booking paid until
+         * the date. The body names the version the page showed, so a
+         * retirement that changed meanwhile is refused with how it stands.
+         */
+        @Post(':id/retirement/switch')
+        @UseGuards(TenantAdminGuard)
+        @HttpCode(HttpStatus.OK)
+        async switchToReplacement(
+            @Req() req: RequestLike,
+            @Param('id', new ParseUUIDPipe()) subscriptionBundleId: string,
+            @Body() dto: SwitchSubscriptionBundleDto,
+        ) {
+            const tenantId = this.requireTenantId(req);
+            // Where add-on versions are not retired, no retirement can be
+            // waiting for its date.
+            if (!this.bundleSwitches) {
+                throw new UnprocessableEntityException({
+                    code: BILLING_ERROR_CODES.RETIREMENT_SWITCH_NOT_PENDING,
+                    message:
+                        'No retirement of your version is waiting for its date, so there is nothing to switch to.',
+                    params: {},
+                });
+            }
+            return this.bundleSwitches.switchNow(
+                tenantId,
+                subscriptionBundleId,
+                dto.bundleVersionId,
+            );
         }
 
         @Post(':id/reactivate')

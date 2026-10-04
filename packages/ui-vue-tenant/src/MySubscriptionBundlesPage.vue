@@ -24,6 +24,8 @@
         <div v-if="error" class="msb-error" role="alert">
             <strong>{{ effectiveI18n.errorLabel }}:</strong> {{ error.message }}
         </div>
+        <div v-if="switchError" class="msb-error" role="alert">{{ switchError }}</div>
+        <p v-if="switchNote" class="msb-note" role="status">{{ switchNote }}</p>
 
         <div v-if="loading && bundles.length === 0" class="msb-loading">
             {{ effectiveI18n.loading }}
@@ -78,11 +80,15 @@
                     class="msb-retired"
                     :notice="b.retirement"
                     :label="resolveBundleKey(b)"
+                    :switch-terms="b.retirementSwitch ?? null"
+                    :busy="switchingId === b.id"
+                    :next-period-start="b.currentPeriodEnd"
                     :format-currency="formatAmount"
                     :format-date="formatDate"
                     :quota-label="quotaLabelOf"
                     :feature-label="featureLabelOf"
                     :format-quota-value="quotaValueOf"
+                    @switch="(bundleVersionId) => onSwitch(b, bundleVersionId)"
                 />
             </article>
         </div>
@@ -187,9 +193,10 @@ import type { SubscriptionBundleRecord } from '@saasicat/core';
 import type { HttpClient } from '@saasicat/ui-vue';
 
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
-import { useTenantSubscriptionBundles } from '@saasicat/ui-vue';
+import { useTenantSubscriptionBundles, type TenantSubscriptionBundle } from '@saasicat/ui-vue';
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 import { defaultQuotaValue } from './plan/quota-value.js';
+import { refusalMessage } from './refusal-of.js';
 import BundleRetiredNotice from './tenant-plan-section/BundleRetiredNotice.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
@@ -276,10 +283,11 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
     ...(props.i18n ?? {}),
 }));
 
-const { bundles, loading, error, load, add, cancel } = useTenantSubscriptionBundles({
-    billingEndpoint: props.billingEndpoint,
-    http: props.http,
-});
+const { bundles, loading, error, load, add, cancel, switchToReplacement } =
+    useTenantSubscriptionBundles({
+        billingEndpoint: props.billingEndpoint,
+        http: props.http,
+    });
 
 onMounted(() => load());
 
@@ -374,6 +382,32 @@ async function onCancel(b: SubscriptionBundleRecord): Promise<void> {
         await cancel(b.id);
     } finally {
         cancellingId.value = null;
+    }
+}
+
+// ─── Switch to a retirement's replacement ───────────────────
+const switchingId = ref<string | null>(null);
+const switchError = ref<string | null>(null);
+const switchNote = ref<string | null>(null);
+
+// The notice confirmed the switch with the tenant; this writes it, and says
+// what happened — or, refused, why, reloading the retirement as it stands.
+async function onSwitch(b: TenantSubscriptionBundle, bundleVersionId: string): Promise<void> {
+    const label = resolveBundleKey(b);
+    const version = String(b.retirement?.replacement.version ?? '');
+    switchingId.value = b.id;
+    switchError.value = null;
+    switchNote.value = null;
+    try {
+        await switchToReplacement(b.id, bundleVersionId);
+        switchNote.value = effectiveI18n.value.bundleRetiredSwitched
+            .replace('{bundle}', label)
+            .replace('{version}', version);
+    } catch (err) {
+        switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages);
+        await load();
+    } finally {
+        switchingId.value = null;
     }
 }
 
@@ -532,6 +566,10 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-retired {
     margin-top: var(--sa-space-3);
+}
+.msb-note {
+    margin: 0 0 var(--sa-space-4);
+    color: var(--sa-color-fg-secondary);
 }
 .msb-cancel-info {
     margin-top: var(--sa-space-3);

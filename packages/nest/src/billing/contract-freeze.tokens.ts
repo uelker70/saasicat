@@ -89,10 +89,21 @@ export interface ContractFreezePort {
  */
 export interface RetirementContractTerms {
     readonly retirementId: string;
-    /** The add-on version an add-on retirement moves a booking onto; its line is the one marked. */
-    readonly addOn?: { readonly bundleVersionId: string } | null;
+    /**
+     * The add-on version an add-on retirement moves a booking onto, and that
+     * booking: its line is the one marked, and a price held is held for that
+     * booking alone, never for a later booking of the same add-on.
+     */
+    readonly addOn?: {
+        readonly bundleVersionId: string;
+        readonly subscriptionBundleId: string;
+    } | null;
     readonly priceHold?: {
-        /** The difference held, net, for one period of the contract's rhythm. */
+        /**
+         * The difference held, net, for one period of the contract's rhythm —
+         * or, where `addOn` names a version, of the rhythm that add-on's
+         * booking is billed in.
+         */
         readonly amountNet: number;
         /** The date the subscriber was told: periods starting before it are held. */
         readonly until: Date;

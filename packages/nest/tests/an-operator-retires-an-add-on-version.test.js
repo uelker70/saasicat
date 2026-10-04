@@ -10,6 +10,7 @@ import { ConflictException, UnprocessableEntityException } from '@nestjs/common'
 import {
     BundleVersionRetirementService,
     SubscriptionBundlesService,
+    TenantAdminGuard,
     VersionNoticeCron,
     buildTenantSubscriptionBundlesController,
     bundleRetirementReach,
@@ -1165,8 +1166,11 @@ describe('reinstating a booking of a version being retired', () => {
     });
 });
 
-/** The tenant's add-on route over one subscription and `bundleRetirements`; t1's booking as `booking` says. */
-function routeOver(bundleRetirements, booking = {}) {
+/**
+ * The tenant's add-on route over one subscription, `bundleRetirements` and
+ * `bundleSwitches`; t1's booking as `booking` says.
+ */
+function routeOver(bundleRetirements, booking = {}, bundleSwitches = null, subscription = {}) {
     const Ctrl = buildTenantSubscriptionBundlesController();
     const calls = [];
     const service = {
@@ -1185,14 +1189,15 @@ function routeOver(bundleRetirements, booking = {}) {
     const ctrl = new Ctrl(
         service,
         { previewCancel: async (_ctx, input) => (calls.push(['previewCancel', input]), {}) },
-        { findForTenant: async () => subscriptionOf('t1').subscription },
+        { findForTenant: async () => subscriptionOf('t1', subscription).subscription },
         () => 't1',
         null,
         null,
         { of: async () => [] },
         bundleRetirements,
+        bundleSwitches,
     );
-    return { ctrl, calls };
+    return { ctrl, calls, Ctrl };
 }
 
 const REQ = { user: { tenantId: 't1' } };
@@ -1235,6 +1240,74 @@ describe('the tenant’s add-on route and a retirement told', () => {
 
         assert.equal(endingBefore[0].retirement, null);
         assert.equal(endingAfter[0].retirement, told);
+    });
+
+    // @requirement SC-BUN-046 — A tenant sees the retirement of an add-on's version beside the add-on
+    test('and none where the subscription paying for it ends by the date', async () => {
+        const subscriptionEnding = (endsAt) =>
+            routeOver({ toldForSubscription: async () => [told] }, {}, null, {
+                canceledAt: new Date('2026-10-16T00:00:00.000Z'),
+                canceledEffectiveAt: new Date(endsAt),
+            }).ctrl.list(REQ);
+
+        const endingBy = await subscriptionEnding('2027-02-01T00:00:00.000Z');
+        const endingAfter = await subscriptionEnding('2027-03-01T00:00:00.000Z');
+
+        assert.equal(endingBy[0].retirement, null);
+        assert.equal(endingAfter[0].retirement, told);
+    });
+
+    // @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+    test('lists beside the retirement what switching now would cost, where it may', async () => {
+        const terms = {
+            priceNet: 12.9,
+            held: { priceNet: 9.9, amountNet: 3, lastDay: '2027-01-31' },
+        };
+        const asked = [];
+        const { ctrl } = routeOver(
+            { toldForSubscription: async () => [told] },
+            {},
+            {
+                openFor: async (_sub, booking) => (asked.push(booking.id), terms),
+            },
+        );
+
+        const listed = await ctrl.list(REQ);
+
+        assert.deepEqual(
+            listed.map((view) => [view.id, view.retirementSwitch]),
+            [
+                ['sb-t1', terms],
+                ['sb-other', null],
+            ],
+        );
+        assert.deepEqual(asked, ['sb-t1'], 'asked only where a retirement stands');
+    });
+
+    // @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
+    test('switches for the tenant’s administrators, and has nothing to switch to where nothing retires add-ons', async () => {
+        const switched = [];
+        const { ctrl, Ctrl } = routeOver(
+            { toldForSubscription: async () => [] },
+            {},
+            {
+                switchNow: async (...args) => (switched.push(args), { heldUntilDay: null }),
+            },
+        );
+        const unwired = routeOver(null).ctrl;
+
+        await ctrl.switchToReplacement(REQ, 'sb-t1', { bundleVersionId: 'bv-2' });
+        const refused = await rejection(
+            unwired.switchToReplacement(REQ, 'sb-t1', { bundleVersionId: 'bv-2' }),
+        );
+
+        assert.deepEqual(switched, [['t1', 'sb-t1', 'bv-2']]);
+        assert.equal(refused.getResponse().code, 'RETIREMENT_SWITCH_NOT_PENDING');
+        assert.ok(
+            (Reflect.getMetadata('__guards__', Ctrl.prototype.switchToReplacement) ?? []).includes(
+                TenantAdminGuard,
+            ),
+        );
     });
 
     // @requirement SC-BUN-045 — A retirement lets a booking be cancelled without its minimum term until it takes effect
