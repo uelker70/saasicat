@@ -459,6 +459,22 @@ importers:
         specifier: ^6.19.0
         version: 6.19.3(typescript@6.0.3)
 
+  packages/tax-de:
+    dependencies:
+      '@saasicat/core':
+        specifier: workspace:^
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.9.5
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.15.43)(jiti@2.7.0)(postcss@8.5.26)(typescript@6.0.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^6.0.0
+        version: 6.0.3
+
   packages/ui-vue:
     dependencies:
       '@saasicat/core':

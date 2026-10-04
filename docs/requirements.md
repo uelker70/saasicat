@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 63      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 64      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
-🔵 9 superseded, 🔴 3 withdrawn.
+Of 584 entries: 🟢 507 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 10 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -167,7 +167,6 @@ Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-PRIC-041](#sc-pric-041--an-invoice-computes-its-tax-once-per-rate-by-the-rule-its-tax-adapter-names),
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
-[SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-PRIC-045](#sc-pric-045--invoice-dates-and-tax-periods-count-in-the-installations-time-zone),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
 [SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
@@ -207,6 +206,7 @@ Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
@@ -215,7 +215,7 @@ Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 583 requirements. Do not edit by hand:
+Generated from `requirements/` — 584 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8065,7 +8065,7 @@ content, the names of the documents and the note each tax treatment needs, and c
 content against them before its number is drawn (`SC-PRIC-023`). An invoice missing any of it draws
 no number and is not issued, and the operator is shown what is missing, such as a billing address
 the format rejects; once it is corrected, the invoice takes the next number then. Another country's
-law is another adapter rather than an addition to one, and German law is the first (`SC-PRIC-044`).
+law is another adapter rather than an addition to one, and German law is the first (`SC-PRIC-064`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
@@ -8326,6 +8326,20 @@ _Tested by:_
         - of two with the same date, the one written last
         - not for a number the subscriber does not hold
         - not when it completed before the number was last set, and from that moment on
+- `packages/tax-de/tests/a-vat-id-is-checked-through-vies.test.js`
+    - an answer about the number is a completed check, kept as the service sent it
+        - found valid, with the request identifier that confirms it
+        - dated when the whole answer has arrived, not when its headers did
+        - found invalid
+        - a number VIES cannot read as one is found invalid
+    - no answer about the number is a check that did not complete, never a valid one
+        - a failure VIES reports, such as a member state that cannot answer
+        - a failure without an error code
+        - an HTTP error
+        - a body that is not JSON, or JSON that says nothing about validity
+        - no answer within the time allowed
+        - headers within the time allowed, but no body
+        - a service that cannot be reached
 
 <!-- END proof -->
 
@@ -8379,7 +8393,8 @@ _Tested by:_
 
 ### SC-PRIC-044 — The German tax adapter covers Germany, businesses abroad and small businesses
 
-🟡 _(Decided, not yet delivered.)_ 💰 It is the first adapter and the template for the others. It
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-064`.)_ 💰 It is the first adapter and the template for
+the others. It
 treats a subscriber in Germany, business or consumer, at the German rate; a business in another
 member state of the European Union with a validated VAT identification number under the reverse
 charge, with both numbers and the note on the invoice; a business outside the European Union as not
@@ -8547,6 +8562,77 @@ _Tested by:_
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - a contract a retirement writes
         - holds the price of a switch to a dearer replacement as a discount line until the date
+
+<!-- END proof -->
+
+### SC-PRIC-064 — The German tax adapter decides Germany, businesses abroad and small businesses
+
+🟢 💰 `@saasicat/tax-de` is the first adapter and the template for the others. For an issuer in
+Germany it decides:
+
+- a subscriber in Germany, business or consumer: the German standard rate in force on the last day
+  of the period the charge covers, that day counted in the installation's time zone
+  (`SC-PRIC-045`);
+- where the issuer declares the small business exemption, an option of the adapter: a subscriber in
+  Germany without VAT and with the note § 19 UStG asks for, in German; the exemption reaches
+  subscribers in Germany only;
+- a business in another member state of the European Union with a validated VAT identification
+  number: the reverse charge, with the note § 14a (5) UStG asks for and its English beside it,
+  provided the issuer has a VAT identification number of its own for the invoice to name beside the
+  subscriber's;
+- a business outside the European Union: not taxable in Germany, with a note saying so in German
+  and English.
+
+Every other case is answered as not supported and refused (`SC-PRIC-039`): an issuer outside
+Germany, a subscriber whose country or business status is not stated, a consumer outside Germany, a
+business in another member state without a validated number, a validated number of another state
+than the billing address, a German one included, a number of a member state with a billing address
+outside the European Union, a reverse charge for an issuer without a VAT identification number, a
+subscriber in Monaco, which belongs to the French VAT territory, and a period ending before the
+first rate the adapter knows. A note is recorded word for word with
+the contract and the invoice. A VAT identification number is checked through VIES, naming the issuer's
+own number as the requester where it has one, so the answer carries the request identifier that
+confirms it; a number VIES cannot read as one is a completed check that found it invalid, and an
+error, a timeout or an answer the adapter cannot read is a check that did not complete
+(`SC-PRIC-040`). The adapter is a template, not tax advice: the operator stays responsible for the
+tax it charges.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/tax-de/tests/a-charge-is-decided-by-german-law.test.js`
+    - a charge for an issuer in Germany
+        - to a subscriber in Germany carries the German rate, business or consumer or not stated
+        - to a business elsewhere in the Union with a validated number is under the reverse charge
+        - to a business outside the Union is not taxable in Germany
+        - by a small business is free of VAT for a subscriber in Germany, and only there
+        - names the adapter and the version it was published as on every treatment
+        - the CommonJS build reads the same version
+    - a case the adapter does not decide is refused, saying why
+        - an issuer outside Germany, or one whose country is not configured
+        - a subscriber whose country is not known
+        - a consumer outside Germany, in the Union or beyond it
+        - a subscriber outside Germany who has not said whether it is a business
+        - a business elsewhere in the Union whose number is entered but not validated
+        - a reverse charge for an issuer without a VAT identification number, small business or not
+        - a validated number of another member state than the address, a German one included
+        - a number of a member state with an address outside the Union, validated or only entered
+        - a number is one of a member state by its prefix and the format of that state, not its
+          first letters
+        - a business in Monaco, which belongs to the French VAT territory
+    - the rate is the one in force on the period's last day, in the installation's time zone
+        - each change, on its last day and the millisecond after
+        - a period ending before the first rate the adapter knows is refused
+        - the same period ends on another day in another zone, and takes the rate of that day
+        - a malformed period or zone is an error on every path, not only where a rate is looked up
+        - a period that does not end after it begins, or a zone nobody knows, is an error
+- `packages/tax-de/tests/a-vat-id-is-checked-through-vies.test.js`
+    - the request names the number, and the issuer as requester where it has a number
+        - with the number of the issuer: prefix and rest of both
+        - without one: the number alone
 
 <!-- END proof -->
 

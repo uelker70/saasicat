@@ -11,6 +11,7 @@
             "@saasicat/adapter-drizzle",
             "@saasicat/persistence-testing",
             "@saasicat/payment-stripe",
+            "@saasicat/tax-de",
             "@saasicat/cli",
             "@saasicat/ui-vue",
             "@saasicat/ui-vue-tenant",
