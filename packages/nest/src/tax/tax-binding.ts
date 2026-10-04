@@ -39,7 +39,15 @@ export function taxBindingProblems(
     now: Date = new Date(),
 ): string[] {
     const named = settings.tax?.adapter;
-    if (named === undefined && factory === undefined) return [];
+    if (named === undefined && factory === undefined) {
+        // The loader refuses a file with neither; a catalogue handed over in
+        // code never meets the loader, and would start with no rate at all.
+        return settings.vatRate === undefined
+            ? [
+                  'config/saas.yaml names neither vatRate nor a tax adapter under tax: name the rate the installation charges, or the adapter that decides it.',
+              ]
+            : [];
+    }
     if (named === undefined) {
         return [
             `the application binds the tax adapter ${factory?.adapterName}, and config/saas.yaml#tax names none.`,

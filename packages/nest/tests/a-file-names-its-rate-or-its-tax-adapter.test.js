@@ -180,6 +180,11 @@ describe('the bound adapter is the one the file names, and it can decide', () =>
         // A catalogue handed over in code never meets the loader's checks, so
         // the start asks them again.
         [
+            'a catalogue given in code names neither vatRate nor tax',
+            () => [{ ...load(TAX + ZONE), tax: undefined }, undefined],
+            /names neither vatRate nor a tax adapter/,
+        ],
+        [
             'a catalogue given in code names vatRate beside tax',
             () => [{ ...load(TAX + ZONE), vatRate: 19 }, factoryOf()],
             /vatRate is not allowed beside tax/,
