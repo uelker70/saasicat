@@ -19,7 +19,7 @@ import { cancellationHasLanded } from '../../entitlement/landed-cancellation.js'
 import { resolvePlanAnchorDay } from '../bundle-period.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from '../contract-freeze.tokens.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../subscription-bundles.tokens.js';
-import { retiredVersionsOf } from '../retirement-notices.js';
+import { retiredBundleVersionsOf, retiredVersionsOf } from '../retirement-notices.js';
 import {
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
@@ -89,7 +89,8 @@ export class SubscriberChargeService {
      * starts on or after the date a cancellation takes effect. A period that
      * starts on or after the date a retirement moves the subscription waits
      * for the contract the move writes, and is charged at the replacement's
-     * price once it exists (`SC-PRIC-062`).
+     * price once it exists (`SC-PRIC-062`); so does a booking's period from
+     * the date an add-on retirement moves that booking (`SC-BUN-050`).
      *
      * A window that moved on before anything charged it is not charged
      * afterwards, so a job that renews periods calls this before it moves a
@@ -129,6 +130,7 @@ export class SubscriberChargeService {
             bookings,
             written,
             retired: retiredVersionsOf(told),
+            retiredAddOns: retiredBundleVersionsOf(told),
         });
         return this.ledger.recordCharges(due);
     }

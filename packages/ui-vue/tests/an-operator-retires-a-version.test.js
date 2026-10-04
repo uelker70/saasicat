@@ -10,6 +10,7 @@ import {
     AdminError,
     blockerText,
     isRetirable,
+    notToldReasonParts,
     retirementDates,
     retirementOf,
     retirementProgressParts,
@@ -183,6 +184,27 @@ describe('how a preview reads', () => {
                 { state: 'moved', count: 1, attention: false },
             ],
         );
+    });
+
+    // @requirement SC-SUB-039 — The operator sees why a retirement's notice still waits
+    test('says why those not told yet wait, in the order the run asks, and nothing a server did not count', () => {
+        const progress = {
+            moved: 0,
+            waiting: 0,
+            overdue: 0,
+            ended: 0,
+            notTold: 5,
+            notToldReasons: { doesNotFit: 1, twelveMonths: 0, noLongerReached: 3, nobodyYet: 1 },
+            reminded: 0,
+        };
+        const { notToldReasons: _uncounted, ...fromAnOlderServer } = progress;
+
+        assert.deepEqual(notToldReasonParts(progress), [
+            { reason: 'noLongerReached', count: 3 },
+            { reason: 'doesNotFit', count: 1 },
+            { reason: 'nobodyYet', count: 1 },
+        ]);
+        assert.deepEqual(notToldReasonParts(fromAnOlderServer), []);
     });
 
     test("a blocker in the operator's words, the server's where the catalogue has none", () => {

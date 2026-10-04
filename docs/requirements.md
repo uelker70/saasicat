@@ -110,8 +110,8 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 49      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 38      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 53      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 39      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,14 +132,13 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 578 entries: 🟢 501 stand today, 🟡 66 decided but not yet delivered, ⚪ 0 drafts,
-🔵 8 superseded, 🔴 3 withdrawn.
+Of 583 entries: 🟢 506 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+🔵 9 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
-[SC-BUN-049](#sc-bun-049--a-booking-continues-on-the-replacement-at-the-date-it-was-told),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
@@ -203,6 +202,7 @@ Of 578 entries: 🟢 501 stand today, 🟡 66 decided but not yet delivered, ⚪
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
 🔵 **Superseded** — [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
+[SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
@@ -215,7 +215,7 @@ Of 578 entries: 🟢 501 stand today, 🟡 66 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 578 requirements. Do not edit by hand:
+Generated from `requirements/` — 583 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3965,6 +3965,7 @@ _Tested by:_
         - is not sent either while a change set meanwhile moves it after the date
     - the quarter-hour run
         - sends the add-on retirement notices an announcement could not, after the plan’s
+        - moves the add-on bookings whose date has come, after the plan’s subscriptions
 
 <!-- END proof -->
 
@@ -4092,24 +4093,11 @@ _Tested by:_
 
 ### SC-BUN-047 — The operator sees how far each add-on retirement has come
 
-🟢 Beside each retired add-on version, the administration counts the bookings the retirement
-reached: on another version since, waiting for their date, ended by it, not told yet, and overdue —
-past their date and still on the version.
+🔵 _(Superseded on 2026-10-04 by `SC-BUN-053`.)_ Beside each retired add-on version, the
+administration counts the bookings the retirement reached: on another version since, waiting for
+their date, ended by it, not told yet, and overdue — past their date and still on the version.
 
 _Source:_ #357
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
-    - how far an add-on retirement has come
-        - counts its bookings waiting, not told, ended by their date and overdue
-- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
-    - retiring an add-on version where the add-on is managed
-        - says on a version that it was retired, onto which version, and how far that has come
-
-<!-- END proof -->
 
 ### SC-BUN-048 — A booking a retirement did not reach is not reinstated on the retired version
 
@@ -4149,11 +4137,155 @@ _Tested by:_
 
 ### SC-BUN-049 — A booking continues on the replacement at the date it was told
 
-🟡 _(Decided, not yet delivered.)_ 💰 At its date, a booking still on the retired version continues
-on the replacement, keeping its period and its term, and is charged from then at the replacement's
-price for its plan.
+🟢 💰 At its date, a booking still on the retired version continues on the replacement, keeping its
+period and its term, and is charged from then at the replacement's price for its plan.
 
 _Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where add-on versions are retired, they also take effect
+        - the run that moves bookings at their date is there, and the catalogue asks before it
+          deletes an add-on
+- `packages/nest/tests/an-add-on-booking-moves-at-its-date.test.js`
+    - the move at the date
+        - moves each booking onto the replacement, keeping its period, terms and rhythm
+        - writes the contract to end where the subscription does
+        - moves nothing before the date, and a second run nothing more
+        - moves a booking past its date, the run having missed it
+        - moves nothing whose notice has reached nobody, however late it is
+        - leaves a booking that ends by its date, and one whose subscription does
+        - leaves a booking taken off the version between the read and the write to the next run
+        - moves a booking in a trial, and writes it no contract and no charge
+        - records the charges the move makes due
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - the quarter-hour run
+        - moves the add-on bookings whose date has come, after the plan’s subscriptions
+
+<!-- END proof -->
+
+### SC-BUN-050 — A booking's move and its contract are one, and its periods from the date wait for both
+
+🟢 💰 The move writes a contract whose line for the booking names the replacement, marked with the
+retirement; where that contract cannot be written, the booking goes back onto the version retired,
+and the next run makes both. A period of the booking that starts on or after its date is charged
+only once that contract exists, and then from that line, however late the move came — unless the
+booking, or the subscription it belongs to, ended before any move came: nothing moves it then, and
+those periods are charged at the version retired, which it ran on until it ended. A period that
+starts before the date is charged at the version retired, whenever it is charged. A booking on a
+subscription in its trial moves without a contract, which is frozen when the trial converts. A
+booking whose notice reached nobody is charged as before.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retired-add-on-version-is-charged-to-its-date.test.js`
+    - a booking’s period from the date it was told
+        - waits while the booking is on the version retired, and is charged at the replacement from
+          the move
+        - is charged from a move written after it ended, and so is every period in between
+        - is not charged from a contract written on the version retired in between
+        - a period before the date is charged at the version retired, though charged after the move
+        - is charged at the version retired where the booking ended before any move came
+        - is charged from the move’s line where the booking ended after a late move
+        - and so where the subscription it belongs to ended before any move came
+        - waits for nothing in another booking on the version, which the notice did not reach
+        - is charged as before where the notice reached nobody: nothing moves it
+- `packages/nest/tests/an-add-on-booking-moves-at-its-date.test.js`
+    - a move that cannot be made
+        - fails without a party to the contract, audited once though every run fails
+        - puts the booking back where its contract cannot be written, and the next run makes both
+        - says so where the booking cannot be put back either
+    - a booking that ended before its move came
+        - is not moved, and the journal is asked once for the periods it ran on
+        - nor where the subscription it belongs to ended since
+        - asks nothing where nothing waited: an end by the date, or a trial
+        - asks the journal again where it could not record them
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a contract a retirement writes
+        - an add-on retirement marks the line of the version it moves a booking onto, and only that
+          one
+
+<!-- END proof -->
+
+### SC-BUN-051 — A retirement keeps its promise, and the add-on stays until its bookings have moved
+
+🟢 💰 The move binds the replacement the notice named whatever its sale by then, since moving a
+booking books nothing new. While a booking an add-on retirement reached is still to move onto one of
+the add-on's versions — waiting for its notice, for its date, or past it — the add-on cannot be
+deleted, and the refusal says how many. A booking that has ended holds nothing up.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-is-offered-where-it-is-wired.test.js`
+    - where add-on versions are retired, they also take effect
+        - the run that moves bookings at their date is there, and the catalogue asks before it
+          deletes an add-on
+- `packages/nest/tests/an-add-on-booking-moves-at-its-date.test.js`
+    - the replacement the notice promised
+        - is bound at the date though its sale has ended since
+        - keeps the add-on from being deleted while bookings still move onto it, counted
+        - and so does a notice still waiting for somebody to tell, and a move past its date
+        - but not once every booking has moved, or ended by its date
+        - nor once a booking past its date has ended before anything moved it
+        - and holds back no other add-on
+        - is what the catalogue asks before it deletes an add-on, deleting nothing it is refused
+
+<!-- END proof -->
+
+### SC-BUN-052 — The operator sees why an add-on retirement's notice still waits
+
+🟢 Beside each retired add-on version, the administration says of the bookings not told yet why their
+notice waits: the retirement no longer reaches the booking, what it announces would not fit at its
+date, the subscription was told of another retirement within the last twelve months, or nothing
+holds it back and nobody has been reached yet. Each is counted once, by the first of these that
+holds it back, and the run that sends the notices asks the same questions in the same order.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - how far an add-on retirement has come
+        - says why each notice not told yet waits, as the run that sends them would
+
+<!-- END proof -->
+
+### SC-BUN-053 — The operator sees how far an add-on retirement has come, and what is still to move
+
+🟢 Beside each retired add-on version, the administration counts the bookings the retirement reached:
+on another version since; ended — by their date, or since without having moved, told or not, since
+nothing moves a booking that has ended; not told yet; waiting for their date; and overdue — past
+their date and still running on the version, a move the platform has still to make.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-retires-an-add-on-version.test.js`
+    - how far an add-on retirement has come
+        - counts its bookings waiting, not told, ended by their date and overdue
+        - counts a booking that ended past its date before anything moved it as ended
+        - says why each notice not told yet waits, as the run that sends them would
+- `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
+    - retiring an add-on version where the add-on is managed
+        - says on a version that it was retired, onto which version, and how far that has come
+
+<!-- END proof -->
 
 ## 5. Subscriptions, terms and billing periods
 
@@ -5238,6 +5370,7 @@ _Tested by:_
     - how far a retirement has come
         - counts the subscriptions it reached as moved, waiting, overdue or ended
         - counts a subscription whose notice has reached nobody as not told, not as overdue
+        - says why each notice not told yet waits, as the run that sends them would
 - `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
     - how a preview reads
         - how far a retirement has come says the states with subscriptions in them, overdue first
@@ -5452,6 +5585,34 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - marks the subscriptions not told yet for a look
+
+<!-- END proof -->
+
+### SC-SUB-039 — The operator sees why a retirement's notice still waits
+
+🟢 Beside each retired plan version, the administration says of the subscriptions not told yet why
+their notice waits: the retirement no longer reaches them, the replacement's plan could not carry
+the add-ons they hold at the date, they were told of another retirement within the last twelve
+months, or nothing holds it back and nobody has been reached yet. Each is counted once, by the first
+of these that holds it back, and the run that sends the notices asks the same questions in the same
+order.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - how far a retirement has come
+        - says why each notice not told yet waits, as the run that sends them would
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - says why those not told yet wait, in the order the run asks, and nothing a server did not
+          count
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - says beside them why they wait, quieter than the count
 
 <!-- END proof -->
 
@@ -7558,6 +7719,7 @@ _Tested by:_
         - a tenant without a subscriber
         - a period that has not started
         - a period starting on or after the date a cancellation takes effect
+        - an add-on period from the end an older row records in canceledAt alone
 
 <!-- END proof -->
 
@@ -11373,6 +11535,7 @@ _Tested by:_
         - says on a version that it was retired, and for which replacement
         - says how far the retirement has come, and marks a move overdue
         - marks the subscriptions not told yet for a look
+        - says beside them why they wait, quieter than the count
         - counts the subscriptions reminded beside the states, unmarked
         - says so where the announcements could not be read
         - is not offered where the platform does not serve it

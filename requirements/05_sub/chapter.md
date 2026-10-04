@@ -1083,6 +1083,7 @@ _Tested by:_
     - how far a retirement has come
         - counts the subscriptions it reached as moved, waiting, overdue or ended
         - counts a subscription whose notice has reached nobody as not told, not as overdue
+        - says why each notice not told yet waits, as the run that sends them would
 - `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
     - how a preview reads
         - how far a retirement has come says the states with subscriptions in them, overdue first
@@ -1297,5 +1298,33 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - marks the subscriptions not told yet for a look
+
+<!-- END proof -->
+
+### SC-SUB-039 — The operator sees why a retirement's notice still waits
+
+🟢 Beside each retired plan version, the administration says of the subscriptions not told yet why
+their notice waits: the retirement no longer reaches them, the replacement's plan could not carry
+the add-ons they hold at the date, they were told of another retirement within the last twelve
+months, or nothing holds it back and nobody has been reached yet. Each is counted once, by the first
+of these that holds it back, and the run that sends the notices asks the same questions in the same
+order.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-retirement-takes-effect.test.js`
+    - how far a retirement has come
+        - says why each notice not told yet waits, as the run that sends them would
+- `packages/ui-vue/tests/an-operator-retires-a-version.test.js`
+    - how a preview reads
+        - says why those not told yet wait, in the order the run asks, and nothing a server did not
+          count
+- `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
+    - retiring a version in the plan cockpit
+        - says beside them why they wait, quieter than the count
 
 <!-- END proof -->

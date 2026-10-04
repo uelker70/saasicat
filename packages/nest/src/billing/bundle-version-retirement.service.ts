@@ -50,7 +50,6 @@ import {
     type SubscriptionNoticeRepository,
     type SubscriptionUsagePort,
     type SubscriptionUsageRecord,
-    type TenantSubscriptionUsage,
     type TransactionRunner,
     type VersionChange,
     type VersionRetiredNotice,
@@ -59,10 +58,10 @@ import {
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
-import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN, type BundleDeletionCheck } from '../catalog/catalog.tokens.js';
 import { bundleVersionNotBookableReason } from '../checkout-offer/bundle-version-bookable.js';
 import { actorTagOf } from '../core/web-audit.js';
-import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
+import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import {
     addOnMisfits,
     bookableBeside,
@@ -71,7 +70,9 @@ import {
     type PlanBeside,
 } from './add-on-fits-plan.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
+import { bookingsOfVersion, type BookingsOnVersion } from './bundle-bookings-of-version.js';
 import {
+    bookingOverBy,
     bundleRetirementReach,
     planAt,
     plansMetAfter,
@@ -92,7 +93,13 @@ import {
     toldOfAnotherRetirementWithinAYear,
     toldRetirementNotices,
 } from './retirement-notices.js';
-import { progressOf, sameSet, type ReachedState } from './retirement-progress.js';
+import {
+    progressOf,
+    sameSet,
+    waitReasonOf,
+    type NoticeReadiness,
+    type ReachedState,
+} from './retirement-progress.js';
 import { RETIREMENT_REPEAT_MONTHS, calendarMonthsAfter } from './retirement-reach.js';
 import { onceEach } from './versions-read-once.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -111,9 +118,6 @@ import {
 const KIND = 'bundle-version-retired';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How many subscriptions one read asks for. */
-const IDS_PER_READ = 1000;
-
 /**
  * Whether `version`, billed in `cycle`, can run beside each of `plans`: the
  * plan a booking runs beside at its date and every one it moves to after it
@@ -127,12 +131,6 @@ function runsBesideEach(
     return plans.every((plan) => addOnMisfits(version, plan, cycle).length === 0);
 }
 
-/** The bookings on one add-on version by id, and their subscriptions by id. */
-interface BookingsOnVersion {
-    readonly bookings: Map<string, SubscriptionBundleRecord>;
-    readonly owners: Map<string, TenantSubscriptionUsage>;
-}
-
 /** The preview, with the two versions it was computed from. */
 interface ComputedPreview {
     readonly preview: BundleRetirementPreview;
@@ -141,7 +139,7 @@ interface ComputedPreview {
 }
 
 @Injectable()
-export class BundleVersionRetirementService implements OnModuleInit {
+export class BundleVersionRetirementService implements OnModuleInit, BundleDeletionCheck {
     private readonly logger = new Logger(BundleVersionRetirementService.name);
     private readonly deliveryTimeoutMs = NOTICE_DELIVERY_TIMEOUT_MS;
     private readonly sender: NoticeSender;
@@ -193,6 +191,13 @@ export class BundleVersionRetirementService implements OnModuleInit {
                     '`listByIds`: the platform cannot find the subscription of a booking an ' +
                     'add-on retirement reaches. Both shipped adapters have it; a port of your ' +
                     'own adds it.',
+            );
+        }
+        if (!this.bookings.moveToVersion) {
+            throw new Error(
+                'Retiring versions is turned on, but the SubscriptionBundleRepository has no ' +
+                    '`moveToVersion`: the platform cannot move a booking onto the replacement ' +
+                    'at its date. Both shipped adapters have it; a repository of your own adds it.',
             );
         }
     }
@@ -358,50 +363,15 @@ export class BundleVersionRetirementService implements OnModuleInit {
                 const { bookings, owners } = await this.bookingsOf(retiredId);
                 for (const stored of waiting) {
                     if (stored.retired.bundleVersionId !== retiredId) continue;
-                    const booking = bookings.get(stored.subscriptionBundleId);
-                    const owner = owners.get(stored.subscriptionId);
-                    const at = sendingAt();
-                    const reach =
-                        booking && owner
-                            ? bundleRetirementReach(
-                                  booking,
-                                  owner.subscription,
-                                  at,
-                                  await this.plansAheadFor(owner.subscription),
-                              )
-                            : null;
-                    if (!reach?.reached) continue;
-                    // The plans beside the add-on may have changed while the
-                    // notice waited: it says what happens only where the
-                    // replacement can run beside the plan at the date and each
-                    // one after it (`SC-BUN-044`), and waits where it cannot.
-                    const replacement = await versions.findVersionById(
-                        stored.replacement.bundleVersionId,
+                    const readiness = await this.readinessOf(
+                        stored,
+                        bookings.get(stored.subscriptionBundleId),
+                        owners.get(stored.subscriptionId)?.subscription,
+                        sendingAt(),
+                        versions,
                     );
-                    if (
-                        !replacement ||
-                        !runsBesideEach(
-                            replacement,
-                            [reach.plan, ...reach.plansAfter],
-                            reach.billingCycle,
-                        )
-                    ) {
-                        continue;
-                    }
-                    // One retirement in twelve months: this one waits until
-                    // those since the last the subscription was told of are
-                    // over (`SC-BUN-041`).
-                    if (
-                        await toldOfAnotherRetirementWithinAYear(
-                            this.notices,
-                            stored.subscriptionId,
-                            retiredId,
-                            at,
-                        )
-                    ) {
-                        continue;
-                    }
-                    const notice = await this.retold(stored, reach, versions);
+                    if (!('ready' in readiness)) continue;
+                    const notice = await this.retold(stored, readiness.ready, versions);
                     const outcome = await this.sender.tell(
                         notice,
                         retiredId,
@@ -577,7 +547,7 @@ export class BundleVersionRetirementService implements OnModuleInit {
 
     /**
      * Every add-on announcement, the most recent first, with how far it has
-     * come over the bookings it reached (`SC-BUN-047`).
+     * come over the bookings it reached (`SC-BUN-053`).
      */
     async list(now = new Date()): Promise<BundleVersionRetirementView[]> {
         return readAcrossTenants(this.rlsBypass, async () => {
@@ -585,6 +555,7 @@ export class BundleVersionRetirementService implements OnModuleInit {
                 this.retirements.list(),
                 this.notices.listOfKindSince(KIND, new Date(0)),
             ]);
+            const versions = onceEach(this.bundles);
             const onRecord = records.map((record) => ({
                 notice: record.content as BundleVersionRetiredNotice,
                 told: reachedSomebody(record),
@@ -600,15 +571,118 @@ export class BundleVersionRetirementService implements OnModuleInit {
             };
             return Promise.all(
                 retirements.map(async (retirement) => {
-                    const { bookings, owners } = await onVersion(
-                        retirement.retired.bundleVersionId,
+                    const onIt = await onVersion(retirement.retired.bundleVersionId);
+                    const states = await Promise.all(
+                        onRecord
+                            .filter(({ notice }) => notice.retirementId === retirement.id)
+                            .map(({ notice, told }) =>
+                                this.stateOf(notice, told, onIt, now, versions),
+                            ),
                     );
-                    const states = onRecord
-                        .filter(({ notice }) => notice.retirementId === retirement.id)
-                        .map(({ notice, told }) => bookingState(notice, told, bookings, owners));
                     return { ...retirement, progress: { ...progressOf(states, now), reminded: 0 } };
                 }),
             );
+        });
+    }
+
+    /**
+     * Whether a notice not told yet can go out at `at`, with the reach it then
+     * says; or why it waits. The retirement may no longer reach the booking;
+     * the plans beside the add-on may have changed while it waited, and it
+     * says what happens only where the replacement can run beside the plan at
+     * the date and each one after it (`SC-BUN-044`); and a subscription told of
+     * another retirement within twelve months is told of this one once those
+     * are over (`SC-BUN-041`). The run sends on the answer, and the operator's
+     * list counts it.
+     */
+    private async readinessOf(
+        stored: BundleVersionRetiredNotice,
+        booking: SubscriptionBundleRecord | undefined,
+        sub: SubscriptionUsageRecord | undefined,
+        at: Date,
+        versions: Pick<BundleRepository, 'findVersionById'>,
+    ): Promise<NoticeReadiness<Extract<BundleRetirementReach, { reached: true }>>> {
+        const reach =
+            booking && sub
+                ? bundleRetirementReach(booking, sub, at, await this.plansAheadFor(sub))
+                : null;
+        if (!reach?.reached) return { waits: 'noLongerReached' };
+        const replacement = await versions.findVersionById(stored.replacement.bundleVersionId);
+        if (
+            !replacement ||
+            !runsBesideEach(replacement, [reach.plan, ...reach.plansAfter], reach.billingCycle)
+        ) {
+            return { waits: 'doesNotFit' };
+        }
+        if (
+            await toldOfAnotherRetirementWithinAYear(
+                this.notices,
+                stored.subscriptionId,
+                stored.retired.bundleVersionId,
+                at,
+            )
+        ) {
+            return { waits: 'twelveMonths' };
+        }
+        return { ready: reach };
+    }
+
+    /**
+     * Where one booking an add-on retirement reached stands at `now`: and,
+     * where its notice is not told yet while it is still on the version and
+     * running, why that notice waits.
+     */
+    private async stateOf(
+        notice: BundleVersionRetiredNotice,
+        told: boolean,
+        { bookings, owners }: BookingsOnVersion,
+        now: Date,
+        versions: Pick<BundleRepository, 'findVersionById'>,
+    ): Promise<ReachedState> {
+        const booking = bookings.get(notice.subscriptionBundleId);
+        const sub = owners.get(notice.subscriptionId)?.subscription;
+        const effectiveAt = new Date(notice.effectiveAt);
+        // Over by its date, or over since and still on the version: the run
+        // moves neither (`BundleRetirementMoveService`).
+        const endsBeforeItMoves = Boolean(
+            booking &&
+            bookingOverBy(
+                booking,
+                sub ? cancellationLandsAt(sub) : null,
+                effectiveAt > now ? effectiveAt : now,
+            ),
+        );
+        const state = { stillOn: Boolean(booking), endsBeforeItMoves, told, effectiveAt };
+        if (told || !booking || endsBeforeItMoves) return state;
+        const readiness = await this.readinessOf(notice, booking, sub, now, versions);
+        return { ...state, waitsBecause: waitReasonOf(readiness) };
+    }
+
+    /**
+     * Refuses deleting the add-on `bundleId` while bookings still have to move
+     * onto one of its versions (`SC-BUN-051`): their notices promised them the
+     * replacement, and a deleted add-on is booked by nothing, the move
+     * included. A booking that has moved, or that ended by its date, holds
+     * nothing up; one still waiting for its notice does.
+     */
+    async assertMayDelete(bundleId: string, now = new Date()): Promise<void> {
+        const bundle = await this.bundles.findById(bundleId);
+        // The catalogue answers for an add-on that is not there.
+        if (!bundle) return;
+        const stillToMove = (await this.list(now))
+            .filter((retirement) => retirement.retired.bundleKey === bundle.bundleKey)
+            .reduce(
+                (count, { progress }) =>
+                    count + progress.waiting + progress.notTold + progress.overdue,
+                0,
+            );
+        if (stillToMove === 0) return;
+        throw new UnprocessableEntityException({
+            code: CATALOG_ERROR_CODES.BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING,
+            message:
+                `${stillToMove} bookings still move onto a version of ${bundle.bundleKey}, as a ` +
+                'retirement told them. The add-on can be deleted once they have.',
+            params: { count: stillToMove, bundleKey: bundle.bundleKey },
         });
     }
 
@@ -803,20 +877,7 @@ export class BundleVersionRetirementService implements OnModuleInit {
     private async bookingsOf(bundleVersionId: string): Promise<BookingsOnVersion> {
         // `onModuleInit` refused a repository and a port without them where
         // retiring is on, and a notice exists only where it was.
-        const rows = await this.bookings.listOfVersion!(bundleVersionId);
-        const ids = [...new Set(rows.map((row) => row.subscriptionId))];
-        // In slices: a query binds a bounded number of values, and a version
-        // can be booked on more subscriptions than that.
-        const owners: TenantSubscriptionUsage[] = [];
-        for (let start = 0; start < ids.length; start += IDS_PER_READ) {
-            owners.push(
-                ...(await this.subscriptions.listByIds!(ids.slice(start, start + IDS_PER_READ))),
-            );
-        }
-        return {
-            bookings: new Map(rows.map((row) => [row.id, row])),
-            owners: new Map(owners.map((owner) => [owner.subscription.id, owner])),
-        };
+        return bookingsOfVersion(this.bookings, this.subscriptions, bundleVersionId);
     }
 
     /** Whether `version` can be booked at `now`, by the rule a booking follows. */
@@ -956,25 +1017,4 @@ function blocker(code: string, version: BundleVersionRow): RetirementBlocker {
             'there is nobody to tell.',
     };
     return { code, message: sentences[code] ?? code, params };
-}
-
-/** Where one booking an add-on retirement reached stands now. */
-function bookingState(
-    notice: BundleVersionRetiredNotice,
-    told: boolean,
-    stillOn: ReadonlyMap<string, SubscriptionBundleRecord>,
-    owners: ReadonlyMap<string, TenantSubscriptionUsage>,
-): ReachedState {
-    const booking = stillOn.get(notice.subscriptionBundleId);
-    const owner = owners.get(notice.subscriptionId);
-    const effectiveAt = new Date(notice.effectiveAt);
-    const bookingEnds = booking?.canceledEffectiveAt ?? booking?.canceledAt ?? null;
-    return {
-        stillOn: Boolean(booking),
-        endedByTheDate:
-            (bookingEnds !== null && bookingEnds <= effectiveAt) ||
-            Boolean(owner && cancellationHasLanded(owner.subscription, effectiveAt)),
-        told,
-        effectiveAt,
-    };
 }

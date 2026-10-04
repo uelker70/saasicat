@@ -689,6 +689,7 @@ _Tested by:_
         - a tenant without a subscriber
         - a period that has not started
         - a period starting on or after the date a cancellation takes effect
+        - an add-on period from the end an older row records in canceledAt alone
 
 <!-- END proof -->
 

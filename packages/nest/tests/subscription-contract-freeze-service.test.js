@@ -847,6 +847,55 @@ describe('a contract a retirement writes', () => {
         assert.equal(data.priceSnapshot.totalNet, 46);
     });
 
+    // @requirement SC-BUN-050 — A booking's move and its contract are one, and its periods from the date wait for both
+    test('an add-on retirement marks the line of the version it moves a booking onto, and only that one', async () => {
+        const { calls, service } = makeService({
+            bundles: {
+                lineItems: [
+                    { ...monthlyAddOn(12), sourceVersionId: 'bv-2' },
+                    { ...monthlyAddOn(8), sourceKey: 'ARCHIVE', sourceVersionId: 'bv-archive' },
+                ],
+                bundleVersionIds: ['bv-2', 'bv-archive'],
+            },
+        });
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
+            retirementId: 'bret-1',
+            addOn: { bundleVersionId: 'bv-2' },
+        });
+
+        const [data] = calls.created;
+        assert.deepEqual(
+            data.lineItems.map((line) => [line.kind, line.sourceVersionId, line.metadata]),
+            [
+                ['plan', 'pv-standard-3', null],
+                ['bundle', 'bv-2', { retirementId: 'bret-1' }],
+                ['bundle', 'bv-archive', null],
+            ],
+        );
+    });
+
+    test('an add-on retirement whose booking the source hands no line for writes nothing', async () => {
+        const { calls, service } = makeService({
+            bundles: {
+                lineItems: [
+                    { ...monthlyAddOn(8), sourceKey: 'ARCHIVE', sourceVersionId: 'bv-archive' },
+                ],
+                bundleVersionIds: ['bv-archive'],
+            },
+        });
+
+        await assert.rejects(
+            () =>
+                service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', DATE, null, {
+                    retirementId: 'bret-1',
+                    addOn: { bundleVersionId: 'bv-2' },
+                }),
+            /returned no line for that version/,
+        );
+        assert.equal(calls.created.length, 0);
+    });
+
     test('a contract written for anything else marks nothing and holds nothing', async () => {
         const { calls, service } = makeService();
 

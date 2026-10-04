@@ -136,6 +136,24 @@ export function retirementProgressParts(
     })).filter((part) => part.count > 0);
 }
 
+/** Why a notice not told yet waits, in the order the run that sends it asks. */
+const REASON_ORDER = ['noLongerReached', 'doesNotFit', 'twelveMonths', 'nobodyYet'] as const;
+
+/**
+ * Why the subscriptions — or bookings — not told yet wait, as the parts worth
+ * saying, in the order the run that sends the notices asks; none from a
+ * server that does not count them.
+ */
+export function notToldReasonParts(
+    progress: RetirementProgress,
+): Array<{ reason: (typeof REASON_ORDER)[number]; count: number }> {
+    const reasons = progress.notToldReasons;
+    if (!reasons) return [];
+    return REASON_ORDER.map((reason) => ({ reason, count: reasons[reason] })).filter(
+        (part) => part.count > 0,
+    );
+}
+
 /**
  * A blocker in the operator's language: the catalogue's sentence for its code
  * where there is one, the server's English sentence otherwise.

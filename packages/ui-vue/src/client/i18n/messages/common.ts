@@ -105,6 +105,13 @@ export const commonMessages = defineMessages(
             ended: '{count} beendet',
             notTold: '{count} nicht zugestellt',
             reminded: '{count} erinnert',
+            // Why those not told yet wait (`notToldReasonParts`).
+            notToldBecause: {
+                doesNotFit: 'davon {count}: Ersatz passt nicht',
+                twelveMonths: 'davon {count}: Zwölf-Monats-Grenze',
+                noLongerReached: 'davon {count}: nicht mehr betroffen',
+                nobodyYet: 'davon {count}: noch niemand erreicht',
+            },
         },
     },
     {
@@ -203,6 +210,12 @@ export const commonMessages = defineMessages(
             ended: '{count} ended',
             notTold: '{count} not told',
             reminded: '{count} reminded',
+            notToldBecause: {
+                doesNotFit: 'of which {count}: the replacement does not fit',
+                twelveMonths: 'of which {count}: the twelve-month limit',
+                noLongerReached: 'of which {count}: no longer reached',
+                nobodyYet: 'of which {count}: nobody reached yet',
+            },
         },
     },
 );

@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../maintenance/maintenance.service.js';
+import { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
@@ -12,19 +13,20 @@ import { VersionRetirementService } from './version-retirement.service.js';
  * Sends the version notices that are due, every quarter of an hour, so an
  * offer that appears is told within one — the retirement notices an
  * announcement could not send at once, of a plan version or of an add-on
- * version, and the reminders whose day has come
- * (`SC-SUB-034`) — and moves the subscriptions whose retirement has taken
- * effect (`SC-SUB-031`).
+ * version, and the reminders whose day has come (`SC-SUB-034`) — and moves the
+ * subscriptions and the add-on bookings whose retirement has taken effect
+ * (`SC-SUB-031`, `SC-BUN-049`).
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.versionNotices.includeCron: false` — for a CLI boot, or an
  * application that calls `VersionNoticeService.sendDue`,
  * `VersionRetirementService.sendUndelivered`,
  * `BundleVersionRetirementService.sendUndelivered`,
- * `RetirementReminderService.remindDue` and `RetirementMoveService.moveDue`
- * from a scheduler of its own. A retirement whose notice is not sent waits for
- * it (`SC-SUB-038`), so a scheduler that leaves out a `sendUndelivered` leaves
- * those retirements waiting.
+ * `RetirementReminderService.remindDue`, `RetirementMoveService.moveDue` and
+ * `BundleRetirementMoveService.moveDue` from a scheduler of its own. A
+ * retirement whose notice is not sent waits for it (`SC-SUB-038`), so a
+ * scheduler that leaves out a `sendUndelivered` leaves those retirements
+ * waiting.
  */
 @Injectable()
 export class VersionNoticeCron {
@@ -53,6 +55,10 @@ export class VersionNoticeCron {
         @Optional()
         @Inject(BundleVersionRetirementService)
         private readonly bundleRetirements: BundleVersionRetirementService | null = null,
+        // Present where an operator may retire add-on versions as well.
+        @Optional()
+        @Inject(BundleRetirementMoveService)
+        private readonly bundleMoves: BundleRetirementMoveService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'versionNotices' })
@@ -106,6 +112,15 @@ export class VersionNoticeCron {
             if (moves && (moves.moved > 0 || moves.failed > 0)) {
                 this.logger.log(
                     `Retirement moves: ${moves.moved} moved, ${moves.failed} to try again.`,
+                );
+            }
+            const addOnMoves = await this.step('Add-on retirement moves', () =>
+                this.bundleMoves?.moveDue(new Date()),
+            );
+            if (addOnMoves && (addOnMoves.moved > 0 || addOnMoves.failed > 0)) {
+                this.logger.log(
+                    `Add-on retirement moves: ${addOnMoves.moved} moved, ` +
+                        `${addOnMoves.failed} to try again.`,
                 );
             }
         } finally {

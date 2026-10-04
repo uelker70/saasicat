@@ -112,6 +112,13 @@ export const CATALOG_ERROR_CODES = {
     PLAN_NOT_FOUND: 'PLAN_NOT_FOUND',
     PLAN_VERSION_NOT_FOUND: 'PLAN_VERSION_NOT_FOUND',
     BUNDLE_NOT_FOUND: 'BUNDLE_NOT_FOUND',
+    /**
+     * Bookings told that their add-on version is being retired have still to
+     * move onto a version of this add-on — waiting for their notice, for their
+     * date, or past it — and a deleted add-on is booked by nothing, the move
+     * included. Carries how many, and the add-on's key.
+     */
+    BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING: 'BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING',
     BUNDLE_VERSION_NOT_FOUND: 'BUNDLE_VERSION_NOT_FOUND',
     FEATURE_NOT_FOUND: 'FEATURE_NOT_FOUND',
     QUOTA_NOT_FOUND: 'QUOTA_NOT_FOUND',

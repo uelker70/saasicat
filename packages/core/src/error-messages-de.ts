@@ -117,6 +117,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_NOT_FOUND: "Plan '{planId}' nicht gefunden",
     PLAN_VERSION_NOT_FOUND: "PlanVersion '{versionId}' nicht gefunden",
     BUNDLE_NOT_FOUND: "Bundle '{bundleId}' nicht gefunden",
+    BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING:
+        '{count} Buchungen ziehen noch auf eine Version von {bundleKey} um, wie eine Stilllegung es ihnen mitgeteilt hat. Das Add-on lässt sich löschen, sobald sie umgezogen sind.',
     BUNDLE_VERSION_NOT_FOUND: "BundleVersion '{bundleVersionId}' nicht gefunden",
     FEATURE_NOT_FOUND: "Feature '{featureKey}' nicht gefunden",
     QUOTA_NOT_FOUND: "Quota '{quotaKey}' nicht gefunden",

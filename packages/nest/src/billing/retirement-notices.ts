@@ -6,15 +6,17 @@
 // delivered sets no date, moves nothing and charges nothing differently.
 
 import type {
+    BundleVersionRetiredNotice,
     SubscriptionNoticeRecord,
     SubscriptionNoticeRepository,
     VersionRetiredNotice,
 } from '@saasicat/core';
 
-import type { RetiredPlanVersion } from './charges/charge-derivation.js';
+import type { RetiredBundleVersion, RetiredPlanVersion } from './charges/charge-derivation.js';
 import { RETIREMENT_REPEAT_MONTHS, calendarMonthsAfter } from './retirement-reach.js';
 
 const KIND = 'version-retired';
+const BUNDLE_KIND = 'bundle-version-retired';
 
 /** A retirement notice on record, and whether it reached the subscriber. */
 export interface RetirementNoticeOnRecord {
@@ -100,6 +102,33 @@ export function groupByRetiredVersion<T extends Pick<VersionRetiredNotice, 'reti
 }
 
 /**
+ * Every add-on retirement notice that reached its subscriber and whose date has
+ * come by `now`: the bookings an add-on retirement moves (`SC-BUN-049`). Read
+ * in full, as the plan's are.
+ */
+export async function bundleRetirementNoticesDue(
+    notices: SubscriptionNoticeRepository,
+    now: Date,
+): Promise<BundleVersionRetiredNotice[]> {
+    return (await notices.listOfKindSince(BUNDLE_KIND, new Date(0)))
+        .filter(reachedSomebody)
+        .map((record) => record.content as BundleVersionRetiredNotice)
+        .filter((notice) => new Date(notice.effectiveAt) <= now);
+}
+
+/** `notices` by the add-on version they retire, so the bookings of each are read once. */
+export function groupByRetiredBundleVersion(
+    notices: readonly BundleVersionRetiredNotice[],
+): Map<string, BundleVersionRetiredNotice[]> {
+    const groups = new Map<string, BundleVersionRetiredNotice[]>();
+    for (const notice of notices) {
+        const id = notice.retired.bundleVersionId;
+        groups.set(id, [...(groups.get(id) ?? []), notice]);
+    }
+    return groups;
+}
+
+/**
  * The plan versions a subscription's retirements move it off, each from the
  * date it was told — only where it was: a notice that reached nobody moves
  * nothing, and the version it is on prices its periods as before.
@@ -115,10 +144,30 @@ export function retiredVersionsOf(
 }
 
 /**
+ * The add-on versions a subscription's retirements move its bookings off,
+ * each from the date it was told — only where it was, as for its plan
+ * (`retiredVersionsOf`).
+ */
+export function retiredBundleVersionsOf(
+    records: readonly SubscriptionNoticeRecord[],
+): RetiredBundleVersion[] {
+    return records
+        .filter((record) => record.kind === BUNDLE_KIND && reachedSomebody(record))
+        .map((record) => record.content as BundleVersionRetiredNotice)
+        .map((notice) => ({
+            subscriptionBundleId: notice.subscriptionBundleId,
+            bundleVersionId: notice.retired.bundleVersionId,
+            replacementBundleVersionId: notice.replacement.bundleVersionId,
+            from: new Date(notice.effectiveAt),
+            retirementId: notice.retirementId,
+        }));
+}
+
+/**
  * The kinds of notice a retirement tells a subscription with: of the plan
  * version it is on, and of an add-on version it holds.
  */
-const RETIREMENT_NOTICE_KINDS = ['version-retired', 'bundle-version-retired'] as const;
+const RETIREMENT_NOTICE_KINDS = [KIND, BUNDLE_KIND] as const;
 
 /** Whether `record` is a retirement notice that reached somebody at or after `since`. */
 function toldSince(record: SubscriptionNoticeRecord, since: Date): boolean {

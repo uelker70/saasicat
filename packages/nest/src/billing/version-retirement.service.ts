@@ -81,12 +81,19 @@ import {
     type RetirementNoticeOnRecord,
 } from './retirement-notices.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
-import { progressOf, sameSet, type ReachedState } from './retirement-progress.js';
+import {
+    progressOf,
+    sameSet,
+    waitReasonOf,
+    type NoticeReadiness,
+    type ReachedState,
+} from './retirement-progress.js';
 import { onceEach } from './versions-read-once.js';
 import {
     RETIREMENT_REPEAT_MONTHS,
     calendarMonthsAfter,
     retirementReach,
+    type RetirementReach,
 } from './retirement-reach.js';
 import {
     ADD_ONS_AHEAD_TOKEN,
@@ -453,39 +460,14 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
             for (const [retiredId, notices] of byVersion) {
                 const onIt = await this.boundTo(retiredId);
                 for (const stored of notices) {
-                    const sub = onIt.get(stored.subscriptionId);
                     const at = sendingAt();
-                    const reach = sub ? retirementReach(sub, at) : null;
-                    if (!reach?.reached) continue;
-                    // The add-ons may have changed while the notice waited:
-                    // it says what happens only where the replacement's plan
-                    // can carry them at the date (`SC-SUB-037`), and waits
-                    // where it cannot.
-                    if (
-                        await this.holdsWhatThePlanCannotCarry(
-                            stored.subscriptionId,
-                            {
-                                planKey: stored.replacement.planKey,
-                                billingCycle: reach.billingCycle,
-                            },
-                            reach.effectiveAt,
-                        )
-                    ) {
-                        continue;
-                    }
-                    // One retirement in twelve months: this one waits until
-                    // those since the last the subscription was told of are
-                    // over (`SC-BUN-041`).
-                    if (
-                        await toldOfAnotherRetirementWithinAYear(
-                            this.notices,
-                            stored.subscriptionId,
-                            retiredId,
-                            at,
-                        )
-                    ) {
-                        continue;
-                    }
+                    const readiness = await this.readinessOf(
+                        stored,
+                        onIt.get(stored.subscriptionId),
+                        at,
+                    );
+                    if (!('ready' in readiness)) continue;
+                    const reach = readiness.ready;
                     const outcome = await this.sender.tell(
                         {
                             ...stored,
@@ -561,19 +543,21 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
                 return found;
             };
             return Promise.all(
-                retirements.map(async (retirement) => ({
-                    ...retirement,
-                    progress: {
-                        ...progressOf(
-                            subscriptionStates(
-                                told.filter(({ notice }) => notice.retirementId === retirement.id),
-                                await onVersion(retirement.retired.planVersionId),
-                            ),
-                            now,
-                        ),
-                        reminded: reminded.get(retirement.id) ?? 0,
-                    },
-                })),
+                retirements.map(async (retirement) => {
+                    const onIt = await onVersion(retirement.retired.planVersionId);
+                    const states = await Promise.all(
+                        told
+                            .filter(({ notice }) => notice.retirementId === retirement.id)
+                            .map((onRecord) => this.stateOf(onRecord, onIt, now)),
+                    );
+                    return {
+                        ...retirement,
+                        progress: {
+                            ...progressOf(states, now),
+                            reminded: reminded.get(retirement.id) ?? 0,
+                        },
+                    };
+                }),
             );
         });
     }
@@ -725,6 +709,62 @@ export class VersionRetirementService implements OnModuleInit, PlanVersionEnding
     }
 
     /**
+     * Whether a notice not told yet can go out at `at`, with the reach it then
+     * says; or why it waits. The retirement may no longer reach the
+     * subscription; the add-ons may have changed while it waited, and it says
+     * what happens only where the replacement's plan can carry them at the
+     * date (`SC-SUB-037`); and a subscription told of another retirement within
+     * twelve months is told of this one once those are over (`SC-BUN-041`).
+     * The run sends on the answer, and the operator's list counts it.
+     */
+    private async readinessOf(
+        stored: VersionRetiredNotice,
+        sub: SubscriptionUsageRecord | undefined,
+        at: Date,
+    ): Promise<NoticeReadiness<Extract<RetirementReach, { reached: true }>>> {
+        const reach = sub ? retirementReach(sub, at) : null;
+        if (!reach?.reached) return { waits: 'noLongerReached' };
+        if (
+            await this.holdsWhatThePlanCannotCarry(
+                stored.subscriptionId,
+                { planKey: stored.replacement.planKey, billingCycle: reach.billingCycle },
+                reach.effectiveAt,
+            )
+        ) {
+            return { waits: 'doesNotFit' };
+        }
+        if (
+            await toldOfAnotherRetirementWithinAYear(
+                this.notices,
+                stored.subscriptionId,
+                stored.retired.planVersionId,
+                at,
+            )
+        ) {
+            return { waits: 'twelveMonths' };
+        }
+        return { ready: reach };
+    }
+
+    /**
+     * Where one subscription a retirement reached stands at `now`: and, where
+     * its notice is not told yet while it is still on the version and running,
+     * why that notice waits.
+     */
+    private async stateOf(
+        { notice, told }: RetirementNoticeOnRecord,
+        stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
+        now: Date,
+    ): Promise<ReachedState> {
+        const sub = stillOn.get(notice.subscriptionId);
+        const effectiveAt = new Date(notice.effectiveAt);
+        const endsBeforeItMoves = Boolean(sub && cancellationHasLanded(sub, effectiveAt));
+        const state = { stillOn: Boolean(sub), endsBeforeItMoves, told, effectiveAt };
+        if (told || !sub || endsBeforeItMoves) return state;
+        return { ...state, waitsBecause: waitReasonOf(await this.readinessOf(notice, sub, now)) };
+    }
+
+    /**
      * Whether the subscription holds, at `at`, an add-on that cannot run beside
      * `plan` — the version it is on, or the one it was told it continues on.
      */
@@ -855,21 +895,4 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 function startOfUtcDay(ms: number): number {
     return ms - (ms % DAY_MS);
-}
-
-/** Where each subscription a retirement reached stands now. */
-function subscriptionStates(
-    onRecord: readonly RetirementNoticeOnRecord[],
-    stillOn: ReadonlyMap<string, SubscriptionUsageRecord>,
-): ReachedState[] {
-    return onRecord.map(({ notice, told }) => {
-        const sub = stillOn.get(notice.subscriptionId);
-        const effectiveAt = new Date(notice.effectiveAt);
-        return {
-            stillOn: Boolean(sub),
-            endedByTheDate: Boolean(sub && cancellationHasLanded(sub, effectiveAt)),
-            told,
-            effectiveAt,
-        };
-    });
 }

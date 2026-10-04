@@ -133,6 +133,24 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             : subscriptionBundleGone(subscriptionBundleId);
     }
 
+    async moveToVersion(
+        subscriptionBundleId: string,
+        from: string,
+        to: string,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const rows = await this.db
+            .update(subscriptionBundles)
+            .set({ bundleVersionId: to, updatedAt: new Date() })
+            .where(
+                and(
+                    eq(subscriptionBundles.id, subscriptionBundleId),
+                    eq(subscriptionBundles.bundleVersionId, from),
+                ),
+            )
+            .returning();
+        return rows[0] ? toSubscriptionBundleRecord(rows[0]) : null;
+    }
+
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
         const rows = await this.db
             .update(subscriptionBundles)

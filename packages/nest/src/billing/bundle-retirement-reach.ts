@@ -117,6 +117,23 @@ export function bookingEndsBy(
 }
 
 /**
+ * Whether the booking runs no longer than `at`: its own cancellation, or that
+ * of the subscription paying for it (`subscriptionEndsAt`, when that one
+ * lands), lands by then.
+ *
+ * The run that moves bookings and the journal that charges them both ask it
+ * at `now`, and must answer alike: a booking the run no longer moves is one
+ * whose periods the journal no longer holds back for the move (`SC-BUN-050`).
+ */
+export function bookingOverBy(
+    booking: Pick<SubscriptionBundleRecord, 'canceledAt' | 'canceledEffectiveAt'>,
+    subscriptionEndsAt: Date | null,
+    at: Date,
+): boolean {
+    return bookingEndsBy(booking, at) || (subscriptionEndsAt !== null && subscriptionEndsAt <= at);
+}
+
+/**
  * The first end of the booking's period at or after `earliest`. Its periods
  * run in its own rhythm and end on the plan's billing day; where it has no
  * rhythm or no period of its own, it is billed with the plan and ends with the

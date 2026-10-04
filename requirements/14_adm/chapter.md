@@ -426,6 +426,7 @@ _Tested by:_
         - says on a version that it was retired, and for which replacement
         - says how far the retirement has come, and marks a move overdue
         - marks the subscriptions not told yet for a look
+        - says beside them why they wait, quieter than the count
         - counts the subscriptions reminded beside the states, unmarked
         - says so where the announcements could not be read
         - is not offered where the platform does not serve it

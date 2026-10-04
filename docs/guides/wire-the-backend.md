@@ -1070,9 +1070,12 @@ successor contract, and the charge journal charges every period from the date at
 price once that contract exists, however late it comes (`SC-PRIC-062`). Each move is audited as
 `PLAN_VERSION_RETIREMENT_MOVE` by the actor `job:platform:retirement-moves`. A move and its contract
 are one: where the contract cannot be written, the move is put back. A move that cannot be made is
-audited once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, tried again by every run, and shown
-as overdue beside the retired version in the plan cockpit, with the ones moved, waiting and ended
-(`SC-SUB-033`). With `versionNotices.includeCron: false`, call
+audited once as `PLAN_VERSION_RETIREMENT_MOVE_FAILED`, tried again by every run, and shown as
+overdue beside the retired version in the plan cockpit, with the ones moved, waiting and ended
+(`SC-SUB-033`); of the ones not told yet it says why each notice waits — the retirement no longer
+reaches them, the replacement's plan could not carry their add-ons at the date, the twelve-month
+limit, or nobody has been reached yet, each counted by the first that holds it back (`SC-SUB-039`).
+With `versionNotices.includeCron: false`, call
 `VersionRetirementService.sendUndelivered(new Date())`,
 `RetirementReminderService.remindDue(new Date())` and `RetirementMoveService.moveDue(new Date())`
 from your own scheduler, as you call `VersionNoticeService.sendDue`. The first sends the notices an
@@ -1104,10 +1107,11 @@ each announcement: adopt `prisma-fragments/19-bundle-version-retirement.prisma` 
 `persistence.tenantBilling.bundleVersionRetirements`, and the bookings come from
 `persistence.entitlement.subscriptionBundleRepository`. Without either, the administration does not
 offer retiring an add-on version and its routes do not exist; retiring plan versions is unaffected.
-A `SubscriptionBundleRepository` of your own needs `listOfVersion`, and a `SubscriptionUsagePort`
-of your own `listByIds` — both shipped adapters have them — or a start with confirmed terms is
-refused, naming the method. With `versionNotices.includeCron: false`, call
-`BundleVersionRetirementService.sendUndelivered(new Date())` from your scheduler as well.
+A `SubscriptionBundleRepository` of your own needs `listOfVersion` and `moveToVersion`, and a
+`SubscriptionUsagePort` of your own `listByIds` — both shipped adapters have them — or a start with
+confirmed terms is refused, naming the method. With `versionNotices.includeCron: false`, call
+`BundleVersionRetirementService.sendUndelivered(new Date())` and
+`BundleRetirementMoveService.moveDue(new Date())` from your scheduler as well.
 
 **What the operator does.** On the add-ons page, the status of a version no longer on sale offers
 "Retire…". There is nothing to choose: the replacement is the add-on's version on sale. The preview
@@ -1129,7 +1133,9 @@ date, since cancelling it then ends it before the date and the change goes throu
 refusal names the day the booking can end. The add-on's prices follow the plan, as they do for every
 booking. The routes are `GET` and `POST /admin/catalog/bundle-versions/:id/retirement` and `GET
 /admin/catalog/bundle-version-retirements`. The add-on page shows beside the retired version how far
-its retirement has come (`SC-BUN-047`).
+its retirement has come (`SC-BUN-053`), and of the bookings not told yet why each notice waits
+(`SC-BUN-052`). The add-on cannot be deleted while bookings still move onto one of its versions:
+`BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING` says how many (`SC-BUN-051`).
 
 **When it takes effect.** At the first end of the booking's own period — in the rhythm the booking
 is billed in — at least three calendar months after its notice reached an administrator; a booking
@@ -1143,9 +1149,19 @@ can be booked from: the one the cancelled booking ends on, or the next where it 
 beside the plan the subscription is on then, or one it is set to move to after it,
 `BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN` does. A booking whose cancellation has landed
 is answered by the booking route, as any other. A booking a retirement reached and then cancelled to
-end by its date no longer shows the retirement. Moving the bookings at their date is not part of
-this release yet; until it is, a booking past its date is counted as overdue beside the retired
-version.
+end by its date no longer shows the retirement. At its date, the quarter-hour run moves the booking
+onto the replacement, keeping its period, its terms and its rhythm, and binds the replacement
+whatever its sale by then (`SC-BUN-049`, `SC-BUN-051`). The move writes the contract with the
+booking's line on the replacement, marked with the retirement, and the charge journal charges the
+booking's periods from the date from that line only, however late the move came; where that contract
+cannot be written, the booking goes back and the next run makes both (`SC-BUN-050`). A booking that
+has ended by the time a run comes, or whose subscription has, is not moved, even past its date: it
+ran on the retired version until it ended, its periods from the date are charged at that version,
+and the run asks the journal for them once. Each move is audited as `BUNDLE_VERSION_RETIREMENT_MOVE`
+by the actor `job:platform:add-on-retirement-moves`, and one that cannot be made once as
+`BUNDLE_VERSION_RETIREMENT_MOVE_FAILED`. Your `ContractFreezeSourcePort.loadBookedBundles` sees the
+moved booking on the replacement and prices that version for the plan, as it does any booking; a
+contract it hands no line for the replacement is refused, and the booking goes back.
 
 **What your port is handed.** One `bundle-version-retired` notice per booking, recorded with the
 announcement in one transaction and sent through the same `SubscriptionNoticePort` (`SC-BUN-042`).

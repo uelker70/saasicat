@@ -119,9 +119,10 @@ export function usageOver(subs) {
 
 /**
  * The retirement service over `subs` and the notices in `record`, with the one
- * announcement the notices name.
+ * announcement the notices name — and, where given, the add-on `bookings` and
+ * the `versions` they are on.
  */
-export function retirementServiceOver({ subs, record }) {
+export function retirementServiceOver({ subs, record, bookings = null, versions = null }) {
     const retirements = {
         rows: [
             {
@@ -146,5 +147,7 @@ export function retirementServiceOver({ subs, record }) {
         { tenantBilling: { orderlyRetirement: { termsConfirmed: true } } },
         null,
         null,
+        bookings,
+        versions,
     );
 }

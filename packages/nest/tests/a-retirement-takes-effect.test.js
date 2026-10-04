@@ -1081,6 +1081,7 @@ describe('how far a retirement has come', () => {
             overdue: 1,
             ended: 1,
             notTold: 0,
+            notToldReasons: { doesNotFit: 0, twelveMonths: 0, noLongerReached: 0, nobodyYet: 0 },
             reminded: 0,
         });
     });
@@ -1096,5 +1097,85 @@ describe('how far a retirement has come', () => {
         const [retirement] = await service.list(new Date('2026-07-02T00:00:00.000Z'));
 
         assert.deepEqual([retirement.progress.overdue, retirement.progress.notTold], [1, 1]);
+    });
+
+    // @requirement SC-SUB-039 — The operator sees why a retirement's notice still waits
+    test('says why each notice not told yet waits, as the run that sends them would', async () => {
+        // None is told: t1 has nothing holding it back; t2's subscription now
+        // ends before the date a notice sent today would set; t3 was told of an
+        // add-on retirement in April; t4 holds an add-on Plus cannot carry, and
+        // was told of one in April too, counted by the first that holds it.
+        const subs = [
+            subscriptionOf('t1'),
+            subscriptionOf('t2', {
+                canceledAt: new Date('2026-04-02T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-07-15T00:00:00.000Z'),
+            }),
+            subscriptionOf('t3'),
+            subscriptionOf('t4'),
+        ];
+        const record = await recorded(
+            noticeFor('t1'),
+            noticeFor('t2'),
+            noticeFor('t3'),
+            noticeFor('t4'),
+        );
+        await record.record(
+            ['t3', 't4'].map((tenantId) => ({
+                tenantId,
+                subscriptionId: `sub-${tenantId}`,
+                kind: 'bundle-version-retired',
+                subject: 'bv-other',
+                content: {},
+            })),
+            new Date('2026-04-01T00:00:00.000Z'),
+        );
+        for (const row of record.rows.values()) {
+            if (row.kind !== 'bundle-version-retired') continue;
+            Object.assign(row, {
+                deliveredAt: new Date('2026-04-01T00:00:00.000Z'),
+                delivery: { recipients: ['admin@example.com'], channel: 'email' },
+            });
+        }
+        const service = retirementServiceOver({
+            subs,
+            record,
+            bookings: {
+                async listActiveBySubscription(subscriptionId) {
+                    return subscriptionId === 'sub-t4'
+                        ? [
+                              {
+                                  id: 'sb-4',
+                                  subscriptionId,
+                                  bundleVersionId: 'bv-standard-only',
+                                  billingCycle: 'MONTHLY',
+                              },
+                          ]
+                        : [];
+                },
+            },
+            versions: {
+                async findVersionById(id) {
+                    return {
+                        id,
+                        label: 'Reports',
+                        compatibility: { planIds: ['STANDARD'] },
+                        pricingOverrides: [],
+                        monthlyNet: '5.00',
+                        yearlyNet: '50.00',
+                    };
+                },
+            },
+        });
+
+        const [retirement] = await service.list(new Date('2026-04-15T00:00:00.000Z'));
+
+        assert.equal(retirement.progress.notTold, 4);
+        assert.deepEqual(retirement.progress.notToldReasons, {
+            doesNotFit: 1,
+            twelveMonths: 1,
+            noLongerReached: 1,
+            nobodyYet: 1,
+        });
     });
 });

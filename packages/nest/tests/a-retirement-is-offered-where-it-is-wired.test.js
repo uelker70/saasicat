@@ -16,6 +16,7 @@ import {
 
 import { AdminManifestService } from '../dist/admin/index.js';
 import {
+    BundleRetirementMoveService,
     BundleVersionRetirementService,
     PlanChangePreviewService,
     RetirementMoveService,
@@ -24,7 +25,7 @@ import {
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     VersionRetirementService,
 } from '../dist/billing/index.js';
-import { PlanVersionsService } from '../dist/catalog/index.js';
+import { BundlesService, PlanVersionsService } from '../dist/catalog/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
     bootable,
@@ -257,6 +258,32 @@ describe('retiring an add-on version is offered', () => {
             await moduleRef.close();
         });
     }
+});
+
+// @requirement SC-BUN-049 — A booking continues on the replacement at the date it was told
+// @requirement SC-BUN-051 — A retirement keeps its promise, and the add-on stays until its bookings have moved
+describe('where add-on versions are retired, they also take effect', () => {
+    test('the run that moves bookings at their date is there, and the catalogue asks before it deletes an add-on', async () => {
+        const wired = await addOnsStarted(installation(termsConfirmed));
+        const unwired = await addOnsStarted(
+            installation((options) => termsConfirmed(bundleWithoutAddOnRetirements(options))),
+        );
+
+        assert.ok(wired.moduleRef.get(BundleRetirementMoveService, { strict: false }));
+        assert.equal(
+            wired.moduleRef.get(BundlesService, { strict: false }).deletionCheck,
+            wired.moduleRef.get(BundleVersionRetirementService, { strict: false }),
+        );
+        assert.equal(unwired.moduleRef.get(BundlesService, { strict: false }).deletionCheck, null);
+        assert.ok(
+            ['BUNDLE_VERSION_RETIREMENT_MOVE', 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED'].every(
+                (key) => wired.manifest.audit.actions.some((action) => action.key === key),
+            ),
+            'and the audit log names what the move records',
+        );
+        await wired.moduleRef.close();
+        await unwired.moduleRef.close();
+    });
 });
 
 // @requirement SC-BUN-044 — An add-on retirement's replacement has to fit every plan a booking meets from its date
