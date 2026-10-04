@@ -4,6 +4,7 @@ import {
     Get,
     Inject,
     NotFoundException,
+    Optional,
     Patch,
     Req,
     UseGuards,
@@ -14,9 +15,17 @@ import { AUTH_ERROR_CODES } from '@saasicat/core';
 import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
 import { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
 import {
+    AUDIT_CONTEXT_RESOLVER_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
+    TENANT_SELF_SERVICE_CONTEXT,
+    USER_EMAIL_RESOLVER_TOKEN,
+    USER_ID_RESOLVER_TOKEN,
+    type AuditContextResolver,
     type TenantIdResolver,
+    type UserEmailResolver,
+    type UserIdResolver,
 } from '../billing/tenant-billing.tokens.js';
+import { actorFromRequest, actorTagOf } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { ChangeBillingDetailsDto } from './dto/change-billing-details.dto.js';
@@ -39,7 +48,10 @@ export interface TenantBillingDetailsView {
  * `GET /billing/details` and `PATCH /billing/details` — whom the tenant's
  * subscription is billed to, behind the billing permission for reading and
  * changing alike. The contact details change here; the legal name and the tax
- * identifiers are shown and corrected by the operator (`SC-SUB-017`).
+ * identifiers are shown and corrected by the operator (`SC-SUB-017`). A change
+ * names the user who made it, derived the way the audit log derives it: the
+ * country is part of the tax origin, and its change is recorded with who made
+ * it.
  */
 @Controller('billing/details')
 @UseGuards(ComposedTenantAuthGuard, BillingPermissionGuard)
@@ -47,6 +59,15 @@ export class TenantBillingDetailsController {
     constructor(
         @Inject(SubscriberService) private readonly subscribers: SubscriberService,
         @Inject(TENANT_ID_RESOLVER_TOKEN) private readonly tenantIdResolver: TenantIdResolver,
+        @Optional()
+        @Inject(USER_ID_RESOLVER_TOKEN)
+        private readonly userIdResolver: UserIdResolver | null = null,
+        @Optional()
+        @Inject(USER_EMAIL_RESOLVER_TOKEN)
+        private readonly userEmailResolver: UserEmailResolver | null = null,
+        @Optional()
+        @Inject(AUDIT_CONTEXT_RESOLVER_TOKEN)
+        private readonly auditContextResolver: AuditContextResolver | null = null,
     ) {}
 
     @Get()
@@ -63,8 +84,24 @@ export class TenantBillingDetailsController {
         const subscriber = await this.subscribers.changeContactOfTenant(
             this.tenantOf(request),
             body,
+            this.actorOf(request),
         );
         return { details: viewOf(subscriber) };
+    }
+
+    /** The tenant's user behind a request, as the audit log tags them. */
+    private actorOf(request: unknown): string {
+        return actorTagOf(
+            actorFromRequest(
+                request,
+                {
+                    userId: this.userIdResolver,
+                    email: this.userEmailResolver,
+                    context: this.auditContextResolver,
+                },
+                TENANT_SELF_SERVICE_CONTEXT,
+            ),
+        );
     }
 
     private tenantOf(request: unknown): string {

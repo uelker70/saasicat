@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 226 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 228 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -244,18 +244,20 @@ Checkout offers and subscription contracts.
 
 The party a contract is concluded with.
 
-| Code                                    | Shipped English text                                                                                                               |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `SUBSCRIBER_ALREADY_EXISTS`             | Tenant '{tenantId}' already has a subscriber.                                                                                      |
-| `SUBSCRIBER_CORRECTION_ACTOR_REQUIRED`  | A correction of the legal identity has to say who makes it.                                                                        |
-| `SUBSCRIBER_CORRECTION_CHANGES_NOTHING` | The correction changes nothing: every value it names is already recorded.                                                          |
-| `SUBSCRIBER_CORRECTION_REASON_REQUIRED` | A correction of the legal identity needs a reason.                                                                                 |
-| `SUBSCRIBER_DETAIL_INVALID`             | The subscriber's {field} is not valid.                                                                                             |
-| `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`     | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                |
-| `SUBSCRIBER_LEGAL_NAME_REQUIRED`        | A subscriber needs its legal name.                                                                                                 |
-| `SUBSCRIBER_NOT_FOUND`                  | Subscriber '{subscriberId}' not found                                                                                              |
-| `SUBSCRIBER_REQUIRED`                   | Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first. |
-| `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`     | Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.                  |
+| Code                                       | Shipped English text                                                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `SUBSCRIBER_ALREADY_EXISTS`                | Tenant '{tenantId}' already has a subscriber.                                                                                      |
+| `SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT` | Whether the subscriber is a business is part of its tax origin and changes only as a recorded change that names who made it.       |
+| `SUBSCRIBER_CHANGE_ACTOR_REQUIRED`         | A change of the subscriber's details has to say who makes it.                                                                      |
+| `SUBSCRIBER_CORRECTION_ACTOR_REQUIRED`     | A correction of the legal identity has to say who makes it.                                                                        |
+| `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`    | The correction changes nothing: every value it names is already recorded.                                                          |
+| `SUBSCRIBER_CORRECTION_REASON_REQUIRED`    | A correction of the legal identity needs a reason.                                                                                 |
+| `SUBSCRIBER_DETAIL_INVALID`                | The subscriber's {field} is not valid.                                                                                             |
+| `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`        | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                |
+| `SUBSCRIBER_LEGAL_NAME_REQUIRED`           | A subscriber needs its legal name.                                                                                                 |
+| `SUBSCRIBER_NOT_FOUND`                     | Subscriber '{subscriberId}' not found                                                                                              |
+| `SUBSCRIBER_REQUIRED`                      | Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first. |
+| `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`        | Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.                  |
 
 ## Payments
 

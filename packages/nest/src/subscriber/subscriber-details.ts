@@ -1,6 +1,7 @@
 // What a subscriber's details have to be before they are written: trimmed, a
-// blank value recorded as unknown, the legal name present, and the two details
-// that have a form — the country and the invoice email — in it.
+// blank value recorded as unknown, the legal name present, the two details
+// that have a form — the country and the invoice email — in it, and the
+// business status a yes, a no or not stated.
 //
 // Every way a detail arrives goes through here: a new subscriber, a contact
 // change, a correction of the legal identity. A rule held on one of them and
@@ -22,6 +23,9 @@ import { codedError } from '../errors/coded-error.js';
 
 /** ISO 3166-1 alpha-2, as the schema of `config/saas.yaml` holds the issuer's. */
 const COUNTRY_CODE = /^[A-Z]{2}$/;
+
+/** What a VAT identification number is written with but does not consist of. */
+const VAT_ID_SEPARATORS = /[\s.-]/g;
 
 /** RFC 5321 caps an address at 254 characters. */
 const MAX_EMAIL_LENGTH = 254;
@@ -46,17 +50,29 @@ const CONTACT_FIELDS: readonly (keyof SubscriberContact)[] = [
 export function settleNewSubscriberDetails(details: NewSubscriberDetails): SubscriberDetails {
     return {
         legalName: settleLegalName(details.legalName),
-        vatId: settleText('vatId', details.vatId),
+        vatId: settleVatId(details.vatId),
         taxNumber: settleText('taxNumber', details.taxNumber),
         ...settleContact(details, CONTACT_FIELDS),
+        business: settleBusinessStatus(details.business),
     };
 }
 
 /**
+ * Whether the subscriber is a business: `true`, `false`, or `null` for not
+ * stated. Anything else is refused rather than read as one of them — a `"no"`
+ * that reads as truthy would treat a consumer as a business.
+ */
+export function settleBusinessStatus(value: unknown): boolean | null {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== 'boolean') throw invalid('business');
+    return value;
+}
+
+/**
  * The contact details a change names, settled: `null` clears one, `undefined`
- * leaves it out. A field of the legal identity is refused rather than dropped —
- * a caller that sent a new legal name through here would otherwise be told it
- * succeeded.
+ * leaves it out. A field of the legal identity, and the business status, are
+ * refused rather than dropped — a caller that sent a new legal name through
+ * here would otherwise be told it succeeded.
  */
 export function settleContactChange(change: SubscriberContactChange): SubscriberContactChange {
     const identity = LEGAL_IDENTITY_FIELDS.find(
@@ -67,6 +83,11 @@ export function settleContactChange(change: SubscriberContactChange): Subscriber
             codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_NOT_A_CONTACT, {
                 field: identity,
             }),
+        );
+    }
+    if ((change as Record<string, unknown>).business !== undefined) {
+        throw new UnprocessableEntityException(
+            codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT),
         );
     }
     const named = CONTACT_FIELDS.filter((field) => change[field] !== undefined);
@@ -90,7 +111,22 @@ export function settleIdentityCorrection(
 }
 
 function settleIdentityValue(field: LegalIdentityField, value: unknown): string | null {
-    return field === 'legalName' ? settleLegalName(value) : settleText(field, value);
+    if (field === 'legalName') return settleLegalName(value);
+    if (field === 'vatId') return settleVatId(value);
+    return settleText(field, value);
+}
+
+/**
+ * A VAT identification number in the one form it is stored, compared and
+ * checked in: upper case, without the spaces, dots and hyphens it is often
+ * written with. `atu 123.456-78` is `ATU12345678` — the same number, so
+ * entering it again in another spelling moves nothing.
+ */
+function settleVatId(value: unknown): string | null {
+    const text = settleText('vatId', value);
+    if (text === null) return null;
+    const vatId = text.replace(VAT_ID_SEPARATORS, '').toUpperCase();
+    return vatId === '' ? null : vatId;
 }
 
 function settleLegalName(value: unknown): string {

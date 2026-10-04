@@ -350,6 +350,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The correction changes nothing: every value it names is already recorded.',
     SUBSCRIBER_TAKEOVER_IS_A_TRANSFER:
         'Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.',
+    SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT:
+        'Whether the subscriber is a business is part of its tax origin and changes only as a recorded change that names who made it.',
+    SUBSCRIBER_CHANGE_ACTOR_REQUIRED:
+        "A change of the subscriber's details has to say who makes it.",
     // ── registration ──
     PENDING_REGISTRATION_NOT_FOUND:
         'This registration could not be found. It may have already been completed or discarded.',

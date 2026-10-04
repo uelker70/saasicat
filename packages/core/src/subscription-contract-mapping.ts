@@ -24,6 +24,7 @@ import type {
     SubscriptionContractStatus,
 } from './subscription-contract.types.js';
 import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
+import { toTaxTreatment } from './tax-origin.js';
 
 /** A `subscription_contracts` row as either adapter reads it back. */
 export interface CanonicalContractRow {
@@ -33,6 +34,8 @@ export interface CanonicalContractRow {
     subscriberSnapshot: unknown;
     issuerSnapshot: unknown;
     partiesMigrated: boolean;
+    /** JSON; see `toTaxTreatment`. */
+    taxTreatment: unknown;
     status: string;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -83,6 +86,7 @@ export function toSubscriptionContractRecord(
         subscriber: toSubscriberParty(row.subscriberSnapshot),
         issuer: isPlainObject(row.issuerSnapshot) ? toIssuerParty(row.issuerSnapshot) : null,
         partiesMigrated: row.partiesMigrated,
+        taxTreatment: toTaxTreatment(row.taxTreatment),
         status: row.status as SubscriptionContractStatus,
         effectiveFrom: row.effectiveFrom,
         effectiveUntil: row.effectiveUntil,

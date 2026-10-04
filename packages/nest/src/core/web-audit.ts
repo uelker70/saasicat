@@ -30,20 +30,50 @@ interface RequestLike {
 
 const DEFAULT_CONTEXT = 'admin';
 
+/** The resolvers an application may bind to name the user behind a request. */
+export interface RequestActorResolvers {
+    userId?: UserIdResolver | null;
+    email?: UserEmailResolver | null;
+    context?: AuditContextResolver | null;
+}
+
+/**
+ * The actor behind a request: per field the resolver the application bound,
+ * otherwise the JWT's subject or id, its email and the session header — and
+ * `fallbackContext` where nothing names a context. One derivation for every
+ * place that records who did something, so two records never disagree about
+ * who it was.
+ */
+export function actorFromRequest(
+    req: unknown,
+    resolvers: RequestActorResolvers,
+    fallbackContext: string,
+): AdminActor {
+    const request = req as RequestLike;
+    const userId = (resolvers.userId ?? (() => request.user?.sub ?? request.user?.id ?? null))(req);
+    const email = (resolvers.email ?? (() => request.user?.email ?? null))(req);
+    const context = (
+        resolvers.context ??
+        (() => {
+            const sid = request.headers?.['x-session-id'];
+            return Array.isArray(sid) ? (sid[0] ?? null) : (sid ?? null);
+        })
+    )(req);
+    return {
+        userId: userId ?? 'unknown',
+        email: email ?? 'unknown',
+        source: 'web',
+        context: context ?? fallbackContext,
+    };
+}
+
 /**
  * The actor a request describes when no resolver is bound: the JWT's subject
  * or id, its email, the session header. What `WebAuditLogger` falls back to
  * per field, exported so a controller without the logger derives the same tag.
  */
 export function defaultActorFromRequest(req: unknown): AdminActor {
-    const request = req as RequestLike;
-    const sid = request.headers?.['x-session-id'];
-    return {
-        userId: request.user?.sub ?? request.user?.id ?? 'unknown',
-        email: request.user?.email ?? 'unknown',
-        source: 'web',
-        context: (Array.isArray(sid) ? sid[0] : sid) ?? DEFAULT_CONTEXT,
-    };
+    return actorFromRequest(req, {}, DEFAULT_CONTEXT);
 }
 
 /** `web:<email>:<context>` — the origin marker as the audit log writes it. */
@@ -92,20 +122,15 @@ export class WebAuditLogger {
     }
 
     private buildActor(req: unknown): AdminActor {
-        const userId = this.resolveUserId(req) ?? 'unknown';
-        const email =
-            (this.userEmailResolver ?? ((r: unknown) => (r as RequestLike).user?.email ?? null))(
-                req,
-            ) ?? 'unknown';
-        const context =
-            (
-                this.auditContextResolver ??
-                ((r: unknown) => {
-                    const sid = (r as RequestLike).headers?.['x-session-id'];
-                    return Array.isArray(sid) ? (sid[0] ?? null) : (sid ?? null);
-                })
-            )(req) ?? DEFAULT_CONTEXT;
-        return { userId, email, source: 'web', context };
+        return actorFromRequest(
+            req,
+            {
+                userId: this.userIdResolver,
+                email: this.userEmailResolver,
+                context: this.auditContextResolver,
+            },
+            DEFAULT_CONTEXT,
+        );
     }
 
     /**

@@ -192,7 +192,7 @@ describe('a contract names the parties it is concluded with', () => {
             reason: 'Change of name of the same company',
             correctedBy: 'operator:anna',
         });
-        await subscribers.changeContact(subscriber.id, { city: 'Potsdam' });
+        await subscribers.changeContact(subscriber.id, { city: 'Potsdam' }, 'operator:anna');
 
         const kept = await contracts.getById(contract.id);
         assert.equal(kept.subscriber.legalName, 'Meier Autohaus GmbH');

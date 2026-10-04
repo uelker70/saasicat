@@ -127,6 +127,41 @@ describe('the tenant changes how it is reached', () => {
         assert.deepEqual((await details.current(sessionOf('tenant-meier'))).details, expected);
     });
 
+    // @requirement SC-PRIC-043 — A change to a subscriber's tax origin applies from its next invoice
+    test('a change of the country is recorded with the user who made it, as the audit log tags them', async () => {
+        const { details, subscribers, meier } = await billingArea();
+        const request = {
+            user: {
+                tenantId: 'tenant-meier',
+                role: 'TENANT_ADMIN',
+                sub: 'u-1',
+                email: 'owner@meier.example',
+            },
+            headers: {},
+        };
+
+        await details.change(request, { city: 'Wien', country: 'at' });
+        await details.change(request, { city: 'Graz' });
+        await details.change(
+            { ...request, headers: { 'x-session-id': 'session-7' } },
+            { city: 'Berlin', country: 'de' },
+        );
+
+        const listed = await subscribers.listTaxOriginChanges(meier.id);
+        assert.deepEqual(
+            listed.map((change) => [change.previous, change.changed, change.changedBy]),
+            [
+                [{ country: 'AT' }, { country: 'DE' }, 'web:owner@meier.example:session-7'],
+                [
+                    { country: 'DE' },
+                    { country: 'AT' },
+                    'web:owner@meier.example:tenant-self-service',
+                ],
+            ],
+            'a change that left the country recorded one, or the user is not named',
+        );
+    });
+
     test("only the session's tenant is changed", async () => {
         const { details } = await billingArea();
         await details.change(sessionOf('tenant-meier'), { city: 'Potsdam' });

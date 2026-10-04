@@ -433,6 +433,7 @@ CREATE TABLE "subscription_contracts" (
     "subscriberSnapshot" JSONB NOT NULL,
     "issuerSnapshot" JSONB,
     "partiesMigrated" BOOLEAN NOT NULL DEFAULT false,
+    "taxTreatment" JSONB,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
     "effectiveUntil" TIMESTAMP(3),
@@ -595,6 +596,9 @@ CREATE TABLE "subscribers" (
     "legalName" TEXT NOT NULL,
     "vatId" TEXT,
     "taxNumber" TEXT,
+    "business" BOOLEAN,
+    "currentVatIdCheckId" TEXT,
+    "vatIdSince" TIMESTAMP(3),
     "addressLine1" TEXT,
     "addressLine2" TEXT,
     "postalCode" TEXT,
@@ -622,6 +626,7 @@ CREATE TABLE "subscriber_tenants" (
 -- CreateTable
 CREATE TABLE "subscriber_corrections" (
     "id" TEXT NOT NULL,
+    "seq" SERIAL NOT NULL,
     "subscriberId" TEXT NOT NULL,
     "previous" JSONB NOT NULL,
     "corrected" JSONB NOT NULL,
@@ -630,6 +635,33 @@ CREATE TABLE "subscriber_corrections" (
     "correctedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "subscriber_corrections_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_tax_origin_changes" (
+    "id" TEXT NOT NULL,
+    "seq" SERIAL NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "previous" JSONB NOT NULL,
+    "changed" JSONB NOT NULL,
+    "changedBy" TEXT NOT NULL,
+    "changedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscriber_tax_origin_changes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_vat_id_checks" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "vatId" TEXT NOT NULL,
+    "checkedAt" TIMESTAMP(3) NOT NULL,
+    "valid" BOOLEAN NOT NULL,
+    "service" TEXT NOT NULL,
+    "confirmation" JSONB NOT NULL,
+    "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "subscriber_vat_id_checks_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -966,7 +998,19 @@ CREATE INDEX "subscriber_tenants_tenantId_idx" ON "subscriber_tenants"("tenantId
 CREATE INDEX "subscriber_tenants_subscriberId_idx" ON "subscriber_tenants"("subscriberId");
 
 -- CreateIndex
-CREATE INDEX "subscriber_corrections_subscriberId_correctedAt_idx" ON "subscriber_corrections"("subscriberId", "correctedAt");
+CREATE UNIQUE INDEX "subscriber_corrections_seq_key" ON "subscriber_corrections"("seq");
+
+-- CreateIndex
+CREATE INDEX "subscriber_corrections_subscriberId_seq_idx" ON "subscriber_corrections"("subscriberId", "seq");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_tax_origin_changes_seq_key" ON "subscriber_tax_origin_changes"("seq");
+
+-- CreateIndex
+CREATE INDEX "subscriber_tax_origin_changes_subscriberId_seq_idx" ON "subscriber_tax_origin_changes"("subscriberId", "seq");
+
+-- CreateIndex
+CREATE INDEX "subscriber_vat_id_checks_subscriberId_checkedAt_idx" ON "subscriber_vat_id_checks"("subscriberId", "checkedAt");
 
 -- CreateIndex
 CREATE INDEX "subscriber_payment_methods_subscriberId_status_idx" ON "subscriber_payment_methods"("subscriberId", "status");
@@ -1060,6 +1104,12 @@ ALTER TABLE "subscriber_tenants" ADD CONSTRAINT "subscriber_tenants_subscriberId
 
 -- AddForeignKey
 ALTER TABLE "subscriber_corrections" ADD CONSTRAINT "subscriber_corrections_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_tax_origin_changes" ADD CONSTRAINT "subscriber_tax_origin_changes_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_vat_id_checks" ADD CONSTRAINT "subscriber_vat_id_checks_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriber_payment_methods" ADD CONSTRAINT "subscriber_payment_methods_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

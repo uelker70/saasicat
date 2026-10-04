@@ -128,6 +128,11 @@ _Tested by:_
     - and the shipped fragments really carry such a relation
     - and a narrowed run behaves like a full one, given the shipped models
     - a type neither schema declares is still drift
+    - a model left out of a fragment whose other model is adopted fails, naming both
+    - an optional model may be left out of an adopted fragment
+    - a fragment left out whole is a decision, not drift
+    - a model adopted alone counts for its fragment, whichever it is
+    - without the fragments named, no fragment is held to being whole
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
@@ -159,6 +164,8 @@ _Tested by:_
         - handles escaped quotes without leaving the string early
         - leaves a line without strings untouched
         - is linear on pathological input
+    - the shipped fragments
+        - the subscriber fragment is one unit: the shipped repository writes all of it
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a shipped migration survives a second run
         - there are migrations to check
@@ -231,6 +238,15 @@ _Tested by:_
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
         - a second run finds nothing to drop and changes nothing
+    - a subscriber has a tax origin, and a contract its treatment
+        - a database from before ends up with the schema the fragments declare
+        - a subscriber and a contract from before keep their rows, with nothing stated and nothing
+          decided
+        - an installation without subscribers gets the treatment column and nothing else
+    - a correction carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
 
 <!-- END proof -->
 
@@ -332,6 +348,15 @@ _Tested by:_
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
         - a second run finds nothing to drop and changes nothing
+    - a subscriber has a tax origin, and a contract its treatment
+        - a database from before ends up with the schema the fragments declare
+        - a subscriber and a contract from before keep their rows, with nothing stated and nothing
+          decided
+        - an installation without subscribers gets the treatment column and nothing else
+    - a correction carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

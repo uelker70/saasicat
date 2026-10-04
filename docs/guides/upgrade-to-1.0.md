@@ -1526,6 +1526,93 @@ it named only the plan until the next change wrote it again.
 - **`@saasicat/spec`** exports `subscriberLedgerSchema` in place of `tenantLedgerSchema`, and the
   schema describes one charge: net, without payments. Nothing in the platform read the old one.
 
+### A subscriber has a tax origin, and a contract records its treatment
+
+The first part of the tax adapter ([ADR 0013](../explanation/adr/0013-tax-law-is-an-adapter.md)):
+what an adapter decides a subscriber's tax from, and where its answers are kept. Nothing asks an
+adapter yet, so no amount changes.
+
+1. Adopt the fragment changes. On `Subscriber`, the columns `business`, `currentVatIdCheckId` and
+   `vatIdSince` and the back-relations `taxOriginChanges` and `vatIdChecks`, with the models
+   `SubscriberTaxOriginChange` and `SubscriberVatIdCheck`, and on `SubscriberCorrection` the column
+   `seq` (`prisma-fragments/13-subscriber.prisma`); on `SubscriptionContract`, the column
+   `taxTreatment` (`prisma-fragments/08-subscription-contract.prisma`). Unlike the charge journal,
+   neither model is optional: the shipped subscriber repositories write both, and `notAdopted`
+   cannot leave them out.
+   `saasicat schema check` now reports a fragment taken halfway — one model of it adopted, another
+   left out — as drift, so a schema with `Subscriber` and without the two models fails the check
+   rather than the first change of a country in production.
+2. Run the two migrations once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-subscriber-has-a-tax-origin.postgres.sql
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-correction-carries-its-order.postgres.sql
+    ```
+
+    The first adds the four columns and the two tables. The second numbers the corrections already
+    recorded in the order they were listed — `correctedAt`, then `id` — so none changes place, and
+    the numbering continues after them. Each does nothing on a second run and leaves a database
+    without its tables alone.
+
+3. Where your subscriber tables carry row-level policies, give the two new tables the policy
+   `subscriber_corrections` has: both hold rows of one subscriber, reached through
+   `subscriberId`.
+
+Nothing is backfilled. A subscriber's business status stays unknown until it is recorded, no VAT id
+counts as checked until it is checked, and a contract concluded before records no treatment.
+
+- **A change of the subscriber's contact details names who makes it.**
+  `SubscriberService.changeContact(subscriberId, change, changedBy)` and
+  `changeContactOfTenant(tenantId, change, changedBy)` take an actor tag in the form the audit log
+  writes — `web:<email>:<context>` for a person — and refuse a call without one with
+  `SUBSCRIBER_CHANGE_ACTOR_REQUIRED`. The tenant's own route, `PATCH billing/details`, passes the
+  user behind the request, derived as the audit log derives it. Code of your own that calls either
+  method names who it acts for.
+- **Whether a subscriber is a business** is recorded, never derived from a tax identifier:
+  `createForTenant` takes `business` — `true`, `false`, or absent for not stated — and
+  `changeBusinessStatus(subscriberId, { business, changedBy })` changes it. A contact change naming
+  `business` is refused with `SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT`. An application that words
+  refusals itself adds both new codes.
+- **A change of the tax origin is recorded whichever way it arrives** — a contact change of the
+  country, a correction of the VAT id, a change of the business status — with who made it, dated
+  while the write holds the subscriber's row lock and numbered by the database in the order it was
+  written. `listTaxOriginChanges` lists them by that number, the latest written first; on one clock
+  the dates follow it, across instances with different clocks they may not. A contact change now
+  takes the row lock too, as a correction does.
+- **Every check of a VAT id is kept as it was answered**, never rewritten (`recordVatIdCheck`,
+  `listVatIdChecks`): a reverse charge rests on the confirmation that held when the invoice was
+  issued. Which one counts — the latest completed check of the number the subscriber holds,
+  completed since it holds it, none after the number is corrected — is `findCurrentVatIdCheck`,
+  and `taxOriginOf(subscriber, check)` from `@saasicat/core` reads the tax origin from it.
+- **A VAT id is stored in one form**: upper case, without spaces, dots or hyphens. A number
+  entered again in another spelling moves nothing.
+- **A correction of the legal identity is dated by the write that makes it**, like a change of the
+  tax origin: while it holds the row lock, numbered by the database, and listed by that number
+  (`listCorrections`, the latest written first). `SubscriberCorrectionData` no longer carries
+  `correctedAt`; a correction that moves the VAT id and the change it records share one date.
+- **A `SubscriberRepository` of your own** — AutohausPro keeps one — changes in these places:
+    - `updateContact` takes `changedBy` and records a change of the country;
+    - `correctIdentity` dates the correction itself while holding the lock, records a change of
+      the VAT id with the same date and, when the number moves, clears `currentVatIdCheckId` and
+      sets `vatIdSince` to that date;
+    - `listCorrections` lists by `seq`, the latest written first;
+    - the new methods are `changeBusinessStatus`, `recordVatIdCheck`, `findCurrentVatIdCheck`,
+      `listVatIdChecks` and `listTaxOriginChanges`;
+    - every write above takes the row lock a correction takes and dates its change while holding
+      it.
+
+    `taxOriginWrite` and `keepsVatIdCheck` from `@saasicat/core` answer what a write moves and
+    which check counts, so a repository applies the answer rather than deciding it again. The
+    persistence contract holds a repository to all of it.
+
+- **A `SubscriptionContractRepository` of your own** writes `taxTreatment` and reads it back, as
+  `toSubscriptionContractRecord` does.
+- **A record built by hand**, such as a test double's `SubscriberRecord` or
+  `SubscriptionContractRecord`, gains `business`, or `taxTreatment`.
+- **A persistence contract harness** gains no member: the new scenarios run under the subscribers
+  and the contracts. One that empties its tables by name adds `subscriber_tax_origin_changes` and
+  `subscriber_vat_id_checks`.
+
 ### The operator's own legal identity changes only as a declared correction
 
 `config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract

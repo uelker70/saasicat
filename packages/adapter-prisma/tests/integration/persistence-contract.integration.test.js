@@ -80,6 +80,7 @@ const PLATFORM_TABLES = [
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
+    'subscriber_tax_origin_changes',
     'subscriber_corrections',
     'subscriber_tenants',
     'subscribers',

@@ -27,6 +27,8 @@ import type {
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
     NewBundleVersionRetirement,
+    TaxTreatment,
+    VatIdCheck,
     NewVersionRetirement,
     NoticeToRecord,
     SubscriptionNoticeKey,
@@ -49,6 +51,9 @@ import type {
 } from './harness.types.js';
 
 const LOCK_HOLD_MS = 150;
+
+/** A tenant's user changing its billing details, tagged as the audit log tags them. */
+const TENANT_USER = 'web:owner@tenant.example:tenant-self-service';
 
 /** An id no version carries. */
 const NO_SUCH_VERSION = '00000000-0000-4000-8000-000000000000';
@@ -209,6 +214,7 @@ function subscriberFor(tenantId: string, legalName: string): CreateSubscriberDat
         city: null,
         country: null,
         invoiceEmail: null,
+        business: null,
         customerNumberPrefix: '',
     };
 }
@@ -489,6 +495,20 @@ const CONTRACT_GAPS: Record<
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Runs a write and answers what it answered, and the window of time it ran in. */
+async function timed<T>(
+    write: () => Promise<T>,
+): Promise<{ result: T; from: number; until: number }> {
+    const from = Date.now();
+    const result = await write();
+    return { result, from, until: Date.now() };
+}
+
+/** Whether `date` falls inside the window a timed write ran in. */
+function inWindow(date: Date, window: { from: number; until: number }): boolean {
+    return date.getTime() >= window.from && date.getTime() <= window.until;
 }
 
 /** A moment `days` from now; negative for the past. */
@@ -4745,11 +4765,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             assert.ok(created);
 
-            const changed = await subscribers.updateContact(created.id, {
-                city: 'Bremen',
-                addressLine2: null,
-                invoiceEmail: 'buchhaltung@kontakt.example',
-            });
+            const changed = await subscribers.updateContact(
+                created.id,
+                {
+                    city: 'Bremen',
+                    addressLine2: null,
+                    invoiceEmail: 'buchhaltung@kontakt.example',
+                },
+                TENANT_USER,
+            );
 
             assert.deepEqual(
                 changed && [
@@ -4763,7 +4787,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.equal((await subscribers.findById(created.id))?.city, 'Bremen');
             assert.equal(
-                await subscribers.updateContact('subscriber-nobody-created', { city: 'Kiel' }),
+                await subscribers.updateContact(
+                    'subscriber-nobody-created',
+                    { city: 'Kiel' },
+                    TENANT_USER,
+                ),
                 null,
             );
         });
@@ -4778,14 +4806,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 subscriberFor('tenant-correction', 'Mueller GmbH'),
             );
             assert.ok(created);
-            const at = (day: number) => new Date(Date.UTC(2026, 8, day));
 
-            const first = await subscribers.correctIdentity(created.id, {
-                corrected: { legalName: 'Müller GmbH', vatId: 'DE123456789', taxNumber: null },
-                reason: 'Umlaut lost when the registration was typed',
-                correctedBy: 'operator:anna',
-                correctedAt: at(1),
-            });
+            const umlaut = await timed(() =>
+                subscribers.correctIdentity(created.id, {
+                    corrected: { legalName: 'Müller GmbH', vatId: 'DE123456789', taxNumber: null },
+                    reason: 'Umlaut lost when the registration was typed',
+                    correctedBy: 'operator:anna',
+                }),
+            );
+            const first = umlaut.result;
             // `taxNumber` was already null, so it moved nothing and is not recorded.
             assert.deepEqual(
                 first?.correction && {
@@ -4793,15 +4822,17 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     corrected: first.correction.corrected,
                     reason: first.correction.reason,
                     correctedBy: first.correction.correctedBy,
-                    correctedAt: first.correction.correctedAt.getTime(),
                 },
                 {
                     previous: { legalName: 'Mueller GmbH', vatId: null },
                     corrected: { legalName: 'Müller GmbH', vatId: 'DE123456789' },
                     reason: 'Umlaut lost when the registration was typed',
                     correctedBy: 'operator:anna',
-                    correctedAt: at(1).getTime(),
                 },
+            );
+            assert.ok(
+                first?.correction && inWindow(first.correction.correctedAt, umlaut),
+                'the correction is not dated by the write that made it',
             );
             assert.equal(first?.subscriber.legalName, 'Müller GmbH');
             assert.equal((await subscribers.findById(created.id))?.vatId, 'DE123456789');
@@ -4810,7 +4841,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 corrected: { legalName: 'Müller GmbH' },
                 reason: 'Clicked twice',
                 correctedBy: 'operator:anna',
-                correctedAt: at(2),
             });
             assert.equal(
                 unchanged?.correction,
@@ -4822,7 +4852,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 corrected: { vatId: 'DE999999999' },
                 reason: 'Wrong VAT id on the first correction',
                 correctedBy: 'operator:ben',
-                correctedAt: at(3),
             });
             const listed = await subscribers.listCorrections(created.id);
             assert.deepEqual(
@@ -4831,14 +4860,13 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     'Wrong VAT id on the first correction',
                     'Umlaut lost when the registration was typed',
                 ],
-                'corrections come back the latest first, and only the two that moved something',
+                'corrections come back the latest written first, and only the two that moved something',
             );
             assert.equal(
                 await subscribers.correctIdentity('subscriber-nobody-created', {
                     corrected: { legalName: 'Niemand' },
                     reason: 'none',
                     correctedBy: 'operator:anna',
-                    correctedAt: at(4),
                 }),
                 null,
             );
@@ -4870,7 +4898,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                             corrected: { legalName },
                             reason: `to ${legalName}`,
                             correctedBy: 'operator:anna',
-                            correctedAt: new Date(),
                         },
                         tx,
                     );
@@ -4882,19 +4909,23 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
 
             const listed = await subscribers.listCorrections(created.id);
-            assert.equal(listed.length, 2);
-            const replaced = listed.map((correction) => correction.previous.legalName).sort();
-            const written = listed.map((correction) => correction.corrected.legalName);
-            const current = (await subscribers.findById(created.id))?.legalName;
-            // One replaced the original; the other replaced what the first wrote.
-            assert.ok(replaced.includes('Original GmbH'), JSON.stringify(listed));
-            const secondReplaced = replaced.find((name) => name !== 'Original GmbH');
-            assert.ok(
-                secondReplaced !== undefined && written.includes(secondReplaced),
+            assert.equal(listed.length, 2, JSON.stringify(listed));
+            // Listed the latest written first: the earlier write replaced the
+            // original, the later one what the earlier one wrote.
+            assert.equal(listed[1]!.previous.legalName, 'Original GmbH', JSON.stringify(listed));
+            assert.equal(
+                listed[0]!.previous.legalName,
+                listed[1]!.corrected.legalName,
                 `a correction recorded a value it did not replace: ${JSON.stringify(listed)}`,
             );
-            assert.ok(current !== undefined && written.includes(current));
-            assert.notEqual(secondReplaced, current);
+            assert.equal(
+                (await subscribers.findById(created.id))?.legalName,
+                listed[0]!.corrected.legalName,
+            );
+            assert.ok(
+                listed[0]!.correctedAt.getTime() >= listed[1]!.correctedAt.getTime(),
+                'the later write is dated before the earlier one',
+            );
         });
 
         test("a contract keeps its subscriber's copy after the subscriber is corrected", async (t) => {
@@ -4923,7 +4954,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 corrected: { legalName: 'Nachher GmbH' },
                 reason: 'Change of name of the same company',
                 correctedBy: 'operator:anna',
-                correctedAt: new Date(),
             });
 
             const readBack = await contracts.findById(contract.id);
@@ -4933,6 +4963,495 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'Vorher GmbH',
                 'the contract followed a correction of the live record',
             );
+        });
+
+        // -------------------------------------------------------------
+        // The subscriber's tax origin, and the treatment a contract records
+        // -------------------------------------------------------------
+
+        test('whether a subscriber is a business is kept as stated, and unknown until it is', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const business = await subscribers.createForTenant({
+                ...subscriberFor('tenant-business', 'Zürich Software GmbH'),
+                country: 'CH',
+                business: true,
+            });
+            const consumer = await subscribers.createForTenant({
+                ...subscriberFor('tenant-consumer', 'Erika Mustermann'),
+                business: false,
+            });
+            const notStated = await subscribers.createForTenant(
+                subscriberFor('tenant-business-not-stated', 'Undecided GmbH'),
+            );
+            assert.ok(business && consumer && notStated);
+
+            // Read back rather than taken from the create, which could hand back
+            // what it was given; and `false` apart from `null`, so an adapter
+            // writing one for the other is caught.
+            const readBack = await Promise.all(
+                [business, consumer, notStated].map(
+                    async (created) => (await subscribers.findById(created.id))?.business,
+                ),
+            );
+            assert.deepEqual(readBack, [true, false, null]);
+            assert.equal((await subscribers.findByTenantId('tenant-business'))?.business, true);
+        });
+
+        test('a change of the tax origin is recorded with who made it and when, whichever way it arrives', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const created = await subscribers.createForTenant({
+                ...subscriberFor('tenant-tax-origin', 'Wien Handel GmbH'),
+                country: 'DE',
+                city: 'München',
+            });
+            assert.ok(created);
+
+            // A contact change that leaves the country records nothing.
+            await subscribers.updateContact(created.id, { city: 'Passau' }, TENANT_USER);
+            assert.deepEqual(await subscribers.listTaxOriginChanges(created.id), []);
+
+            const moved = await timed(() =>
+                subscribers.updateContact(created.id, { country: 'AT', city: 'Wien' }, TENANT_USER),
+            );
+            // The billing details saved again as they are, as a form sends them
+            // whole: the country is named, and moves nothing.
+            await subscribers.updateContact(
+                created.id,
+                { country: 'AT', city: 'Wien' },
+                TENANT_USER,
+            );
+            const corrected = await timed(() =>
+                subscribers.correctIdentity(created.id, {
+                    corrected: { vatId: 'ATU12345678' },
+                    reason: 'VAT id handed in after sign-up',
+                    correctedBy: 'operator:anna',
+                }),
+            );
+            // A correction of the name alone leaves the tax origin as it is.
+            await subscribers.correctIdentity(created.id, {
+                corrected: { legalName: 'Wien Handel GesmbH' },
+                reason: 'Legal form spelt as registered',
+                correctedBy: 'operator:anna',
+            });
+            const stated = await timed(() =>
+                subscribers.changeBusinessStatus(created.id, {
+                    business: true,
+                    changedBy: 'operator:ben',
+                }),
+            );
+            assert.equal(stated.result?.subscriber.business, true);
+            assert.equal((await subscribers.findById(created.id))?.business, true);
+            assert.deepEqual(
+                stated.result?.change && [
+                    stated.result.change.previous,
+                    stated.result.change.changed,
+                ],
+                [{ business: null }, { business: true }],
+            );
+
+            const again = await subscribers.changeBusinessStatus(created.id, {
+                business: true,
+                changedBy: 'operator:ben',
+            });
+            assert.equal(again?.change, null, 'a business status that did not move was recorded');
+            assert.equal(again?.subscriber.business, true);
+
+            const listed = await subscribers.listTaxOriginChanges(created.id);
+            assert.deepEqual(
+                listed.map((change) => ({
+                    subscriberId: change.subscriberId,
+                    previous: change.previous,
+                    changed: change.changed,
+                    changedBy: change.changedBy,
+                })),
+                [
+                    {
+                        subscriberId: created.id,
+                        previous: { business: null },
+                        changed: { business: true },
+                        changedBy: 'operator:ben',
+                    },
+                    {
+                        subscriberId: created.id,
+                        previous: { vatId: null },
+                        changed: { vatId: 'ATU12345678' },
+                        changedBy: 'operator:anna',
+                    },
+                    {
+                        subscriberId: created.id,
+                        previous: { country: 'DE' },
+                        changed: { country: 'AT' },
+                        changedBy: TENANT_USER,
+                    },
+                ],
+                'the changes come back the latest written first, and only the three that moved the tax origin',
+            );
+            // Each dated while its own write ran, so the dates read in the order
+            // the changes were written.
+            const windows = [stated, corrected, moved];
+            listed.forEach((change, index) => {
+                assert.ok(
+                    inWindow(change.changedAt, windows[index]!),
+                    `change ${index} is dated ${change.changedAt.toISOString()}, outside its write`,
+                );
+            });
+            // One write, one date: the correction and the change it made.
+            assert.equal(
+                corrected.result?.correction?.correctedAt.getTime(),
+                listed[1]!.changedAt.getTime(),
+                'a correction and the change of the tax origin it made are dated apart',
+            );
+            assert.equal(
+                await subscribers.changeBusinessStatus('subscriber-nobody-created', {
+                    business: true,
+                    changedBy: 'operator:ben',
+                }),
+                null,
+            );
+            assert.deepEqual(
+                await subscribers.listTaxOriginChanges('subscriber-nobody-created'),
+                [],
+            );
+        });
+
+        test('every VAT id check is kept as answered, and the one that counts is the latest of the number held', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const created = await subscribers.createForTenant({
+                ...subscriberFor('tenant-vat-check', 'Prüf GmbH'),
+                country: 'AT',
+                vatId: 'ATU12345678',
+            });
+            assert.ok(created);
+            assert.equal(
+                await subscribers.findCurrentVatIdCheck(created.id),
+                null,
+                'a number nobody checked reads as checked',
+            );
+            const checkOf = (vatId: string, day: string, valid: boolean): VatIdCheck => ({
+                vatId,
+                checkedAt: new Date(`${day}T08:30:00.000Z`),
+                valid,
+                service: 'VIES',
+                confirmation: { requestIdentifier: `WAPI-${vatId}-${day}`, name: 'PRÜF GMBH' },
+            });
+            const summary = (check: VatIdCheck | null | undefined) =>
+                check && [check.vatId, check.checkedAt.toISOString().slice(0, 10), check.valid];
+
+            const first = await subscribers.recordVatIdCheck(
+                created.id,
+                checkOf('ATU12345678', '2026-10-01', true),
+            );
+            assert.deepEqual(
+                first && {
+                    subscriberId: first.recorded.subscriberId,
+                    vatId: first.recorded.vatId,
+                    checkedAt: first.recorded.checkedAt.getTime(),
+                    valid: first.recorded.valid,
+                    service: first.recorded.service,
+                    confirmation: first.recorded.confirmation,
+                },
+                {
+                    subscriberId: created.id,
+                    vatId: 'ATU12345678',
+                    checkedAt: new Date('2026-10-01T08:30:00.000Z').getTime(),
+                    valid: true,
+                    service: 'VIES',
+                    confirmation: {
+                        requestIdentifier: 'WAPI-ATU12345678-2026-10-01',
+                        name: 'PRÜF GMBH',
+                    },
+                },
+            );
+            assert.equal(first?.current?.id, first?.recorded.id);
+            assert.equal(
+                (await subscribers.findCurrentVatIdCheck(created.id))?.id,
+                first?.recorded.id,
+            );
+
+            // A check of another number is recorded, and counts for nothing.
+            const stray = await subscribers.recordVatIdCheck(
+                created.id,
+                checkOf('ATU99999999', '2026-10-02', false),
+            );
+            assert.equal(stray?.current?.id, first?.recorded.id);
+
+            // A check that completed later counts from now on, whatever it found …
+            const revoked = await subscribers.recordVatIdCheck(
+                created.id,
+                checkOf('ATU12345678', '2026-11-01', false),
+            );
+            assert.equal(revoked?.current?.id, revoked?.recorded.id);
+            // … and one that completed earlier but is written later does not
+            // replace it: an older "valid" never overrides a newer "invalid".
+            const older = await subscribers.recordVatIdCheck(
+                created.id,
+                checkOf('ATU12345678', '2026-10-15', true),
+            );
+            assert.equal(older?.current?.id, revoked?.recorded.id);
+            assert.deepEqual(summary(await subscribers.findCurrentVatIdCheck(created.id)), [
+                'ATU12345678',
+                '2026-11-01',
+                false,
+            ]);
+
+            // Once the number is corrected, no check counts for the new one, and
+            // a check of the old one that finishes after the correction counts
+            // for nothing either.
+            await subscribers.correctIdentity(created.id, {
+                corrected: { vatId: 'ATU87654321' },
+                reason: 'Digits swapped when the number was typed',
+                correctedBy: 'operator:anna',
+            });
+            assert.equal(await subscribers.findCurrentVatIdCheck(created.id), null);
+            const late = await subscribers.recordVatIdCheck(
+                created.id,
+                checkOf('ATU12345678', '2026-12-01', true),
+            );
+            assert.equal(late?.current, null);
+            // Corrected back to the number checked before, no earlier check
+            // counts again: the number may have been revoked in between.
+            await subscribers.correctIdentity(created.id, {
+                corrected: { vatId: 'ATU12345678' },
+                reason: 'The first number was right after all',
+                correctedBy: 'operator:anna',
+            });
+            assert.equal(await subscribers.findCurrentVatIdCheck(created.id), null);
+
+            // And none of it is lost: every check is still there as answered.
+            const kept = await subscribers.listVatIdChecks(created.id);
+            assert.deepEqual(kept.map(summary), [
+                ['ATU12345678', '2026-12-01', true],
+                ['ATU12345678', '2026-11-01', false],
+                ['ATU12345678', '2026-10-15', true],
+                ['ATU99999999', '2026-10-02', false],
+                ['ATU12345678', '2026-10-01', true],
+            ]);
+            assert.deepEqual(kept.at(-1)?.confirmation, {
+                requestIdentifier: 'WAPI-ATU12345678-2026-10-01',
+                name: 'PRÜF GMBH',
+            });
+
+            // A check of the number completed before the correction back, and
+            // written only after it, counts for nothing: the subscriber did not
+            // hold the number when it was checked. One completed since counts.
+            const stale = await subscribers.recordVatIdCheck(
+                created.id,
+                checkOf('ATU12345678', '2026-10-03', true),
+            );
+            assert.equal(stale?.current, null, 'a check from before the correction back counts');
+            const fresh = await subscribers.recordVatIdCheck(created.id, {
+                ...checkOf('ATU12345678', '2026-10-03', true),
+                checkedAt: new Date(),
+            });
+            assert.equal(fresh?.current?.id, fresh?.recorded.id);
+
+            assert.equal(
+                await subscribers.recordVatIdCheck(
+                    'subscriber-nobody-created',
+                    checkOf('ATU12345678', '2026-10-01', true),
+                ),
+                null,
+            );
+            assert.equal(
+                await subscribers.findCurrentVatIdCheck('subscriber-nobody-created'),
+                null,
+            );
+            assert.deepEqual(await subscribers.listVatIdChecks('subscriber-nobody-created'), []);
+        });
+
+        test('two checks of one number recorded at once leave the later-dated one counting', async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no transactions or no row locks');
+                return;
+            }
+            const created = await subscribers.createForTenant({
+                ...subscriberFor('tenant-checked-twice', 'Doppelt GmbH'),
+                vatId: 'ATU12345678',
+            });
+            assert.ok(created);
+            // The later-dated check starts first and holds its transaction open,
+            // so the earlier-dated one is written after it. Without the lock both
+            // read "no check counts" and the one written last would count.
+            const recordAt = (day: string, valid: boolean) =>
+                adapter.transactionRunner.run(async (tx) => {
+                    await subscribers.recordVatIdCheck(
+                        created.id,
+                        {
+                            vatId: 'ATU12345678',
+                            checkedAt: new Date(`${day}T08:30:00.000Z`),
+                            valid,
+                            service: 'VIES',
+                            confirmation: {},
+                        },
+                        tx,
+                    );
+                    await sleep(LOCK_HOLD_MS);
+                });
+            await Promise.all([
+                recordAt('2026-11-01', false),
+                sleep(LOCK_HOLD_MS / 3).then(() => recordAt('2026-10-01', true)),
+            ]);
+
+            const counting = await subscribers.findCurrentVatIdCheck(created.id);
+            assert.equal(counting?.checkedAt.toISOString(), '2026-11-01T08:30:00.000Z');
+            assert.equal((await subscribers.listVatIdChecks(created.id)).length, 2);
+        });
+
+        test('two changes of the country at once each record the value the other left behind', async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no transactions or no row locks');
+                return;
+            }
+            const created = await subscribers.createForTenant({
+                ...subscriberFor('tenant-moved-twice', 'Umzug GmbH'),
+                country: 'DE',
+            });
+            assert.ok(created);
+            // As with two corrections: each holds its transaction open after
+            // writing, so the other arrives while it is uncommitted. Without a
+            // lock both read 'DE' and record it as what they replaced.
+            const moveTo = (country: string) =>
+                adapter.transactionRunner.run(async (tx) => {
+                    await subscribers.updateContact(created.id, { country }, TENANT_USER, tx);
+                    await sleep(LOCK_HOLD_MS);
+                });
+            await Promise.all([moveTo('AT'), moveTo('CH')]);
+
+            const listed = await subscribers.listTaxOriginChanges(created.id);
+            assert.equal(listed.length, 2, JSON.stringify(listed));
+            // Listed the latest written first: the earlier write replaced 'DE',
+            // the later one what the earlier one wrote.
+            assert.equal(listed[1]!.previous.country, 'DE', JSON.stringify(listed));
+            assert.equal(
+                listed[0]!.previous.country,
+                listed[1]!.changed.country,
+                `a change recorded a country it did not replace: ${JSON.stringify(listed)}`,
+            );
+            assert.equal(
+                (await subscribers.findById(created.id))?.country,
+                listed[0]!.changed.country,
+            );
+            assert.ok(
+                listed[0]!.changedAt.getTime() >= listed[1]!.changedAt.getTime(),
+                'the later write is dated before the earlier one',
+            );
+        });
+
+        test('a change of the tax origin written on a transaction is undone with it', async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+            const created = await subscribers.createForTenant({
+                ...subscriberFor('tenant-tax-origin-rolled-back', 'Rückzug GmbH'),
+                country: 'DE',
+                vatId: 'DE123456789',
+            });
+            assert.ok(created);
+
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    await subscribers.updateContact(created.id, { country: 'FR' }, TENANT_USER, tx);
+                    await subscribers.changeBusinessStatus(
+                        created.id,
+                        { business: true, changedBy: 'operator:anna' },
+                        tx,
+                    );
+                    await subscribers.recordVatIdCheck(
+                        created.id,
+                        {
+                            vatId: 'DE123456789',
+                            checkedAt: new Date(),
+                            valid: true,
+                            service: 'VIES',
+                            confirmation: {},
+                        },
+                        tx,
+                    );
+                    throw new Error('the change is not made after all');
+                }),
+            );
+
+            const found = await subscribers.findById(created.id);
+            assert.deepEqual([found?.country, found?.business], ['DE', null]);
+            assert.deepEqual(
+                await subscribers.listTaxOriginChanges(created.id),
+                [],
+                'a change was recorded for a write that was undone',
+            );
+            assert.deepEqual(await subscribers.listVatIdChecks(created.id), []);
+            assert.equal(await subscribers.findCurrentVatIdCheck(created.id), null);
+        });
+
+        test('a contract records the tax treatment it was concluded with, and none where none was decided', async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Umkehr GmbH' });
+            const parties = partiesWith(subscriberId, 'Umkehr GmbH');
+            const reverseCharge: TaxTreatment = {
+                kind: 'reverse-charge',
+                rate: 0,
+                note: 'Steuerschuldnerschaft des Leistungsempfängers',
+                adapter: { name: '@saasicat/tax-de', version: '1.0.0' },
+            };
+            const standard: TaxTreatment = {
+                kind: 'standard',
+                rate: 19,
+                note: null,
+                adapter: { name: '@saasicat/tax-de', version: '1.0.0' },
+            };
+
+            const abroad = await contracts.create({
+                ...contractFromOffer('offer-tax-reverse-charge', parties),
+                taxTreatment: reverseCharge,
+            });
+            const domestic = await contracts.create({
+                ...contractFromOffer('offer-tax-standard', parties),
+                taxTreatment: standard,
+            });
+            const undecided = await contracts.create(
+                contractFromOffer('offer-tax-undecided', parties),
+            );
+
+            assert.deepEqual(abroad.taxTreatment, reverseCharge);
+            assert.deepEqual((await contracts.findById(abroad.id))?.taxTreatment, reverseCharge);
+            assert.deepEqual((await contracts.findById(domestic.id))?.taxTreatment, standard);
+            assert.equal(undecided.taxTreatment, null);
+            assert.equal((await contracts.findById(undecided.id))?.taxTreatment, null);
         });
 
         test('the contracts still running say which issuer each names', async (t) => {

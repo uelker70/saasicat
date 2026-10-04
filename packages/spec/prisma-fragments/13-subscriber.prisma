@@ -1,5 +1,6 @@
 // =============================================================================
-// SaaS platform Prisma fragment: Subscriber, its tenants, its corrections
+// SaaS platform Prisma fragment: Subscriber, its tenants, its corrections,
+// the changes of its tax origin, the checks of its VAT id
 // =============================================================================
 //
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
@@ -32,6 +33,25 @@ model Subscriber {
     vatId     String?
     taxNumber String?
 
+    // The tax origin beside the country and the VAT id (ADR 0013): whether the
+    // subscriber is a business, as sign-up or the operator recorded it — null
+    // while nobody has said, and never derived from a tax identifier, since a
+    // business outside the European Union may have none. A change of the
+    // country, the business status or the VAT id is recorded in
+    // `SubscriberTaxOriginChange`.
+    business Boolean?
+
+    // Which recorded check of the VAT id counts now (`SubscriberVatIdCheck`):
+    // the latest completed one of the number the subscriber has. Null while
+    // none does — never checked, or the number corrected since. A reference
+    // without a relation: the check already points at its subscriber, and a
+    // key in both directions would tie each row to the other.
+    currentVatIdCheckId String?
+    // Since when the VAT id is held, set by the correction that wrote it; null
+    // while it is the one the subscriber was created with. A check completed
+    // before it does not count for the number.
+    vatIdSince          DateTime?
+
     // Contact details, which change at any time.
     addressLine1 String?
     addressLine2 String?
@@ -47,9 +67,11 @@ model Subscriber {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    tenants        SubscriberTenant[]
-    corrections    SubscriberCorrection[]
-    contracts      SubscriptionContract[]
+    tenants             SubscriberTenant[]
+    corrections         SubscriberCorrection[]
+    taxOriginChanges    SubscriberTaxOriginChange[]
+    vatIdChecks         SubscriberVatIdCheck[]
+    contracts           SubscriptionContract[]
     paymentMethods      SubscriberPaymentMethod[] // see 14-payments.prisma
     paymentMethodSetups SubscriberPaymentMethodSetup[]
     ledgerEntries       SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
@@ -76,11 +98,14 @@ model SubscriberTenant {
 }
 
 // A correction of a subscriber's legal identity: the values it replaced, the
-// values it wrote, why, and who made it. Only the fields that moved are in the
-// two JSON objects. Written in the same transaction as the change, and never
-// rewritten.
+// values it wrote, why, who made it, and when the write held the subscriber's
+// lock. Only the fields that moved are in the two JSON objects. Written in the
+// same transaction as the change, and never rewritten.
 model SubscriberCorrection {
     id           String   @id @default(uuid())
+    // The order the corrections were written in, numbered by the database at
+    // the write, and the order the list is read in. Never set by the platform.
+    seq          Int      @unique @default(autoincrement())
     subscriberId String
     previous     Json
     corrected    Json
@@ -90,6 +115,51 @@ model SubscriberCorrection {
 
     subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
 
-    @@index([subscriberId, correctedAt])
+    @@index([subscriberId, seq])
     @@map("subscriber_corrections")
+}
+
+// A change of a subscriber's tax origin — its country, whether it is a
+// business, its VAT id — whichever way it arrived: a contact change, a
+// correction of the legal identity, a change of the business status. The
+// values it replaced, the values it wrote, who made it, and when the write
+// held the subscriber's lock; only the fields that moved are in the two JSON
+// objects. Written in the same transaction as the change, never rewritten, and
+// applied from the subscriber's next invoice.
+model SubscriberTaxOriginChange {
+    id           String   @id @default(uuid())
+    // The order the changes were written in, numbered by the database at the
+    // write, and the order the list is read in. Never set by the platform.
+    seq          Int      @unique @default(autoincrement())
+    subscriberId String
+    previous     Json
+    changed      Json
+    changedBy    String
+    changedAt    DateTime
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@index([subscriberId, seq])
+    @@map("subscriber_tax_origin_changes")
+}
+
+// A completed check of a subscriber's VAT id, as the service answered it: the
+// number checked, when the answer came, whether it found the number valid, the
+// service and its confirmation. Recorded for every check, whether it counts or
+// not, and never rewritten: a reverse charge rests on the confirmation that
+// held when the invoice was issued (ADR 0013).
+model SubscriberVatIdCheck {
+    id           String   @id @default(uuid())
+    subscriberId String
+    vatId        String
+    checkedAt    DateTime
+    valid        Boolean
+    service      String
+    confirmation Json
+    recordedAt   DateTime @default(now())
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@index([subscriberId, checkedAt])
+    @@map("subscriber_vat_id_checks")
 }

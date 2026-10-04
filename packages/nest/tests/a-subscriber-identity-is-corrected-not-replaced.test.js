@@ -139,11 +139,11 @@ describe('contact details', () => {
             invoiceEmail: 'alt@meier.example',
         });
 
-        const changed = await service.changeContact(created.id, {
-            city: ' Potsdam ',
-            addressLine2: null,
-            country: 'de',
-        });
+        const changed = await service.changeContact(
+            created.id,
+            { city: ' Potsdam ', addressLine2: null, country: 'de' },
+            'operator:anna',
+        );
 
         assert.equal(changed.city, 'Potsdam');
         assert.equal(changed.addressLine2, null);
@@ -159,7 +159,12 @@ describe('contact details', () => {
             const subscriber = await service.requireForTenant('tenant-1');
 
             await assert.rejects(
-                () => service.changeContact(subscriber.id, { city: 'Kiel', [field]: 'Other' }),
+                () =>
+                    service.changeContact(
+                        subscriber.id,
+                        { city: 'Kiel', [field]: 'Other' },
+                        'operator:anna',
+                    ),
                 refusedWith('SUBSCRIBER_IDENTITY_NOT_A_CONTACT', { field }),
             );
             assert.equal(
@@ -175,7 +180,12 @@ describe('contact details', () => {
         const subscriber = await service.requireForTenant('tenant-1');
 
         await assert.rejects(
-            () => service.changeContact(subscriber.id, { invoiceEmail: 'no address' }),
+            () =>
+                service.changeContact(
+                    subscriber.id,
+                    { invoiceEmail: 'no address' },
+                    'operator:anna',
+                ),
             refusedWith('SUBSCRIBER_DETAIL_INVALID', { field: 'invoiceEmail' }),
         );
     });
@@ -184,7 +194,7 @@ describe('contact details', () => {
         const { service } = await subscribersFor();
 
         await assert.rejects(
-            () => service.changeContact('subscriber-nobody', { city: 'Kiel' }),
+            () => service.changeContact('subscriber-nobody', { city: 'Kiel' }, 'operator:anna'),
             refusedWith('SUBSCRIBER_NOT_FOUND', { subscriberId: 'subscriber-nobody' }),
         );
     });

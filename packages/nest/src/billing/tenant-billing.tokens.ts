@@ -44,9 +44,12 @@ export const USER_EMAIL_RESOLVER_TOKEN = Symbol.for('saasicat/nest/UserEmailReso
 /**
  * Resolver function `(req) => string` that extracts an audit context from the
  * request (e.g. session ID, trace ID). Default: `req.headers['x-session-id']`
- * or `'tenant-self-service'`.
+ * or `TENANT_SELF_SERVICE_CONTEXT`.
  */
 export const AUDIT_CONTEXT_RESOLVER_TOKEN = Symbol.for('saasicat/nest/AuditContextResolver');
+
+/** The context a tenant's own action is tagged with where no session names one. */
+export const TENANT_SELF_SERVICE_CONTEXT = 'tenant-self-service';
 
 /** Adapter token: consumer's `SubscriptionUsagePort` implementation. */
 export const SUBSCRIPTION_USAGE_PORT_TOKEN = Symbol.for('saasicat/nest/SubscriptionUsagePort');

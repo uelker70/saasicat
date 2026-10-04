@@ -10,6 +10,7 @@
 // the rule about correcting them is the same on both sides of the contract.
 
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
+import type { VatIdCheck } from './tax.types.js';
 
 /** How a subscriber is reached, which may change at any time. */
 export interface SubscriberContact extends PartyAddress {
@@ -17,15 +18,29 @@ export interface SubscriberContact extends PartyAddress {
     invoiceEmail: string | null;
 }
 
+/**
+ * Whether the subscriber is a business: part of its tax origin beside the
+ * country and the VAT identification number (ADR 0013).
+ */
+export interface SubscriberTaxStatus {
+    /**
+     * As sign-up or the operator recorded it; `null` while nobody has said.
+     * Never derived from a tax identifier: a business outside the European
+     * Union may have none, and is still a business.
+     */
+    business: boolean | null;
+}
+
 /** A subscriber's master data, as it stands. */
-export type SubscriberDetails = LegalIdentity & SubscriberContact;
+export type SubscriberDetails = LegalIdentity & SubscriberContact & SubscriberTaxStatus;
 
 /**
  * What a subscriber is created with.
  *
- * Only the legal name is required. The address, the tax identifiers and the
- * invoice email stay optional until sign-up asks for them and invoicing
- * requires them; an absent or blank value is recorded as unknown.
+ * Only the legal name is required. The address, the tax identifiers, the
+ * business status and the invoice email stay optional until sign-up asks for
+ * them and invoicing requires them; an absent or blank value is recorded as
+ * unknown.
  */
 export type NewSubscriberDetails = Pick<SubscriberDetails, 'legalName'> &
     Partial<Omit<SubscriberDetails, 'legalName'>>;
@@ -89,13 +104,15 @@ export interface SubscriberIdentityDelta {
     corrected: SubscriberIdentityValues;
 }
 
-/** What a repository writes for a correction the service has accepted. */
+/**
+ * What a repository writes for a correction the service has accepted. The
+ * repository dates it, while it holds the subscriber's row lock.
+ */
 export interface SubscriberCorrectionData {
     /** The new values; a field equal to what is stored is not recorded. */
     corrected: SubscriberIdentityValues;
     reason: string;
     correctedBy: string;
-    correctedAt: Date;
 }
 
 /** One correction of a subscriber's legal identity, as it was recorded. */
@@ -108,6 +125,12 @@ export interface SubscriberCorrectionRecord {
     corrected: SubscriberIdentityValues;
     reason: string;
     correctedBy: string;
+    /**
+     * When the write that made it held the subscriber's row lock, by the
+     * platform's clock. The list is in the order the database numbered the
+     * writes; on one clock these dates follow that order, while two instances
+     * whose clocks differ may date neighbouring corrections out of it.
+     */
     correctedAt: Date;
 }
 
@@ -115,4 +138,75 @@ export interface SubscriberCorrectionRecord {
 export interface SubscriberCorrectionResult {
     subscriber: SubscriberRecord;
     correction: SubscriberCorrectionRecord | null;
+}
+
+/**
+ * The details a subscriber's tax origin consists of, and whose change is
+ * recorded with its date — in the order they are named and shown.
+ */
+export const SUBSCRIBER_TAX_ORIGIN_FIELDS = ['country', 'business', 'vatId'] as const;
+
+export type SubscriberTaxOriginField = (typeof SUBSCRIBER_TAX_ORIGIN_FIELDS)[number];
+
+/** Tax origin values by field, holding only the fields a change moved. */
+export type SubscriberTaxOriginValues = Partial<Pick<SubscriberDetails, SubscriberTaxOriginField>>;
+
+/**
+ * One change of a subscriber's tax origin, as it was recorded: written in the
+ * same transaction as the change, whichever way it arrived — a contact change
+ * of the country, a correction of the VAT identification number, a change of
+ * the business status — and never rewritten. A change applies from the
+ * subscriber's next invoice (`SC-PRIC-043`).
+ */
+export interface SubscriberTaxOriginChangeRecord {
+    id: string;
+    subscriberId: string;
+    /** The values the change replaced. */
+    previous: SubscriberTaxOriginValues;
+    /** The values it wrote. */
+    changed: SubscriberTaxOriginValues;
+    /** Who changed it, as an actor tag the audit log would write. */
+    changedBy: string;
+    /**
+     * When the write that made it held the subscriber's row lock, by the
+     * platform's clock. The list is in the order the database numbered the
+     * writes; on one clock these dates follow that order, while two instances
+     * whose clocks differ may date neighbouring changes out of it.
+     */
+    changedAt: Date;
+}
+
+/** What a repository writes for a change of the business status the service has accepted. */
+export interface SubscriberBusinessStatusData {
+    business: boolean | null;
+    /** Who changes it, as an actor tag the audit log would write. */
+    changedBy: string;
+}
+
+/** The outcome of writing a business status: nothing is recorded when it does not move. */
+export interface SubscriberBusinessStatusResult {
+    subscriber: SubscriberRecord;
+    change: SubscriberTaxOriginChangeRecord | null;
+}
+
+/**
+ * One completed check of a subscriber's VAT identification number, as it was
+ * recorded: never rewritten, whether it counts now or not.
+ */
+export interface SubscriberVatIdCheckRecord extends VatIdCheck {
+    id: string;
+    subscriberId: string;
+    /** When the check was recorded, by the platform's clock. */
+    recordedAt: Date;
+}
+
+/** The outcome of recording a check: the check as recorded, and the one that counts now. */
+export interface RecordedVatIdCheck {
+    recorded: SubscriberVatIdCheckRecord;
+    /**
+     * The check that counts for the subscriber's number from now on: the one
+     * just recorded, one recorded earlier that completed later, or none — a
+     * check of a number the subscriber no longer has counts for nothing.
+     */
+    current: SubscriberVatIdCheckRecord | null;
 }

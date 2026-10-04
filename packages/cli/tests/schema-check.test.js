@@ -627,3 +627,87 @@ model Subscriber {
         );
     });
 });
+
+describe('a fragment is taken whole', () => {
+    // One fragment of three models, one of them optional; and the spec's
+    // subscription as a fragment of its own.
+    const PARTY = `
+model Party {
+    id    String      @id
+    notes PartyNote[]
+    marks PartyMark[]
+}`;
+    const PARTY_NOTE = `
+model PartyNote {
+    id      String @id
+    partyId String
+    party   Party  @relation(fields: [partyId], references: [id])
+}`;
+    const PARTY_MARK = `
+model PartyMark {
+    id      String @id
+    partyId String
+    party   Party  @relation(fields: [partyId], references: [id])
+}`;
+    const FRAGMENTS = [SPEC, PARTY, PARTY_NOTE, PARTY_MARK].join('\n');
+    const UNITS = {
+        fragments: [['Party', 'PartyNote', 'PartyMark'], ['Subscription']],
+        optional: new Set(['PartyMark']),
+    };
+    const adopting = (...blocks) => [SPEC, ...blocks].join('\n');
+
+    test('a model left out of a fragment whose other model is adopted fails, naming both', () => {
+        const report = checkSchema(FRAGMENTS, adopting(PARTY), undefined, UNITS);
+
+        assert.deepEqual(report.missingCompanions, [{ model: 'PartyNote', besides: 'Party' }]);
+        assert.equal(report.ok, false);
+    });
+
+    test('an optional model may be left out of an adopted fragment', () => {
+        const report = checkSchema(FRAGMENTS, adopting(PARTY, PARTY_NOTE), undefined, UNITS);
+
+        assert.deepEqual(report.missingCompanions, []);
+        assert.equal(report.ok, true);
+    });
+
+    test('a fragment left out whole is a decision, not drift', () => {
+        const report = checkSchema(FRAGMENTS, adopting(), undefined, UNITS);
+
+        assert.deepEqual(report.missingCompanions, []);
+        assert.deepEqual(report.absentModels.sort(), ['Party', 'PartyMark', 'PartyNote']);
+        assert.equal(report.ok, true);
+    });
+
+    test('a model adopted alone counts for its fragment, whichever it is', () => {
+        const report = checkSchema(FRAGMENTS, adopting(PARTY_NOTE), undefined, UNITS);
+
+        assert.deepEqual(report.missingCompanions, [{ model: 'Party', besides: 'PartyNote' }]);
+    });
+
+    test('without the fragments named, no fragment is held to being whole', () => {
+        const report = checkSchema(FRAGMENTS, adopting(PARTY));
+
+        assert.deepEqual(report.missingCompanions, []);
+    });
+});
+
+describe('the shipped fragments', () => {
+    test('the subscriber fragment is one unit: the shipped repository writes all of it', async () => {
+        const require = createRequire(import.meta.url);
+        const fragmentsDir = join(
+            dirname(require.resolve('@saasicat/spec/package.json')),
+            'prisma-fragments',
+        );
+        const fragment = await readFile(join(fragmentsDir, '13-subscriber.prisma'), 'utf8');
+        const models = [...parseSchema(fragment).models.keys()];
+        const units = { fragments: [models], optional: new Set() };
+        const adoptedHalf = fragment.slice(0, fragment.indexOf('// A change of a subscriber'));
+
+        const report = checkSchema(fragment, adoptedHalf, undefined, units);
+
+        assert.deepEqual(report.missingCompanions.map((companion) => companion.model).sort(), [
+            'SubscriberTaxOriginChange',
+            'SubscriberVatIdCheck',
+        ]);
+    });
+});
