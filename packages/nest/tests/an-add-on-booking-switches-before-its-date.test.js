@@ -473,6 +473,32 @@ describe('a subscription that changes while the switch is decided', () => {
 
 // @requirement SC-BUN-054 — A booking may switch to the replacement before its date, at no more than it paid
 describe('a switch whose contract cannot be written', () => {
+    test('is put back as well where the subscription cannot be read again', async () => {
+        const world = await announced();
+        const claim = world.bookingRepository.moveToVersion;
+        let claimed = false;
+        world.bookingRepository.moveToVersion = async (...args) => {
+            const moved = await claim(...args);
+            claimed = true;
+            return moved;
+        };
+        const read = world.usage.findForTenant.bind(world.usage);
+        world.usage.findForTenant = async (tenantId) => {
+            if (claimed) throw new Error('the database dropped the connection');
+            return read(tenantId);
+        };
+        const { service, frozen, invalidated } = switching(world);
+
+        await assert.rejects(
+            () => service.switchNow('t1', 'sb-t1', REPLACEMENT.id, BEFORE),
+            /dropped the connection/,
+        );
+
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(frozen, []);
+        assert.deepEqual(invalidated, ['t1', 't1'], 'after the switch, and after putting it back');
+    });
+
     test('is put back and refused as it came, and nothing has changed', async () => {
         const world = await announced();
         const { service, invalidated } = switching(world, { freezeFails: true });

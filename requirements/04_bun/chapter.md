@@ -1981,6 +1981,7 @@ _Tested by:_
     - a subscription that changes while the switch is decided
         - is refused, the booking put back and no contract written
     - a switch whose contract cannot be written
+        - is put back as well where the subscription cannot be read again
         - is put back and refused as it came, and nothing has changed
         - is refused as it came where it cannot be put back either
     - the cancellation without the minimum term, once switched

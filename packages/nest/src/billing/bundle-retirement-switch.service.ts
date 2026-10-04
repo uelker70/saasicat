@@ -152,16 +152,14 @@ export class BundleRetirementSwitchService {
         );
         if (!moved) throw subscriptionChanged();
         this.entitlements.invalidateTenant(tenantId);
-        // Decided on the subscription read before the claim: a cancellation
-        // declared or a change of plan scheduled in between would leave the
-        // contract an end, and the hold a price, the subscription no longer
-        // has. Read again, and put back where it changed.
-        const reread = await this.subscriptions.findForTenant(tenantId);
-        if (!reread || !decidedAlike(sub, reread)) {
-            await this.putBack(notice);
-            throw subscriptionChanged();
-        }
         try {
+            // Decided on the subscription read before the claim: a
+            // cancellation declared or a change of plan scheduled in between
+            // would leave the contract an end, and the hold a price, the
+            // subscription no longer has. Read again, and refused where it
+            // changed.
+            const reread = await this.subscriptions.findForTenant(tenantId);
+            if (!reread || !decidedAlike(sub, reread)) throw subscriptionChanged();
             await this.contractFreeze?.freezeOnPlanChange(
                 tenantId,
                 sub.planVersion.planId,
@@ -185,7 +183,8 @@ export class BundleRetirementSwitchService {
             );
         } catch (error) {
             // Without its contract the switch would hold no price, and from the
-            // date nothing would charge it: put back, and refused as it came.
+            // date nothing would charge it: whatever stopped it between the
+            // claim and the contract, put back, and refused as it came.
             await this.putBack(notice);
             throw error;
         }
