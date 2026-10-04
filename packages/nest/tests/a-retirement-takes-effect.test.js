@@ -28,6 +28,7 @@ import {
     told,
     usageOver,
 } from './helpers/retirement-fixtures.js';
+import { unsupportedTaxCase } from './helpers/tax-adapter.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const BEFORE = new Date('2026-03-20T10:00:00.000Z');
@@ -316,6 +317,20 @@ describe('the move at the date', () => {
         assert.equal(run.failed, 1);
         assert.equal(writes.calls.length, 0);
         assert.equal(audited[0].changes.reason, 'no-party');
+    });
+
+    test('a subscriber the tax adapter supports no treatment for is not moved, and the failure says so', async () => {
+        const { service, writes, audited } = await aRun({
+            party: async () => {
+                throw unsupportedTaxCase();
+            },
+        });
+
+        const run = await service.moveDue(DATE);
+
+        assert.equal(run.failed, 1);
+        assert.equal(writes.calls.length, 0);
+        assert.equal(audited[0].changes.reason, 'tax-not-supported');
     });
 
     for (const [offSale, ended] of OFF_SALE) {

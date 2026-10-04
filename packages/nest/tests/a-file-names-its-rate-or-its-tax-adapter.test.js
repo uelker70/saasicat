@@ -177,6 +177,23 @@ describe('the bound adapter is the one the file names, and it can decide', () =>
             () => [load(TAX + ZONE), factoryOf(testAdapter('renamed'))],
             /builds an adapter named renamed/,
         ],
+        // A catalogue handed over in code never meets the loader's checks, so
+        // the start asks them again.
+        [
+            'a catalogue given in code names vatRate beside tax',
+            () => [{ ...load(TAX + ZONE), vatRate: 19 }, factoryOf()],
+            /vatRate is not allowed beside tax/,
+        ],
+        [
+            'a catalogue given in code names tax without a time zone',
+            () => [{ ...load(TAX + ZONE), timeZone: undefined }, factoryOf()],
+            /timeZone is required with tax/,
+        ],
+        [
+            'a catalogue given in code names a time zone the runtime does not know',
+            () => [{ ...load(TAX + ZONE), timeZone: 'Mars/Olympus_Mons' }, factoryOf()],
+            /names Mars\/Olympus_Mons, which is not a time zone this runtime knows/,
+        ],
     ];
     for (const [name, args, expected] of refusals) {
         test(`the start is refused when ${name}`, async () => {

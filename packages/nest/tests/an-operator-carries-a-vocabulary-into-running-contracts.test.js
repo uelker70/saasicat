@@ -27,6 +27,7 @@ import {
 } from '../dist/testing/index.js';
 import { partiesNamed } from './helpers/contract-parties.js';
 import { boundPlanVersion, usageRecord } from './helpers/subscription-fixtures.js';
+import { TAX_SETTINGS, originIn, taxesDeciding } from './helpers/tax-adapter.js';
 
 const FROZEN = new Date('2026-05-01T00:00:00.000Z');
 const NOW = new Date('2026-06-15T00:00:00.000Z');
@@ -51,9 +52,11 @@ class RecordingAudit {
 /**
  * One tenant on Standard, frozen at `FROZEN` with the code's vocabulary as it
  * is after the rename: `ATLAS_AES` declared, `ATLAS` gone — unless a test
- * passes a `replaces` declaration that carries it over.
+ * passes a `replaces` declaration that carries it over. With `taxes` the file
+ * names the test tax adapter instead of a rate, and the subscriber is a
+ * consumer in Germany until a test moves it (`origin.current`).
  */
-function installation({ replaces = null } = {}) {
+function installation({ replaces = null, taxes = null } = {}) {
     const plan = {
         id: 'STANDARD',
         name: 'Standard',
@@ -68,7 +71,7 @@ function installation({ replaces = null } = {}) {
         schemaVersion: 1,
         app: { name: 'Demo App' },
         currency: 'EUR',
-        vatRate: 19,
+        ...(taxes ? TAX_SETTINGS : { vatRate: 19 }),
         plans: [plan],
     };
     const bookings = [];
@@ -96,10 +99,17 @@ function installation({ replaces = null } = {}) {
     };
     const repo = new FakeSubscriptionContractRepository();
     const parties = { current: partiesNamed('Tenant One GmbH') };
-    const contracts = new SubscriptionContractService(repo, {
-        requireForTenant: async () => ({ id: 'subscriber-t1' }),
-        contractPartiesFor: async () => parties.current,
-    });
+    const origin = { current: originIn('DE') };
+    const contracts = new SubscriptionContractService(
+        repo,
+        {
+            requireForTenant: async () => ({ id: 'subscriber-t1' }),
+            contractPartiesFor: async () => parties.current,
+            taxOriginFor: async () => origin.current,
+        },
+        null,
+        taxes,
+    );
     const catalogs = givenPlanCatalogSource(catalog);
     const entitlements = new EntitlementService(
         catalogs,
@@ -159,6 +169,7 @@ function installation({ replaces = null } = {}) {
         repo,
         contracts,
         parties,
+        origin,
         audit,
         entitlements,
         refresh,
@@ -519,6 +530,61 @@ describe('re-freezing in full', () => {
         assert.equal(outcome.refusal, null);
         assert.ok(outcome.successorId);
         assert.ok((await t.grants()).features.has('ATLAS_AES'));
+    });
+});
+
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+describe('where a tax adapter decides', () => {
+    /** Frozen for a consumer in Germany before the vocabulary was renamed. */
+    async function frozenAtTheDecidedRate() {
+        const t = installation({ taxes: taxesDeciding() });
+        const contract = await t.freeze();
+        t.rename();
+        return { t, contract };
+    }
+
+    test('the features are carried over while the rate decided for the subscriber stands', async () => {
+        const { t, contract } = await frozenAtTheDecidedRate();
+        assert.equal(contract.priceSnapshot.vatRate, 19);
+
+        const [outcome] = await t.refresh.apply({}, 'features', OPERATOR, NOW);
+
+        const successor = await t.repo.findActiveByTenantId('t1', NOW);
+        assert.equal(outcome.successorId, successor.id);
+        assert.equal(successor.taxTreatment.kind, 'standard');
+    });
+
+    test('a subscriber the adapter now decides another rate for is refused in the preview and in the run', async () => {
+        const { t, contract } = await frozenAtTheDecidedRate();
+        t.origin.current = originIn('CH', { business: true });
+
+        const [preview] = await t.refresh.preview({}, 'features', NOW);
+        assert.equal(preview.refusal?.code, 'REFUSED');
+        assert.match(preview.refusal.reason, /states 19 % in priceSnapshot\.vatRate.*decides 0 %/);
+
+        const [outcome] = await t.refresh.apply({}, 'features', OPERATOR, NOW);
+        assert.equal(outcome.successorId, null);
+        assert.equal((await t.repo.findActiveByTenantId('t1', NOW)).id, contract.id);
+    });
+
+    test('a subscriber the adapter supports no treatment for is refused with its sentence', async () => {
+        const { t } = await frozenAtTheDecidedRate();
+        t.origin.current = originIn('FR');
+
+        const [preview] = await t.refresh.preview({}, 'features', NOW);
+
+        assert.equal(preview.refusal?.code, 'REFUSED');
+        assert.match(preview.refusal.reason, /A consumer outside Germany is not supported/);
+    });
+
+    test('re-freezing in full at a newly decided rate is a change of money, refused', async () => {
+        const { t } = await frozenAtTheDecidedRate();
+        t.origin.current = originIn('CH', { business: true });
+
+        const [outcome] = await t.refresh.preview({}, 'full', NOW);
+
+        assert.deepEqual(outcome.refusal, { code: 'MONEY_WOULD_CHANGE' });
+        assert.ok(outcome.money.some((change) => change.field === 'priceSnapshot.vatRate'));
     });
 });
 

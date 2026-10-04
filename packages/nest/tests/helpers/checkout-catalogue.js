@@ -168,6 +168,7 @@ export function buildOfferService(overrides = {}) {
         contracts: null,
         transactions: null,
         subscribers: null,
+        taxes: null,
         ...overrides,
     };
     const pricing = new CheckoutOfferPricing(
@@ -176,6 +177,7 @@ export function buildOfferService(overrides = {}) {
         deps.bundles,
         deps.promotions,
         deps.promoCodes,
+        deps.taxes,
     );
     const service = new CheckoutOfferService(
         deps.repo,

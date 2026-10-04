@@ -1,11 +1,9 @@
 // Where config/saas.yaml names a tax adapter, a contract is concluded at the
-// rate the adapter decides for its subscriber, records the treatment, and a
-// promo code with a fixed amount takes that amount off what the subscriber
-// pays. A case the adapter does not support gets no contract. Without an
-// adapter everything is as it was. The adapter here charges the German rate in
-// Germany, the reverse charge to a business elsewhere in the Union with a
-// validated number, nothing to a business outside it, and supports nothing
-// else — the shape of `@saasicat/tax-de`, without depending on it.
+// rate the adapter decides for its subscriber — concluded from an offer, at a
+// sign-up for a subscriber not created yet, or frozen after a plan change — and
+// records the treatment, and a promo code with a fixed amount takes that amount
+// off what the subscriber pays. A case the adapter does not support gets no
+// contract. Without an adapter everything is as it was.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,40 +13,22 @@ import {
 } from '../dist/testing/index.js';
 import { SubscriberService } from '../dist/subscriber/index.js';
 import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
-import { TaxTreatments } from '../dist/billing/index.js';
+import {
+    SubscriptionContractFreezeService,
+    TaxTreatments,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
+import { buildOfferService } from './helpers/checkout-catalogue.js';
+import { fakeContractRepo, fakeSubscriberRepo } from './helpers/conclusion.js';
+import { boundPlanVersion } from './helpers/subscription-fixtures.js';
+import {
+    TAX_SETTINGS,
+    TEST_TAX_ADAPTER,
+    TEST_TAX_ADAPTER_IDENTITY as ADAPTER,
+    taxesDeciding,
+} from './helpers/tax-adapter.js';
 
-const EU = new Set(['AT', 'FR', 'IT', 'NL']);
-const ADAPTER = { name: 'test-tax', version: '3.0.0' };
-
-const treated = (kind, rate) => ({
-    supported: true,
-    treatment: { kind, rate, note: null, adapter: ADAPTER },
-});
-
-const testAdapter = {
-    ...ADAPTER,
-    decide: ({ origin }) => {
-        if (origin.country === 'DE') return treated('standard', 19);
-        if (origin.business !== true)
-            return { supported: false, reason: 'A consumer outside Germany is not supported.' };
-        if (EU.has(origin.country)) {
-            return origin.validatedVatId
-                ? treated('reverse-charge', 0)
-                : { supported: false, reason: 'No validated VAT number.' };
-        }
-        return treated('not-taxable', 0);
-    },
-    checkVatId: async () => ({ completed: false, reason: 'not asked' }),
-};
-
-const SETTINGS = {
-    app: { name: 'Test App' },
-    currency: 'EUR',
-    timeZone: 'Europe/Berlin',
-    tax: { adapter: 'test-tax' },
-    issuer: { legalName: 'Issuer GmbH', country: 'DE', vatId: 'DE123456789' },
-    tenantBilling: {},
-};
+const SETTINGS = { app: { name: 'Test App' }, ...TAX_SETTINGS, tenantBilling: {} };
 const FILE_SETTINGS = { ...SETTINGS, tax: undefined, timeZone: undefined, vatRate: 19 };
 
 const EFFECTIVE_FROM = new Date('2026-06-01T00:00:00.000Z');
@@ -103,7 +83,7 @@ function consumedOffer() {
 /** A contract service over fakes, with one subscriber for `tenant-1` of these details. */
 async function serviceWith(
     details,
-    { settings = SETTINGS, adapter = testAdapter, validated = null } = {},
+    { settings = SETTINGS, adapter = TEST_TAX_ADAPTER, validated = null } = {},
 ) {
     const subscriberRepo = new FakeSubscriberRepository();
     const subscribers = new SubscriberService(subscriberRepo, settings);
@@ -142,7 +122,7 @@ function money(contract) {
         vatRate: contract.priceSnapshot.vatRate,
         totalNet: contract.priceSnapshot.totalNet,
         totalGross: contract.priceSnapshot.totalGross,
-        codeNet: contract.promoCodeSnapshots[0]?.resolvedAmountNet,
+        codeNet: contract.promoCodeSnapshots?.[0]?.resolvedAmountNet,
         lineRates: [...new Set(contract.lineItems.map((line) => line.taxRate))],
     };
 }
@@ -278,5 +258,175 @@ describe('without a tax adapter', () => {
             lineRates: [19],
         });
         assert.equal(contract.taxTreatment ?? null, null);
+    });
+});
+
+const SIGN_UP = { tenantId: 'tenant-meier', effectiveFrom: EFFECTIVE_FROM };
+const signingUpAs = (details) => ({
+    ...SIGN_UP,
+    subscriber: { legalName: 'Meier GmbH', ...details },
+});
+
+/**
+ * An offer service that concludes over stores in memory, with the adapter
+ * deciding, and an open offer for the 49 € plan. The tenant has a subscriber of
+ * the details in `subscribed`, or none, as at a sign-up.
+ */
+async function signingUp({ subscribed = null } = {}) {
+    const subscriberRepo = {
+        ...fakeSubscriberRepo(subscribed ? ['tenant-meier'] : []),
+        findCurrentVatIdCheck: async () => null,
+    };
+    if (subscribed) Object.assign(subscriberRepo.rows[0], subscribed);
+    const subscribers = new SubscriberService(subscriberRepo, SETTINGS);
+    const contractRepo = fakeContractRepo();
+    const transactions = {
+        opened: 0,
+        run(fn) {
+            this.opened += 1;
+            return fn({ id: `tx-${this.opened}` });
+        },
+    };
+    const { service, repo: offers } = buildOfferService({
+        catalog: SETTINGS,
+        taxes: taxesDeciding(SETTINGS),
+        contracts: new SubscriptionContractService(
+            contractRepo,
+            subscribers,
+            null,
+            taxesDeciding(SETTINGS),
+        ),
+        transactions,
+        subscribers,
+    });
+    const offer = await service.create({ planKey: 'STANDARD', billingCycle: 'monthly' });
+    return { service, offers, offer, subscriberRepo, contractRepo, transactions };
+}
+
+// @requirement SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+describe('a sign-up concludes its offer at the rate decided for the subscriber it creates', () => {
+    test('a consumer in Germany: 19 %, the treatment recorded', async () => {
+        const { service, offer } = await signingUp();
+        const { contract } = await service.conclude(
+            offer.id,
+            signingUpAs({ country: 'DE', business: false }),
+        );
+        assert.deepEqual(money(contract), {
+            vatRate: 19,
+            totalNet: 49,
+            totalGross: 58.31,
+            codeNet: undefined,
+            lineRates: [19],
+        });
+        assert.equal(contract.taxTreatment.kind, 'standard');
+    });
+
+    test('a business in Switzerland: not taxable, every line at 0 %', async () => {
+        const { service, offer } = await signingUp();
+        assert.equal(offer.priceBreakdown.vatRate, 19, 'offered at the rate for Germany');
+        const { contract } = await service.conclude(
+            offer.id,
+            signingUpAs({ country: 'CH', business: true }),
+        );
+        assert.deepEqual(money(contract), {
+            vatRate: 0,
+            totalNet: 49,
+            totalGross: 49,
+            codeNet: undefined,
+            lineRates: [0],
+        });
+        assert.equal(contract.taxTreatment.kind, 'not-taxable');
+    });
+
+    test('a business in Austria is refused before anything is written: nothing of a subscriber not created yet is validated', async () => {
+        const { service, offer, transactions } = await signingUp();
+        await assert.rejects(
+            () =>
+                service.conclude(
+                    offer.id,
+                    signingUpAs({ country: 'AT', business: true, vatId: 'ATU12345678' }),
+                ),
+            refusedWith('TAX_TREATMENT_NOT_SUPPORTED'),
+        );
+        assert.equal(transactions.opened, 0, 'no transaction was opened');
+    });
+
+    test('a consumer in France is refused before anything is written', async () => {
+        const { service, offer, offers, subscriberRepo, contractRepo, transactions } =
+            await signingUp();
+        await assert.rejects(
+            () => service.conclude(offer.id, signingUpAs({ country: 'FR', business: false })),
+            refusedWith('TAX_TREATMENT_NOT_SUPPORTED'),
+        );
+        assert.equal(transactions.opened, 0, 'no transaction was opened');
+        assert.equal(offers.rows.get(offer.id).status, 'open');
+        assert.deepEqual(subscriberRepo.rows, []);
+        assert.deepEqual(contractRepo.rows, []);
+    });
+
+    test('a tenant with its subscriber already is decided from that one', async () => {
+        const { service, offer } = await signingUp({
+            subscribed: { country: 'CH', business: true },
+        });
+        const { contract } = await service.conclude(offer.id, SIGN_UP);
+        assert.equal(contract.taxTreatment.kind, 'not-taxable');
+        assert.equal(contract.priceSnapshot.vatRate, 0);
+    });
+});
+
+const STANDARD = {
+    id: 'STANDARD',
+    name: 'Standard',
+    monthlyNet: 100,
+    yearlyNet: 1000,
+    quotas: {},
+    features: [],
+};
+
+/** The freeze a plan change runs for `tenant-1`, whose subscriber has these details. */
+async function freezingFor(details) {
+    const { service: contracts, repo } = await serviceWith(details);
+    const freeze = new SubscriptionContractFreezeService(
+        givenPlanCatalogSource({ schemaVersion: 1, ...SETTINGS, plans: [STANDARD] }),
+        {
+            invalidateTenant() {},
+            computeContractLimits: async () => ({
+                limits: { plan: 'STANDARD', quotas: {}, features: new Set() },
+                leftOutBundleVersionIds: [],
+            }),
+        },
+        contracts,
+        {
+            findBoundPlanVersion: async () => boundPlanVersion(STANDARD),
+            loadBookedBundles: async () => ({ lineItems: [], bundleVersionIds: [] }),
+        },
+    );
+    return { freeze, repo };
+}
+
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+describe('a plan change is frozen at the rate decided for the subscriber', () => {
+    test('a business in Switzerland: 0 %, the treatment recorded', async () => {
+        const { freeze, repo } = await freezingFor({ country: 'CH', business: true });
+        await freeze.freezeOnPlanChange('tenant-1', 'STANDARD', 'MONTHLY', EFFECTIVE_FROM);
+        const [contract] = await repo.list({ tenantId: 'tenant-1' });
+        assert.deepEqual(money(contract), {
+            vatRate: 0,
+            totalNet: 100,
+            totalGross: 100,
+            codeNet: undefined,
+            lineRates: [0],
+        });
+        assert.equal(contract.taxTreatment.kind, 'not-taxable');
+    });
+
+    test('a consumer in France gets no contract', async () => {
+        const { freeze, repo } = await freezingFor({ country: 'FR', business: false });
+        await assert.rejects(
+            () => freeze.freezeOnPlanChange('tenant-1', 'STANDARD', 'MONTHLY', EFFECTIVE_FROM),
+            refusedWith('TAX_TREATMENT_NOT_SUPPORTED'),
+        );
+        assert.deepEqual(await repo.list({ tenantId: 'tenant-1' }), []);
     });
 });

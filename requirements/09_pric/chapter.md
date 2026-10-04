@@ -1599,6 +1599,13 @@ _Tested by:_
           anything
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
+    - a sign-up concludes its offer at the rate decided for the subscriber it creates
+        - a consumer in Germany: 19 %, the treatment recorded
+        - a business in Switzerland: not taxable, every line at 0 %
+        - a business in Austria is refused before anything is written: nothing of a subscriber not
+          created yet is validated
+        - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is decided from that one
 - `packages/nest/tests/the-shown-rate-is-the-adapters-for-the-issuers-country.test.js`
     - the shown rate is the tax adapter answer for the issuer country
         - the adapter is asked for a subscriber in the issuer country whose other details are
@@ -1606,6 +1613,7 @@ _Tested by:_
         - the pricing page shows it, and says it is the rate for the issuer country
         - without an adapter the page shows the rate passed, for everybody
         - the configurator shows the adapter rate, and refuses a provider rate beside it
+        - the admin manifest shows it, in the application as composed
         - without an adapter the configurator needs the provider rate
 
 <!-- END proof -->
@@ -1671,6 +1679,23 @@ _Tested by:_
           anything
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
+    - a sign-up concludes its offer at the rate decided for the subscriber it creates
+        - a consumer in Germany: 19 %, the treatment recorded
+        - a business in Switzerland: not taxable, every line at 0 %
+        - a business in Austria is refused before anything is written: nothing of a subscriber not
+          created yet is validated
+        - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is decided from that one
+    - a plan change is frozen at the rate decided for the subscriber
+        - a business in Switzerland: 0 %, the treatment recorded
+        - a consumer in France gets no contract
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - where a tax adapter decides
+        - the features are carried over while the rate decided for the subscriber stands
+        - a subscriber the adapter now decides another rate for is refused in the preview and in the
+          run
+        - a subscriber the adapter supports no treatment for is refused with its sentence
+        - re-freezing in full at a newly decided rate is a change of money, refused
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
         - the rate the offer states is recorded as the percentage it is

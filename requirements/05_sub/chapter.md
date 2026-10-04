@@ -996,6 +996,8 @@ _Tested by:_
         - a replacement the write refuses is a failure, recorded once however often it is tried
         - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
+        - a subscriber the tax adapter supports no treatment for is not moved, and the failure says
+          so
         - a move whose contract cannot be written is put back, and the next run makes both, where
           the version retired ${offSale}
         - a move put back takes the change of rhythm it scheduled back to the plan it left

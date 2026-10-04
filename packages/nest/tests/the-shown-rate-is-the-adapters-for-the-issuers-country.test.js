@@ -6,6 +6,10 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
+import { storeSecretsInPlainText } from '../dist/index.js';
+import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
 import { FakePlanRepository } from '../dist/testing/index.js';
 import { PublicMarketingCatalogService } from '../dist/catalog/index.js';
 import { ConfiguratorCatalogBuilder, TaxTreatments } from '../dist/billing/index.js';
@@ -54,6 +58,48 @@ const marketing = (vatRate) => ({
     ...(vatRate === undefined ? {} : { getVatRate: () => vatRate }),
 });
 const NO_PLANS = { listLivePlans: async () => [] };
+
+class FakeJwtGuard {
+    canActivate() {
+        return true;
+    }
+}
+
+/** The application as an integrator composes it, the adapter bound by its factory, started. */
+async function composedWithAdapterCharging(rate) {
+    const app = await Test.createTestingModule({
+        imports: [
+            SaaSiCatModule.forRoot({
+                adapters: { secretSealer: storeSecretsInPlainText() },
+                planCatalog: {
+                    schemaVersion: 1,
+                    app: { name: 'TestApp' },
+                    ...SETTINGS,
+                    tenantBilling: {
+                        cancellationNoticeDays: { monthly: 0, yearly: 0 },
+                        selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+                    },
+                    plans: [{ id: 'PRO', name: 'Pro', monthlyNet: 9, yearlyNet: 90, features: [] }],
+                },
+                tax: { adapter: { adapterName: 'test-tax', create: () => adapterCharging(rate) } },
+                controller: { guards: [FakeJwtGuard] },
+                discoverySnapshotPath: null,
+                persistence: {
+                    capabilities: {
+                        transactions: true,
+                        pessimisticLocking: true,
+                        rowLevelSecurity: false,
+                        advisoryLocks: false,
+                    },
+                    core: { mfa: {}, audit: {}, rlsBypass: {}, transactionRunner: {} },
+                },
+                defaultPlanId: 'PRO',
+            }),
+        ],
+    }).compile();
+    await app.init();
+    return app;
+}
 
 // @requirement SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
 describe('the shown rate is the tax adapter answer for the issuer country', () => {
@@ -105,6 +151,18 @@ describe('the shown rate is the tax adapter answer for the issuer country', () =
             () => builder.build({ sources: NO_PLANS, marketing: marketing(19) }),
             /beside the tax adapter/,
         );
+    });
+
+    test('the admin manifest shows it, in the application as composed', async () => {
+        for (const rate of [19, 0]) {
+            const app = await composedWithAdapterCharging(rate);
+            try {
+                const manifest = await app.get(AdminManifestService).getManifest();
+                assert.equal(manifest.planCatalogSnapshot.vatRate, rate);
+            } finally {
+                await app.close();
+            }
+        }
     });
 
     test('without an adapter the configurator needs the provider rate', async () => {

@@ -1835,6 +1835,7 @@ _Tested by:_
         - a trial converted since gets the contract the move writes
     - a move that cannot be made
         - fails without a party to the contract, audited once though every run fails
+        - fails for a subscriber the tax adapter supports no treatment for, and says so
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
         - says so where the booking cannot be put back either

@@ -21,6 +21,7 @@ import {
     retiring,
     subscriptionOf,
 } from './helpers/add-on-retirement-fixtures.js';
+import { unsupportedTaxCase } from './helpers/tax-adapter.js';
 import { sendingPort } from './helpers/version-notices.js';
 
 /** Both bookings, monthly to 1 November and told at `NOW`, move on 1 February 2027. */
@@ -39,13 +40,14 @@ async function announced(options = {}) {
  * `noParty` names tenants whose party is missing; `freezeFails` makes every
  * contract fail.
  */
-function mover(world, { noParty = [], freezeFails = false, charges = null } = {}) {
+function mover(world, { noParty = [], untreated = [], freezeFails = false, charges = null } = {}) {
     const frozen = [];
     const invalidated = [];
     const audited = [];
     const contractFreeze = {
         async assertPartyFor(tenantId) {
             if (noParty.includes(tenantId)) throw new Error('no party');
+            if (untreated.includes(tenantId)) throw unsupportedTaxCase();
         },
         async freezeOnPlanChange(...args) {
             if (freezeFails) throw new Error('the contract store is down');
@@ -554,6 +556,22 @@ describe('a move that cannot be made', () => {
                 .filter((entry) => entry.action === 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED')
                 .map((entry) => [entry.entityId, entry.changes.reason]),
             [['sb-t1', 'no-party']],
+        );
+    });
+
+    test('fails for a subscriber the tax adapter supports no treatment for, and says so', async () => {
+        const world = await announced();
+        const { service, audited } = mover(world, { untreated: ['t1'] });
+
+        const run = await service.moveDue(AT_THE_DATE);
+
+        assert.deepEqual(run, { moved: 1, failed: 1 });
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(
+            audited
+                .filter((entry) => entry.action === 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED')
+                .map((entry) => [entry.entityId, entry.changes.reason]),
+            [['sb-t1', 'tax-not-supported']],
         );
     });
 
