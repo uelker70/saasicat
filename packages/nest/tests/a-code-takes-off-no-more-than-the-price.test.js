@@ -190,6 +190,42 @@ describe('with a tax adapter, an absolute code stays below the net price', () =>
             11,
         );
     });
+
+    // A code stored before the adapter was named, or a plan made cheaper since,
+    // can sit between the net and the gross; a subscriber at 0 % would pay
+    // nothing.
+    test('a stored amount between the net and the gross is refused where it is redeemed and previewed', async () => {
+        const withAdapter = withCode(absolute(11), { taxes });
+        await assert.rejects(
+            redeemOnBasic(withAdapter),
+            refusedWith('PROMO_CODE_NOT_REDEEMABLE', 'WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+        assert.deepEqual(
+            await withAdapter.service.preview({
+                code: 'MONEY-OFF',
+                planId: 'BASIC',
+                billingCycle: 'MONTHLY',
+            }),
+            { valid: false, reason: 'WOULD_PRODUCE_ZERO_INVOICE' },
+        );
+        const without = await redeemOnBasic(withCode(absolute(11)));
+        assert.equal(without.appliedValue, '11.00', 'without an adapter the gross is the bar');
+    });
+
+    test('a cent below the net is redeemed, and the net itself only where an invoice of zero is allowed', async () => {
+        assert.equal(
+            (await redeemOnBasic(withCode(absolute(9.89), { taxes }))).appliedValue,
+            '9.89',
+        );
+        await assert.rejects(
+            redeemOnBasic(withCode(absolute(9.9), { taxes })),
+            refusedWith('PROMO_CODE_NOT_REDEEMABLE', 'WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+        assert.equal(
+            (await redeemOnBasic(withCode(absolute(9.9, true), { taxes }))).appliedValue,
+            '9.90',
+        );
+    });
 });
 
 describe('a change is held to the rules its fields bear on', () => {

@@ -708,7 +708,18 @@ export class PromoCodesService {
             shownRate,
         ) as number;
         const discount = discountOnPlan(found, planGross);
-        if (discount.zeroInvoice) return { reason: 'WOULD_PRODUCE_ZERO_INVOICE' };
+        // Measured against what the subscriber pays at the least, as when the
+        // code is created (`SC-PROMO-029`): a code created before a tax adapter
+        // was named, or a plan made cheaper since, can sit between the net and
+        // the gross, and would leave a subscriber at 0 % nothing to pay.
+        const leavesNothingToPay =
+            this.payableBasis === 'net'
+                ? discountOnPlan(
+                      found,
+                      getPlanPriceNet(catalog, input.planId, input.billingCycle) as number,
+                  ).zeroInvoice
+                : discount.zeroInvoice;
+        if (leavesNothingToPay) return { reason: 'WOULD_PRODUCE_ZERO_INVOICE' };
         return { reason: null, promo: found, catalog, planGross, discount, shownRate };
     }
 
@@ -865,12 +876,19 @@ export class PromoCodesService {
     }
 
     /**
-     * The lowest price a subscriber can pay for a plan the code applies to.
-     * With a whitelist it takes the minimum from the whitelist, otherwise
-     * across all marketed plans of the catalog (except non-redeemable). Where a
+     * Which price a fixed amount has to stay below (`SC-PROMO-029`): where a
      * tax adapter decides, a subscriber outside the issuer's VAT pays the net,
-     * so the net is the bar (`SC-PROMO-029`); otherwise the gross at the file's
-     * rate.
+     * so the net; otherwise the gross at the file's rate.
+     */
+    private get payableBasis(): LowestPayablePrice['basis'] {
+        return this.taxes?.adapter ? 'net' : 'gross';
+    }
+
+    /**
+     * The lowest price a subscriber can pay for a plan the code applies to, on
+     * the `payableBasis`. With a whitelist it takes the minimum from the
+     * whitelist, otherwise across all marketed plans of the catalog (except
+     * non-redeemable).
      */
     private lowestPayablePlanPrice(
         catalog: PlanCatalog,
@@ -883,7 +901,7 @@ export class PromoCodesService {
                 : (catalog.plans ?? [])
                       .filter((p) => p.marketed !== false && !blocked.has(p.id))
                       .map((p) => p.id);
-        const basis = this.taxes?.adapter ? 'net' : 'gross';
+        const basis = this.payableBasis;
         let min: number | null = null;
         for (const p of candidates) {
             const price =
