@@ -127,7 +127,7 @@ export class BundleRetirementMoveService {
                             subscriptionEndsAt,
                             new Date(notice.effectiveAt),
                         );
-                        if (ranPastItsDate) await this.endedBeforeItsMove(notice, sub);
+                        if (ranPastItsDate) await this.endedBeforeItsMove(notice);
                         continue;
                     }
                     const outcome = await this.move(notice, booking, now);
@@ -207,12 +207,22 @@ export class BundleRetirementMoveService {
      * now that it has ended; the journal is asked for them here, since nothing
      * else need ask it again for a subscription that has ended.
      */
-    private async endedBeforeItsMove(
-        notice: BundleVersionRetiredNotice,
-        sub: SubscriptionUsageRecord,
-    ): Promise<void> {
+    private async endedBeforeItsMove(notice: BundleVersionRetiredNotice): Promise<void> {
         const key = `${notice.subscriptionBundleId}:${notice.retirementId}`;
         if (this.endedUnmoved.has(key)) return;
+        // The journal charges the subscription the tenant is on now. Where the
+        // booking belongs to another, the journal cannot reach its periods, and
+        // nothing here says they were charged.
+        const sub = await this.subscriptions.findForTenant(notice.tenantId);
+        if (sub?.id !== notice.subscriptionId) {
+            this.endedUnmoved.add(key);
+            this.logger.warn(
+                `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} ended before ` +
+                    `it moved, on subscription ${notice.subscriptionId}, which the tenant is no ` +
+                    'longer on. Its periods from the date are not charged from here.',
+            );
+            return;
+        }
         // A trial is charged nothing.
         if (sub.status !== 'TRIAL' && this.charges) {
             try {
@@ -301,11 +311,16 @@ export class BundleRetirementMoveService {
         reason: MoveFailure,
         extra: Record<string, unknown> = {},
     ): Promise<'failed'> {
+        // A booking that could not be put back is no longer on the version
+        // retired, which is all a run reads.
+        const next =
+            extra.putBack === false
+                ? 'It is on the replacement without its contract, and no run tries it again.'
+                : 'The next run tries again while it is on the version retired.';
         this.logger.error(
             `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} could not be ` +
                 `moved to version ${notice.replacement.version} of ` +
-                `${notice.replacement.bundleKey}: ${reason}. The next run tries again while it ` +
-                'is on the version retired.',
+                `${notice.replacement.bundleKey}: ${reason}. ${next}`,
         );
         const key = `${notice.subscriptionBundleId}:${notice.retirementId}:${reason}`;
         if (!this.auditedFailures.has(key)) {

@@ -36,6 +36,7 @@ import {
     type BundleRetirementSide,
     type BundleRetirementSkippedRow,
     type BundleVersionRetiredNotice,
+    type BundleVersionRetirementRecord,
     type BundleVersionRetirementRepository,
     type BundleVersionRetirementView,
     type BundleVersionRow,
@@ -550,39 +551,42 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
      * come over the bookings it reached (`SC-BUN-053`).
      */
     async list(now = new Date()): Promise<BundleVersionRetirementView[]> {
-        return readAcrossTenants(this.rlsBypass, async () => {
-            const [retirements, records] = await Promise.all([
-                this.retirements.list(),
-                this.notices.listOfKindSince(KIND, new Date(0)),
-            ]);
-            const versions = onceEach(this.bundles);
-            const onRecord = records.map((record) => ({
-                notice: record.content as BundleVersionRetiredNotice,
-                told: reachedSomebody(record),
-            }));
-            const bookingsOf = new Map<string, Promise<BookingsOnVersion>>();
-            const onVersion = (bundleVersionId: string) => {
-                let found = bookingsOf.get(bundleVersionId);
-                if (!found) {
-                    found = this.bookingsOf(bundleVersionId);
-                    bookingsOf.set(bundleVersionId, found);
-                }
-                return found;
-            };
-            return Promise.all(
-                retirements.map(async (retirement) => {
-                    const onIt = await onVersion(retirement.retired.bundleVersionId);
-                    const states = await Promise.all(
-                        onRecord
-                            .filter(({ notice }) => notice.retirementId === retirement.id)
-                            .map(({ notice, told }) =>
-                                this.stateOf(notice, told, onIt, now, versions),
-                            ),
-                    );
-                    return { ...retirement, progress: { ...progressOf(states, now), reminded: 0 } };
-                }),
-            );
-        });
+        return readAcrossTenants(this.rlsBypass, async () =>
+            this.viewsOf(await this.retirements.list(), now),
+        );
+    }
+
+    /** `retirements`, each with how far it has come at `now`. */
+    private async viewsOf(
+        retirements: readonly BundleVersionRetirementRecord[],
+        now: Date,
+    ): Promise<BundleVersionRetirementView[]> {
+        const records = await this.notices.listOfKindSince(KIND, new Date(0));
+        const versions = onceEach(this.bundles);
+        const onRecord = records.map((record) => ({
+            notice: record.content as BundleVersionRetiredNotice,
+            told: reachedSomebody(record),
+        }));
+        const bookingsOf = new Map<string, Promise<BookingsOnVersion>>();
+        const onVersion = (bundleVersionId: string) => {
+            let found = bookingsOf.get(bundleVersionId);
+            if (!found) {
+                found = this.bookingsOf(bundleVersionId);
+                bookingsOf.set(bundleVersionId, found);
+            }
+            return found;
+        };
+        return Promise.all(
+            retirements.map(async (retirement) => {
+                const onIt = await onVersion(retirement.retired.bundleVersionId);
+                const states = await Promise.all(
+                    onRecord
+                        .filter(({ notice }) => notice.retirementId === retirement.id)
+                        .map(({ notice, told }) => this.stateOf(notice, told, onIt, now, versions)),
+                );
+                return { ...retirement, progress: { ...progressOf(states, now), reminded: 0 } };
+            }),
+        );
     }
 
     /**
@@ -662,20 +666,31 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
      * Refuses deleting the add-on `bundleId` while bookings still have to move
      * onto one of its versions (`SC-BUN-051`): their notices promised them the
      * replacement, and a deleted add-on is booked by nothing, the move
-     * included. A booking that has moved, or that ended by its date, holds
-     * nothing up; one still waiting for its notice does.
+     * included. A booking that has moved, that has ended, or whose notice can
+     * no longer go out holds nothing up; one whose notice is still to go out
+     * does. Only the add-on's own retirements are read.
      */
     async assertMayDelete(bundleId: string, now = new Date()): Promise<void> {
         const bundle = await this.bundles.findById(bundleId);
         // The catalogue answers for an add-on that is not there.
         if (!bundle) return;
-        const stillToMove = (await this.list(now))
-            .filter((retirement) => retirement.retired.bundleKey === bundle.bundleKey)
-            .reduce(
-                (count, { progress }) =>
-                    count + progress.waiting + progress.notTold + progress.overdue,
-                0,
-            );
+        const views = await readAcrossTenants(this.rlsBypass, async () =>
+            this.viewsOf(
+                (await this.retirements.list()).filter(
+                    (retirement) => retirement.retired.bundleKey === bundle.bundleKey,
+                ),
+                now,
+            ),
+        );
+        const stillToMove = views.reduce(
+            (count, { progress }) =>
+                count +
+                progress.waiting +
+                progress.overdue +
+                progress.notTold -
+                (progress.notToldReasons?.noLongerReached ?? 0),
+            0,
+        );
         if (stillToMove === 0) return;
         throw new UnprocessableEntityException({
             code: CATALOG_ERROR_CODES.BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING,

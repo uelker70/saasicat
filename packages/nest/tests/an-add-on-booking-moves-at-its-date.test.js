@@ -5,6 +5,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 
 import { BundleRetirementMoveService } from '../dist/billing/index.js';
 import { BundlesService } from '../dist/catalog/index.js';
@@ -78,6 +79,21 @@ function endsAMonthLate(world, id = 'sb-t1') {
         canceledAt: new Date('2027-02-10T00:00:00.000Z'),
         canceledEffectiveAt: A_MONTH_LATE,
     };
+}
+
+/** What `work` logs as errors, for as long as it runs. */
+async function errorsLoggedBy(work) {
+    const logged = [];
+    const error = Logger.prototype.error;
+    Logger.prototype.error = function (message) {
+        logged.push(String(message));
+    };
+    try {
+        await work();
+    } finally {
+        Logger.prototype.error = error;
+    }
+    return logged;
 }
 
 /** A recorder of the journal's calls, failing the first `failures` of them. */
@@ -340,15 +356,68 @@ describe('the replacement the notice promised', () => {
         await world.service.assertMayDelete('b-reports', late);
     });
 
-    test('and holds back no other add-on', async () => {
+    test('nor for a notice that can no longer go out', async () => {
+        const world = await announced({ port: sendingPort({ recipients: [], channel: 'email' }) });
+        // Neither is told by mid-December, so a notice sent then would set a
+        // date in April. t1's booking is cancelled to end on 1 March: after the
+        // date it was announced with, before any it could still be given.
+        world.bookingRepository.rows[0] = {
+            ...world.bookingRepository.rows[0],
+            canceledAt: new Date('2026-12-10T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2027-03-01T00:00:00.000Z'),
+        };
+        const midDecember = new Date('2026-12-15T00:00:00.000Z');
+
+        const [retirement] = await world.service.list(midDecember);
+        const error = await rejection(world.service.assertMayDelete('b-reports', midDecember));
+
+        assert.equal(retirement.progress.notToldReasons.noLongerReached, 1);
+        assert.equal(error.getResponse().params.count, 1, 'only t2, whose notice can still go out');
+    });
+
+    test('and holds back no other add-on, nor reads its retirements', async () => {
         const archive = addOnVersion('bv-archive-1', {
             bundleId: 'b-archive',
             bundleKey: 'ARCHIVE',
             label: 'Archive',
         });
-        const world = await announced({ versions: [RETIRED, REPLACEMENT, archive] });
+        const archived = addOnVersion('bv-archive-2', {
+            bundleId: 'b-archive',
+            bundleKey: 'ARCHIVE',
+            label: 'Archive',
+            version: 2,
+            validFrom: '2026-10-01T00:00:00.000Z',
+        });
+        const world = await announced({
+            versions: [
+                RETIRED,
+                REPLACEMENT,
+                { ...archive, validUntil: '2026-09-30T00:00:00.000Z' },
+                archived,
+            ],
+            subscriptions: [subscriptionOf('t1'), subscriptionOf('t2'), subscriptionOf('t3')],
+            bookings: [
+                bookingOf('t1'),
+                bookingOf('t2'),
+                bookingOf('t3', { bundleVersionId: archive.id }),
+            ],
+        });
+        await world.service.announce(archive.id, archived.id, ['sb-t3'], ACTOR, NOW);
+        const read = [];
+        const listOfVersion = world.bookingRepository.listOfVersion;
+        world.bookingRepository.listOfVersion = async (id) => {
+            read.push(id);
+            return listOfVersion(id);
+        };
 
-        await world.service.assertMayDelete('b-archive', NOW);
+        await rejection(world.service.assertMayDelete('b-reports', NOW));
+        const asked = [...read];
+        read.length = 0;
+        const archiveError = await rejection(world.service.assertMayDelete('b-archive', NOW));
+
+        assert.deepEqual(asked, [RETIRED.id], 'only the add-on asked about');
+        assert.deepEqual(read, [archive.id]);
+        assert.equal(archiveError.getResponse().params.count, 1);
     });
 
     test('is what the catalogue asks before it deletes an add-on, deleting nothing it is refused', async () => {
@@ -547,11 +616,17 @@ describe('a move that cannot be made', () => {
             from === REPLACEMENT.id ? null : write(id, from, to);
         const { service, audited } = mover(world, { freezeFails: true });
 
-        await service.moveDue(AT_THE_DATE);
+        const logged = await errorsLoggedBy(() => service.moveDue(AT_THE_DATE));
 
         assert.deepEqual(
             audited.map((entry) => entry.changes.putBack),
             [false, false],
+        );
+        const failures = logged.filter((message) => message.includes('could not be moved'));
+        assert.equal(failures.length, 2);
+        assert.ok(
+            failures.every((message) => message.endsWith('and no run tries it again.')),
+            'no run reads a booking off the version retired, so none is promised',
         );
     });
 });
@@ -619,6 +694,18 @@ describe('a booking that ended before its move came', () => {
 
         assert.deepEqual(run, { moved: 0, failed: 0 });
         assert.deepEqual(charges.recorded, []);
+    });
+
+    test('claims nothing for a booking of a subscription the tenant is no longer on', async () => {
+        const world = await readBeforeT1Changed({ id: 'sub-t1-again' });
+        endsAMonthLate(world);
+        const charges = journal();
+        const { service } = mover(world, { charges });
+
+        await service.moveDue(new Date('2027-03-01T00:15:00.000Z'));
+
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(charges.recorded, ['t2'], 't2 for its move, and nothing for t1');
     });
 
     test('asks the journal again where it could not record them', async () => {

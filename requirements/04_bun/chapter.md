@@ -1840,6 +1840,7 @@ _Tested by:_
         - is not moved, and the journal is asked once for the periods it ran on
         - nor where the subscription it belongs to ended since
         - asks nothing where nothing waited: an end by the date, or a trial
+        - claims nothing for a booking of a subscription the tenant is no longer on
         - asks the journal again where it could not record them
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - a contract a retirement writes
@@ -1872,7 +1873,8 @@ _Tested by:_
         - and so does a notice still waiting for somebody to tell, and a move past its date
         - but not once every booking has moved, or ended by its date
         - nor once a booking past its date has ended before anything moved it
-        - and holds back no other add-on
+        - nor for a notice that can no longer go out
+        - and holds back no other add-on, nor reads its retirements
         - is what the catalogue asks before it deletes an add-on, deleting nothing it is refused
 
 <!-- END proof -->
