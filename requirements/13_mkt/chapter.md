@@ -780,6 +780,8 @@ _Tested by:_
         - with an adapter the net after the promotion is the bar
         - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
           offer stands
+        - the plan alone is the price it is measured against: an add-on beside it does not save the
+          code
         - the operator may allow it to leave nothing
         - concluding asks again: an allowance taken back since refuses the offer
     - what cannot be priced is refused, not priced at nothing

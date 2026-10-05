@@ -250,6 +250,14 @@ describe('a code and the promotion on the plan together leave something to pay',
         assert.equal(offer.priceBreakdown.effectiveNet, 0);
     });
 
+    test('the plan alone is the price it is measured against: an add-on beside it does not save the code', async () => {
+        const offer = buildOfferService({
+            promotions: fakePromotionRepo([promotion({ id: 'spring' })]),
+            promoCodes: fakePromoCodes([amountOff(46.65)]),
+        }).service.create(select({ promoCode: 'AMOUNT', bundleVersionIds: [BUNDLE_VERSION.id] }));
+        await assert.rejects(offer, leavesNothing);
+    });
+
     test('the operator may allow it to leave nothing', async () => {
         const offer = await priced(amountOff(39.2, true), true);
         assert.equal(offer.priceBreakdown.effectiveNet, 6.26);
