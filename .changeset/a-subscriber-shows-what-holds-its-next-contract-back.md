@@ -23,7 +23,8 @@ and the tenant both see what holds a subscriber's next contract back
   before the adapter is asked. A refresh that keeps the parties a running
   contract names is not refused. Fill in the address of every subscriber a
   sign-up did not create through `SubscriberService.changeContactOfTenant`
-  before deploying with an adapter.
+  before deploying with an adapter. A scheduled retirement move refused this
+  way records `identity-incomplete`, the empty fields in `missing`.
 - **`SubscriberService.readinessFor`** answers a subscriber's standing — the
   empty address fields and the adapter's sentence where it supports no
   treatment — computed from the record and the adapter as they are then; `null`

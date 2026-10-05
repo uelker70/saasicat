@@ -7,7 +7,7 @@
 // change, a correction of the legal identity. A rule held on one of them and
 // not the others would let the same value in through the next door.
 
-import { UnprocessableEntityException } from '@nestjs/common';
+import { HttpException, UnprocessableEntityException } from '@nestjs/common';
 import type {
     LegalIdentityField,
     NewSubscriberDetails,
@@ -211,4 +211,13 @@ export function identityIncomplete(
             missing: [...missing],
         }),
     );
+}
+
+/** The empty fields `identityIncomplete` named, or `null` where `error` is another refusal. */
+export function identityGapsOf(error: unknown): SubscriberInvoiceAddressField[] | null {
+    if (!(error instanceof HttpException)) return null;
+    const response = error.getResponse() as { code?: unknown; params?: { missing?: unknown } };
+    if (response.code !== SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE) return null;
+    const missing = response.params?.missing;
+    return Array.isArray(missing) ? (missing as SubscriberInvoiceAddressField[]) : [];
 }

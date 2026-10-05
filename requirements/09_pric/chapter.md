@@ -1859,6 +1859,7 @@ _Tested by:_
     - the tenants of a list whose subscriber is held back
         - each named with what holds it back; the ready ones and those without a subscriber are left
           out
+        - one tenant as the query sent it, where the pipe does not transform: still that tenant
         - only among the tenants named
     - where no tax adapter decides
         - the subscriber is shown without a standing, and the lists are not asked to mark one

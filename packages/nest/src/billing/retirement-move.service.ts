@@ -47,14 +47,13 @@ import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
-import { isTaxNotSupported } from '../tax/tax-treatments.js';
+import { partyRefusalOf, type PartyRefusal } from './party-refusal.js';
 
 /** The name the run writes its audit entries under: `job:platform:retirement-moves`. */
 const JOB = 'retirement-moves';
 
 /** Why a move was not made, as its audit entry and the log say it. */
-type MoveFailure =
-    'no-party' | 'tax-not-supported' | 'replacement-not-bookable' | 'contract-not-written';
+type MoveFailure = PartyRefusal | 'replacement-not-bookable' | 'contract-not-written';
 
 @Injectable()
 export class RetirementMoveService {
@@ -135,7 +134,8 @@ export class RetirementMoveService {
         try {
             await this.contractFreeze?.assertPartyFor(tenantId, contractUnlessTrialOf(sub, now));
         } catch (error) {
-            return this.failed(notice, isTaxNotSupported(error) ? 'tax-not-supported' : 'no-party');
+            const { reason, extra } = partyRefusalOf(error);
+            return this.failed(notice, reason, extra);
         }
         const result = await bindReplacement(this.writes, tenantId, sub, notice, true);
         if (!result.claimed) {

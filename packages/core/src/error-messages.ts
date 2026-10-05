@@ -348,7 +348,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIBER_LEGAL_NAME_REQUIRED: 'A subscriber needs its legal name.',
     SUBSCRIBER_DETAIL_INVALID: "The subscriber's {field} is not valid.",
     SUBSCRIBER_IDENTITY_INCOMPLETE:
-        "The subscriber's billing address is not complete yet ({missing}); a contract can name it once it is.",
+        "The subscriber's billing address is not complete yet: a contract names it only with street and number, postal code, city and country.",
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
         "{field} is part of the subscriber's legal identity and changes only as a correction, with a reason.",
     SUBSCRIBER_CORRECTION_REASON_REQUIRED: 'A correction of the legal identity needs a reason.',

@@ -1849,6 +1849,7 @@ _Tested by:_
         - fails without a party to the contract, audited once though every run fails
         - asks the party about the contract each move then writes
         - fails for a subscriber the tax adapter supports no treatment for, and says so
+        - fails for a subscriber whose invoice address is incomplete, and names the empty fields
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
         - says so where the booking cannot be put back either

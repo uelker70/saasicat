@@ -1740,7 +1740,9 @@ changes.
 1. Before you deploy with an adapter, fill in the street and number, postal code, city and country
    of every subscriber a sign-up did not create — a backfill, a migration of existing tenants —
    through `SubscriberService.changeContactOfTenant`. `SubscriberService.readinessFor({ tenantId })`
-   tells you which are held back and why; the NotesApp's seed fills in only what is missing.
+   tells you which are held back and why; the NotesApp's seed fills in only what is missing. A
+   retirement move refused this way is logged and audited as `identity-incomplete`, with the empty
+   fields in `missing`, and the next run moves the subscription once the address is complete.
 2. Your own `SubscriberRepository` implements the new `listForTenants(tenantIds, tx?)`: the live
    subscriber of each tenant named, with the VAT id check that counts now. Both shipped adapters
    have it.

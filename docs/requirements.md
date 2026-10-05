@@ -4227,6 +4227,7 @@ _Tested by:_
         - fails without a party to the contract, audited once though every run fails
         - asks the party about the contract each move then writes
         - fails for a subscriber the tax adapter supports no treatment for, and says so
+        - fails for a subscriber whose invoice address is incomplete, and names the empty fields
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
         - says so where the booking cannot be put back either
@@ -5481,6 +5482,8 @@ _Tested by:_
         - the party is asked about the contract the move then writes
         - a subscriber the tax adapter supports no treatment for is not moved, and the failure says
           so
+        - a subscriber whose invoice address is incomplete is not moved, and the failure names the
+          empty fields
         - a move whose contract cannot be written is put back, and the next run makes both, where
           the version retired ${offSale}
         - a move put back takes the change of rhythm it scheduled back to the plan it left
@@ -9094,6 +9097,7 @@ _Tested by:_
     - the tenants of a list whose subscriber is held back
         - each named with what holds it back; the ready ones and those without a subscriber are left
           out
+        - one tenant as the query sent it, where the pipe does not transform: still that tenant
         - only among the tenants named
     - where no tax adapter decides
         - the subscriber is shown without a standing, and the lists are not asked to mark one

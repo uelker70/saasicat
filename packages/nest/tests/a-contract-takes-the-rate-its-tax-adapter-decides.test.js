@@ -321,7 +321,13 @@ describe('where a tax adapter decides, a contract copies a complete invoice addr
         });
         await assert.rejects(
             () => conclude(service),
-            incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['addressLine1', 'city']),
+            (error) =>
+                incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['addressLine1', 'city'])(error) &&
+                // The sentence a tenant may read names the fields, not the keys.
+                /street and number, postal code, city and country/.test(
+                    error.getResponse().message,
+                ) &&
+                !/addressLine1/.test(error.getResponse().message),
         );
         assert.deepEqual(await repo.list({ tenantId: 'tenant-1' }), []);
     });

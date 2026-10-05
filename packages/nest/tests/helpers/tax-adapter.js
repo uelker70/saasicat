@@ -4,6 +4,8 @@
 // treatment for anything else.
 
 import { TaxTreatments } from '../../dist/billing/index.js';
+import { SubscriberService } from '../../dist/subscriber/index.js';
+import { FakeSubscriberRepository } from '../../dist/testing/index.js';
 
 const EU = new Set(['AT', 'FR', 'IT', 'NL']);
 
@@ -63,4 +65,33 @@ export function unsupportedTaxCase() {
         return error;
     }
     throw new Error('the test adapter treats a consumer in France');
+}
+
+/**
+ * What the platform throws, where an adapter decides, for a subscriber whose
+ * invoice address lacks `missing` — asked of the subscribers themselves rather
+ * than built here, so a test holds the refusal as it is thrown.
+ */
+export async function incompleteAddressRefusal(missing) {
+    const subscribers = new SubscriberService(new FakeSubscriberRepository(), {
+        ...TAX_SETTINGS,
+        app: { name: 'Test App' },
+    });
+    const address = {
+        addressLine1: 'Main Street 1',
+        postalCode: '10115',
+        city: 'Berlin',
+        country: 'DE',
+    };
+    for (const field of missing) address[field] = null;
+    await subscribers.createForTenant('tenant-incomplete', {
+        legalName: 'Customer GmbH',
+        ...address,
+    });
+    try {
+        await subscribers.contractPartyFor('tenant-incomplete', { forTaxAdapter: true });
+    } catch (error) {
+        return error;
+    }
+    throw new Error(`a subscriber without ${missing.join(', ')} was not refused`);
 }

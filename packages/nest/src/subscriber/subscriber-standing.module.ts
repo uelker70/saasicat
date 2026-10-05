@@ -83,8 +83,13 @@ function buildSubscriberStandingController(guards: Array<Type<CanActivate>>): Ty
         attention(
             @Query() query: SubscriberAttentionQueryDto,
         ): Promise<{ attention: AdminSubscriberAttention[] }> {
+            // The list the pipe built — or, where the application's
+            // `ValidationPipe` does not transform, the query as sent: one id as
+            // a string, none at all.
+            const sent: string | string[] | undefined = query.tenantId;
+            const tenantIds = sent === undefined ? [] : Array.isArray(sent) ? sent : [sent];
             return this.rlsBypass.runWithBypass(async () => ({
-                attention: await this.standing.attentionAmong(query.tenantId),
+                attention: await this.standing.attentionAmong(tenantIds),
             }));
         }
     }

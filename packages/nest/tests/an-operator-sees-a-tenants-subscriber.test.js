@@ -283,6 +283,18 @@ describe('the tenants of a list whose subscriber is held back', () => {
         await platform.moduleRef.close();
     });
 
+    test('one tenant as the query sent it, where the pipe does not transform: still that tenant', async () => {
+        const platform = await aPlatform();
+
+        const { attention } = await platform.attention('t-fabrikam');
+
+        assert.deepEqual(
+            attention.map(({ tenantId }) => tenantId),
+            ['t-fabrikam'],
+        );
+        await platform.moduleRef.close();
+    });
+
     test('only among the tenants named', async () => {
         const platform = await aPlatform();
 
