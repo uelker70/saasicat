@@ -181,6 +181,7 @@ describe('an improvement and more for more are taken at once', () => {
         assert.equal(result.immediate, true);
         assert.deepEqual(calls.frozen, []);
         assert.deepEqual(calls.charged, []);
+        assert.deepEqual(calls.asked, [['t1', null]], 'the party is asked, the tax is not');
     });
 });
 

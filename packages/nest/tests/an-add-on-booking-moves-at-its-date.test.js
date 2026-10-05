@@ -49,7 +49,8 @@ function mover(world, { noParty = [], untreated = [], freezeFails = false, charg
         async assertPartyFor(tenantId, intended) {
             asked.push([tenantId, intended]);
             if (noParty.includes(tenantId)) throw new Error('no party');
-            if (untreated.includes(tenantId)) throw unsupportedTaxCase();
+            // As a tax adapter that treats this subscriber for no contract.
+            if (untreated.includes(tenantId) && intended) throw unsupportedTaxCase();
         },
         async freezeOnPlanChange(...args) {
             if (freezeFails) throw new Error('the contract store is down');
@@ -271,7 +272,8 @@ describe('the move at the date', () => {
             subscriptions: [subscriptionOf('t1', { status: 'TRIAL' }), subscriptionOf('t2')],
         });
         const charges = journal();
-        const { service, frozen } = mover(world, { charges });
+        // t1's tax could not be decided for a contract; a trial is asked none.
+        const { service, frozen, asked } = mover(world, { charges, untreated: ['t1'] });
 
         await service.moveDue(AT_THE_DATE);
 
@@ -281,6 +283,10 @@ describe('the move at the date', () => {
             ['t2'],
         );
         assert.deepEqual(charges.recorded, ['t2']);
+        assert.deepEqual(
+            asked.find(([tenantId]) => tenantId === 't1'),
+            ['t1', null],
+        );
     });
 
     test('records the charges the move makes due', async () => {

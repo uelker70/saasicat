@@ -26,6 +26,19 @@ export function intendedContractOf(
 }
 
 /**
+ * The contract a change made to `sub` now freezes, or `null` in a trial: a
+ * trial commits to no period, a change made in it freezes nothing, and its
+ * contract is frozen when it converts.
+ */
+export function contractUnlessTrialOf(
+    sub: SubscriptionUsageRecord,
+    effectiveFrom: Date,
+    cycle?: BillingCycle,
+): IntendedContract | null {
+    return sub.status === 'TRIAL' ? null : intendedContractOf(sub, effectiveFrom, cycle);
+}
+
+/**
  * Freezes the successor contract after a change the platform wrote.
  *
  * Non-fatal: the change is already written, and a contract the freeze could

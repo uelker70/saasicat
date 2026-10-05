@@ -87,7 +87,11 @@ import {
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
-import { freezeContractAfter, intendedContractOf } from './freeze-contract-after.js';
+import {
+    contractUnlessTrialOf,
+    freezeContractAfter,
+    intendedContractOf,
+} from './freeze-contract-after.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -543,19 +547,13 @@ export class TenantBillingController {
         // logs its refusal. Asked of the contract the change ends in, which
         // only the preview can say: from today, or from the date it is
         // scheduled for, in the rhythm asked for. A change made today in a
-        // trial ends in none — its contract is frozen when it converts — and
-        // asks for the party alone.
-        const wasTrial = sub.status === 'TRIAL';
-        const endsInNoContract = decision.isImmediate && wasTrial;
+        // trial ends in none, and asks for the party alone.
+        const cycle = dto.billingCycle as BillingCycle;
         await this.contractFreeze?.assertPartyFor(
             tenantId,
-            endsInNoContract
-                ? null
-                : intendedContractOf(
-                      sub,
-                      decision.isImmediate ? new Date() : scheduledAt,
-                      dto.billingCycle as BillingCycle,
-                  ),
+            decision.isImmediate
+                ? contractUnlessTrialOf(sub, new Date(), cycle)
+                : intendedContractOf(sub, scheduledAt, cycle),
         );
 
         // The version a change binds is the one its preview showed
@@ -619,6 +617,7 @@ export class TenantBillingController {
         };
 
         if (decision.isImmediate) {
+            const wasTrial = sub.status === 'TRIAL';
             // The window is the one the preview priced. In the same rhythm the
             // new plan runs inside the period already paid, on the same billing
             // day, charged the difference (`SC-CHG-020`); a longer rhythm, or a

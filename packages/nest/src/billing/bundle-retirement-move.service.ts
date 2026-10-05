@@ -47,7 +47,7 @@ import { bookingOverBy } from './bundle-retirement-reach.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
-import { intendedContractOf } from './freeze-contract-after.js';
+import { contractUnlessTrialOf } from './freeze-contract-after.js';
 import { bundleRetirementNoticesDue, groupByRetiredBundleVersion } from './retirement-notices.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
@@ -154,7 +154,7 @@ export class BundleRetirementMoveService {
         try {
             await this.contractFreeze?.assertPartyFor(
                 tenantId,
-                intendedContractOf(readByTheRun, now),
+                contractUnlessTrialOf(readByTheRun, now),
             );
         } catch (error) {
             return this.failed(notice, isTaxNotSupported(error) ? 'tax-not-supported' : 'no-party');
