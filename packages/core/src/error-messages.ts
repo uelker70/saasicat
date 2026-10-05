@@ -404,6 +404,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     MAINTENANCE_MESSAGE_TOO_LONG: 'The message may be at most {max} characters long.',
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
+    TAX_VAT_ID_CHECK_NOT_COMPLETED:
+        'The VAT identification number could not be checked just now ({reason}). Please try again later.',
 };
 
 /** Values available for interpolation into a message template. */

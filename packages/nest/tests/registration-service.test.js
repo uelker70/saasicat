@@ -682,6 +682,29 @@ test('resume: start() with PENDING_EMAIL_VERIFICATION still OTP resend (case B u
 });
 
 // @requirement SC-REG-020 — A resumed registration never carries a password or a verification code with it
+test('resume after step 4: the billing details come back with the business status they were given', async () => {
+    const ctx = makeService();
+    const verify = await startThenVerify(ctx);
+    await ctx.repo.update(verify.pendingRegistrationId, {
+        addressLine1: 'Ringstraße 1',
+        addressLine2: null,
+        postalCode: '1010',
+        city: 'Wien',
+        country: 'AT',
+        vatId: 'ATU12345678',
+        taxNumber: null,
+        business: true,
+    });
+    await ctx.service.start(baseInput({ email: 'plan@example.com' }));
+    const token = new URL(ctx.resumeDelivery.sent[0].resumeUrl).searchParams.get('resume');
+
+    const { snapshot } = await ctx.service.resumeWithToken({ token });
+
+    assert.equal(snapshot.billingDetails.business, true);
+    assert.equal('vatIdCheck' in snapshot.billingDetails, false, 'a check is not handed out');
+});
+
+// @requirement SC-REG-020 — A resumed registration never carries a password or a verification code with it
 test('resume: resumeWithToken() success → returns pending ID + nextStep + snapshot', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);

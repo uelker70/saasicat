@@ -115,10 +115,10 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 67      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 68      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 30      |
-| 12  | Self-registration                            | `SC-REG-…`   | 22      |
+| 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 27      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 26      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 594 entries: 🟢 511 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 596 entries: 🟢 513 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 16 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -221,7 +221,7 @@ Of 594 entries: 🟢 511 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 594 requirements. Do not edit by hand:
+Generated from `requirements/` — 596 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8843,6 +8843,8 @@ _Tested by:_
         - a business in Switzerland: not taxable, every line at 0 %
         - a business in Austria is refused before anything is written: nothing of a subscriber not
           created yet is validated
+        - a business in Austria whose number step 4 checked: reverse charge, and the check kept with
+          the subscriber
         - a consumer in France is refused before anything is written
         - a tenant with its subscriber already is refused as such, before the new details are asked
           about
@@ -8929,6 +8931,8 @@ _Tested by:_
         - a business in Switzerland: not taxable, every line at 0 %
         - a business in Austria is refused before anything is written: nothing of a subscriber not
           created yet is validated
+        - a business in Austria whose number step 4 checked: reverse charge, and the check kept with
+          the subscriber
         - a consumer in France is refused before anything is written
         - a tenant with its subscriber already is refused as such, before the new details are asked
           about
@@ -8955,6 +8959,50 @@ _Tested by:_
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
         - the discount the offer implies carries a negative tax, not a positive one
+
+<!-- END proof -->
+
+### SC-PRIC-068 — A new subscriber is asked about before it exists
+
+🟢 💰 Where a tax adapter decides, a sign-up's step 4 and an application creating a subscriber of its
+own ask it first, outside any transaction, from the details as given. Only where it supports no
+treatment and a VAT identification number is given is the number checked, with the service the
+adapter names, and the adapter asked again from the check: which numbers a treatment depends on is
+the adapter's to say. A case it still does not support is refused with its sentence. A check that
+does not complete refuses the step, to be tried again later, and is never read as a validation. The
+check is kept with the subscriber it becomes, and a check of another number than the subscriber's is
+refused before anything is written. This is the part of `SC-PRIC-039` and `SC-PRIC-040` that comes
+before a subscriber exists.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-new-subscriber-is-assessed-before-it-is-created.test.js`
+    - an application asks before it creates a subscriber
+        - a subscriber in Germany is treated as given: no number is checked
+        - a business in Austria: its number checked as it will be held, and the check attached
+        - a consumer outside Germany with a number: checked, and still refused with the adapter
+          sentence
+        - a check that does not complete is a 503 naming the adapter and why, never a validation
+        - an adapter that fails is not taken for a refusal: its error comes through
+        - without an adapter the details come back as they are, nothing checked
+    - a subscriber created with a check keeps it
+        - the attached check is recorded, and the number counts as validated
+        - a check of another number is refused before anything is written
+        - created without a check, no number counts as validated
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - where a tax adapter decides, step 4 asks it before the gateway form opens
+        - a business elsewhere in the Union: its number is checked once, kept, and the form opens
+        - and the subscriber it becomes takes the check over, so its number counts as validated
+        - ${what} is refused, nothing is kept, and the form does not open
+        - a business outside the Union is not taxable as given: its number is not checked
+        - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
+          chosen
+        - without an adapter the business status is kept, and nothing is checked
+        - a business status that is not true or false is refused at the door
 
 <!-- END proof -->
 
@@ -10731,6 +10779,7 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/nest/tests/registration-service.test.js`
+    - resume after step 4: the billing details come back with the business status they were given
     - resume: resumeWithToken() success → returns pending ID + nextStep + snapshot
     - resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID
 
@@ -10806,6 +10855,37 @@ _Tested by:_
         - a setup the gateway reports as failed is recorded, and the sign-up can try again
         - a confirmation the gateway did not sign is refused before anything is claimed or created
         - the development gateway confirms on the spot, through the same claim and transaction
+
+<!-- END proof -->
+
+### SC-REG-023 — Step 4 refuses before the payment form what no contract could follow
+
+🟢 💰 The billing details of step 4 include whether the sign-up is a business. Where a tax adapter
+decides, the step asks it over the contract the sign-up will have, from now and in the rhythm
+chosen, before the payment gateway's form opens (`SC-PRIC-068`): a sign-up it cannot treat is refused
+while nothing is paid, and the check of its VAT identification number is kept with the sign-up and
+taken over by the subscriber its activation creates, so its first contract is decided from it.
+
+_Source:_ #331
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tax-origin-reads-what-was-checked.test.js`
+    - the check a sign-up kept, as its store gives it back
+        - kept as JSON, it comes back with its date as a date
+        - ${what} reads as no check: the number never counts as validated on it
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - where a tax adapter decides, step 4 asks it before the gateway form opens
+        - a business elsewhere in the Union: its number is checked once, kept, and the form opens
+        - and the subscriber it becomes takes the check over, so its number counts as validated
+        - ${what} is refused, nothing is kept, and the form does not open
+        - a business outside the Union is not taxable as given: its number is not checked
+        - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
+          chosen
+        - without an adapter the business status is kept, and nothing is checked
+        - a business status that is not true or false is refused at the door
 
 <!-- END proof -->
 

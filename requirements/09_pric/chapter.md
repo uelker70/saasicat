@@ -1608,6 +1608,8 @@ _Tested by:_
         - a business in Switzerland: not taxable, every line at 0 %
         - a business in Austria is refused before anything is written: nothing of a subscriber not
           created yet is validated
+        - a business in Austria whose number step 4 checked: reverse charge, and the check kept with
+          the subscriber
         - a consumer in France is refused before anything is written
         - a tenant with its subscriber already is refused as such, before the new details are asked
           about
@@ -1694,6 +1696,8 @@ _Tested by:_
         - a business in Switzerland: not taxable, every line at 0 %
         - a business in Austria is refused before anything is written: nothing of a subscriber not
           created yet is validated
+        - a business in Austria whose number step 4 checked: reverse charge, and the check kept with
+          the subscriber
         - a consumer in France is refused before anything is written
         - a tenant with its subscriber already is refused as such, before the new details are asked
           about
@@ -1720,5 +1724,49 @@ _Tested by:_
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
         - the discount the offer implies carries a negative tax, not a positive one
+
+<!-- END proof -->
+
+### SC-PRIC-068 — A new subscriber is asked about before it exists
+
+🟢 💰 Where a tax adapter decides, a sign-up's step 4 and an application creating a subscriber of its
+own ask it first, outside any transaction, from the details as given. Only where it supports no
+treatment and a VAT identification number is given is the number checked, with the service the
+adapter names, and the adapter asked again from the check: which numbers a treatment depends on is
+the adapter's to say. A case it still does not support is refused with its sentence. A check that
+does not complete refuses the step, to be tried again later, and is never read as a validation. The
+check is kept with the subscriber it becomes, and a check of another number than the subscriber's is
+refused before anything is written. This is the part of `SC-PRIC-039` and `SC-PRIC-040` that comes
+before a subscriber exists.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-new-subscriber-is-assessed-before-it-is-created.test.js`
+    - an application asks before it creates a subscriber
+        - a subscriber in Germany is treated as given: no number is checked
+        - a business in Austria: its number checked as it will be held, and the check attached
+        - a consumer outside Germany with a number: checked, and still refused with the adapter
+          sentence
+        - a check that does not complete is a 503 naming the adapter and why, never a validation
+        - an adapter that fails is not taken for a refusal: its error comes through
+        - without an adapter the details come back as they are, nothing checked
+    - a subscriber created with a check keeps it
+        - the attached check is recorded, and the number counts as validated
+        - a check of another number is refused before anything is written
+        - created without a check, no number counts as validated
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - where a tax adapter decides, step 4 asks it before the gateway form opens
+        - a business elsewhere in the Union: its number is checked once, kept, and the form opens
+        - and the subscriber it becomes takes the check over, so its number counts as validated
+        - ${what} is refused, nothing is kept, and the form does not open
+        - a business outside the Union is not taxable as given: its number is not checked
+        - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
+          chosen
+        - without an adapter the business status is kept, and nothing is checked
+        - a business status that is not true or false is refused at the door
 
 <!-- END proof -->

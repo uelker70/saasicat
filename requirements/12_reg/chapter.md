@@ -324,6 +324,7 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/nest/tests/registration-service.test.js`
+    - resume after step 4: the billing details come back with the business status they were given
     - resume: resumeWithToken() success → returns pending ID + nextStep + snapshot
     - resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID
 
@@ -399,5 +400,36 @@ _Tested by:_
         - a setup the gateway reports as failed is recorded, and the sign-up can try again
         - a confirmation the gateway did not sign is refused before anything is claimed or created
         - the development gateway confirms on the spot, through the same claim and transaction
+
+<!-- END proof -->
+
+### SC-REG-023 — Step 4 refuses before the payment form what no contract could follow
+
+🟢 💰 The billing details of step 4 include whether the sign-up is a business. Where a tax adapter
+decides, the step asks it over the contract the sign-up will have, from now and in the rhythm
+chosen, before the payment gateway's form opens (`SC-PRIC-068`): a sign-up it cannot treat is refused
+while nothing is paid, and the check of its VAT identification number is kept with the sign-up and
+taken over by the subscriber its activation creates, so its first contract is decided from it.
+
+_Source:_ #331
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-tax-origin-reads-what-was-checked.test.js`
+    - the check a sign-up kept, as its store gives it back
+        - kept as JSON, it comes back with its date as a date
+        - ${what} reads as no check: the number never counts as validated on it
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - where a tax adapter decides, step 4 asks it before the gateway form opens
+        - a business elsewhere in the Union: its number is checked once, kept, and the form opens
+        - and the subscriber it becomes takes the check over, so its number counts as validated
+        - ${what} is refused, nothing is kept, and the form does not open
+        - a business outside the Union is not taxable as given: its number is not checked
+        - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
+          chosen
+        - without an adapter the business status is kept, and nothing is checked
+        - a business status that is not true or false is refused at the door
 
 <!-- END proof -->

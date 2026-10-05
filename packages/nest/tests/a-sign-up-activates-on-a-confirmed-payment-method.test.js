@@ -46,6 +46,7 @@ import {
 } from './helpers/payments.js';
 import { buildOfferService } from './helpers/checkout-catalogue.js';
 import { concludeFor, installation } from './helpers/held-code-installation.js';
+import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './helpers/tax-adapter.js';
 import {
     FakeAuditLogger,
     FakeOtpDelivery,
@@ -160,6 +161,7 @@ async function signUpApp({
     repo = new FakeRepository(),
     withPayments = true,
     shop,
+    taxAdapter = null,
 } = {}) {
     const gateway = new ScriptedGateway();
     const log = new MemoryPaymentEventLog();
@@ -170,7 +172,9 @@ async function signUpApp({
         : new RecordingOrchestrator(new SubscriberService(subscriberRepository, catalog));
     const audit = new FakeAuditLogger();
     const delivery = new FakeOtpDelivery();
-    const imports = [PlanCatalogModule.forRootWithCatalog(catalog)];
+    const imports = [
+        PlanCatalogModule.forRootWithCatalog(catalog, taxAdapter ? { taxAdapter } : {}),
+    ];
     if (shop) imports.push(checkoutOffersOf(shop));
     if (withPayments) {
         imports.push(
@@ -217,6 +221,7 @@ async function signUpApp({
         orchestrator,
         audit,
         delivery,
+        subscriberRepository,
     };
 }
 
@@ -523,6 +528,198 @@ describe('the request for step 4 is validated where it arrives', () => {
             'billingDetails.country',
             'successUrl',
         ]);
+    });
+});
+
+/**
+ * The test tax adapter, its VAT number service answering as `answer` says;
+ * what it was asked to check, and every period it decided over.
+ */
+function adapterWithChecks(answer) {
+    const asked = [];
+    const periods = [];
+    const adapter = {
+        ...TEST_TAX_ADAPTER,
+        decide: (request) => {
+            periods.push(request.period);
+            return TEST_TAX_ADAPTER.decide(request);
+        },
+        checkVatId: async (vatId) => {
+            asked.push(vatId);
+            return answer(vatId);
+        },
+    };
+    return { asked, periods, factory: { adapterName: 'test-tax', create: () => adapter } };
+}
+
+const checked = (vatId, valid) => ({
+    completed: true,
+    check: {
+        vatId,
+        checkedAt: new Date('2026-10-05T08:00:00.000Z'),
+        valid,
+        service: 'VIES',
+        confirmation: { requestIdentifier: 'R-1' },
+    },
+});
+const VALID = (vatId) => checked(vatId, true);
+const INVALID = (vatId) => checked(vatId, false);
+const UNREACHABLE = () => ({ completed: false, reason: 'VIES answered with HTTP 503.' });
+
+/** A catalogue that names the test adapter instead of a rate. */
+const TAX_CATALOG = { ...paymentsCatalog(), vatRate: undefined, ...TAX_SETTINGS };
+
+const IN_VIENNA = {
+    addressLine1: 'Ringstraße 1',
+    postalCode: '1010',
+    city: 'Wien',
+    country: 'AT',
+    vatId: 'atu 123 456 78',
+    business: true,
+};
+
+async function withAdapter(answer) {
+    const vies = adapterWithChecks(answer);
+    const ctx = await signUpApp({ catalog: TAX_CATALOG, taxAdapter: vies.factory });
+    return { ctx, vies, pendingId: await atStepFour(ctx) };
+}
+
+function startWith(ctx, pendingId, billingDetails) {
+    return ctx.service.startCheckout({ pendingRegistrationId: pendingId, billingDetails, ...URLS });
+}
+
+// @requirement SC-REG-023 — Step 4 refuses before the payment form what no contract could follow
+// @requirement SC-PRIC-068 — A new subscriber is asked about before it exists
+describe('where a tax adapter decides, step 4 asks it before the gateway form opens', () => {
+    test('a business elsewhere in the Union: its number is checked once, kept, and the form opens', async () => {
+        const { ctx, vies, pendingId } = await withAdapter(VALID);
+
+        const started = await startWith(ctx, pendingId, IN_VIENNA);
+
+        assert.equal(started.status, 'CHECKOUT_STARTED');
+        assert.deepEqual(vies.asked, ['ATU12345678'], 'the number as the subscriber will hold it');
+        const stored = await ctx.repo.findById(pendingId);
+        assert.equal(stored.business, true);
+        assert.deepEqual([stored.vatIdCheck.vatId, stored.vatIdCheck.valid], ['ATU12345678', true]);
+        assert.equal(ctx.gateway.setups.length, 1);
+    });
+
+    test('and the subscriber it becomes takes the check over, so its number counts as validated', async () => {
+        const { ctx, pendingId } = await withAdapter(VALID);
+        const started = await startWith(ctx, pendingId, IN_VIENNA);
+        // As a JSON column hands it back: the date as text.
+        const row = ctx.repo.rows.get(pendingId);
+        row.vatIdCheck = JSON.parse(JSON.stringify(row.vatIdCheck));
+        const event = confirmation({
+            eventId: 'evt_1',
+            sessionRef: started.checkoutSessionId,
+            subject: { kind: 'registration', pendingRegistrationId: pendingId },
+        });
+
+        assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(event)), 'handled');
+
+        const [method] = ctx.methods.rows;
+        const counting = await ctx.subscriberRepository.findCurrentVatIdCheck(method.subscriberId);
+        assert.deepEqual([counting.vatId, counting.valid], ['ATU12345678', true]);
+        assert.ok(counting.checkedAt instanceof Date, 'recorded with its date as a date');
+        assert.equal(counting.checkedAt.toISOString(), '2026-10-05T08:00:00.000Z');
+    });
+
+    const refusals = [
+        [
+            'a consumer outside Germany, with the adapter sentence',
+            VALID,
+            { ...IN_VIENNA, country: 'FR', vatId: null, business: false },
+            422,
+            'TAX_TREATMENT_NOT_SUPPORTED',
+            [],
+        ],
+        [
+            'a business elsewhere in the Union without a number',
+            VALID,
+            { ...IN_VIENNA, vatId: null },
+            422,
+            'TAX_TREATMENT_NOT_SUPPORTED',
+            [],
+        ],
+        [
+            'a number the service finds invalid',
+            INVALID,
+            IN_VIENNA,
+            422,
+            'TAX_TREATMENT_NOT_SUPPORTED',
+            ['ATU12345678'],
+        ],
+        [
+            'a number the service cannot check just now, to be tried again later',
+            UNREACHABLE,
+            IN_VIENNA,
+            503,
+            'TAX_VAT_ID_CHECK_NOT_COMPLETED',
+            ['ATU12345678'],
+        ],
+    ];
+    for (const [what, answer, billing, status, code, asked] of refusals) {
+        test(`${what} is refused, nothing is kept, and the form does not open`, async () => {
+            const { ctx, vies, pendingId } = await withAdapter(answer);
+
+            await assert.rejects(
+                startWith(ctx, pendingId, billing),
+                (error) => error.getStatus() === status && codeOf(error) === code,
+            );
+
+            assert.deepEqual(vies.asked, asked);
+            assert.deepEqual(ctx.gateway.setups, []);
+            const stored = await ctx.repo.findById(pendingId);
+            assert.deepEqual(
+                [stored.status, stored.country, stored.vatIdCheck],
+                ['PLAN_SELECTED', null, null],
+            );
+        });
+    }
+
+    test('a business outside the Union is not taxable as given: its number is not checked', async () => {
+        const { ctx, vies, pendingId } = await withAdapter(UNREACHABLE);
+
+        await startWith(ctx, pendingId, { ...IN_VIENNA, country: 'CH', vatId: 'CHE-123.456.789' });
+
+        assert.deepEqual(vies.asked, []);
+        assert.equal((await ctx.repo.findById(pendingId)).vatIdCheck, null);
+        assert.equal(ctx.gateway.setups.length, 1);
+    });
+
+    test('it is asked over the contract the sign-up will have: a year, where a yearly rhythm was chosen', async () => {
+        const { ctx, vies, pendingId } = await withAdapter(VALID);
+        await ctx.repo.update(pendingId, { billingCycle: 'YEARLY' });
+
+        await startWith(ctx, pendingId, IN_VIENNA);
+
+        const { from, until } = vies.periods.at(-1);
+        assert.equal(until.getUTCFullYear() - from.getUTCFullYear(), 1);
+        assert.equal(until.getUTCMonth(), from.getUTCMonth());
+    });
+
+    test('without an adapter the business status is kept, and nothing is checked', async () => {
+        const ctx = await signUpApp();
+        const pendingId = await atStepFour(ctx);
+
+        await startWith(ctx, pendingId, { ...BILLING, business: false });
+
+        const stored = await ctx.repo.findById(pendingId);
+        assert.deepEqual([stored.business, stored.vatIdCheck], [false, null]);
+    });
+
+    test('a business status that is not true or false is refused at the door', () => {
+        const dto = plainToInstance(StartRegistrationCheckoutDto, {
+            pendingRegistrationId: 'p-1',
+            billingDetails: { ...BILLING, business: 'yes' },
+            ...URLS,
+        });
+        const errors = validateSync(dto);
+        assert.ok(
+            JSON.stringify(errors).includes('business'),
+            'a "yes" that reads as truthy would treat a consumer as a business',
+        );
     });
 });
 

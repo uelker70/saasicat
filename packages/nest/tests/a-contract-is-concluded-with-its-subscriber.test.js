@@ -401,6 +401,15 @@ describe('a change that ends in a contract asks for the subscriber before it is 
 });
 
 describe('a completed sign-up names its subscriber from what it collected', () => {
+    /** The check of the VAT number step 4 made, which the subscriber takes over. */
+    const CHECK_OF_STEP_4 = {
+        vatId: 'DE123456789',
+        checkedAt: new Date('2026-10-05T08:00:00.000Z'),
+        valid: true,
+        service: 'VIES',
+        confirmation: { requestIdentifier: 'R-1' },
+    };
+
     // @requirement SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
     test('the registered name as the legal name, the verified address for invoices, and the billing details of step 4', () => {
         assert.deepEqual(
@@ -415,6 +424,8 @@ describe('a completed sign-up names its subscriber from what it collected', () =
                 country: 'DE',
                 vatId: 'DE123456789',
                 taxNumber: null,
+                business: true,
+                vatIdCheck: CHECK_OF_STEP_4,
             }),
             {
                 legalName: 'Meier Autohaus GmbH',
@@ -426,6 +437,8 @@ describe('a completed sign-up names its subscriber from what it collected', () =
                 country: 'DE',
                 vatId: 'DE123456789',
                 taxNumber: null,
+                business: true,
+                vatIdCheck: CHECK_OF_STEP_4,
             },
         );
     });

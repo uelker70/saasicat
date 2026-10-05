@@ -20,6 +20,7 @@ import {
     toSubscriberVatIdCheckRecord,
     toTaxOriginValues,
     toTaxTreatment,
+    vatIdCheckFromStore,
 } from '../dist/index.js';
 
 const CHECKED_AT = new Date('2026-10-01T08:30:00.000Z');
@@ -245,4 +246,34 @@ describe('a write to the tax origin', () => {
             },
         );
     });
+});
+
+// @requirement SC-REG-023 — Step 4 refuses before the payment form what no contract could follow
+describe('the check a sign-up kept, as its store gives it back', () => {
+    const CHECK = {
+        vatId: 'ATU12345678',
+        checkedAt: CHECKED_AT,
+        valid: true,
+        service: 'VIES',
+        confirmation: { requestIdentifier: 'R-1' },
+    };
+
+    test('kept as JSON, it comes back with its date as a date', () => {
+        const back = vatIdCheckFromStore(JSON.parse(JSON.stringify(CHECK)));
+        assert.ok(back.checkedAt instanceof Date);
+        assert.deepEqual(back, CHECK);
+    });
+
+    for (const [what, stored] of [
+        ['nothing', null],
+        ['a check without a date', { ...CHECK, checkedAt: undefined }],
+        ['a date that is not one', { ...CHECK, checkedAt: 'yesterday' }],
+        ['a validity that is not true or false', { ...CHECK, valid: 'yes' }],
+        ['no number', { ...CHECK, vatId: undefined }],
+        ['no service', { ...CHECK, service: 42 }],
+    ]) {
+        test(`${what} reads as no check: the number never counts as validated on it`, () => {
+            assert.equal(vatIdCheckFromStore(stored), null);
+        });
+    }
 });

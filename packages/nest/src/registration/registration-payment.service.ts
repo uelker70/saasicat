@@ -17,7 +17,11 @@ import type {
     RegistrationBillingDetails,
     SubscriberPaymentMethodRepository,
 } from '@saasicat/core';
-import { PAYMENT_ERROR_CODES, PENDING_CHECKOUT_TTL_DAYS } from '@saasicat/core';
+import {
+    PAYMENT_ERROR_CODES,
+    PENDING_CHECKOUT_TTL_DAYS,
+    subscriberFromRegistration,
+} from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
 import {
@@ -32,6 +36,9 @@ import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../payments/payments
 import { openGatewayForm } from '../payments/gateway-failure.js';
 import { refuseForeignReturnUrls } from '../payments/return-urls.js';
 import { settleBillingDetails } from './billing-details.js';
+import { assessNewSubscriber } from '../tax/assess-new-subscriber.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { contractTaxPeriod, type TaxTreatments } from '../tax/tax-treatments.js';
 import {
     ACTIVATION_ORCHESTRATOR_TOKEN,
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
@@ -104,6 +111,9 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         @Optional()
         @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
         private readonly methods: SubscriberPaymentMethodRepository | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {}
 
     onModuleInit(): void {
@@ -140,6 +150,18 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         const { registry } = this.payments();
         refuseForeignReturnUrls(urls, registry.returnUrlOrigins());
         const billing = settleBillingDetails(pending, billingDetails);
+        // Before the gateway's form opens, and outside any transaction: a
+        // sign-up the tax adapter cannot treat is refused while nothing is
+        // paid, and a VAT identification number its treatment depends on is
+        // checked here, kept, and taken over by the subscriber it becomes.
+        const { vatIdCheck } = await assessNewSubscriber(
+            this.taxes,
+            subscriberFromRegistration({ ...pending, ...billing, vatIdCheck: null }),
+            contractTaxPeriod({
+                effectiveFrom: startedAt,
+                billingCycle: pending.billingCycle ?? 'MONTHLY',
+            }),
+        );
         const account = registry.forNewPaymentMethods();
         if (!account) {
             throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
@@ -171,6 +193,7 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         );
         const updated = await this.repo.update(pending.id, {
             ...billing,
+            vatIdCheck: vatIdCheck ?? null,
             status: 'CHECKOUT_STARTED',
             currentStep: 4,
             checkoutSessionId: session.sessionRef,

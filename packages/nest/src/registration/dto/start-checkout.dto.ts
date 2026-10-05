@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+    IsBoolean,
     IsNotEmptyObject,
     IsOptional,
     IsString,
@@ -45,6 +46,11 @@ export class RegistrationBillingDetailsDto {
     @IsString()
     @MaxLength(30)
     taxNumber?: string | null;
+
+    /** Whether the sign-up is a business, which a tax adapter decides from. */
+    @IsOptional()
+    @IsBoolean()
+    business?: boolean | null;
 }
 
 /**

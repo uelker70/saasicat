@@ -730,6 +730,15 @@ export const TAX_ERROR_CODES = {
      * a guessed tax (`SC-PRIC-039`).
      */
     TAX_TREATMENT_NOT_SUPPORTED: 'TAX_TREATMENT_NOT_SUPPORTED',
+    /**
+     * The tax adapter needs the VAT identification number checked to treat the
+     * case, and the check did not complete — the service is unavailable, timed
+     * out, or answered in a way the adapter cannot read (`503`). Nothing is
+     * decided in the subscriber's favour on a number not checked
+     * (`SC-PRIC-040`): try again later. `adapter` names the adapter and
+     * `reason` says why.
+     */
+    TAX_VAT_ID_CHECK_NOT_COMPLETED: 'TAX_VAT_ID_CHECK_NOT_COMPLETED',
 } as const;
 export type TaxErrorCode = (typeof TAX_ERROR_CODES)[keyof typeof TAX_ERROR_CODES];
 

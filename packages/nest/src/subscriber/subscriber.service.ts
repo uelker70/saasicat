@@ -3,6 +3,7 @@ import {
     Inject,
     Injectable,
     NotFoundException,
+    Optional,
     UnprocessableEntityException,
 } from '@nestjs/common';
 import type {
@@ -23,6 +24,9 @@ import { SUBSCRIBER_ERROR_CODES, contractPartiesOf, taxOriginOf } from '@saasica
 
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { assessNewSubscriber } from '../tax/assess-new-subscriber.js';
+import type { TaxPeriod, TaxTreatments } from '../tax/tax-treatments.js';
 import {
     INVOICE_ADDRESS_FIELDS,
     settleBusinessStatus,
@@ -54,7 +58,23 @@ export class SubscriberService {
         private readonly repo: SubscriberRepository,
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: PlanCatalogSettings,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {}
+
+    /**
+     * Whether a subscriber of these details may be created, asked before the
+     * transaction that creates it: `assessNewSubscriber` from the tax module,
+     * for an application that creates subscribers itself. Answers the details
+     * with the check attached, which `createForTenant` records.
+     */
+    assessNewSubscriber(
+        details: NewSubscriberDetails,
+        period: TaxPeriod,
+    ): Promise<NewSubscriberDetails> {
+        return assessNewSubscriber(this.taxes, details, period);
+    }
 
     /**
      * Creates the tenant's subscriber and assigns its customer number, behind
@@ -70,6 +90,16 @@ export class SubscriberService {
         tx?: TransactionContext,
     ): Promise<SubscriberRecord> {
         const settled = settleNewSubscriberDetails(details);
+        const check = details.vatIdCheck ?? null;
+        // A check is evidence for the number it checked and for no other —
+        // refused before anything is written.
+        if (check && check.vatId !== settled.vatId) {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, {
+                    field: 'vatIdCheck',
+                }),
+            );
+        }
         const created = await this.repo.createForTenant(
             {
                 ...settled,
@@ -83,6 +113,7 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_ALREADY_EXISTS, { tenantId }),
             );
         }
+        if (check) await this.repo.recordVatIdCheck(created.id, check, tx);
         return created;
     }
 
@@ -130,10 +161,11 @@ export class SubscriberService {
 
     /**
      * The tax origin of a subscriber that is about to be created from these
-     * details: nothing of it has been checked yet, so no VAT id is validated.
+     * details: its VAT id validated only by the check attached to them, which
+     * `assessNewSubscriber` made.
      */
     taxOriginOfNew(details: NewSubscriberDetails): SubscriberTaxOrigin {
-        return taxOriginOf(settleNewSubscriberDetails(details), null);
+        return taxOriginOf(settleNewSubscriberDetails(details), details.vatIdCheck ?? null);
     }
 
     private async requireById(

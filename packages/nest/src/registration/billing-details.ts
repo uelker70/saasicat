@@ -19,7 +19,14 @@ import {
 /** What the pending record keeps of step 4, every value settled. */
 export type SettledBillingDetails = Pick<
     SubscriberDetails,
-    'addressLine1' | 'addressLine2' | 'postalCode' | 'city' | 'country' | 'vatId' | 'taxNumber'
+    | 'addressLine1'
+    | 'addressLine2'
+    | 'postalCode'
+    | 'city'
+    | 'country'
+    | 'vatId'
+    | 'taxNumber'
+    | 'business'
 >;
 
 /** An invoice needs an address to be sent to; the tax identifiers wait for the tax adapter. */
@@ -39,6 +46,7 @@ export function settleBillingDetails(
         country: details.country,
         vatId: details.vatId,
         taxNumber: details.taxNumber,
+        business: details.business,
     });
     const missing = REQUIRED.find((field) => settled[field] === null);
     if (missing) {
@@ -54,5 +62,6 @@ export function settleBillingDetails(
         country: settled.country,
         vatId: settled.vatId,
         taxNumber: settled.taxNumber,
+        business: settled.business,
     };
 }

@@ -9,6 +9,7 @@ import {
     type TaxDecisionRequest,
     type TaxIssuer,
     type TaxTreatment,
+    type VatIdCheckOutcome,
 } from '@saasicat/core';
 
 import { initialPeriodWindow } from '../billing/billing-period.js';
@@ -137,6 +138,18 @@ export class TaxTreatments {
             );
         }
         return { rate: decision.treatment.rate, treatment: decision.treatment };
+    }
+
+    /**
+     * Checks a VAT identification number with the service the adapter names,
+     * the issuer's own number as the requester. An outcome whatever the service
+     * does; only where an adapter decides.
+     */
+    checkVatId(vatId: string): Promise<VatIdCheckOutcome> {
+        if (!this.bound) {
+            throw new Error('No tax adapter is bound, so no VAT identification number is checked.');
+        }
+        return this.bound.checkVatId(vatId, taxIssuerOf(this.settings));
     }
 }
 

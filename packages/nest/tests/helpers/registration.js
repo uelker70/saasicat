@@ -81,6 +81,8 @@ export class FakeRepository {
             country: null,
             vatId: null,
             taxNumber: null,
+            business: null,
+            vatIdCheck: null,
             checkoutSessionId: null,
             checkoutGatewayAccount: null,
             gatewayCustomerRef: null,
