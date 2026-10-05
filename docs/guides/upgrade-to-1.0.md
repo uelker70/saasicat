@@ -1681,12 +1681,17 @@ What changes with an adapter:
   names `lowestApplicablePlanNet` instead of `lowestApplicablePlanGross`. The same bar holds where a
   code is previewed and redeemed, so a code stored before, or a plan made cheaper since, is refused
   there with `WOULD_PRODUCE_ZERO_INVOICE`.
+- **A code and a promotion on the plan** — with an adapter or without — are measured together: an
+  offer whose code would take all that the promotion leaves is refused with
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED` (`reason: 'WOULD_PRODUCE_ZERO_INVOICE'`), unless the
+  code allows an invoice of zero (`SC-PROMO-030`). The promo preview's `discount` carries
+  `allowZeroInvoice` for this.
 - **Before a change writes anything** it is asked about the contract it ends in, since an adapter
   may treat a yearly period, or one that starts later, otherwise than a month from today. Code that
   calls `ContractFreezePort.assertPartyFor` or `SubscriptionContractService.assertPartyFor` passes
   that contract as `intended` (`IntendedContract` from `@saasicat/nest/subscription-contract`:
   `effectiveFrom`, `cycle`, `endsAt`), or `null` where the change ends in no contract now — a plan
-  change in a trial — and only the party is asked.
+  change, a version switch or a retirement's move in a trial — and only the party is asked.
 - **An application that words refusals itself** adds `TAX_TREATMENT_NOT_SUPPORTED` and
   `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`.
 

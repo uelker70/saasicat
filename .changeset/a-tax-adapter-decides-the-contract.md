@@ -44,10 +44,10 @@ at the rate it decides for its subscriber (`SC-PRIC-065` supersedes
   and, with an adapter, decide over its first period: a plan change from today
   or from the date it is scheduled for, in the rhythm asked for; a booking, a
   version switch, a retirement's move or switch from when it freezes; `null`
-  where the change ends in no contract now — a plan change in a trial — asks
-  for the party alone. A port of your own takes the second argument, and code
-  that calls it passes it. An activation through onboarding outside a trial
-  asks too, before it writes.
+  where the change ends in no contract now — a plan change, a version switch or
+  a retirement's move in a trial — asks for the party alone. A port of your own
+  takes the second argument, and code that calls it passes it. An activation
+  through onboarding outside a trial asks too, before it writes.
 - **A promo code with a fixed amount** comes off what the subscriber pays: at
   19 % its net share, at 0 % the whole amount. Every net price and promotion
   stays as offered (`SC-MKT-027` supersedes `SC-MKT-023`). With an adapter, the
@@ -57,6 +57,12 @@ at the rate it decides for its subscriber (`SC-PRIC-065` supersedes
   preview and the redemption measure against the net too, so a code stored at
   or above a plan's net price is refused there with
   `WOULD_PRODUCE_ZERO_INVOICE`: review the codes before naming the adapter.
+- **A code and a promotion together leave something to pay** (`SC-PROMO-030`),
+  with an adapter or without: an offer whose code takes all that the plan's
+  promotion leaves is refused when it is priced and when it is concluded, with
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED` and the reason
+  `WOULD_PRODUCE_ZERO_INVOICE`, unless the code allows an invoice of zero. The
+  promo preview's `discount` carries `allowZeroInvoice`.
 - **What is shown.** The pricing page, the configurator, the admin manifest
   and the offer show the adapter's rate for a subscriber in the issuer's
   country. `PublicMarketingCatalogResponse` carries `vatRateShownFor`: that
