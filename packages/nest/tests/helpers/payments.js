@@ -14,7 +14,7 @@ import {
     subscriberPaymentMethodColumns,
 } from '@saasicat/core';
 
-import { PlanCatalogModule } from '../../dist/billing/index.js';
+import { PlanCatalogModule, TAX_TREATMENTS_TOKEN } from '../../dist/billing/index.js';
 import {
     PaymentCallbackService,
     PaymentWebhookController,
@@ -312,12 +312,15 @@ export async function paymentsApp({
     methods = new MemoryPaymentMethods(),
     subscribers = new FakeSubscriberRepository(),
     extraProviders,
+    taxAdapter,
 } = {}) {
     const gateway = new ScriptedGateway();
     const log = new MemoryPaymentEventLog();
     const app = await Test.createTestingModule({
         imports: [
-            PlanCatalogModule.forRootWithCatalog(catalog),
+            // Global, as the platform composes it: the subscribers ask it for the
+            // tax adapter from inside the payments module.
+            PlanCatalogModule.forRootWithCatalog(catalog, { global: true, taxAdapter }),
             PaymentsModule.forRoot({
                 gateways:
                     gateways ??
@@ -347,6 +350,6 @@ export async function paymentsApp({
         routes: app.get(TenantPaymentMethodController),
         details: app.get(TenantBillingDetailsController),
         webhook: app.get(PaymentWebhookController),
-        subscribers: new SubscriberService(subscribers, catalog),
+        subscribers: new SubscriberService(subscribers, catalog, app.get(TAX_TREATMENTS_TOKEN)),
     };
 }

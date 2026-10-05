@@ -26,6 +26,7 @@ import type {
     SubscriberRecord,
     SubscriberTaxOriginChangeRecord,
     SubscriberVatIdCheckRecord,
+    SubscriberWithCurrentCheck,
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
@@ -430,6 +431,15 @@ export interface SubscriberRepository {
     ): Promise<SubscriberVatIdCheckRecord | null>;
     /** Every check recorded for this subscriber, counting or not, the latest checked first. */
     listVatIdChecks(subscriberId: string): Promise<SubscriberVatIdCheckRecord[]>;
+    /**
+     * The live subscribers of these tenants, each with the check of its VAT id
+     * that counts now, in at most a few reads — what the operator's lists mark
+     * a subscriber from. A tenant without a live subscriber is left out.
+     */
+    listForTenants(
+        tenantIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<SubscriberWithCurrentCheck[]>;
     /** Every recorded change of this subscriber's tax origin, the latest written first. */
     listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]>;
 }

@@ -73,6 +73,7 @@ test('PrismaAdminResourcesAdapter serves every standard Admin resource', async (
                 return [
                     {
                         id: 'subscription-1',
+                        tenantId: 'tenant-1',
                         tenant: { slug: 'acme', name: 'Acme' },
                         plan: 'PRO',
                         status: 'ACTIVE',
@@ -157,6 +158,7 @@ test('PrismaAdminResourcesAdapter serves every standard Admin resource', async (
     assert.equal(calls.users[0].where.tenant.slug, 'acme');
 
     const subscriptions = await adapter.listSubscriptions();
+    assert.deepEqual(subscriptions[0].tenant, { id: 'tenant-1', slug: 'acme', name: 'Acme' });
     assert.equal(subscriptions[0].monthlyNet, '29.00');
     assert.equal(subscriptions[0].periodEndsAt, '2026-02-01T00:00:00.000Z');
 

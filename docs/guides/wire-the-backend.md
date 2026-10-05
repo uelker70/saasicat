@@ -778,8 +778,10 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   (`SUBSCRIBER_DETAIL_INVALID` names the field), and a legal name or tax identifier in the body is
   refused with `SUBSCRIBER_IDENTITY_NOT_A_CONTACT` — the operator corrects those. The request DTO
   declares those three fields so that a `ValidationPipe` with `whitelist` passes them through to the
-  refusal instead of stripping them into a silent success. `TenantBillingSection` in
-  `@saasicat/ui-vue-tenant` is the page for both routes and the payment method.
+  refusal instead of stripping them into a silent success. Both answer `business` as the operator
+  keeps it and, where a tax adapter decides, `readiness`: what holds the next contract back
+  ([the tax adapter](#the-tax-adapter)). `TenantBillingSection` in `@saasicat/ui-vue-tenant` is the
+  page for both routes and the payment method.
 - **Row-level security and the callback.** A callback arrives with no session and no tenant. If your
   `subscriber_payment_methods` and `subscriber_payment_method_setups` carry a policy, the callback
   sees no row, `completeSetup` matches nothing, and the gateway is answered with an error for a
@@ -846,6 +848,25 @@ details are refused without one, whether or not a check was needed. It refuses a
 cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and a number it could not check just now with
 `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an outside service, so never call it inside a
 transaction.
+
+With an adapter, a contract names its subscriber only with the whole address an invoice names —
+street and number, postal code, city and country. Every way a contract comes about refuses a
+subscriber without it, naming the empty fields: `422 SUBSCRIBER_IDENTITY_INCOMPLETE`, `params.missing`.
+A sign-up always has it; a subscriber your application created another way — a backfill, a migration
+of existing tenants — gets it through `SubscriberService.changeContactOfTenant`.
+`SubscriberService.readinessFor({ tenantId })` answers what holds a subscriber's next contract back,
+computed from the record and the adapter as they are then — the empty fields, and the adapter's
+sentence where it supports no treatment — and `null` without an adapter.
+
+With `adminResources` on and a subscriber repository composed, the operator sees the same beside the
+tenant: `GET admin/tenants/:slug/subscriber` answers the subscriber's address and tax details with
+its standing, and `GET admin/subscribers/attention?tenantId=…` — up to 200 tenants, the parameter
+repeated — which of them are held back and why. Both run behind the guards of the other tenant
+routes of the administration and inside `RlsBypassPort`, and the manifest announces them as
+`subscribers.read`; it adds `subscribers.attention` only where an adapter decides, and the tenant
+list and the subscription list of `@saasicat/ui-vue` ask only then. Your own `SubscriberRepository`
+implements `listForTenants`, which reads them in one go, and your own `AdminResourcesPort` gives each
+row of `listSubscriptions` its `tenant.id`.
 
 ## The Subscriber's Account
 

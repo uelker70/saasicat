@@ -159,3 +159,25 @@ export function isTaxNotSupported(error: unknown): boolean {
         error instanceof HttpException ? (error.getResponse() as { code?: unknown }) : null;
     return response?.code === TAX_ERROR_CODES.TAX_TREATMENT_NOT_SUPPORTED;
 }
+
+/**
+ * The adapter's sentence where it supports no treatment for `origin` over
+ * `period`, or `null` where it supports one. An error that is not such a
+ * refusal comes through: a failing adapter is not an answer.
+ */
+export function taxRefusalOf(
+    taxes: TaxTreatments,
+    origin: SubscriberTaxOrigin,
+    period: TaxPeriod,
+): string | null {
+    try {
+        taxes.decide(origin, period);
+        return null;
+    } catch (error) {
+        if (!isTaxNotSupported(error)) throw error;
+        const response = (error as HttpException).getResponse() as {
+            params?: { reason?: unknown };
+        };
+        return String(response.params?.reason ?? '');
+    }
+}

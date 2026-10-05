@@ -9,7 +9,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import type { SubscriberRecord } from '@saasicat/core';
+import type { SubscriberReadiness, SubscriberRecord } from '@saasicat/core';
 import { AUTH_ERROR_CODES } from '@saasicat/core';
 
 import { BillingPermissionGuard } from '../billing/billing-permission.guard.js';
@@ -42,6 +42,13 @@ export interface TenantBillingDetailsView {
     city: string | null;
     country: string | null;
     invoiceEmail: string | null;
+    /** Whether it acts as a business; set at sign-up and corrected by the operator. */
+    business: boolean | null;
+    /**
+     * Where a tax adapter decides, what holds its next contract back
+     * (`SC-PRIC-070`); `null` where none decides.
+     */
+    readiness: SubscriberReadiness | null;
 }
 
 /**
@@ -73,7 +80,7 @@ export class TenantBillingDetailsController {
     @Get()
     async current(@Req() request: unknown): Promise<{ details: TenantBillingDetailsView }> {
         const subscriber = await this.subscribers.requireForTenant(this.tenantOf(request));
-        return { details: viewOf(subscriber) };
+        return { details: await this.viewOf(subscriber) };
     }
 
     @Patch()
@@ -86,7 +93,25 @@ export class TenantBillingDetailsController {
             body,
             this.actorOf(request),
         );
-        return { details: viewOf(subscriber) };
+        return { details: await this.viewOf(subscriber) };
+    }
+
+    /** The subscriber as the tenant is shown it, its standing computed as it now stands. */
+    private async viewOf(subscriber: SubscriberRecord): Promise<TenantBillingDetailsView> {
+        return {
+            customerNumber: subscriber.customerNumber,
+            legalName: subscriber.legalName,
+            vatId: subscriber.vatId,
+            taxNumber: subscriber.taxNumber,
+            addressLine1: subscriber.addressLine1,
+            addressLine2: subscriber.addressLine2,
+            postalCode: subscriber.postalCode,
+            city: subscriber.city,
+            country: subscriber.country,
+            invoiceEmail: subscriber.invoiceEmail,
+            business: subscriber.business,
+            readiness: await this.subscribers.readinessFor({ subscriberId: subscriber.id }),
+        };
     }
 
     /** The tenant's user behind a request, as the audit log tags them. */
@@ -110,19 +135,4 @@ export class TenantBillingDetailsController {
             throw new NotFoundException(codedError(AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING));
         return tenantId;
     }
-}
-
-function viewOf(subscriber: SubscriberRecord): TenantBillingDetailsView {
-    return {
-        customerNumber: subscriber.customerNumber,
-        legalName: subscriber.legalName,
-        vatId: subscriber.vatId,
-        taxNumber: subscriber.taxNumber,
-        addressLine1: subscriber.addressLine1,
-        addressLine2: subscriber.addressLine2,
-        postalCode: subscriber.postalCode,
-        city: subscriber.city,
-        country: subscriber.country,
-        invoiceEmail: subscriber.invoiceEmail,
-    };
 }

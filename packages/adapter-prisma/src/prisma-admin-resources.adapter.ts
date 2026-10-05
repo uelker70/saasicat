@@ -84,6 +84,7 @@ interface AdminUserRow {
 
 interface AdminSubscriptionRow {
     id: string;
+    tenantId: string;
     plan: string;
     status: string;
     billingCycle: string;
@@ -277,6 +278,7 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
         return rows.map((row) => ({
             id: row.id,
             tenant: {
+                id: row.tenantId,
                 slug: this.read<string>(row.tenant, t.slug) ?? '',
                 name: this.read<string>(row.tenant, t.name) ?? '',
             },

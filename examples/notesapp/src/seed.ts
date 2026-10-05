@@ -1,6 +1,11 @@
 import { randomBytes, scryptSync } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaSubscriberRepository } from '@saasicat/adapter-prisma';
+import {
+    SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    type SubscriberInvoiceAddressField,
+    type SubscriberRecord,
+} from '@saasicat/core';
 import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { SubscriberService } from '@saasicat/nest/subscriber';
 
@@ -15,6 +20,9 @@ import { SubscriberService } from '@saasicat/nest/subscriber';
  * Tenant ids equal the `x-demo-tenant` header values on purpose — the
  * DemoAuthGuard maps the header straight to the tenant id.
  */
+
+/** The address an invoice names, every field given. */
+type SubscriberInvoiceAddress = Record<SubscriberInvoiceAddressField, string>;
 
 interface DemoTenant {
     id: string;
@@ -34,16 +42,37 @@ const DEMO_TENANTS: DemoTenant[] = [
 ];
 
 /**
- * Where each demo tenant's subscriber is, for the tax adapter to decide from.
- * Every one is a business; Globex, outside the European Union, is not taxable
- * in Germany and so shows a contract at 0 %.
+ * The address an invoice names for each demo tenant's subscriber; the country
+ * is what the tax adapter decides from, and without the whole address no
+ * contract can name the subscriber. Every one is a business; Globex, outside
+ * the European Union, is not taxable in Germany and so shows a contract at 0 %.
  */
-const SUBSCRIBER_COUNTRIES: Record<string, string> = {
-    'tenant-a': 'DE',
-    'tenant-b': 'DE',
-    acme: 'DE',
-    globex: 'GB',
-    initech: 'DE',
+const SUBSCRIBER_ADDRESSES: Record<string, SubscriberInvoiceAddress> = {
+    'tenant-a': {
+        addressLine1: 'Hauptstraße 1',
+        postalCode: '10115',
+        city: 'Berlin',
+        country: 'DE',
+    },
+    'tenant-b': {
+        addressLine1: 'Marktplatz 2',
+        postalCode: '80331',
+        city: 'München',
+        country: 'DE',
+    },
+    acme: {
+        addressLine1: 'Industriestraße 24',
+        postalCode: '20457',
+        city: 'Hamburg',
+        country: 'DE',
+    },
+    globex: {
+        addressLine1: '12 King Street',
+        postalCode: 'EC2V 8EA',
+        city: 'London',
+        country: 'GB',
+    },
+    initech: { addressLine1: 'Am Hafen 7', postalCode: '50667', city: 'Köln', country: 'DE' },
 };
 
 /** Who the seed's changes of a subscriber's details are recorded as made by. */
@@ -337,20 +366,18 @@ async function seedSubscribers(prisma: PrismaClient): Promise<void> {
             await subscribers.createForTenant(tenant.id, {
                 legalName: tenant.name,
                 invoiceEmail: `billing@${tenant.slug}.example`,
-                country: SUBSCRIBER_COUNTRIES[tenant.id],
+                ...SUBSCRIBER_ADDRESSES[tenant.id],
                 business: true,
             });
             continue;
         }
-        // A subscriber seeded without a country or a business status: the tax
-        // adapter decides from both, so they are filled in where they are
-        // missing, and nothing else is touched.
-        if (existing.country === null) {
-            await subscribers.changeContactOfTenant(
-                tenant.id,
-                { country: SUBSCRIBER_COUNTRIES[tenant.id] },
-                SEEDED_BY,
-            );
+        // A subscriber seeded without its address or a business status: the
+        // tax adapter decides from the country and the business status, and a
+        // contract names the whole address, so what is missing is filled in
+        // and nothing else is touched.
+        const missing = addressGapsOf(existing, SUBSCRIBER_ADDRESSES[tenant.id]);
+        if (Object.keys(missing).length > 0) {
+            await subscribers.changeContactOfTenant(tenant.id, missing, SEEDED_BY);
         }
         if (existing.business === null) {
             await subscribers.changeBusinessStatus(existing.id, {
@@ -359,6 +386,18 @@ async function seedSubscribers(prisma: PrismaClient): Promise<void> {
             });
         }
     }
+}
+
+/** The fields of `address` the subscriber has none of yet. */
+function addressGapsOf(
+    subscriber: SubscriberRecord,
+    address: SubscriberInvoiceAddress,
+): Partial<SubscriberInvoiceAddress> {
+    return Object.fromEntries(
+        SUBSCRIBER_INVOICE_ADDRESS_FIELDS.filter((field) => subscriber[field] === null).map(
+            (field) => [field, address[field]],
+        ),
+    );
 }
 
 async function seedSuperAdmin(prisma: PrismaClient): Promise<void> {

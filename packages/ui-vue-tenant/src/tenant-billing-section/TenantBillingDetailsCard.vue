@@ -12,6 +12,14 @@
                 {{ i18n.billingDetailsLoadFailed }}
             </p>
             <template v-else-if="current">
+                <div v-if="heldBack.length > 0" class="sp-billing-details__held-back" role="status">
+                    <p class="sp-billing-details__held-back-title">
+                        {{ i18n.billingDetailsHeldBack }}
+                    </p>
+                    <ul>
+                        <li v-for="reason in heldBack" :key="reason">{{ reason }}</li>
+                    </ul>
+                </div>
                 <dl class="sp-billing-details__identity">
                     <div v-for="row in identity" :key="row.label" class="sp-billing-details__row">
                         <dt>{{ row.label }}</dt>
@@ -142,7 +150,41 @@ const identity = computed(() => [
     { label: i18n.value.billingDetailsLegalName, value: current.value?.legalName },
     { label: i18n.value.billingDetailsVatId, value: current.value?.vatId },
     { label: i18n.value.billingDetailsTaxNumber, value: current.value?.taxNumber },
+    { label: i18n.value.billingDetailsBusiness, value: businessOf(current.value?.business) },
 ]);
+
+function businessOf(business: boolean | null | undefined): string | null {
+    if (business === null || business === undefined) return null;
+    return business
+        ? i18n.value.billingDetailsBusinessTrue
+        : i18n.value.billingDetailsBusinessFalse;
+}
+
+/** What holds the next contract back, one sentence each: what the tenant can add first. */
+const heldBack = computed<string[]>(() => {
+    const readiness = current.value?.readiness;
+    if (!readiness) return [];
+    const reasons: string[] = [];
+    if (readiness.missing.length > 0) {
+        reasons.push(
+            sentence(i18n.value.billingDetailsMissing, {
+                fields: readiness.missing.map((field) => labelOf(field)).join(', '),
+            }),
+        );
+    }
+    if (readiness.taxRefusal !== null) {
+        reasons.push(
+            sentence(i18n.value.billingDetailsTaxRefusal, { reason: readiness.taxRefusal }),
+        );
+    }
+    return reasons;
+});
+
+function sentence(template: string, params: Record<string, string>): string {
+    return messageParts(template, params)
+        .map((part) => part.text)
+        .join('');
+}
 
 const change = computed<TenantBillingContactChange>(() => {
     const loaded = draftOf(current.value);
@@ -202,9 +244,7 @@ function failureOf(error: unknown): string {
     const field = refusedFieldOf(error);
     if (!field) return i18n.value.billingDetailsSaveFailed;
     refusedField.value = field;
-    return messageParts(i18n.value.billingDetailsFieldInvalid, { field: labelOf(field) })
-        .map((part) => part.text)
-        .join('');
+    return sentence(i18n.value.billingDetailsFieldInvalid, { field: labelOf(field) });
 }
 
 function emptyDraft(): Record<TenantBillingContactField, string> {
@@ -295,5 +335,21 @@ function draftOf(
 }
 .sp-billing-details__actions {
     margin-top: var(--sa-space-4);
+}
+.sp-billing-details__held-back {
+    margin: 0 0 var(--sa-space-4);
+    padding: var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    font-size: var(--sa-text-sm);
+}
+.sp-billing-details__held-back-title {
+    margin: 0;
+    font-weight: 600;
+}
+.sp-billing-details__held-back ul {
+    margin: var(--sa-space-2) 0 0;
+    padding-left: var(--sa-space-4);
 }
 </style>

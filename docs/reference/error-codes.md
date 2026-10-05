@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 233 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 234 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -256,6 +256,7 @@ The party a contract is concluded with.
 | `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`    | The correction changes nothing: every value it names is already recorded.                                                          |
 | `SUBSCRIBER_CORRECTION_REASON_REQUIRED`    | A correction of the legal identity needs a reason.                                                                                 |
 | `SUBSCRIBER_DETAIL_INVALID`                | The subscriber's {field} is not valid.                                                                                             |
+| `SUBSCRIBER_IDENTITY_INCOMPLETE`           | The subscriber's billing address is not complete yet ({missing}); a contract can name it once it is.                               |
 | `SUBSCRIBER_IDENTITY_NOT_A_CONTACT`        | {field} is part of the subscriber's legal identity and changes only as a correction, with a reason.                                |
 | `SUBSCRIBER_LEGAL_NAME_REQUIRED`           | A subscriber needs its legal name.                                                                                                 |
 | `SUBSCRIBER_NOT_FOUND`                     | Subscriber '{subscriberId}' not found                                                                                              |

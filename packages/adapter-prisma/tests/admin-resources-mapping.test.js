@@ -307,6 +307,7 @@ describe('the mapping reaches the two places it used to stop short of', () => {
             subscription: [
                 {
                     id: 's1',
+                    tenantId: 't1',
                     plan: 'PRO',
                     status: 'active',
                     billingCycle: 'MONTHLY',
@@ -318,7 +319,7 @@ describe('the mapping reaches the two places it used to stop short of', () => {
         const rows = await adapter.listSubscriptions();
 
         assert.deepEqual(calls[0].args.include.tenant.select, { handle: true, title: true });
-        assert.deepEqual(rows[0].tenant, { slug: 'acme', name: 'Acme' });
+        assert.deepEqual(rows[0].tenant, { id: 't1', slug: 'acme', name: 'Acme' });
     });
 
     test('and an unmapped app still selects slug and name', async () => {

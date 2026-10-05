@@ -1784,6 +1784,11 @@ _Tested by:_
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - what holds the next contract back
+        - the customer type is shown with the identity, as the operator keeps it
+        - the empty address fields by their labels, then the adapter sentence
+        - once the tenant fills the address in and nothing holds it back, the notice goes
+        - where ${label}, there is no notice
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere
@@ -1824,6 +1829,11 @@ _Tested by:_
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - what holds the next contract back
+        - the customer type is shown with the identity, as the operator keeps it
+        - the empty address fields by their labels, then the adapter sentence
+        - once the tenant fills the address in and nothing holds it back, the notice goes
+        - where ${label}, there is no notice
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere

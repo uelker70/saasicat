@@ -52,6 +52,15 @@
                     </slot>
                 </AdminSection>
 
+                <!-- Whom the tenant's contracts are concluded with, where the platform keeps subscribers -->
+                <TenantSubscriber
+                    v-if="subscriber.available.value"
+                    :standing="subscriber.data.value"
+                    :pending="subscriber.pending.value"
+                    :error="subscriber.error.value"
+                    :retry="subscriber.reload"
+                />
+
                 <!-- Usage -->
                 <AdminSection
                     v-if="(options?.usageFields?.length ?? 0) > 0"
@@ -124,6 +133,7 @@ import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
+import TenantSubscriber from '../internal/tenant-detail/TenantSubscriber.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
 import TenantUsers from '../internal/tenant-detail/TenantUsers.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
@@ -131,6 +141,7 @@ import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDia
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantAccount } from '../vue/use-tenant-account.js';
+import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
 export type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
@@ -240,14 +251,13 @@ watch(tenantSlug, () => {
 
 defineExpose({ reload: load });
 
-// Whether the charges are served is the manifest's to say. The shell holds it;
-// `options.manifest` wins where an app passes one, as it does for the actions.
+// Whether the charges and the subscriber are served is the manifest's to say.
+// The shell holds it; `options.manifest` wins where an app passes one, as it
+// does for the actions.
 const shellManifest = useSuperAdminManifest();
-const account = useTenantAccount(
-    tenantSlug,
-    computed(() => props.options?.manifest ?? shellManifest),
-    tenants,
-);
+const servedBy = computed(() => props.options?.manifest ?? shellManifest);
+const account = useTenantAccount(tenantSlug, servedBy, tenants);
+const subscriber = useTenantSubscriber(tenantSlug, servedBy, tenants);
 
 function defaultFormatDate(value: string | null | undefined): string {
     if (!value) return '—';

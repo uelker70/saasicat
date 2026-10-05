@@ -33,6 +33,9 @@ const FILE_SETTINGS = { ...SETTINGS, tax: undefined, timeZone: undefined, vatRat
 
 const EFFECTIVE_FROM = new Date('2026-06-01T00:00:00.000Z');
 
+/** A complete invoice address; the country is each case's own. */
+const AN_ADDRESS = { addressLine1: 'Main Street 1', postalCode: '10115', city: 'Berlin' };
+
 /** A month's contract from the first of June, as a change ending in it names it. */
 const A_MONTH_FROM_JUNE = { effectiveFrom: EFFECTIVE_FROM, cycle: 'MONTHLY', endsAt: null };
 
@@ -101,6 +104,7 @@ async function serviceWith(
     const subscribers = new SubscriberService(subscriberRepo, settings);
     const subscriber = await subscribers.createForTenant('tenant-1', {
         legalName: 'Customer GmbH',
+        ...AN_ADDRESS,
         ...details,
     });
     if (validated) {
@@ -287,7 +291,74 @@ describe('a contract takes the rate the tax adapter decides for its subscriber',
     });
 });
 
+// @requirement SC-PRIC-069 — With a tax adapter, a contract names its subscriber only with a complete address
+describe('where a tax adapter decides, a contract copies a complete invoice address', () => {
+    const incomplete = (code, missing) => (error) =>
+        refusedWith(code)(error) &&
+        JSON.stringify(error.getResponse().params.missing) === JSON.stringify(missing);
+
+    test('a subscriber without part of its address gets no contract, the empty fields named', async () => {
+        const { service, repo } = await serviceWith({
+            country: 'DE',
+            business: false,
+            addressLine1: null,
+            city: '   ',
+        });
+        await assert.rejects(
+            () => conclude(service),
+            incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['addressLine1', 'city']),
+        );
+        assert.deepEqual(await repo.list({ tenantId: 'tenant-1' }), []);
+    });
+
+    test('and is refused before a change moves anything, but not for a change in a trial', async () => {
+        const { service } = await serviceWith({ country: 'DE', business: false, postalCode: null });
+        await assert.rejects(
+            () => service.assertPartyFor('tenant-1', A_MONTH_FROM_JUNE),
+            incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['postalCode']),
+        );
+        await service.assertPartyFor('tenant-1', null);
+    });
+
+    test('a sign-up whose details lack the address is refused before any transaction', async () => {
+        const { service, offer, transactions } = await signingUp();
+        await assert.rejects(
+            service.conclude(
+                offer.id,
+                signingUpAs({ country: 'DE', business: false, addressLine1: null }),
+            ),
+            incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['addressLine1']),
+        );
+        assert.equal(transactions.opened, 0);
+    });
+
+    test('an empty country is a gap in the address, named before the adapter is asked', async () => {
+        const { service } = await serviceWith({ country: null, business: true });
+        await assert.rejects(
+            () => conclude(service),
+            incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['country']),
+        );
+    });
+
+    test('the address is asked before the tax: an incomplete one in France names the address', async () => {
+        const { service } = await serviceWith({ country: 'FR', business: false, city: null });
+        await assert.rejects(
+            () => conclude(service),
+            incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['city']),
+        );
+    });
+});
+
 describe('without a tax adapter', () => {
+    test('a subscriber without an address is concluded with, as before', async () => {
+        const { service } = await serviceWith(
+            { country: null, addressLine1: null, postalCode: null, city: null },
+            { settings: FILE_SETTINGS },
+        );
+        const contract = await conclude(service);
+        assert.equal(contract.subscriber.addressLine1, null);
+    });
+
     test('the offer rate stands and no treatment is recorded', async () => {
         const { service } = await serviceWith(
             { country: 'FR', business: false },
@@ -308,7 +379,7 @@ describe('without a tax adapter', () => {
 const SIGN_UP = { tenantId: 'tenant-meier', effectiveFrom: EFFECTIVE_FROM };
 const signingUpAs = (details) => ({
     ...SIGN_UP,
-    subscriber: { legalName: 'Meier GmbH', ...details },
+    subscriber: { legalName: 'Meier GmbH', ...AN_ADDRESS, ...details },
 });
 
 /**
@@ -326,7 +397,7 @@ async function signingUp({ subscribed = null } = {}) {
         },
         findCurrentVatIdCheck: async (subscriberId) => checks.get(subscriberId) ?? null,
     };
-    if (subscribed) Object.assign(subscriberRepo.rows[0], subscribed);
+    if (subscribed) Object.assign(subscriberRepo.rows[0], AN_ADDRESS, subscribed);
     const subscribers = new SubscriberService(subscriberRepo, SETTINGS);
     const contractRepo = fakeContractRepo();
     const transactions = {

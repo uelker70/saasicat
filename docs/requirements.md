@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 68      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 70      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 30      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 596 entries: 🟢 513 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 598 entries: 🟢 515 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 16 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -221,7 +221,7 @@ Of 596 entries: 🟢 513 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 596 requirements. Do not edit by hand:
+Generated from `requirements/` — 598 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -8946,6 +8946,9 @@ _Tested by:_
         - a subscriber the adapter now decides another rate for is refused in the preview and in the
           run
         - a subscriber the adapter supports no treatment for is refused with its sentence
+        - a features refresh keeps the agreed parties, so an address emptied since does not hold it
+          back
+        - a full re-freeze copies the parties anew, and an incomplete address refuses it
         - re-freezing in full at a newly decided rate is a change of money, refused
 - `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
     - a plan change asks the party about the contract it ends in
@@ -9007,6 +9010,124 @@ _Tested by:_
           chosen
         - without an adapter the business status is kept, and nothing is checked
         - a business status that is not true or false is refused at the door
+
+<!-- END proof -->
+
+### SC-PRIC-069 — With a tax adapter, a contract names its subscriber only with a complete address
+
+🟢 💰 Every contract names its subscriber with the address an invoice names: street and number,
+postal code, city and country (`SC-PRIC-032`). Where `config/saas.yaml` names a tax adapter, a
+contract is concluded only for a subscriber that has all four, whichever way it comes about — a
+sign-up, an offer, a plan change, an add-on, a full re-freeze. The refusal names the empty fields,
+before the adapter is asked. A refresh that keeps the parties a running contract already names is
+not refused, and without an adapter nothing changes. This is the part of `SC-PRIC-032` a contract
+holds; the invoice's part comes with the invoices.
+
+_Source:_ #331 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - where a tax adapter decides, a contract copies a complete invoice address
+        - a subscriber without part of its address gets no contract, the empty fields named
+        - and is refused before a change moves anything, but not for a change in a trial
+        - a sign-up whose details lack the address is refused before any transaction
+        - an empty country is a gap in the address, named before the adapter is asked
+        - the address is asked before the tax: an incomplete one in France names the address
+
+<!-- END proof -->
+
+### SC-PRIC-070 — The operator and the tenant see what holds a subscriber's next contract back
+
+🟢 💰 Where a tax adapter decides, a subscriber's standing is computed when it is read, from the
+record and the adapter as they are then: the empty fields of its address, and the adapter's sentence
+where it supports no treatment for the subscriber as it stands. The operator sees it beside the
+tenant, with the subscriber's address, whether it acts as a business, its VAT identification number
+and whether the check that counts found it valid; the lists of tenants and of subscriptions mark each
+tenant held back, and ask only where an adapter decides. The tenant sees it with its billing details,
+beside whether it acts as a business. An adapter that fails is not read as a refusal: its error comes
+through. This is the part of `SC-PRIC-032` and `SC-PRIC-039` that shows the operator a subscriber
+waiting and why.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-shows-what-holds-its-next-contract-back.test.js`
+    - what holds a subscriber’s next contract back
+        - nothing, for a consumer in Germany with its address
+        - the empty fields of its address, in the order an invoice names them
+        - the adapter sentence, for a case it supports no treatment for
+        - a business in Austria: held back until its number is validated, then not
+        - an adapter that fails is not read as a refusal: its error comes through
+        - a tenant without a subscriber is told so
+        - without an adapter nothing holds a contract back, so there is no answer
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant sees what holds its next contract back
+        - nothing, with its address complete in a case the adapter treats; and whether it acts as a
+          business
+        - the fields of its address that are empty — and none once it fills them in
+        - the adapter sentence where it treats no such case — and none once the country it can treat
+          is named
+- `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
+    - the operator sees a tenant's subscriber beside the tenant
+        - its address and tax details, and that nothing holds its next contract back
+        - a VAT id counts as validated where the check that counts found it valid
+        - the empty fields of its address, and the adapter sentence, where they hold it back
+        - a tenant without a subscriber has none to show
+        - an unknown tenant is answered as not found, by code, and no subscriber is read
+        - the tenant is found and its subscriber read outside the tenants' row-level policy
+    - the tenants of a list whose subscriber is held back
+        - each named with what holds it back; the ready ones and those without a subscriber are left
+          out
+        - only among the tenants named
+    - where no tax adapter decides
+        - the subscriber is shown without a standing, and the lists are not asked to mark one
+- `packages/ui-vue/tests/component/lists-mark-a-held-back-subscriber.test.ts`
+    - the tenant list
+        - marks the tenants held back, each with its reason, and asks once for the page
+        - without a tax adapter it asks nothing and marks nobody
+    - the subscription list
+        - marks the tenant of each subscription held back, beside its name
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
+    - the tenant detail shows the tenant's subscriber
+        - whom the contracts are concluded with, and nothing held back
+        - a warning names each reason the next contract is held back
+        - without a tax adapter there is no standing, and no warning
+        - a tenant without a subscriber says so
+        - a read that fails says so
+        - without the capability, nothing is asked and no section is shown
+- `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
+    - tenantsResource.subscriber
+        - asks for the tenant's subscriber, with its slug escaped
+        - an answer with no body is an error, not a tenant without a subscriber
+    - tenantsResource.subscriberAttention
+        - names each tenant once, and answers what the server holds back
+        - a list longer than the server takes is asked in pages of two hundred
+        - no tenants, no request
+- `packages/ui-vue/tests/use-subscriber-attention.test.js`
+    - useSubscriberAttention
+        - asks once for the tenants shown, and answers each by its id
+        - with ${label}, nothing is asked and nobody is held back
+        - an empty list asks nothing
+        - another page of tenants is asked about again
+        - a read that fails leaves an error, and nobody marked
+- `packages/ui-vue/tests/use-tenant-subscriber.test.js`
+    - useTenantSubscriber
+        - where the manifest announces the subscriber, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another subscriber, and no tenant asks nothing
+        - a read that fails leaves an error and no subscriber
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - what holds the next contract back
+        - the customer type is shown with the identity, as the operator keeps it
+        - the empty address fields by their labels, then the adapter sentence
+        - once the tenant fills the address in and nothing holds it back, the notice goes
+        - where ${label}, there is no notice
 
 <!-- END proof -->
 
@@ -12093,6 +12214,9 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
+    - where the view is served
+        - without ${without}, neither the routes nor the capabilities exist
 - `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
     - the screen the administration offers
         - one that does not, does not — so the screen is not offered
@@ -12149,6 +12273,12 @@ _Tested by:_
         - announcing asks for the code, names the bookings shown, and says what was sent
     - a deleted add-on
         - reads "Deleted", in its row and in the status filter
+- `packages/ui-vue/tests/component/lists-mark-a-held-back-subscriber.test.ts`
+    - the tenant list
+        - marks the tenants held back, each with its reason, and asks once for the page
+        - without a tax adapter it asks nothing and marks nobody
+    - the subscription list
+        - marks the tenant of each subscription held back, beside its name
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - the lock strip in the administration’s shell
         - an installation that keeps no windows is not asked about them
@@ -12160,6 +12290,14 @@ _Tested by:_
         - a read that fails says so, and a retry asks again
         - without the capability, nothing is asked and no section is shown
         - a manifest the app passes in its options is the one asked
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
+    - the tenant detail shows the tenant's subscriber
+        - whom the contracts are concluded with, and nothing held back
+        - a warning names each reason the next contract is held back
+        - without a tax adapter there is no standing, and no warning
+        - a tenant without a subscriber says so
+        - a read that fails says so
+        - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/manifest-loader.test.js`
     - ManifestLoader.load — first call
         - GET without If-None-Match, persists body + ETag
@@ -12251,6 +12389,13 @@ _Tested by:_
 - `packages/ui-vue/tests/use-maintenance.test.js`
     - the shell asking whether tenants are locked out
         - asks nothing where the installation keeps no windows
+- `packages/ui-vue/tests/use-subscriber-attention.test.js`
+    - useSubscriberAttention
+        - asks once for the tenants shown, and answers each by its id
+        - with ${label}, nothing is asked and nobody is held back
+        - an empty list asks nothing
+        - another page of tenants is asked about again
+        - a read that fails leaves an error, and nobody marked
 - `packages/ui-vue/tests/use-tenant-account.test.js`
     - useTenantAccount
         - where the manifest announces the account, it is read for the tenant
@@ -12259,6 +12404,12 @@ _Tested by:_
         - another tenant is another account
         - without a tenant, nothing is asked
         - a read that fails leaves an error and no account
+- `packages/ui-vue/tests/use-tenant-subscriber.test.js`
+    - useTenantSubscriber
+        - where the manifest announces the subscriber, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another subscriber, and no tenant asks nothing
+        - a read that fails leaves an error and no subscriber
 
 <!-- END proof -->
 
@@ -14394,6 +14545,11 @@ _Tested by:_
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - what holds the next contract back
+        - the customer type is shown with the identity, as the operator keeps it
+        - the empty address fields by their labels, then the adapter sentence
+        - once the tenant fills the address in and nothing holds it back, the notice goes
+        - where ${label}, there is no notice
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere
@@ -14434,6 +14590,11 @@ _Tested by:_
           saved
         - any other failure says the details were not saved
         - a failure to load is said, with no form to fill
+    - what holds the next contract back
+        - the customer type is shown with the identity, as the operator keeps it
+        - the empty address fields by their labels, then the adapter sentence
+        - once the tenant fills the address in and nothing holds it back, the notice goes
+        - where ${label}, there is no notice
     - the plan page
         - shows the payment method at its foot unless told otherwise
         - leaves it out, and does not ask for it, where the application keeps billing elsewhere

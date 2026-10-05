@@ -199,7 +199,8 @@ export interface AdminUserListRow {
 
 export interface AdminSubscriptionListRow {
     id: string;
-    tenant: { slug: string; name: string };
+    /** The tenant by its id too: what the operator's lists ask a subscriber's standing by. */
+    tenant: { id: string; slug: string; name: string };
     plan: string;
     status: string;
     billingCycle: string;

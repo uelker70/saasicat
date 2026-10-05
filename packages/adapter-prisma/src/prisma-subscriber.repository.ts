@@ -16,6 +16,7 @@ import type {
     SubscriberRepository,
     SubscriberTaxOriginChangeRecord,
     SubscriberVatIdCheckRecord,
+    SubscriberWithCurrentCheck,
     TaxOriginWrite,
     TransactionContext,
     VatIdCheck,
@@ -288,6 +289,45 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
             orderBy: [{ checkedAt: 'desc' }, { recordedAt: 'desc' }, { id: 'desc' }],
         });
         return rows.map(toSubscriberVatIdCheckRecord);
+    }
+
+    async listForTenants(
+        tenantIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<SubscriberWithCurrentCheck[]> {
+        if (tenantIds.length === 0) return [];
+        const db = this.db(tx);
+        const links = await db.subscriberTenant.findMany({
+            where: { tenantId: { in: [...tenantIds] }, unlinkedAt: null },
+            select: { tenantId: true, subscriberId: true },
+        });
+        if (links.length === 0) return [];
+        const rows = await db.subscriber.findMany({
+            where: { id: { in: [...new Set(links.map((link) => link.subscriberId))] } },
+        });
+        const checkIds = rows.flatMap((row) =>
+            row.currentVatIdCheckId === null ? [] : [row.currentVatIdCheckId],
+        );
+        const checks =
+            checkIds.length === 0
+                ? []
+                : await db.subscriberVatIdCheck.findMany({ where: { id: { in: checkIds } } });
+        const rowsById = new Map(rows.map((row) => [row.id, row]));
+        const checksById = new Map(checks.map((check) => [check.id, check]));
+        return links.flatMap((link) => {
+            const row = rowsById.get(link.subscriberId);
+            if (!row) return [];
+            const check =
+                row.currentVatIdCheckId === null
+                    ? undefined
+                    : checksById.get(row.currentVatIdCheckId);
+            return [
+                {
+                    subscriber: toSubscriberRecord(row, link.tenantId),
+                    currentVatIdCheck: check ? toSubscriberVatIdCheckRecord(check) : null,
+                },
+            ];
+        });
     }
 
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {

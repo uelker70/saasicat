@@ -13,6 +13,7 @@ import type {
     SubscriberContactChange,
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
+    SubscriberReadiness,
     SubscriberRecord,
     SubscriberRepository,
     SubscriberTaxOrigin,
@@ -20,15 +21,22 @@ import type {
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
-import { SUBSCRIBER_ERROR_CODES, contractPartiesOf, taxOriginOf } from '@saasicat/core';
+import {
+    SUBSCRIBER_ERROR_CODES,
+    SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    contractPartiesOf,
+    taxOriginOf,
+} from '@saasicat/core';
 
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
 import { assessNewSubscriber } from '../tax/assess-new-subscriber.js';
 import type { TaxPeriod, TaxTreatments } from '../tax/tax-treatments.js';
+import { readinessOf, standingPeriod } from './subscriber-readiness.js';
 import {
-    INVOICE_ADDRESS_FIELDS,
+    identityIncomplete,
+    invoiceAddressGapsOf,
     settleBusinessStatus,
     settleContactChange,
     settleIdentityCorrection,
@@ -41,7 +49,7 @@ import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
  * What a tenant may change but not clear: the address an invoice names, and
  * the email it is sent to.
  */
-const KEPT_BY_A_TENANT = [...INVOICE_ADDRESS_FIELDS, 'invoiceEmail'] as const;
+const KEPT_BY_A_TENANT = [...SUBSCRIBER_INVOICE_ADDRESS_FIELDS, 'invoiceEmail'] as const;
 
 /**
  * The parties contracts are concluded with.
@@ -167,11 +175,17 @@ export class SubscriberService {
         subject: { tenantId: string } | { subscriberId: string },
         tx?: TransactionContext,
     ): Promise<SubscriberTaxOrigin> {
-        const subscriber =
-            'tenantId' in subject
-                ? await this.requireForTenant(subject.tenantId, tx)
-                : await this.requireById(subject.subscriberId, tx);
+        const subscriber = await this.requireOf(subject, tx);
         return taxOriginOf(subscriber, await this.repo.findCurrentVatIdCheck(subscriber.id, tx));
+    }
+
+    private requireOf(
+        subject: { tenantId: string } | { subscriberId: string },
+        tx?: TransactionContext,
+    ): Promise<SubscriberRecord> {
+        return 'tenantId' in subject
+            ? this.requireForTenant(subject.tenantId, tx)
+            : this.requireById(subject.subscriberId, tx);
     }
 
     /**
@@ -181,6 +195,49 @@ export class SubscriberService {
      */
     taxOriginOfNew(details: NewSubscriberDetails): SubscriberTaxOrigin {
         return taxOriginOf(settleNewSubscriberDetails(details), details.vatIdCheck ?? null);
+    }
+
+    /**
+     * The tax origin of a subscriber a contract is about to name, refused with
+     * `SUBSCRIBER_IDENTITY_INCOMPLETE` where the address an invoice names is not
+     * complete: a party copied onto a contract incomplete cannot be completed
+     * afterwards (`SC-PRIC-032`). For a subscriber that exists, or one about to
+     * be created from `newSubscriber`.
+     */
+    async taxOriginOfComplete(
+        subject:
+            | { tenantId: string }
+            | { subscriberId: string }
+            | { newSubscriber: NewSubscriberDetails },
+        tx?: TransactionContext,
+    ): Promise<SubscriberTaxOrigin> {
+        if ('newSubscriber' in subject) {
+            const missing = invoiceAddressGapsOf(settleNewSubscriberDetails(subject.newSubscriber));
+            if (missing.length > 0) throw identityIncomplete(missing);
+            return this.taxOriginOfNew(subject.newSubscriber);
+        }
+        const subscriber = await this.requireOf(subject, tx);
+        const missing = invoiceAddressGapsOf(subscriber);
+        if (missing.length > 0) throw identityIncomplete(missing);
+        return taxOriginOf(subscriber, await this.repo.findCurrentVatIdCheck(subscriber.id, tx));
+    }
+
+    /**
+     * Whether the subscriber can be given its next contract, where a tax
+     * adapter decides: the empty fields of its invoice address, and the
+     * adapter's sentence for it as it stands, over a month from `asOf`. `null`
+     * without an adapter, where neither holds a contract back. Refused with
+     * `SUBSCRIBER_REQUIRED` for a tenant without a subscriber.
+     */
+    async readinessFor(
+        subject: { tenantId: string } | { subscriberId: string },
+        asOf: Date = new Date(),
+        tx?: TransactionContext,
+    ): Promise<SubscriberReadiness | null> {
+        if (!this.taxes?.adapter) return null;
+        const subscriber = await this.requireOf(subject, tx);
+        const check = await this.repo.findCurrentVatIdCheck(subscriber.id, tx);
+        return readinessOf(subscriber, check, this.taxes, standingPeriod(asOf));
     }
 
     private async requireById(

@@ -31,6 +31,91 @@ export interface SubscriberTaxStatus {
     business: boolean | null;
 }
 
+/**
+ * The address an invoice names. Sign-up asks for every one of them, and once
+ * given they can be changed but not cleared: without them nothing can be
+ * invoiced (`SC-PRIC-032`).
+ */
+export const SUBSCRIBER_INVOICE_ADDRESS_FIELDS = [
+    'addressLine1',
+    'postalCode',
+    'city',
+    'country',
+] as const;
+export type SubscriberInvoiceAddressField = (typeof SUBSCRIBER_INVOICE_ADDRESS_FIELDS)[number];
+
+/**
+ * Whether a subscriber can be given its next contract where a tax adapter
+ * decides (`SC-PRIC-032`, `SC-PRIC-039`): which fields of the address an
+ * invoice names are empty, and the adapter's sentence where it supports no
+ * treatment for the subscriber as it stands. Computed when it is read, from the
+ * record and the adapter as they are then.
+ */
+export interface SubscriberReadiness {
+    ready: boolean;
+    missing: SubscriberInvoiceAddressField[];
+    /** The adapter's sentence, or `null` where it treats the subscriber. */
+    taxRefusal: string | null;
+}
+
+/**
+ * A tenant's subscriber as the operator sees it beside the tenant: who the
+ * contracts are concluded with, what a tax adapter decides from, and — where
+ * one decides — what holds its next contract back (`SC-PRIC-070`).
+ */
+export interface AdminTenantSubscriber {
+    subscriber: {
+        id: string;
+        customerNumber: string;
+        legalName: string;
+        addressLine1: string | null;
+        addressLine2: string | null;
+        postalCode: string | null;
+        city: string | null;
+        country: string | null;
+        business: boolean | null;
+        vatId: string | null;
+        /** Whether the check that counts for the VAT id found it valid. */
+        vatIdValidated: boolean;
+        taxNumber: string | null;
+        /** Created from the application's own tenant record, not from what a customer entered. */
+        migrated: boolean;
+    } | null;
+    /** `null` where no tax adapter decides, or the tenant has no subscriber. */
+    readiness: SubscriberReadiness | null;
+}
+
+/**
+ * The manifest capability that announces the operator's view of a tenant's
+ * subscriber. The platform sets it where it serves the view.
+ */
+export const SUBSCRIBER_STANDING_CAPABILITY = 'subscribers.read';
+
+/**
+ * The manifest capability that says a tax adapter decides, so a subscriber can
+ * be held back from its next contract: the operator's lists ask which only
+ * where it is set, and are spared the question everywhere else.
+ */
+export const SUBSCRIBER_ATTENTION_CAPABILITY = 'subscribers.attention';
+
+/**
+ * How many tenants one question about attention may name: a page of a list,
+ * not the whole of it. A list longer than this asks in pages.
+ */
+export const SUBSCRIBER_ATTENTION_PAGE_SIZE = 200;
+
+/** A tenant whose subscriber cannot be given its next contract, and why. */
+export interface AdminSubscriberAttention {
+    tenantId: string;
+    readiness: SubscriberReadiness;
+}
+
+/** A live subscriber with the check of its VAT id that counts now. */
+export interface SubscriberWithCurrentCheck {
+    subscriber: SubscriberRecord;
+    currentVatIdCheck: SubscriberVatIdCheckRecord | null;
+}
+
 /** A subscriber's master data, as it stands. */
 export type SubscriberDetails = LegalIdentity & SubscriberContact & SubscriberTaxStatus;
 

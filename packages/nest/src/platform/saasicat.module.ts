@@ -40,6 +40,8 @@ import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { retirementTermsConfirmed } from '../billing/version-retirement.service.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import type { TaxTreatments } from '../tax/tax-treatments.js';
 import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 
 import {
@@ -64,6 +66,7 @@ import {
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
+import { servesSubscriberStanding } from './compose/subscriber-standing.js';
 import {
     servesBundleVersionRetirements,
     servesVersionRetirements,
@@ -212,6 +215,7 @@ export class SaaSiCatModule {
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
+            const subscriberStanding = servesSubscriberStanding(composition);
             const versionRetirements = servesVersionRetirements(composition);
             const bundleVersionRetirements = servesBundleVersionRetirements(composition);
             lightweightProviders.push({
@@ -219,13 +223,21 @@ export class SaaSiCatModule {
                 // Retiring is offered only where the operator's terms are
                 // confirmed to allow it, which `config/saas.yaml` says once it
                 // is read — not when the module is defined.
-                useFactory: (manifest: AdminManifestService, settings: PlanCatalogSettings) => {
+                useFactory: (
+                    manifest: AdminManifestService,
+                    settings: PlanCatalogSettings,
+                    taxes: TaxTreatments | null,
+                ) => {
                     const contribution = buildStandardManifestContribution(
                         catalogConfig,
                         adminResourcesConfig,
                         promoCodesConfig,
                         {
                             subscriberAccounts,
+                            subscriberStanding,
+                            // Only an adapter holds a contract back, so only then
+                            // is there anything for the lists to mark.
+                            subscriberAttention: subscriberStanding && Boolean(taxes?.adapter),
                             versionRetirements:
                                 versionRetirements && retirementTermsConfirmed(settings),
                             bundleVersionRetirements:
@@ -235,7 +247,11 @@ export class SaaSiCatModule {
                     manifest.register(contribution);
                     return contribution;
                 },
-                inject: [AdminManifestService, PLAN_CATALOG_SETTINGS_TOKEN],
+                inject: [
+                    AdminManifestService,
+                    PLAN_CATALOG_SETTINGS_TOKEN,
+                    { token: TAX_TREATMENTS_TOKEN, optional: true },
+                ],
             });
         }
         // The static enforcement stack — what makes `@RequireFeature` and

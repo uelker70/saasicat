@@ -391,6 +391,9 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
+    - where the view is served
+        - without ${without}, neither the routes nor the capabilities exist
 - `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
     - the screen the administration offers
         - one that does not, does not — so the screen is not offered
@@ -447,6 +450,12 @@ _Tested by:_
         - announcing asks for the code, names the bookings shown, and says what was sent
     - a deleted add-on
         - reads "Deleted", in its row and in the status filter
+- `packages/ui-vue/tests/component/lists-mark-a-held-back-subscriber.test.ts`
+    - the tenant list
+        - marks the tenants held back, each with its reason, and asks once for the page
+        - without a tax adapter it asks nothing and marks nobody
+    - the subscription list
+        - marks the tenant of each subscription held back, beside its name
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - the lock strip in the administration’s shell
         - an installation that keeps no windows is not asked about them
@@ -458,6 +467,14 @@ _Tested by:_
         - a read that fails says so, and a retry asks again
         - without the capability, nothing is asked and no section is shown
         - a manifest the app passes in its options is the one asked
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
+    - the tenant detail shows the tenant's subscriber
+        - whom the contracts are concluded with, and nothing held back
+        - a warning names each reason the next contract is held back
+        - without a tax adapter there is no standing, and no warning
+        - a tenant without a subscriber says so
+        - a read that fails says so
+        - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/manifest-loader.test.js`
     - ManifestLoader.load — first call
         - GET without If-None-Match, persists body + ETag
@@ -549,6 +566,13 @@ _Tested by:_
 - `packages/ui-vue/tests/use-maintenance.test.js`
     - the shell asking whether tenants are locked out
         - asks nothing where the installation keeps no windows
+- `packages/ui-vue/tests/use-subscriber-attention.test.js`
+    - useSubscriberAttention
+        - asks once for the tenants shown, and answers each by its id
+        - with ${label}, nothing is asked and nobody is held back
+        - an empty list asks nothing
+        - another page of tenants is asked about again
+        - a read that fails leaves an error, and nobody marked
 - `packages/ui-vue/tests/use-tenant-account.test.js`
     - useTenantAccount
         - where the manifest announces the account, it is read for the tenant
@@ -557,6 +581,12 @@ _Tested by:_
         - another tenant is another account
         - without a tenant, nothing is asked
         - a read that fails leaves an error and no account
+- `packages/ui-vue/tests/use-tenant-subscriber.test.js`
+    - useTenantSubscriber
+        - where the manifest announces the subscriber, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - another tenant is another subscriber, and no tenant asks nothing
+        - a read that fails leaves an error and no subscriber
 
 <!-- END proof -->
 

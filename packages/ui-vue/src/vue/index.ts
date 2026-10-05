@@ -57,6 +57,8 @@ export * from './use-nav.js';
 export * from './use-actions.js';
 export * from './use-tenant-action-flow.js';
 export * from './use-tenant-account.js';
+export * from './use-tenant-subscriber.js';
+export * from './use-subscriber-attention.js';
 export * from './use-platform-tenant-actions.js';
 export * from './use-batch-columns.js';
 export * from './use-row-reorder.js';

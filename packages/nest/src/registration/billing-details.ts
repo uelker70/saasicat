@@ -8,13 +8,10 @@ import type {
     RegistrationBillingDetails,
     SubscriberDetails,
 } from '@saasicat/core';
-import { SUBSCRIBER_ERROR_CODES } from '@saasicat/core';
+import { SUBSCRIBER_ERROR_CODES, SUBSCRIBER_INVOICE_ADDRESS_FIELDS } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
-import {
-    INVOICE_ADDRESS_FIELDS,
-    settleNewSubscriberDetails,
-} from '../subscriber/subscriber-details.js';
+import { settleNewSubscriberDetails } from '../subscriber/subscriber-details.js';
 
 /** What the pending record keeps of step 4, every value settled. */
 export type SettledBillingDetails = Pick<
@@ -30,7 +27,7 @@ export type SettledBillingDetails = Pick<
 >;
 
 /** An invoice needs an address to be sent to; the tax identifiers wait for the tax adapter. */
-const REQUIRED: readonly (keyof SettledBillingDetails)[] = INVOICE_ADDRESS_FIELDS;
+const REQUIRED: readonly (keyof SettledBillingDetails)[] = SUBSCRIBER_INVOICE_ADDRESS_FIELDS;
 
 export function settleBillingDetails(
     pending: Pick<PendingRegistration, 'tenantName' | 'email'>,

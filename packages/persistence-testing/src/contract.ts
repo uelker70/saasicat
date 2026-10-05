@@ -5368,6 +5368,61 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('the subscribers of many tenants are read at once, each with the check that counts', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const checked = await subscribers.createForTenant({
+                ...subscriberFor('tenant-many-checked', 'Viele GmbH'),
+                country: 'AT',
+                vatId: 'ATU12345678',
+            });
+            const unchecked = await subscribers.createForTenant(
+                subscriberFor('tenant-many-unchecked', 'Wenige GmbH'),
+            );
+            const elsewhere = await subscribers.createForTenant(
+                subscriberFor('tenant-many-elsewhere', 'Anderswo GmbH'),
+            );
+            assert.ok(checked && unchecked && elsewhere);
+            const recorded = await subscribers.recordVatIdCheck(checked.id, {
+                vatId: 'ATU12345678',
+                checkedAt: new Date('2026-10-01T08:30:00.000Z'),
+                valid: true,
+                service: 'VIES',
+                confirmation: { requestIdentifier: 'WAPI-MANY' },
+            });
+
+            const found = await subscribers.listForTenants([
+                'tenant-many-checked',
+                'tenant-many-unchecked',
+                'tenant-many-checked',
+                'tenant-many-without-subscriber',
+            ]);
+
+            assert.deepEqual(
+                found
+                    .map((entry) => [
+                        entry.subscriber.tenantId,
+                        entry.subscriber.id,
+                        entry.subscriber.legalName,
+                        entry.currentVatIdCheck?.id ?? null,
+                    ])
+                    .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+                [
+                    ['tenant-many-checked', checked.id, 'Viele GmbH', recorded?.recorded.id],
+                    ['tenant-many-unchecked', unchecked.id, 'Wenige GmbH', null],
+                ],
+                'each tenant named once, with its subscriber and the check that counts; a tenant without one and a tenant not named are left out',
+            );
+            const counting = found.find(
+                (entry) => entry.subscriber.id === checked.id,
+            )?.currentVatIdCheck;
+            assert.ok(counting?.checkedAt instanceof Date, 'the check is read back with its date');
+            assert.deepEqual(await subscribers.listForTenants([]), []);
+        });
+
         test('a change of the tax origin written on a transaction is undone with it', async (t) => {
             const { adapter } = harness;
             const subscribers = adapter.subscriberRepository;
