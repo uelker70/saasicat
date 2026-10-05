@@ -41,13 +41,26 @@ Optional: `resumeTokenSigner`, `resumeDelivery`, `configuratorLookup`,
 ## Step 4: the billing address and the payment method
 
 `startCheckout` takes the billing address — `addressLine1`, `postalCode`, `city` and `country`
-(ISO 3166-1 alpha-2) are required, `addressLine2`, `vatId` and `taxNumber` optional — and opens the
-payment form of the gateway account `config/saas.yaml#payments.newPaymentMethods` names. It answers
+(ISO 3166-1 alpha-2) are required, `addressLine2`, `vatId`, `taxNumber` and `business` (whether the
+sign-up is a business, `true` or `false`) optional — and opens the payment form of the gateway
+account `config/saas.yaml#payments.newPaymentMethods` names. It answers
 with `checkoutUrl`, where you send the person; a missing or malformed detail is refused with
 `SUBSCRIBER_DETAIL_INVALID`, and a success or cancel URL outside
 `config/saas.yaml#payments.returnUrlOrigins` with `PAYMENT_RETURN_URL_NOT_ALLOWED`, before the
 gateway
 is asked. Nothing is activated when the form opens.
+
+Where `config/saas.yaml` names a tax adapter, the step asks it before the form opens, outside any
+transaction, over the contract the sign-up will have: from now, in the rhythm chosen in step 3. A
+sign-up it cannot treat — a consumer abroad the adapter does not serve, a business elsewhere in the
+European Union without a valid VAT number — is refused with `422 TAX_TREATMENT_NOT_SUPPORTED` and
+the adapter's sentence in `params.reason`, while nothing is paid. Only where the case depends on a
+VAT number is the number checked, with the service the adapter names — VIES for `@saasicat/tax-de`;
+when that check does not complete, the step answers `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`, to be
+tried again later, and nothing is decided on the number. The check is kept with the sign-up, and
+the subscriber its activation creates takes it over, so its first contract is decided from it. Ask
+for the business status on your step-4 screen wherever the adapter decides from it, and show both
+refusals in your own words or with the shipped texts.
 
 Pass `checkoutOfferId` when the sign-up concludes a checkout offer on activation. A promo code on
 that offer is then held from this step until a confirmation of the gateway's form can no longer
@@ -100,7 +113,10 @@ async activate(pending: PendingRegistration, { tx }: RegistrationActivation) {
 }
 ```
 
-`pendingRegistrationRepository` finds a sign-up by the gateway account and the session together —
+`pendingRegistrationRepository` keeps `business` and `vatIdCheck` with the billing details, and
+gives them back on every read; a JSON column for the check is enough, since
+`subscriberFromRegistration` reads its date back from text. It finds a sign-up by the gateway
+account and the session together —
 `findByCheckoutSession(gatewayAccount, sessionId)` — because a session identifier is unique only
 within its account —, deletes with `delete(id, tx)` on the transaction it is handed, and names the
 accounts sign-ups are still waiting at —

@@ -1695,6 +1695,33 @@ What changes with an adapter:
 - **An application that words refusals itself** adds `TAX_TREATMENT_NOT_SUPPORTED` and
   `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`.
 
+### A new subscriber is asked about before it exists
+
+Where `config/saas.yaml` names a tax adapter
+([previous section](#a-tax-adapter-decides-the-rate-of-every-contract)), a subscriber it cannot
+treat is now refused before it exists: a sign-up in step 4, before the payment form opens, and a
+subscriber your application creates itself, before the transaction that creates it. A VAT number
+is checked only where the treatment depends on it, and the check is kept with the subscriber.
+
+1. Run `sql/1.0-a-sign-up-keeps-its-vat-id-check.postgres.sql`, or adopt the two new columns of
+   `prisma-fragments/09-pending-registration.prisma`: `business` and `vatIdCheck` on
+   `PendingRegistration`.
+2. Your `PendingRegistrationRepository` writes both and gives them back on every read: `business`
+   as `true`, `false` or `null`, `vatIdCheck` as the check, which a JSON column holds;
+   `subscriberFromRegistration` reads its date back from text and reads a check it cannot read as
+   none.
+3. Step 4 sends `business` with the billing details, and shows two new refusals of `startCheckout`:
+   `422 TAX_TREATMENT_NOT_SUPPORTED` with the adapter's sentence in `params.reason`, and
+   `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`, to be tried again later.
+4. Where your application creates a subscriber itself, call
+   `SubscriberService.assessNewSubscriber(details, period)` before the transaction and pass what it
+   answers to `createForTenant` ([wire the backend](wire-the-backend.md#the-tax-adapter)).
+   `NewSubscriberDetails` carries the check as `vatIdCheck`; one for another number than the
+   subscriber's is refused with `SUBSCRIBER_DETAIL_INVALID` (`field: 'vatIdCheck'`).
+
+Without an adapter, step 4 keeps `business` and checks nothing. A subscriber created another way —
+a backfill, a migration of existing tenants — is not refused here.
+
 ### The operator's own legal identity changes only as a declared correction
 
 `config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract

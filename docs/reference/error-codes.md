@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 232 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 233 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -307,9 +307,10 @@ The record of the applied configuration.
 
 The installation's tax adapter and what it does not support.
 
-| Code                          | Shipped English text                                           |
-| ----------------------------- | -------------------------------------------------------------- |
-| `TAX_TREATMENT_NOT_SUPPORTED` | The tax adapter {adapter} does not support this case: {reason} |
+| Code                             | Shipped English text                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `TAX_TREATMENT_NOT_SUPPORTED`    | The tax adapter {adapter} does not support this case: {reason}                                  |
+| `TAX_VAT_ID_CHECK_NOT_COMPLETED` | The VAT identification number could not be checked just now ({reason}). Please try again later. |
 
 ## Maintenance
 
