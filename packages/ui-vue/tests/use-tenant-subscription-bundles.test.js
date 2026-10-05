@@ -191,6 +191,49 @@ describe('useTenantSubscriptionBundles', () => {
         );
     });
 
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('acceptVersionOffer() posts the version shown to the booking’s offer, then reloads', async () => {
+        const answer = { immediate: false, takesEffectAt: '2026-11-01T00:00:00.000Z' };
+        const { http, calls } = httpReturning({ body: answer });
+
+        const result = await bundles({ http }).acceptVersionOffer('sb-1', 'bv-2');
+
+        assert.deepEqual(result, answer);
+        assert.deepEqual(
+            calls.map(({ url, init }) => [init?.method ?? 'GET', url, init?.body]),
+            [
+                [
+                    'POST',
+                    '/api/v1/billing/subscription-bundles/sb-1/version-offer/accept',
+                    JSON.stringify({ bundleVersionId: 'bv-2' }),
+                ],
+                ['GET', '/api/v1/billing/subscription-bundles', undefined],
+            ],
+        );
+    });
+
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('load() reads a switch scheduled for the end of the term as a date', async () => {
+        const { http } = httpReturning({
+            body: [
+                {
+                    ...RECORD,
+                    pendingBundleVersionId: 'bv-2',
+                    pendingVersionEffectiveAt: '2026-11-01T00:00:00.000Z',
+                    pendingVersion: 2,
+                },
+            ],
+        });
+        const view = bundles({ http });
+
+        await view.load();
+
+        const [booking] = view.bundles.value;
+        assert.equal(booking.pendingBundleVersionId, 'bv-2');
+        assert.ok(booking.pendingVersionEffectiveAt instanceof Date);
+        assert.equal(booking.pendingVersion, 2);
+    });
+
     test('a mutation the server answered without a body says the change may have landed', async () => {
         // The empty-body sentinel, at one of the sites that raises it. `add`
         // is a POST the caller awaited: the server accepted it and returned

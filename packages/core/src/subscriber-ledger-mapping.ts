@@ -16,6 +16,7 @@ const ORIGINS: Record<SubscriberChargeOrigin, true> = {
     renewal: true,
     planChange: true,
     bundleBooking: true,
+    bundleChange: true,
     credit: true,
     correction: true,
 };

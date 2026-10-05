@@ -209,6 +209,22 @@ describe('the date an add-on retirement reaches a booking on', () => {
         });
     });
 
+    // @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
+    test('a booking whose switch to a newer version lands by the date is not reached, one landing after it is', () => {
+        const switchingOn = (iso) =>
+            reach(
+                bookingOf('t1', {
+                    pendingBundleVersionId: 'bv-3',
+                    pendingVersionEffectiveAt: new Date(iso),
+                }),
+            );
+        assert.deepEqual(switchingOn('2027-02-01T00:00:00.000Z'), {
+            reached: false,
+            reason: 'changes-before',
+        });
+        assert.equal(switchingOn('2027-02-01T00:00:00.001Z').reached, true);
+    });
+
     test('names the plan the add-on runs beside at the date, a change landing by then included', () => {
         const moving = {
             ...subscription,
@@ -1200,7 +1216,7 @@ function routeOver(bundleRetirements, booking = {}, bundleSwitches = null, subsc
     return { ctrl, calls, Ctrl };
 }
 
-const REQ = { user: { tenantId: 't1' } };
+const REQ = { user: { tenantId: 't1', sub: 'user-1' } };
 
 describe('the tenant’s add-on route and a retirement told', () => {
     const told = {

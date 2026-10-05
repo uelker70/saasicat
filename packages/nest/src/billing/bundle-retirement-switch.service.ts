@@ -56,7 +56,8 @@ import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { addOnMisfits, misfitRefusal } from './add-on-fits-plan.js';
-import { bundleRetirementSide } from './bundle-retirement-sides.js';
+import { decidedAlike, putBookingBack, subscriptionChanged } from './booking-move-guards.js';
+import { bundleVersionSide } from './bundle-version-sides.js';
 import { bookingOverBy, planAt } from './bundle-retirement-reach.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -186,7 +187,12 @@ export class BundleRetirementSwitchService {
             // Without its contract the switch would hold no price, and from the
             // date nothing would charge it: whatever stopped it between the
             // claim and the contract, put back, and refused as it came.
-            await this.putBack(notice);
+            await putBookingBack(this.bookings, this.entitlements, this.logger, {
+                tenantId,
+                subscriptionBundleId: booking.id,
+                from: notice.retired.bundleVersionId,
+                to: notice.replacement.bundleVersionId,
+            });
             throw error;
         }
         await recordChargesAfter(
@@ -275,8 +281,8 @@ export class BundleRetirementSwitchService {
         // Not null: `addOnMisfits` refuses a replacement without a price here.
         const terms = retirementSwitchTerms(
             {
-                retired: bundleRetirementSide(retired, plan.planKey),
-                replacement: bundleRetirementSide(replacement, plan.planKey),
+                retired: bundleVersionSide(retired, plan.planKey),
+                replacement: bundleVersionSide(replacement, plan.planKey),
                 lastDayToCancel: notice.lastDayToCancel,
             },
             rhythm,
@@ -296,64 +302,6 @@ export class BundleRetirementSwitchService {
         }
         return version;
     }
-
-    /**
-     * Moves the booking back onto the version retired, where the switch's
-     * contract could not be written. Where that fails too, the booking is on
-     * the replacement without its contract, and the log names it.
-     */
-    private async putBack(notice: BundleVersionRetiredNotice): Promise<void> {
-        let why: string;
-        try {
-            const back = await this.bookings.moveToVersion!(
-                notice.subscriptionBundleId,
-                notice.replacement.bundleVersionId,
-                notice.retired.bundleVersionId,
-            );
-            if (back) return;
-            why = 'it changed in between';
-        } catch (error) {
-            why = String(error);
-        } finally {
-            this.entitlements.invalidateTenant(notice.tenantId);
-        }
-        this.logger.error(
-            `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} is on the ` +
-                `replacement without its contract, and could not be put back: ${why}.`,
-        );
-    }
-}
-
-/**
- * The subscription's fields the switch is decided on: which one it is, its
- * state, its plan and rhythm, a change it scheduled, and a cancellation.
- */
-const DECIDED_ON = [
-    'id',
-    'status',
-    'plan',
-    'billingCycle',
-    'pendingPlan',
-    'pendingBillingCycle',
-    'pendingEffectiveAt',
-    'canceledAt',
-    'canceledEffectiveAt',
-] as const satisfies readonly (keyof SubscriptionUsageRecord)[];
-
-/** Whether `after` is the subscription the switch was decided on as `before`. */
-function decidedAlike(before: SubscriptionUsageRecord, after: SubscriptionUsageRecord): boolean {
-    return DECIDED_ON.every((field) => sameValue(before[field], after[field]));
-}
-
-function sameValue(a: unknown, b: unknown): boolean {
-    return a instanceof Date && b instanceof Date ? a.getTime() === b.getTime() : a === b;
-}
-
-function subscriptionChanged(): ConflictException {
-    return new ConflictException({
-        code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
-        message: 'This subscription changed while the request was being decided. Reload it.',
-    });
 }
 
 function refused(code: string, message: string): UnprocessableEntityException {

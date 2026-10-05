@@ -1006,9 +1006,11 @@ model BundleVersion {
     bundle              Bundle               @relation(fields: [bundleId], references: [id], onDelete: Cascade)
     baseVersion         BundleVersion?       @relation("BundleVersionLineage", fields: [baseVersionId], references: [id])
     derivedVersions     BundleVersion[]      @relation("BundleVersionLineage")
-    // Standalone add-on bookings pinned to this version (see the
-    // SubscriptionBundle model below).
-    subscriptionBundles SubscriptionBundle[]
+    // Standalone add-on bookings pinned to this version, and the ones set to
+    // continue on it at the end of their term (see the SubscriptionBundle model
+    // below).
+    subscriptionBundles        SubscriptionBundle[] @relation("SubscriptionBundleVersion")
+    subscriptionBundlesPending SubscriptionBundle[] @relation("SubscriptionBundlePendingVersion")
 
     @@unique([bundleId, version])
     @@index([bundleId, supersededAt])
@@ -1230,6 +1232,11 @@ model SubscriptionBundle {
     currentPeriodStart DateTime?
     currentPeriodEnd   DateTime?
 
+    // A switch to a newer version taken for the end of the booking's term:
+    // the version it continues on, and from when.
+    pendingBundleVersionId    String?
+    pendingVersionEffectiveAt DateTime?
+
     // Cancellation: requested at `canceledAt`, effective at
     // `canceledEffectiveAt` (period/term end). Both null = active booking.
     canceledAt          DateTime?
@@ -1240,12 +1247,14 @@ model SubscriptionBundle {
 
     // The subscription this add-on is booked on. Restrict the BundleVersion so
     // a booked version cannot be hard-deleted from the catalog.
-    subscription  Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-    bundleVersion BundleVersion @relation(fields: [bundleVersionId], references: [id], onDelete: Restrict)
+    subscription         Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    bundleVersion        BundleVersion  @relation("SubscriptionBundleVersion", fields: [bundleVersionId], references: [id], onDelete: Restrict)
+    pendingBundleVersion BundleVersion? @relation("SubscriptionBundlePendingVersion", fields: [pendingBundleVersionId], references: [id], onDelete: Restrict)
 
     @@index([subscriptionId])
     @@index([bundleVersionId])
     @@index([canceledEffectiveAt])
+    @@index([pendingVersionEffectiveAt])
     @@map("subscription_bundles")
 }
 

@@ -1,4 +1,4 @@
-// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+// @requirement SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
 
 // A newer version is an offer, and what kind of offer decides how it can be
 // taken. The rule is the operator's (saasicat#357, D3 to D6): judged against

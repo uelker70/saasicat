@@ -18,6 +18,11 @@
 // judged against what the subscriber has, and until that change lands it is
 // not known what they will have: a version that takes something away would
 // take effect on the day they leave the plan anyway.
+//
+// Beside a retirement told for the version bound, the replacement is the early
+// switch's to offer and one that takes something away waits for the move
+// (`leftToTheRetirement`); a newer version that applies at once stands beside
+// the notice.
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
@@ -33,6 +38,7 @@ import { classifyVersionOffer, isVersionActiveAt } from '@saasicat/core';
 import { PLAN_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { termEndOf } from './billing-period.js';
+import { leftToTheRetirement } from './offer-beside-a-retirement.js';
 import { listPriceNet } from './plan-helpers.js';
 import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
@@ -40,6 +46,7 @@ import {
 } from './self-service-policy.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from './tenant-billing.tokens.js';
 import { versionOnSale } from './version-on-sale.js';
+import { VersionRetirementService } from './version-retirement.service.js';
 import { comparedFieldsOf, planOfVersion, versionSideOf } from './version-sides.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 
@@ -66,6 +73,14 @@ export class VersionOfferService {
         @Optional()
         @Inject(SELF_SERVICE_BLOCKED_PLANS_TOKEN)
         private readonly blockedPlans: SelfServiceBlockedPlans | null = null,
+        // Present where plan versions are retired; without it no retirement
+        // is told, and none has a way of its own to leave an offer to.
+        @Optional()
+        @Inject(VersionRetirementService)
+        private readonly retirements: Pick<
+            VersionRetirementService,
+            'toldRetirementsOf'
+        > | null = null,
     ) {}
 
     /** The offer for the tenant's subscription, or null where there is none it could take. */
@@ -103,6 +118,16 @@ export class VersionOfferService {
             comparedFieldsOf(offeredPlan),
         );
         if (verdict.class === 'same') return null;
+        const told =
+            sub.id && this.retirements
+                ? await this.retirements.toldRetirementsOf({ ...sub, id: sub.id })
+                : [];
+        const replacementsTold = told.map((notice) => notice.replacement.planVersionId);
+        if (
+            leftToTheRetirement({ versionId: offeredRow.id, kind: verdict.class }, replacementsTold)
+        ) {
+            return null;
+        }
 
         const takesEffectAt =
             verdict.class === 'takes-something-away'

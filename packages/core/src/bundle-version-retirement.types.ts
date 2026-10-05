@@ -44,11 +44,12 @@ export type NewBundleVersionRetirement = Omit<BundleVersionRetirementRecord, 'id
 export const BUNDLE_VERSION_RETIREMENT_CAPABILITY = 'bundleVersions.retire';
 
 /**
- * One of the two versions of an add-on retirement, as the subscriber compares
- * them: what it grants, and its price beside the subscription's plan in each
- * rhythm — `pricingOverrides` included — or null where it has none there.
+ * An add-on version as the subscriber compares it with another — the one
+ * retired and its replacement, or the one booked and the one offered: what it
+ * grants, and its price beside the subscription's plan in each rhythm —
+ * `pricingOverrides` included — or null where it has none there.
  */
-export interface BundleRetirementSide {
+export interface BundleVersionSide {
     readonly bundleVersionId: string;
     readonly bundleKey: string;
     readonly label: string;
@@ -73,8 +74,8 @@ export interface BundleVersionRetiredNotice {
     readonly retirementId: string;
     /** The plan the add-on runs beside at the date, which both sides are priced for. */
     readonly planKey: string;
-    readonly retired: BundleRetirementSide;
-    readonly replacement: BundleRetirementSide;
+    readonly retired: BundleVersionSide;
+    readonly replacement: BundleVersionSide;
     /** Every difference, retired to replacement, at the prices for `planKey`. */
     readonly changes: readonly VersionChange[];
     /** The rhythm the booking is billed in, which says which of the two prices applies. */
@@ -91,11 +92,14 @@ export interface BundleVersionRetiredNotice {
  * - `ended` — the subscription is over, or the booking's cancellation has
  *   already landed.
  * - `cancelled-before` — the booking's cancellation lands by the effective date.
+ * - `changes-before` — the booking's switch to a newer version, taken for the
+ *   end of its term, lands by the effective date.
  * - `no-term` — it carries no period an end can be counted from.
  * - `already-told` — an earlier announcement of this version reached it, and
  *   stands.
  */
-export type BundleRetirementSkipReason = 'ended' | 'cancelled-before' | 'no-term' | 'already-told';
+export type BundleRetirementSkipReason =
+    'ended' | 'cancelled-before' | 'changes-before' | 'no-term' | 'already-told';
 
 /**
  * What switching a booking to its retirement's replacement now would cost
@@ -158,8 +162,8 @@ export interface BundleRetirementSkippedRow {
 /** What announcing an add-on retirement now would do. */
 export interface BundleRetirementPreview {
     /** The two versions at their own prices, before any plan's override. */
-    readonly retired: BundleRetirementSide;
-    readonly replacement: BundleRetirementSide;
+    readonly retired: BundleVersionSide;
+    readonly replacement: BundleVersionSide;
     /** Every difference at those prices; each booking is told the one at its plan's. */
     readonly changes: readonly VersionChange[];
     /** ISO 8601: the moment it is computed for. */

@@ -90,6 +90,30 @@
                     :format-quota-value="quotaValueOf"
                     @switch="(bundleVersionId) => onSwitch(b, bundleVersionId)"
                 />
+                <p
+                    v-if="b.pendingVersion != null && b.pendingVersionEffectiveAt"
+                    class="msb-pending"
+                >
+                    {{
+                        effectiveI18n.bundleOfferSwitchScheduled
+                            .replace('{bundle}', resolveBundleKey(b))
+                            .replace('{version}', String(b.pendingVersion))
+                            .replace('{date}', formatDate(b.pendingVersionEffectiveAt))
+                    }}
+                </p>
+                <VersionOfferCard
+                    v-if="b.offer"
+                    class="msb-offer"
+                    :offer="b.offer"
+                    :bundle-label="resolveBundleKey(b)"
+                    :busy="offeringId === b.id"
+                    :format-currency="formatAmount"
+                    :format-date="formatDate"
+                    :quota-label="quotaLabelOf"
+                    :feature-label="featureLabelOf"
+                    :format-quota-value="quotaValueOf"
+                    @take="(bundleVersionId) => onTakeOffer(b, bundleVersionId)"
+                />
             </article>
         </div>
 
@@ -198,6 +222,7 @@ import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './defa
 import { defaultQuotaValue } from './plan/quota-value.js';
 import { refusalMessage } from './refusal-of.js';
 import BundleRetiredNotice from './tenant-plan-section/BundleRetiredNotice.vue';
+import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 
@@ -283,7 +308,7 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
     ...(props.i18n ?? {}),
 }));
 
-const { bundles, loading, error, load, add, cancel, switchToReplacement } =
+const { bundles, loading, error, load, add, cancel, switchToReplacement, acceptVersionOffer } =
     useTenantSubscriptionBundles({
         billingEndpoint: props.billingEndpoint,
         http: props.http,
@@ -408,6 +433,32 @@ async function onSwitch(b: TenantSubscriptionBundle, bundleVersionId: string): P
         await load();
     } finally {
         switchingId.value = null;
+    }
+}
+
+// ─── Take a newer version offered ───────────────────────────
+const offeringId = ref<string | null>(null);
+
+// The card confirmed what asks to be confirmed; this writes it, and says what
+// happened — or, refused, why, reloading the offer as it stands.
+async function onTakeOffer(b: TenantSubscriptionBundle, bundleVersionId: string): Promise<void> {
+    const label = resolveBundleKey(b);
+    const version = String(b.offer?.offered.version ?? '');
+    offeringId.value = b.id;
+    switchError.value = null;
+    switchNote.value = null;
+    try {
+        const result = await acceptVersionOffer(b.id, bundleVersionId);
+        const words = effectiveI18n.value;
+        const said = result.immediate
+            ? words.bundleRetiredSwitched
+            : words.bundleOfferSwitchScheduled.replace('{date}', formatDate(result.takesEffectAt));
+        switchNote.value = said.replace('{bundle}', label).replace('{version}', version);
+    } catch (err) {
+        switchError.value = refusalMessage(err, effectiveI18n.value.issueMessages);
+        await load();
+    } finally {
+        offeringId.value = null;
     }
 }
 
@@ -564,8 +615,14 @@ function formatDate(date: Date | string | null | undefined): string {
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
 }
-.msb-retired {
+.msb-retired,
+.msb-offer {
     margin-top: var(--sa-space-3);
+}
+.msb-pending {
+    margin: var(--sa-space-3) 0 0;
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-secondary);
 }
 .msb-note {
     margin: 0 0 var(--sa-space-4);

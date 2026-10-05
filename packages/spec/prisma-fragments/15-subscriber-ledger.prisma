@@ -23,7 +23,7 @@
 //
 // `origin` and `source` are text holding a closed set, checked when a row is
 // read (`toSubscriberChargeRecord` in @saasicat/core):
-//   origin: activation | renewal | planChange | bundleBooking | credit | correction
+//   origin: activation | renewal | planChange | bundleBooking | bundleChange | credit | correction
 //   source: plan | bundle | discount
 //
 // Optional: adopt it where `tenantBilling.chargeJournal` is configured, which

@@ -68,10 +68,10 @@ import {
     type PlanBeside,
 } from './add-on-fits-plan.js';
 import {
-    bundleRetirementChanges,
-    bundleRetirementSide,
+    bundleVersionChanges,
+    bundleVersionSide,
     bundleRetirementSidesFor,
-} from './bundle-retirement-sides.js';
+} from './bundle-version-sides.js';
 import { bookingsOfVersion, type BookingsOnVersion } from './bundle-bookings-of-version.js';
 import {
     bookingOverBy,
@@ -737,8 +737,8 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
         }
         const retired = await this.versionOf(retiredId);
         const replacement = await this.versionOf(replacementId);
-        const retiredSide = bundleRetirementSide(retired, null);
-        const replacementSide = bundleRetirementSide(replacement, null);
+        const retiredSide = bundleVersionSide(retired, null);
+        const replacementSide = bundleVersionSide(replacement, null);
 
         const blockers: RetirementBlocker[] = [];
         // Off sale by the booking rule (`SC-BUN-035`, `SC-BUN-036`), so nobody
@@ -814,7 +814,7 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
             preview: {
                 retired: retiredSide,
                 replacement: replacementSide,
-                changes: bundleRetirementChanges(retiredSide, replacementSide),
+                changes: bundleVersionChanges(retiredSide, replacementSide),
                 asOf: now.toISOString(),
                 reached,
                 skipped,
@@ -955,8 +955,8 @@ function noticeOf(
     replacement: BundleVersionRow,
     row: BundleRetirementReachedRow,
 ): BundleVersionRetiredNotice {
-    const retiredSide = bundleRetirementSide(retired, row.planKey);
-    const replacementSide = bundleRetirementSide(replacement, row.planKey);
+    const retiredSide = bundleVersionSide(retired, row.planKey);
+    const replacementSide = bundleVersionSide(replacement, row.planKey);
     return {
         kind: KIND,
         tenantId: row.tenantId,
@@ -966,7 +966,7 @@ function noticeOf(
         planKey: row.planKey,
         retired: retiredSide,
         replacement: replacementSide,
-        changes: bundleRetirementChanges(retiredSide, replacementSide),
+        changes: bundleVersionChanges(retiredSide, replacementSide),
         billingCycle: row.billingCycle,
         effectiveAt: row.effectiveAt,
         lastDayToCancel: row.lastDayToCancel,

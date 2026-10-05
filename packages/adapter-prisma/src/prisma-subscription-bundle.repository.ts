@@ -72,6 +72,43 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
         return row ? toSubscriptionBundleRecord(row) : null;
     }
 
+    async scheduleVersion(
+        subscriptionBundleId: string,
+        switchTo: { from: string; to: string; effectiveAt: Date },
+    ): Promise<SubscriptionBundleRecord | null> {
+        const { count } = await this.db().subscriptionBundle.updateMany({
+            where: {
+                id: subscriptionBundleId,
+                bundleVersionId: switchTo.from,
+                pendingBundleVersionId: null,
+            },
+            data: {
+                pendingBundleVersionId: switchTo.to,
+                pendingVersionEffectiveAt: switchTo.effectiveAt,
+            },
+        });
+        return count === 0 ? null : this.findById(subscriptionBundleId);
+    }
+
+    async unscheduleVersion(
+        subscriptionBundleId: string,
+        to: string,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const { count } = await this.db().subscriptionBundle.updateMany({
+            where: { id: subscriptionBundleId, pendingBundleVersionId: to },
+            data: { pendingBundleVersionId: null, pendingVersionEffectiveAt: null },
+        });
+        return count === 0 ? null : this.findById(subscriptionBundleId);
+    }
+
+    async listScheduledVersionsDue(asOf: Date): Promise<SubscriptionBundleRecord[]> {
+        const rows = await this.db().subscriptionBundle.findMany({
+            where: { pendingVersionEffectiveAt: { lte: asOf } },
+            orderBy: [{ pendingVersionEffectiveAt: 'asc' }, { id: 'asc' }],
+        });
+        return rows.map(toSubscriptionBundleRecord);
+    }
+
     async findById(subscriptionBundleId: string): Promise<SubscriptionBundleRecord | null> {
         const row = await this.db().subscriptionBundle.findUnique({
             where: { id: subscriptionBundleId },

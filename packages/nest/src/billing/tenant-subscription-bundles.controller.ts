@@ -8,6 +8,8 @@
 //     hint and requires check (#37) — exactly one of bundleVersionId
 //     (add) or subscriptionBundleId (cancel) in the body
 //   - `DELETE /:id` → cancellation with effective date = max(currentPeriodEnd, minimumTermEndsAt)
+//   - `POST   /:id/retirement/switch` → the early switch to a retirement's replacement
+//   - `POST   /:id/version-offer/accept` → taking a newer version offered beside the booking
 //
 // Resolve steps:
 //   1. `tenantId` from the request (via TenantIdResolver — registered by the
@@ -75,12 +77,22 @@ import {
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
+import { BundleVersionOfferService } from './bundle-version-offer.service.js';
+import { BundleVersionSwitchService } from './bundle-version-switch.service.js';
 import { bookingOverBy } from './bundle-retirement-reach.js';
+import { AdminAuditService } from '../admin/admin-audit.service.js';
+import { requireTenantUserId, tenantActorOf } from './tenant-audit-actor.js';
 import {
+    AUDIT_CONTEXT_RESOLVER_TOKEN,
     PLANS_AHEAD_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
+    USER_EMAIL_RESOLVER_TOKEN,
+    USER_ID_RESOLVER_TOKEN,
+    type AuditContextResolver,
     type TenantIdResolver,
+    type UserEmailResolver,
+    type UserIdResolver,
 } from './tenant-billing.tokens.js';
 import type { PlanAhead } from './add-on-fits-plan.js';
 import type { PlansAhead } from './plans-ahead.js';
@@ -173,6 +185,27 @@ export function buildTenantSubscriptionBundlesController(
             @Optional()
             @Inject(BundleRetirementSwitchService)
             private readonly bundleSwitches: BundleRetirementSwitchService | null = null,
+            // Present where tenant billing reads the bookings: a newer version
+            // offered beside each, and the switch to it.
+            @Optional()
+            @Inject(BundleVersionOfferService)
+            private readonly versionOffers: BundleVersionOfferService | null = null,
+            @Optional()
+            @Inject(BundleVersionSwitchService)
+            private readonly versionSwitches: BundleVersionSwitchService | null = null,
+            // The audit trail of the switches, as tenant billing writes its own.
+            @Optional()
+            @Inject(AdminAuditService)
+            private readonly auditService: AdminAuditService | null = null,
+            @Optional()
+            @Inject(USER_ID_RESOLVER_TOKEN)
+            private readonly userIdResolver: UserIdResolver | null = null,
+            @Optional()
+            @Inject(USER_EMAIL_RESOLVER_TOKEN)
+            private readonly userEmailResolver: UserEmailResolver | null = null,
+            @Optional()
+            @Inject(AUDIT_CONTEXT_RESOLVER_TOKEN)
+            private readonly auditContextResolver: AuditContextResolver | null = null,
         ) {}
 
         @Get()
@@ -193,7 +226,8 @@ export function buildTenantSubscriptionBundlesController(
             // while it runs to the date: one that ends by then, or whose
             // subscription does, never moves, and the notice would say it
             // does. Beside it, what switching now would cost, where it may
-            // (`SC-BUN-054`).
+            // (`SC-BUN-054`), and a newer version offered, where there is one
+            // it could take (`SC-BUN-057`): the two stand side by side.
             return Promise.all(
                 views.map(async (view) => {
                     const retirement =
@@ -210,7 +244,8 @@ export function buildTenantSubscriptionBundlesController(
                     const retirementSwitch = retirement
                         ? ((await this.bundleSwitches?.openFor(sub, view, now)) ?? null)
                         : null;
-                    return { ...view, retirement, retirementSwitch };
+                    const offer = (await this.versionOffers?.offerFor(sub, view, now)) ?? null;
+                    return { ...view, retirement, retirementSwitch, offer };
                 }),
             );
         }
@@ -373,11 +408,69 @@ export function buildTenantSubscriptionBundlesController(
                     params: {},
                 });
             }
-            return this.bundleSwitches.switchNow(
+            const userId = this.requireUserId(req);
+            const result = await this.bundleSwitches.switchNow(
                 tenantId,
                 subscriptionBundleId,
                 dto.bundleVersionId,
             );
+            await this.auditLog(req, userId, tenantId, 'SWITCH_ADD_ON_TO_RETIREMENT_REPLACEMENT', {
+                subscriptionBundleId: result.subscriptionBundleId,
+                fromBundleVersionId: result.fromBundleVersionId,
+                toBundleVersionId: result.bundleVersionId,
+                heldUntilDay: result.heldUntilDay,
+            });
+            return result;
+        }
+
+        /**
+         * Takes the newer version offered beside the booking (`SC-BUN-058`):
+         * at once for an improvement and for more for more, at the end of the
+         * booking's running term for one that takes something away. The body
+         * names the version the page showed; the offer is read again, and a
+         * different one is refused with `BUNDLE_VERSION_OFFER_CHANGED` and the
+         * offer as it stands.
+         */
+        @Post(':id/version-offer/accept')
+        @UseGuards(TenantAdminGuard)
+        @HttpCode(HttpStatus.OK)
+        async acceptVersionOffer(
+            @Req() req: RequestLike,
+            @Param('id', new ParseUUIDPipe()) subscriptionBundleId: string,
+            @Body() dto: SwitchSubscriptionBundleDto,
+        ) {
+            const tenantId = this.requireTenantId(req);
+            const userId = this.requireUserId(req);
+            // Where tenant billing does not read the bookings, no newer
+            // version is offered beside them.
+            if (!this.versionSwitches) {
+                throw new ConflictException({
+                    code: BILLING_ERROR_CODES.BUNDLE_VERSION_OFFER_CHANGED,
+                    message:
+                        'The offer changed since it was shown. Look at the current one before switching.',
+                    params: { bundleVersionId: dto.bundleVersionId },
+                    offer: null,
+                });
+            }
+            const result = await this.versionSwitches.take(
+                tenantId,
+                subscriptionBundleId,
+                dto.bundleVersionId,
+            );
+            await this.auditLog(
+                req,
+                userId,
+                tenantId,
+                result.immediate ? 'SWITCH_ADD_ON_VERSION' : 'SCHEDULE_ADD_ON_VERSION_SWITCH',
+                {
+                    subscriptionBundleId: result.subscriptionBundleId,
+                    offerClass: result.class,
+                    fromBundleVersionId: result.fromBundleVersionId,
+                    toBundleVersionId: result.bundleVersionId,
+                    takesEffectAt: result.takesEffectAt,
+                },
+            );
+            return result;
         }
 
         @Post(':id/reactivate')
@@ -409,6 +502,47 @@ export function buildTenantSubscriptionBundlesController(
             });
             await this.refreezeContract(tenantId, sub);
             return result;
+        }
+
+        private requireUserId(req: RequestLike): string {
+            return requireTenantUserId(req, this.auditResolvers());
+        }
+
+        private auditResolvers() {
+            return {
+                userId: this.userIdResolver,
+                email: this.userEmailResolver,
+                context: this.auditContextResolver,
+            };
+        }
+
+        /**
+         * Writes the audit entry of a switch, best effort: the switch is made
+         * and its answer stands, so a lost entry is logged rather than turned
+         * into a failure the tenant would retry.
+         */
+        private async auditLog(
+            req: RequestLike,
+            userId: string,
+            tenantId: string,
+            action: string,
+            changes: Record<string, unknown>,
+        ): Promise<void> {
+            if (!this.auditService) return;
+            try {
+                await this.auditService.log({
+                    actor: tenantActorOf(req, userId, this.auditResolvers()),
+                    entity: 'SubscriptionBundle',
+                    entityId: String(changes.subscriptionBundleId),
+                    action,
+                    changes: { tenantId, ...changes },
+                });
+            } catch (error) {
+                this.logger.error(
+                    `Writing the audit entry ${action} for tenant ${tenantId} failed.`,
+                    error instanceof Error ? error.stack : String(error),
+                );
+            }
         }
 
         private requireSubscriptionPk(sub: SubscriptionUsageRecord): string {

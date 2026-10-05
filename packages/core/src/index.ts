@@ -51,6 +51,7 @@ export * from './version-sale.js';
 export * from './version-retirement.types.js';
 export * from './version-retirement-mapping.js';
 export * from './bundle-version-retirement.types.js';
+export * from './bundle-version-offer.types.js';
 export * from './bundle-version-retirement-mapping.js';
 export * from './scheduled-change-after-write.js';
 export * from './retirement-switch.js';

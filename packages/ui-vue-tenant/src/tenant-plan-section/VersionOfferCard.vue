@@ -1,9 +1,11 @@
 <template>
     <section class="sp-version-offer" :aria-labelledby="headingId">
         <div class="sp-version-offer__head">
-            <h2 :id="headingId" class="sp-version-offer__title">
-                {{ i18n.versionOfferTitle.replace('{version}', offeredVersion) }}
-            </h2>
+            <!-- Beside the plan it heads a section; beside a booked add-on it is
+                 part of that booking, as the add-on's retirement notice is. -->
+            <component :is="addOn ? 'p' : 'h2'" :id="headingId" class="sp-version-offer__title">
+                {{ title }}
+            </component>
             <span class="sp-badge" :class="`sp-badge--${tone}`">{{ kindLabel }}</span>
         </div>
         <p class="sp-version-offer__lead">{{ lead }}</p>
@@ -59,13 +61,14 @@
 </template>
 
 <script setup lang="ts">
-// A newer version of the tenant's plan, offered beside it: both versions side
-// by side, the kind of offer, when a switch would take effect, and the switch.
-// What the card compares is read off the offer by `version-offer-comparison`;
-// taking it is the section's, which owns the request and says how it went.
+// A newer version offered beside what the tenant has — of the plan, or of an
+// add-on booked: both versions side by side, the kind of offer, when a switch
+// would take effect, and the switch. What the card compares is read off the
+// offer by `version-offer-comparison`; taking it is the parent's, which owns
+// the request and says how it went.
 
 import { computed, ref, useId } from 'vue';
-import type { VersionOfferView } from '@saasicat/core';
+import type { BundleVersionOfferView, VersionOfferView } from '@saasicat/core';
 
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
@@ -74,17 +77,21 @@ import VersionComparison from './VersionComparison.vue';
 import { offerAsksFirst, offerTone } from './version-offer-comparison.js';
 
 const props = defineProps<{
-    offer: VersionOfferView;
+    /** A newer version of the plan, or — with `bundleLabel` — of a booked add-on. */
+    offer: VersionOfferView | BundleVersionOfferView;
+    /** The add-on's display name, where the offer is one of an add-on booked. */
+    bundleLabel?: string;
     /** While the switch is being written. */
     busy: boolean;
     formatCurrency: (n: number) => string;
-    formatDate: (iso: string | Date) => string;
+    formatDate: (iso: string) => string;
     quotaLabel: (key: string) => string;
     featureLabel: (key: string) => string;
     formatQuotaValue: (key: string, value: number) => string;
 }>();
 
-const emit = defineEmits<{ (e: 'take', planVersionId: string): void }>();
+/** The version offered, by its id: a plan version's, or an add-on version's. */
+const emit = defineEmits<{ (e: 'take', versionId: string): void }>();
 
 const i18n = useTenantI18n();
 const headingId = useId();
@@ -93,6 +100,17 @@ const confirming = ref(false);
 const offeredVersion = computed(() => String(props.offer.offered.version));
 const boundVersion = computed(() => String(props.offer.bound.version));
 const tone = computed(() => offerTone(props.offer.class));
+const addOn = computed(() => props.bundleLabel !== undefined);
+/** A sentence of the add-on's wording with its name in, or of the plan's. */
+const worded = (bundle: string, plan: string): string =>
+    addOn.value ? bundle.replace('{bundle}', props.bundleLabel ?? '') : plan;
+
+const title = computed(() =>
+    worded(i18n.value.bundleOfferTitle, i18n.value.versionOfferTitle).replace(
+        '{version}',
+        offeredVersion.value,
+    ),
+);
 
 const kindLabel = computed(() => {
     if (props.offer.class === 'improvement') return i18n.value.versionOfferKindImprovement;
@@ -101,9 +119,14 @@ const kindLabel = computed(() => {
 });
 
 const lead = computed(() => {
-    if (props.offer.class === 'improvement') return i18n.value.versionOfferLeadImprovement;
-    if (props.offer.class === 'more-for-more') return i18n.value.versionOfferLeadMoreForMore;
-    return i18n.value.versionOfferLeadTakesAway;
+    const words = i18n.value;
+    if (props.offer.class === 'improvement') {
+        return worded(words.bundleOfferLeadImprovement, words.versionOfferLeadImprovement);
+    }
+    if (props.offer.class === 'more-for-more') {
+        return worded(words.bundleOfferLeadMoreForMore, words.versionOfferLeadMoreForMore);
+    }
+    return worded(words.bundleOfferLeadTakesAway, words.versionOfferLeadTakesAway);
 });
 
 const takesEffectDate = computed(() => props.formatDate(props.offer.takesEffectAt));
@@ -116,8 +139,20 @@ const effectiveText = computed(() =>
 
 const confirmBody = computed(() =>
     props.offer.class === 'takes-something-away'
-        ? i18n.value.versionOfferConfirmTakesAway.replace('{date}', takesEffectDate.value)
-        : i18n.value.versionOfferConfirmMoreForMore,
+        ? worded(
+              i18n.value.bundleOfferConfirmTakesAway,
+              i18n.value.versionOfferConfirmTakesAway,
+          ).replace('{date}', takesEffectDate.value)
+        : worded(
+              i18n.value.bundleOfferConfirmMoreForMore,
+              i18n.value.versionOfferConfirmMoreForMore,
+          ),
+);
+
+const offeredId = computed(() =>
+    'planVersionId' in props.offer.offered
+        ? props.offer.offered.planVersionId
+        : props.offer.offered.bundleVersionId,
 );
 
 const takeLabel = computed(() =>
@@ -129,12 +164,12 @@ function onTake(): void {
         confirming.value = true;
         return;
     }
-    emit('take', props.offer.offered.planVersionId);
+    emit('take', offeredId.value);
 }
 
 function confirm(): void {
     confirming.value = false;
-    emit('take', props.offer.offered.planVersionId);
+    emit('take', offeredId.value);
 }
 </script>
 

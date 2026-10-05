@@ -56,6 +56,7 @@ const skipLines = computed(() => {
     const sentences: Record<BundleRetirementSkipReason, string> = {
         ended: words.ended,
         'cancelled-before': words.cancelledBefore,
+        'changes-before': words.changesBefore,
         'no-term': words.noTerm,
         'already-told': words.alreadyTold,
     };

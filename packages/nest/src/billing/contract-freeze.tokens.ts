@@ -65,8 +65,11 @@ export interface ContractFreezePort {
          * next change.
          */
         endsAt: Date | null,
-        /** Where a retirement writes the contract: its move, or the switch it offers. */
-        retirement?: RetirementContractTerms,
+        /**
+         * Where a retirement writes the contract — its move, or the switch it
+         * offers — or a booking's switch to a newer version of its add-on.
+         */
+        terms?: ContractChangeTerms,
     ): Promise<void>;
 
     /**
@@ -119,6 +122,26 @@ export interface RetirementContractTerms {
         readonly lastDay: string;
     } | null;
 }
+
+/**
+ * What taking a newer version of an add-on adds to the contract that records
+ * it: the booking's line on the version taken is marked with the switch, so
+ * the journal reads that the booking ran on `fromBundleVersionId` until
+ * `effectiveAt`, prices it from this line from then, and charges what the new
+ * line costs more for the rest of the period it falls in (`SC-BUN-058`).
+ */
+export interface AddOnSwitchContractTerms {
+    readonly addOnSwitch: {
+        readonly subscriptionBundleId: string;
+        readonly fromBundleVersionId: string;
+        readonly bundleVersionId: string;
+        /** When the switch took effect: at once, or at the end of the booking's term. */
+        readonly effectiveAt: Date;
+    };
+}
+
+/** What a contract a change writes carries beside the plan and the add-ons booked. */
+export type ContractChangeTerms = RetirementContractTerms | AddOnSwitchContractTerms;
 
 /** Frozen bundle line items + their version ids (trace). */
 export interface ContractFreezeBundleSnapshot {

@@ -44,7 +44,7 @@ import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { bookingsOfVersion } from './bundle-bookings-of-version.js';
 import { bookingOverBy, planAt } from './bundle-retirement-reach.js';
-import { bundleRetirementSidesFor } from './bundle-retirement-sides.js';
+import { bundleRetirementSidesFor } from './bundle-version-sides.js';
 import { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
 import { NOTICE_DELIVERY_TIMEOUT_MS, NoticeSender, type NoticeOutcome } from './notice-sender.js';
 import type { PlansAhead } from './plans-ahead.js';

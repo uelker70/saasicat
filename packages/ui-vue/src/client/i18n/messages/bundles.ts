@@ -182,6 +182,7 @@ export const bundlesMessages = defineMessages(
             skipped: {
                 ended: '{count} beendet',
                 cancelledBefore: '{count} gekündigt, die Kündigung wirkt vorher',
+                changesBefore: '{count} wechseln vorher auf eine neuere Version',
                 noTerm: '{count} ohne erkennbaren Abrechnungszeitraum',
                 alreadyTold:
                     '{count} schon durch eine frühere Stilllegung dieser Version benachrichtigt',
@@ -445,6 +446,7 @@ export const bundlesMessages = defineMessages(
             skipped: {
                 ended: '{count} ended',
                 cancelledBefore: '{count} cancelled, landing before then',
+                changesBefore: '{count} switch to a newer version before then',
                 noTerm: '{count} without a billing period to count from',
                 alreadyTold: '{count} already told by an earlier retirement of this version',
             },

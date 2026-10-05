@@ -227,6 +227,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Version {version} von {bundleKey} wird stillgelegt, und diese Buchung endet, bevor sie umziehen würde. Ihr Abonnement endet bis dahin ebenfalls.',
     BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES:
         '{bundleName} zieht am {date} auf seine neue Version um, und Ihr Paket ändert sich vorher. Der Preis, den ein Wechsel halten würde, steht deshalb noch nicht fest. Wechseln Sie, sobald Ihr Paket gewechselt hat, oder lassen Sie es an diesem Tag umziehen.',
+    BUNDLE_VERSION_OFFER_CHANGED:
+        'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',
@@ -339,6 +341,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         "CheckoutOffer '{offerId}' muss eingelöst sein, bevor der Vertrag entsteht",
     CHECKOUT_OFFER_CHANGED:
         "Checkout-Angebot '{offerId}' hat sich während des Abschlusses geändert. Bitte neu laden.",
+    CHECKOUT_OFFER_CONTRACT_IN_FORCE:
+        "Checkout-Angebot '{offerId}' schließt einen ersten Vertrag ab, und dieser Mandant hat bereits einen. Ein laufendes Abo ändert sich über seinen Plan und seine Add-ons.",
+    CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION:
+        "Checkout-Angebot '{offerId}' nennt Version {offeredVersion} des Add-ons '{bundleKey}', das dieser Mandant in Version {bookedVersion} gebucht hat (Buchung {subscriptionBundleId}). Die Version wechselt über das Angebot neben dem Add-on.",
     SUBSCRIPTION_CONTRACT_NOT_FOUND: "SubscriptionContract '{contractId}' nicht gefunden",
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'Kein aktiver Abo-Vertrag für Mandant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED:

@@ -47,6 +47,16 @@ ALTER TABLE applied_settings
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
 
+-- A booking's scheduled switch names its version AND the moment it takes
+-- effect, or neither. A version without a moment would never be made, and a
+-- moment without a version would make the run look for nothing every quarter
+-- of an hour. Same two plain statements as above.
+ALTER TABLE subscription_bundles
+    DROP CONSTRAINT IF EXISTS subscription_bundles_switch_has_its_moment;
+ALTER TABLE subscription_bundles
+    ADD CONSTRAINT subscription_bundles_switch_has_its_moment
+    CHECK (("pendingBundleVersionId" IS NULL) = ("pendingVersionEffectiveAt" IS NULL));
+
 -- At most ONE maintenance window is open — announced or locked, not yet ended.
 --
 -- The index is on a constant, so every open row carries the same key and a

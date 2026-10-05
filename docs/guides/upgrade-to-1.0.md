@@ -2445,7 +2445,7 @@ price of the version the subscription is bound to (`SC-SUB-019`).
 ### A subscriber is offered a newer version of their plan
 
 A subscription keeps the version it is bound to. A newer version of the plan on sale is now an
-offer the tenant takes or leaves (`SC-SUB-020`, `SC-SUB-021`): `GET billing/version-offer` reads
+offer the tenant takes or leaves (`SC-SUB-040`, `SC-SUB-021`): `GET billing/version-offer` reads
 it, `POST billing/version-offer/accept` takes it, and `TenantPlanSection` shows it beside the plan
 card. A version that takes something away — a feature missing, a quota lower — asks first and is
 scheduled for the end of the term, whatever it costs. Otherwise one that costs more in a rhythm,
@@ -2507,7 +2507,7 @@ replaces — stops that job before it turns this on, or they hear twice.
 ### A newer version is only offered
 
 A subscription keeps its plan version across every renewal until the subscriber takes another
-(`SC-SUB-024`); a newer version is an offer beside the plan (`SC-SUB-020`). The pending version —
+(`SC-SUB-024`); a newer version is an offer beside the plan (`SC-SUB-040`). The pending version —
 set by a notice job, accepted by the tenant, rolled forward at the end of the term — is gone with
 everything that carried it:
 
@@ -2871,6 +2871,76 @@ or not it uses it:
   stands. The add-on page's label for a deleted add-on reads "Deleted" rather than "Retired"; its
   keys, `bundles.filter.retired` and `bundles.status.retired.label`, are unchanged, so an override
   of them keeps its words.
+
+### A subscriber is offered a newer version of a booked add-on
+
+A booking keeps its add-on version, and a newer one of the same add-on is offered beside it, judged
+in the booking's rhythm; an improvement and more for more are taken at once, one that takes something
+away is scheduled for the end of the booking's term and made by the quarter-hour run. How it works:
+[Offering a Newer Add-on Version](wire-the-backend.md#offering-a-newer-add-on-version). What every
+installation has to do:
+
+1. **Run the migration, and adopt the fragments.** `subscription_bundles` gains
+   `pendingBundleVersionId` and `pendingVersionEffectiveAt`, with a foreign key to `bundle_versions`
+   and an index; fragments 05 and 11 name their two relations between `BundleVersion` and
+   `SubscriptionBundle` now (`SubscriptionBundleVersion`, `SubscriptionBundlePendingVersion`), so a
+   schema of your own takes both models over as they stand. Apply `constraints.postgres.sql` after
+   it, as on every deployment: it holds the two columns to being set together.
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-an-add-on-switch-waits-for-its-term.postgres.sql
+    ```
+
+2. **Handle the new kind of notice.** With version notices on, `SubscriptionNotice` gains
+   `bundle-version-offered` (`BundleVersionOfferedNotice`), one per booking and version offered. A
+   port that switches on `kind` adds it.
+
+3. **Expect a refusal at checkout.** `CheckoutOfferService.conclude` refuses an offer for a tenant
+   with a contract in force when the offer's would take effect, or one beginning after it
+   (`CHECKOUT_OFFER_CONTRACT_IN_FORCE`), where it used to write a second contract beside the first;
+   and an offer naming another version of an add-on the tenant has booked
+   (`CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION`). An application that words refusals itself
+   adds both; the shipped texts cover English and German until it does.
+
+- **A `SubscriptionBundleRepository` of your own** returns the two new fields on every record (null
+  where nothing is scheduled) and gains the optional `scheduleVersion`, `unscheduleVersion` and
+  `listScheduledVersionsDue`. Without them, or without version notices, a version that takes
+  something away is not offered, and the start says so once. With version notices, the offer's
+  notice needs `listOfVersion` on it and `listByIds` on a `SubscriptionUsagePort` of your own, or
+  the start is refused.
+- **A persistence contract harness** gains a scenario for a scheduled switch; a harness without the
+  three methods declares `gaps: ['bookingsScheduled']`.
+- **With `versionNotices.includeCron: false`**, your scheduler calls
+  `BundleVersionNoticeService.sendDue(new Date())` beside the plan's notices and
+  `BundleVersionSwitchRunService.switchDue(new Date())` after the moves. Without the second, no
+  scheduled switch is made, and the booking's periods from its moment wait for it.
+- **The tenant's booking list** carries `offer` (`BundleVersionOfferView`) and `pendingVersion`;
+  `useTenantBilling().acceptBundleVersionOffer` and
+  `useTenantSubscriptionBundles().acceptVersionOffer` take an offer, `TenantBundleStore` emits
+  `takeOffer` and takes `offeringId`, and `VersionOfferCard` shows an add-on's offer given
+  `bundleLabel`. The tenant texts gain `bundleOffer*`.
+- **The early switch to a retirement's replacement is audited** as
+  `SWITCH_ADD_ON_TO_RETIREMENT_REPLACEMENT`, and like the plan's switches it now needs the request
+  to name its user (`userIdResolver`, by default `req.user.sub` or `req.user.id`); one that names
+  none is refused with `TENANT_CONTEXT_MISSING`.
+- **A version named that is no longer offered** beside a booking is refused with
+  `BUNDLE_VERSION_OFFER_CHANGED` (`bundleVersionId`) and the offer as it stands. An application
+  that words refusals itself adds it; the shipped texts cover English and German until it does.
+- **The charge journal** writes the difference an add-on switch adds with the origin
+  `bundleChange`. Code of your own that reads the journal's origins adds it.
+- **An add-on retirement does not reach** a booking whose scheduled switch lands by its date: the
+  preview lists it as `changes-before`.
+- **A plan change asks a scheduled add-on switch** as it asks a told replacement: where the version
+  a booking switches to could not run beside the target plan, the preview refuses with
+  `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`. A booking with both is asked about both, in the
+  order it reaches them; a switch landing before the retirement's date leaves the replacement
+  unasked (`SC-BUN-061`).
+- **A version offer beside a told retirement** — of a plan version or of an add-on version — no
+  longer offers the retirement's replacement, which the early switch reaches at the price it holds,
+  nor a version that takes something away; a newer version that applies at once is still offered
+  beside the notice (`SC-SUB-040`, which supersedes `SC-SUB-020`, and `SC-BUN-057`). A plan offer
+  for the replacement taken through `POST /billing/version-offer/accept` is refused with
+  `VERSION_OFFER_CHANGED` and no offer; the early switch takes the subscription there.
 
 ## What the codemod leaves to you
 

@@ -21,6 +21,8 @@ import type {
     BundleRepository,
     BundleVersionRow,
     CatalogEntryRepository,
+    SubscriptionBundleRepository,
+    SubscriptionUsagePort,
     CheckoutOfferFilter,
     CheckoutOfferLineItem,
     CheckoutOfferRepository,
@@ -46,6 +48,8 @@ import {
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { sameAddOn } from '../billing/add-on-already-booked.js';
+import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
+import { SUBSCRIPTION_USAGE_PORT_TOKEN } from '../billing/tenant-billing.tokens.js';
 import { bundleVersionNotBookableReason, isValidUntilExpired } from './bundle-version-bookable.js';
 import {
     type CreateContractFromOfferOptions,
@@ -145,6 +149,15 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(PromoCodesService)
         private readonly promoCodes: PromoCodesService | null = null,
+        // Where tenant billing and add-on bookings are wired: the add-ons the
+        // tenant has booked already, which an offer may not name in another
+        // version.
+        @Optional()
+        @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
+        private readonly subscriptions: SubscriptionUsagePort | null = null,
+        @Optional()
+        @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
+        private readonly bookings: SubscriptionBundleRepository | null = null,
     ) {}
 
     list(filter: CheckoutOfferFilter): Promise<CheckoutOfferRow[]> {
@@ -368,6 +381,8 @@ export class CheckoutOfferService {
         if (standing) return standing;
 
         const existing = await this.assertConsumable(id);
+        await this.assertFirstContract(contracts, existing.id, contractOptions);
+        await this.assertBookedVersionsAgree(existing, tenantId);
         // The party first: a subscriber that may not be created, or a tenant
         // without one, is refused as such before its tax is asked about.
         await this.assertParty(subscribers, tenantId, subscriber);
@@ -406,6 +421,9 @@ export class CheckoutOfferService {
             // written.
             const data = contracts.createDataFromOffer(offer, contractOptions, rate);
             if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
+            // Asked again, as late as it can be: a contract another conclusion
+            // wrote since the check above would otherwise run beside this one.
+            await this.assertFirstContract(contracts, id, contractOptions);
             if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
             const contract = await contracts.create(data, tx);
             const concluded = { offer, contract };
@@ -434,6 +452,71 @@ export class CheckoutOfferService {
             ).catch(() => null);
             if (concludedMeanwhile) return concludedMeanwhile;
             throw error;
+        }
+    }
+
+    /**
+     * Refuses an offer for a tenant with a contract in force when the offer's
+     * would take effect, or one beginning after it (`SC-MKT-028`). An offer
+     * concludes a first contract and ends none, so the two would run side by
+     * side, each billed. A tenant in a trial has none and concludes as before;
+     * a running subscription changes through its plan and its add-ons.
+     */
+    private async assertFirstContract(
+        contracts: SubscriptionContractService,
+        offerId: string,
+        options: Pick<CreateContractFromOfferOptions, 'tenantId' | 'effectiveFrom'>,
+    ): Promise<void> {
+        const running = await contracts.runningFrom(options.tenantId, options.effectiveFrom);
+        if (!running) return;
+        throw new ConflictException({
+            code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_CONTRACT_IN_FORCE,
+            message:
+                `Checkout offer '${offerId}' concludes a first contract, and this tenant already ` +
+                'has one. A running subscription changes through its plan and its add-ons.',
+            params: { offerId, contractId: running.id },
+        });
+    }
+
+    /**
+     * Refuses an offer that names a version of an add-on the tenant has booked
+     * in another version (`SC-MKT-029`). Concluded, the contract would name a
+     * version the booking is not on, and the booking would be priced from a
+     * line that is not its own. The booking changes its version through the
+     * offer beside it (`SC-BUN-058`).
+     */
+    private async assertBookedVersionsAgree(
+        offer: CheckoutOfferRow,
+        tenantId: string,
+    ): Promise<void> {
+        const named = offer.bundleVersionIds ?? [];
+        if (!this.bundles || !this.subscriptions || !this.bookings || named.length === 0) return;
+        const sub = await this.subscriptions.findForTenant(tenantId);
+        if (!sub?.id) return;
+        const running = await this.bookings.listActiveBySubscription(sub.id, new Date());
+        for (const booking of running) {
+            const booked = await this.bundles.findVersionById(booking.bundleVersionId);
+            if (!booked) continue;
+            for (const bundleVersionId of named) {
+                if (bundleVersionId === booking.bundleVersionId) continue;
+                const version = await this.bundles.findVersionById(bundleVersionId);
+                if (!version || !sameAddOn(version, booked)) continue;
+                throw new UnprocessableEntityException({
+                    code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION,
+                    message:
+                        `Checkout offer '${offer.id}' names version ${version.version} of add-on ` +
+                        `'${version.bundleKey}', which this tenant has booked in version ` +
+                        `${booked.version} (booking ${booking.id}). Its version changes through ` +
+                        'the offer beside the add-on.',
+                    params: {
+                        offerId: offer.id,
+                        bundleKey: version.bundleKey,
+                        subscriptionBundleId: booking.id,
+                        bookedVersion: String(booked.version),
+                        offeredVersion: String(version.version),
+                    },
+                });
+            }
         }
     }
 
