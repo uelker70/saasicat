@@ -262,8 +262,15 @@ function resolveStatusTone(s: string): PillTone {
     return promoStatusTone(s as PromoCodeStatus);
 }
 
+/** The code's settings as stored, its first and last day read in the zone promo days are read in. */
 function resolveFormatPromo(promo: Record<string, unknown>): string {
-    return JSON.stringify(promo, null, 2);
+    const dayOf = (value: unknown): unknown =>
+        typeof value === 'string' && value ? promoDayOf(value, promoCodes.timeZone) : value;
+    return JSON.stringify(
+        { ...promo, validFrom: dayOf(promo.validFrom), validUntil: dayOf(promo.validUntil) },
+        null,
+        2,
+    );
 }
 
 const defaultColumns = computed<QTableColumn[]>(() => [

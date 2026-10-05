@@ -832,6 +832,8 @@ _Tested by:_
     - the detail page
         - shows each redemption’s term and moment in the zone the application names, saying which
         - and in UTC where it names none
+        - shows the code’s own first and last day in its settings in the zone named, and in UTC
+          without one
     - the shell
         - hands the pages the zone the application names, and UTC where it names none
         - refuses a zone the browser cannot read before it touches the document

@@ -170,8 +170,8 @@ describe('the detail page', () => {
             maxRedemptions: null,
             redemptionsCount: 1,
             heldCount: 0,
-            validFrom: null,
-            validUntil: null,
+            validFrom: FIRST_DAY_IN_BERLIN,
+            validUntil: LAST_DAY_IN_BERLIN,
             appliesToPlans: [],
         },
         redemptions: [
@@ -186,7 +186,7 @@ describe('the detail page', () => {
         ],
     };
 
-    async function redemptionIn(timeZone: string | null): Promise<string[]> {
+    async function pageIn(timeZone: string | null) {
         const router = createRouter({
             history: createMemoryHistory(),
             routes: [{ path: '/admin/promo-codes/:code', component: PromoCodeDetailPage }],
@@ -206,8 +206,20 @@ describe('the detail page', () => {
         });
         mounted.push(wrapper);
         await flushPromises();
+        return wrapper;
+    }
+
+    async function redemptionIn(timeZone: string | null): Promise<string[]> {
+        const wrapper = await pageIn(timeZone);
         const row = wrapper.findAll('tbody tr').find((tr) => tr.text().includes('meier'));
         return (row?.findAll('td') ?? []).map((cell) => cell.text()).slice(2);
+    }
+
+    /** The code's own first and last day, as its settings show them. */
+    async function settingsIn(timeZone: string | null): Promise<unknown[]> {
+        const wrapper = await pageIn(timeZone);
+        const settings = JSON.parse(wrapper.find('pre').text()) as Record<string, unknown>;
+        return [settings.validFrom, settings.validUntil];
     }
 
     test('shows each redemption’s term and moment in the zone the application names, saying which', async () => {
@@ -223,6 +235,13 @@ describe('the detail page', () => {
             '2026-03-28',
             '2026-10-25',
             '2026-10-05 15:44:35 UTC',
+        ]);
+    });
+
+    test('shows the code’s own first and last day in its settings in the zone named, and in UTC without one', async () => {
+        expect([await settingsIn('Europe/Berlin'), await settingsIn(null)]).toEqual([
+            ['2026-03-29', '2026-10-25'],
+            ['2026-03-28', '2026-10-25'],
         ]);
     });
 });
