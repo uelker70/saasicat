@@ -1715,7 +1715,9 @@ is checked only where the treatment depends on it, and the check is kept with th
    `503 TAX_VAT_ID_CHECK_NOT_COMPLETED`, to be tried again later.
 4. Where your application creates a subscriber itself, call
    `SubscriberService.assessNewSubscriber(details, period)` before the transaction and pass what it
-   answers to `createForTenant` ([wire the backend](wire-the-backend.md#the-tax-adapter)).
+   answers to `createForTenant` on that transaction
+   ([wire the backend](wire-the-backend.md#the-tax-adapter)); with a check attached it records both
+   on one transaction and refuses to run without one.
    `NewSubscriberDetails` carries the check as `vatIdCheck`; one for another number than the
    subscriber's is refused with `SUBSCRIBER_DETAIL_INVALID` (`field: 'vatIdCheck'`).
 

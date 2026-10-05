@@ -35,7 +35,8 @@ before the transaction that creates it. Without an adapter nothing is checked.
   `SubscriberService.assessNewSubscriber(details, period)` before its
   transaction — `contractTaxPeriod` from `@saasicat/nest/billing` gives the
   period — and passes what it answers to `createForTenant`, which records the
-  attached check. `NewSubscriberDetails` gains `vatIdCheck`; a check of another
+  attached check with the subscriber on the transaction passed, and refuses to
+  without one. `NewSubscriberDetails` gains `vatIdCheck`; a check of another
   number than the subscriber's is refused with `SUBSCRIBER_DETAIL_INVALID`
   (`field: 'vatIdCheck'`) before anything is written.
 - A subscriber created another way — a backfill, a migration of existing

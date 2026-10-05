@@ -83,6 +83,10 @@ export class SubscriberService {
      *
      * Refused with `SUBSCRIBER_ALREADY_EXISTS` when the tenant has one: a second
      * party for the same tenant is not a correction of the first.
+     *
+     * A check of the VAT number attached to `details` — what
+     * `assessNewSubscriber` answers — is recorded with the subscriber, on `tx`,
+     * which it then requires.
      */
     async createForTenant(
         tenantId: string,
@@ -98,6 +102,15 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, {
                     field: 'vatIdCheck',
                 }),
+            );
+        }
+        // The subscriber and its check are one write: apart, a failed check
+        // would leave a subscriber without it, and the retry would meet
+        // `SUBSCRIBER_ALREADY_EXISTS`. The tenant is created on a transaction
+        // anyway, so the caller passes that one.
+        if (check && tx === undefined) {
+            throw new Error(
+                'SubscriberService.createForTenant records the attached VAT id check with the subscriber on one transaction: pass the transaction the tenant is created on.',
             );
         }
         const created = await this.repo.createForTenant(

@@ -426,6 +426,7 @@ _Tested by:_
         - a business elsewhere in the Union: its number is checked once, kept, and the form opens
         - and the subscriber it becomes takes the check over, so its number counts as validated
         - ${what} is refused, nothing is kept, and the form does not open
+        - where no form can open, the adapter and the number service are not asked at all
         - a business outside the Union is not taxable as given: its number is not checked
         - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
           chosen

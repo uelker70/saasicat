@@ -143,12 +143,26 @@ describe('a subscriber created with a check keeps it', () => {
             A_MONTH,
         );
 
-        const created = await subscribers.createForTenant('tenant-1', assessed);
+        const created = await subscribers.createForTenant('tenant-1', assessed, { id: 'tx-1' });
 
         const counting = await repo.findCurrentVatIdCheck(created.id);
         assert.deepEqual([counting.vatId, counting.valid], ['ATU12345678', true]);
         const origin = await subscribers.taxOriginFor({ tenantId: 'tenant-1' });
         assert.equal(origin.validatedVatId, 'ATU12345678');
+    });
+
+    test('a check is recorded only on the transaction the subscriber is created on', async () => {
+        const { subscribers, repo } = subscribersWith();
+        const assessed = await subscribers.assessNewSubscriber(
+            { legalName: 'Wien GmbH', country: 'AT', vatId: 'ATU12345678', business: true },
+            A_MONTH,
+        );
+
+        await assert.rejects(
+            subscribers.createForTenant('tenant-1', assessed),
+            /on one transaction: pass the transaction the tenant is created on/,
+        );
+        assert.equal(await repo.findByTenantId('tenant-1'), null, 'nothing was written');
     });
 
     test('a check of another number is refused before anything is written', async () => {
