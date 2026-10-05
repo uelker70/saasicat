@@ -14,12 +14,13 @@
                     :loading="loading"
                     storage-key="subscriptions"
                 >
-                    <template #body-cell-tenant="{ row, value }">
-                        <q-td>
+                    <!-- The column's own alignment comes with `props`. -->
+                    <template #body-cell-tenant="cell">
+                        <q-td :props="cell">
                             <span class="sa-subscriptions__tenant">
-                                {{ value }}
+                                {{ cell.value }}
                                 <AdminStatusPill
-                                    v-for="pill in heldBackOf(row)"
+                                    v-for="pill in heldBackOf(cell.row)"
                                     :key="pill.label"
                                     :label="pill.label"
                                     :icon="pill.icon"
