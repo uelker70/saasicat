@@ -427,6 +427,7 @@ _Tested by:_
         - and the subscriber it becomes takes the check over, so its number counts as validated
         - ${what} is refused, nothing is kept, and the form does not open
         - where no form can open, the adapter and the number service are not asked at all
+        - a repository that does not keep ${dropped} is a wiring error in step 4
         - a business outside the Union is not taxable as given: its number is not checked
         - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
           chosen

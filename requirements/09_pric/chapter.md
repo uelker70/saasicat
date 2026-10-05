@@ -1757,6 +1757,7 @@ _Tested by:_
     - a subscriber created with a check keeps it
         - the attached check is recorded, and the number counts as validated
         - a check is recorded only on the transaction the subscriber is created on
+        - assessed details need the transaction even where no check was needed
         - a check of another number is refused before anything is written
         - created without a check, no number counts as validated
 - `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
@@ -1765,6 +1766,7 @@ _Tested by:_
         - and the subscriber it becomes takes the check over, so its number counts as validated
         - ${what} is refused, nothing is kept, and the form does not open
         - where no form can open, the adapter and the number service are not asked at all
+        - a repository that does not keep ${dropped} is a wiring error in step 4
         - a business outside the Union is not taxable as given: its number is not checked
         - it is asked over the contract the sign-up will have: a year, where a yearly rhythm was
           chosen

@@ -1703,6 +1703,10 @@ treat is now refused before it exists: a sign-up in step 4, before the payment f
 subscriber your application creates itself, before the transaction that creates it. A VAT number
 is checked only where the treatment depends on it, and the check is kept with the subscriber.
 
+Steps 1 and 2 hold for every installation with self-registration, with an adapter or without:
+step 4 writes both columns either way, and refuses — as a wiring error — a repository that does not
+give them back.
+
 1. Run `sql/1.0-a-sign-up-keeps-its-vat-id-check.postgres.sql`, or adopt the two new columns of
    `prisma-fragments/09-pending-registration.prisma`: `business` and `vatIdCheck` on
    `PendingRegistration`.
@@ -1716,8 +1720,9 @@ is checked only where the treatment depends on it, and the check is kept with th
 4. Where your application creates a subscriber itself, call
    `SubscriberService.assessNewSubscriber(details, period)` before the transaction and pass what it
    answers to `createForTenant` on that transaction
-   ([wire the backend](wire-the-backend.md#the-tax-adapter)); with a check attached it records both
-   on one transaction and refuses to run without one.
+   ([wire the backend](wire-the-backend.md#the-tax-adapter)). Assessed details — they carry
+   `vatIdCheck`, a check or `null` — are created only on a transaction, so a call without one fails
+   on its first run, whatever the subscriber's data.
    `NewSubscriberDetails` carries the check as `vatIdCheck`; one for another number than the
    subscriber's is refused with `SUBSCRIBER_DETAIL_INVALID` (`field: 'vatIdCheck'`).
 
