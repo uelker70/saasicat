@@ -1297,7 +1297,9 @@ moment has come (`SC-BUN-059`): it moves the booking, writes its contract, clear
 audits `BUNDLE_VERSION_SWITCH` by the actor `job:platform:add-on-version-switches`. Until then the
 journal charges no period of the booking from that moment; a switch whose contract cannot be
 written is put back and recorded once as `BUNDLE_VERSION_SWITCH_FAILED`, and one whose booking or
-subscription has ended by the time a run comes is cleared as `BUNDLE_VERSION_SWITCH_LAPSED`. It
+subscription has ended by the time a run comes is cleared as `BUNDLE_VERSION_SWITCH_LAPSED` — after
+the run has asked the journal for the periods the booking ran on past the moment, at the version it
+ran on; where the journal cannot record them, the switch stays for the next run to ask again. It
 needs the migration `sql/1.0-an-add-on-switch-waits-for-its-term.postgres.sql`, fragments 05 and 11
 as they stand, `constraints.postgres.sql` applied after it, and version notices on, whose run makes
 the switch: without version notices — or with a `SubscriptionBundleRepository` of your own that

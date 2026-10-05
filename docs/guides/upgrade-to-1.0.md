@@ -2932,7 +2932,9 @@ installation has to do:
   preview lists it as `changes-before`.
 - **A plan change asks a scheduled add-on switch** as it asks a told replacement: where the version
   a booking switches to could not run beside the target plan, the preview refuses with
-  `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`.
+  `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`. A booking with both is asked about both, in the
+  order it reaches them; a switch landing before the retirement's date leaves the replacement
+  unasked (`SC-BUN-061`).
 
 ## What the codemod leaves to you
 

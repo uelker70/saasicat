@@ -19,8 +19,9 @@ period, terms and minimum term, and the journal charges what a dearer version
 costs for the rest of the booking's period (origin `bundleChange`), nothing
 otherwise (`SC-BUN-058`). One that takes something away is scheduled for the
 end of the booking's term, and the quarter-hour run makes it then
-(`SC-BUN-059`). With version notices on, each booking is told once
-(`SC-BUN-060`).
+(`SC-BUN-059`); a plan change asks that version as it asks a retirement's
+replacement, and both where a booking has both (`SC-BUN-061`). With version
+notices on, each booking is told once (`SC-BUN-060`).
 
 - **Migration:** run `1.0-an-add-on-switch-waits-for-its-term.postgres.sql`
   before `db push`, then `constraints.postgres.sql`. `subscription_bundles`

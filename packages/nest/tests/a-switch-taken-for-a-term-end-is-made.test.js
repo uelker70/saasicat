@@ -41,6 +41,16 @@ const scheduled = (options = {}) =>
 
 const actionsOf = (world) => world.audited.map((entry) => entry.action);
 
+/** A run four days after the moment, which no run came to in between. */
+const LATE = new Date('2026-11-06T00:00:00.000Z');
+
+/** A booking with its switch scheduled that ended on 5 November, after the moment. */
+const endedAfterTheMoment = (tenantId) =>
+    scheduledOf(tenantId, {
+        canceledAt: new Date('2026-10-20T00:00:00.000Z'),
+        canceledEffectiveAt: new Date('2026-11-05T00:00:00.000Z'),
+    });
+
 // @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
 describe('a switch whose moment has come', () => {
     test('moves the booking, writes the contract that marks it, clears the schedule and records it', async () => {
@@ -227,16 +237,9 @@ describe('a switch that never comes', () => {
     });
 
     test('is cleared where the booking ended after its moment, before a run came', async () => {
-        const world = scheduled({
-            bookings: [
-                scheduledOf('t1', {
-                    canceledAt: new Date('2026-10-20T00:00:00.000Z'),
-                    canceledEffectiveAt: new Date('2026-11-05T00:00:00.000Z'),
-                }),
-            ],
-        });
+        const world = scheduled({ bookings: [endedAfterTheMoment('t1')] });
 
-        await world.run.switchDue(new Date('2026-11-06T00:00:00.000Z'));
+        await world.run.switchDue(LATE);
 
         assert.equal(bookingIn(world, 'sb-t1').bundleVersionId, BOOKED.id);
         assert.equal(bookingIn(world, 'sb-t1').pendingBundleVersionId, null);
@@ -269,6 +272,85 @@ describe('a switch that never comes', () => {
         assert.equal(bookingIn(world, 'sb-t1').pendingBundleVersionId, null);
         assert.deepEqual(world.frozen, []);
         assert.deepEqual(world.audited, []);
+    });
+});
+
+// @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
+describe('a booking that ran past its moment and ended before a run came', () => {
+    test('has the journal asked once for the periods it ran on, before its switch is cleared', async () => {
+        const world = scheduled({ bookings: [endedAfterTheMoment('t1')] });
+
+        const first = await world.run.switchDue(LATE);
+        const second = await world.run.switchDue(new Date('2026-11-06T00:15:00.000Z'));
+
+        assert.deepEqual(world.recorded, ['t1']);
+        assert.deepEqual(
+            [first, second],
+            [
+                { switched: 0, failed: 0 },
+                { switched: 0, failed: 0 },
+            ],
+        );
+        assert.deepEqual(actionsOf(world), ['BUNDLE_VERSION_SWITCH_LAPSED']);
+    });
+
+    test('keeps its switch where the journal could not record them, and the next run asks again', async () => {
+        const world = scheduled({ bookings: [endedAfterTheMoment('t1')], journalFailures: 1 });
+
+        const first = await world.run.switchDue(LATE);
+        const kept = bookingIn(world, 'sb-t1').pendingBundleVersionId;
+        const second = await world.run.switchDue(new Date('2026-11-06T00:15:00.000Z'));
+
+        assert.deepEqual(
+            [first, second],
+            [
+                { switched: 0, failed: 1 },
+                { switched: 0, failed: 0 },
+            ],
+        );
+        assert.equal(kept, TAKES_AWAY.id);
+        assert.deepEqual(world.recorded, ['t1']);
+        assert.equal(bookingIn(world, 'sb-t1').pendingBundleVersionId, null);
+        assert.deepEqual(actionsOf(world), ['BUNDLE_VERSION_SWITCH_LAPSED']);
+    });
+
+    test('asks nothing where nothing waited: an end by its moment, or a trial', async () => {
+        const world = scheduled({
+            subscriptions: [subscriptionOf('t1'), subscriptionOf('t2', { status: 'TRIAL' })],
+            bookings: [
+                scheduledOf('t1', {
+                    canceledAt: new Date('2026-10-20T00:00:00.000Z'),
+                    canceledEffectiveAt: THE_MOMENT,
+                }),
+                endedAfterTheMoment('t2'),
+            ],
+        });
+
+        await world.run.switchDue(LATE);
+
+        assert.deepEqual(world.recorded, []);
+        assert.deepEqual(
+            ['sb-t1', 'sb-t2'].map((id) => bookingIn(world, id).pendingBundleVersionId),
+            [null, null],
+        );
+    });
+
+    test('is cleared, and nothing asked, where the tenant is on another subscription now', async () => {
+        const original = subscriptionOf('t1');
+        const again = {
+            ...original,
+            subscription: { ...original.subscription, id: 'sub-t1-again' },
+        };
+        const world = scheduled({
+            subscriptions: [again, original],
+            bookings: [endedAfterTheMoment('t1')],
+        });
+
+        await world.run.switchDue(LATE);
+
+        assert.deepEqual(world.recorded, []);
+        assert.equal(bookingIn(world, 'sb-t1').pendingBundleVersionId, null);
+        assert.deepEqual(actionsOf(world), ['BUNDLE_VERSION_SWITCH_LAPSED']);
     });
 });
 

@@ -501,6 +501,13 @@ _Tested by:_
         - goes through where that version can run beside it
         - a switch the booking took for the end of its term is asked the same way, from its date
         - a switch the booking took lifts no minimum term from the day it can end
+        - where it took a switch for after the retirement’s date, asks the switch’s version as well
+        - where its switch lands before the retirement’s date, asks the switch’s version and not the
+          replacement
+        - asks the replacement where the switch lands on the retirement’s date, and not where it
+          lands a moment before
+        - asks nothing of a version after a date by which the booking ends
+        - counts no minimum term while the retirement is ahead, whichever version stands in the way
         - asks nothing of a booking that ends before its version would change
         - asks nothing of a booking whose subscription ends by its date, and asks one that runs past
           it
@@ -1134,6 +1141,13 @@ _Tested by:_
         - goes through where that version can run beside it
         - a switch the booking took for the end of its term is asked the same way, from its date
         - a switch the booking took lifts no minimum term from the day it can end
+        - where it took a switch for after the retirement’s date, asks the switch’s version as well
+        - where its switch lands before the retirement’s date, asks the switch’s version and not the
+          replacement
+        - asks the replacement where the switch lands on the retirement’s date, and not where it
+          lands a moment before
+        - asks nothing of a version after a date by which the booking ends
+        - counts no minimum term while the retirement is ahead, whichever version stands in the way
         - asks nothing of a booking that ends before its version would change
         - asks nothing of a booking whose subscription ends by its date, and asks one that runs past
           it
@@ -1642,6 +1656,13 @@ _Tested by:_
         - goes through where that version can run beside it
         - a switch the booking took for the end of its term is asked the same way, from its date
         - a switch the booking took lifts no minimum term from the day it can end
+        - where it took a switch for after the retirement’s date, asks the switch’s version as well
+        - where its switch lands before the retirement’s date, asks the switch’s version and not the
+          replacement
+        - asks the replacement where the switch lands on the retirement’s date, and not where it
+          lands a moment before
+        - asks nothing of a version after a date by which the booking ends
+        - counts no minimum term while the retirement is ahead, whichever version stands in the way
         - asks nothing of a booking that ends before its version would change
         - asks nothing of a booking whose subscription ends by its date, and asks one that runs past
           it
@@ -2258,10 +2279,6 @@ _Tested by:_
         - a switch at once is recorded as one
         - has no offer to take where tenant billing does not read the bookings
         - a request that names no user is refused before anything is taken
-- `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
-    - a plan change, and an add-on told it continues on another version
-        - a switch the booking took for the end of its term is asked the same way, from its date
-        - a switch the booking took lifts no minimum term from the day it can end
 - `packages/nest/tests/an-add-on-switch-is-charged-the-difference.test.js`
     - a switch at once
         - to a dearer version is charged the difference for the rest of the period, and the new
@@ -2333,6 +2350,11 @@ _Tested by:_
         - is cleared where the booking ended after its moment, before a run came
         - but is made where the booking ends after the run
         - is only cleared where the booking is on the version taken already
+    - a booking that ran past its moment and ended before a run came
+        - has the journal asked once for the periods it ran on, before its switch is cleared
+        - keeps its switch where the journal could not record them, and the next run asks again
+        - asks nothing where nothing waited: an end by its moment, or a trial
+        - is cleared, and nothing asked, where the tenant is on another subscription now
     - a switch the run cannot make
         - for want of a party is left as it is, recorded once, and tried again by the next run
         - whose contract cannot be written is put back, schedule and all
@@ -2396,5 +2418,38 @@ _Tested by:_
 - `packages/nest/tests/an-add-on-booking-is-reminded-once.test.js`
     - the quarter-hour run and the add-on reminders
         - reminds add-on bookings after the plans and before any move
+
+<!-- END proof -->
+
+### SC-BUN-061 — A plan change asks every version a booking continues on
+
+🟢 💰 A plan change that `SC-BUN-044` names is refused where a version a booking continues on could
+not run beside the plan it moves to: the replacement of a retirement the booking was told of, and a
+newer version it took for the end of its term (`SC-BUN-058`), each from its date, in the order the
+booking reaches them. A switch that lands before the retirement's date takes the booking off the
+version retired, so the replacement is not asked; one that lands on that date or after it is made
+from the replacement, so both are. A booking that ends by such a date — or whose subscription does
+— is not asked about that version, nor any after it. The refusal names the version in the way and
+its date, as `SC-BUN-044` says; the day it names for the booking to end counts no minimum term while
+a retirement the booking was told of is ahead (`SC-BUN-045`), whichever version stands in the way,
+and a switch the booking took lifts none.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
+    - a plan change, and an add-on told it continues on another version
+        - a switch the booking took for the end of its term is asked the same way, from its date
+        - a switch the booking took lifts no minimum term from the day it can end
+        - where it took a switch for after the retirement’s date, asks the switch’s version as well
+        - where its switch lands before the retirement’s date, asks the switch’s version and not the
+          replacement
+        - asks the replacement where the switch lands on the retirement’s date, and not where it
+          lands a moment before
+        - asks nothing of a version after a date by which the booking ends
+        - counts no minimum term while the retirement is ahead, whichever version stands in the way
 
 <!-- END proof -->

@@ -126,7 +126,8 @@ export function usageOf(subscriptions) {
 /**
  * The offer, the switch and the run over one world. `ahead` are the plans the
  * subscription is set to move to; `withRun: false` leaves the run out, as an
- * installation without the quarter-hourly steps has none.
+ * installation without the quarter-hourly steps has none; `journalFailures`
+ * is how many times the journal fails to record before it records again.
  */
 export function offering({
     versions = [BOOKED, IMPROVEMENT],
@@ -139,6 +140,7 @@ export function offering({
     store = bookingStore(bookings),
     noParty = [],
     freezeFails = false,
+    journalFailures = 0,
 } = {}) {
     const catalogue = catalogueOf(versions, { deleted });
     const usage = usageOf(subscriptions);
@@ -162,7 +164,16 @@ export function offering({
         },
     };
     const entitlements = { invalidateTenant: (tenantId) => invalidated.push(tenantId) };
-    const charges = { recordDueCharges: async (tenantId) => recorded.push(tenantId) };
+    let failuresLeft = journalFailures;
+    const charges = {
+        async recordDueCharges(tenantId) {
+            if (failuresLeft > 0) {
+                failuresLeft -= 1;
+                throw new Error('the journal is down');
+            }
+            recorded.push(tenantId);
+        },
+    };
     const run = withRun
         ? new BundleVersionSwitchRunService(
               store,

@@ -5,17 +5,22 @@
 // Each claims the booking with a write conditional on the version it is on,
 // and then writes the contract that names the new one. The two are one: where
 // the contract cannot be written, or the subscription it was decided on moved
-// in between, the booking goes back onto the version it left.
+// in between, the booking goes back onto the version it left. And where the
+// booking ended before a run made a move due for it, the periods the journal
+// held back for the move are charged at the version it ran on, asked for by
+// the run that finds it so.
 
 import type { Logger } from '@nestjs/common';
 import { ConflictException } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
     type SubscriptionBundleRepository,
+    type SubscriptionUsagePort,
     type SubscriptionUsageRecord,
 } from '@saasicat/core';
 
 import type { EntitlementService } from '../entitlement/entitlement.service.js';
+import type { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 
 /**
  * The subscription's fields a change of a booking's version is decided on:
@@ -91,4 +96,50 @@ export async function putBookingBack(
             `${move.to} without its contract, and could not be put back: ${why}.`,
     );
     return false;
+}
+
+/** A booking a move was due for, and whose it is. */
+export interface UnmovedBooking {
+    readonly tenantId: string;
+    readonly subscriptionId: string;
+    readonly subscriptionBundleId: string;
+}
+
+/**
+ * Asks the journal for the periods of a booking that ran past the moment it
+ * was to move and ended before a run moved it. They waited for the move while
+ * the booking ran, and wait no more now that it has ended; nothing else need
+ * ask for them again where the subscription has ended too.
+ *
+ * `unreachable` where the tenant is on another subscription now: the journal
+ * charges the one it is on, and cannot reach the booking's periods. `failed`
+ * where recording them failed, for the run to ask again. A trial is charged
+ * nothing.
+ */
+export async function chargeWhatItRanOn(
+    subscriptions: Pick<SubscriptionUsagePort, 'findForTenant'>,
+    charges: Pick<SubscriberChargeService, 'recordDueCharges'> | null,
+    logger: Logger,
+    booking: UnmovedBooking,
+): Promise<'charged' | 'unreachable' | 'failed'> {
+    const sub = await subscriptions.findForTenant(booking.tenantId);
+    if (sub?.id !== booking.subscriptionId) {
+        logger.warn(
+            `Booking ${booking.subscriptionBundleId} of tenant ${booking.tenantId} ended before ` +
+                `it moved, on subscription ${booking.subscriptionId}, which the tenant is no ` +
+                'longer on. Its periods from the moment it was to move are not charged from here.',
+        );
+        return 'unreachable';
+    }
+    if (sub.status === 'TRIAL' || !charges) return 'charged';
+    try {
+        await charges.recordDueCharges(booking.tenantId);
+        return 'charged';
+    } catch (error) {
+        logger.error(
+            `Recording the charges of booking ${booking.subscriptionBundleId}, which ended ` +
+                `before it moved (tenant ${booking.tenantId}), failed: ${String(error)}`,
+        );
+        return 'failed';
+    }
 }

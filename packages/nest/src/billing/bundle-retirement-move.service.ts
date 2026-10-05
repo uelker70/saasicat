@@ -42,7 +42,7 @@ import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
-import { putBookingBack } from './booking-move-guards.js';
+import { chargeWhatItRanOn, putBookingBack } from './booking-move-guards.js';
 import { bookingsOfVersion } from './bundle-bookings-of-version.js';
 import { bookingOverBy } from './bundle-retirement-reach.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -217,33 +217,16 @@ export class BundleRetirementMoveService {
     private async endedBeforeItsMove(notice: BundleVersionRetiredNotice): Promise<void> {
         const key = `${notice.subscriptionBundleId}:${notice.retirementId}`;
         if (this.endedUnmoved.has(key)) return;
-        // The journal charges the subscription the tenant is on now. Where the
-        // booking belongs to another, the journal cannot reach its periods, and
-        // nothing here says they were charged.
-        const sub = await this.subscriptions.findForTenant(notice.tenantId);
-        if (sub?.id !== notice.subscriptionId) {
-            this.endedUnmoved.add(key);
-            this.logger.warn(
-                `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} ended before ` +
-                    `it moved, on subscription ${notice.subscriptionId}, which the tenant is no ` +
-                    'longer on. Its periods from the date are not charged from here.',
-            );
-            return;
-        }
-        // A trial is charged nothing.
-        if (sub.status !== 'TRIAL' && this.charges) {
-            try {
-                await this.charges.recordDueCharges(notice.tenantId);
-            } catch (error) {
-                // Not marked: the next run asks again.
-                this.logger.error(
-                    `Recording the charges of booking ${notice.subscriptionBundleId}, which ended ` +
-                        `before its move (tenant ${notice.tenantId}), failed: ${String(error)}`,
-                );
-                return;
-            }
-        }
+        const charged = await chargeWhatItRanOn(
+            this.subscriptions,
+            this.charges,
+            this.logger,
+            notice,
+        );
+        // Not marked: the next run asks again.
+        if (charged === 'failed') return;
         this.endedUnmoved.add(key);
+        if (charged === 'unreachable') return;
         this.logger.warn(
             `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} ended before it ` +
                 `moved to version ${notice.replacement.version} of ` +

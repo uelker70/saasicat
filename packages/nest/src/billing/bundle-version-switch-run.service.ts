@@ -21,8 +21,9 @@
 //
 // A booking that has ended by the time the run comes — or whose subscription
 // has — never reaches the version taken, even where the run missed the moment:
-// its switch is cleared, and the journal charges it at the version it ran on.
-// One that ends after the moment is switched, and ends on the new version.
+// its switch is cleared, and the run asks the journal to charge it at the
+// version it ran on. One that ends after the moment is switched, and ends on
+// the new version.
 
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import type {
@@ -42,7 +43,7 @@ import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { isTaxNotSupported } from '../tax/tax-treatments.js';
-import { putBookingBack, type BookingMove } from './booking-move-guards.js';
+import { chargeWhatItRanOn, putBookingBack, type BookingMove } from './booking-move-guards.js';
 import { ownersOf } from './bundle-bookings-of-version.js';
 import { bookingOverBy } from './bundle-retirement-reach.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -163,7 +164,20 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
         };
         // Over by now — and so by its moment, which has come — it never moves:
         // the source of a contract hands no line for a booking that has ended.
+        // One that ran past the moment had its periods from then held back
+        // for the switch: the journal is asked for them before the switch is
+        // cleared, and where it could not record them the switch stays, so
+        // the next run asks again.
         if (endsBy(booking, readByTheRun, now)) {
+            if (!endsBy(booking, readByTheRun, due.effectiveAt)) {
+                const charged = await chargeWhatItRanOn(
+                    this.subscriptions,
+                    this.charges,
+                    this.logger,
+                    due,
+                );
+                if (charged === 'failed') return 'failed';
+            }
             return this.clear(due, 'BUNDLE_VERSION_SWITCH_LAPSED');
         }
         // On it already: a run made the switch and its contract and could
