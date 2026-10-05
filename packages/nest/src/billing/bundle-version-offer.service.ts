@@ -17,6 +17,10 @@
 // change, since the price and the fit are that plan's; not where the version
 // cannot run beside the plan in the booking's rhythm; not for an add-on kept
 // for special contracts; and not where the booking could not be moved at all.
+// Beside a retirement told for the version booked, the replacement is the
+// early switch's to offer and one that takes something away waits for the move
+// (`leftToTheRetirement`); a newer version that applies at once stands beside
+// the notice.
 //
 // One that takes something away waits for the end of the booking's running
 // term: the later of the end of the period it is in and its minimum term,
@@ -39,11 +43,12 @@ import {
 
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { cancellationHasLanded, cancellationLandsAt } from '../entitlement/landed-cancellation.js';
-import { addOnMisfits, type PlanBeside } from './add-on-fits-plan.js';
+import { addOnMisfits, type AddOnsAhead, type PlanBeside } from './add-on-fits-plan.js';
 import { bookingOverBy, bookingPeriodEndOf } from './bundle-retirement-reach.js';
 import { bundleVersionNotOnSale } from './bundle-version-not-on-sale.js';
 import { bundleVersionSide, comparedFieldsOfSide } from './bundle-version-sides.js';
 import { BundleVersionSwitchRunService } from './bundle-version-switch-run.service.js';
+import { leftToTheRetirement } from './offer-beside-a-retirement.js';
 import type { PlansAhead } from './plans-ahead.js';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
@@ -51,7 +56,7 @@ import {
 } from './self-service-policy.js';
 import { resolveBundleCancelEffectiveAt } from './subscription-bundles.service.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
-import { PLANS_AHEAD_TOKEN } from './tenant-billing.tokens.js';
+import { ADD_ONS_AHEAD_TOKEN, PLANS_AHEAD_TOKEN } from './tenant-billing.tokens.js';
 
 @Injectable()
 export class BundleVersionOfferService {
@@ -72,6 +77,11 @@ export class BundleVersionOfferService {
         @Optional()
         @Inject(BundleVersionSwitchRunService)
         private readonly scheduledSwitches: BundleVersionSwitchRunService | null = null,
+        // Present where add-on versions are retired; without it no retirement
+        // is told, and none has a way of its own to leave an offer to.
+        @Optional()
+        @Inject(ADD_ONS_AHEAD_TOKEN)
+        private readonly addOnsAhead: AddOnsAhead | null = null,
     ) {}
 
     /** The offer beside `booking`, or null where there is none it could take. */
@@ -101,6 +111,17 @@ export class BundleVersionOfferService {
             comparedFieldsOfSide(offeredSide, rhythm),
         );
         if (verdict.class === 'same') return null;
+        const told = (await this.addOnsAhead?.of(booking.subscriptionId)) ?? [];
+        const replacementsTold = told
+            .filter(
+                (one) =>
+                    one.subscriptionBundleId === booking.id &&
+                    one.retiredBundleVersionId === booking.bundleVersionId,
+            )
+            .map((one) => one.replacementBundleVersionId);
+        if (leftToTheRetirement({ versionId: offered.id, kind: verdict.class }, replacementsTold)) {
+            return null;
+        }
 
         const takesEffectAt =
             verdict.class === 'takes-something-away'

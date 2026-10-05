@@ -358,7 +358,7 @@ export class TenantBillingController {
 
     /**
      * A newer version of the tenant's plan, side by side with the one bound,
-     * classified against it (`SC-SUB-020`); `offer: null` where there is none
+     * classified against it (`SC-SUB-040`); `offer: null` where there is none
      * the subscription could take. Open to every user of the tenant, as the
      * account read is: a user who cannot see an offer cannot ask an
      * administrator to take it.

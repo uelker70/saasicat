@@ -79,7 +79,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 61      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 39      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 40      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 603 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
-🔵 16 superseded, 🔴 3 withdrawn.
+Of 604 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 17 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -171,6 +171,7 @@ Of 603 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪
 🔵 **Superseded** — [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+[SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),

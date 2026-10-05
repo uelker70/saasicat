@@ -21,6 +21,7 @@ import {
     offerOf,
     offeredVersion,
     offering,
+    toldOnto,
 } from './helpers/add-on-offer-fixtures.js';
 
 const PERIOD_END = '2026-11-01T00:00:00.000Z';
@@ -422,5 +423,47 @@ describe('a switch that takes something away is offered only where it would happ
 
     test('while an improvement is offered all the same', async () => {
         assert.equal((await offerOf(offering({ withRun: false })))?.class, 'improvement');
+    });
+});
+
+// @requirement SC-BUN-057 — A newer version of a booked add-on is offered beside the booking
+describe('beside a retirement told for the version booked', () => {
+    test('the replacement is left to the early switch', async () => {
+        const offer = await offerOf(offering({ told: [toldOnto(IMPROVEMENT.id)] }));
+
+        assert.equal(offer, null);
+    });
+
+    test('nothing that takes something away is offered', async () => {
+        const offer = await offerOf(
+            offering({ versions: [BOOKED, TAKES_AWAY], told: [toldOnto('bv-replacement')] }),
+        );
+
+        assert.equal(offer, null);
+    });
+
+    test('a newer version that applies at once stands beside the notice', async () => {
+        const offer = await offerOf(offering({ told: [toldOnto('bv-replacement')] }));
+
+        assert.deepEqual(
+            [offer?.class, offer?.offered.bundleVersionId],
+            ['improvement', IMPROVEMENT.id],
+        );
+    });
+
+    test('a retirement of another booking, or of a version the booking has left, holds nothing back', async () => {
+        const offer = await offerOf(
+            offering({
+                told: [
+                    toldOnto(IMPROVEMENT.id, 't2'),
+                    toldOnto(IMPROVEMENT.id, 't1', 'bv-reports-0'),
+                ],
+            }),
+        );
+
+        assert.deepEqual(
+            [offer?.class, offer?.offered.bundleVersionId],
+            ['improvement', IMPROVEMENT.id],
+        );
     });
 });

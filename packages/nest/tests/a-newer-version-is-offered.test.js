@@ -1,4 +1,4 @@
-// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+// @requirement SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
 
 // A subscription keeps the version it is bound to; a version published since
 // is an offer. What the service answers: the two versions side by side, the
@@ -28,18 +28,23 @@ import {
     version,
 } from './helpers/version-offers.js';
 
-/** The service over one subscription, a bound row and a live row. */
+/**
+ * The service over one subscription, a bound row and a live row; `told` are
+ * the retirements of the version bound the subscription was told of.
+ */
 function serviceFor({
     sub = subscription(),
     rows = [BOUND],
     live = V2({ quotas: { users: 5, vehicles: 150 } }),
     plans = undefined,
     blocked = null,
+    told = [],
 } = {}) {
     return new VersionOfferService(
         { findForTenant: async (tenantId) => (tenantId === 't1' ? sub : null) },
         plans ?? repositoryWith(rows, live),
         blocked,
+        { toldRetirementsOf: async () => told },
     );
 }
 
@@ -302,5 +307,34 @@ describe('GET billing/version-offer', () => {
         const handler = TenantBillingController.prototype.getVersionOffer;
         const guards = Reflect.getMetadata(GUARDS, handler) ?? [];
         assert.ok(!guards.includes(TenantAdminGuard));
+    });
+});
+
+describe('beside a retirement told for the version bound', () => {
+    /** The subscription told of a retirement of v1 onto `planVersionId`, and `live` on sale. */
+    const toldOnto = (planVersionId, live = undefined) =>
+        offerOf({
+            sub: subscription({ id: 'sub-t1' }),
+            told: [{ retired: { planVersionId: BOUND.id }, replacement: { planVersionId } }],
+            ...(live ? { live } : {}),
+        });
+
+    test('the replacement is left to the early switch', async () => {
+        assert.equal(await toldOnto('pv-2'), null);
+    });
+
+    test('nothing that takes something away is offered', async () => {
+        const offer = await toldOnto(
+            'pv-replacement',
+            V2({ features: ['DASHBOARD'], monthlyNet: '39.00' }),
+        );
+
+        assert.equal(offer, null);
+    });
+
+    test('a newer version that applies at once stands beside the notice', async () => {
+        const offer = await toldOnto('pv-replacement');
+
+        assert.deepEqual([offer?.class, offer?.offered.planVersionId], ['improvement', 'pv-2']);
     });
 });

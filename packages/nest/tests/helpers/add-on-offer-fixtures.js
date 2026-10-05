@@ -125,9 +125,10 @@ export function usageOf(subscriptions) {
 
 /**
  * The offer, the switch and the run over one world. `ahead` are the plans the
- * subscription is set to move to; `withRun: false` leaves the run out, as an
- * installation without the quarter-hourly steps has none; `journalFailures`
- * is how many times the journal fails to record before it records again.
+ * subscription is set to move to, `told` the add-on retirements it was told
+ * of; `withRun: false` leaves the run out, as an installation without the
+ * quarter-hourly steps has none; `journalFailures` is how many times the
+ * journal fails to record before it records again.
  */
 export function offering({
     versions = [BOOKED, IMPROVEMENT],
@@ -135,6 +136,7 @@ export function offering({
     bookings = [bookedOf('t1')],
     deleted = [],
     ahead = [],
+    told = [],
     blocked = null,
     withRun = true,
     store = bookingStore(bookings),
@@ -191,6 +193,7 @@ export function offering({
         { of: async () => ahead },
         blocked,
         run,
+        { of: async () => told },
     );
     const switches = new BundleVersionSwitchService(
         offers,
@@ -224,4 +227,14 @@ export const bookingIn = (world, id) => world.store.rows.find((row) => row.id ==
 export async function offerOf(world, tenantId = 't1', at = NOW) {
     const sub = await world.usage.findForTenant(tenantId);
     return world.offers.offerFor(sub, bookingIn(world, `sb-${tenantId}`), at);
+}
+
+/** The retirement of Reports v1 told to the booking of `tenantId`, onto `replacement` on 1 December. */
+export function toldOnto(replacement, tenantId = 't1', retired = BOOKED.id) {
+    return {
+        subscriptionBundleId: `sb-${tenantId}`,
+        retiredBundleVersionId: retired,
+        replacementBundleVersionId: replacement,
+        effectiveAt: '2026-12-01T00:00:00.000Z',
+    };
 }

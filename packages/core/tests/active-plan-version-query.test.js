@@ -64,7 +64,7 @@ describe('buildActivePlanVersionWhere', () => {
     });
 });
 
-// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+// @requirement SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
 describe('isVersionActiveAt — the same window, for a row already read', () => {
     test('validFrom is inclusive to the millisecond', () => {
         assert.equal(isVersionActiveAt({ validFrom: ASOF }, ASOF), true);

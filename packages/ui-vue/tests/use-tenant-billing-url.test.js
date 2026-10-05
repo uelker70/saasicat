@@ -94,7 +94,7 @@ describe('useTenantBilling URL construction', () => {
     });
 });
 
-// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+// @requirement SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
 test('the version offer is read under the same prefix and answered as the offer itself', async () => {
     const offer = { plan: 'STANDARD', class: 'improvement' };
     const calls = [];

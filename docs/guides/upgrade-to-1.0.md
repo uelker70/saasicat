@@ -2445,7 +2445,7 @@ price of the version the subscription is bound to (`SC-SUB-019`).
 ### A subscriber is offered a newer version of their plan
 
 A subscription keeps the version it is bound to. A newer version of the plan on sale is now an
-offer the tenant takes or leaves (`SC-SUB-020`, `SC-SUB-021`): `GET billing/version-offer` reads
+offer the tenant takes or leaves (`SC-SUB-040`, `SC-SUB-021`): `GET billing/version-offer` reads
 it, `POST billing/version-offer/accept` takes it, and `TenantPlanSection` shows it beside the plan
 card. A version that takes something away — a feature missing, a quota lower — asks first and is
 scheduled for the end of the term, whatever it costs. Otherwise one that costs more in a rhythm,
@@ -2507,7 +2507,7 @@ replaces — stops that job before it turns this on, or they hear twice.
 ### A newer version is only offered
 
 A subscription keeps its plan version across every renewal until the subscriber takes another
-(`SC-SUB-024`); a newer version is an offer beside the plan (`SC-SUB-020`). The pending version —
+(`SC-SUB-024`); a newer version is an offer beside the plan (`SC-SUB-040`). The pending version —
 set by a notice job, accepted by the tenant, rolled forward at the end of the term — is gone with
 everything that carried it:
 
@@ -2935,6 +2935,12 @@ installation has to do:
   `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN`. A booking with both is asked about both, in the
   order it reaches them; a switch landing before the retirement's date leaves the replacement
   unasked (`SC-BUN-061`).
+- **A version offer beside a told retirement** — of a plan version or of an add-on version — no
+  longer offers the retirement's replacement, which the early switch reaches at the price it holds,
+  nor a version that takes something away; a newer version that applies at once is still offered
+  beside the notice (`SC-SUB-040`, which supersedes `SC-SUB-020`, and `SC-BUN-057`). A plan offer
+  for the replacement taken through `POST /billing/version-offer/accept` is refused with
+  `VERSION_OFFER_CHANGED` and no offer; the early switch takes the subscription there.
 
 ## What the codemod leaves to you
 

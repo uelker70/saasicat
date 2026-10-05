@@ -46,6 +46,11 @@ notices on, each booking is told once (`SC-BUN-060`).
   (`CHECKOUT_OFFER_CONTRACT_IN_FORCE`, `SC-MKT-028`), and an offer naming
   another version of an add-on the tenant has booked
   (`CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION`, `SC-MKT-029`).
+- **Beside a told retirement**, a version offer — of a plan or of an add-on —
+  leaves the replacement to the early switch, which holds the price, and offers
+  nothing that takes something away until the move has been made; a newer
+  version that applies at once stands beside the notice (`SC-SUB-040`,
+  superseding `SC-SUB-020`).
 - An application with a scheduler of its own calls
   `BundleVersionNoticeService.sendDue` and, after the moves,
   `BundleVersionSwitchRunService.switchDue`.

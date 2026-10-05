@@ -124,8 +124,11 @@ describe('a newer add-on version, in the add-on store', () => {
             effectiveAt: '2027-02-01T00:00:00.000Z',
             lastDayToCancel: '2027-01-31',
         };
+        // The replacement is the early switch's to offer; a version newer
+        // than it, on sale since, stands beside the notice.
+        const newerThanTheReplacement = { ...IMPROVEMENT, offered: sideOf('bv-3', 3, 9, 12) };
         const wrapper = storeWith([
-            seatsV1({ retirement, offer: IMPROVEMENT }),
+            seatsV1({ retirement, offer: newerThanTheReplacement }),
             seatsV1({ id: 'sb-2', bundleVersionId: 'bv-r1', label: 'Reports' }),
         ]);
 

@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 61      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 39      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 40      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 603 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
-🔵 16 superseded, 🔴 3 withdrawn.
+Of 604 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 17 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -203,6 +203,7 @@ Of 603 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪
 🔵 **Superseded** — [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
+[SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
@@ -221,7 +222,7 @@ Of 603 entries: 🟢 520 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 603 requirements. Do not edit by hand:
+Generated from `requirements/` — 604 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -4521,7 +4522,7 @@ _Tested by:_
 offer beside the booking, in the plan section and on the tenant's add-on page: both versions side by
 side — features, quotas and the price in each rhythm for the plan the subscription is on — with the
 kind of offer and when a switch taken now would take effect. The kind follows the plan's rule
-(`SC-SUB-020`) against the version booked, with the price in the rhythm the booking is billed in and
+(`SC-SUB-040`) against the version booked, with the price in the rhythm the booking is billed in and
 in no other: a feature missing or a quota lower takes something away, whatever the price; otherwise
 a price higher in that rhythm is more for more; otherwise it is an improvement. The version offered
 is the one a booking made now would take, by its window, and only when it is newer than the version
@@ -4531,9 +4532,12 @@ set to change — by a change scheduled, or by a retirement told to move the sub
 plan — the version runs beside that plan in the booking's rhythm, and the add-on is not kept for
 special contracts. One that takes something away is offered only where it would happen: the booking
 and its subscription still run at the end of the booking's term, the version is still sold then,
-and the installation runs the quarter-hourly steps that make the switch (`SC-BUN-059`). A booking
-told of its version's retirement sees the offer beside the notice (`SC-BUN-046`). Every user of the
-tenant can read the offer.
+and the installation runs the quarter-hourly steps that make the switch (`SC-BUN-059`). Beside a
+retirement told for the version booked (`SC-BUN-046`), the way to the replacement is the early
+switch, at no more than the booking paid (`SC-BUN-054`): the replacement itself is not offered, and
+neither is a version that takes something away, which would be scheduled into the retirement's way;
+a newer version that applies at once stands beside the notice. Every user of the tenant can read the
+offer.
 
 _Source:_ #357
 
@@ -4583,6 +4587,11 @@ _Tested by:_
         - nor where nothing runs the quarter-hourly steps that make it
         - nor where the store cannot schedule it
         - while an improvement is offered all the same
+    - beside a retirement told for the version booked
+        - the replacement is left to the early switch
+        - nothing that takes something away is offered
+        - a newer version that applies at once stands beside the notice
+        - a retirement of another booking, or of a version the booking has left, holds nothing back
 - `packages/ui-vue-tenant/tests/component/a-newer-add-on-version-is-offered-beside-the-add-on.test.ts`
     - a newer add-on version, in the add-on store
         - shows both versions side by side beside the booking, with its kind and when it takes
@@ -5268,103 +5277,20 @@ _Tested by:_
 
 ### SC-SUB-020 — A newer version is offered, classified against the version bound
 
-🟢 💰 A subscriber whose plan has a newer version than the one they are bound to can read it as an
-offer: both versions side by side — features, quotas and the price in each rhythm — with the kind of
-offer and when a switch taken now would take effect. The kind is decided by a rule against the
-version bound, not against the candidate's predecessor and not by a flag set at publish: a feature
-missing or a quota lower takes something away, whatever the price, and a switch would take effect at
-the end of the running term; otherwise a price higher in any rhythm is more for more, taking effect
-at once; otherwise it is an improvement, taking effect at once. The version offered is the one a
-booking made now would bind, by its validity window, and only when it is newer than the version
-bound; it is offered only where the subscription could take it — not ended, not on a plan kept for a
-special contract, sold in its rhythm, and with no change of plan or rhythm still to land, since the
-offer is judged against what the subscriber will have. Every user of the tenant can read the offer.
+🔵 _(Superseded on 2026-10-05 by `SC-SUB-040`.)_ 💰 A subscriber whose plan has a newer version than
+the one they are bound to can read it as an offer: both versions side by side — features, quotas and
+the price in each rhythm — with the kind of offer and when a switch taken now would take effect. The
+kind is decided by a rule against the version bound, not against the candidate's predecessor and not
+by a flag set at publish: a feature missing or a quota lower takes something away, whatever the
+price, and a switch would take effect at the end of the running term; otherwise a price higher in
+any rhythm is more for more, taking effect at once; otherwise it is an improvement, taking effect at
+once. The version offered is the one a booking made now would bind, by its validity window, and only
+when it is newer than the version bound; it is offered only where the subscription could take it —
+not ended, not on a plan kept for a special contract, sold in its rhythm, and with no change of plan
+or rhythm still to land, since the offer is judged against what the subscriber will have. Every user
+of the tenant can read the offer.
 
 _Source:_ #357
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/core/tests/active-plan-version-query.test.js`
-    - isVersionActiveAt — the same window, for a row already read
-        - validFrom is inclusive to the millisecond
-        - validUntil is inclusive of its whole day
-        - endsAt is exclusive: a version ended at the moment takes nothing
-        - a superseded version takes bookings only within a last day it carries
-        - an absent date does not close the window, and dates may come as strings
-        - agrees with the WHERE clause on every combination around the boundaries
-- `packages/core/tests/version-offer.test.js`
-    - the worked examples of the operator's decision
-        - 49 €, 5 users, 150 vehicles is an improvement
-        - 59 €, 8 users, 200 vehicles is more for more
-        - 45 €, 3 users, 200 vehicles takes something away, although it is cheaper
-        - the same monthly price but a dearer yearly one is more for more
-        - one feature less takes something away, everything else equal
-    - prices
-        - equal in both rhythms, written differently, is no change
-        - lower in one rhythm and equal in the other is an improvement
-        - a cent more in one rhythm is more for more
-        - a rhythm the candidate no longer sells counts against it
-        - a rhythm the candidate sells and the bound version did not is an improvement
-        - dearer and a feature less takes something away: what is missing decides
-    - quotas
-        - equal is no change
-        - one more is an improvement
-        - one less takes something away
-        - unlimited instead of a number is an improvement
-        - a number instead of unlimited takes something away
-        - a quota the candidate no longer carries takes something away
-    - features
-        - the same set in another order is no change
-        - one more is an improvement
-        - one swapped for another takes something away
-    - an offer states every difference, bound to candidate
-- `packages/nest/tests/a-newer-version-is-offered.test.js`
-    - an offer
-        - shows both versions side by side, prices as numbers per rhythm
-        - that improves takes effect at once
-        - that costs more for more takes effect at once
-        - that takes something away takes effect at the end of the running term
-        - that takes something away waits for a minimum term that outlasts the period
-        - that takes something away from a trial waits for its end
-        - is made to a subscription whose cancellation has not landed yet
-    - the version offered is the one a booking made now would bind
-        - by its validity window, not the newest published
-        - and nothing where the window finds nothing on sale
-        - and nothing where the subscription is bound to a newer one than that
-    - no offer
-        - while the subscription is on the newest version
-        - where the newer version changes nothing compared
-        - for a version that does not take bookings yet
-        - for a version that has ended
-        - for a version not sold in the subscription's rhythm
-        - for a version not marketed
-        - while a change to another plan is scheduled
-        - while a change of rhythm is scheduled
-        - once the cancellation has landed
-        - on a plan kept for a special contract, either way round
-        - where the version bound cannot be read as a version of the plan
-        - where the version on sale read is of another plan
-        - without a repository that reads versions
-        - where the subscription is bound to no version
-    - a tenant without a subscription is told so
-    - GET billing/version-offer
-        - reads the offer of the caller's own tenant, whatever the request names
-        - refuses a request that carries no tenant
-        - is open to every user of the tenant, not only its administrator
-- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
-    - the version offer is read under the same prefix and answered as the offer itself
-- `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`
-    - the offer beside the plan
-        - is not there where nothing is offered
-        - shows both versions side by side, with what is added and when a switch takes effect
-        - says a rhythm the new version is not sold in, and an unlimited quota
-        - says what one that takes something away removes, and the date it would take effect
-        - says so where the offer could not be read, rather than showing nothing
-        - is not shown on a subscription that has ended
-
-<!-- END proof -->
 
 ### SC-SUB-021 — A newer version is taken by naming it, the way its kind says
 
@@ -5443,7 +5369,7 @@ _Tested by:_
 
 🟢 Where the application turns version notices on, the administrators of a tenant hear of a newer
 version of their plan once, through the application's own messages: when the offer appears beside
-the plan (`SC-SUB-020`) — not when the version is published — so a version whose window opens later
+the plan (`SC-SUB-040`) — not when the version is published — so a version whose window opens later
 is told when it opens, and a subscription with a change still to land is told once it has landed.
 The notice carries what the offer shows: both versions side by side, the kind of offer and when a
 switch would take effect. Each newer version is told once per subscription; nothing is repeated,
@@ -5527,7 +5453,7 @@ _Tested by:_
 ### SC-SUB-024 — A subscription keeps its plan version until the subscriber takes another
 
 🟢 💰 Features, quotas and price stay those of the version the subscription is bound to — during the
-term and across every renewal. A newer version is offered beside the plan (`SC-SUB-020`) and binds
+term and across every renewal. A newer version is offered beside the plan (`SC-SUB-040`) and binds
 only when the subscriber takes it (`SC-SUB-021`); no renewal, no change of rhythm and no job of the
 platform moves a subscription to another version on its own, neither better nor worse. A change to
 another plan binds that plan's version, the one its preview quoted.
@@ -6167,6 +6093,114 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - says beside them why they wait, quieter than the count
+
+<!-- END proof -->
+
+### SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
+
+🟢 💰 A subscriber whose plan has a newer version than the one they are bound to can read it as an
+offer: both versions side by side — features, quotas and the price in each rhythm — with the kind of
+offer and when a switch taken now would take effect. The kind is decided by a rule against the
+version bound, not against the candidate's predecessor and not by a flag set at publish: a feature
+missing or a quota lower takes something away, whatever the price, and a switch would take effect at
+the end of the running term; otherwise a price higher in any rhythm is more for more, taking effect
+at once; otherwise it is an improvement, taking effect at once. The version offered is the one a
+booking made now would bind, by its validity window, and only when it is newer than the version
+bound; it is offered only where the subscription could take it — not ended, not on a plan kept for a
+special contract, sold in its rhythm, and with no change of plan or rhythm still to land, since the
+offer is judged against what the subscriber will have. Beside a retirement told for the version
+bound (`SC-SUB-030`), the way to the replacement is the early switch, at no more than the subscriber
+paid (`SC-SUB-032`): the replacement itself is not offered, and neither is a version that takes
+something away, which would be scheduled into the retirement's way; a newer version that applies at
+once stands beside the notice. Every user of the tenant can read the offer.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/active-plan-version-query.test.js`
+    - isVersionActiveAt — the same window, for a row already read
+        - validFrom is inclusive to the millisecond
+        - validUntil is inclusive of its whole day
+        - endsAt is exclusive: a version ended at the moment takes nothing
+        - a superseded version takes bookings only within a last day it carries
+        - an absent date does not close the window, and dates may come as strings
+        - agrees with the WHERE clause on every combination around the boundaries
+- `packages/core/tests/version-offer.test.js`
+    - the worked examples of the operator's decision
+        - 49 €, 5 users, 150 vehicles is an improvement
+        - 59 €, 8 users, 200 vehicles is more for more
+        - 45 €, 3 users, 200 vehicles takes something away, although it is cheaper
+        - the same monthly price but a dearer yearly one is more for more
+        - one feature less takes something away, everything else equal
+    - prices
+        - equal in both rhythms, written differently, is no change
+        - lower in one rhythm and equal in the other is an improvement
+        - a cent more in one rhythm is more for more
+        - a rhythm the candidate no longer sells counts against it
+        - a rhythm the candidate sells and the bound version did not is an improvement
+        - dearer and a feature less takes something away: what is missing decides
+    - quotas
+        - equal is no change
+        - one more is an improvement
+        - one less takes something away
+        - unlimited instead of a number is an improvement
+        - a number instead of unlimited takes something away
+        - a quota the candidate no longer carries takes something away
+    - features
+        - the same set in another order is no change
+        - one more is an improvement
+        - one swapped for another takes something away
+    - an offer states every difference, bound to candidate
+- `packages/nest/tests/a-newer-version-is-offered.test.js`
+    - an offer
+        - shows both versions side by side, prices as numbers per rhythm
+        - that improves takes effect at once
+        - that costs more for more takes effect at once
+        - that takes something away takes effect at the end of the running term
+        - that takes something away waits for a minimum term that outlasts the period
+        - that takes something away from a trial waits for its end
+        - is made to a subscription whose cancellation has not landed yet
+    - the version offered is the one a booking made now would bind
+        - by its validity window, not the newest published
+        - and nothing where the window finds nothing on sale
+        - and nothing where the subscription is bound to a newer one than that
+    - no offer
+        - while the subscription is on the newest version
+        - where the newer version changes nothing compared
+        - for a version that does not take bookings yet
+        - for a version that has ended
+        - for a version not sold in the subscription's rhythm
+        - for a version not marketed
+        - while a change to another plan is scheduled
+        - while a change of rhythm is scheduled
+        - once the cancellation has landed
+        - on a plan kept for a special contract, either way round
+        - where the version bound cannot be read as a version of the plan
+        - where the version on sale read is of another plan
+        - without a repository that reads versions
+        - where the subscription is bound to no version
+    - a tenant without a subscription is told so
+    - GET billing/version-offer
+        - reads the offer of the caller's own tenant, whatever the request names
+        - refuses a request that carries no tenant
+        - is open to every user of the tenant, not only its administrator
+    - beside a retirement told for the version bound
+        - the replacement is left to the early switch
+        - nothing that takes something away is offered
+        - a newer version that applies at once stands beside the notice
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - the version offer is read under the same prefix and answered as the offer itself
+- `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`
+    - the offer beside the plan
+        - is not there where nothing is offered
+        - shows both versions side by side, with what is added and when a switch takes effect
+        - says a rhythm the new version is not sold in, and an unlimited quota
+        - says what one that takes something away removes, and the date it would take effect
+        - says so where the offer could not be read, rather than showing nothing
+        - is not shown on a subscription that has ended
 
 <!-- END proof -->
 

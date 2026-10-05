@@ -941,7 +941,7 @@ What it does not do yet: collect anything, or show a tenant its own account.
 ## Telling Subscribers of a Newer Version
 
 A subscription keeps the plan version it was sold, and a newer one sits beside the plan as an offer
-(`SC-SUB-020`). With version notices on, the tenant's administrators also hear of it once, in your
+(`SC-SUB-040`). With version notices on, the tenant's administrators also hear of it once, in your
 words (`SC-SUB-022`): when the offer appears — not when the version is published — so a version
 whose window opens later is told when it opens, and a subscription with a change still to land is
 told once it has landed. Each newer version is told once per subscription. There is no reminder,
@@ -1145,6 +1145,9 @@ at once and keeps the term. Where the replacement costs more, the subscriber goe
 they paid until the date: the contract the switch writes records the difference as a discount line
 "Price held until …" (`SC-PRIC-063`). The switch opens after a trial and not while a change is
 scheduled, and it ends the right to cancel without notice, which rests on the version being retired.
+It is the one way to the replacement while the retirement reaches the subscription: the version
+offer leaves the replacement to it, and offers nothing that takes something away until the move has
+been made; a newer version that applies at once is offered beside the notice (`SC-SUB-040`).
 
 **Ending the replacement.** A version subscriptions still move onto cannot be terminated before the
 day after the last of their dates; the catalogue refuses with
@@ -1276,7 +1279,9 @@ wherever it reads the bookings (`persistence.entitlement.subscriptionBundleRepos
 booking list carries it as `offer`, null where there is none the booking could take — while the
 plan or its rhythm is set to change, while a switch is scheduled, for an add-on in
 `selfServiceBlockedBundles`, or where the version cannot run beside the plan in the booking's
-rhythm.
+rhythm. Beside a retirement told for the version booked, the replacement is left to the early
+switch, which holds the price, and nothing that takes something away is offered until the move has
+been made; a newer version that applies at once stands beside the notice.
 
 **Taking it.** `POST /billing/subscription-bundles/:id/version-offer/accept` with the version the
 page showed (`{ bundleVersionId }`), for the tenant's administrators, audited as

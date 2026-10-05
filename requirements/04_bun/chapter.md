@@ -2143,7 +2143,7 @@ _Tested by:_
 offer beside the booking, in the plan section and on the tenant's add-on page: both versions side by
 side — features, quotas and the price in each rhythm for the plan the subscription is on — with the
 kind of offer and when a switch taken now would take effect. The kind follows the plan's rule
-(`SC-SUB-020`) against the version booked, with the price in the rhythm the booking is billed in and
+(`SC-SUB-040`) against the version booked, with the price in the rhythm the booking is billed in and
 in no other: a feature missing or a quota lower takes something away, whatever the price; otherwise
 a price higher in that rhythm is more for more; otherwise it is an improvement. The version offered
 is the one a booking made now would take, by its window, and only when it is newer than the version
@@ -2209,6 +2209,11 @@ _Tested by:_
         - nor where nothing runs the quarter-hourly steps that make it
         - nor where the store cannot schedule it
         - while an improvement is offered all the same
+    - beside a retirement told for the version booked
+        - the replacement is left to the early switch
+        - nothing that takes something away is offered
+        - a newer version that applies at once stands beside the notice
+        - a retirement of another booking, or of a version the booking has left, holds nothing back
 - `packages/ui-vue-tenant/tests/component/a-newer-add-on-version-is-offered-beside-the-add-on.test.ts`
     - a newer add-on version, in the add-on store
         - shows both versions side by side beside the booking, with its kind and when it takes
