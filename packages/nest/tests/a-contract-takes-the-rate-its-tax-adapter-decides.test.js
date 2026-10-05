@@ -121,7 +121,22 @@ async function serviceWith(
     return {
         repo,
         subscribers,
+        subscriberRepo,
         service: new SubscriptionContractService(repo, subscribers, null, taxes),
+    };
+}
+
+/**
+ * Changes the subscriber the moment the next read of it has returned, as a
+ * writer elsewhere would: what that read answered is the record before it.
+ */
+function changedRightAfterTheNextRead(subscriberRepo, change) {
+    const read = subscriberRepo.findByTenantId.bind(subscriberRepo);
+    subscriberRepo.findByTenantId = async (tenantId, tx) => {
+        subscriberRepo.findByTenantId = read;
+        const found = await read(tenantId, tx);
+        if (found) await subscriberRepo.updateContact(found.id, change, 'operator:elsewhere');
+        return found;
     };
 }
 
@@ -345,6 +360,46 @@ describe('where a tax adapter decides, a contract copies a complete invoice addr
         await assert.rejects(
             () => conclude(service),
             incomplete('SUBSCRIBER_IDENTITY_INCOMPLETE', ['city']),
+        );
+    });
+});
+
+// @requirement SC-PRIC-069 — With a tax adapter, a contract names its subscriber only with a complete address
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+describe('a contract is decided for the party it copies, read once', () => {
+    test('an address cleared while the contract is written: the contract names the complete one it was checked on', async () => {
+        const { service, subscriberRepo } = await serviceWith({ country: 'DE', business: false });
+        const data = service.createDataFromOffer(consumedOffer(), {
+            tenantId: 'tenant-1',
+            effectiveFrom: EFFECTIVE_FROM,
+        });
+
+        changedRightAfterTheNextRead(subscriberRepo, { city: null });
+        const contract = await service.create(data);
+
+        assert.equal(contract.subscriber.city, AN_ADDRESS.city);
+        assert.equal(contract.taxTreatment.kind, 'standard');
+    });
+
+    test('a country changed while a successor is written: the successor names the country its rate was decided for', async () => {
+        const { service, subscriberRepo } = await serviceWith({ country: 'DE', business: false });
+        const first = await conclude(service);
+        const next = {
+            ...service.dataOf(first),
+            effectiveFrom: new Date('2026-07-01T00:00:00.000Z'),
+        };
+
+        // France for a consumer is a case the adapter supports no treatment for.
+        changedRightAfterTheNextRead(subscriberRepo, { country: 'FR' });
+        const successor = await service.writeSuccessor(first, next, next.effectiveFrom);
+
+        assert.deepEqual(
+            [
+                successor.subscriber.country,
+                successor.taxTreatment.kind,
+                successor.taxTreatment.rate,
+            ],
+            ['DE', 'standard', 19],
         );
     });
 });

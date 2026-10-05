@@ -1691,6 +1691,11 @@ _Tested by:_
           and its end
         - a successor is decided before the contract in force ends, so a refusal leaves that one
           running
+    - a contract is decided for the party it copies, read once
+        - an address cleared while the contract is written: the contract names the complete one it
+          was checked on
+        - a country changed while a successor is written: the successor names the country its rate
+          was decided for
     - a sign-up concludes its offer at the rate decided for the subscriber it creates
         - a consumer in Germany: 19 %, the treatment recorded
         - a business in Switzerland: not taxable, every line at 0 %
@@ -1801,6 +1806,11 @@ _Tested by:_
         - a sign-up whose details lack the address is refused before any transaction
         - an empty country is a gap in the address, named before the adapter is asked
         - the address is asked before the tax: an incomplete one in France names the address
+    - a contract is decided for the party it copies, read once
+        - an address cleared while the contract is written: the contract names the complete one it
+          was checked on
+        - a country changed while a successor is written: the successor names the country its rate
+          was decided for
 
 <!-- END proof -->
 

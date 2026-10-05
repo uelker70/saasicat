@@ -1747,6 +1747,9 @@ changes.
 3. Your own `AdminResourcesPort.listSubscriptions` gives each row its `tenant.id` beside `slug` and
    `name`; `PrismaAdminResourcesAdapter` does.
 4. An application that words refusals itself adds `SUBSCRIBER_IDENTITY_INCOMPLETE`.
+5. Code that called `SubscriberService.contractPartiesFor(tenantId, tx)` calls
+   `contractPartyFor(tenantId, { forTaxAdapter }, tx)`: the parties and the tax origin of one read
+   of the subscriber, so a rate decided from the origin is decided for the party a contract copies.
 
 What you get: the operator sees a tenant's subscriber beside the tenant, with what holds its next
 contract back (`GET admin/tenants/:slug/subscriber`, announced as `subscribers.read`), and the tenant

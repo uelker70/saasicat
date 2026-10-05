@@ -116,11 +116,15 @@ function installation({ replaces = null, taxes = null } = {}) {
         repo,
         {
             requireForTenant: async () => ({ id: 'subscriber-t1' }),
-            contractPartiesFor: async () => parties.current,
             taxOriginFor: async () => origin.current,
             async taxOriginOfComplete() {
                 if (installed.identityIncomplete) throw anIncompleteAddress(['city']);
                 return origin.current;
+            },
+            async contractPartyFor(tenantId, { forTaxAdapter }) {
+                if (!forTaxAdapter) return { parties: parties.current, origin: null };
+                if (installed.identityIncomplete) throw anIncompleteAddress(['city']);
+                return { parties: parties.current, origin: origin.current };
             },
         },
         null,

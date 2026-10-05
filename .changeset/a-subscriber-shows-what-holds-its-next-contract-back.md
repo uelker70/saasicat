@@ -46,3 +46,9 @@ and the tenant both see what holds a subscriber's next contract back
   `AdminSubscriptionListRow.tenant` carries the tenant's `id`, which
   `PrismaAdminResourcesAdapter` gives. `TenantBillingDetailsShape` gains
   `business` and `readiness`.
+- **A contract is decided for the party it copies.** The subscriber is read
+  once per contract, and its rate decided from that read: a change landing in
+  between can no longer leave a contract naming one party at a rate decided
+  for another. `SubscriberService.contractPartiesFor` is now
+  `contractPartyFor(tenantId, { forTaxAdapter }, tx?)`, answering the parties
+  and the tax origin of the same read.

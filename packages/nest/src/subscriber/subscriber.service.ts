@@ -51,6 +51,13 @@ import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
  */
 const KEPT_BY_A_TENANT = [...SUBSCRIBER_INVOICE_ADDRESS_FIELDS, 'invoiceEmail'] as const;
 
+/** What a contract copies of its parties, and the tax origin of the same read. */
+export interface ContractParty {
+    parties: SubscriptionContractParties;
+    /** `null` where no tax adapter decides. */
+    origin: SubscriberTaxOrigin | null;
+}
+
 /**
  * The parties contracts are concluded with.
  *
@@ -153,16 +160,27 @@ export class SubscriberService {
     }
 
     /**
-     * Who a contract concluded for this tenant now is between: its subscriber
+     * Who a contract concluded for this tenant now is between — its subscriber
      * as the record stands, and the issuer as the running configuration names
-     * it. Refused with `SUBSCRIBER_REQUIRED` when the tenant has no subscriber.
+     * it — and, where a tax adapter decides, the tax origin of that same read.
+     * One read, so a rate decided from `origin` is decided for exactly the
+     * party the contract copies, whatever changes the record a moment later.
+     * With `forTaxAdapter`, an invoice address with gaps is refused
+     * (`SC-PRIC-069`); without it `origin` is `null`. Refused with
+     * `SUBSCRIBER_REQUIRED` when the tenant has no subscriber.
      */
-    async contractPartiesFor(
+    async contractPartyFor(
         tenantId: string,
+        options: { forTaxAdapter: boolean },
         tx?: TransactionContext,
-    ): Promise<SubscriptionContractParties> {
+    ): Promise<ContractParty> {
         const subscriber = await this.requireForTenant(tenantId, tx);
-        return contractPartiesOf(subscriber, this.settings.issuer);
+        const parties = contractPartiesOf(subscriber, this.settings.issuer);
+        if (!options.forTaxAdapter) return { parties, origin: null };
+        const missing = invoiceAddressGapsOf(subscriber);
+        if (missing.length > 0) throw identityIncomplete(missing);
+        const check = await this.repo.findCurrentVatIdCheck(subscriber.id, tx);
+        return { parties, origin: taxOriginOf(subscriber, check) };
     }
 
     /**
