@@ -4536,8 +4536,9 @@ and the installation runs the quarter-hourly steps that make the switch (`SC-BUN
 retirement told for the version booked (`SC-BUN-046`), the way to the replacement is the early
 switch, at no more than the booking paid (`SC-BUN-054`): the replacement itself is not offered, and
 neither is a version that takes something away, which would be scheduled into the retirement's way;
-a newer version that applies at once stands beside the notice. Every user of the tenant can read the
-offer.
+a newer version that applies at once stands beside the notice. A booking that ends by the
+retirement's date is not reached by it, and is offered as any other; in a trial, the replacement
+waits for the trial to end, as the early switch does. Every user of the tenant can read the offer.
 
 _Source:_ #357
 
@@ -4591,6 +4592,9 @@ _Tested by:_
         - the replacement is left to the early switch
         - nothing that takes something away is offered
         - a newer version that applies at once stands beside the notice
+        - a booking that ends by the date is offered the replacement as any other, one ending a
+          moment after it is not
+        - in a trial, the replacement waits for the trial to end, as the early switch does
         - a retirement of another booking, or of a version the booking has left, holds nothing back
 - `packages/ui-vue-tenant/tests/component/a-newer-add-on-version-is-offered-beside-the-add-on.test.ts`
     - a newer add-on version, in the add-on store
@@ -6112,7 +6116,8 @@ offer is judged against what the subscriber will have. Beside a retirement told 
 bound (`SC-SUB-030`), the way to the replacement is the early switch, at no more than the subscriber
 paid (`SC-SUB-032`): the replacement itself is not offered, and neither is a version that takes
 something away, which would be scheduled into the retirement's way; a newer version that applies at
-once stands beside the notice. Every user of the tenant can read the offer.
+once stands beside the notice. In a trial, the replacement waits for the trial to end, as the early
+switch does. Every user of the tenant can read the offer.
 
 _Source:_ #357
 
@@ -6191,6 +6196,9 @@ _Tested by:_
         - the replacement is left to the early switch
         - nothing that takes something away is offered
         - a newer version that applies at once stands beside the notice
+        - in a trial, the replacement waits for the trial to end, as the early switch does
+        - a subscription cancelled to end before the date is left to the early switch too, which
+          stays open to it
 - `packages/ui-vue/tests/use-tenant-billing-url.test.js`
     - the version offer is read under the same prefix and answered as the offer itself
 - `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`

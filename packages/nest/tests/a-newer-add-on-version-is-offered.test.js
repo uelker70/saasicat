@@ -451,6 +451,45 @@ describe('beside a retirement told for the version booked', () => {
         );
     });
 
+    test('a booking that ends by the date is offered the replacement as any other, one ending a moment after it is not', async () => {
+        const endingAt = (canceledEffectiveAt) =>
+            offerOf(
+                offering({
+                    bookings: [
+                        bookedOf('t1', {
+                            canceledAt: new Date('2026-10-10T00:00:00.000Z'),
+                            canceledEffectiveAt: new Date(canceledEffectiveAt),
+                        }),
+                    ],
+                    told: [toldOnto(IMPROVEMENT.id)],
+                }),
+            );
+
+        const byTheDate = await endingAt('2026-12-01T00:00:00.000Z');
+        const aMomentAfter = await endingAt('2026-12-01T00:00:00.001Z');
+
+        assert.deepEqual(
+            [byTheDate?.offered.bundleVersionId, aMomentAfter],
+            [IMPROVEMENT.id, null],
+        );
+    });
+
+    test('in a trial, the replacement waits for the trial to end, as the early switch does', async () => {
+        const offer = await offerOf(
+            offering({
+                subscriptions: [
+                    subscriptionOf('t1', {
+                        status: 'TRIAL',
+                        trialEndsAt: new Date('2026-11-01T00:00:00.000Z'),
+                    }),
+                ],
+                told: [toldOnto(IMPROVEMENT.id)],
+            }),
+        );
+
+        assert.equal(offer, null);
+    });
+
     test('a retirement of another booking, or of a version the booking has left, holds nothing back', async () => {
         const offer = await offerOf(
             offering({

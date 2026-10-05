@@ -312,9 +312,9 @@ describe('GET billing/version-offer', () => {
 
 describe('beside a retirement told for the version bound', () => {
     /** The subscription told of a retirement of v1 onto `planVersionId`, and `live` on sale. */
-    const toldOnto = (planVersionId, live = undefined) =>
+    const toldOnto = (planVersionId, live = undefined, sub = {}) =>
         offerOf({
-            sub: subscription({ id: 'sub-t1' }),
+            sub: subscription({ id: 'sub-t1', ...sub }),
             told: [{ retired: { planVersionId: BOUND.id }, replacement: { planVersionId } }],
             ...(live ? { live } : {}),
         });
@@ -336,5 +336,23 @@ describe('beside a retirement told for the version bound', () => {
         const offer = await toldOnto('pv-replacement');
 
         assert.deepEqual([offer?.class, offer?.offered.planVersionId], ['improvement', 'pv-2']);
+    });
+
+    test('in a trial, the replacement waits for the trial to end, as the early switch does', async () => {
+        const offer = await toldOnto('pv-2', undefined, {
+            status: 'TRIAL',
+            trialEndsAt: new Date('2026-11-01T00:00:00.000Z'),
+        });
+
+        assert.equal(offer, null);
+    });
+
+    test('a subscription cancelled to end before the date is left to the early switch too, which stays open to it', async () => {
+        const offer = await toldOnto('pv-2', undefined, {
+            canceledAt: new Date('2026-10-10T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2026-11-01T00:00:00.000Z'),
+        });
+
+        assert.equal(offer, null);
     });
 });

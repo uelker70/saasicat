@@ -1147,7 +1147,8 @@ they paid until the date: the contract the switch writes records the difference 
 scheduled, and it ends the right to cancel without notice, which rests on the version being retired.
 It is the one way to the replacement while the retirement reaches the subscription: the version
 offer leaves the replacement to it, and offers nothing that takes something away until the move has
-been made; a newer version that applies at once is offered beside the notice (`SC-SUB-040`).
+been made; a newer version that applies at once is offered beside the notice (`SC-SUB-040`). In a
+trial the replacement waits for the trial to end, as the switch does.
 
 **Ending the replacement.** A version subscriptions still move onto cannot be terminated before the
 day after the last of their dates; the catalogue refuses with
@@ -1281,7 +1282,9 @@ plan or its rhythm is set to change, while a switch is scheduled, for an add-on 
 `selfServiceBlockedBundles`, or where the version cannot run beside the plan in the booking's
 rhythm. Beside a retirement told for the version booked, the replacement is left to the early
 switch, which holds the price, and nothing that takes something away is offered until the move has
-been made; a newer version that applies at once stands beside the notice.
+been made; a newer version that applies at once stands beside the notice. A booking that ends by
+the retirement's date is not reached by it and is offered as any other; in a trial, the replacement
+waits for the trial to end, as the early switch does.
 
 **Taking it.** `POST /billing/subscription-bundles/:id/version-offer/accept` with the version the
 page showed (`{ bundleVersionId }`), for the tenant's administrators, audited as

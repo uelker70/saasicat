@@ -1355,6 +1355,9 @@ _Tested by:_
         - the replacement is left to the early switch
         - nothing that takes something away is offered
         - a newer version that applies at once stands beside the notice
+        - in a trial, the replacement waits for the trial to end, as the early switch does
+        - a subscription cancelled to end before the date is left to the early switch too, which
+          stays open to it
 - `packages/ui-vue/tests/use-tenant-billing-url.test.js`
     - the version offer is read under the same prefix and answered as the offer itself
 - `packages/ui-vue-tenant/tests/component/a-newer-version-is-offered-beside-the-plan.test.ts`

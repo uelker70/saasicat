@@ -20,7 +20,8 @@
 // Beside a retirement told for the version booked, the replacement is the
 // early switch's to offer and one that takes something away waits for the move
 // (`leftToTheRetirement`); a newer version that applies at once stands beside
-// the notice.
+// the notice. A booking that ends by the retirement's date is not reached by
+// it, and is offered as any other.
 //
 // One that takes something away waits for the end of the booking's running
 // term: the later of the end of the period it is in and its minimum term,
@@ -112,11 +113,16 @@ export class BundleVersionOfferService {
         );
         if (verdict.class === 'same') return null;
         const told = (await this.addOnsAhead?.of(booking.subscriptionId)) ?? [];
+        const subscriptionEndsAt = cancellationLandsAt(sub);
         const replacementsTold = told
             .filter(
                 (one) =>
                     one.subscriptionBundleId === booking.id &&
-                    one.retiredBundleVersionId === booking.bundleVersionId,
+                    one.retiredBundleVersionId === booking.bundleVersionId &&
+                    // Over by the date, the booking is neither moved nor let
+                    // switch early (`BundleRetirementSwitchService`): the
+                    // retirement has no way of its own to leave an offer to.
+                    !bookingOverBy(booking, subscriptionEndsAt, new Date(one.effectiveAt)),
             )
             .map((one) => one.replacementBundleVersionId);
         if (leftToTheRetirement({ versionId: offered.id, kind: verdict.class }, replacementsTold)) {

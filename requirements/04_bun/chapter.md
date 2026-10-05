@@ -2213,6 +2213,9 @@ _Tested by:_
         - the replacement is left to the early switch
         - nothing that takes something away is offered
         - a newer version that applies at once stands beside the notice
+        - a booking that ends by the date is offered the replacement as any other, one ending a
+          moment after it is not
+        - in a trial, the replacement waits for the trial to end, as the early switch does
         - a retirement of another booking, or of a version the booking has left, holds nothing back
 - `packages/ui-vue-tenant/tests/component/a-newer-add-on-version-is-offered-beside-the-add-on.test.ts`
     - a newer add-on version, in the add-on store

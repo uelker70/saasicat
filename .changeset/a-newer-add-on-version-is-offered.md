@@ -50,7 +50,9 @@ notices on, each booking is told once (`SC-BUN-060`).
   leaves the replacement to the early switch, which holds the price, and offers
   nothing that takes something away until the move has been made; a newer
   version that applies at once stands beside the notice (`SC-SUB-040`,
-  superseding `SC-SUB-020`).
+  superseding `SC-SUB-020`). In a trial the replacement waits for the trial
+  to end, as the early switch does; an add-on booking that ends by the
+  retirement's date is offered as any other.
 - An application with a scheduler of its own calls
   `BundleVersionNoticeService.sendDue` and, after the moves,
   `BundleVersionSwitchRunService.switchDue`.

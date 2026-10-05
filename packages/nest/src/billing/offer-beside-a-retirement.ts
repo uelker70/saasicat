@@ -10,6 +10,10 @@
 // subscription to — so it waits until the retirement has moved it, and is then
 // judged against the replacement. A newer version that applies at once leaves
 // the retired version behind before the date, and stands beside the notice.
+//
+// In a trial the early switch waits for the trial to end, and the replacement
+// waits with it: taken before then, a dearer replacement would cost from the
+// conversion what the switch would hold until the date.
 
 import type { VersionOfferClass } from '@saasicat/core';
 
