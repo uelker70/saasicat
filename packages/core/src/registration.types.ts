@@ -8,6 +8,7 @@
 // Until then the record stays decoupled from the production user model.
 
 import type { TransactionContext } from './ports/core-ports.types.js';
+import type { VatIdCheck } from './tax.types.js';
 
 export const PENDING_EMAIL_TTL_HOURS = 72;
 export const PENDING_ONBOARDING_TTL_DAYS = 14;
@@ -94,6 +95,14 @@ export interface PendingRegistration {
     country: string | null;
     vatId: string | null;
     taxNumber: string | null;
+    /** Whether the sign-up is a business, as step 4 says; `null` where it did not say. */
+    business: boolean | null;
+    /**
+     * The check of `vatId` step 4 made, outside any transaction, where the tax
+     * adapter needed a validated number to treat the sign-up; `null` where it
+     * needed none. The subscriber takes it over when it is created.
+     */
+    vatIdCheck: VatIdCheck | null;
 
     /** The gateway's session for the payment method, unique within `checkoutGatewayAccount`. */
     checkoutSessionId: string | null;
@@ -142,6 +151,8 @@ export interface PendingRegistrationUpdateInput {
     country?: string | null;
     vatId?: string | null;
     taxNumber?: string | null;
+    business?: boolean | null;
+    vatIdCheck?: VatIdCheck | null;
     checkoutSessionId?: string | null;
     checkoutGatewayAccount?: string | null;
     gatewayCustomerRef?: string | null;
@@ -639,6 +650,13 @@ export interface RegistrationBillingDetails {
     country: string;
     vatId?: string | null;
     taxNumber?: string | null;
+    /**
+     * Whether the sign-up is a business. A tax adapter decides from it — a
+     * business elsewhere in the European Union, for instance, is charged under
+     * the reverse charge — and refuses the step where it needs it and it is
+     * missing.
+     */
+    business?: boolean | null;
 }
 
 export interface StartCheckoutInput {

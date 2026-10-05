@@ -81,6 +81,12 @@ model PendingRegistration {
     country      String? // ISO 3166-1 alpha-2
     vatId        String?
     taxNumber    String?
+    // Whether the sign-up is a business, which a tax adapter decides from; and
+    // the check of `vatId` made in step 4, outside any transaction, where the
+    // adapter needed a validated number. The subscriber takes the check over
+    // when it is created, so its first contract is decided from it.
+    business   Boolean?
+    vatIdCheck Json?
 
     // The payment gateway's session for the payment method. A session id is
     // unique only within the gateway account that opened it, so the account

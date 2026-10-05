@@ -43,7 +43,15 @@ export type SubscriberDetails = LegalIdentity & SubscriberContact & SubscriberTa
  * unknown.
  */
 export type NewSubscriberDetails = Pick<SubscriberDetails, 'legalName'> &
-    Partial<Omit<SubscriberDetails, 'legalName'>>;
+    Partial<Omit<SubscriberDetails, 'legalName'>> & {
+        /**
+         * A check of `vatId` made before the subscriber existed — in a
+         * sign-up's step 4, or by `SubscriberService.assessNewSubscriber` —
+         * recorded with it when it is created, so its first contract is
+         * decided from it. A check of another number is refused.
+         */
+        vatIdCheck?: VatIdCheck | null;
+    };
 
 export interface SubscriberRecord extends SubscriberDetails {
     id: string;

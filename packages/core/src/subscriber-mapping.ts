@@ -22,7 +22,7 @@ import type {
     ContractSubscriberParty,
     SubscriptionContractParties,
 } from './subscription-contract.types.js';
-import { toTaxOriginValues } from './tax-origin.js';
+import { toTaxOriginValues, vatIdCheckFromStore } from './tax-origin.js';
 
 /** A `subscribers` row as either adapter reads it back. */
 export interface CanonicalSubscriberRow {
@@ -227,6 +227,8 @@ export function subscriberFromRegistration(
         | 'country'
         | 'vatId'
         | 'taxNumber'
+        | 'business'
+        | 'vatIdCheck'
     >,
 ): NewSubscriberDetails {
     return {
@@ -239,6 +241,8 @@ export function subscriberFromRegistration(
         country: pending.country,
         vatId: pending.vatId,
         taxNumber: pending.taxNumber,
+        business: pending.business,
+        vatIdCheck: vatIdCheckFromStore(pending.vatIdCheck),
     };
 }
 
