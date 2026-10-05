@@ -145,6 +145,7 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import AdminStatistics from '../ui/data/AdminStatistics.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminPromoCodes } from '../vue/use-super-admin-context.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import PromoCodeCreateDialog from '../internal/dialogs/PromoCodeCreateDialog.vue';
@@ -249,6 +250,7 @@ const msg = useSaMessages('promos');
 const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
+const promoCodes = useSuperAdminPromoCodes();
 const resolvedCreateLabel = computed(() => props.options?.createLabel ?? msg.value.createAction);
 
 // The data layer, reached by name. Before this the page took four function
@@ -589,6 +591,7 @@ function onUpdated(): void {
     void reload();
 }
 
+/** A code's day, read in the zone the application names for promo days. */
 function formatDate(iso: string | Date | null | undefined): string | null {
     if (!iso) return null;
     try {
@@ -596,6 +599,7 @@ function formatDate(iso: string | Date | null | undefined): string | null {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
+            timeZone: promoCodes.timeZone,
         });
     } catch {
         return String(iso);

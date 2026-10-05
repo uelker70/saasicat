@@ -12,17 +12,28 @@ import {
     SUPER_ADMIN_HTTP_KEY,
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
     SUPER_ADMIN_MANIFEST_KEY,
+    SUPER_ADMIN_PROMO_CODES_KEY,
     type ActionsMap,
     type ExtensionsMap,
     type SuperAdminBrand,
     type SuperAdminEndpoints,
     type SuperAdminLoginAdapter,
+    type SuperAdminPromoCodeOptions,
 } from './super-admin-context.js';
+import { DEFAULT_PROMO_DAY_ZONE } from '../client/promo-days.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 /** Returns the `extensions:` map registered in `createSuperAdminApp()`. */
 export function useSuperAdminExtensions(): ExtensionsMap {
     return inject(SUPER_ADMIN_EXTENSIONS_KEY, {} as ExtensionsMap);
+}
+
+/**
+ * How the administration reads promo codes, as `createSuperAdminApp({ promoCodes })`
+ * named it: their days in UTC where it named no zone, as outside that shell.
+ */
+export function useSuperAdminPromoCodes(): Required<SuperAdminPromoCodeOptions> {
+    return inject(SUPER_ADMIN_PROMO_CODES_KEY, { timeZone: DEFAULT_PROMO_DAY_ZONE });
 }
 
 /** Returns the `actions:` map registered in `createSuperAdminApp()`. */

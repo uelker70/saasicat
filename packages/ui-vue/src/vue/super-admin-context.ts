@@ -226,6 +226,22 @@ export const SUPER_ADMIN_HTTP_KEY: InjectionKey<HttpClient> = Symbol.for(
     'saasicat/ui-vue/SUPER_ADMIN_HTTP',
 );
 
+/** How the administration reads promo codes (`createSuperAdminApp({ promoCodes })`). */
+export interface SuperAdminPromoCodeOptions {
+    /**
+     * The time zone a code's days are read in — an IANA name such as
+     * `Europe/Berlin`. It has to be the zone the application's server turns a
+     * day into an instant in, or a code saved without a change would move by a
+     * day. UTC where none is named: the platform's own promo-code routes store
+     * a day at its UTC midnight.
+     */
+    timeZone?: string;
+}
+
+/** Vue inject key for `useSuperAdminPromoCodes()`. */
+export const SUPER_ADMIN_PROMO_CODES_KEY: InjectionKey<Required<SuperAdminPromoCodeOptions>> =
+    Symbol.for('saasicat/ui-vue/SUPER_ADMIN_PROMO_CODES');
+
 /**
  * Additional Vue plugins (e.g. an app's own NotificationCenter) that a
  * bootstrap installs after the platform setup, before the mount.

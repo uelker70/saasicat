@@ -101,6 +101,8 @@ import PromoCodeEditDialog, {
 } from '../internal/dialogs/PromoCodeEditDialog.vue';
 import type { PromoCodePlanOption } from '../internal/dialogs/types.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminPromoCodes } from '../vue/use-super-admin-context.js';
+import { promoDayOf, promoMomentOf } from '../client/promo-days.js';
 
 export type { PromoDetail as PromoDetailData } from '../client/resources/promo-codes.resource.js';
 
@@ -144,6 +146,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('promos');
+const promoCodes = useSuperAdminPromoCodes();
 const common = useSaMessages('common');
 
 const labels = computed(() => ({
@@ -275,7 +278,8 @@ const defaultColumns = computed<QTableColumn[]>(() => [
     {
         name: 'startsAt',
         label: msg.value.detail.columnStart,
-        field: (r: unknown) => String((r as Record<string, unknown>).startsAt ?? '').slice(0, 10),
+        field: (r: unknown) =>
+            promoDayOf(String((r as Record<string, unknown>).startsAt ?? ''), promoCodes.timeZone),
         align: 'left',
     },
     {
@@ -283,7 +287,7 @@ const defaultColumns = computed<QTableColumn[]>(() => [
         label: msg.value.detail.columnEnd,
         field: (r: unknown) => {
             const v = (r as Record<string, unknown>).endsAt;
-            return v ? String(v).slice(0, 10) : '∞';
+            return v ? promoDayOf(String(v), promoCodes.timeZone) : '∞';
         },
         align: 'left',
     },
@@ -291,9 +295,10 @@ const defaultColumns = computed<QTableColumn[]>(() => [
         name: 'redeemedAt',
         label: msg.value.detail.columnRedeemedAt,
         field: (r: unknown) =>
-            String((r as Record<string, unknown>).redeemedAt ?? '')
-                .slice(0, 19)
-                .replace('T', ' '),
+            promoMomentOf(
+                String((r as Record<string, unknown>).redeemedAt ?? ''),
+                promoCodes.timeZone,
+            ),
         align: 'left',
     },
 ]);

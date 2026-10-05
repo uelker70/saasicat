@@ -24,6 +24,7 @@ import {
     SUPER_ADMIN_HTTP_KEY,
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
     SUPER_ADMIN_MANIFEST_KEY,
+    SUPER_ADMIN_PROMO_CODES_KEY,
 } from '../../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../../src/vue/ui-notify.js';
 import { SUPER_ADMIN_CONFIRM_KEY } from '../../../src/vue/ui-confirm.js';
@@ -212,6 +213,8 @@ app.provide(SUPER_ADMIN_NOTIFY_KEY, () => {});
 app.provide(SUPER_ADMIN_CONFIRM_KEY, quasarConfirm);
 app.provide(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, () => {});
 app.provide(SUPER_ADMIN_HTTP_KEY, http);
+// The days the baselines show are UTC days, as the browser here is in UTC.
+app.provide(SUPER_ADMIN_PROMO_CODES_KEY, { timeZone: 'UTC' });
 app.provide(SUPER_ADMIN_MANIFEST_KEY, () => FIXTURE_MANIFEST);
 app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, { login: async () => ({ ok: true as const }) });
 // The registry, on the same stubbed client as everything else. A page migrated

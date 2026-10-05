@@ -805,3 +805,49 @@ _Tested by:_
         - concluding asks again: an allowance taken back since refuses the offer
 
 <!-- END proof -->
+
+### SC-PROMO-031 — The administration reads a promo code's days in the zone the application names
+
+🟢 💰 The days of a promo code — its first and last day in the list, the edit dialog and the detail
+page, and the start and end of each redemption's term — are read in the time zone the application
+names for them, and in UTC where it names none, at whose midnight the platform's own promo-code
+routes store a day. The zone is never the browser's: an operator abroad reads the days an operator
+at home reads, and a code opened and saved with something else changed sends neither day back. A
+redemption's moment is shown with the zone it is read in. A zone the browser cannot read stops the
+administration at start.
+
+_Source:_ uelker70/autohauspro#515
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/promo-days-are-read-in-the-zone-the-app-names.test.ts`
+    - the edit dialog
+        - shows the days the code was given in Berlin, on the days the clocks change
+        - shows the UTC days where the application names no zone
+        - sends neither day back when something else is changed
+    - the list
+        - shows a code’s last day in the zone the application names, and in UTC without one
+    - the detail page
+        - shows each redemption’s term and moment in the zone the application names, saying which
+        - and in UTC where it names none
+    - the shell
+        - hands the pages the zone the application names, and UTC where it names none
+        - refuses a zone the browser cannot read before it touches the document
+- `packages/ui-vue/tests/promo-days-are-read-in-a-zone.test.js`
+    - a promo code’s day, read in a zone
+        - the start of 29 March in Berlin, the day the clocks go forward, is that day there and the
+          day before in UTC
+        - the end of 25 October in Berlin, the day the clocks go back, is that day, and a moment
+          later the next
+        - is nothing where there is no instant, or none that is a date
+    - a promo code’s moment, read in a zone
+        - says the zone it is read in
+        - is nothing where there is no instant
+    - the zone promo days are read in
+        - is UTC where the application names none
+        - is the one the application names, where the runtime can read it
+        - refuses a name the runtime cannot read, naming it, with the runtime’s reason as cause
+
+<!-- END proof -->
