@@ -16,11 +16,13 @@ import type {
     PaymentGatewayCallback,
     RegistrationBillingDetails,
     SubscriberPaymentMethodRepository,
+    VatIdCheck,
 } from '@saasicat/core';
 import {
     PAYMENT_ERROR_CODES,
     PENDING_CHECKOUT_TTL_DAYS,
     subscriberFromRegistration,
+    vatIdCheckFromStore,
 } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
@@ -204,6 +206,7 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             checkoutStartedAt: startedAt,
             expiresAt: checkoutExpiresAt(startedAt),
         });
+        refuseALossyRepository(updated, billing.business, vatIdCheck ?? null);
         return {
             updated,
             sessionRef: session.sessionRef,
@@ -331,4 +334,23 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             this.logger.warn(`Audit log write failed (${event.eventType}): ${message}`);
         }
     }
+}
+
+/**
+ * The application's repository keeps the business status and the check, or
+ * the subscriber its activation creates is decided without them — found only
+ * after the payment, inside the gateway's confirmation, which then retries
+ * into the same refusal. Refused here instead, in step 4, as a wiring error.
+ */
+function refuseALossyRepository(
+    updated: PendingRegistration,
+    business: boolean | null,
+    check: VatIdCheck | null,
+): void {
+    const keptCheck = vatIdCheckFromStore(updated.vatIdCheck);
+    const keepsCheck = check === null || keptCheck?.vatId === check.vatId;
+    if ((updated.business ?? null) === business && keepsCheck) return;
+    throw new Error(
+        'PendingRegistrationRepository.update did not give back the `business` and `vatIdCheck` it was given. Keep both on the pending registration (docs/guides/upgrade-to-1.0.md, "A new subscriber is asked about before it exists").',
+    );
 }

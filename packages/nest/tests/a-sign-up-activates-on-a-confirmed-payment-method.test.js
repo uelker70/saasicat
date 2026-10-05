@@ -698,6 +698,32 @@ describe('where a tax adapter decides, step 4 asks it before the gateway form op
         assert.equal(vies.periods.length, askedAtTheStart, 'no decision was asked for');
     });
 
+    // A repository that loses either would show only at the activation, after
+    // the payment, where the gateway retries into the same refusal.
+    for (const dropped of ['vatIdCheck', 'business']) {
+        test(`a repository that does not keep ${dropped} is a wiring error in step 4`, async () => {
+            class Forgetful extends FakeRepository {
+                async update(id, input) {
+                    const kept = { ...input };
+                    delete kept[dropped];
+                    return super.update(id, kept);
+                }
+            }
+            const vies = adapterWithChecks(VALID);
+            const ctx = await signUpApp({
+                catalog: TAX_CATALOG,
+                taxAdapter: vies.factory,
+                repo: new Forgetful(),
+            });
+            const pendingId = await atStepFour(ctx);
+
+            await assert.rejects(
+                startWith(ctx, pendingId, IN_VIENNA),
+                /did not give back the `business` and `vatIdCheck` it was given/,
+            );
+        });
+    }
+
     test('a business outside the Union is not taxable as given: its number is not checked', async () => {
         const { ctx, vies, pendingId } = await withAdapter(UNREACHABLE);
 
