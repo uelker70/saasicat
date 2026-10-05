@@ -84,9 +84,9 @@ export class SubscriberService {
      * Refused with `SUBSCRIBER_ALREADY_EXISTS` when the tenant has one: a second
      * party for the same tenant is not a correction of the first.
      *
-     * A check of the VAT number attached to `details` — what
-     * `assessNewSubscriber` answers — is recorded with the subscriber, on `tx`,
-     * which it then requires.
+     * Details `assessNewSubscriber` answered — they carry `vatIdCheck`, a
+     * check or `null` — are created on `tx`, which they then require, and an
+     * attached check is recorded with the subscriber on it.
      */
     async createForTenant(
         tenantId: string,
@@ -106,11 +106,13 @@ export class SubscriberService {
         }
         // The subscriber and its check are one write: apart, a failed check
         // would leave a subscriber without it, and the retry would meet
-        // `SUBSCRIBER_ALREADY_EXISTS`. The tenant is created on a transaction
-        // anyway, so the caller passes that one.
-        if (check && tx === undefined) {
+        // `SUBSCRIBER_ALREADY_EXISTS`. Asked of every assessed creation — its
+        // details carry `vatIdCheck`, `null` included — and not only of one
+        // that came with a check, so that a call without a transaction fails
+        // on its first run, not on the first business that needed a check.
+        if (details.vatIdCheck !== undefined && tx === undefined) {
             throw new Error(
-                'SubscriberService.createForTenant records the attached VAT id check with the subscriber on one transaction: pass the transaction the tenant is created on.',
+                'SubscriberService.createForTenant records an assessed subscriber with its VAT id check on one transaction: pass the transaction the tenant is created on.',
             );
         }
         const created = await this.repo.createForTenant(

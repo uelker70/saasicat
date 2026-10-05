@@ -165,6 +165,21 @@ describe('a subscriber created with a check keeps it', () => {
         assert.equal(await repo.findByTenantId('tenant-1'), null, 'nothing was written');
     });
 
+    test('assessed details need the transaction even where no check was needed', async () => {
+        const { subscribers, repo } = subscribersWith();
+        const assessed = await subscribers.assessNewSubscriber(
+            { legalName: 'Meier GmbH', country: 'DE', business: false },
+            A_MONTH,
+        );
+        assert.equal(assessed.vatIdCheck, null);
+
+        await assert.rejects(
+            subscribers.createForTenant('tenant-1', assessed),
+            /on one transaction: pass the transaction the tenant is created on/,
+        );
+        assert.equal(await repo.findByTenantId('tenant-1'), null, 'nothing was written');
+    });
+
     test('a check of another number is refused before anything is written', async () => {
         const { subscribers, repo } = subscribersWith();
         await assert.rejects(
