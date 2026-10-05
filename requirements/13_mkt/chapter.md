@@ -590,6 +590,18 @@ _Tested by:_
         - the service refuses to conclude rather than writing the two apart
         - the module does not start with half of it
         - the module does not start without the parties a contract names
+    - an offer for a tenant with a contract
+        - in force when the offer’s would take effect is refused, and nothing is written
+        - beginning after the offer’s would take effect is refused as well
+        - that ended by the moment the offer’s takes effect is concluded beside
+        - ending a moment after it is refused
+        - that was superseded, or of another tenant, is no hindrance
+        - written between the checks and the transaction is refused there, and nothing is consumed
+    - an offer naming an add-on the tenant has booked
+        - in another version is refused, naming the booking and both versions
+        - in the version booked is concluded
+        - of another add-on is concluded
+        - whose booking has ended is concluded
 - `packages/nest/tests/platform-composition.test.js`
     - the checkout offer composer
         - wires concluding from a bundle that has contracts and a transaction runner
@@ -804,5 +816,55 @@ _Tested by:_
     - the plan version checkout prices
         - is the one on sale at the moment the offer is priced
         - a repository that cannot say which version is on sale stops the start
+
+<!-- END proof -->
+
+### SC-MKT-028 — A checkout offer concludes a first contract, and is refused beside a running one
+
+🟢 💰 A checkout offer is concluded only for a tenant without a contract in force when the offer's
+would take effect, and without one beginning after that — a tenant in a trial, or one whose earlier
+contract has ended. Otherwise it is refused with `CHECKOUT_OFFER_CONTRACT_IN_FORCE` and nothing is
+written: an offer ends no contract, so the two would run side by side and both be billed. A running
+subscription changes through its plan and its add-ons. An offer already concluded for the same
+tenant still answers with its contract (`SC-MKT-017`). The check is made before the conclusion and
+again in its transaction, and where it stops: two different offers concluded for one tenant at the
+same moment can each pass the second check before the other's contract is written.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - an offer for a tenant with a contract
+        - in force when the offer’s would take effect is refused, and nothing is written
+        - beginning after the offer’s would take effect is refused as well
+        - that ended by the moment the offer’s takes effect is concluded beside
+        - ending a moment after it is refused
+        - that was superseded, or of another tenant, is no hindrance
+        - written between the checks and the transaction is refused there, and nothing is consumed
+
+<!-- END proof -->
+
+### SC-MKT-029 — A checkout offer may not name another version of an add-on the tenant has booked
+
+🟢 💰 Where the tenant has a running booking of an add-on, a checkout offer naming another version of
+that add-on is refused with `CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION`, which names the
+booking and both versions, and nothing is written: the contract would name a version the booking is
+not on. The version is changed through the offer beside the add-on (`SC-BUN-058`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - an offer naming an add-on the tenant has booked
+        - in another version is refused, naming the booking and both versions
+        - in the version booked is concluded
+        - of another add-on is concluded
+        - whose booking has ended is concluded
 
 <!-- END proof -->

@@ -551,6 +551,8 @@ export function createMemoryHarness() {
                 billingCycle: data.billingCycle ?? null,
                 currentPeriodStart: data.currentPeriodStart ?? null,
                 currentPeriodEnd: data.currentPeriodEnd ?? null,
+                pendingBundleVersionId: null,
+                pendingVersionEffectiveAt: null,
                 canceledAt: null,
                 canceledEffectiveAt: null,
             };
@@ -601,6 +603,36 @@ export function createMemoryHarness() {
             if (!row || row.bundleVersionId !== from) return null;
             row.bundleVersionId = to;
             return toSubscriptionBundleRecord(row);
+        },
+        async scheduleVersion(id, { from, to, effectiveAt }) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row || row.bundleVersionId !== from || row.pendingBundleVersionId !== null) {
+                return null;
+            }
+            row.pendingBundleVersionId = to;
+            row.pendingVersionEffectiveAt = effectiveAt;
+            return toSubscriptionBundleRecord(row);
+        },
+        async unscheduleVersion(id, to) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row || row.pendingBundleVersionId !== to) return null;
+            row.pendingBundleVersionId = null;
+            row.pendingVersionEffectiveAt = null;
+            return toSubscriptionBundleRecord(row);
+        },
+        async listScheduledVersionsDue(asOf) {
+            return state.subscriptionBundles
+                .filter(
+                    (row) =>
+                        row.pendingVersionEffectiveAt !== null &&
+                        row.pendingVersionEffectiveAt <= asOf,
+                )
+                .sort(
+                    (a, b) =>
+                        a.pendingVersionEffectiveAt.getTime() -
+                            b.pendingVersionEffectiveAt.getTime() || (a.id < b.id ? -1 : 1),
+                )
+                .map(toSubscriptionBundleRecord);
         },
         async reactivate(id) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);

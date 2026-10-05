@@ -1982,3 +1982,77 @@ describe('a correction carries the order it was recorded in', () => {
         );
     });
 });
+
+// @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
+describe("a booking's scheduled switch holds its version and its moment together", () => {
+    // The repositories write both columns or neither, and the persistence
+    // contract says so; that is the code. The promise is about the database: a
+    // row holding one of the two is refused by the CHECK, so a writer that set
+    // only one — or a `db push` that dropped the constraint — fails here rather
+    // than leaving a version the run never makes, or a moment it makes nothing
+    // at.
+    const MIGRATION = '1.0-an-add-on-switch-waits-for-its-term.postgres.sql';
+    const CONSTRAINTS = 'constraints.postgres.sql';
+    const CHECK = /subscription_bundles_switch_has_its_moment/;
+    const MOMENT = '2026-11-01T00:00:00.000Z';
+
+    /** A subscription, and two published versions of one add-on to book beside it. */
+    async function catalogue() {
+        await client.query(
+            `INSERT INTO "plans" ("id", "planKey", "label", "updatedAt") ` +
+                `VALUES ('plan-1', 'STANDARD', 'Standard', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
+                ' "monthlyNet", "yearlyNet", "changeNote", "updatedAt") ' +
+                `VALUES ('pv-1', 'plan-1', 1, '[]', '{}', 49, 490, 'first', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscriptions" ("id", "tenantId", "plan", "planVersionId", "updatedAt") ' +
+                `VALUES ('sub-1', 't1', 'STANDARD', 'pv-1', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "bundles" ("id", "bundleKey", "label", "updatedAt") ' +
+                `VALUES ('b-1', 'REPORTS', 'Reports', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "bundle_versions" ("id", "bundleId", "version", "features", ' +
+                ' "publishedAt", "updatedAt") ' +
+                `VALUES ('bv-1', 'b-1', 1, '[]', NOW(), NOW()), ('bv-2', 'b-1', 2, '[]', NOW(), NOW())`,
+        );
+    }
+
+    /** A booking of the first version, with the switch given scheduled on it. */
+    const book = (id, pendingBundleVersionId, pendingVersionEffectiveAt) =>
+        client.query(
+            'INSERT INTO "subscription_bundles" ("id", "subscriptionId", "bundleVersionId", ' +
+                ' "startedAt", "updatedAt", "pendingBundleVersionId", "pendingVersionEffectiveAt") ' +
+                `VALUES ($1, 'sub-1', 'bv-1', NOW(), NOW(), $2, $3)`,
+            [id, pendingBundleVersionId, pendingVersionEffectiveAt],
+        );
+
+    async function holdsThePair() {
+        await book('sb-none', null, null);
+        await book('sb-both', 'bv-2', MOMENT);
+        await assert.rejects(() => book('sb-version', 'bv-2', null), CHECK);
+        await assert.rejects(() => book('sb-moment', null, MOMENT), CHECK);
+    }
+
+    test('one without the other is refused by the constraint, both or neither are not, on the reference schema', async () => {
+        await freshGround();
+        await catalogue();
+        await holdsThePair();
+    });
+
+    test('and on a database that gained the columns from the migration, with the constraints after it', async () => {
+        await freshGround();
+        await client.query(
+            'ALTER TABLE "subscription_bundles" DROP COLUMN "pendingBundleVersionId", ' +
+                'DROP COLUMN "pendingVersionEffectiveAt"',
+        );
+        await apply(MIGRATION);
+        await apply(CONSTRAINTS);
+        await catalogue();
+        await holdsThePair();
+    });
+});

@@ -10,9 +10,10 @@ const BILLING_CYCLES: readonly BillingCycle[] = ['MONTHLY', 'YEARLY'];
 /**
  * A `subscription_bundles` row as either adapter reads it back.
  *
- * The three billing columns are optional because a Prisma client generated from
- * a schema that predates them returns a row without them; an absent column
- * reads as null, the same as a booking made before they existed.
+ * The three billing columns and the two of a scheduled switch are optional
+ * because a Prisma client generated from a schema that predates them returns a
+ * row without them; an absent column reads as null, the same as a booking made
+ * before they existed.
  */
 export interface CanonicalSubscriptionBundleRow {
     id: string;
@@ -23,6 +24,8 @@ export interface CanonicalSubscriptionBundleRow {
     billingCycle?: string | null;
     currentPeriodStart?: Date | null;
     currentPeriodEnd?: Date | null;
+    pendingBundleVersionId?: string | null;
+    pendingVersionEffectiveAt?: Date | null;
     canceledAt: Date | null;
     canceledEffectiveAt: Date | null;
     createdAt: Date;
@@ -57,6 +60,8 @@ export function toSubscriptionBundleRecord(
                   }),
         currentPeriodStart: row.currentPeriodStart ?? null,
         currentPeriodEnd: row.currentPeriodEnd ?? null,
+        pendingBundleVersionId: row.pendingBundleVersionId ?? null,
+        pendingVersionEffectiveAt: row.pendingVersionEffectiveAt ?? null,
         canceledAt: row.canceledAt,
         canceledEffectiveAt: row.canceledEffectiveAt,
         createdAt: row.createdAt,

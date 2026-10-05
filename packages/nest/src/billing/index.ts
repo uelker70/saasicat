@@ -104,6 +104,13 @@ export { BundleRetirementMoveService } from './bundle-retirement-move.service.js
 export { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
 export { BundleRetirementReminderService } from './bundle-retirement-reminder.service.js';
 export { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
+export { BundleVersionOfferService } from './bundle-version-offer.service.js';
+export { BundleVersionSwitchService } from './bundle-version-switch.service.js';
+export {
+    BundleVersionSwitchRunService,
+    type BundleVersionSwitchRun,
+} from './bundle-version-switch-run.service.js';
+export { BundleVersionNoticeService } from './bundle-version-notice.service.js';
 export { RetirementMoveService } from './retirement-move.service.js';
 export { RetirementReminderService } from './retirement-reminder.service.js';
 export { RetirementSwitchService, type OpenRetirementSwitch } from './retirement-switch.service.js';

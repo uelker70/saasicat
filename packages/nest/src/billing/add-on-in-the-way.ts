@@ -15,12 +15,13 @@ type Parent = Pick<
  * the version booked cannot be read, its id stands in for the name. A booking
  * told that its version is being retired may be cancelled without its minimum
  * term until the retirement's date (`SC-BUN-045`), so the term does not count
- * then. Where the version it continues on from that date is the one in the
- * way, that version and its date (`continuesOn`) — but only while the date is
- * ahead and the booking is not cancelled yet, since only then does cancelling
- * end it before the date. Past the date a cancellation lands after it, and a
- * cancelled booking cannot be cancelled again: both are told the day they can
- * end instead.
+ * then; a switch the booking took for the end of its term lifts nothing. Where
+ * the version it continues on from that date is the one in the way, that
+ * version and its date (`continuesOn`) — but only while the date is ahead and
+ * the booking is not cancelled yet, since only then does cancelling end it by
+ * the date. Past the date a cancellation lands after it, and a cancelled
+ * booking cannot be cancelled again: both are told the day they can end
+ * instead.
  */
 export function addOnInTheWay(
     held: HeldAddOnMisfit,
@@ -28,8 +29,9 @@ export function addOnInTheWay(
     now: Date,
 ): { bundleName: string; until: string; continuesOn: ContinuesOn | null } {
     const datePending = Boolean(held.ahead && new Date(held.ahead.effectiveAt) > now);
+    const termLapses = datePending && held.ahead?.by !== 'switch';
     const until = earliestEndOf(
-        datePending ? { ...held.booking, minimumTermEndsAt: null } : held.booking,
+        termLapses ? { ...held.booking, minimumTermEndsAt: null } : held.booking,
         {
             now,
             planPeriodEnd: sub.currentPeriodEnd,

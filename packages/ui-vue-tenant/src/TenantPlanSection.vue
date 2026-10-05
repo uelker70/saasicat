@@ -129,12 +129,14 @@
                     :canceling-id="cancelingBundleId"
                     :reactivating-id="reactivatingBundleId"
                     :switching-id="switchingBundleId"
+                    :offering-id="offeringBundleId"
                     :error="bundleError"
                     :note="bundleNote"
                     @buy="onBuyBundle"
                     @cancel="onCancelBundle"
                     @reactivate="onReactivateBundle"
                     @switch="onSwitchBundle"
+                    @take-offer="onTakeBundleOffer"
                 />
             </TenantCard>
 
@@ -410,6 +412,7 @@ const buyingBundleId = ref<string | null>(null);
 const cancelingBundleId = ref<string | null>(null);
 const reactivatingBundleId = ref<string | null>(null);
 const switchingBundleId = ref<string | null>(null);
+const offeringBundleId = ref<string | null>(null);
 /** What the last add-on action did, where it says something. */
 const bundleNote = ref<string | null>(null);
 const reactivateConfirmId = ref<string | null>(null);
@@ -777,6 +780,37 @@ async function onSwitchBundle(subscriptionBundleId: string, bundleVersionId: str
         await billing.reload();
     } finally {
         switchingBundleId.value = null;
+    }
+}
+
+// A newer version offered beside a booking, taken. The card confirmed what
+// asks to be confirmed; this writes it, and says what happened — or, refused,
+// why, with the offer as it now stands read with the reload.
+async function onTakeBundleOffer(subscriptionBundleId: string, bundleVersionId: string) {
+    const booking = bookedBundles.value.find((b) => b.id === subscriptionBundleId);
+    const label = booking?.label ?? booking?.bundleVersionId ?? '';
+    const version = String(booking?.offer?.offered.version ?? '');
+    offeringBundleId.value = subscriptionBundleId;
+    bundleError.value = null;
+    bundleNote.value = null;
+    try {
+        const result = await billing.acceptBundleVersionOffer(
+            subscriptionBundleId,
+            bundleVersionId,
+        );
+        const words = effectiveI18n.value;
+        const said = result.immediate
+            ? words.bundleRetiredSwitched
+            : words.bundleOfferSwitchScheduled.replace(
+                  '{date}',
+                  props.formatDate(result.takesEffectAt),
+              );
+        bundleNote.value = said.replace('{bundle}', label).replace('{version}', version);
+    } catch (err) {
+        bundleError.value = refusalText(err);
+        await billing.reload();
+    } finally {
+        offeringBundleId.value = null;
     }
 }
 

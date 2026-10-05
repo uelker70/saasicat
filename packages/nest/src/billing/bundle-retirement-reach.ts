@@ -52,7 +52,11 @@ export type BundleRetirementReach =
 /** The booking dates the decision reads. */
 export type RetiringBooking = Pick<
     SubscriptionBundleRecord,
-    'billingCycle' | 'currentPeriodEnd' | 'canceledAt' | 'canceledEffectiveAt'
+    | 'billingCycle'
+    | 'currentPeriodEnd'
+    | 'canceledAt'
+    | 'canceledEffectiveAt'
+    | 'pendingVersionEffectiveAt'
 >;
 
 /**
@@ -72,7 +76,7 @@ export function bundleRetirementReach(
         return { reached: false, reason: 'ended' };
     }
     const earliest = calendarMonthsAfter(toldAt, RETIREMENT_LEAD_MONTHS);
-    const at = periodEndOf(booking, sub, earliest);
+    const at = bookingPeriodEndOf(booking, sub, earliest);
     if (!at) return { reached: false, reason: 'no-term' };
     // A booking ends with the subscription that pays for it, and with its own
     // cancellation: either by the date, and nothing is left to move.
@@ -80,6 +84,11 @@ export function bundleRetirementReach(
     if ((subscriptionEnds !== null && subscriptionEnds <= at) || bookingEndsBy(booking, at)) {
         return { reached: false, reason: 'cancelled-before' };
     }
+    // A switch to a newer version the booking took for the end of its term,
+    // landing by then, takes it off this version first — as a scheduled change
+    // takes a subscription off its plan version (`changes-before`).
+    const switchLands = booking.pendingVersionEffectiveAt;
+    if (switchLands && switchLands <= at) return { reached: false, reason: 'changes-before' };
     const plan = planAt(sub, at, ahead);
     return {
         reached: true,
@@ -137,9 +146,10 @@ export function bookingOverBy(
  * The first end of the booking's period at or after `earliest`. Its periods
  * run in its own rhythm and end on the plan's billing day; where it has no
  * rhythm or no period of its own, it is billed with the plan and ends with the
- * plan's terms.
+ * plan's terms. Walked from the window the booking holds, so a window the
+ * application has not rolled on yet still counts its ends.
  */
-function periodEndOf(
+export function bookingPeriodEndOf(
     booking: RetiringBooking,
     sub: RetiringSubscription,
     earliest: Date,

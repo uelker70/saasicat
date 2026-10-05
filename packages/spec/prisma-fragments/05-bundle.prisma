@@ -90,9 +90,10 @@ model BundleVersion {
     bundle              Bundle               @relation(fields: [bundleId], references: [id], onDelete: Cascade)
     baseVersion         BundleVersion?       @relation("BundleVersionLineage", fields: [baseVersionId], references: [id])
     derivedVersions     BundleVersion[]      @relation("BundleVersionLineage")
-    // Standalone add-on bookings pinned to this version (see
-    // 11-subscription-bundle.prisma).
-    subscriptionBundles SubscriptionBundle[]
+    // Standalone add-on bookings pinned to this version, and the ones set to
+    // continue on it at the end of their term (see 11-subscription-bundle.prisma).
+    subscriptionBundles        SubscriptionBundle[] @relation("SubscriptionBundleVersion")
+    subscriptionBundlesPending SubscriptionBundle[] @relation("SubscriptionBundlePendingVersion")
 
     @@unique([bundleId, version])
     @@index([bundleId, supersededAt])

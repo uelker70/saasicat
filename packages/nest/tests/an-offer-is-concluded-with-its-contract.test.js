@@ -16,10 +16,12 @@ import { SubscriberService } from '../dist/subscriber/index.js';
 import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
 
 import {
+    BUNDLE_VERSION,
     CATALOG,
     PLAN_VERSION,
     START10,
     buildOfferService,
+    fakeBundleRepo,
     fakePlanRepo,
     fakePromoCodes,
 } from './helpers/checkout-catalogue.js';
@@ -77,8 +79,13 @@ async function concluding({
     promoCode,
     plans,
     subscribedTenants = ['tenant-meier', 'tenant-other'],
+    booked = null,
+    bundleVersionIds,
 } = {}) {
-    const built = buildOfferService(plans ? { plans } : {});
+    const built = buildOfferService({
+        ...(plans ? { plans } : {}),
+        ...(booked ? { bundles: fakeBundleRepo(booked.versions) } : {}),
+    });
     const contractRepo = fakeContractRepo();
     const subscriberRepo = fakeSubscriberRepo(subscribedTenants);
     const transactions = fakeTransactions(built.repo, contractRepo, {
@@ -95,11 +102,19 @@ async function concluding({
         subscribers,
         ...(promoCodes ? { promoCodes } : {}),
         ...(plans ? { plans } : {}),
+        ...(booked
+            ? {
+                  bundles: built.bundles,
+                  subscriptionUsage: booked.usage,
+                  bookings: booked.bookings,
+              }
+            : {}),
     });
     const offer = await service.create({
         planKey: 'STANDARD',
         billingCycle: 'monthly',
         ...(promoCode ? { promoCode } : {}),
+        ...(bundleVersionIds ? { bundleVersionIds } : {}),
     });
     return { service, offers: built.repo, contractRepo, subscriberRepo, transactions, offer };
 }
@@ -594,5 +609,184 @@ describe('without what concluding writes through', () => {
                 }),
             /subscriberRepository/,
         );
+    });
+});
+
+/** A contract of `tenantId` as the store keeps it, running from `from` to `until`. */
+const contractOf = (tenantId, { from, until = null, status = 'active' }) => ({
+    id: `contract-of-${tenantId}-${from}`,
+    tenantId,
+    status,
+    effectiveFrom: new Date(from),
+    effectiveUntil: until === null ? null : new Date(until),
+    lineItems: [],
+});
+
+// @requirement SC-MKT-028 — A checkout offer concludes a first contract, and is refused beside a running one
+describe('an offer for a tenant with a contract', () => {
+    test('in force when the offer’s would take effect is refused, and nothing is written', async () => {
+        const { service, contractRepo, offer } = await concluding();
+        contractRepo.rows.push(contractOf('tenant-meier', { from: '2026-01-01T00:00:00.000Z' }));
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            (error) => {
+                assert.equal(error.getStatus(), 409);
+                assert.deepEqual(error.getResponse().params, {
+                    offerId: offer.id,
+                    contractId: 'contract-of-tenant-meier-2026-01-01T00:00:00.000Z',
+                });
+                return refusedWith('CHECKOUT_OFFER_CONTRACT_IN_FORCE')(error);
+            },
+        );
+        assert.equal((await service.getById(offer.id)).status, 'open');
+        assert.equal(contractRepo.rows.length, 1);
+    });
+
+    test('beginning after the offer’s would take effect is refused as well', async () => {
+        const { service, offer, contractRepo } = await concluding();
+        contractRepo.rows.push(
+            contractOf('tenant-meier', { from: '2026-12-01T00:00:00.000Z', status: 'scheduled' }),
+        );
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            refusedWith('CHECKOUT_OFFER_CONTRACT_IN_FORCE'),
+        );
+    });
+
+    test('that ended by the moment the offer’s takes effect is concluded beside', async () => {
+        const { service, offer, contractRepo } = await concluding();
+        contractRepo.rows.push(
+            contractOf('tenant-meier', {
+                from: '2026-01-01T00:00:00.000Z',
+                until: OPTIONS.effectiveFrom.toISOString(),
+            }),
+        );
+
+        const concluded = await service.conclude(offer.id, OPTIONS);
+
+        assert.equal(concluded.contract.originalOfferId, offer.id);
+    });
+
+    test('ending a moment after it is refused', async () => {
+        const { service, offer, contractRepo } = await concluding();
+        contractRepo.rows.push(
+            contractOf('tenant-meier', {
+                from: '2026-01-01T00:00:00.000Z',
+                until: '2026-10-01T00:00:00.001Z',
+            }),
+        );
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            refusedWith('CHECKOUT_OFFER_CONTRACT_IN_FORCE'),
+        );
+    });
+
+    test('that was superseded, or of another tenant, is no hindrance', async () => {
+        const { service, offer, contractRepo } = await concluding();
+        contractRepo.rows.push(
+            contractOf('tenant-meier', { from: '2026-01-01T00:00:00.000Z', status: 'superseded' }),
+            contractOf('tenant-other', { from: '2026-01-01T00:00:00.000Z' }),
+        );
+
+        const concluded = await service.conclude(offer.id, OPTIONS);
+
+        assert.equal(concluded.contract.tenantId, 'tenant-meier');
+    });
+
+    test('written between the checks and the transaction is refused there, and nothing is consumed', async () => {
+        const holder = {};
+        const { service, offer, contractRepo } = await concluding({
+            before: async () => {
+                holder.contracts.rows.push(
+                    contractOf('tenant-meier', { from: '2026-09-01T00:00:00.000Z' }),
+                );
+            },
+        });
+        holder.contracts = contractRepo;
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            refusedWith('CHECKOUT_OFFER_CONTRACT_IN_FORCE'),
+        );
+        assert.equal((await service.getById(offer.id)).status, 'open');
+        assert.equal(contractRepo.rows.length, 1);
+    });
+});
+
+// @requirement SC-MKT-029 — A checkout offer may not name another version of an add-on the tenant has booked
+describe('an offer naming an add-on the tenant has booked', () => {
+    const V1 = { ...BUNDLE_VERSION, version: 1 };
+    const V2 = { ...BUNDLE_VERSION, id: 'bv-2', version: 2 };
+    const OTHER = { ...BUNDLE_VERSION, id: 'bv-other', bundleId: 'b-other', bundleKey: 'OTHER' };
+
+    /** Meier's subscription with a booking of `bundleVersionId`, running unless `ended`. */
+    const bookedOn = (bundleVersionId, { ended = false } = {}) => ({
+        versions: [V1, V2, OTHER],
+        usage: {
+            findForTenant: async (tenantId) =>
+                tenantId === 'tenant-meier' ? { id: 'sub-meier' } : null,
+        },
+        bookings: {
+            listActiveBySubscription: async (subscriptionId, asOf) =>
+                subscriptionId === 'sub-meier' && !(ended && asOf)
+                    ? [{ id: 'sb-meier', subscriptionId, bundleVersionId }]
+                    : [],
+        },
+    });
+
+    test('in another version is refused, naming the booking and both versions', async () => {
+        const { service, offer, contractRepo } = await concluding({
+            booked: bookedOn(V1.id),
+            bundleVersionIds: [V2.id],
+        });
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            (error) => {
+                assert.equal(error.getStatus(), 422);
+                assert.deepEqual(error.getResponse().params, {
+                    offerId: offer.id,
+                    bundleKey: 'FINANCE_PLUS',
+                    subscriptionBundleId: 'sb-meier',
+                    bookedVersion: '1',
+                    offeredVersion: '2',
+                });
+                return refusedWith('CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION')(error);
+            },
+        );
+        assert.equal((await service.getById(offer.id)).status, 'open');
+        assert.deepEqual(contractRepo.rows, []);
+    });
+
+    test('in the version booked is concluded', async () => {
+        const { service, offer } = await concluding({
+            booked: bookedOn(V2.id),
+            bundleVersionIds: [V2.id],
+        });
+
+        const concluded = await service.conclude(offer.id, OPTIONS);
+
+        assert.equal(concluded.offer.status, 'consumed');
+    });
+
+    test('of another add-on is concluded', async () => {
+        const { service, offer } = await concluding({
+            booked: bookedOn(OTHER.id),
+            bundleVersionIds: [V2.id],
+        });
+
+        assert.equal((await service.conclude(offer.id, OPTIONS)).offer.status, 'consumed');
+    });
+
+    test('whose booking has ended is concluded', async () => {
+        const { service, offer } = await concluding({
+            booked: bookedOn(V1.id, { ended: true }),
+            bundleVersionIds: [V2.id],
+        });
+
+        assert.equal((await service.conclude(offer.id, OPTIONS)).offer.status, 'consumed');
     });
 });

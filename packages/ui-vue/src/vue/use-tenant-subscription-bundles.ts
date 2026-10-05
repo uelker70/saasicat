@@ -7,8 +7,10 @@ import { ref, type Ref } from 'vue';
 import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     BundleRetirementSwitchResult,
+    BundleVersionOfferView,
     BundleVersionRetiredNotice,
     BundleRetirementSwitchTerms,
+    BundleVersionSwitchResult,
     SubscriptionBundleRecord,
 } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
@@ -24,13 +26,18 @@ export interface UseTenantSubscriptionBundlesOptions {
 
 /**
  * A booking as the tenant's list answers it: the record, the retirement of the
- * version booked as the subscriber was told it, where one stands, and what
- * switching to its replacement now would cost, where the booking may. A
- * platform without add-on retirements answers without either field.
+ * version booked as the subscriber was told it, where one stands, what
+ * switching to its replacement now would cost, where the booking may, and a
+ * newer version offered beside it, where there is one it could take. A
+ * platform without add-on retirements answers without the first two, and one
+ * that does not read bookings in tenant billing without the third.
  */
 export type TenantSubscriptionBundle = SubscriptionBundleRecord & {
     readonly retirement?: BundleVersionRetiredNotice | null;
     readonly retirementSwitch?: BundleRetirementSwitchTerms | null;
+    readonly offer?: BundleVersionOfferView | null;
+    /** The number of the version a switch scheduled for the end of its term moves it to. */
+    readonly pendingVersion?: number | null;
 };
 
 export interface UseTenantSubscriptionBundlesResult {
@@ -62,6 +69,16 @@ export interface UseTenantSubscriptionBundlesResult {
         subscriptionBundleId: string,
         bundleVersionId: string,
     ) => Promise<BundleRetirementSwitchResult>;
+    /**
+     * Takes the newer version offered beside the booking — `bundleVersionId`,
+     * the version the page showed — and reloads. Refused with
+     * `BUNDLE_VERSION_OFFER_CHANGED` when that is no longer the version
+     * offered; the refusal carries the offer as it stands.
+     */
+    acceptVersionOffer: (
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ) => Promise<BundleVersionSwitchResult>;
 }
 
 export class TenantSubscriptionBundlesApiError extends Error {
@@ -193,9 +210,37 @@ export function useTenantSubscriptionBundles(
         return result;
     }
 
+    async function acceptVersionOffer(
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ): Promise<BundleVersionSwitchResult> {
+        const result = await fetchJson<BundleVersionSwitchResult>(
+            `${baseUrl}/${subscriptionBundleId}/version-offer/accept`,
+            { method: 'POST', body: JSON.stringify({ bundleVersionId }) },
+        );
+        if (!result) {
+            throw markEmptyResponse(
+                new TenantSubscriptionBundlesApiError(0, null, 'accept returned no body'),
+            );
+        }
+        // At once, the booking is on another version with another price; for
+        // the end of its term, it carries the switch scheduled.
+        await load();
+        return result;
+    }
+
     if (options.autoLoad) void load();
 
-    return { bundles, loading, error, load, add, cancel, switchToReplacement };
+    return {
+        bundles,
+        loading,
+        error,
+        load,
+        add,
+        cancel,
+        switchToReplacement,
+        acceptVersionOffer,
+    };
 }
 
 /**
@@ -211,6 +256,10 @@ function rehydrateDates(raw: TenantSubscriptionBundle): TenantSubscriptionBundle
         canceledEffectiveAt: raw.canceledEffectiveAt ? new Date(raw.canceledEffectiveAt) : null,
         currentPeriodStart: raw.currentPeriodStart ? new Date(raw.currentPeriodStart) : null,
         currentPeriodEnd: raw.currentPeriodEnd ? new Date(raw.currentPeriodEnd) : null,
+        pendingBundleVersionId: raw.pendingBundleVersionId ?? null,
+        pendingVersionEffectiveAt: raw.pendingVersionEffectiveAt
+            ? new Date(raw.pendingVersionEffectiveAt)
+            : null,
         createdAt: new Date(raw.createdAt),
         updatedAt: new Date(raw.updatedAt),
     };

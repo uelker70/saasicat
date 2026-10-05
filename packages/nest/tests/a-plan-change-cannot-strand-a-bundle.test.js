@@ -327,6 +327,50 @@ describe('a plan change, and an add-on told it continues on another version', ()
         assert.deepEqual(continuationBlockers(dto), []);
     });
 
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('a switch the booking took for the end of its term is asked the same way, from its date', async () => {
+        const switching = (to) => ({
+            ...monthly,
+            pendingBundleVersionId: to,
+            pendingVersionEffectiveAt: new Date('2026-07-01T00:00:00.000Z'),
+        });
+
+        const refused = await preview('MONTHLY', [switching('bv-reports-2')], { versions });
+        const fits = await preview('MONTHLY', [switching('bv-reports-1b')], { versions });
+
+        assert.deepEqual(
+            continuationBlockers(refused).map((b) => b.params),
+            [{ bundleName: 'Reports', version: '2', from: '2026-07-01', planName: 'Pro' }],
+        );
+        assert.deepEqual(continuationBlockers(fits), []);
+    });
+
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('a switch the booking took lifts no minimum term from the day it can end', async () => {
+        const standardOnly = {
+            async findVersionById(id) {
+                return {
+                    ...(await versions.findVersionById(id)),
+                    compatibility: { planIds: id === 'bv-reports' ? ['STANDARD'] : [] },
+                };
+            },
+        };
+        const committed = {
+            ...monthly,
+            currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
+            minimumTermEndsAt: new Date('2027-03-01T00:00:00.000Z'),
+            pendingBundleVersionId: 'bv-reports-1b',
+            pendingVersionEffectiveAt: new Date('2026-07-01T00:00:00.000Z'),
+        };
+
+        const dto = await preview('MONTHLY', [committed], { versions: standardOnly });
+
+        assert.deepEqual(
+            fitBlockers(dto).map((b) => b.params.until),
+            ['2027-03-01'],
+        );
+    });
+
     test('asks nothing of a booking that ends before its version would change', async () => {
         const dto = await preview(
             'MONTHLY',

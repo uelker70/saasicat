@@ -365,6 +365,8 @@ describe('the one reminder of an add-on retirement', () => {
 
 // @requirement SC-BUN-056 — Where staying put costs something, a booking is reminded once
 describe('the quarter-hour run and the add-on reminders', () => {
+    // @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
+    // @requirement SC-BUN-060 — A subscriber is told once of each newer add-on version offered to a booking
     test('reminds add-on bookings after the plans and before any move', async () => {
         const calls = [];
         const run = (name, result) => async () => (calls.push(name), result);
@@ -378,18 +380,25 @@ describe('the quarter-hour run and the add-on reminders', () => {
             { sendUndelivered: run('add-on retirement notices', told) },
             { moveDue: run('add-on moves', { moved: 0, failed: 0 }) },
             { remindDue: run('add-on reminders', told) },
+            { sendDue: run('add-on offers', told) },
+            { switchDue: run('add-on switches', { switched: 0, failed: 0 }) },
         );
 
         await cron.sendDueNotices();
 
+        // The offers of add-ons are told beside the plan's; a switch taken
+        // for a term's end is made after the moves, so a booking a retirement
+        // moved meanwhile is switched from the version it is on.
         assert.deepEqual(calls, [
             'notices',
+            'add-on offers',
             'retirement notices',
             'add-on retirement notices',
             'reminders',
             'add-on reminders',
             'moves',
             'add-on moves',
+            'add-on switches',
         ]);
     });
 });

@@ -21,6 +21,8 @@ function row(overrides = {}) {
         billingCycle: 'MONTHLY',
         currentPeriodStart: STARTED,
         currentPeriodEnd: PERIOD_END,
+        pendingBundleVersionId: null,
+        pendingVersionEffectiveAt: null,
         canceledAt: null,
         canceledEffectiveAt: null,
         createdAt: STARTED,
@@ -66,6 +68,28 @@ describe('a bundle booking row becomes a record', () => {
         assert.equal(record.billingCycle, null);
         assert.equal(record.currentPeriodStart, null);
         assert.equal(record.currentPeriodEnd, null);
+    });
+
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('a switch scheduled for the end of the term is carried over, version and moment', () => {
+        const scheduled = row({
+            pendingBundleVersionId: 'bundle-version-2',
+            pendingVersionEffectiveAt: PERIOD_END,
+        });
+
+        assert.deepEqual(toSubscriptionBundleRecord(scheduled), scheduled);
+    });
+
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('a schema without the columns of a scheduled switch reads as none scheduled', () => {
+        const {
+            pendingBundleVersionId: _version,
+            pendingVersionEffectiveAt: _moment,
+            ...withoutColumns
+        } = row();
+        const record = toSubscriptionBundleRecord(withoutColumns);
+        assert.equal(record.pendingBundleVersionId, null);
+        assert.equal(record.pendingVersionEffectiveAt, null);
     });
 
     for (const value of ['yearly', 'monthly', 'WEEKLY', '']) {

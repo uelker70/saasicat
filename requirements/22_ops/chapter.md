@@ -247,6 +247,11 @@ _Tested by:_
         - rows recorded before the column keep the order they were listed in, and the numbering
           continues
         - a second run leaves every number where the first one put it
+    - a booking's scheduled switch holds its version and its moment together
+        - one without the other is refused by the constraint, both or neither are not, on the
+          reference schema
+        - and on a database that gained the columns from the migration, with the constraints after
+          it
 
 <!-- END proof -->
 
@@ -357,6 +362,11 @@ _Tested by:_
         - rows recorded before the column keep the order they were listed in, and the numbering
           continues
         - a second run leaves every number where the first one put it
+    - a booking's scheduled switch holds its version and its moment together
+        - one without the other is refused by the constraint, both or neither are not, on the
+          reference schema
+        - and on a database that gained the columns from the migration, with the constraints after
+          it
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

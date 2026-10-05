@@ -8,12 +8,17 @@
 
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import type { CatalogBundle, HttpClient, SubscriptionBundleShape } from '@saasicat/ui-vue';
+import type { HttpClient, SubscriptionBundleShape } from '@saasicat/ui-vue';
 
 import MySubscriptionBundlesPage from '../../src/MySubscriptionBundlesPage.vue';
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
-import TenantBundleStore from '../../src/tenant-plan-section/TenantBundleStore.vue';
 import { DEFAULT_I18N_DE, DEFAULT_I18N_EN } from '../../src/default-i18n.js';
+import {
+    aServer,
+    confirmation,
+    seatsV1,
+    storeWith as storeKeptIn,
+} from './support/add-on-bookings.js';
 
 const side = (bundleVersionId: string, version: number, monthlyNet: number, seats: number) => ({
     bundleVersionId,
@@ -41,66 +46,13 @@ const RETIREMENT = {
     lastDayToCancel: '2027-01-31',
 };
 
-/** A booking of Seats version 1; `fields` say what else holds. */
-function seatsV1(fields: Partial<SubscriptionBundleShape> = {}): SubscriptionBundleShape {
-    return {
-        id: 'sb-1',
-        subscriptionId: 'sub-1',
-        bundleVersionId: 'bv-1',
-        bundleKey: 'SEATS',
-        label: 'Seats',
-        priceNet: 9,
-        billingCycle: 'MONTHLY',
-        startedAt: '2026-01-10T00:00:00.000Z',
-        minimumTermEndsAt: '2027-12-31T00:00:00.000Z',
-        canceledAt: null,
-        canceledEffectiveAt: null,
-        ...fields,
-    };
-}
-
-const REPORTS: CatalogBundle = {
-    bundleVersionId: 'bv-r1',
-    bundleKey: 'REPORTS',
-    label: 'Reports',
-    description: null,
-    features: ['REPORTS'],
-    quotas: {},
-    monthlyNet: 10,
-    yearlyNet: 100,
-    requiresFeatures: [],
-    priceTag: null,
-};
-
 const mounted: VueWrapper[] = [];
 afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
     document.body.innerHTML = '';
 });
 
-const day = (iso: string) => iso.slice(0, 10);
-
-function storeWith(booked: SubscriptionBundleShape[]) {
-    const wrapper = mount(TenantBundleStore, {
-        props: {
-            booked,
-            available: [REPORTS],
-            planFeatures: [],
-            planCycle: 'MONTHLY',
-            formatCurrency: (n: number) => `${n.toFixed(2)} EUR`,
-            formatDate: day,
-            featureLabel: (key: string) => key,
-            quotaLabel: (key: string) => key,
-            formatQuotaValue: (_key: string, value: number) => String(value),
-            buyingId: null,
-            cancelingId: null,
-            reactivatingId: null,
-            error: null,
-        },
-    });
-    mounted.push(wrapper as VueWrapper);
-    return wrapper;
-}
+const storeWith = (booked: SubscriptionBundleShape[]) => storeKeptIn(booked, mounted);
 
 const notices = (root: ParentNode) => [...root.querySelectorAll('.sp-bundle-retired')];
 
@@ -209,47 +161,6 @@ describe('a retired add-on version, on the page of the tenant’s add-ons', () =
     });
 });
 
-/** A JSON answer with `status`. */
-const reply = (status: number, body: unknown) => ({
-    status,
-    headers: { get: () => 'application/json' },
-    json: async () => body,
-    text: async () => JSON.stringify(body),
-});
-
-const USAGE = {
-    plan: 'STANDARD',
-    effectivePlan: 'STANDARD',
-    billingCycle: 'MONTHLY',
-    status: 'ACTIVE',
-    limits: { plan: 'STANDARD', quotas: {}, features: [] },
-    usage: {},
-};
-
-/**
- * A server holding `bookings`, answering a request to `endsWith` with
- * `answer` — and recording what was asked.
- */
-function aServer(
-    bookings: () => unknown[],
-    endsWith: string,
-    answer: () => { status: number; body: unknown },
-): HttpClient & { asked: string[] } {
-    const asked: string[] = [];
-    const client = async (url: string, init?: { method?: string; body?: string }) => {
-        asked.push(`${init?.method ?? 'GET'} ${url}${init?.body ? ` ${init.body}` : ''}`);
-        if (url.endsWith(endsWith) && init?.method === 'POST') {
-            const { status, body } = answer();
-            return reply(status, body);
-        }
-        if (url.endsWith('/subscription-bundles')) return reply(200, bookings());
-        if (url.endsWith('/bundles')) return reply(200, [REPORTS]);
-        if (url.endsWith('/usage')) return reply(200, USAGE);
-        return reply(200, []);
-    };
-    return Object.assign(client, { asked }) as HttpClient & { asked: string[] };
-}
-
 /**
  * The plan section of a subscription holding a cancelled booking of Seats
  * version 1, whose reinstatement the server refuses with `refusal`.
@@ -321,16 +232,6 @@ const HELD = {
 /** The booking of Seats version 1, told of its retirement, as the server lists it while it may switch. */
 const switchable = (fields: Partial<SubscriptionBundleShape> = {}) =>
     seatsV1({ retirement: RETIREMENT, retirementSwitch: HELD, ...fields });
-
-/** The confirmation open in the document, and its buttons by their words. */
-function confirmation() {
-    const panel = document.body.querySelector('.sp-dialog__panel');
-    const button = (words: string) =>
-        [...(panel?.querySelectorAll('button') ?? [])].find(
-            (candidate) => candidate.textContent?.trim() === words,
-        ) as HTMLButtonElement | undefined;
-    return { text: panel?.textContent ?? '', button };
-}
 
 /** Clicks the notice's switch, and the confirmation's. */
 async function switchAndConfirm(wrapper: VueWrapper, i18n = DEFAULT_I18N_EN) {

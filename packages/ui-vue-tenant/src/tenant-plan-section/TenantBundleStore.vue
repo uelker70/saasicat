@@ -62,6 +62,32 @@
                             @switch="(bundleVersionId) => emit('switch', row.id, bundleVersionId)"
                         />
                     </li>
+                    <!-- A newer version taken for the end of the booking's term. -->
+                    <li
+                        v-if="row.pendingVersion !== null && row.pendingVersionEffectiveAt"
+                        class="sp-bundle-store__pending"
+                    >
+                        {{
+                            i18n.bundleOfferSwitchScheduled
+                                .replace('{bundle}', row.label)
+                                .replace('{version}', String(row.pendingVersion))
+                                .replace('{date}', formatDate(row.pendingVersionEffectiveAt))
+                        }}
+                    </li>
+                    <!-- Beside the add-on, and beside its retirement where one stands. -->
+                    <li v-if="row.offer" class="sp-bundle-store__offer">
+                        <VersionOfferCard
+                            :offer="row.offer"
+                            :bundle-label="row.label"
+                            :busy="offeringId === row.id"
+                            :format-currency="formatCurrency"
+                            :format-date="formatDate"
+                            :quota-label="quotaLabel"
+                            :feature-label="featureLabel"
+                            :format-quota-value="formatQuotaValue"
+                            @take="(bundleVersionId) => emit('takeOffer', row.id, bundleVersionId)"
+                        />
+                    </li>
                 </template>
             </ul>
         </div>
@@ -171,8 +197,13 @@ import { missingRequiresFor } from '@saasicat/core';
 import type { BillingCycleStr, CatalogBundle } from '@saasicat/ui-vue';
 import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
-import type { BundleRetirementSwitchTerms, BundleVersionRetiredNotice } from '@saasicat/core';
+import type {
+    BundleRetirementSwitchTerms,
+    BundleVersionOfferView,
+    BundleVersionRetiredNotice,
+} from '@saasicat/core';
 import BundleRetiredNotice from './BundleRetiredNotice.vue';
+import VersionOfferCard from './VersionOfferCard.vue';
 
 // TenantBundleStore — bundle sales on the "Plan & usage" section (#15):
 // lists booked (cancelable) and available (bookable) catalog bundles.
@@ -211,6 +242,8 @@ const props = defineProps<{
     reactivatingId: string | null;
     /** SubscriptionBundle id currently being switched to its replacement (spinner). */
     switchingId?: string | null;
+    /** SubscriptionBundle id whose offer is currently being taken (spinner). */
+    offeringId?: string | null;
     error: string | null;
     /** What the last action did, where it says something: a switch that went through. */
     note?: string | null;
@@ -223,6 +256,8 @@ const emit = defineEmits<{
     reactivate: [subscriptionBundleId: string];
     /** The early switch to the replacement a retirement names, the version as the notice showed it. */
     switch: [subscriptionBundleId: string, bundleVersionId: string];
+    /** A newer version offered beside the booking, taken: the version as the offer showed it. */
+    takeOffer: [subscriptionBundleId: string, bundleVersionId: string];
 }>();
 
 const catalogByVersion = computed(
@@ -249,6 +284,11 @@ interface BookedRow {
     retirementSwitch: BundleRetirementSwitchTerms | null;
     /** Where the booking's running period ends: when a price that is not held applies. */
     nextPeriodStart: string | null;
+    /** A newer version offered beside the booking; null where there is none it could take. */
+    offer: BundleVersionOfferView | null;
+    /** The version a switch taken for the end of its term moves it to, and when; null where none. */
+    pendingVersion: number | null;
+    pendingVersionEffectiveAt: string | null;
 }
 
 const bookedRows = computed<BookedRow[]>(() =>
@@ -282,6 +322,9 @@ const bookedRows = computed<BookedRow[]>(() =>
             retirement: b.retirement ?? null,
             retirementSwitch: b.retirementSwitch ?? null,
             nextPeriodStart: b.currentPeriodEnd ?? null,
+            offer: b.offer ?? null,
+            pendingVersion: b.pendingVersion ?? null,
+            pendingVersionEffectiveAt: b.pendingVersionEffectiveAt ?? null,
         };
     }),
 );
@@ -471,7 +514,8 @@ const availableRows = computed<AvailableRow[]>(() =>
     align-items: center;
     gap: var(--sa-space-4);
 }
-.sp-bundle-store__empty {
+.sp-bundle-store__empty,
+.sp-bundle-store__pending {
     color: var(--sp-text-muted, var(--sa-color-fg-muted));
     font-size: var(--sa-text-md);
 }

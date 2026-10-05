@@ -557,6 +557,8 @@ CREATE TABLE "subscription_bundles" (
     "billingCycle" TEXT,
     "currentPeriodStart" TIMESTAMP(3),
     "currentPeriodEnd" TIMESTAMP(3),
+    "pendingBundleVersionId" TEXT,
+    "pendingVersionEffectiveAt" TIMESTAMP(3),
     "canceledAt" TIMESTAMP(3),
     "canceledEffectiveAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -985,6 +987,9 @@ CREATE INDEX "subscription_bundles_bundleVersionId_idx" ON "subscription_bundles
 CREATE INDEX "subscription_bundles_canceledEffectiveAt_idx" ON "subscription_bundles"("canceledEffectiveAt");
 
 -- CreateIndex
+CREATE INDEX "subscription_bundles_pendingVersionEffectiveAt_idx" ON "subscription_bundles"("pendingVersionEffectiveAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "settings_changes_seq_key" ON "settings_changes"("seq");
 
 -- CreateIndex
@@ -1102,6 +1107,9 @@ ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_subscrip
 ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_bundleVersionId_fkey" FOREIGN KEY ("bundleVersionId") REFERENCES "bundle_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_pendingBundleVersionId_fkey" FOREIGN KEY ("pendingBundleVersionId") REFERENCES "bundle_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscriber_tenants" ADD CONSTRAINT "subscriber_tenants_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1176,6 +1184,16 @@ ALTER TABLE applied_settings
     DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
+
+-- A booking's scheduled switch names its version AND the moment it takes
+-- effect, or neither. A version without a moment would never be made, and a
+-- moment without a version would make the run look for nothing every quarter
+-- of an hour. Same two plain statements as above.
+ALTER TABLE subscription_bundles
+    DROP CONSTRAINT IF EXISTS subscription_bundles_switch_has_its_moment;
+ALTER TABLE subscription_bundles
+    ADD CONSTRAINT subscription_bundles_switch_has_its_moment
+    CHECK (("pendingBundleVersionId" IS NULL) = ("pendingVersionEffectiveAt" IS NULL));
 
 -- At most ONE maintenance window is open — announced or locked, not yet ended.
 --

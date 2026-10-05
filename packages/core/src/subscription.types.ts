@@ -119,8 +119,10 @@ export interface VersionedEntityBase {
  * P11.7.3).
  *
  * - `bundleVersionId` binds the booking to an *exact* BundleVersion. A newer
- *   version of the add-on does not change it; only an add-on retirement moves
- *   the booking onto its replacement, at its date (`SC-BUN-049`).
+ *   version of the add-on does not change it by being published: an add-on
+ *   retirement moves the booking onto its replacement at its date
+ *   (`SC-BUN-049`), and the subscriber moves it by taking a newer version
+ *   offered (`SC-BUN-058`).
  * - `startedAt` is the contract start of this booking.
  * - `minimumTermEndsAt` = end of the minimum term; `null` = no minimum term
  *   (platform default = no commitment, set service-side).
@@ -152,6 +154,15 @@ export interface SubscriptionBundleRecord {
     billingCycle: BillingCycle | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    /**
+     * A switch to another version of the add-on, taken for the end of the
+     * booking's running term because it takes something away (`SC-BUN-058`):
+     * the version the booking continues on, and from when. Both null where
+     * none is scheduled. The run that makes the switch at that moment clears
+     * them; until then the booking stays on `bundleVersionId`.
+     */
+    pendingBundleVersionId: string | null;
+    pendingVersionEffectiveAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -176,6 +187,12 @@ export interface SubscriptionBundleView extends SubscriptionBundleRecord {
      * defect: a field called `monthlyNet` on a yearly booking cannot be right.
      */
     priceNet: number | null;
+    /**
+     * The number of the version a switch scheduled for the end of the booking's
+     * term moves it to (`pendingBundleVersionId`); null where none is
+     * scheduled.
+     */
+    pendingVersion?: number | null;
     /**
      * The retirement of the add-on version this booking is on, as the
      * subscriber was told it (`SC-BUN-046`); absent or null where none was

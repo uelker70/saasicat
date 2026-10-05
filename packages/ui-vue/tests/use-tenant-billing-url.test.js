@@ -166,6 +166,27 @@ test('switchBundleToReplacement posts the version shown to the booking’s switc
     );
 });
 
+// @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+test('acceptBundleVersionOffer posts the version shown to the booking’s offer, then reloads', async () => {
+    const { client, calls } = makeRecordingHttp();
+    const billing = useTenantBilling({ http: client, autoLoad: false });
+
+    await billing.acceptBundleVersionOffer('sb-1', 'bv-2');
+
+    assert.deepEqual(
+        calls.map((c) => [c.method, c.url, c.body]),
+        [
+            [
+                'POST',
+                '/billing/subscription-bundles/sb-1/version-offer/accept',
+                { bundleVersionId: 'bv-2' },
+            ],
+            ['GET', '/billing/usage', undefined],
+            ['GET', '/billing/subscription-bundles', undefined],
+        ],
+    );
+});
+
 describe('useTenantBillingCatalog URL construction', () => {
     test('default apiPrefix is /billing — catalog endpoints land under /billing/{plans,bundles,feature-registry}', async () => {
         const { client, calls } = makeRecordingHttp();

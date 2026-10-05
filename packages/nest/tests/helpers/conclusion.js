@@ -15,6 +15,9 @@ export function fakeContractRepo() {
         async findByOriginalOfferId(offerId) {
             return rows.find((row) => row.originalOfferId === offerId) ?? null;
         },
+        async list({ tenantId } = {}) {
+            return rows.filter((row) => !tenantId || row.tenantId === tenantId);
+        },
         snapshot: () => [...rows],
         restore: (saved) => rows.splice(0, rows.length, ...saved),
     };

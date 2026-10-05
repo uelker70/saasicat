@@ -188,8 +188,10 @@ export interface HeldAddOnMisfit {
 }
 
 /**
- * A booking whose add-on version the subscriber was told is being retired, and
- * the version it continues on (`SC-BUN-044`).
+ * A booking set to continue on another version of its add-on from a date, and
+ * that version: one whose version the subscriber was told is being retired
+ * (`SC-BUN-044`), or one whose switch to a newer version was taken for the end
+ * of its term (`SC-BUN-058`).
  */
 export interface AddOnAhead {
     readonly subscriptionBundleId: string;
@@ -197,6 +199,22 @@ export interface AddOnAhead {
     readonly replacementBundleVersionId: string;
     /** When the booking continues on the replacement; ISO 8601. */
     readonly effectiveAt: string;
+    /** What moves it: a retirement, unless a switch the subscriber took. */
+    readonly by?: 'retirement' | 'switch';
+}
+
+/** The switch a booking has scheduled to a newer version, as what it continues on; null where none. */
+export function scheduledSwitchOf(booking: SubscriptionBundleRecord): AddOnAhead | null {
+    const to = booking.pendingBundleVersionId;
+    const at = booking.pendingVersionEffectiveAt;
+    if (!to || !at || to === booking.bundleVersionId) return null;
+    return {
+        subscriptionBundleId: booking.id,
+        retiredBundleVersionId: booking.bundleVersionId,
+        replacementBundleVersionId: to,
+        effectiveAt: at.toISOString(),
+        by: 'switch',
+    };
 }
 
 /** The bookings of a subscription told that their version is being retired (`ADD_ONS_AHEAD_TOKEN`). */
@@ -224,7 +242,9 @@ export interface AddOnHolder {
  * replacement from its date, whenever the plan changes, so the replacement has
  * to run beside `plan` as well; the version it is on is asked first. One that
  * ends by that date — or whose subscription does — never reaches the
- * replacement, and is not asked about it (`SC-BUN-044`).
+ * replacement, and is not asked about it (`SC-BUN-044`). A switch the booking
+ * took for the end of its term is asked the same way, from its date
+ * (`SC-BUN-058`).
  */
 export async function heldAddOnMisfits(
     bookings: Pick<SubscriptionBundleRepository, 'listActiveBySubscription'>,
@@ -243,7 +263,7 @@ export async function heldAddOnMisfits(
                 (one) =>
                     one.subscriptionBundleId === booking.id &&
                     one.retiredBundleVersionId === booking.bundleVersionId,
-            ) ?? null;
+            ) ?? scheduledSwitchOf(booking);
         const [misfit] = version
             ? addOnMisfits(version, plan, addOnCycle)
             : bundleCycleFitsPlan(addOnCycle, plan.billingCycle)

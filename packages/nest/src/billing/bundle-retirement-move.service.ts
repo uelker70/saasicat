@@ -42,6 +42,7 @@ import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
+import { putBookingBack } from './booking-move-guards.js';
 import { bookingsOfVersion } from './bundle-bookings-of-version.js';
 import { bookingOverBy } from './bundle-retirement-reach.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -252,30 +253,17 @@ export class BundleRetirementMoveService {
 
     /**
      * Moves the booking back onto the version retired, where the move cannot
-     * stand; whether that was written. Where it was not — the booking changed
-     * in between, or the store failed — the booking is on the replacement
-     * without its contract, the log says so, and the run goes on with the next.
+     * stand; whether that was written. Where it was not, the booking is on the
+     * replacement without its contract, the log says so, and the run goes on
+     * with the next.
      */
-    private async putBack(notice: BundleVersionRetiredNotice): Promise<boolean> {
-        let why: string;
-        try {
-            const back = await this.bookings.moveToVersion!(
-                notice.subscriptionBundleId,
-                notice.replacement.bundleVersionId,
-                notice.retired.bundleVersionId,
-            );
-            if (back) return true;
-            why = 'it changed in between';
-        } catch (error) {
-            why = String(error);
-        } finally {
-            this.entitlements.invalidateTenant(notice.tenantId);
-        }
-        this.logger.error(
-            `Booking ${notice.subscriptionBundleId} of tenant ${notice.tenantId} is on the ` +
-                `replacement without its contract, and could not be put back: ${why}.`,
-        );
-        return false;
+    private putBack(notice: BundleVersionRetiredNotice): Promise<boolean> {
+        return putBookingBack(this.bookings, this.entitlements, this.logger, {
+            tenantId: notice.tenantId,
+            subscriptionBundleId: notice.subscriptionBundleId,
+            from: notice.retired.bundleVersionId,
+            to: notice.replacement.bundleVersionId,
+        });
     }
 
     /**

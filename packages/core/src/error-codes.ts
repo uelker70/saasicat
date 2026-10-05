@@ -403,6 +403,14 @@ export const BILLING_ERROR_CODES = {
      * date, is the way. Carries the add-on and the date.
      */
     BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES: 'BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES',
+    /**
+     * The add-on version the caller asked to switch a booking to is no longer
+     * the one offered beside it — another is on sale, the booking moved, or
+     * there is no offer. Nothing was switched. Carries the version named
+     * (`bundleVersionId`) and the current `offer`, or `null`, so the page can
+     * show it instead of guessing.
+     */
+    BUNDLE_VERSION_OFFER_CHANGED: 'BUNDLE_VERSION_OFFER_CHANGED',
 
     // ── the preview routes' own blockers and warnings ──
     //
@@ -539,6 +547,22 @@ export const CONTRACT_ERROR_CODES = {
      * describes. Nothing was written; load the offer and conclude it again.
      */
     CHECKOUT_OFFER_CHANGED: 'CHECKOUT_OFFER_CHANGED',
+    /**
+     * An offer concludes a tenant's first contract, and this tenant has a
+     * contract in force at the moment the offer's would take effect, or one
+     * beginning after it. Concluded, the two would run side by side. Nothing
+     * was written; a running subscription changes through its plan and its
+     * add-ons. Carries the offer and the contract that runs.
+     */
+    CHECKOUT_OFFER_CONTRACT_IN_FORCE: 'CHECKOUT_OFFER_CONTRACT_IN_FORCE',
+    /**
+     * The offer names a version of an add-on the tenant has booked in another
+     * version. Concluded, the contract would name a version the booking is not
+     * on. Nothing was written; a booking changes its version through the offer
+     * beside it. Carries the offer, the add-on, the booking and both versions.
+     */
+    CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION:
+        'CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION',
     SUBSCRIPTION_CONTRACT_NOT_FOUND: 'SUBSCRIPTION_CONTRACT_NOT_FOUND',
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'NO_ACTIVE_SUBSCRIPTION_CONTRACT',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: 'SUBSCRIPTION_CONTRACT_ALREADY_CLOSED',

@@ -42,6 +42,13 @@ describe('a charge row becomes a record', () => {
         assert.deepEqual(toSubscriberChargeRecord(row()), { ...row(), amountNet: 19.9 });
     });
 
+    // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+    test('the difference an add-on switch adds is read back as such', () => {
+        const record = toSubscriberChargeRecord(row({ origin: 'bundleChange', source: 'bundle' }));
+
+        assert.equal(record.origin, 'bundleChange');
+    });
+
     test('a Prisma Decimal reads the same as a numeric string', () => {
         const decimal = { toString: () => '-3.98', valueOf: () => -3.98 };
         assert.equal(toSubscriberChargeRecord(row({ amountNet: decimal })).amountNet, -3.98);

@@ -2196,7 +2196,7 @@ components:
                 bundleKey: { type: string }
                 version: { type: integer }
 
-        BundleRetirementSide:
+        BundleVersionSide:
             description: >-
                 An add-on version as the subscribers compare it, at its own prices; each booking
                 is told the prices beside its plan. A price of null is a rhythm it is not sold in
@@ -2215,8 +2215,8 @@ components:
             type: object
             required: [retired, replacement, changes, asOf, reached, skipped, blockers]
             properties:
-                retired: { $ref: '#/components/schemas/BundleRetirementSide' }
-                replacement: { $ref: '#/components/schemas/BundleRetirementSide' }
+                retired: { $ref: '#/components/schemas/BundleVersionSide' }
+                replacement: { $ref: '#/components/schemas/BundleVersionSide' }
                 changes:
                     type: array
                     description: 'Every difference at the two versions own prices'
@@ -2266,7 +2266,14 @@ components:
                             reason:
                                 {
                                     type: string,
-                                    enum: [ended, cancelled-before, no-term, already-told],
+                                    enum:
+                                        [
+                                            ended,
+                                            cancelled-before,
+                                            changes-before,
+                                            no-term,
+                                            already-told,
+                                        ],
                                 }
                 blockers:
                     type: array

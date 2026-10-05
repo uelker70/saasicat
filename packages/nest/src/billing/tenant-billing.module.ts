@@ -44,6 +44,10 @@ import { RetirementSwitchService } from './retirement-switch.service.js';
 import { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
 import { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
 import { BundleRetirementReminderService } from './bundle-retirement-reminder.service.js';
+import { BundleVersionNoticeService } from './bundle-version-notice.service.js';
+import { BundleVersionOfferService } from './bundle-version-offer.service.js';
+import { BundleVersionSwitchRunService } from './bundle-version-switch-run.service.js';
+import { BundleVersionSwitchService } from './bundle-version-switch.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import type { AddOnsAhead } from './add-on-fits-plan.js';
 import {
@@ -433,8 +437,13 @@ export class TenantBillingModule {
                     options.subscriptionBundleRepository,
                 ),
                 asProvider(BUNDLE_REPOSITORY_TOKEN, options.bundleRepository),
+                // A newer add-on version offered beside each booking, and the
+                // switch to it (`SC-BUN-057`, `SC-BUN-058`).
+                BundleVersionOfferService,
+                BundleVersionSwitchService,
             );
         }
+        const hasBookings = Boolean(options.subscriptionBundleRepository);
         if (options.trialProjectionPort) {
             providers.push(asProvider(TRIAL_PROJECTION_PORT_TOKEN, options.trialProjectionPort));
         }
@@ -503,6 +512,10 @@ export class TenantBillingModule {
                 asProvider(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN, versionNotices.notices),
                 VersionNoticeService,
                 ...(versionNotices.includeCron === false ? [] : [VersionNoticeCron]),
+                // Where bookings are read: the notice of a newer add-on version
+                // offered, and the run that makes a switch taken for the end of
+                // a booking's term at that moment (`SC-BUN-059`, `SC-BUN-060`).
+                ...(hasBookings ? [BundleVersionNoticeService, BundleVersionSwitchRunService] : []),
             );
         }
         const retirements = versionNotices?.retirements;
@@ -614,6 +627,14 @@ export class TenantBillingModule {
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
+                ...(hasBookings ? [BundleVersionOfferService, BundleVersionSwitchService] : []),
+                ...(versionNotices && hasBookings
+                    ? [BundleVersionNoticeService, BundleVersionSwitchRunService]
+                    : []),
+                // The add-on routes audit with the resolvers configured here.
+                ...(options.userIdResolver ? [USER_ID_RESOLVER_TOKEN] : []),
+                ...(options.userEmailResolver ? [USER_EMAIL_RESOLVER_TOKEN] : []),
+                ...(options.auditContextResolver ? [AUDIT_CONTEXT_RESOLVER_TOKEN] : []),
                 ...(retirements
                     ? [
                           VersionRetirementService,

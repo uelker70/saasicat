@@ -421,11 +421,24 @@ export class SubscriptionContractService {
 
     /** Whether a contract of the tenant is in force at `at` or begins after it. */
     private async runsFrom(tenantId: string, at: Date): Promise<boolean> {
+        return (await this.runningFrom(tenantId, at)) !== null;
+    }
+
+    /**
+     * A contract of the tenant in force at `at` or beginning after it — the
+     * earliest — or null where none is: what a first contract from `at` would
+     * run beside.
+     */
+    async runningFrom(tenantId: string, at: Date): Promise<SubscriptionContractRecord | null> {
         const contracts = await this.repo.list({ tenantId });
-        return contracts.some(
-            (contract) =>
-                ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES.includes(contract.status) &&
-                (contract.effectiveUntil === null || contract.effectiveUntil > at),
+        return (
+            contracts
+                .filter(
+                    (contract) =>
+                        ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES.includes(contract.status) &&
+                        (contract.effectiveUntil === null || contract.effectiveUntil > at),
+                )
+                .sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime())[0] ?? null
         );
     }
 

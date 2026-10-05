@@ -203,6 +203,8 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
             billingCycle: data.billingCycle ?? null,
             currentPeriodStart: data.currentPeriodStart ?? null,
             currentPeriodEnd: data.currentPeriodEnd ?? null,
+            pendingBundleVersionId: null,
+            pendingVersionEffectiveAt: null,
             createdAt,
             updatedAt: createdAt,
         };

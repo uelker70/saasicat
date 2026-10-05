@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import {
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
@@ -149,6 +149,61 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             )
             .returning();
         return rows[0] ? toSubscriptionBundleRecord(rows[0]) : null;
+    }
+
+    async scheduleVersion(
+        subscriptionBundleId: string,
+        switchTo: { from: string; to: string; effectiveAt: Date },
+    ): Promise<SubscriptionBundleRecord | null> {
+        const rows = await this.db
+            .update(subscriptionBundles)
+            .set({
+                pendingBundleVersionId: switchTo.to,
+                pendingVersionEffectiveAt: switchTo.effectiveAt,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(subscriptionBundles.id, subscriptionBundleId),
+                    eq(subscriptionBundles.bundleVersionId, switchTo.from),
+                    isNull(subscriptionBundles.pendingBundleVersionId),
+                ),
+            )
+            .returning();
+        return rows[0] ? toSubscriptionBundleRecord(rows[0]) : null;
+    }
+
+    async unscheduleVersion(
+        subscriptionBundleId: string,
+        to: string,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const rows = await this.db
+            .update(subscriptionBundles)
+            .set({
+                pendingBundleVersionId: null,
+                pendingVersionEffectiveAt: null,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(subscriptionBundles.id, subscriptionBundleId),
+                    eq(subscriptionBundles.pendingBundleVersionId, to),
+                ),
+            )
+            .returning();
+        return rows[0] ? toSubscriptionBundleRecord(rows[0]) : null;
+    }
+
+    async listScheduledVersionsDue(asOf: Date): Promise<SubscriptionBundleRecord[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptionBundles)
+            .where(lte(subscriptionBundles.pendingVersionEffectiveAt, asOf))
+            .orderBy(
+                asc(subscriptionBundles.pendingVersionEffectiveAt),
+                asc(subscriptionBundles.id),
+            );
+        return rows.map(toSubscriptionBundleRecord);
     }
 
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {

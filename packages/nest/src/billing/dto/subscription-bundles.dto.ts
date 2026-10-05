@@ -86,9 +86,10 @@ export class PreviewSubscriptionBundleDto {
 }
 
 /**
- * The early switch to an add-on retirement's replacement: the version the page
- * showed as the replacement, so a retirement that changed meanwhile is refused
- * rather than taken.
+ * A booking's switch to another version of its add-on — the replacement a
+ * retirement names, or a newer version offered: the version the page showed,
+ * so a retirement or an offer that changed meanwhile is refused rather than
+ * taken.
  */
 export class SwitchSubscriptionBundleDto {
     @IsUUID()

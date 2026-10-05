@@ -39,7 +39,6 @@ import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
     TENANT_ID_RESOLVER_TOKEN,
-    TENANT_SELF_SERVICE_CONTEXT,
     TRIAL_PROJECTION_PORT_TOKEN,
     USAGE_SNAPSHOT_PORT_TOKEN,
     USER_ID_RESOLVER_TOKEN,
@@ -87,6 +86,12 @@ import {
 } from './tenant-billing.tokens.js';
 import { resolvePlanAnchorDay } from './bundle-period.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
+import {
+    requireTenantUserId,
+    tenantActorOf,
+    tenantUserEmailOf,
+    type TenantAuditResolvers,
+} from './tenant-audit-actor.js';
 import {
     contractUnlessTrialOf,
     freezeContractAfter,
@@ -1277,45 +1282,23 @@ export class TenantBillingController {
     }
 
     private requireUserId(req: RequestLike): string {
-        const resolver: UserIdResolver =
-            this.userIdResolver ??
-            ((r: unknown) => (r as RequestLike).user?.sub ?? (r as RequestLike).user?.id ?? null);
-        const userId = resolver(req);
-        if (!userId) {
-            throw new NotFoundException({
-                code: AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING,
-                message: 'No user ID found on the request',
-            });
-        }
-        return userId;
+        return requireTenantUserId(req, this.auditResolvers());
     }
 
     private buildActor(req: RequestLike, userId: string): AdminActor {
-        const email = this.resolveUserEmail(req) ?? 'unknown';
-        const contextResolver: AuditContextResolver =
-            this.auditContextResolver ??
-            ((r: unknown) => {
-                const headers = (r as { headers?: Record<string, string | string[] | undefined> })
-                    .headers;
-                const sid = headers?.['x-session-id'];
-                if (Array.isArray(sid)) return sid[0] ?? null;
-                return sid ?? null;
-            });
-        const context = contextResolver(req) ?? TENANT_SELF_SERVICE_CONTEXT;
-        return {
-            userId,
-            email,
-            source: 'web',
-            context,
-        };
+        return tenantActorOf(req, userId, this.auditResolvers());
     }
 
     private resolveUserEmail(req: RequestLike): string | null {
-        const emailResolver: UserEmailResolver =
-            this.userEmailResolver ??
-            ((r: unknown) =>
-                ((r as RequestLike).user as { email?: string } | undefined)?.email ?? null);
-        return emailResolver(req) ?? null;
+        return tenantUserEmailOf(req, this.auditResolvers());
+    }
+
+    private auditResolvers(): TenantAuditResolvers {
+        return {
+            userId: this.userIdResolver,
+            email: this.userEmailResolver,
+            context: this.auditContextResolver,
+        };
     }
 
     private toResponseRedemption(
