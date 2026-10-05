@@ -778,3 +778,28 @@ _Tested by:_
         - valid=true with price preview for PROFESSIONAL/YEARLY/25%
 
 <!-- END proof -->
+
+### SC-PROMO-030 — A promo code and a promotion together leave something to pay
+
+🟢 💰 A code is measured against the plan's own price (`SC-PROMO-029`); a promotion on the plan
+lowers the price it comes off. Where the code would take all that the promotion leaves, the offer is
+refused — when it is priced, and again when it is concluded — unless the operator deliberately
+allows an invoice of zero. The bar is the one `SC-PROMO-029` names, taken after the promotion. A
+promotion that already leaves nothing is the operator's own, and the code then takes nothing.
+
+_Source:_ #331
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - a code and the promotion on the plan together leave something to pay
+        - without an adapter the gross after the promotion is the bar
+        - with an adapter the net after the promotion is the bar
+        - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
+          offer stands
+        - the operator may allow it to leave nothing
+        - concluding asks again: an allowance taken back since refuses the offer
+
+<!-- END proof -->

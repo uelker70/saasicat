@@ -237,11 +237,18 @@ describe('a contract mixing rhythms', () => {
 // a code that takes the whole plan, and a free month on the add-on.
 const TEN_O_TWO_PLAN = { ...PLAN_VERSION, monthlyNet: '10.02', yearlyNet: '100.20' };
 const TEN_O_TWO_ADD_ON = { ...BUNDLE_VERSION, monthlyNet: '10.02', yearlyNet: '100.20' };
+// The promo module accepts a code of 100 % only where it allows an invoice of zero.
 const WHOLE_PLAN = {
     valid: true,
     code: 'WHOLEPLAN',
     label: '100 %',
-    discount: { valueType: 'PERCENT', value: '100.00', durationType: 'ONCE', durationValue: null },
+    discount: {
+        valueType: 'PERCENT',
+        value: '100.00',
+        durationType: 'ONCE',
+        durationValue: null,
+        allowZeroInvoice: true,
+    },
 };
 const TEN_PER_CENT = {
     ...WHOLE_PLAN,

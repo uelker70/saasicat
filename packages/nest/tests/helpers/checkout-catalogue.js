@@ -49,7 +49,13 @@ export const START10 = {
     valid: true,
     code: 'START10',
     label: '10 % Start',
-    discount: { valueType: 'PERCENT', value: '10.00', durationType: 'ONCE', durationValue: null },
+    discount: {
+        valueType: 'PERCENT',
+        value: '10.00',
+        durationType: 'ONCE',
+        durationValue: null,
+        allowZeroInvoice: false,
+    },
 };
 
 export function fakeOfferRepo() {

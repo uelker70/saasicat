@@ -52,6 +52,7 @@ import {
     type CodeTermField,
     type CodeTerms,
     discountOnPlan,
+    payableBasisOf,
 } from './code-rules.js';
 import { computeIncludedVat, netFromGross } from './math.js';
 import { subscriptionNotFound } from '../billing/subscription-not-found.js';
@@ -104,6 +105,12 @@ export interface PreviewValid {
         value: string;
         durationType: PromoCodeRecord['durationType'];
         durationValue: number | null;
+        /**
+         * Whether the operator allows the code to leave nothing to pay, for a
+         * caller that takes it off a price this preview did not see — a plan
+         * price after its promotion (`SC-PROMO-030`).
+         */
+        allowZeroInvoice: boolean;
     };
     price: {
         originalGross: string;
@@ -432,6 +439,7 @@ export class PromoCodesService {
                 value: Number(verdict.promo.value).toFixed(2),
                 durationType: verdict.promo.durationType,
                 durationValue: verdict.promo.durationValue,
+                allowZeroInvoice: verdict.promo.allowZeroInvoice,
             },
             price: {
                 originalGross: planGross.toFixed(2),
@@ -875,13 +883,8 @@ export class PromoCodesService {
         };
     }
 
-    /**
-     * Which price a fixed amount has to stay below (`SC-PROMO-029`): where a
-     * tax adapter decides, a subscriber outside the issuer's VAT pays the net,
-     * so the net; otherwise the gross at the file's rate.
-     */
     private get payableBasis(): LowestPayablePrice['basis'] {
-        return this.taxes?.adapter ? 'net' : 'gross';
+        return payableBasisOf(this.taxes);
     }
 
     /**

@@ -338,6 +338,15 @@ describe('the preview draws the line at the same cent', () => {
         assert.equal(allowed.price.discountedGross, '0.00');
     });
 
+    test('says whether the operator allows an invoice of zero, for a price it did not see', async () => {
+        const allowed = await previewOnBasic(withCode(absolute(5, true)));
+        const not = await previewOnBasic(withCode(absolute(5)));
+        assert.deepEqual(
+            [allowed.discount.allowZeroInvoice, not.discount.allowZeroInvoice],
+            [true, false],
+        );
+    });
+
     test('more than the price takes off the price and no more', async () => {
         const preview = await previewOnBasic(withCode(absolute(JUST_ABOVE, true)));
 

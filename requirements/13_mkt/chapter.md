@@ -775,6 +775,13 @@ _Tested by:_
         - the promotion the public catalogue picks, as a discount with its snapshot
         - a promotion tied to a code, or to another language, is not applied
         - a promo code the promo module accepts, on the plan price after its promotion
+    - a code and the promotion on the plan together leave something to pay
+        - without an adapter the gross after the promotion is the bar
+        - with an adapter the net after the promotion is the bar
+        - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
+          offer stands
+        - the operator may allow it to leave nothing
+        - concluding asks again: an allowance taken back since refuses the offer
     - what cannot be priced is refused, not priced at nothing
         - a plan with no version on sale
         - a plan that is not marketed

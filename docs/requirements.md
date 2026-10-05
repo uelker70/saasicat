@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 67      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 29      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 30      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 27      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 592 entries: 🟢 509 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 593 entries: 🟢 510 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 16 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -221,7 +221,7 @@ Of 592 entries: 🟢 509 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 592 requirements. Do not edit by hand:
+Generated from `requirements/` — 593 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -10316,6 +10316,31 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PROMO-030 — A promo code and a promotion together leave something to pay
+
+🟢 💰 A code is measured against the plan's own price (`SC-PROMO-029`); a promotion on the plan
+lowers the price it comes off. Where the code would take all that the promotion leaves, the offer is
+refused — when it is priced, and again when it is concluded — unless the operator deliberately
+allows an invoice of zero. The bar is the one `SC-PROMO-029` names, taken after the promotion. A
+promotion that already leaves nothing is the operator's own, and the code then takes nothing.
+
+_Source:_ #331
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - a code and the promotion on the plan together leave something to pay
+        - without an adapter the gross after the promotion is the bar
+        - with an adapter the net after the promotion is the bar
+        - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
+          offer stands
+        - the operator may allow it to leave nothing
+        - concluding asks again: an allowance taken back since refuses the offer
+
+<!-- END proof -->
+
 ## 12. Self-registration
 
 Where an installation lets strangers sign themselves up, the flow has to be safe against people
@@ -11493,6 +11518,13 @@ _Tested by:_
         - the promotion the public catalogue picks, as a discount with its snapshot
         - a promotion tied to a code, or to another language, is not applied
         - a promo code the promo module accepts, on the plan price after its promotion
+    - a code and the promotion on the plan together leave something to pay
+        - without an adapter the gross after the promotion is the bar
+        - with an adapter the net after the promotion is the bar
+        - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
+          offer stands
+        - the operator may allow it to leave nothing
+        - concluding asks again: an allowance taken back since refuses the offer
     - what cannot be priced is refused, not priced at nothing
         - a plan with no version on sale
         - a plan that is not marketed

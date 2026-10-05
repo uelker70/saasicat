@@ -6,6 +6,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { PromoCodeRecord, UpdatePromoCodeData } from '@saasicat/core';
 import { PROMO_ERROR_CODES } from '@saasicat/core';
 
+import type { TaxTreatments } from '../tax/tax-treatments.js';
 import { computeDiscountGross, computeDiscountedGross } from './calculator.js';
 
 const PERCENT_MIN_EXCLUSIVE = 0;
@@ -50,6 +51,17 @@ export const ALL_TERMS: ReadonlySet<CodeTermField> = new Set<CodeTermField>([
 export interface LowestPayablePrice {
     amount: number;
     basis: 'gross' | 'net';
+}
+
+/**
+ * Which price a fixed amount has to stay below (`SC-PROMO-029`,
+ * `SC-PROMO-030`): where a tax adapter decides, a subscriber outside the
+ * issuer's VAT pays the net, so the net; otherwise the gross at the file's rate.
+ */
+export function payableBasisOf(
+    taxes: Pick<TaxTreatments, 'adapter'> | null,
+): LowestPayablePrice['basis'] {
+    return taxes?.adapter ? 'net' : 'gross';
 }
 
 /** What the rules need to know beyond the code itself. */

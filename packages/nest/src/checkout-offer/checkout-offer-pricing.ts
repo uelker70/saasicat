@@ -38,6 +38,7 @@ import {
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { promoCodeDiscountNet } from '../promo/calculator.js';
+import { discountOnPlan, payableBasisOf } from '../promo/code-rules.js';
 import { sumToCents } from '@saasicat/core';
 import { grossFromNet } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
@@ -409,6 +410,17 @@ export class CheckoutOfferPricing {
             { checkoutOfferId: input.checkoutOfferId, concluding: input.concluding },
         );
         if (!preview.valid) throw promoCodeNotAccepted(preview.reason);
+        // The promo module measured the code against the plan's own price; it
+        // comes off the price after the promotion, and must not take all that
+        // the promotion leaves (`SC-PROMO-030`) — measured where the subscriber
+        // pays least, as the promo module measures. Priced again at conclusion,
+        // so asked there too. A promotion that leaves nothing is the operator's
+        // own, and the code then takes nothing.
+        const afterPromotion =
+            payableBasisOf(this.taxes) === 'net' ? planNet : grossFromNet(planNet, vatRate);
+        if (afterPromotion > 0 && discountOnPlan(preview.discount, afterPromotion).zeroInvoice) {
+            throw promoCodeNotAccepted('WOULD_PRODUCE_ZERO_INVOICE');
+        }
 
         const resolvedAmountNet = promoCodeDiscountNet(planNet, vatRate, preview.discount);
         return {
