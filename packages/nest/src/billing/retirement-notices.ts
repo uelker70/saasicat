@@ -7,6 +7,7 @@
 
 import type {
     BundleVersionRetiredNotice,
+    SubscriptionNoticeKind,
     SubscriptionNoticeRecord,
     SubscriptionNoticeRepository,
     VersionRetiredNotice,
@@ -102,18 +103,50 @@ export function groupByRetiredVersion<T extends Pick<VersionRetiredNotice, 'reti
 }
 
 /**
+ * Every add-on retirement notice that reached its subscriber: a retirement
+ * counts only for those, from the moment it was told. Read in full, as the
+ * plan's are.
+ */
+export async function bundleRetirementNoticesTold(
+    notices: SubscriptionNoticeRepository,
+): Promise<BundleVersionRetiredNotice[]> {
+    return (await notices.listOfKindSince(BUNDLE_KIND, new Date(0)))
+        .filter(reachedSomebody)
+        .map((record) => record.content as BundleVersionRetiredNotice);
+}
+
+/**
  * Every add-on retirement notice that reached its subscriber and whose date has
- * come by `now`: the bookings an add-on retirement moves (`SC-BUN-049`). Read
- * in full, as the plan's are.
+ * come by `now`: the bookings an add-on retirement moves (`SC-BUN-049`).
  */
 export async function bundleRetirementNoticesDue(
     notices: SubscriptionNoticeRepository,
     now: Date,
 ): Promise<BundleVersionRetiredNotice[]> {
-    return (await notices.listOfKindSince(BUNDLE_KIND, new Date(0)))
-        .filter(reachedSomebody)
-        .map((record) => record.content as BundleVersionRetiredNotice)
-        .filter((notice) => new Date(notice.effectiveAt) <= now);
+    return (await bundleRetirementNoticesTold(notices)).filter(
+        (notice) => new Date(notice.effectiveAt) <= now,
+    );
+}
+
+/**
+ * How many each retirement has reminded, by `retirementId`: reminders of
+ * `kind` that went out to somebody. One the application could send to nobody
+ * reminded no one (`SC-SUB-034`, `SC-BUN-056`).
+ */
+export async function remindedByRetirement(
+    notices: SubscriptionNoticeRepository,
+    kind: Extract<
+        SubscriptionNoticeKind,
+        'version-retirement-reminder' | 'bundle-version-retirement-reminder'
+    >,
+): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    for (const record of await notices.listOfKindSince(kind, new Date(0))) {
+        if (!record.delivery || record.delivery.recipients.length === 0) continue;
+        const { retirementId } = record.content as { retirementId: string };
+        counts.set(retirementId, (counts.get(retirementId) ?? 0) + 1);
+    }
+    return counts;
 }
 
 /** `notices` by the add-on version they retire, so the bookings of each are read once. */

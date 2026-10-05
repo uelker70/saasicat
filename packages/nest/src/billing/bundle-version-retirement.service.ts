@@ -26,14 +26,12 @@ import {
 import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
-    classifyBundleVersionDiff,
     type AdminActor,
     type BillingCycle,
     type BundleRepository,
     type BundleRetirementAnnounced,
     type BundleRetirementPreview,
     type BundleRetirementReachedRow,
-    type BundleRetirementSide,
     type BundleRetirementSkippedRow,
     type BundleVersionRetiredNotice,
     type BundleVersionRetirementRecord,
@@ -52,7 +50,6 @@ import {
     type SubscriptionUsagePort,
     type SubscriptionUsageRecord,
     type TransactionRunner,
-    type VersionChange,
     type VersionRetiredNotice,
 } from '@saasicat/core';
 
@@ -70,7 +67,11 @@ import {
     type PlanAhead,
     type PlanBeside,
 } from './add-on-fits-plan.js';
-import { resolveBundlePriceNet } from './bundle-price.js';
+import {
+    bundleRetirementChanges,
+    bundleRetirementSide,
+    bundleRetirementSidesFor,
+} from './bundle-retirement-sides.js';
 import { bookingsOfVersion, type BookingsOnVersion } from './bundle-bookings-of-version.js';
 import {
     bookingOverBy,
@@ -88,6 +89,7 @@ import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { plansAheadOf } from './plans-ahead.js';
 import {
     reachedSomebody,
+    remindedByRetirement,
     retirementNoticesTold,
     retirementsOfItsVersion,
     subscriptionsReachedSince,
@@ -564,7 +566,10 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
         retirements: readonly BundleVersionRetirementRecord[],
         now: Date,
     ): Promise<BundleVersionRetirementView[]> {
-        const records = await this.notices.listOfKindSince(KIND, new Date(0));
+        const [records, reminded] = await Promise.all([
+            this.notices.listOfKindSince(KIND, new Date(0)),
+            remindedByRetirement(this.notices, 'bundle-version-retirement-reminder'),
+        ]);
         const versions = onceEach(this.bundles);
         const onRecord = records.map((record) => ({
             notice: record.content as BundleVersionRetiredNotice,
@@ -587,7 +592,11 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
                         .filter(({ notice }) => notice.retirementId === retirement.id)
                         .map(({ notice, told }) => this.stateOf(notice, told, onIt, now, versions)),
                 );
-                return { ...retirement, progress: { ...progressOf(states, now), reminded: 0 } };
+                const progress = progressOf(states, now);
+                return {
+                    ...retirement,
+                    progress: { ...progress, reminded: reminded.get(retirement.id) ?? 0 },
+                };
             }),
         );
     }
@@ -728,8 +737,8 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
         }
         const retired = await this.versionOf(retiredId);
         const replacement = await this.versionOf(replacementId);
-        const retiredSide = sideOf(retired, null);
-        const replacementSide = sideOf(replacement, null);
+        const retiredSide = bundleRetirementSide(retired, null);
+        const replacementSide = bundleRetirementSide(replacement, null);
 
         const blockers: RetirementBlocker[] = [];
         // Off sale by the booking rule (`SC-BUN-035`, `SC-BUN-036`), so nobody
@@ -805,7 +814,7 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
             preview: {
                 retired: retiredSide,
                 replacement: replacementSide,
-                changes: changesBetween(retiredSide, replacementSide),
+                changes: bundleRetirementChanges(retiredSide, replacementSide),
                 asOf: now.toISOString(),
                 reached,
                 skipped,
@@ -930,52 +939,14 @@ export class BundleVersionRetirementService implements OnModuleInit, BundleDelet
             versions.findVersionById(stored.retired.bundleVersionId),
             versions.findVersionById(stored.replacement.bundleVersionId),
         ]);
-        const planKey = reach.plan.planKey;
-        const retiredSide = retired ? sideOf(retired, planKey) : stored.retired;
-        const replacementSide = replacement ? sideOf(replacement, planKey) : stored.replacement;
         return {
             ...stored,
-            planKey,
-            retired: retiredSide,
-            replacement: replacementSide,
-            changes: changesBetween(retiredSide, replacementSide),
+            ...bundleRetirementSidesFor(stored, reach.plan.planKey, retired, replacement),
             billingCycle: reach.billingCycle,
             effectiveAt: reach.effectiveAt.toISOString(),
             lastDayToCancel: reach.lastDayToCancel,
         };
     }
-}
-
-/**
- * One version as a subscriber compares it, priced beside `planKey` —
- * `pricingOverrides` included — or at its own prices where no plan is named.
- */
-function sideOf(version: BundleVersionRow, planKey: string | null): BundleRetirementSide {
-    const priced = planKey === null ? { ...version, pricingOverrides: [] } : version;
-    return {
-        bundleVersionId: version.id,
-        bundleKey: version.bundleKey,
-        label: version.label,
-        version: version.version,
-        features: [...version.features],
-        quotas: { ...version.quotas },
-        monthlyNet: resolveBundlePriceNet(priced, planKey ?? '', 'MONTHLY'),
-        yearlyNet: resolveBundlePriceNet(priced, planKey ?? '', 'YEARLY'),
-    };
-}
-
-/** Every difference, retired to replacement, as the catalogue's diff states it. */
-function changesBetween(
-    retired: BundleRetirementSide,
-    replacement: BundleRetirementSide,
-): VersionChange[] {
-    const fields = (side: BundleRetirementSide) => ({
-        features: [...side.features],
-        quotas: { ...side.quotas },
-        monthlyNet: side.monthlyNet,
-        yearlyNet: side.yearlyNet,
-    });
-    return classifyBundleVersionDiff(fields(retired), fields(replacement)).changes;
 }
 
 function noticeOf(
@@ -984,8 +955,8 @@ function noticeOf(
     replacement: BundleVersionRow,
     row: BundleRetirementReachedRow,
 ): BundleVersionRetiredNotice {
-    const retiredSide = sideOf(retired, row.planKey);
-    const replacementSide = sideOf(replacement, row.planKey);
+    const retiredSide = bundleRetirementSide(retired, row.planKey);
+    const replacementSide = bundleRetirementSide(replacement, row.planKey);
     return {
         kind: KIND,
         tenantId: row.tenantId,
@@ -995,7 +966,7 @@ function noticeOf(
         planKey: row.planKey,
         retired: retiredSide,
         replacement: replacementSide,
-        changes: changesBetween(retiredSide, replacementSide),
+        changes: bundleRetirementChanges(retiredSide, replacementSide),
         billingCycle: row.billingCycle,
         effectiveAt: row.effectiveAt,
         lastDayToCancel: row.lastDayToCancel,

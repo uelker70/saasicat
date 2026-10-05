@@ -1,8 +1,10 @@
-// The one reminder a retirement sends (`SC-SUB-034`): where staying put costs a
-// subscription something, 14 days before the retirement takes effect. One
-// answer for the run that sends it and for whatever shows it.
+// The one reminder a retirement sends (`SC-SUB-034`, and `SC-BUN-056` for an
+// add-on): where staying put costs a subscription something, 14 days before
+// the retirement takes effect. One answer for the run that sends it and for
+// whatever shows it.
 
-import { retirementSwitchTerms } from './retirement-switch.js';
+import { retirementSwitchTerms, type RetirementPricedSide } from './retirement-switch.js';
+import type { VersionChange } from './subscription.types.js';
 import { takesSomethingAway } from './version-offer.js';
 import type { VersionRetiredNotice } from './version-retirement.types.js';
 
@@ -36,10 +38,16 @@ export function retirementReminderIsDue(
  * Whether staying put costs the subscription something when the retirement
  * takes effect (D9): the replacement takes a feature or a quota away, or is
  * dearer in `billingCycle`, the rhythm it is billed in then — or not sold in
- * it. A price that rises only in another rhythm costs it nothing.
+ * it. A price that rises only in another rhythm costs it nothing. A plan
+ * version's retirement and an add-on version's are judged alike.
  */
 export function retirementCostsTheSubscription(
-    notice: Pick<VersionRetiredNotice, 'retired' | 'replacement' | 'changes' | 'lastDayToCancel'>,
+    notice: {
+        readonly retired: RetirementPricedSide;
+        readonly replacement: RetirementPricedSide;
+        readonly changes: readonly VersionChange[];
+        readonly lastDayToCancel: string;
+    },
     billingCycle: string,
 ): boolean {
     if (notice.changes.some(takesSomethingAway)) return true;

@@ -22,8 +22,11 @@ export interface RetirementSwitchTerms {
     } | null;
 }
 
-/** A side of a retirement as the switch reads it: its price in each rhythm. */
-type PricedSide = Pick<RetirementSide, 'monthlyNet' | 'yearlyNet'>;
+/**
+ * A side of a retirement as its prices are compared: what it costs in each
+ * rhythm, for a plan version or for an add-on version beside a plan.
+ */
+export type RetirementPricedSide = Pick<RetirementSide, 'monthlyNet' | 'yearlyNet'>;
 
 /**
  * What switching to the replacement now costs in `billingCycle`, or null where
@@ -32,13 +35,13 @@ type PricedSide = Pick<RetirementSide, 'monthlyNet' | 'yearlyNet'>;
  */
 export function retirementSwitchTerms(
     notice: {
-        readonly retired: PricedSide;
-        readonly replacement: PricedSide;
+        readonly retired: RetirementPricedSide;
+        readonly replacement: RetirementPricedSide;
         readonly lastDayToCancel: string;
     },
     billingCycle: string,
 ): RetirementSwitchTerms | null {
-    const priceIn = (side: PricedSide) =>
+    const priceIn = (side: RetirementPricedSide) =>
         billingCycle === 'YEARLY' ? side.yearlyNet : side.monthlyNet;
     const replacement = priceIn(notice.replacement);
     if (replacement === null) return null;

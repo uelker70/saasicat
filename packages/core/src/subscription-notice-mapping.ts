@@ -17,6 +17,7 @@ const KINDS: Record<SubscriptionNoticeKind, true> = {
     'version-retired': true,
     'version-retirement-reminder': true,
     'bundle-version-retired': true,
+    'bundle-version-retirement-reminder': true,
 };
 
 /**

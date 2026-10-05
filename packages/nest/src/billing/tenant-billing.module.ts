@@ -43,6 +43,7 @@ import { RetirementReminderService } from './retirement-reminder.service.js';
 import { RetirementSwitchService } from './retirement-switch.service.js';
 import { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
 import { BundleRetirementSwitchService } from './bundle-retirement-switch.service.js';
+import { BundleRetirementReminderService } from './bundle-retirement-reminder.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import type { AddOnsAhead } from './add-on-fits-plan.js';
 import {
@@ -533,6 +534,7 @@ export class TenantBillingModule {
                 BundleVersionRetirementService,
                 BundleRetirementMoveService,
                 BundleRetirementSwitchService,
+                BundleRetirementReminderService,
                 // The catalogue asks before it deletes an add-on whether
                 // bookings still move onto one of its versions.
                 {
@@ -626,6 +628,7 @@ export class TenantBillingModule {
                           BundleVersionRetirementService,
                           BundleRetirementMoveService,
                           BundleRetirementSwitchService,
+                          BundleRetirementReminderService,
                           BUNDLE_DELETION_CHECK_TOKEN,
                       ]
                     : []),

@@ -56,7 +56,7 @@ import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { addOnMisfits, misfitRefusal } from './add-on-fits-plan.js';
-import { resolveBundlePriceNet } from './bundle-price.js';
+import { bundleRetirementSide } from './bundle-retirement-sides.js';
 import { bookingOverBy, planAt } from './bundle-retirement-reach.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
@@ -275,8 +275,8 @@ export class BundleRetirementSwitchService {
         // Not null: `addOnMisfits` refuses a replacement without a price here.
         const terms = retirementSwitchTerms(
             {
-                retired: pricedFor(retired, plan.planKey),
-                replacement: pricedFor(replacement, plan.planKey),
+                retired: bundleRetirementSide(retired, plan.planKey),
+                replacement: bundleRetirementSide(replacement, plan.planKey),
                 lastDayToCancel: notice.lastDayToCancel,
             },
             rhythm,
@@ -354,14 +354,6 @@ function subscriptionChanged(): ConflictException {
         code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
         message: 'This subscription changed while the request was being decided. Reload it.',
     });
-}
-
-/** A version's price in each rhythm for `planKey`, as the switch reads a side. */
-function pricedFor(version: BundleVersionRow, planKey: string) {
-    return {
-        monthlyNet: resolveBundlePriceNet(version, planKey, 'MONTHLY'),
-        yearlyNet: resolveBundlePriceNet(version, planKey, 'YEARLY'),
-    };
 }
 
 function refused(code: string, message: string): UnprocessableEntityException {

@@ -2805,6 +2805,11 @@ or not it uses it:
 - **The cancellation without the minimum term ends** once a booking has switched:
   `BundleVersionRetirementService.pendingForBooking` answers only while the booking is still on the
   version retired.
+- **A booking is reminded once** before its add-on version's retirement takes effect, where staying
+  put costs it something (`SC-BUN-056`): your `SubscriptionNoticePort` is handed a new kind,
+  `bundle-version-retirement-reminder` (`BundleVersionRetirementReminder`, the notice with
+  `switchTerms`). A port that switches on `kind` adds it, and a scheduler of your own calls
+  `BundleRetirementReminderService.remindDue` beside the other steps.
 - **Code of your own that cancels a booking** through `SubscriptionBundlesService` or previews it
   through `SubscriptionBundlePreviewService` passes `minimumTermLapses` where a retirement told for
   the booking is still to take effect; the shipped route decides it from the server's clock.
