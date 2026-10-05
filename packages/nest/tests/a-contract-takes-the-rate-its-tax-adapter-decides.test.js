@@ -317,9 +317,14 @@ const signingUpAs = (details) => ({
  * the details in `subscribed`, or none, as at a sign-up.
  */
 async function signingUp({ subscribed = null } = {}) {
+    const checks = new Map();
     const subscriberRepo = {
         ...fakeSubscriberRepo(subscribed ? ['tenant-meier'] : []),
-        findCurrentVatIdCheck: async () => null,
+        async recordVatIdCheck(subscriberId, check, tx) {
+            checks.set(subscriberId, { ...check, tx });
+            return { recorded: check, current: check };
+        },
+        findCurrentVatIdCheck: async (subscriberId) => checks.get(subscriberId) ?? null,
     };
     if (subscribed) Object.assign(subscriberRepo.rows[0], subscribed);
     const subscribers = new SubscriberService(subscriberRepo, SETTINGS);
@@ -344,7 +349,7 @@ async function signingUp({ subscribed = null } = {}) {
         subscribers,
     });
     const offer = await service.create({ planKey: 'STANDARD', billingCycle: 'monthly' });
-    return { service, offers, offer, subscriberRepo, contractRepo, transactions };
+    return { service, offers, offer, subscriberRepo, contractRepo, transactions, checks };
 }
 
 // @requirement SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
@@ -394,6 +399,34 @@ describe('a sign-up concludes its offer at the rate decided for the subscriber i
             refusedWith('TAX_TREATMENT_NOT_SUPPORTED'),
         );
         assert.equal(transactions.opened, 0, 'no transaction was opened');
+    });
+
+    test('a business in Austria whose number step 4 checked: reverse charge, and the check kept with the subscriber', async () => {
+        const { service, offer, checks, subscriberRepo } = await signingUp();
+        const check = {
+            vatId: 'ATU12345678',
+            checkedAt: new Date('2026-10-05T08:00:00.000Z'),
+            valid: true,
+            service: 'VIES',
+            confirmation: { requestIdentifier: 'R-1' },
+        };
+
+        const { contract } = await service.conclude(
+            offer.id,
+            signingUpAs({
+                country: 'AT',
+                business: true,
+                vatId: 'ATU12345678',
+                vatIdCheck: check,
+            }),
+        );
+
+        assert.equal(contract.taxTreatment.kind, 'reverse-charge');
+        assert.equal(contract.priceSnapshot.vatRate, 0);
+        const [[subscriberId, kept]] = [...checks];
+        const created = subscriberRepo.rows.find((row) => row.tenantId === 'tenant-meier');
+        assert.equal(subscriberId, created.id);
+        assert.deepEqual([kept.vatId, kept.valid, kept.tx], ['ATU12345678', true, contract.tx]);
     });
 
     test('a consumer in France is refused before anything is written', async () => {

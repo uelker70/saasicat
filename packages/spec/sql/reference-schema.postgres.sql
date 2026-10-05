@@ -507,6 +507,8 @@ CREATE TABLE "PendingRegistration" (
     "country" TEXT,
     "vatId" TEXT,
     "taxNumber" TEXT,
+    "business" BOOLEAN,
+    "vatIdCheck" JSONB,
     "checkoutSessionId" TEXT,
     "checkoutGatewayAccount" TEXT,
     "gatewayCustomerRef" TEXT,

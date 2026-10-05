@@ -201,6 +201,24 @@ function isObject(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * A check of a VAT identification number as a store gives it back. A sign-up
+ * keeps its check where the application's repository puts it — often a JSON
+ * column, which hands `checkedAt` back as text — so it is read again here,
+ * once. Anything that is not a whole check reads as none: a number never
+ * counts as validated on a record that cannot say so.
+ */
+export function vatIdCheckFromStore(value: unknown): VatIdCheck | null {
+    if (!isObject(value)) return null;
+    const { vatId, checkedAt, valid, service, confirmation } = value;
+    const at = checkedAt instanceof Date ? checkedAt : new Date(String(checkedAt));
+    if (typeof vatId !== 'string' || typeof valid !== 'boolean' || typeof service !== 'string') {
+        return null;
+    }
+    if (checkedAt === undefined || checkedAt === null || Number.isNaN(at.getTime())) return null;
+    return { vatId, checkedAt: at, valid, service, confirmation: textEntries(confirmation) };
+}
+
 function textEntries(value: unknown): Record<string, string> {
     if (!isObject(value)) return {};
     const entries: Record<string, string> = {};

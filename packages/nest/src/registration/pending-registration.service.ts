@@ -953,6 +953,7 @@ function billingDetailsOf(
         country: pending.country,
         vatId: pending.vatId,
         taxNumber: pending.taxNumber,
+        business: pending.business,
     };
 }
 

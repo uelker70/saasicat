@@ -827,6 +827,26 @@ configurator show for a subscriber in the issuer's country; `TAX_TREATMENTS_TOKE
 in its [README](../../packages/tax-de/README.md); the steps for an existing installation are in the
 [upgrade guide](upgrade-to-1.0.md#a-tax-adapter-decides-the-rate-of-every-contract).
 
+A sign-up asks the adapter in step 4 ([self-registration](self-registration.md)). Where your
+application creates a subscriber itself — an onboarding of its own, an operator's screen — ask first,
+before the transaction that creates it:
+
+```ts
+import { contractTaxPeriod } from '@saasicat/nest/billing';
+
+// The first period of the contract the subscriber will have.
+const period = contractTaxPeriod({ effectiveFrom: new Date(), billingCycle: 'MONTHLY' });
+const assessed = await subscribers.assessNewSubscriber(details, period);
+await subscribers.createForTenant(tenantId, assessed, tx);
+```
+
+It answers the details with the check of the VAT number attached where the treatment depends on
+one, which `createForTenant` records with the subscriber on the transaction you pass; assessed
+details are refused without one, whether or not a check was needed. It refuses a case the adapter
+cannot treat with `422 TAX_TREATMENT_NOT_SUPPORTED`, and a number it could not check just now with
+`503 TAX_VAT_ID_CHECK_NOT_COMPLETED`. It reaches an outside service, so never call it inside a
+transaction.
+
 ## The Subscriber's Account
 
 The journal of what each subscriber owes: one charge per contract line and period — the plan, each

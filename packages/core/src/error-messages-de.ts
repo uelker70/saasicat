@@ -416,4 +416,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── tax ──
     TAX_TREATMENT_NOT_SUPPORTED:
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',
+    TAX_VAT_ID_CHECK_NOT_COMPLETED:
+        'Die Umsatzsteuer-Identifikationsnummer ließ sich gerade nicht prüfen ({reason}). Bitte später erneut versuchen.',
 };

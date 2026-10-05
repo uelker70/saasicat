@@ -16,8 +16,14 @@ import type {
     PaymentGatewayCallback,
     RegistrationBillingDetails,
     SubscriberPaymentMethodRepository,
+    VatIdCheck,
 } from '@saasicat/core';
-import { PAYMENT_ERROR_CODES, PENDING_CHECKOUT_TTL_DAYS } from '@saasicat/core';
+import {
+    PAYMENT_ERROR_CODES,
+    PENDING_CHECKOUT_TTL_DAYS,
+    subscriberFromRegistration,
+    vatIdCheckFromStore,
+} from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
 import {
@@ -32,6 +38,9 @@ import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../payments/payments
 import { openGatewayForm } from '../payments/gateway-failure.js';
 import { refuseForeignReturnUrls } from '../payments/return-urls.js';
 import { settleBillingDetails } from './billing-details.js';
+import { assessNewSubscriber } from '../tax/assess-new-subscriber.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { contractTaxPeriod, type TaxTreatments } from '../tax/tax-treatments.js';
 import {
     ACTIVATION_ORCHESTRATOR_TOKEN,
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
@@ -104,6 +113,9 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         @Optional()
         @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
         private readonly methods: SubscriberPaymentMethodRepository | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {}
 
     onModuleInit(): void {
@@ -140,10 +152,24 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         const { registry } = this.payments();
         refuseForeignReturnUrls(urls, registry.returnUrlOrigins());
         const billing = settleBillingDetails(pending, billingDetails);
+        // Where no form can open, nothing else is asked — the VAT number
+        // service least of all.
         const account = registry.forNewPaymentMethods();
         if (!account) {
             throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
         }
+        // Before the gateway's form opens, and outside any transaction: a
+        // sign-up the tax adapter cannot treat is refused while nothing is
+        // paid, and a VAT identification number its treatment depends on is
+        // checked here, kept, and taken over by the subscriber it becomes.
+        const { vatIdCheck } = await assessNewSubscriber(
+            this.taxes,
+            subscriberFromRegistration({ ...pending, ...billing, vatIdCheck: null }),
+            contractTaxPeriod({
+                effectiveFrom: startedAt,
+                billingCycle: pending.billingCycle ?? 'MONTHLY',
+            }),
+        );
         const session = await openGatewayForm(
             account,
             {
@@ -171,6 +197,7 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         );
         const updated = await this.repo.update(pending.id, {
             ...billing,
+            vatIdCheck: vatIdCheck ?? null,
             status: 'CHECKOUT_STARTED',
             currentStep: 4,
             checkoutSessionId: session.sessionRef,
@@ -179,6 +206,7 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             checkoutStartedAt: startedAt,
             expiresAt: checkoutExpiresAt(startedAt),
         });
+        refuseALossyRepository(updated, billing.business, vatIdCheck ?? null);
         return {
             updated,
             sessionRef: session.sessionRef,
@@ -306,4 +334,23 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             this.logger.warn(`Audit log write failed (${event.eventType}): ${message}`);
         }
     }
+}
+
+/**
+ * The application's repository keeps the business status and the check, or
+ * the subscriber its activation creates is decided without them — found only
+ * after the payment, inside the gateway's confirmation, which then retries
+ * into the same refusal. Refused here instead, in step 4, as a wiring error.
+ */
+function refuseALossyRepository(
+    updated: PendingRegistration,
+    business: boolean | null,
+    check: VatIdCheck | null,
+): void {
+    const keptCheck = vatIdCheckFromStore(updated.vatIdCheck);
+    const keepsCheck = check === null || keptCheck?.vatId === check.vatId;
+    if ((updated.business ?? null) === business && keepsCheck) return;
+    throw new Error(
+        'PendingRegistrationRepository.update did not give back the `business` and `vatIdCheck` it was given. Keep both on the pending registration (docs/guides/upgrade-to-1.0.md, "A new subscriber is asked about before it exists").',
+    );
 }
