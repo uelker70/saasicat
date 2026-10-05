@@ -150,6 +150,12 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         const { registry } = this.payments();
         refuseForeignReturnUrls(urls, registry.returnUrlOrigins());
         const billing = settleBillingDetails(pending, billingDetails);
+        // Where no form can open, nothing else is asked — the VAT number
+        // service least of all.
+        const account = registry.forNewPaymentMethods();
+        if (!account) {
+            throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
+        }
         // Before the gateway's form opens, and outside any transaction: a
         // sign-up the tax adapter cannot treat is refused while nothing is
         // paid, and a VAT identification number its treatment depends on is
@@ -162,10 +168,6 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
                 billingCycle: pending.billingCycle ?? 'MONTHLY',
             }),
         );
-        const account = registry.forNewPaymentMethods();
-        if (!account) {
-            throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
-        }
         const session = await openGatewayForm(
             account,
             {

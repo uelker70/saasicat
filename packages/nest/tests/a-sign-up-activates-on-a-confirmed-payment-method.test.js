@@ -678,6 +678,26 @@ describe('where a tax adapter decides, step 4 asks it before the gateway form op
         });
     }
 
+    test('where no form can open, the adapter and the number service are not asked at all', async () => {
+        const vies = adapterWithChecks(VALID);
+        const ctx = await signUpApp({
+            catalog: {
+                ...TAX_CATALOG,
+                payments: { ...TAX_CATALOG.payments, newPaymentMethods: undefined },
+            },
+            taxAdapter: vies.factory,
+        });
+        const pendingId = await atStepFour(ctx);
+        const askedAtTheStart = vies.periods.length;
+
+        await assert.rejects(
+            startWith(ctx, pendingId, IN_VIENNA),
+            (error) => codeOf(error) === 'PAYMENTS_NOT_CONFIGURED' && error.getStatus() === 409,
+        );
+        assert.deepEqual(vies.asked, []);
+        assert.equal(vies.periods.length, askedAtTheStart, 'no decision was asked for');
+    });
+
     test('a business outside the Union is not taxable as given: its number is not checked', async () => {
         const { ctx, vies, pendingId } = await withAdapter(UNREACHABLE);
 
