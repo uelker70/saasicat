@@ -7,17 +7,21 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import type {
+    BillingCycle,
     CheckoutOfferLineItem,
+    CheckoutOfferPriceBreakdown,
     CheckoutOfferRow,
     ContractLineItemRecord,
     CreateSubscriptionContractData,
     SubscriptionContractParties,
     InvoiceLineItemSnapshot,
     NewContractLineItemData,
+    NewSubscriberDetails,
     SubscriptionContractInvoiceSnapshot,
     SubscriptionContractPriceSnapshot,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
+    TaxTreatment,
     TerminateSubscriptionContractData,
     TransactionContext,
     TransactionRunner,
@@ -43,6 +47,15 @@ import {
     assertTaxRatePercent,
 } from './contract-refusals.js';
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
+import { offerMoneyAtRate, type OfferMoney } from '../checkout-offer/offer-money-at-rate.js';
+import { codedError } from '../errors/coded-error.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import {
+    contractTaxPeriod,
+    type AppliedTax,
+    type TaxPeriod,
+    type TaxTreatments,
+} from '../tax/tax-treatments.js';
 
 /** What ending a contract asks of it, whoever's contract it is. */
 type ContractTermination = Omit<TerminateSubscriptionContractData, 'tenantId'>;
@@ -100,6 +113,17 @@ export interface SuccessorOptions {
     keepParties?: boolean;
 }
 
+/**
+ * The contract a change ends in, as the change knows it before it is written:
+ * from when, in which rhythm, and until when.
+ */
+export interface IntendedContract {
+    effectiveFrom: Date;
+    cycle: BillingCycle;
+    /** When the subscription ends, or null while it runs on. */
+    endsAt: Date | null;
+}
+
 @Injectable()
 export class SubscriptionContractService {
     constructor(
@@ -111,6 +135,9 @@ export class SubscriptionContractService {
         @Optional()
         @Inject(CONTRACT_TRANSACTION_RUNNER_TOKEN)
         private readonly transactions: TransactionRunner | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {}
 
     list(filter: Parameters<SubscriptionContractRepository['list']>[0]) {
@@ -188,18 +215,100 @@ export class SubscriptionContractService {
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord> {
         this.assertCreateData(data);
+        const decided = await this.decidedTaxFor(data, { tenantId: data.tenantId }, tx);
         const parties = await this.subscribers.contractPartiesFor(data.tenantId, tx);
-        return this.repo.create({ ...this.cloneCreateData(data), parties }, tx);
+        return this.repo.create(
+            { ...this.cloneCreateData(data), parties, ...taxTreatmentOf(decided) },
+            tx,
+        );
     }
 
     /**
      * Refuses, with `SUBSCRIBER_REQUIRED`, a contract this tenant could not
      * have. For callers that change something before the contract is written —
      * closing the one in force, changing a plan — and must refuse before that
-     * rather than after.
+     * rather than after. `intended` is the contract the change will end in, or
+     * `null` where it ends in none now — a plan change in a trial, whose
+     * contract is frozen when it converts — and only the party is asked.
      */
-    async assertPartyFor(tenantId: string, tx?: TransactionContext): Promise<void> {
+    async assertPartyFor(
+        tenantId: string,
+        intended: IntendedContract | null,
+        tx?: TransactionContext,
+    ): Promise<void> {
         await this.subscribers.requireForTenant(tenantId, tx);
+        // A subscriber the tax adapter cannot treat gets no new contract: refused
+        // here, before a plan change or a booking moves anything (`SC-PRIC-039`),
+        // over the period the contract will have — an adapter may answer a
+        // yearly period, or one starting later, otherwise than another.
+        if (this.taxes?.adapter && intended) {
+            const origin = await this.subscribers.taxOriginFor({ tenantId }, tx);
+            this.taxes.decide(
+                origin,
+                contractTaxPeriod({
+                    effectiveFrom: intended.effectiveFrom,
+                    effectiveUntil: intended.endsAt,
+                    billingCycle: intended.cycle,
+                }),
+            );
+        }
+    }
+
+    /** Whether a tax adapter decides the rate of every contract, rather than the file's `vatRate`. */
+    get taxAdapterDecides(): boolean {
+        return Boolean(this.taxes?.adapter);
+    }
+
+    /**
+     * The rate a contract for this tenant, or for a subscriber about to be
+     * created from `newSubscriber`, is concluded at over `period`; `undefined`
+     * where no tax adapter decides and the offer's own rate stands.
+     */
+    async contractTaxRateFor(
+        subject: { tenantId: string } | { newSubscriber: NewSubscriberDetails },
+        period: TaxPeriod,
+        tx?: TransactionContext,
+    ): Promise<number | undefined> {
+        if (!this.taxes?.adapter) return undefined;
+        const origin =
+            'newSubscriber' in subject
+                ? this.subscribers.taxOriginOfNew(subject.newSubscriber)
+                : await this.subscribers.taxOriginFor(subject, tx);
+        return this.taxes.decide(origin, period).rate;
+    }
+
+    /**
+     * The treatment the tax adapter decides for the contract `data` writes, or
+     * `null` where none decides. The one door every contract goes through, so
+     * a contract whose rates are not the decided one — composed by a caller, or
+     * by a path the origin moved under — is refused rather than written.
+     */
+    async decidedTaxFor(
+        data: CreateSubscriptionContractData,
+        subject: { tenantId: string } | { subscriberId: string },
+        tx?: TransactionContext,
+    ): Promise<AppliedTax | null> {
+        if (!this.taxes?.adapter) return null;
+        const origin = await this.subscribers.taxOriginFor(subject, tx);
+        const decided = this.taxes.decide(origin, contractTaxPeriodOf(data));
+        const stated: Array<[string, number]> = [
+            ['priceSnapshot.vatRate', data.priceSnapshot.vatRate],
+            ...data.lineItems.map((item, index): [string, number] => [
+                `lineItems[${index}].taxRate`,
+                item.taxRate,
+            ]),
+        ];
+        const differing = stated.find(([, rate]) => rate !== decided.rate);
+        if (differing) {
+            throw new UnprocessableEntityException(
+                codedError(CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED, {
+                    field: differing[0],
+                    stated: differing[1],
+                    decided: decided.rate,
+                }),
+            );
+        }
+        return decided;
     }
 
     /** The contract concluded from a checkout offer, or `null` when none was. */
@@ -275,7 +384,12 @@ export class SubscriptionContractService {
         }
         if (previous) this.assertTerminable(previous, { effectiveUntil: at, status: 'superseded' });
         const kept = options.keepParties && previous ? previous : null;
-        if (!kept) await this.assertPartyFor(next.tenantId);
+        // The party only: the decision below is made over `next` itself.
+        if (!kept) await this.subscribers.requireForTenant(next.tenantId);
+        const decided = await this.decidedTaxFor(
+            next,
+            kept ? { subscriberId: kept.subscriberId } : { tenantId: next.tenantId },
+        );
         const write = async (
             tx?: TransactionContext,
         ): Promise<SubscriptionContractRecord | null> => {
@@ -297,6 +411,7 @@ export class SubscriptionContractService {
                     ...this.cloneCreateData(next),
                     parties,
                     ...(kept ? { partiesMigrated: kept.partiesMigrated } : {}),
+                    ...taxTreatmentOf(decided),
                 },
                 tx,
             );
@@ -317,6 +432,7 @@ export class SubscriptionContractService {
     createDataFromOffer(
         offer: CheckoutOfferRow,
         options: CreateContractFromOfferOptions,
+        rate?: number,
     ): CreateSubscriptionContractData {
         if (offer.status !== 'consumed') {
             throw new ConflictException({
@@ -325,7 +441,7 @@ export class SubscriptionContractService {
                 params: { offerId: offer.id, status: offer.status },
             });
         }
-        return this.dataFromOffer(offer, options);
+        return this.dataFromOffer(offer, options, rate);
     }
 
     /**
@@ -337,17 +453,24 @@ export class SubscriptionContractService {
     prepareFromOffer(
         offer: CheckoutOfferRow,
         options: CreateContractFromOfferOptions,
+        rate?: number,
     ): CreateSubscriptionContractData {
-        const data = this.dataFromOffer(offer, options);
+        const data = this.dataFromOffer(offer, options, rate);
         this.assertCreateData(data);
         return data;
     }
 
+    /**
+     * `rate` is the one decided for the subscriber who concludes; without it the
+     * offer's own rate stands, as for an installation without a tax adapter.
+     */
     private dataFromOffer(
         offer: CheckoutOfferRow,
         options: CreateContractFromOfferOptions,
+        rate = offer.priceBreakdown.vatRate,
     ): CreateSubscriptionContractData {
-        const lineItems = this.lineItemsFromOffer(offer);
+        const money = offerMoneyAtRate(offer, rate);
+        const lineItems = this.lineItemsFromOffer(offer, money);
         return {
             tenantId: options.tenantId,
             status: options.status ?? 'active',
@@ -357,9 +480,9 @@ export class SubscriptionContractService {
             originalPlanVersionId: offer.planVersionId,
             originalBundleVersionIds: [...(offer.bundleVersionIds ?? [])],
             entitlementSnapshot: options.entitlementSnapshot ?? null,
-            priceSnapshot: this.priceSnapshotFromOffer(offer),
+            priceSnapshot: priceSnapshotOf(money.priceBreakdown),
             promotionSnapshots: [...(offer.promotionSnapshots ?? [])],
-            promoCodeSnapshots: offer.promoCodeSnapshot ? [offer.promoCodeSnapshot] : [],
+            promoCodeSnapshots: money.promoCodeSnapshot ? [money.promoCodeSnapshot] : [],
             termsSnapshot: options.termsSnapshot ?? null,
             lineItems,
         };
@@ -369,10 +492,21 @@ export class SubscriptionContractService {
         offer: CheckoutOfferRow,
         options: CreateContractFromOfferOptions,
     ): Promise<SubscriptionContractRecord> {
-        return this.create(this.createDataFromOffer(offer, options));
+        const rate = await this.contractTaxRateFor(
+            { tenantId: options.tenantId },
+            contractTaxPeriod({
+                effectiveFrom: options.effectiveFrom,
+                effectiveUntil: options.effectiveUntil ?? null,
+                billingCycle: offer.billingCycle,
+            }),
+        );
+        return this.create(this.createDataFromOffer(offer, options, rate));
     }
 
-    private lineItemsFromOffer(offer: CheckoutOfferRow): NewContractLineItemData[] {
+    private lineItemsFromOffer(
+        offer: CheckoutOfferRow,
+        money: OfferMoney,
+    ): NewContractLineItemData[] {
         const source = offer.lineItems ?? [];
         if (source.length === 0) {
             throw new UnprocessableEntityException({
@@ -383,18 +517,18 @@ export class SubscriptionContractService {
         }
         const lines = appendImplicitDiscountLineItem({
             billingCycle: offer.billingCycle,
-            priceBreakdown: offer.priceBreakdown,
+            priceBreakdown: money.priceBreakdown,
             lineItems: source,
             promotionSnapshots: offer.promotionSnapshots ?? [],
-            promoCodeSnapshot: offer.promoCodeSnapshot ?? null,
+            promoCodeSnapshot: money.promoCodeSnapshot,
         }).map((item) => this.offerLineItemToContractLineItem(item));
-        // From the offer's own breakdown rather than today's catalogue: the
-        // offer froze the currency and the rate at the moment it was made, and
-        // a contract concluded at 19 % is charged 19 % for its term whatever
-        // the configured rate becomes afterwards.
+        // From the offer's breakdown rather than today's catalogue: the offer
+        // froze the currency and the net at the moment it was made. The rate is
+        // the offer's, or where a tax adapter decides, the one decided for the
+        // subscriber who concludes.
         return recordContractLinesMoney(lines, {
-            currency: offer.priceBreakdown.currency,
-            taxRate: offer.priceBreakdown.vatRate,
+            currency: money.priceBreakdown.currency,
+            taxRate: money.priceBreakdown.vatRate,
         });
     }
 
@@ -430,19 +564,6 @@ export class SubscriptionContractService {
             });
         }
         return date;
-    }
-
-    private priceSnapshotFromOffer(offer: CheckoutOfferRow): SubscriptionContractPriceSnapshot {
-        const breakdown = offer.priceBreakdown;
-        return {
-            currency: breakdown.currency,
-            billingCycle: breakdown.billingCycle,
-            subtotalNet: breakdown.regularNet,
-            discountNet: Math.max(0, sumToCents(breakdown.regularNet, -breakdown.effectiveNet)),
-            totalNet: breakdown.effectiveNet,
-            vatRate: breakdown.vatRate,
-            totalGross: breakdown.effectiveGross,
-        };
     }
 
     private assertCreateData(data: CreateSubscriptionContractData): void {
@@ -627,4 +748,33 @@ function contractNotFound(contractId: string): NotFoundException {
         message: `SubscriptionContract '${contractId}' not found`,
         params: { contractId },
     });
+}
+
+/** The price snapshot a contract records, from an offer's breakdown at the rate concluded. */
+function priceSnapshotOf(
+    breakdown: CheckoutOfferPriceBreakdown,
+): SubscriptionContractPriceSnapshot {
+    return {
+        currency: breakdown.currency,
+        billingCycle: breakdown.billingCycle,
+        subtotalNet: breakdown.regularNet,
+        discountNet: Math.max(0, sumToCents(breakdown.regularNet, -breakdown.effectiveNet)),
+        totalNet: breakdown.effectiveNet,
+        vatRate: breakdown.vatRate,
+        totalGross: breakdown.effectiveGross,
+    };
+}
+
+/** The first period a contract's data covers, for the tax adapter to decide over. */
+function contractTaxPeriodOf(data: CreateSubscriptionContractData): TaxPeriod {
+    return contractTaxPeriod({
+        effectiveFrom: data.effectiveFrom,
+        effectiveUntil: data.effectiveUntil ?? null,
+        billingCycle: data.priceSnapshot.billingCycle,
+    });
+}
+
+/** The treatment a decided tax records with the contract; nothing where none was decided. */
+function taxTreatmentOf(decided: AppliedTax | null): { taxTreatment?: TaxTreatment } {
+    return decided?.treatment ? { taxTreatment: decided.treatment } : {};
 }

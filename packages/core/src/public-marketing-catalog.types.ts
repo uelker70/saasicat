@@ -150,6 +150,12 @@ export interface PublicMarketingCatalogResponse {
     currency: string;
     /** VAT rate in percent — for the CheckoutOffer price breakdown. */
     vatRate: number;
+    /**
+     * The country the rate applies to: the issuer's, where a tax adapter
+     * decides and a subscriber elsewhere may be charged another — the page says
+     * so (`SC-PRIC-037`). `null` where the one rate of the file applies to all.
+     */
+    vatRateShownFor: string | null;
     /** What a new payment method is taken with here, if one is taken. */
     newPaymentMethods: PublicNewPaymentMethods;
     /** Visible, marketed plans — sorted by `priority` DESC. */

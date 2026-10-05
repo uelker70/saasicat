@@ -15,6 +15,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { NOTES_FEATURE_UI_REGISTRY } from './saas/feature-ui-registry';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
+import { germanTaxAdapterFactory } from '@saasicat/tax-de';
 
 @Module({
     imports: [
@@ -75,6 +76,10 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                 payments: {
                     gateways: { dev: new DevPaymentGateway() },
                 },
+                // The factory of the tax adapter `config/saas.yaml#tax` names;
+                // what the operator declares to it, such as `smallBusiness`,
+                // stays in the file.
+                tax: { adapter: germanTaxAdapterFactory() },
                 adminResources: true,
                 promoCodes: true,
                 quotaProviders: [NotesQuotaProvider],

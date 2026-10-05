@@ -41,6 +41,7 @@ function switching(world, { noParty = [], freezeFails = false, ahead = [] } = {}
     const frozen = [];
     const invalidated = [];
     const recorded = [];
+    const asked = [];
     const service = new BundleRetirementSwitchService(
         world.service,
         world.catalogue,
@@ -49,7 +50,8 @@ function switching(world, { noParty = [], freezeFails = false, ahead = [] } = {}
         { of: async () => ahead },
         { invalidateTenant: (tenantId) => invalidated.push(tenantId) },
         {
-            async assertPartyFor(tenantId) {
+            async assertPartyFor(tenantId, intended) {
+                asked.push({ tenantId, intended, version: versionOf(world, 'sb-t1') });
                 if (noParty.includes(tenantId)) throw new Error('no party');
             },
             async freezeOnPlanChange(...args) {
@@ -59,7 +61,7 @@ function switching(world, { noParty = [], freezeFails = false, ahead = [] } = {}
         },
         { recordDueCharges: async (tenantId) => recorded.push(tenantId) },
     );
-    return { service, frozen, invalidated, recorded };
+    return { service, frozen, invalidated, recorded, asked };
 }
 
 const versionOf = (world, id) =>
@@ -104,6 +106,18 @@ describe('the switch before the date', () => {
         assert.equal(typeof terms.retirementId, 'string');
         assert.deepEqual(invalidated, ['t1']);
         assert.deepEqual(recorded, ['t1']);
+    });
+
+    test('asks the party about the contract it writes, before the booking moves', async () => {
+        const world = await announced();
+        const { service, frozen, asked } = switching(world);
+
+        await service.switchNow('t1', 'sb-t1', REPLACEMENT.id, BEFORE);
+
+        const [[, , cycle, effectiveFrom, endsAt]] = frozen;
+        assert.deepEqual(asked, [
+            { tenantId: 't1', intended: { effectiveFrom, cycle, endsAt }, version: RETIRED.id },
+        ]);
     });
 
     test('writes the contract to end where the subscription does', async () => {

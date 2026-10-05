@@ -167,45 +167,14 @@ _Tested by:_
 
 ### SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
 
-🟢 `dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate`,
+🔵 _(Superseded on 2026-10-04 by `SC-CFG-037`.)_
+`dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate`,
 `tenantBilling`, `marketing` and `notifications` from it; the plans and the features come from the
 database. No option takes a setting as a value in code, so the file defines them by construction
 rather than by agreement — an installation still passing the values does not start, and is told
 what the option takes instead.
 
 _Source:_ #217
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/platform-configuration-rules.test.js`
-    - a dbCatalog that still carries the values
-        - is a finding of its own, and the only one
-        - a path with a value left beside it is refused too, and the finding names the value
-        - an env beside the path is what the option takes
-        - a blank path is the same omission spelled differently
-        - a path is what the option takes, so the rule has nothing to say
-- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
-    - the settings an installation with a database catalogue runs on
-        - are the ones in the file dbCatalog names, every block the schema declares
-        - a variable the file names resolves through the environment dbCatalog is given
-        - the plans come from the database; a plans block in the file is the seed, not the catalogue
-    - where the record says the values came from, on the database path
-        - the absolute path of the file dbCatalog names
-    - a dbCatalog that still carries the values
-        - refuses the boot, naming what the option takes now
-        - is one finding, not two: the name it also carries is not reported on top
-        - and a blank path is the same omission
-        - a value left beside the path is refused too, and named
-        - a key left beside the path with nothing in it has passed nothing
-    - a file that does not load
-        - stops the boot with the loader's error, naming the path
-        - and names the option that named it, which the loader cannot
-        - is one finding beside the others, not a throw ahead of them
-        - or the field it is missing, rather than a TypeError further down
-
-<!-- END proof -->
 
 ### SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
 
@@ -1168,5 +1137,48 @@ _Tested by:_
     - a root module whose last import spans several lines
         - stays intact, and the new imports go after it
         - and a side-effect import is an import too, so nothing lands above it
+
+<!-- END proof -->
+
+### SC-CFG-037 — An installation whose plans live in the database reads its settings from the file
+
+🟢 `dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate` or
+`tax` with `timeZone`, `tenantBilling`, `marketing` and `notifications` from it; the plans and the
+features come from the database. No option takes a setting as a value in code, so the file defines
+them by construction rather than by agreement — an installation still passing the values does not
+start, and is told what the option takes instead.
+
+_Source:_ #331 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a dbCatalog that still carries the values
+        - is a finding of its own, and the only one
+        - a path with a value left beside it is refused too, and the finding names the value
+        - an env beside the path is what the option takes
+        - a blank path is the same omission spelled differently
+        - a path is what the option takes, so the rule has nothing to say
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - the settings an installation with a database catalogue runs on
+        - are the ones in the file dbCatalog names, every block the schema declares
+        - are the ones in the file dbCatalog names where it names a tax adapter instead of a rate
+        - a variable the file names resolves through the environment dbCatalog is given
+        - the plans come from the database; a plans block in the file is the seed, not the catalogue
+    - where the record says the values came from, on the database path
+        - the absolute path of the file dbCatalog names
+    - a dbCatalog that still carries the values
+        - refuses the boot, naming what the option takes now
+        - is one finding, not two: the name it also carries is not reported on top
+        - and a blank path is the same omission
+        - a value left beside the path is refused too, and named
+        - a key left beside the path with nothing in it has passed nothing
+    - a file that does not load
+        - stops the boot with the loader's error, naming the path
+        - and names the option that named it, which the loader cannot
+        - is one finding beside the others, not a throw ahead of them
+        - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->

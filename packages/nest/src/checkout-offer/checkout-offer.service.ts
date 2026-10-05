@@ -61,6 +61,7 @@ import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
     CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
 } from './checkout-offer.tokens.js';
+import { contractTaxPeriod } from '../tax/tax-treatments.js';
 
 /** The language an offer is described in when the caller names none. */
 const DEFAULT_OFFER_LOCALE = 'de';
@@ -367,8 +368,21 @@ export class CheckoutOfferService {
         if (standing) return standing;
 
         const existing = await this.assertConsumable(id);
-        const checked = contracts.prepareFromOffer(existing, contractOptions);
-        await this.assertParty(subscribers, contracts, tenantId, subscriber);
+        // The party first: a subscriber that may not be created, or a tenant
+        // without one, is refused as such before its tax is asked about.
+        await this.assertParty(subscribers, tenantId, subscriber);
+        // The offer shows the rate for a subscriber in the issuer's country; the
+        // contract is concluded at the one decided for the subscriber who takes
+        // it, and a case the tax adapter does not support is refused here.
+        const rate = await contracts.contractTaxRateFor(
+            subscriber ? { newSubscriber: subscriber } : { tenantId },
+            contractTaxPeriod({
+                effectiveFrom: contractOptions.effectiveFrom,
+                effectiveUntil: contractOptions.effectiveUntil ?? null,
+                billingCycle: existing.billingCycle,
+            }),
+        );
+        const checked = contracts.prepareFromOffer(existing, contractOptions, rate);
         let consumeFailed = false;
         const concludeOn = async (tx: TransactionContext): Promise<ConcludedCheckoutOffer> => {
             // Per attempt: a runner may run this again, and a consume refused
@@ -390,7 +404,7 @@ export class CheckoutOfferService {
             // to exist to be compared: lines emptied in the window, or a
             // minimum term that stopped being a date. Either way nothing is
             // written.
-            const data = contracts.createDataFromOffer(offer, contractOptions);
+            const data = contracts.createDataFromOffer(offer, contractOptions, rate);
             if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
             if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
             const contract = await contracts.create(data, tx);
@@ -472,12 +486,13 @@ export class CheckoutOfferService {
      */
     private async assertParty(
         subscribers: SubscriberService,
-        contracts: SubscriptionContractService,
         tenantId: string,
         subscriber: NewSubscriberDetails | undefined,
     ): Promise<void> {
+        // The party only: the tax is decided after it, over the contract's own
+        // first period.
         if (!subscriber) {
-            await contracts.assertPartyFor(tenantId);
+            await subscribers.requireForTenant(tenantId);
             return;
         }
         settleNewSubscriberDetails(subscriber);

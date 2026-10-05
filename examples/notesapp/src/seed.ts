@@ -33,6 +33,22 @@ const DEMO_TENANTS: DemoTenant[] = [
     { id: 'initech', slug: 'initech', name: 'Initech AG', isActive: false, notes: 7 },
 ];
 
+/**
+ * Where each demo tenant's subscriber is, for the tax adapter to decide from.
+ * Every one is a business; Globex, outside the European Union, is not taxable
+ * in Germany and so shows a contract at 0 %.
+ */
+const SUBSCRIBER_COUNTRIES: Record<string, string> = {
+    'tenant-a': 'DE',
+    'tenant-b': 'DE',
+    acme: 'DE',
+    globex: 'GB',
+    initech: 'DE',
+};
+
+/** Who the seed's changes of a subscriber's details are recorded as made by. */
+const SEEDED_BY = 'seed:notesapp';
+
 /** The one `marketing_settings` row, matching the schema's constant default. */
 const MARKETING_SETTINGS_ROW_ID = 'marketing-settings';
 
@@ -316,11 +332,32 @@ async function seedSubscribers(prisma: PrismaClient): Promise<void> {
         loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
     );
     for (const tenant of DEMO_TENANTS) {
-        if (await subscribers.findByTenantId(tenant.id)) continue;
-        await subscribers.createForTenant(tenant.id, {
-            legalName: tenant.name,
-            invoiceEmail: `billing@${tenant.slug}.example`,
-        });
+        const existing = await subscribers.findByTenantId(tenant.id);
+        if (!existing) {
+            await subscribers.createForTenant(tenant.id, {
+                legalName: tenant.name,
+                invoiceEmail: `billing@${tenant.slug}.example`,
+                country: SUBSCRIBER_COUNTRIES[tenant.id],
+                business: true,
+            });
+            continue;
+        }
+        // A subscriber seeded without a country or a business status: the tax
+        // adapter decides from both, so they are filled in where they are
+        // missing, and nothing else is touched.
+        if (existing.country === null) {
+            await subscribers.changeContactOfTenant(
+                tenant.id,
+                { country: SUBSCRIBER_COUNTRIES[tenant.id] },
+                SEEDED_BY,
+            );
+        }
+        if (existing.business === null) {
+            await subscribers.changeBusinessStatus(existing.id, {
+                business: true,
+                changedBy: SEEDED_BY,
+            });
+        }
     }
 }
 

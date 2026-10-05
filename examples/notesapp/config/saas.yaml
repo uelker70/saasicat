@@ -5,7 +5,18 @@ app:
     label: NotesApp Cockpit
 
 currency: EUR
-vatRate: 19.0
+
+# The installation's time zone: the calendar the days of a tax period count in.
+timeZone: Europe/Berlin
+
+# The tax adapter that decides each charge's treatment for the issuer below
+# (ADR 0013). The application binds its factory in code — src/app.module.ts —
+# and the start refuses a name the two do not share. With an adapter every rate
+# comes from it, so `vatRate` is not allowed beside it.
+tax:
+    adapter: '@saasicat/tax-de'
+    options:
+        smallBusiness: false
 
 # What the tenant self-service routes are allowed to do, and on what terms.
 # These live here and nowhere else: an operator reading this file has to be

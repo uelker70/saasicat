@@ -47,18 +47,20 @@ import { bookingOverBy } from './bundle-retirement-reach.js';
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { contractUnlessTrialOf } from './freeze-contract-after.js';
 import { bundleRetirementNoticesDue, groupByRetiredBundleVersion } from './retirement-notices.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
+import { isTaxNotSupported } from '../tax/tax-treatments.js';
 
 /** The name the run writes its audit entries under: `job:platform:add-on-retirement-moves`. */
 const JOB = 'add-on-retirement-moves';
 
 /** Why a move was not made, as its audit entry and the log say it. */
-type MoveFailure = 'no-party' | 'contract-not-written';
+type MoveFailure = 'no-party' | 'tax-not-supported' | 'contract-not-written';
 
 @Injectable()
 export class BundleRetirementMoveService {
@@ -130,7 +132,7 @@ export class BundleRetirementMoveService {
                         if (ranPastItsDate) await this.endedBeforeItsMove(notice);
                         continue;
                     }
-                    const outcome = await this.move(notice, booking, now);
+                    const outcome = await this.move(notice, booking, sub, now);
                     if (outcome === 'moved') moved += 1;
                     if (outcome === 'failed') failed += 1;
                 }
@@ -142,6 +144,7 @@ export class BundleRetirementMoveService {
     private async move(
         notice: BundleVersionRetiredNotice,
         booking: SubscriptionBundleRecord,
+        readByTheRun: SubscriptionUsageRecord,
         now: Date,
     ): Promise<'moved' | 'failed' | 'changed'> {
         const { tenantId } = notice;
@@ -149,9 +152,12 @@ export class BundleRetirementMoveService {
         // contract that cannot name its party would leave the booking on one
         // version and its contract on the other.
         try {
-            await this.contractFreeze?.assertPartyFor(tenantId);
-        } catch {
-            return this.failed(notice, 'no-party');
+            await this.contractFreeze?.assertPartyFor(
+                tenantId,
+                contractUnlessTrialOf(readByTheRun, now),
+            );
+        } catch (error) {
+            return this.failed(notice, isTaxNotSupported(error) ? 'tax-not-supported' : 'no-party');
         }
         // `moveToVersion` is required where retiring is on. Nothing claimed:
         // the booking left the version between the read and the write, and the

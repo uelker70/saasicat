@@ -1,4 +1,4 @@
-// @requirement SC-MKT-023 — An offer's amounts are computed from the catalogue, never taken from the request
+// @requirement SC-MKT-027 — An offer's amounts are computed from the catalogue, never taken from the request
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,6 +22,7 @@ import {
     fakePromoCodes,
     fakePromotionRepo,
 } from './helpers/checkout-catalogue.js';
+import { TAX_SETTINGS, taxesDeciding } from './helpers/tax-adapter.js';
 
 // What a hand-built request would add to a selection to buy for less.
 const PRICED_BY_THE_CALLER = {
@@ -196,6 +197,85 @@ describe('where each amount comes from', () => {
         assert.equal(offer.promoCodeSnapshot.resolvedAmountNet, 3.92);
         assert.equal(offer.priceBreakdown.effectiveNet, 35.28);
         assert.equal(offer.priceBreakdown.effectiveGross, 41.98);
+    });
+});
+
+// @requirement SC-PROMO-030 — A promo code and a promotion together leave something to pay
+describe('a code and the promotion on the plan together leave something to pay', () => {
+    /** A code of a fixed amount, as the promo module accepts it for the plan's own price. */
+    const amountOff = (value, allowZeroInvoice = false) => ({
+        valid: true,
+        code: 'AMOUNT',
+        label: `${value} € off`,
+        discount: {
+            valueType: 'ABSOLUTE',
+            value: value.toFixed(2),
+            durationType: 'ONCE',
+            durationValue: null,
+            allowZeroInvoice,
+        },
+    });
+    // 49 − 9.80 promotion = 39.20 net, 46.65 gross at 19 %.
+    const priced = (code, adapter = false) =>
+        buildOfferService({
+            promotions: fakePromotionRepo([promotion({ id: 'spring' })]),
+            promoCodes: fakePromoCodes([code]),
+            ...(adapter
+                ? { catalog: { currency: 'EUR', ...TAX_SETTINGS }, taxes: taxesDeciding() }
+                : {}),
+        }).service.create(select({ promoCode: 'AMOUNT' }));
+    const leavesNothing = refusedWith('CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED', {
+        reason: 'WOULD_PRODUCE_ZERO_INVOICE',
+    });
+
+    test('without an adapter the gross after the promotion is the bar', async () => {
+        await assert.rejects(priced(amountOff(46.65)), leavesNothing);
+        const offer = await priced(amountOff(46.64));
+        assert.equal(offer.priceBreakdown.effectiveNet, 0.01);
+    });
+
+    test('with an adapter the net after the promotion is the bar', async () => {
+        await assert.rejects(priced(amountOff(39.2), true), leavesNothing);
+        const offer = await priced(amountOff(39.19), true);
+        assert.ok(offer.priceBreakdown.effectiveNet > 0);
+    });
+
+    test("a promotion that leaves nothing is the operator's own: the code takes nothing, and the offer stands", async () => {
+        const { service } = buildOfferService({
+            promotions: fakePromotionRepo([promotion({ id: 'all', value: 100 })]),
+            promoCodes: fakePromoCodes([amountOff(5)]),
+        });
+        const offer = await service.create(select({ promoCode: 'AMOUNT' }));
+        assert.equal(offer.promoCodeSnapshot.resolvedAmountNet, 0);
+        assert.equal(offer.priceBreakdown.effectiveNet, 0);
+    });
+
+    test('the plan alone is the price it is measured against: an add-on beside it does not save the code', async () => {
+        const offer = buildOfferService({
+            promotions: fakePromotionRepo([promotion({ id: 'spring' })]),
+            promoCodes: fakePromoCodes([amountOff(46.65)]),
+        }).service.create(select({ promoCode: 'AMOUNT', bundleVersionIds: [BUNDLE_VERSION.id] }));
+        await assert.rejects(offer, leavesNothing);
+    });
+
+    test('the operator may allow it to leave nothing', async () => {
+        const offer = await priced(amountOff(39.2, true), true);
+        assert.equal(offer.priceBreakdown.effectiveNet, 6.26);
+    });
+
+    test('concluding asks again: an allowance taken back since refuses the offer', async () => {
+        const code = amountOff(39.2, true);
+        const { service, repo } = buildOfferService({
+            promotions: fakePromotionRepo([promotion({ id: 'spring' })]),
+            promoCodes: fakePromoCodes([code]),
+            catalog: { currency: 'EUR', ...TAX_SETTINGS },
+            taxes: taxesDeciding(),
+        });
+        const offer = await service.create(select({ promoCode: 'AMOUNT' }));
+        code.discount.allowZeroInvoice = false;
+
+        await assert.rejects(() => service.consume(offer.id), leavesNothing);
+        assert.equal(repo.rows.get(offer.id).status, 'open');
     });
 });
 

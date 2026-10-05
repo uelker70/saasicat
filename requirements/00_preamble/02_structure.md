@@ -83,14 +83,14 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 64      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 67      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 30      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 27      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 26      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 586 entries: 🟢 509 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
-🔵 10 superseded, 🔴 3 withdrawn.
+Of 593 entries: 🟢 510 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 16 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -174,9 +174,15 @@ Of 586 entries: 🟢 509 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
+[SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
+[SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
+[SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
+[SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
 🔴 **Withdrawn** — [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),

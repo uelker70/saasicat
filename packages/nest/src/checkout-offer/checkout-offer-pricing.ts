@@ -38,6 +38,7 @@ import {
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { promoCodeDiscountNet } from '../promo/calculator.js';
+import { discountOnPlan, payableBasisOf } from '../promo/code-rules.js';
 import { sumToCents } from '@saasicat/core';
 import { grossFromNet } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
@@ -46,6 +47,9 @@ import { sameAddOn } from '../billing/add-on-already-booked.js';
 import { addOnMisfits, type AddOnMisfit } from '../billing/add-on-fits-plan.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { rateOfTheFile, type TaxTreatments } from '../tax/tax-treatments.js';
+import { effectiveNetOf } from './offer-money-at-rate.js';
 
 /** The language a promotion's texts fall back to, as the public catalogue reads them. */
 const DEFAULT_LOCALE = 'de';
@@ -104,6 +108,9 @@ export class CheckoutOfferPricing {
         @Optional()
         @Inject(PromoCodesService)
         private readonly promoCodes: PromoCodesService | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {
         // Checkout prices the version on sale and nothing else; a repository
         // that cannot name it would refuse every checkout as not offered.
@@ -174,13 +181,18 @@ export class CheckoutOfferPricing {
         bundleVersions: BundleVersionRow[],
         asOf: Date,
     ): Promise<PricedCheckoutOffer> {
-        const vatRate = this.settings.vatRate;
+        // The subscriber's origin is not known yet: the offer shows the rate for
+        // a subscriber in the issuer's country, and the contract is concluded
+        // at the rate decided for the subscriber who takes it.
+        const vatRate = this.taxes
+            ? this.taxes.shown(asOf, input.billingCycle).rate
+            : rateOfTheFile(this.settings).rate;
         const promotions = this.promotions ? await this.promotions.list() : [];
         const plan = await this.plans.findByKey(input.planKey);
 
-        const planLine = this.pricePlan(input, planVersion, plan?.label, promotions, asOf);
+        const planLine = this.pricePlan(input, planVersion, plan?.label, promotions, asOf, vatRate);
         const bundleLines = bundleVersions.map((version) =>
-            this.priceBundle(input, version, promotions, asOf),
+            this.priceBundle(input, version, promotions, asOf, vatRate),
         );
         const promotionSnapshots = [planLine, ...bundleLines]
             .map((priced) => priced.promotion)
@@ -197,13 +209,10 @@ export class CheckoutOfferPricing {
             -(planLine.promotion?.resolvedAmountNet ?? 0),
         );
         const promoCodeSnapshot = await this.pricePromoCode(input, planNetAfterPromotion, vatRate);
-        const effectiveNet = Math.max(
-            0,
-            sumToCents(
-                regularNet,
-                -promotionDiscount,
-                -(promoCodeSnapshot?.resolvedAmountNet ?? 0),
-            ),
+        const effectiveNet = effectiveNetOf(
+            regularNet,
+            promotionDiscount,
+            promoCodeSnapshot?.resolvedAmountNet ?? 0,
         );
 
         const priceBreakdown: CheckoutOfferPriceBreakdown = {
@@ -303,6 +312,7 @@ export class CheckoutOfferPricing {
         label: string | undefined,
         promotions: PromotionRow[],
         asOf: Date,
+        vatRate: number,
     ): PricedLine {
         const priceNet = priceOf(version, input.billingCycle) as number;
         return {
@@ -312,6 +322,7 @@ export class CheckoutOfferPricing {
                 sourceVersionId: version.id,
                 title: label ?? input.planKey,
                 priceNet,
+                vatRate,
                 billingCycle: input.billingCycle,
                 features: version.features ?? [],
                 quotas: version.quotas ?? {},
@@ -325,6 +336,7 @@ export class CheckoutOfferPricing {
         version: BundleVersionRow,
         promotions: PromotionRow[],
         asOf: Date,
+        vatRate: number,
     ): PricedLine {
         const priceNet = resolveBundlePriceNet(
             version,
@@ -338,6 +350,7 @@ export class CheckoutOfferPricing {
                 sourceVersionId: version.id,
                 title: version.label,
                 priceNet,
+                vatRate,
                 billingCycle: input.billingCycle,
                 features: version.features ?? [],
                 quotas: version.quotas ?? {},
@@ -352,6 +365,7 @@ export class CheckoutOfferPricing {
         sourceVersionId: string;
         title: string;
         priceNet: number;
+        vatRate: number;
         billingCycle: Cycle;
         features: string[];
         quotas: Record<string, number>;
@@ -365,7 +379,7 @@ export class CheckoutOfferPricing {
             quantity: 1,
             unit: null,
             priceNet: fields.priceNet,
-            priceGross: grossFromNet(fields.priceNet, this.settings.vatRate),
+            priceGross: grossFromNet(fields.priceNet, fields.vatRate),
             billingCycle: fields.billingCycle,
             featuresSnapshot: [...fields.features],
             quotaEffectsSnapshot: { ...fields.quotas },
@@ -396,6 +410,17 @@ export class CheckoutOfferPricing {
             { checkoutOfferId: input.checkoutOfferId, concluding: input.concluding },
         );
         if (!preview.valid) throw promoCodeNotAccepted(preview.reason);
+        // The promo module measured the code against the plan's own price; it
+        // comes off the price after the promotion, and must not take all that
+        // the promotion leaves (`SC-PROMO-030`) — measured where the subscriber
+        // pays least, as the promo module measures. Priced again at conclusion,
+        // so asked there too. A promotion that leaves nothing is the operator's
+        // own, and the code then takes nothing.
+        const afterPromotion =
+            payableBasisOf(this.taxes) === 'net' ? planNet : grossFromNet(planNet, vatRate);
+        if (afterPromotion > 0 && discountOnPlan(preview.discount, afterPromotion).zeroInvoice) {
+            throw promoCodeNotAccepted('WOULD_PRODUCE_ZERO_INVOICE');
+        }
 
         const resolvedAmountNet = promoCodeDiscountNet(planNet, vatRate, preview.discount);
         return {

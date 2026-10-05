@@ -77,7 +77,6 @@ describe('the window a version is published with', () => {
 });
 
 // @requirement SC-PLAN-016 — A version can be given an end date, and it lies in the future
-// @requirement SC-PRIC-016 — A tax rate has a validity window
 describe('the window a version is refused for', () => {
     test('no start at all', () => {
         assert.equal(refusalOf({}, {}, null), CODES.validFromRequired);

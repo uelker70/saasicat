@@ -9,6 +9,8 @@ import {
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
 import type { PlanCatalogOrigin, PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { rateOfTheFile, type TaxTreatments } from '../tax/tax-treatments.js';
 
 /**
  * DI token for the platform core contribution. When `AdminManifestModule` is
@@ -44,6 +46,9 @@ export class AdminManifestService {
         @Optional()
         @Inject(PLATFORM_CORE_CONTRIBUTION_TOKEN)
         platformCore: ManifestContribution | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {
         if (platformCore) {
             this.contributions.push(platformCore);
@@ -80,7 +85,13 @@ export class AdminManifestService {
             schemaVersion: 1,
             project: this.config.project,
             build: { ...this.config.build, manifestHash: 'sha256-pending' },
-            planCatalogSnapshot: planCatalogSnapshotOf(catalog, this.planCatalogs.origin),
+            planCatalogSnapshot: planCatalogSnapshotOf(
+                catalog,
+                this.planCatalogs.origin,
+                this.taxes
+                    ? this.taxes.shown(new Date(), 'MONTHLY').rate
+                    : rateOfTheFile(catalog).rate,
+            ),
             capabilities: merged.capabilities,
             navigation: merged.navigation,
             dashboard: merged.dashboard,
@@ -153,10 +164,11 @@ interface MergedContributions {
 function planCatalogSnapshotOf(
     catalog: PlanCatalog,
     origin: PlanCatalogOrigin,
+    vatRate: number,
 ): AdminManifest['planCatalogSnapshot'] {
     const carried = {
         currency: catalog.currency,
-        vatRate: catalog.vatRate,
+        vatRate,
         plans: catalog.plans ?? [],
         features: catalog.features ?? [],
     };

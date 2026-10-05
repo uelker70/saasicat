@@ -442,7 +442,12 @@ export interface ConfiguratorPlanMarketing {
  */
 export interface ConfiguratorMarketingProvider {
     listPlanMarketing(): ConfiguratorPlanMarketing[];
-    getVatRate(): number;
+    /**
+     * The rate the configurator shows. Required where config/saas.yaml names no
+     * tax adapter; left out where it names one, whose rate for a subscriber in
+     * the issuer's country is shown instead.
+     */
+    getVatRate?(): number;
     getCurrency(): string;
 }
 

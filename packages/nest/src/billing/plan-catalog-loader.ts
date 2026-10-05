@@ -12,6 +12,7 @@ import {
     resolveEnvironmentReferences,
     type SchemaNode,
 } from './plan-catalog-environment.js';
+import { taxSettingsProblems } from './plan-catalog-tax-settings.js';
 
 // Plan catalog loader — pure function.
 //
@@ -175,6 +176,12 @@ export function loadPlanCatalogFromString(
 
     if (!validate(resolved)) {
         throw new PlanCatalogValidationError(opts.source, validate.errors ?? []);
+    }
+    // Not a cross-field check: a document with neither rate source, or both,
+    // is not a catalogue, whichever checks the caller asked for.
+    const taxProblems = taxSettingsProblems(resolved as Record<string, unknown>);
+    if (taxProblems.length > 0) {
+        throw new PlanCatalogValidationError(opts.source, taxProblems);
     }
 
     const catalog = resolved as PlanCatalog;

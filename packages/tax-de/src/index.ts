@@ -1,1 +1,5 @@
-export { GermanTaxAdapter, type GermanTaxAdapterOptions } from './german-tax-adapter.js';
+export {
+    GermanTaxAdapter,
+    germanTaxAdapterFactory,
+    type GermanTaxAdapterOptions,
+} from './german-tax-adapter.js';

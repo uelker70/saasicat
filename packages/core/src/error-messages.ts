@@ -290,6 +290,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'For absolute amounts the discount must stay below the lowest applicable plan price, or allowZeroInvoice must be enabled.',
     PROMO_MAX_REDEMPTIONS_LOWERED: 'maxRedemptions cannot be lowered.',
     // ── contract ──
+    SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
+        'The contract states {stated} % in {field}, and the tax adapter decides {decided} %.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'A checkout offer can yield only one contract, and only once its line items are frozen.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED: 'A checkout offer requires a frozen plan line item.',
@@ -400,6 +402,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     MAINTENANCE_TIME_INVALID:
         'The {field} has to be a date and time with its zone, such as 2026-10-02T22:00+02:00.',
     MAINTENANCE_MESSAGE_TOO_LONG: 'The message may be at most {max} characters long.',
+    // ── tax ──
+    TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
 };
 
 /** Values available for interpolation into a message template. */

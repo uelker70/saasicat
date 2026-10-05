@@ -39,6 +39,8 @@ import {
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
 import { versionOnSale } from '../billing/version-on-sale.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import type { TaxTreatments } from '../tax/tax-treatments.js';
 
 const DEFAULT_LOCALE = 'de';
 
@@ -100,7 +102,38 @@ export class PublicMarketingCatalogService {
         // second one publishes "no payment method" while a form asks for one.
         @Inject(NEW_PAYMENT_METHODS_SOURCE_TOKEN)
         private readonly newPaymentMethodsSource: NewPaymentMethodsSource | null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {}
+
+    /**
+     * The rate the page shows: the one the application passes, or where
+     * config/saas.yaml names a tax adapter, its rate for a subscriber in the
+     * issuer's country, said to be that country's.
+     */
+    private shownRate(
+        vatRate: number | null,
+        asOf: Date,
+    ): { rate: number; shownFor: string | null } {
+        if (vatRate !== null) {
+            // One source of the rate: the start rule refuses this where
+            // `SaaSiCatModule` composes the catalogue, and a `CatalogModule`
+            // mounted on its own meets it here.
+            if (this.taxes?.adapter) {
+                throw new Error(
+                    'catalog.publicMarketingCatalog.vatRate names a rate beside the tax adapter config/saas.yaml names. The adapter is the one source of the rate: remove vatRate.',
+                );
+            }
+            return { rate: vatRate, shownFor: null };
+        }
+        if (!this.taxes) {
+            throw new Error(
+                'The public marketing catalogue has no vatRate and no tax adapter to take one from.',
+            );
+        }
+        return { rate: this.taxes.shown(asOf, 'monthly').rate, shownFor: this.taxes.shownFor };
+    }
 
     /** What a new payment method is taken with here, for the page that offers the plans. */
     private newPaymentMethods(): PublicNewPaymentMethods {
@@ -112,16 +145,18 @@ export class PublicMarketingCatalogService {
     async getCatalog(
         locale: string,
         currency: string,
-        vatRate: number,
+        vatRate: number | null,
         asOf: Date = new Date(),
     ): Promise<PublicMarketingCatalogResponse> {
+        const shown = this.shownRate(vatRate, asOf);
         const empty = { features: [], quotas: [] };
         // A repository that reads no versions has nothing on sale to show.
         if (!this.planRepo.findActivePlanVersion) {
             return {
                 locale,
                 currency,
-                vatRate,
+                vatRate: shown.rate,
+                vatRateShownFor: shown.shownFor,
                 newPaymentMethods: this.newPaymentMethods(),
                 plans: [],
                 bundles: [],
@@ -211,7 +246,8 @@ export class PublicMarketingCatalogService {
         return {
             locale,
             currency,
-            vatRate,
+            vatRate: shown.rate,
+            vatRateShownFor: shown.shownFor,
             newPaymentMethods: this.newPaymentMethods(),
             plans: out,
             bundles: publicBundles,

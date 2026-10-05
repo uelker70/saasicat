@@ -1,17 +1,41 @@
 import type { Logger } from '@nestjs/common';
-import type { BillingCycle } from '@saasicat/core';
+import type { BillingCycle, SubscriptionUsageRecord } from '@saasicat/core';
 
+import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
+import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
 import type { ContractFreezePort, RetirementContractTerms } from './contract-freeze.tokens.js';
 
 /** The contract a change freezes: the plan and rhythm it leaves, from when, and until when. */
-export interface FrozenTerms {
+export interface FrozenTerms extends IntendedContract {
     plan: string;
-    cycle: BillingCycle;
-    effectiveFrom: Date;
-    /** When the subscription ends, or null while it runs on. */
-    endsAt: Date | null;
     /** Where a retirement writes it: its move, or the switch it offers. */
     retirement?: RetirementContractTerms;
+}
+
+/**
+ * The contract a change to `sub` freezes from `effectiveFrom`: in `cycle`, the
+ * subscription's own rhythm unless the change names another, and ending when
+ * the subscription does.
+ */
+export function intendedContractOf(
+    sub: SubscriptionUsageRecord,
+    effectiveFrom: Date,
+    cycle: BillingCycle = sub.billingCycle as BillingCycle,
+): IntendedContract {
+    return { effectiveFrom, cycle, endsAt: cancellationLandsAt(sub) };
+}
+
+/**
+ * The contract a change made to `sub` now freezes, or `null` in a trial: a
+ * trial commits to no period, a change made in it freezes nothing, and its
+ * contract is frozen when it converts.
+ */
+export function contractUnlessTrialOf(
+    sub: SubscriptionUsageRecord,
+    effectiveFrom: Date,
+    cycle?: BillingCycle,
+): IntendedContract | null {
+    return sub.status === 'TRIAL' ? null : intendedContractOf(sub, effectiveFrom, cycle);
 }
 
 /**

@@ -10,6 +10,7 @@
 import type { BillingCycle, PlanVersionRow } from '@saasicat/core';
 
 import type { PricedContractLineItem } from '../subscription-contract/contract-line-item-money.js';
+import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
 
 /**
  * Optional hook token: the platform `changePlan` path + the
@@ -26,15 +27,22 @@ export const CONTRACT_FREEZE_SOURCE_PORT_TOKEN = Symbol.for(
 
 export interface ContractFreezePort {
     /**
-     * Refuses, with `SUBSCRIBER_REQUIRED`, a tenant that has no subscriber.
+     * Refuses, with `SUBSCRIBER_REQUIRED`, a tenant that has no subscriber,
+     * and — where a tax adapter decides — with `TAX_TREATMENT_NOT_SUPPORTED` a
+     * subscriber it supports no treatment for over `intended`'s first period.
      *
-     * A frozen contract names the party it is concluded with, and a freeze
-     * runs after the change that asks for it — a plan change already written,
-     * an add-on already booked. Asked first, the change is refused while
-     * nothing has moved; asked only by the freeze, the tenant would be on the
-     * new plan with the old contract still in force.
+     * A frozen contract names the party it is concluded with and the tax
+     * decided for it, and a freeze runs after the change that asks for it — a
+     * plan change already written, an add-on already booked. Asked first, the
+     * change is refused while nothing has moved; asked only by the freeze, the
+     * tenant would be on the new plan with the old contract still in force.
+     * So the question is asked of the contract the freeze will write, not of
+     * one that resembles it: an adapter may treat a yearly period, or one that
+     * starts later, otherwise than a month from today. `null` where the change
+     * ends in no contract now — a plan change in a trial — asks for the party
+     * alone.
      */
-    assertPartyFor(tenantId: string): Promise<void>;
+    assertPartyFor(tenantId: string, intended: IntendedContract | null): Promise<void>;
 
     /**
      * Freezes the agreed service at `effectiveFrom` as the new active

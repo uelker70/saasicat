@@ -49,7 +49,13 @@ export const START10 = {
     valid: true,
     code: 'START10',
     label: '10 % Start',
-    discount: { valueType: 'PERCENT', value: '10.00', durationType: 'ONCE', durationValue: null },
+    discount: {
+        valueType: 'PERCENT',
+        value: '10.00',
+        durationType: 'ONCE',
+        durationValue: null,
+        allowZeroInvoice: false,
+    },
 };
 
 export function fakeOfferRepo() {
@@ -168,6 +174,7 @@ export function buildOfferService(overrides = {}) {
         contracts: null,
         transactions: null,
         subscribers: null,
+        taxes: null,
         ...overrides,
     };
     const pricing = new CheckoutOfferPricing(
@@ -176,6 +183,7 @@ export function buildOfferService(overrides = {}) {
         deps.bundles,
         deps.promotions,
         deps.promoCodes,
+        deps.taxes,
     );
     const service = new CheckoutOfferService(
         deps.repo,

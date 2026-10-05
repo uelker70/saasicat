@@ -75,7 +75,14 @@ import {
 export interface PublicMarketingCatalogOptions {
     guards: Array<Type<CanActivate>>;
     currency: string;
-    vatRate: number;
+    /**
+     * The rate the pricing page shows. Leave it out where config/saas.yaml names
+     * a tax adapter: the page then shows the adapter's rate for a subscriber in
+     * the issuer's country, and a rate beside an adapter is refused — by the
+     * start where `SaaSiCatModule` composes the catalogue, by the page where a
+     * `CatalogModule` is mounted on its own.
+     */
+    vatRate?: number;
     /**
      * Where the catalogue reads what a new payment method is taken with —
      * `PaymentGatewayRegistry` from `@saasicat/nest/payments` where the
@@ -223,7 +230,7 @@ export class CatalogModule {
                 buildPublicMarketingCatalogController(
                     options.publicMarketingCatalog.guards,
                     options.publicMarketingCatalog.currency,
-                    options.publicMarketingCatalog.vatRate,
+                    options.publicMarketingCatalog.vatRate ?? null,
                 ),
             );
         }

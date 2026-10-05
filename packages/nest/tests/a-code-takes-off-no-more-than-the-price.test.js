@@ -13,6 +13,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { TaxTreatments } from '../dist/billing/index.js';
 import {
     BASIC_GROSS,
     MemoryPromoCodes,
@@ -28,12 +29,17 @@ const JUST_BELOW = 11.77;
 const JUST_ABOVE = 11.79;
 
 /** A code as it stands in the store, and the promo service over it. */
-function withCode(terms, { catalog } = {}) {
+function withCode(terms, { catalog, taxes } = {}) {
     const codes = new MemoryPromoCodes();
     const promo = codes.add({ code: 'MONEY-OFF', ...terms });
     const subscriptions = new MemorySubscriptions();
     subscriptions.add({ id: 'subscription-1', tenantId: 'tenant-1', plan: 'BASIC' });
-    const built = promoCodesOver({ codes, subscriptions, ...(catalog ? { catalog } : {}) });
+    const built = promoCodesOver({
+        codes,
+        subscriptions,
+        ...(catalog ? { catalog } : {}),
+        ...(taxes ? { taxes } : {}),
+    });
     return { ...built, promo };
 }
 
@@ -82,7 +88,7 @@ describe('a changed percentage stays between 0 and 100', () => {
     });
 });
 
-// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
 describe('a changed amount stays below the lowest price it can apply to', () => {
     test('an amount of nothing, or less, is refused', async () => {
         const { service, promo } = withCode(absolute(5));
@@ -131,6 +137,97 @@ describe('a changed amount stays below the lowest price it can apply to', () => 
     });
 });
 
+// With a tax adapter a subscriber outside the issuer's VAT pays the net, so the
+// net is the price an absolute code must stay below. BASIC is 9.90 net.
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
+describe('with a tax adapter, an absolute code stays below the net price', () => {
+    const taxes = new TaxTreatments(
+        {
+            currency: 'EUR',
+            timeZone: 'Europe/Berlin',
+            tax: { adapter: 'test-tax' },
+            issuer: { legalName: 'Issuer GmbH', country: 'DE', vatId: 'DE123456789' },
+        },
+        {
+            name: 'test-tax',
+            version: '1.0.0',
+            decide: () => ({
+                supported: true,
+                treatment: {
+                    kind: 'standard',
+                    rate: 19,
+                    note: null,
+                    adapter: { name: 'test-tax', version: '1.0.0' },
+                },
+            }),
+            checkVatId: async () => ({ completed: false, reason: 'not asked' }),
+        },
+    );
+
+    test('the net price itself is refused, naming it as the net, and a cent below it accepted', async () => {
+        const { service, promo } = withCode(absolute(5), { taxes });
+
+        await assert.rejects(service.update(promo.id, { value: 9.9 }), (error) => {
+            const body = error.getResponse();
+            return (
+                body.code === 'PROMO_WOULD_PRODUCE_ZERO_INVOICE' &&
+                body.params.lowestApplicablePlanNet === 9.9 &&
+                !('lowestApplicablePlanGross' in body.params)
+            );
+        });
+        assert.equal(Number((await service.update(promo.id, { value: 9.89 })).value), 9.89);
+    });
+
+    test('an amount between the net and the gross price is refused, which without an adapter is accepted', async () => {
+        const withAdapter = withCode(absolute(5), { taxes });
+        await assert.rejects(
+            withAdapter.service.update(withAdapter.promo.id, { value: 11 }),
+            refusedWith('PROMO_WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+        const without = withCode(absolute(5));
+        assert.equal(
+            Number((await without.service.update(without.promo.id, { value: 11 })).value),
+            11,
+        );
+    });
+
+    // A code stored before the adapter was named, or a plan made cheaper since,
+    // can sit between the net and the gross; a subscriber at 0 % would pay
+    // nothing.
+    test('a stored amount between the net and the gross is refused where it is redeemed and previewed', async () => {
+        const withAdapter = withCode(absolute(11), { taxes });
+        await assert.rejects(
+            redeemOnBasic(withAdapter),
+            refusedWith('PROMO_CODE_NOT_REDEEMABLE', 'WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+        assert.deepEqual(
+            await withAdapter.service.preview({
+                code: 'MONEY-OFF',
+                planId: 'BASIC',
+                billingCycle: 'MONTHLY',
+            }),
+            { valid: false, reason: 'WOULD_PRODUCE_ZERO_INVOICE' },
+        );
+        const without = await redeemOnBasic(withCode(absolute(11)));
+        assert.equal(without.appliedValue, '11.00', 'without an adapter the gross is the bar');
+    });
+
+    test('a cent below the net is redeemed, and the net itself only where an invoice of zero is allowed', async () => {
+        assert.equal(
+            (await redeemOnBasic(withCode(absolute(9.89), { taxes }))).appliedValue,
+            '9.89',
+        );
+        await assert.rejects(
+            redeemOnBasic(withCode(absolute(9.9), { taxes })),
+            refusedWith('PROMO_CODE_NOT_REDEEMABLE', 'WOULD_PRODUCE_ZERO_INVOICE'),
+        );
+        assert.equal(
+            (await redeemOnBasic(withCode(absolute(9.9, true), { taxes }))).appliedValue,
+            '9.90',
+        );
+    });
+});
+
 describe('a change is held to the rules its fields bear on', () => {
     test('pausing a code whose terms no longer fit still works', async () => {
         // Pausing is how an operator stops a code; a code a former release let
@@ -161,7 +258,7 @@ describe('a change is held to the rules its fields bear on', () => {
     });
 });
 
-// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
+// @requirement SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
 describe('redeeming takes off no more than the price', () => {
     const cases = [
         { what: 'a cent below the price', value: JUST_BELOW, allow: false, applied: '11.77' },
@@ -239,6 +336,15 @@ describe('the preview draws the line at the same cent', () => {
         });
         const allowed = await previewOnBasic(withCode(absolute(BASIC_GROSS, true)));
         assert.equal(allowed.price.discountedGross, '0.00');
+    });
+
+    test('says whether the operator allows an invoice of zero, for a price it did not see', async () => {
+        const allowed = await previewOnBasic(withCode(absolute(5, true)));
+        const not = await previewOnBasic(withCode(absolute(5)));
+        assert.deepEqual(
+            [allowed.discount.allowZeroInvoice, not.discount.allowZeroInvoice],
+            [true, false],
+        );
     });
 
     test('more than the price takes off the price and no more', async () => {

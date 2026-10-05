@@ -62,6 +62,7 @@ import { BundleVersionRetirementService } from './bundle-version-retirement.serv
 import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { intendedContractOf } from './freeze-contract-after.js';
 import type { PlansAhead } from './plans-ahead.js';
 import { subscriptionNotFound } from './subscription-not-found.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -143,7 +144,7 @@ export class BundleRetirementSwitchService {
         }
         // Where contracts are frozen, the switch ends in one naming the
         // subscriber: refused here, while nothing has moved.
-        await this.contractFreeze?.assertPartyFor(tenantId);
+        await this.contractFreeze?.assertPartyFor(tenantId, intendedContractOf(sub, now));
         // `moveToVersion` is required where add-on versions are retired.
         const moved = await this.bookings.moveToVersion!(
             booking.id,

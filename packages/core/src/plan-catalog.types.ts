@@ -203,6 +203,14 @@ export interface PlanCatalogPayments {
     accounts: Record<string, PlanCatalogPaymentAccount>;
 }
 
+/** `config/saas.yaml#tax`: the adapter an installation names, and what the operator declares to it. */
+export interface PlanCatalogTax {
+    /** The adapter's package name, such as `@saasicat/tax-de`. */
+    adapter: string;
+    /** The options the adapter's factory builds it with; the factory checks them. */
+    options?: Record<string, unknown>;
+}
+
 /**
  * The part of `config/saas.yaml` that is configuration rather than catalogue.
  *
@@ -215,8 +223,15 @@ export interface PlanCatalogSettings {
     app: PlanCatalogApp;
     /** ISO-4217 currency code. */
     currency: string;
-    /** VAT rate in percent. */
-    vatRate: number;
+    /**
+     * VAT rate in percent. Every installation names it unless `tax` names a
+     * tax adapter, which is then the one source of every rate.
+     */
+    vatRate?: number;
+    /** The tax adapter that decides each charge's treatment, and its options. */
+    tax?: PlanCatalogTax;
+    /** The installation's time zone, an IANA name; required with `tax` (`SC-PRIC-045`). */
+    timeZone?: string;
     /** Commercial settings for the tenant self-service routes. */
     tenantBilling: PlanCatalogTenantBilling;
     /** App-wide marketing configuration. Optional. */

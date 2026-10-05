@@ -308,7 +308,7 @@ export class ContractRefreshService {
                     bound: today.planVersionId,
                 });
             }
-            return this.compared(contract, frozen, vocabulary, {
+            const successor: CreateSubscriptionContractData = {
                 ...this.contracts.dataOf(contract),
                 status: 'active',
                 effectiveFrom: asOf,
@@ -318,7 +318,21 @@ export class ContractRefreshService {
                     features: [...grantedToday].sort(),
                     ...leftOutOf(contract),
                 },
-            });
+            };
+            // The successor keeps the contract's money, and the write refuses it
+            // where a tax adapter now decides another rate for the subscriber:
+            // asked here too, so the preview says what the run will do.
+            try {
+                await this.contracts.decidedTaxFor(successor, {
+                    subscriberId: contract.subscriberId,
+                });
+            } catch (error) {
+                return refused(contract.id, contract.tenantId, vocabulary, {
+                    code: 'REFUSED',
+                    reason: messageOf(error),
+                });
+            }
+            return this.compared(contract, frozen, vocabulary, successor);
         }
 
         let successor: CreateSubscriptionContractData;

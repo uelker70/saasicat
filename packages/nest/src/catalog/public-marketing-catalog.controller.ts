@@ -13,7 +13,7 @@ import { UseRouteGuards } from '../admin/use-route-guards.decorator.js';
 export function buildPublicMarketingCatalogController(
     guards: Array<Type<CanActivate>>,
     currency: string,
-    vatRate: number,
+    vatRate: number | null,
 ): Type {
     @Controller('public/marketing-catalog')
     @SaaSiCatPublicRoute()

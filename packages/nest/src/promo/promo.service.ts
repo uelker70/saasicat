@@ -29,7 +29,7 @@ import type {
 import { BILLING_ERROR_CODES, CONTRACT_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/core';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
-import { getPlanPriceGross } from '../billing/plan-helpers.js';
+import { getPlanPriceGross, getPlanPriceNet } from '../billing/plan-helpers.js';
 import { answeringRefusals } from '../errors/answering-refusals.js';
 import {
     PROMO_CODE_HOLD_REPOSITORY_TOKEN,
@@ -48,12 +48,16 @@ import {
     appliedValue,
     assertCodeTerms,
     type CodeRuleContext,
+    type LowestPayablePrice,
     type CodeTermField,
     type CodeTerms,
     discountOnPlan,
+    payableBasisOf,
 } from './code-rules.js';
 import { computeIncludedVat, netFromGross } from './math.js';
 import { subscriptionNotFound } from '../billing/subscription-not-found.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import { rateOfTheFile, type TaxTreatments } from '../tax/tax-treatments.js';
 
 export const CODE_MIN_LENGTH = 4;
 export const CODE_MAX_LENGTH = 32;
@@ -101,6 +105,12 @@ export interface PreviewValid {
         value: string;
         durationType: PromoCodeRecord['durationType'];
         durationValue: number | null;
+        /**
+         * Whether the operator allows the code to leave nothing to pay, for a
+         * caller that takes it off a price this preview did not see — a plan
+         * price after its promotion (`SC-PROMO-030`).
+         */
+        allowZeroInvoice: boolean;
     };
     price: {
         originalGross: string;
@@ -195,6 +205,8 @@ type Verdict =
           catalog: PlanCatalog;
           planGross: number;
           discount: ReturnType<typeof discountOnPlan>;
+          /** The rate the plan's gross was shown at. */
+          shownRate: number;
       };
 
 @Injectable()
@@ -223,6 +235,9 @@ export class PromoCodesService {
         @Optional()
         @Inject(PROMO_CODE_HOLD_REPOSITORY_TOKEN)
         private readonly holds: PromoCodeHoldRepository | null = null,
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
     ) {}
 
     // ─── ADMIN: Creation / Editing ─────────────────────────────────────────
@@ -408,7 +423,7 @@ export class PromoCodesService {
         });
         if (verdict.reason !== null) return { valid: false, reason: verdict.reason };
 
-        const { catalog, planGross, discount } = verdict;
+        const { planGross, discount, shownRate } = verdict;
         const regularStartsAt = computeRegularStartsAt(
             now,
             input.billingCycle,
@@ -424,15 +439,14 @@ export class PromoCodesService {
                 value: Number(verdict.promo.value).toFixed(2),
                 durationType: verdict.promo.durationType,
                 durationValue: verdict.promo.durationValue,
+                allowZeroInvoice: verdict.promo.allowZeroInvoice,
             },
             price: {
                 originalGross: planGross.toFixed(2),
                 discountGross: discount.discountGross.toFixed(2),
-                discountNet: netFromGross(discount.discountGross, catalog.vatRate).toFixed(2),
+                discountNet: netFromGross(discount.discountGross, shownRate).toFixed(2),
                 discountedGross: discount.discountedGross.toFixed(2),
-                includedVat: computeIncludedVat(discount.discountedGross, catalog.vatRate).toFixed(
-                    2,
-                ),
+                includedVat: computeIncludedVat(discount.discountedGross, shownRate).toFixed(2),
                 nextRegularAmountGross: planGross.toFixed(2),
                 regularStartsAt: regularStartsAt ? regularStartsAt.toISOString() : null,
             },
@@ -690,14 +704,31 @@ export class PromoCodesService {
         if (refused) return { reason: refused };
         const found = promo as PromoCodeRecord;
         const catalog = await this.planCatalogs.current();
+        const shownRate = this.shownRate(catalog, input.billingCycle);
         const reason =
-            this.checkPlanPrice(found, input, catalog) ??
+            this.checkPlanPrice(found, input, catalog, shownRate) ??
             (await this.checkFirstTimeCustomer(found, input.email, options));
         if (reason) return { reason };
-        const planGross = getPlanPriceGross(catalog, input.planId, input.billingCycle) as number;
+        const planGross = getPlanPriceGross(
+            catalog,
+            input.planId,
+            input.billingCycle,
+            shownRate,
+        ) as number;
         const discount = discountOnPlan(found, planGross);
-        if (discount.zeroInvoice) return { reason: 'WOULD_PRODUCE_ZERO_INVOICE' };
-        return { reason: null, promo: found, catalog, planGross, discount };
+        // Measured against what the subscriber pays at the least, as when the
+        // code is created (`SC-PROMO-029`): a code created before a tax adapter
+        // was named, or a plan made cheaper since, can sit between the net and
+        // the gross, and would leave a subscriber at 0 % nothing to pay.
+        const leavesNothingToPay =
+            this.payableBasis === 'net'
+                ? discountOnPlan(
+                      found,
+                      getPlanPriceNet(catalog, input.planId, input.billingCycle) as number,
+                  ).zeroInvoice
+                : discount.zeroInvoice;
+        if (leavesNothingToPay) return { reason: 'WOULD_PRODUCE_ZERO_INVOICE' };
+        return { reason: null, promo: found, catalog, planGross, discount, shownRate };
     }
 
     /** Everything about a code that needs no plan price: its state, its slots, and the plans it fits. */
@@ -743,8 +774,9 @@ export class PromoCodesService {
         promo: PromoCodeRecord,
         input: { planId: string; billingCycle: BillingCycle },
         catalog: PlanCatalog,
+        shownRate: number,
     ): PreviewReason | null {
-        const planGross = getPlanPriceGross(catalog, input.planId, input.billingCycle);
+        const planGross = getPlanPriceGross(catalog, input.planId, input.billingCycle, shownRate);
         if (planGross == null) return 'PLAN_MISMATCH';
 
         if (promo.minimumPlanAmountGross && planGross < Number(promo.minimumPlanAmountGross)) {
@@ -835,23 +867,36 @@ export class PromoCodesService {
         return this.holds;
     }
 
+    /**
+     * The rate a price shows before the subscriber's origin is known: the tax
+     * adapter's answer for a subscriber in the issuer's country, or the file's.
+     */
+    private shownRate(catalog: PlanCatalog, cycle: BillingCycle): number {
+        return this.taxes ? this.taxes.shown(new Date(), cycle).rate : rateOfTheFile(catalog).rate;
+    }
+
     private ruleContext(): CodeRuleContext {
         return {
             nonRedeemablePlans: this.config.nonRedeemablePlans ?? [],
-            lowestApplicablePlanGross: async (plans) =>
-                this.lowestApplicablePlanGross(await this.planCatalogs.current(), plans),
+            lowestPayablePlanPrice: async (plans) =>
+                this.lowestPayablePlanPrice(await this.planCatalogs.current(), plans),
         };
     }
 
+    private get payableBasis(): LowestPayablePrice['basis'] {
+        return payableBasisOf(this.taxes);
+    }
+
     /**
-     * Lowest applicable plan price. With a whitelist it takes the minimum
-     * from the whitelist, otherwise across all marketed plans of the catalog
-     * (except non-redeemable).
+     * The lowest price a subscriber can pay for a plan the code applies to, on
+     * the `payableBasis`. With a whitelist it takes the minimum from the
+     * whitelist, otherwise across all marketed plans of the catalog (except
+     * non-redeemable).
      */
-    private lowestApplicablePlanGross(
+    private lowestPayablePlanPrice(
         catalog: PlanCatalog,
         plans: readonly string[],
-    ): number | null {
+    ): LowestPayablePrice | null {
         const blocked = new Set(this.config.nonRedeemablePlans ?? []);
         const candidates: readonly string[] =
             plans.length > 0
@@ -859,13 +904,17 @@ export class PromoCodesService {
                 : (catalog.plans ?? [])
                       .filter((p) => p.marketed !== false && !blocked.has(p.id))
                       .map((p) => p.id);
+        const basis = this.payableBasis;
         let min: number | null = null;
         for (const p of candidates) {
-            const g = getPlanPriceGross(catalog, p, 'MONTHLY');
-            if (g == null) continue;
-            if (min == null || g < min) min = g;
+            const price =
+                basis === 'net'
+                    ? getPlanPriceNet(catalog, p, 'MONTHLY')
+                    : getPlanPriceGross(catalog, p, 'MONTHLY');
+            if (price == null) continue;
+            if (min == null || price < min) min = price;
         }
-        return min;
+        return min === null ? null : { amount: min, basis };
     }
 }
 

@@ -1350,9 +1350,10 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
   the prefix and the issuer from `PLAN_CATALOG_SETTINGS_TOKEN`, so a `SubscriptionContractModule`
   wired by hand needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides
   globally.
-- **`ContractFreezePort`** gains `assertPartyFor(tenantId)`, which the plan-change and add-on routes
-  call before they write. An implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds
-  it: refuse a tenant without a subscriber, as `SubscriptionContractService.assertPartyFor` does.
+- **`ContractFreezePort`** gains `assertPartyFor(tenantId, intended)`, which the plan-change and
+  add-on routes call before they write; `intended` is the contract the change ends in. An
+  implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds it: refuse a tenant without
+  a subscriber, as `SubscriptionContractService.assertPartyFor` does.
 - **`SubscriptionContractRecord`** gains `subscriberId`, `subscriber` and `issuer` — the parties as
   copied at conclusion, the issuer `null` where none was named — and `partiesMigrated`. A
   `SubscriptionContractRepository` of your own writes `data.parties` on `create`.
@@ -1612,6 +1613,87 @@ counts as checked until it is checked, and a contract concluded before records n
 - **A persistence contract harness** gains no member: the new scenarios run under the subscribers
   and the contracts. One that empties its tables by name adds `subscriber_tax_origin_changes` and
   `subscriber_vat_id_checks`.
+
+### A tax adapter decides the rate of every contract
+
+An installation can name a tax adapter in `config/saas.yaml` — `@saasicat/tax-de` for an issuer in
+Germany ([ADR 0013](../explanation/adr/0013-tax-law-is-an-adapter.md)). It then decides the rate of
+every contract from the subscriber's origin, and the rate shown before the subscriber is known. An
+installation that names none changes nothing: `vatRate` stays required, and a file naming neither
+`vatRate` nor `tax` is refused with the sentence it got before.
+
+To name the German adapter:
+
+1. Record each subscriber's country, and whether it is a business, before the adapter is named. The
+   adapter refuses a case it cannot decide, and a subscriber whose country is unknown — or who is
+   outside Germany and has not said whether it is a business — gets no new contract: a plan change,
+   an activation outside a trial, an add-on booking, a version switch or a retirement's switch
+   answers `422 TAX_TREATMENT_NOT_SUPPORTED` before it writes anything. A retirement move that is
+   refused this way is logged as `tax-not-supported`.
+2. Add `@saasicat/tax-de` and bind its factory where payment gateways are bound:
+
+    ```ts
+    import { germanTaxAdapterFactory } from '@saasicat/tax-de';
+
+    SaaSiCatModule.forRoot({
+        // …
+        tax: { adapter: germanTaxAdapterFactory() },
+    });
+    ```
+
+3. In `config/saas.yaml`, replace `vatRate` with the time zone the days of a period count in and
+   the adapter's name, with what the operator declares to it:
+
+    ```yaml
+    timeZone: Europe/Berlin
+    tax:
+        adapter: '@saasicat/tax-de'
+        options:
+            smallBusiness: false
+    ```
+
+    The file is refused where it names both `vatRate` and `tax`, the start where the file names an
+    adapter the application binds no factory for or the other way round, an unknown time zone, or
+    an issuer the adapter cannot decide a domestic charge for.
+
+4. Remove every rate the application passes in code: `catalog.publicMarketingCatalog.vatRate`
+   (the start refuses it beside an adapter) and `ConfiguratorMarketingProvider.getVatRate` (the
+   configurator refuses it). Both now take the adapter's rate for a subscriber in the issuer's
+   country, and `GET public/marketing-catalog` says which country with `vatRateShownFor`.
+5. Review the promo codes with a fixed amount. One at or above the net price of a plan it applies
+   to is refused where it is redeemed once the adapter is named (see below): lower it below the net,
+   or allow an invoice of zero where that is meant.
+
+What changes with an adapter:
+
+- **An offer** still shows the rate for a subscriber in the issuer's country. **The contract** it
+  becomes is concluded at the rate decided for the subscriber who takes it, records the treatment
+  with the adapter's name and version (`taxTreatment`), and keeps the net amounts as offered. A
+  business elsewhere in the Union with a validated VAT number is concluded under the reverse charge
+  at 0 %, a business outside the Union as not taxable at 0 %.
+- **Every later contract** — a plan change, an add-on, a refresh — is decided again from the origin
+  as it stands. A contract stating another rate than the decided one is refused with
+  `422 SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`; code that hands `SubscriptionContractService.create`
+  lines of its own states the decided rate on each.
+- **A promo code with a fixed amount** takes that amount off what the subscriber pays: "10 € off" is
+  8.40 € net at 19 % and 10 € net at 0 %. Since a subscriber at 0 % pays the net, an absolute code
+  must stay below the lowest **net** price it applies to; `PROMO_WOULD_PRODUCE_ZERO_INVOICE` then
+  names `lowestApplicablePlanNet` instead of `lowestApplicablePlanGross`. The same bar holds where a
+  code is previewed and redeemed, so a code stored before, or a plan made cheaper since, is refused
+  there with `WOULD_PRODUCE_ZERO_INVOICE`.
+- **A code and a promotion on the plan** — with an adapter or without — are measured together: an
+  offer whose code would take all that the promotion leaves is refused with
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED` (`reason: 'WOULD_PRODUCE_ZERO_INVOICE'`), unless the
+  code allows an invoice of zero (`SC-PROMO-030`). The promo preview's `discount` carries
+  `allowZeroInvoice` for this.
+- **Before a change writes anything** it is asked about the contract it ends in, since an adapter
+  may treat a yearly period, or one that starts later, otherwise than a month from today. Code that
+  calls `ContractFreezePort.assertPartyFor` or `SubscriptionContractService.assertPartyFor` passes
+  that contract as `intended` (`IntendedContract` from `@saasicat/nest/subscription-contract`:
+  `effectiveFrom`, `cycle`, `endsAt`), or `null` where the change ends in no contract now — a plan
+  change, a version switch or a retirement's move in a trial — and only the party is asked.
+- **An application that words refusals itself** adds `TAX_TREATMENT_NOT_SUPPORTED` and
+  `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`.
 
 ### The operator's own legal identity changes only as a declared correction
 

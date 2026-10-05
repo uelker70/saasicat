@@ -542,7 +542,7 @@ describe('SubscriptionContractService', () => {
 
 // @requirement SC-PRIC-015 — An amount records the currency it was booked in
 // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
-// @requirement SC-PRIC-016 — A tax rate has a validity window
+// @requirement SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
 describe('the money facts a contract inherits from its offer', () => {
     async function conclude(offer) {
         const service = new SubscriptionContractService(

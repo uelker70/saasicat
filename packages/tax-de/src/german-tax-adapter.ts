@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type {
     TaxAdapter,
+    TaxAdapterFactory,
     TaxDecision,
     TaxDecisionRequest,
     TaxIssuer,
@@ -89,4 +90,39 @@ export class GermanTaxAdapter implements TaxAdapter {
             now: this.now,
         });
     }
+}
+
+/** What `config/saas.yaml#tax.options` may name for this adapter. */
+const FILE_OPTIONS: ReadonlySet<string> = new Set(['smallBusiness']);
+
+/** The options the file gives, checked: the operator's typo is an error at the start, not a default. */
+function fileOptions(options: Readonly<Record<string, unknown>>): { smallBusiness: boolean } {
+    const unknown = Object.keys(options).filter((key) => !FILE_OPTIONS.has(key));
+    if (unknown.length > 0) {
+        throw new Error(
+            `${GERMAN_TAX_ADAPTER}: config/saas.yaml#tax.options names ${unknown.join(', ')}, which the adapter does not take; it takes smallBusiness.`,
+        );
+    }
+    const smallBusiness = options['smallBusiness'] ?? false;
+    if (typeof smallBusiness !== 'boolean') {
+        throw new Error(
+            `${GERMAN_TAX_ADAPTER}: config/saas.yaml#tax.options.smallBusiness is true or false.`,
+        );
+    }
+    return { smallBusiness };
+}
+
+/**
+ * The factory an application binds, building the adapter from the options in
+ * `config/saas.yaml#tax.options`. What only code can give — the fetch to reach
+ * VIES with, its timeout, a clock — is passed here; what the operator declares
+ * comes from the file.
+ */
+export function germanTaxAdapterFactory(
+    codeOptions: Omit<GermanTaxAdapterOptions, 'smallBusiness'> = {},
+): TaxAdapterFactory {
+    return {
+        adapterName: GERMAN_TAX_ADAPTER,
+        create: (options) => new GermanTaxAdapter({ ...codeOptions, ...fileOptions(options) }),
+    };
 }

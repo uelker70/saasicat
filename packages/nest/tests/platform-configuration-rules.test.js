@@ -26,6 +26,16 @@ const MINIMAL_CATALOG = {
     features: [],
 };
 
+/** A catalogue whose rate comes from a tax adapter rather than from `vatRate`. */
+const TAX_CATALOG = {
+    app: { name: 'TestApp' },
+    currency: 'EUR',
+    timeZone: 'Europe/Berlin',
+    tax: { adapter: 'test-tax' },
+    plans: [],
+    features: [],
+};
+
 const CORE_ADAPTERS = {
     mfa: { getSecret: async () => null },
     secretSealer: { seal: async (plain) => plain, open: async (sealed) => sealed },
@@ -362,6 +372,33 @@ describe('every rule can actually fail', () => {
             adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
             catalogFailure: new Error("ENOENT: no such file or directory, open '/app/saas.yaml'"),
         },
+        // A file naming a tax adapter the application binds no factory for.
+        {
+            options: {
+                planCatalog: { ...TAX_CATALOG },
+                controller: { guards: [] },
+            },
+            adapters: CORE_ADAPTERS,
+        },
+        // A tax adapter, and a pricing-page rate passed beside it.
+        {
+            options: {
+                planCatalog: { ...TAX_CATALOG },
+                controller: { guards: [] },
+                tax: { adapter: { adapterName: 'test-tax', create: () => ({}) } },
+                catalog: { publicMarketingCatalog: { guards: [], currency: 'EUR', vatRate: 19 } },
+            },
+            adapters: CORE_ADAPTERS,
+        },
+        // A pricing page with no rate, and no tax adapter to take one from.
+        {
+            options: {
+                planCatalog: MINIMAL_CATALOG,
+                controller: { guards: [] },
+                catalog: { publicMarketingCatalog: { guards: [], currency: 'EUR' } },
+            },
+            adapters: CORE_ADAPTERS,
+        },
         // Tenant billing over add-on bookings, with no add-on versions to read them by.
         {
             options: {
@@ -414,7 +451,7 @@ describe('every rule can actually fail', () => {
     });
 });
 
-// @requirement SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
+// @requirement SC-CFG-037 — An installation whose plans live in the database reads its settings from the file
 describe('a dbCatalog that still carries the values', () => {
     // The option takes the path of the file now. A block with the values is
     // the shape every consumer had before, and the values in it are the ones

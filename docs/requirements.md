@@ -115,14 +115,14 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 64      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 67      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 28      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 30      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 27      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 26      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 586 entries: 🟢 509 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
-🔵 10 superseded, 🔴 3 withdrawn.
+Of 593 entries: 🟢 510 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 16 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -206,16 +206,22 @@ Of 586 entries: 🟢 509 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
+[SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
+[SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
+[SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
+[SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
 🔴 **Withdrawn** — [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 586 requirements. Do not edit by hand:
+Generated from `requirements/` — 593 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -4219,6 +4225,8 @@ _Tested by:_
         - a trial converted since gets the contract the move writes
     - a move that cannot be made
         - fails without a party to the contract, audited once though every run fails
+        - asks the party about the contract each move then writes
+        - fails for a subscriber the tax adapter supports no treatment for, and says so
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
         - says so where the booking cannot be put back either
@@ -4340,6 +4348,7 @@ _Tested by:_
     - the switch before the date
         - moves the booking onto the replacement at once and writes the contract that holds its
           price
+        - asks the party about the contract it writes, before the booking moves
         - writes the contract to end where the subscription does
         - holds nothing where the replacement costs no more
         - holds the difference for the plan it runs beside now, as the catalogue prices it
@@ -4990,9 +4999,12 @@ _Tested by:_
         - the term and the period are kept: no window is opened and the status stays
         - the successor contract is frozen from now and the account brought up to date
         - a subscription cancelled for later is switched, and its contract still ends then
+        - the party is asked about the contract the switch freezes: from now, in its rhythm, to its
+          end
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
         - scheduled for the term end and bound to the version offered
+        - the party is asked about the contract that runs from the term end
         - usage up to the lower quota fits
         - usage one above the lower quota is refused like a downgrade, with the numbers
         - a quota the version offered no longer carries allows nothing
@@ -5420,6 +5432,9 @@ _Tested by:_
         - a replacement the write refuses is a failure, recorded once however often it is tried
         - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
+        - the party is asked about the contract the move then writes
+        - a subscriber the tax adapter supports no treatment for is not moved, and the failure says
+          so
         - a move whose contract cannot be written is put back, and the next run makes both, where
           the version retired ${offSale}
         - a move put back takes the change of rhythm it scheduled back to the plan it left
@@ -5462,6 +5477,7 @@ _Tested by:_
     - the free switch before the date
         - moves at once, keeps the term, and holds the price until the date where the replacement
           costs more
+        - asks the party about the contract it writes, before anything moves
         - holds the difference of the subscriber’s own rhythm
         - holds nothing where the replacement costs the same or less
         - is refused where no retirement waits for its date
@@ -7387,14 +7403,16 @@ _Tested by:_
 
 ### SC-PRIC-008 — Gross, net and tax are one calculation, stated once
 
-🟢 💰 Gross follows from net and the configured rate, and the tax contained in a gross amount follows
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-065`.)_
+💰 Gross follows from net and the configured rate, and the tax contained in a gross amount follows
 from the same rate. Both are rounded once and mean the same thing everywhere they appear.
 
 _Source:_ release 1.0.0-rc.7
 
 ### SC-PRIC-009 — An installation sells in one currency and applies one tax rate, both named once
 
-🟢 💰 The tax rate is required even when it is zero, so nobody is left wondering whether it was
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-066`.)_
+💰 The tax rate is required even when it is zero, so nobody is left wondering whether it was
 forgotten. Changing the currency after contracts exist is a migration rather than an edit, because
 a currency change must not silently relabel history.
 
@@ -7481,6 +7499,7 @@ _Tested by:_
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -7550,37 +7569,10 @@ _Tested by:_
 
 ### SC-PRIC-016 — A tax rate has a validity window
 
-🟢 💰 A contract concluded at 19 % is charged 19 % for its term, whatever the rate later becomes.
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-067`.)_
+💰 A contract concluded at 19 % is charged 19 % for its term, whatever the rate later becomes.
 
 _Source:_ #217 · #214
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/subscription-contract-service.test.js`
-    - the money facts a contract inherits from its offer
-        - the rate the offer states is recorded as the percentage it is
-        - and the rate it records explains the tax it records
-        - every line names the currency the offer froze
-        - and the tax on each closes the gap between its own net and gross
-        - the discount the offer implies carries a negative tax, not a positive one
-- `packages/nest/tests/validity-window.test.js`
-    - the window a version is refused for
-        - no start at all
-        - a start that is not a date
-        - a start with a time of day
-        - but not the first moment of the day, as a stored draft gives it back
-        - a start on or before the predecessor’s
-        - a start that leaves a gap after a predecessor that ends
-        - a predecessor without an end imposes no seam
-        - an end that is not a date
-        - an end with a time of day
-        - an end on or before the start
-        - the codes come from the caller, so a plan refuses as a plan
-        - the gapless refusal says which day it wanted
-
-<!-- END proof -->
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
@@ -8411,9 +8403,8 @@ the issuer, the period the charge covers and the subscriber's origin as its reco
 invoice is issued: the country of the billing address, whether the subscriber is a business, and its
 validated tax identifier (`SC-PRIC-040`). A price shown before a subscriber's origin is known, such
 as on the pricing page, states the treatment for a subscriber in the issuer's country and says so.
-For an installation that invoices, `SC-PRIC-008`, `SC-PRIC-009`, `SC-PRIC-016`, `SC-MKT-023` and
-`SC-CFG-034` are superseded in the change that delivers this entry, by successors that take the rate
-from the adapter.
+For an installation that names an adapter, `SC-PRIC-065`, `SC-PRIC-066`, `SC-PRIC-067`,
+`SC-MKT-027` and `SC-CFG-037` take the rate from it.
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
@@ -8768,6 +8759,156 @@ _Tested by:_
     - the request names the number, and the issuer as requester where it has a number
         - with the number of the issuer: prefix and rest of both
         - without one: the number alone
+
+<!-- END proof -->
+
+### SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
+
+🟢 💰 Gross follows from net and the rate that applies — the file's rate where `config/saas.yaml`
+names no tax adapter, and where it names one, the rate the adapter decides for the subscriber, or
+for a subscriber in the issuer's country while the subscriber is not known yet. The tax contained in
+a gross amount follows from the same rate. Both are rounded once and mean the same thing everywhere
+they appear.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - a contract takes the rate the tax adapter decides for its subscriber
+        - a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded
+        - a business in Austria with a validated number: reverse charge at 0 %, and the code takes
+          10 € off
+        - a business in Switzerland: not taxable, at 0 %
+        - a consumer in France is refused with the adapter sentence, and nothing is written
+        - a business in Austria whose number is not validated is refused
+        - a contract handed over at a rate other than the decided one is refused, naming the field
+        - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
+          anything
+        - a change that ends in no contract asks for the party alone
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
+        - a successor is decided before the contract in force ends, so a refusal leaves that one
+          running
+    - a sign-up concludes its offer at the rate decided for the subscriber it creates
+        - a consumer in Germany: 19 %, the treatment recorded
+        - a business in Switzerland: not taxable, every line at 0 %
+        - a business in Austria is refused before anything is written: nothing of a subscriber not
+          created yet is validated
+        - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is refused as such, before the new details are asked
+          about
+        - a tenant with its subscriber already is decided from that one
+- `packages/nest/tests/the-shown-rate-is-the-adapters-for-the-issuers-country.test.js`
+    - the shown rate is the tax adapter answer for the issuer country
+        - the adapter is asked for a subscriber in the issuer country whose other details are
+          unknown
+        - the pricing page shows it, and says it is the rate for the issuer country
+        - a rate passed beside the adapter is refused, not shown
+        - without an adapter the page shows the rate passed, for everybody
+        - the configurator shows the adapter rate, and refuses a provider rate beside it
+        - the admin manifest shows it, in the application as composed
+        - without an adapter the configurator needs the provider rate
+
+<!-- END proof -->
+
+### SC-PRIC-066 — An installation sells in one currency, and its rate comes from one source named once
+
+🟢 💰 The currency is named once, and changing it after contracts exist is a migration rather than
+an edit, because a currency change must not silently relabel history. The rate comes from one
+source: `vatRate`, required even when it is zero, where the installation names no tax adapter, or
+the adapter named under `tax`, which then decides every rate and needs the installation's time zone
+(`SC-PRIC-045`). A file naming both, or neither, does not load, and says which line to change; an
+application that binds an adapter the file does not name, or names a rate beside one, does not
+start.
+
+_Source:_ #331 · #217 · #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-file-names-its-rate-or-its-tax-adapter.test.js`
+    - a file names its rate or its tax adapter, one of the two
+        - vatRate alone loads, as it always did
+        - tax with a time zone loads, without vatRate
+        - both are refused, naming the vatRate line
+        - neither is refused, naming vatRate as Ajv did while it was required
+        - tax without a time zone is refused, naming timeZone
+        - a time zone the runtime does not know is refused, naming it
+        - the refusals hold when the caller skips the cross-field checks
+    - the bound adapter is the one the file names, and it can decide
+        - a file with vatRate and no bound adapter takes the file rate
+        - a file naming tax with the factory bound shows the adapter rate for the issuer country
+        - the start is refused when ${name}
+        - the start is refused when the adapter cannot decide a charge in the issuer country
+        - a case the adapter does not support is refused with 422 and its sentence
+
+<!-- END proof -->
+
+### SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+
+🟢 💰 A contract concluded at 19 % records 19 % for its term, whatever the rate of the file later
+becomes. Where a tax adapter decides, a contract records the rate and the treatment decided for its
+subscriber's origin when it was concluded, with the adapter's name and version; every later
+contract — a plan change, an add-on, a refresh — is decided again from the origin as it stands, and
+one whose stated rate is not the decided one is refused rather than written.
+
+_Source:_ #331 · #217 · #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - a contract takes the rate the tax adapter decides for its subscriber
+        - a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded
+        - a business in Austria with a validated number: reverse charge at 0 %, and the code takes
+          10 € off
+        - a business in Switzerland: not taxable, at 0 %
+        - a consumer in France is refused with the adapter sentence, and nothing is written
+        - a business in Austria whose number is not validated is refused
+        - a contract handed over at a rate other than the decided one is refused, naming the field
+        - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
+          anything
+        - a change that ends in no contract asks for the party alone
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
+        - a successor is decided before the contract in force ends, so a refusal leaves that one
+          running
+    - a sign-up concludes its offer at the rate decided for the subscriber it creates
+        - a consumer in Germany: 19 %, the treatment recorded
+        - a business in Switzerland: not taxable, every line at 0 %
+        - a business in Austria is refused before anything is written: nothing of a subscriber not
+          created yet is validated
+        - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is refused as such, before the new details are asked
+          about
+        - a tenant with its subscriber already is decided from that one
+    - a plan change is frozen at the rate decided for the subscriber
+        - a business in Switzerland: 0 %, the treatment recorded
+        - a consumer in France gets no contract
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - where a tax adapter decides
+        - the features are carried over while the rate decided for the subscriber stands
+        - a subscriber the adapter now decides another rate for is refused in the preview and in the
+          run
+        - a subscriber the adapter supports no treatment for is refused with its sentence
+        - re-freezing in full at a newly decided rate is a change of money, refused
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - a plan change asks the party about the contract it ends in
+        - one made today: from today, in the rhythm asked for
+        - one made today in a trial ends in no contract: the party is asked, the tax is not
+        - one scheduled: from the date it takes effect, before anything is scheduled
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - the rate the offer states is recorded as the percentage it is
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
 
 <!-- END proof -->
 
@@ -9683,36 +9824,11 @@ _Tested by:_
 
 ### SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
 
-🟢 Both when the code is created and when it is redeemed, unless the operator deliberately allows an
+🔵 _(Superseded on 2026-10-04 by `SC-PROMO-029`.)_
+Both when the code is created and when it is redeemed, unless the operator deliberately allows an
 invoice of zero. Otherwise a code quietly makes a plan free.
 
 _Source:_ `docs/reference/error-codes.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-code-takes-off-no-more-than-the-price.test.js`
-    - a changed amount stays below the lowest price it can apply to
-        - an amount of nothing, or less, is refused
-        - the lowest price itself is refused, and a cent below it accepted
-        - more than the price is accepted where the operator allows an invoice of zero
-        - taking back the allowance of an invoice of zero is refused while the amount needs it
-        - limiting it to a plan it would make free is refused
-    - redeeming takes off no more than the price
-        - ${what}, ${allowance}: ${outcome}
-        - a percentage of 100 is refused where an invoice of zero is not allowed
-        - a percentage stored above 100 is recorded at 100
-        - a plan made cheaper than the code after it was created refuses the redemption
-- `packages/nest/tests/promo-service.test.js`
-    - PromoCodesService.preview — eligibility
-        - NOT_FOUND when no code exists
-        - PLAN_MISMATCH when the whitelist excludes the plan
-        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
-        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
-        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
-
-<!-- END proof -->
 
 ### SC-PROMO-009 — A plan may be marked as not discountable
 
@@ -10173,6 +10289,75 @@ _Tested by:_
         - not again once a contract records it — an earlier freeze or the offer it came with
         - not where a contract written since the redemption does not record it
         - nothing without a redemption, or for a subscription the adapter gives no id
+
+<!-- END proof -->
+
+### SC-PROMO-029 — An absolute discount stays below the lowest price a subscriber can pay
+
+🟢 💰 Both when the code is created and when it is redeemed, unless the operator deliberately allows
+an invoice of zero. The bar is the gross at the file's rate, or where a tax adapter decides, the net,
+which a subscriber outside the issuer's VAT pays. Otherwise a code quietly makes a plan free.
+
+_Source:_ #331 · `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-code-takes-off-no-more-than-the-price.test.js`
+    - a changed amount stays below the lowest price it can apply to
+        - an amount of nothing, or less, is refused
+        - the lowest price itself is refused, and a cent below it accepted
+        - more than the price is accepted where the operator allows an invoice of zero
+        - taking back the allowance of an invoice of zero is refused while the amount needs it
+        - limiting it to a plan it would make free is refused
+    - with a tax adapter, an absolute code stays below the net price
+        - the net price itself is refused, naming it as the net, and a cent below it accepted
+        - an amount between the net and the gross price is refused, which without an adapter is
+          accepted
+        - a stored amount between the net and the gross is refused where it is redeemed and
+          previewed
+        - a cent below the net is redeemed, and the net itself only where an invoice of zero is
+          allowed
+    - redeeming takes off no more than the price
+        - ${what}, ${allowance}: ${outcome}
+        - a percentage of 100 is refused where an invoice of zero is not allowed
+        - a percentage stored above 100 is recorded at 100
+        - a plan made cheaper than the code after it was created refuses the redemption
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
+
+### SC-PROMO-030 — A promo code and a promotion together leave something to pay
+
+🟢 💰 A code is measured against the plan's own price (`SC-PROMO-029`); a promotion on the plan
+lowers the price it comes off. Where the code would take all that the promotion leaves, the offer is
+refused — when it is priced, and again when it is concluded — unless the operator deliberately
+allows an invoice of zero. The bar is the one `SC-PROMO-029` names, taken after the promotion. A
+promotion that already leaves nothing is the operator's own, and the code then takes nothing.
+
+_Source:_ #331
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - a code and the promotion on the plan together leave something to pay
+        - without an adapter the gross after the promotion is the bar
+        - with an adapter the net after the promotion is the bar
+        - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
+          offer stands
+        - the plan alone is the price it is measured against: an add-on beside it does not save the
+          code
+        - the operator may allow it to leave nothing
+        - concluding asks again: an allowance taken back since refuses the offer
 
 <!-- END proof -->
 
@@ -11080,6 +11265,7 @@ _Tested by:_
         - getActiveInvoiceSnapshotForTenant throws without an active contract
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -11093,7 +11279,8 @@ _Tested by:_
 
 ### SC-MKT-023 — An offer's amounts are computed from the catalogue, never taken from the request
 
-🟢 💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
+🔵 _(Superseded on 2026-10-04 by `SC-MKT-027`.)_
+💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
 the plan version on sale, an add-on's from its bundle version with the price it carries for that
 plan, the promotion from the same choice the public catalogue makes, a promo code's discount from
 what the promo module accepts, and the currency and VAT rate from the installation. A plan without a
@@ -11107,51 +11294,12 @@ anything else becomes a contract.
 
 _Source:_ release 1.0.0-rc.13
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
-    - what a request says is not an amount
-        - the public bodies strip amounts before the service sees them
-        - a service called without that pipe still prices from the catalogue
-        - an update cannot bring amounts in either
-    - where each amount comes from
-        - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
-        - two different add-ons, each at its own price
-        - an add-on's price for that plan and rhythm, its override included
-        - the promotion the public catalogue picks, as a discount with its snapshot
-        - a promotion tied to a code, or to another language, is not applied
-        - a promo code the promo module accepts, on the plan price after its promotion
-    - what cannot be priced is refused, not priced at nothing
-        - a plan with no version on sale
-        - a plan that is not marketed
-        - a plan without a price for the rhythm
-        - an add-on that is ${reason}
-        - the same add-on twice
-        - the same add-on twice, in two of its versions
-        - an add-on that has been deleted, though its version is on sale
-        - a promo code the promo module refuses
-        - a promo code where no promo module is registered to check it
-        - the module does not start without a plan repository to price from
-    - an offer becomes a contract only with the amounts the catalogue gave it
-        - an offer as priced is consumed
-        - ${what} written into the stored row is refused
-        - a promotion that starts after the offer was priced does not unsettle it
-        - a promo code the promo module no longer accepts is refused at consumption
-        - an add-on renamed after the offer keeps the offer valid
-    - the plan version checkout prices
-        - is the one on sale at the moment the offer is priced
-        - a repository that cannot say which version is on sale stops the start
-
-<!-- END proof -->
-
 ### SC-MKT-024 — An offer is concluded into its contract in one step, or not at all
 
 🟢 💰 Consuming the offer, writing the contract it becomes and the application's own writes for it,
 such as starting the subscription, commit together or not at all (`CheckoutOfferService.conclude`).
 Everything that can refuse is asked first: the offer is open, its add-ons bookable, its amounts the
-catalogue's (`SC-MKT-023`), and the contract passes the checks every contract is held to. A failure
+catalogue's (`SC-MKT-027`), and the contract passes the checks every contract is held to. A failure
 after that undoes the consume and the contract, and the offer can be concluded again. The contract
 is built from the offer as the transaction consumes it, and an offer changed after its checks is
 refused with `CHECKOUT_OFFER_CHANGED` rather than concluded into a contract it no longer describes.
@@ -11335,6 +11483,90 @@ _Tested by:_
         - the registry reaches the catalogue in a wired application
         - a catalogue told there is no source takes none
         - a source out of the catalogue’s scope refuses the boot instead of answering
+
+<!-- END proof -->
+
+### SC-MKT-027 — An offer's amounts are computed from the catalogue, never taken from the request
+
+🟢 💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
+the plan version on sale, an add-on's from its bundle version with the price it carries for that
+plan, the promotion from the same choice the public catalogue makes, a promo code's discount from
+what the promo module accepts, the currency from the installation, and the VAT rate from the
+installation's one source — the file's rate, or where a tax adapter decides, its rate for a
+subscriber in the issuer's country, since the subscriber is not known yet. A plan without a price
+for the rhythm, an add-on that is not on sale, not marketed, not compatible or not priced for the
+plan, and a code the promo module refuses or cannot check are refused rather than priced at nothing.
+When the offer is consumed its stored amounts are computed again from the versions it froze and the
+promotions as they stood when it was priced, and its promo code with the promo module as it stands
+then, since a code is redeemed when the contract is concluded; an offer whose amounts differ, or
+whose code has since expired or run out of redemptions, is refused, so no amount written by anything
+else becomes a contract. Where a tax adapter decides, the contract is concluded at the rate decided
+for the subscriber who takes the offer, with the net amounts as offered, and a code with a fixed
+amount takes that amount off what the subscriber pays.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - a contract takes the rate the tax adapter decides for its subscriber
+        - a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded
+        - a business in Austria with a validated number: reverse charge at 0 %, and the code takes
+          10 € off
+        - a business in Switzerland: not taxable, at 0 %
+        - a consumer in France is refused with the adapter sentence, and nothing is written
+        - a business in Austria whose number is not validated is refused
+        - a contract handed over at a rate other than the decided one is refused, naming the field
+        - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
+          anything
+        - a change that ends in no contract asks for the party alone
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
+        - a successor is decided before the contract in force ends, so a refusal leaves that one
+          running
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - what a request says is not an amount
+        - the public bodies strip amounts before the service sees them
+        - a service called without that pipe still prices from the catalogue
+        - an update cannot bring amounts in either
+    - where each amount comes from
+        - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
+        - two different add-ons, each at its own price
+        - an add-on's price for that plan and rhythm, its override included
+        - the promotion the public catalogue picks, as a discount with its snapshot
+        - a promotion tied to a code, or to another language, is not applied
+        - a promo code the promo module accepts, on the plan price after its promotion
+    - a code and the promotion on the plan together leave something to pay
+        - without an adapter the gross after the promotion is the bar
+        - with an adapter the net after the promotion is the bar
+        - a promotion that leaves nothing is the operator's own: the code takes nothing, and the
+          offer stands
+        - the plan alone is the price it is measured against: an add-on beside it does not save the
+          code
+        - the operator may allow it to leave nothing
+        - concluding asks again: an allowance taken back since refuses the offer
+    - what cannot be priced is refused, not priced at nothing
+        - a plan with no version on sale
+        - a plan that is not marketed
+        - a plan without a price for the rhythm
+        - an add-on that is ${reason}
+        - the same add-on twice
+        - the same add-on twice, in two of its versions
+        - an add-on that has been deleted, though its version is on sale
+        - a promo code the promo module refuses
+        - a promo code where no promo module is registered to check it
+        - the module does not start without a plan repository to price from
+    - an offer becomes a contract only with the amounts the catalogue gave it
+        - an offer as priced is consumed
+        - ${what} written into the stored row is refused
+        - a promotion that starts after the offer was priced does not unsettle it
+        - a promo code the promo module no longer accepts is refused at consumption
+        - an add-on renamed after the offer keeps the offer valid
+    - the plan version checkout prices
+        - is the one on sale at the moment the offer is priced
+        - a repository that cannot say which version is on sale stops the start
 
 <!-- END proof -->
 
@@ -14296,45 +14528,14 @@ _Tested by:_
 
 ### SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
 
-🟢 `dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate`,
+🔵 _(Superseded on 2026-10-04 by `SC-CFG-037`.)_
+`dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate`,
 `tenantBilling`, `marketing` and `notifications` from it; the plans and the features come from the
 database. No option takes a setting as a value in code, so the file defines them by construction
 rather than by agreement — an installation still passing the values does not start, and is told
 what the option takes instead.
 
 _Source:_ #217
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/platform-configuration-rules.test.js`
-    - a dbCatalog that still carries the values
-        - is a finding of its own, and the only one
-        - a path with a value left beside it is refused too, and the finding names the value
-        - an env beside the path is what the option takes
-        - a blank path is the same omission spelled differently
-        - a path is what the option takes, so the rule has nothing to say
-- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
-    - the settings an installation with a database catalogue runs on
-        - are the ones in the file dbCatalog names, every block the schema declares
-        - a variable the file names resolves through the environment dbCatalog is given
-        - the plans come from the database; a plans block in the file is the seed, not the catalogue
-    - where the record says the values came from, on the database path
-        - the absolute path of the file dbCatalog names
-    - a dbCatalog that still carries the values
-        - refuses the boot, naming what the option takes now
-        - is one finding, not two: the name it also carries is not reported on top
-        - and a blank path is the same omission
-        - a value left beside the path is refused too, and named
-        - a key left beside the path with nothing in it has passed nothing
-    - a file that does not load
-        - stops the boot with the loader's error, naming the path
-        - and names the option that named it, which the loader cannot
-        - is one finding beside the others, not a throw ahead of them
-        - or the field it is missing, rather than a TypeError further down
-
-<!-- END proof -->
 
 ### SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
 
@@ -15297,6 +15498,49 @@ _Tested by:_
     - a root module whose last import spans several lines
         - stays intact, and the new imports go after it
         - and a side-effect import is an import too, so nothing lands above it
+
+<!-- END proof -->
+
+### SC-CFG-037 — An installation whose plans live in the database reads its settings from the file
+
+🟢 `dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate` or
+`tax` with `timeZone`, `tenantBilling`, `marketing` and `notifications` from it; the plans and the
+features come from the database. No option takes a setting as a value in code, so the file defines
+them by construction rather than by agreement — an installation still passing the values does not
+start, and is told what the option takes instead.
+
+_Source:_ #331 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a dbCatalog that still carries the values
+        - is a finding of its own, and the only one
+        - a path with a value left beside it is refused too, and the finding names the value
+        - an env beside the path is what the option takes
+        - a blank path is the same omission spelled differently
+        - a path is what the option takes, so the rule has nothing to say
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - the settings an installation with a database catalogue runs on
+        - are the ones in the file dbCatalog names, every block the schema declares
+        - are the ones in the file dbCatalog names where it names a tax adapter instead of a rate
+        - a variable the file names resolves through the environment dbCatalog is given
+        - the plans come from the database; a plans block in the file is the seed, not the catalogue
+    - where the record says the values came from, on the database path
+        - the absolute path of the file dbCatalog names
+    - a dbCatalog that still carries the values
+        - refuses the boot, naming what the option takes now
+        - is one finding, not two: the name it also carries is not reported on top
+        - and a blank path is the same omission
+        - a value left beside the path is refused too, and named
+        - a key left beside the path with nothing in it has passed nothing
+    - a file that does not load
+        - stops the boot with the loader's error, naming the path
+        - and names the option that named it, which the loader cannot
+        - is one finding beside the others, not a throw ahead of them
+        - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->
 

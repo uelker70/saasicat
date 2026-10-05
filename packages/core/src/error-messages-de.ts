@@ -293,6 +293,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Bei absoluten Beträgen muss der Rabatt unter dem niedrigsten anwendbaren Planpreis bleiben, oder allowZeroInvoice muss aktiviert sein.',
     PROMO_MAX_REDEMPTIONS_LOWERED: 'maxRedemptions lässt sich nicht senken.',
     // ── contract ──
+    SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
+        'Der Vertrag nennt in {field} {stated} %, der Steueradapter entscheidet {decided} %.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'Aus einem Checkout-Angebot entsteht nur ein einziger Vertrag, und das erst, wenn seine Positionen eingefroren sind.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED:
@@ -411,4 +413,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     MAINTENANCE_TIME_INVALID:
         '{field} muss Datum und Uhrzeit mit Zeitzone sein, etwa 2026-10-02T22:00+02:00.',
     MAINTENANCE_MESSAGE_TOO_LONG: 'Die Nachricht darf höchstens {max} Zeichen lang sein.',
+    // ── tax ──
+    TAX_TREATMENT_NOT_SUPPORTED:
+        'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',
 };

@@ -149,6 +149,18 @@ export type VatIdCheckOutcome =
     { completed: true; check: VatIdCheck } | { completed: false; reason: string };
 
 /**
+ * How an application binds a tax adapter, the way it binds a payment gateway:
+ * the adapter's name, which `config/saas.yaml#tax.adapter` names, and how to
+ * build it from the options the file gives it. The options come from the file,
+ * so the factory checks them and throws for one the adapter cannot take.
+ */
+export interface TaxAdapterFactory {
+    /** The adapter's package name, such as `@saasicat/tax-de`. */
+    readonly adapterName: string;
+    create(options: Readonly<Record<string, unknown>>): TaxAdapter;
+}
+
+/**
  * The tax adapter of an installation: a package for the country of its issuer,
  * named in `config/saas.yaml`. An adapter is a template, not tax advice; its
  * documentation says what it decides and on which basis.

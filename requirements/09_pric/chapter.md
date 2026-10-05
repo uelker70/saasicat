@@ -214,14 +214,16 @@ _Tested by:_
 
 ### SC-PRIC-008 — Gross, net and tax are one calculation, stated once
 
-🟢 💰 Gross follows from net and the configured rate, and the tax contained in a gross amount follows
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-065`.)_
+💰 Gross follows from net and the configured rate, and the tax contained in a gross amount follows
 from the same rate. Both are rounded once and mean the same thing everywhere they appear.
 
 _Source:_ release 1.0.0-rc.7
 
 ### SC-PRIC-009 — An installation sells in one currency and applies one tax rate, both named once
 
-🟢 💰 The tax rate is required even when it is zero, so nobody is left wondering whether it was
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-066`.)_
+💰 The tax rate is required even when it is zero, so nobody is left wondering whether it was
 forgotten. Changing the currency after contracts exist is a migration rather than an edit, because
 a currency change must not silently relabel history.
 
@@ -308,6 +310,7 @@ _Tested by:_
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
+    - ${route} asks the party about the contract it re-freezes
     - cancel re-freezes the contract
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
@@ -377,37 +380,10 @@ _Tested by:_
 
 ### SC-PRIC-016 — A tax rate has a validity window
 
-🟢 💰 A contract concluded at 19 % is charged 19 % for its term, whatever the rate later becomes.
+🔵 _(Superseded on 2026-10-04 by `SC-PRIC-067`.)_
+💰 A contract concluded at 19 % is charged 19 % for its term, whatever the rate later becomes.
 
 _Source:_ #217 · #214
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/subscription-contract-service.test.js`
-    - the money facts a contract inherits from its offer
-        - the rate the offer states is recorded as the percentage it is
-        - and the rate it records explains the tax it records
-        - every line names the currency the offer froze
-        - and the tax on each closes the gap between its own net and gross
-        - the discount the offer implies carries a negative tax, not a positive one
-- `packages/nest/tests/validity-window.test.js`
-    - the window a version is refused for
-        - no start at all
-        - a start that is not a date
-        - a start with a time of day
-        - but not the first moment of the day, as a stored draft gives it back
-        - a start on or before the predecessor’s
-        - a start that leaves a gap after a predecessor that ends
-        - a predecessor without an end imposes no seam
-        - an end that is not a date
-        - an end with a time of day
-        - an end on or before the start
-        - the codes come from the caller, so a plan refuses as a plan
-        - the gapless refusal says which day it wanted
-
-<!-- END proof -->
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
@@ -1238,9 +1214,8 @@ the issuer, the period the charge covers and the subscriber's origin as its reco
 invoice is issued: the country of the billing address, whether the subscriber is a business, and its
 validated tax identifier (`SC-PRIC-040`). A price shown before a subscriber's origin is known, such
 as on the pricing page, states the treatment for a subscriber in the issuer's country and says so.
-For an installation that invoices, `SC-PRIC-008`, `SC-PRIC-009`, `SC-PRIC-016`, `SC-MKT-023` and
-`SC-CFG-034` are superseded in the change that delivers this entry, by successors that take the rate
-from the adapter.
+For an installation that names an adapter, `SC-PRIC-065`, `SC-PRIC-066`, `SC-PRIC-067`,
+`SC-MKT-027` and `SC-CFG-037` take the rate from it.
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
@@ -1595,5 +1570,155 @@ _Tested by:_
     - the request names the number, and the issuer as requester where it has a number
         - with the number of the issuer: prefix and rest of both
         - without one: the number alone
+
+<!-- END proof -->
+
+### SC-PRIC-065 — Gross, net and tax are one calculation at the rate that applies, stated once
+
+🟢 💰 Gross follows from net and the rate that applies — the file's rate where `config/saas.yaml`
+names no tax adapter, and where it names one, the rate the adapter decides for the subscriber, or
+for a subscriber in the issuer's country while the subscriber is not known yet. The tax contained in
+a gross amount follows from the same rate. Both are rounded once and mean the same thing everywhere
+they appear.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - a contract takes the rate the tax adapter decides for its subscriber
+        - a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded
+        - a business in Austria with a validated number: reverse charge at 0 %, and the code takes
+          10 € off
+        - a business in Switzerland: not taxable, at 0 %
+        - a consumer in France is refused with the adapter sentence, and nothing is written
+        - a business in Austria whose number is not validated is refused
+        - a contract handed over at a rate other than the decided one is refused, naming the field
+        - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
+          anything
+        - a change that ends in no contract asks for the party alone
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
+        - a successor is decided before the contract in force ends, so a refusal leaves that one
+          running
+    - a sign-up concludes its offer at the rate decided for the subscriber it creates
+        - a consumer in Germany: 19 %, the treatment recorded
+        - a business in Switzerland: not taxable, every line at 0 %
+        - a business in Austria is refused before anything is written: nothing of a subscriber not
+          created yet is validated
+        - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is refused as such, before the new details are asked
+          about
+        - a tenant with its subscriber already is decided from that one
+- `packages/nest/tests/the-shown-rate-is-the-adapters-for-the-issuers-country.test.js`
+    - the shown rate is the tax adapter answer for the issuer country
+        - the adapter is asked for a subscriber in the issuer country whose other details are
+          unknown
+        - the pricing page shows it, and says it is the rate for the issuer country
+        - a rate passed beside the adapter is refused, not shown
+        - without an adapter the page shows the rate passed, for everybody
+        - the configurator shows the adapter rate, and refuses a provider rate beside it
+        - the admin manifest shows it, in the application as composed
+        - without an adapter the configurator needs the provider rate
+
+<!-- END proof -->
+
+### SC-PRIC-066 — An installation sells in one currency, and its rate comes from one source named once
+
+🟢 💰 The currency is named once, and changing it after contracts exist is a migration rather than
+an edit, because a currency change must not silently relabel history. The rate comes from one
+source: `vatRate`, required even when it is zero, where the installation names no tax adapter, or
+the adapter named under `tax`, which then decides every rate and needs the installation's time zone
+(`SC-PRIC-045`). A file naming both, or neither, does not load, and says which line to change; an
+application that binds an adapter the file does not name, or names a rate beside one, does not
+start.
+
+_Source:_ #331 · #217 · #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-file-names-its-rate-or-its-tax-adapter.test.js`
+    - a file names its rate or its tax adapter, one of the two
+        - vatRate alone loads, as it always did
+        - tax with a time zone loads, without vatRate
+        - both are refused, naming the vatRate line
+        - neither is refused, naming vatRate as Ajv did while it was required
+        - tax without a time zone is refused, naming timeZone
+        - a time zone the runtime does not know is refused, naming it
+        - the refusals hold when the caller skips the cross-field checks
+    - the bound adapter is the one the file names, and it can decide
+        - a file with vatRate and no bound adapter takes the file rate
+        - a file naming tax with the factory bound shows the adapter rate for the issuer country
+        - the start is refused when ${name}
+        - the start is refused when the adapter cannot decide a charge in the issuer country
+        - a case the adapter does not support is refused with 422 and its sentence
+
+<!-- END proof -->
+
+### SC-PRIC-067 — A contract records the rate and the treatment it was concluded at
+
+🟢 💰 A contract concluded at 19 % records 19 % for its term, whatever the rate of the file later
+becomes. Where a tax adapter decides, a contract records the rate and the treatment decided for its
+subscriber's origin when it was concluded, with the adapter's name and version; every later
+contract — a plan change, an add-on, a refresh — is decided again from the origin as it stands, and
+one whose stated rate is not the decided one is refused rather than written.
+
+_Source:_ #331 · #217 · #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-takes-the-rate-its-tax-adapter-decides.test.js`
+    - a contract takes the rate the tax adapter decides for its subscriber
+        - a subscriber in Germany: 19 %, the code is 8.40 € net, the treatment recorded
+        - a business in Austria with a validated number: reverse charge at 0 %, and the code takes
+          10 € off
+        - a business in Switzerland: not taxable, at 0 %
+        - a consumer in France is refused with the adapter sentence, and nothing is written
+        - a business in Austria whose number is not validated is refused
+        - a contract handed over at a rate other than the decided one is refused, naming the field
+        - a subscriber the adapter cannot treat gets no new contract: refused before a change moves
+          anything
+        - a change that ends in no contract asks for the party alone
+        - the question before a change is asked over the contract it ends in: its start, its rhythm
+          and its end
+        - a successor is decided before the contract in force ends, so a refusal leaves that one
+          running
+    - a sign-up concludes its offer at the rate decided for the subscriber it creates
+        - a consumer in Germany: 19 %, the treatment recorded
+        - a business in Switzerland: not taxable, every line at 0 %
+        - a business in Austria is refused before anything is written: nothing of a subscriber not
+          created yet is validated
+        - a consumer in France is refused before anything is written
+        - a tenant with its subscriber already is refused as such, before the new details are asked
+          about
+        - a tenant with its subscriber already is decided from that one
+    - a plan change is frozen at the rate decided for the subscriber
+        - a business in Switzerland: 0 %, the treatment recorded
+        - a consumer in France gets no contract
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - where a tax adapter decides
+        - the features are carried over while the rate decided for the subscriber stands
+        - a subscriber the adapter now decides another rate for is refused in the preview and in the
+          run
+        - a subscriber the adapter supports no treatment for is refused with its sentence
+        - re-freezing in full at a newly decided rate is a change of money, refused
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - a plan change asks the party about the contract it ends in
+        - one made today: from today, in the rhythm asked for
+        - one made today in a trial ends in no contract: the party is asked, the tax is not
+        - one scheduled: from the date it takes effect, before anything is scheduled
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - the rate the offer states is recorded as the percentage it is
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
 
 <!-- END proof -->

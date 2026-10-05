@@ -550,6 +550,11 @@ export const CONTRACT_ERROR_CODES = {
      * would take effect. Nothing was written.
      */
     SUBSCRIPTION_CONTRACT_CHANGED: 'SUBSCRIPTION_CONTRACT_CHANGED',
+    /**
+     * A contract states a tax rate — `field` names where — other than the one
+     * the installation's tax adapter decides for its subscriber.
+     */
+    SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED: 'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED',
 } as const;
 
 export type ContractErrorCode = (typeof CONTRACT_ERROR_CODES)[keyof typeof CONTRACT_ERROR_CODES];
@@ -717,6 +722,17 @@ export const MAINTENANCE_ERROR_CODES = {
 export type MaintenanceErrorCode =
     (typeof MAINTENANCE_ERROR_CODES)[keyof typeof MAINTENANCE_ERROR_CODES];
 
+/** Codes of the installation's tax adapter (ADR 0013). */
+export const TAX_ERROR_CODES = {
+    /**
+     * The tax adapter answers that it does not support the subscriber's case;
+     * `adapter` names it and `reason` is its sentence. Nothing is concluded with
+     * a guessed tax (`SC-PRIC-039`).
+     */
+    TAX_TREATMENT_NOT_SUPPORTED: 'TAX_TREATMENT_NOT_SUPPORTED',
+} as const;
+export type TaxErrorCode = (typeof TAX_ERROR_CODES)[keyof typeof TAX_ERROR_CODES];
+
 /**
  * Every exception code the platform emits, in one object.
  *
@@ -736,6 +752,7 @@ export const PLATFORM_ERROR_CODES = {
     ...PAYMENT_ERROR_CODES,
     ...SETTINGS_ERROR_CODES,
     ...MAINTENANCE_ERROR_CODES,
+    ...TAX_ERROR_CODES,
 } as const;
 
 export type PlatformErrorCode =
@@ -749,7 +766,8 @@ export type PlatformErrorCode =
     | RegistrationErrorCode
     | PaymentErrorCode
     | SettingsErrorCode
-    | MaintenanceErrorCode;
+    | MaintenanceErrorCode
+    | TaxErrorCode;
 
 /**
  * Shape of a coded error response.

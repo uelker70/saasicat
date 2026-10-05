@@ -22,6 +22,7 @@ const CATALOGUES = [
     ],
     ['PROMO_ERROR_CODES', 'Promo codes', 'Redemption, validity and limits.'],
     ['SETTINGS_ERROR_CODES', 'Settings', 'The record of the applied configuration.'],
+    ['TAX_ERROR_CODES', 'Tax', "The installation's tax adapter and what it does not support."],
     [
         'MAINTENANCE_ERROR_CODES',
         'Maintenance',

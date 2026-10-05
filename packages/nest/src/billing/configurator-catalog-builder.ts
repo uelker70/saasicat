@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type {
     ConfiguratorCatalog,
     ConfiguratorMarketingProvider,
     ConfiguratorPlanVersionRow,
     ConfiguratorSourcesLookup,
 } from '@saasicat/core';
+
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import type { TaxTreatments } from '../tax/tax-treatments.js';
 
 /**
  * Builds the `ConfiguratorCatalog` (for onboarding step 3) from the
@@ -17,6 +20,12 @@ import type {
  */
 @Injectable()
 export class ConfiguratorCatalogBuilder {
+    constructor(
+        @Optional()
+        @Inject(TAX_TREATMENTS_TOKEN)
+        private readonly taxes: TaxTreatments | null = null,
+    ) {}
+
     async build(input: {
         sources: ConfiguratorSourcesLookup;
         marketing: ConfiguratorMarketingProvider;
@@ -30,12 +39,37 @@ export class ConfiguratorCatalogBuilder {
 
         return {
             currency: marketing.getCurrency(),
-            vatRate: marketing.getVatRate(),
+            vatRate: this.vatRateOf(marketing),
             models: planRows
                 .filter((row) => row.marketed)
                 .map((row) => buildModel(row, planMarketingByPlanId))
                 .filter((m): m is NonNullable<typeof m> => m !== null),
         };
+    }
+
+    /**
+     * The rate shown: the tax adapter's for a subscriber in the issuer's
+     * country where config/saas.yaml names one, the provider's otherwise — one
+     * source either way, so a provider naming a rate beside an adapter is an
+     * error rather than a second answer.
+     */
+    private vatRateOf(marketing: ConfiguratorMarketingProvider): number {
+        const stated = marketing.getVatRate?.();
+        if (this.taxes?.adapter) {
+            if (stated !== undefined) {
+                throw new Error(
+                    'ConfiguratorMarketingProvider.getVatRate names a rate beside the tax adapter ' +
+                        'config/saas.yaml names. The adapter is the one source of the rate: remove getVatRate.',
+                );
+            }
+            return this.taxes.shown(new Date(), 'monthly').rate;
+        }
+        if (stated === undefined) {
+            throw new Error(
+                'ConfiguratorMarketingProvider.getVatRate is required where config/saas.yaml names no tax adapter.',
+            );
+        }
+        return stated;
     }
 }
 

@@ -44,7 +44,14 @@ function aSwitch({
     claimed = true,
     whileWriting = () => {},
 } = {}) {
-    const calls = { immediate: [], scheduled: [], invalidated: [], frozen: [], charged: [] };
+    const calls = {
+        immediate: [],
+        scheduled: [],
+        invalidated: [],
+        asked: [],
+        frozen: [],
+        charged: [],
+    };
     const subscriptions = { findForTenant: async (id) => (id === 't1' ? sub : null) };
     const offers = new VersionOfferService(subscriptions, plans, null);
     const write = {
@@ -60,7 +67,7 @@ function aSwitch({
         },
     };
     const contractFreeze = {
-        assertPartyFor: async () => {},
+        assertPartyFor: async (...args) => calls.asked.push(args),
         freezeOnPlanChange: async (...args) => calls.frozen.push(args),
     };
     const charges = { recordDueCharges: async (tenantId) => calls.charged.push(tenantId) };
@@ -157,6 +164,15 @@ describe('an improvement and more for more are taken at once', () => {
         assert.deepEqual(calls.frozen[0][4], PERIOD_END);
     });
 
+    test('the party is asked about the contract the switch freezes: from now, in its rhythm, to its end', async () => {
+        const { calls, take } = aSwitch({
+            sub: subscription({ canceledAt: NOW, canceledEffectiveAt: PERIOD_END }),
+        });
+        await take();
+        const [, , cycle, effectiveFrom, endsAt] = calls.frozen[0];
+        assert.deepEqual(calls.asked, [['t1', { effectiveFrom, cycle, endsAt }]]);
+    });
+
     test('in a trial nothing is frozen and nothing charged', async () => {
         const { calls, take } = aSwitch({
             sub: subscription({ status: 'TRIAL', trialEndsAt: PERIOD_END }),
@@ -165,6 +181,7 @@ describe('an improvement and more for more are taken at once', () => {
         assert.equal(result.immediate, true);
         assert.deepEqual(calls.frozen, []);
         assert.deepEqual(calls.charged, []);
+        assert.deepEqual(calls.asked, [['t1', null]], 'the party is asked, the tax is not');
     });
 });
 
@@ -195,6 +212,14 @@ describe('one that takes something away is taken at the end of the term', () => 
         assert.equal(calls.immediate.length, 0);
         assert.deepEqual(calls.frozen, [], 'the contract is frozen when the change comes due');
         assert.deepEqual(calls.invalidated, ['t1']);
+    });
+
+    test('the party is asked about the contract that runs from the term end', async () => {
+        const { calls, take } = aSwitch({ live: TAKES_AWAY, usage: { users: 3 } });
+        await take();
+        assert.deepEqual(calls.asked, [
+            ['t1', { effectiveFrom: PERIOD_END, cycle: 'MONTHLY', endsAt: null }],
+        ]);
     });
 
     test('usage up to the lower quota fits', async () => {

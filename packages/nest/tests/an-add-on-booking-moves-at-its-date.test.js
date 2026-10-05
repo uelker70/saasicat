@@ -21,6 +21,7 @@ import {
     retiring,
     subscriptionOf,
 } from './helpers/add-on-retirement-fixtures.js';
+import { unsupportedTaxCase } from './helpers/tax-adapter.js';
 import { sendingPort } from './helpers/version-notices.js';
 
 /** Both bookings, monthly to 1 November and told at `NOW`, move on 1 February 2027. */
@@ -39,13 +40,17 @@ async function announced(options = {}) {
  * `noParty` names tenants whose party is missing; `freezeFails` makes every
  * contract fail.
  */
-function mover(world, { noParty = [], freezeFails = false, charges = null } = {}) {
+function mover(world, { noParty = [], untreated = [], freezeFails = false, charges = null } = {}) {
     const frozen = [];
     const invalidated = [];
     const audited = [];
+    const asked = [];
     const contractFreeze = {
-        async assertPartyFor(tenantId) {
+        async assertPartyFor(tenantId, intended) {
+            asked.push([tenantId, intended]);
             if (noParty.includes(tenantId)) throw new Error('no party');
+            // As a tax adapter that treats this subscriber for no contract.
+            if (untreated.includes(tenantId) && intended) throw unsupportedTaxCase();
         },
         async freezeOnPlanChange(...args) {
             if (freezeFails) throw new Error('the contract store is down');
@@ -62,7 +67,7 @@ function mover(world, { noParty = [], freezeFails = false, charges = null } = {}
         charges,
         { log: async (entry) => audited.push(entry) },
     );
-    return { service, frozen, invalidated, audited };
+    return { service, frozen, invalidated, audited, asked };
 }
 
 const versionOf = (world, id) =>
@@ -267,7 +272,8 @@ describe('the move at the date', () => {
             subscriptions: [subscriptionOf('t1', { status: 'TRIAL' }), subscriptionOf('t2')],
         });
         const charges = journal();
-        const { service, frozen } = mover(world, { charges });
+        // t1's tax could not be decided for a contract; a trial is asked none.
+        const { service, frozen, asked } = mover(world, { charges, untreated: ['t1'] });
 
         await service.moveDue(AT_THE_DATE);
 
@@ -277,6 +283,10 @@ describe('the move at the date', () => {
             ['t2'],
         );
         assert.deepEqual(charges.recorded, ['t2']);
+        assert.deepEqual(
+            asked.find(([tenantId]) => tenantId === 't1'),
+            ['t1', null],
+        );
     });
 
     test('records the charges the move makes due', async () => {
@@ -554,6 +564,38 @@ describe('a move that cannot be made', () => {
                 .filter((entry) => entry.action === 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED')
                 .map((entry) => [entry.entityId, entry.changes.reason]),
             [['sb-t1', 'no-party']],
+        );
+    });
+
+    test('asks the party about the contract each move then writes', async () => {
+        const world = await announced();
+        const { service, frozen, asked } = mover(world);
+
+        await service.moveDue(AT_THE_DATE);
+
+        assert.deepEqual(
+            asked,
+            frozen.map(([tenantId, , cycle, effectiveFrom, endsAt]) => [
+                tenantId,
+                { effectiveFrom, cycle, endsAt },
+            ]),
+        );
+        assert.equal(asked.length, 2);
+    });
+
+    test('fails for a subscriber the tax adapter supports no treatment for, and says so', async () => {
+        const world = await announced();
+        const { service, audited } = mover(world, { untreated: ['t1'] });
+
+        const run = await service.moveDue(AT_THE_DATE);
+
+        assert.deepEqual(run, { moved: 1, failed: 1 });
+        assert.equal(versionOf(world, 'sb-t1'), RETIRED.id);
+        assert.deepEqual(
+            audited
+                .filter((entry) => entry.action === 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED')
+                .map((entry) => [entry.entityId, entry.changes.reason]),
+            [['sb-t1', 'tax-not-supported']],
         );
     });
 
