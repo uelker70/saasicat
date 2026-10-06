@@ -15,6 +15,7 @@ import { flushPromises } from '@vue/test-utils';
 
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
+import { raisedWhile } from '../support/raised-out-of-band.mjs';
 
 // Dialogs teleport into `document.body` and stay there until unmounted. Without
 // this, the second test in a block queries the FIRST test's buttons — which is
@@ -86,16 +87,21 @@ describe('AdminErrorBanner is bound unconditionally and decides for itself', () 
 describe('AdminFormDialog owns the submit lifecycle', () => {
     async function openWith(
         submit: () => Promise<unknown>,
-        { successMessage, notices = [] }: { successMessage?: string; notices?: string[][] } = {},
+        {
+            successMessage,
+            notices = [],
+            notify = (kind: string, message: string) => notices.push([kind, message]),
+        }: {
+            successMessage?: string;
+            notices?: string[][];
+            notify?: (kind: string, message: string) => unknown;
+        } = {},
     ) {
         const wrapper = mountWithQuasar(AdminFormDialog, {
             props: { modelValue: true, title: 'Create plan', submit, successMessage },
             attachTo: document.body,
             global: {
-                provide: {
-                    [SUPER_ADMIN_NOTIFY_KEY as symbol]: (kind: string, message: string) =>
-                        notices.push([kind, message]),
-                },
+                provide: { [SUPER_ADMIN_NOTIFY_KEY as symbol]: notify },
             },
         });
         mounted.push(wrapper);
@@ -138,6 +144,24 @@ describe('AdminFormDialog owns the submit lifecycle', () => {
         primaryButton().click();
         await flushPromises();
         expect(notices).toEqual(expected);
+    });
+
+    test('a success message that throws still closes the dialog on the write that happened', async () => {
+        const wrapper = await openWith(() => Promise.resolve({ id: 'plan-1' }), {
+            successMessage: 'Plan created',
+            notify: () => {
+                throw new Error('notification centre is not mounted');
+            },
+        });
+
+        const { raised } = await raisedWhile(async () => {
+            primaryButton().click();
+            await flushPromises();
+        });
+
+        expect(wrapper.emitted('submitted')).toHaveLength(1);
+        expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([false]);
+        expect(raised).toEqual(['notification centre is not mounted']);
     });
 
     test('a successful submit closes it and says so once', async () => {

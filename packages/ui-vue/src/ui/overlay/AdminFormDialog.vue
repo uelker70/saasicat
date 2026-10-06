@@ -33,12 +33,9 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue';
-
 import AdminDialog from './AdminDialog.vue';
 import AdminErrorBanner from '../feedback/AdminErrorBanner.vue';
 import { useAsyncAction } from '../../vue/use-async-action.js';
-import { SUPER_ADMIN_NOTIFY_KEY } from '../../vue/ui-notify.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // A dialog whose point is a write. The lifecycle around that write — disable
@@ -86,11 +83,12 @@ const emit = defineEmits<{
 }>();
 
 const common = useSaMessages('common');
-const notify = inject(SUPER_ADMIN_NOTIFY_KEY, undefined);
 
-// Only the failure is announced by the action: whether a success is one
-// depends on what `submit` resolved, which the action does not judge.
-const action = useAsyncAction(() => props.submit());
+// A `null` result wrote nothing, so it announces nothing either.
+const action = useAsyncAction(() => props.submit(), {
+    notifyOn: 'both',
+    successMessage: (result) => (result === null ? '' : (props.successMessage ?? '')),
+});
 
 function close(): void {
     // Dropping a failure on the way out: reopening the dialog to a stale error
@@ -106,7 +104,6 @@ function onDialogModel(open: boolean): void {
 async function onSubmit(): Promise<void> {
     const result = await action.run();
     if (!result.ok || result.value === null) return;
-    if (props.successMessage) notify?.('positive', props.successMessage);
     emit('submitted');
     close();
 }

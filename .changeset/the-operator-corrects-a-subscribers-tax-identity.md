@@ -46,6 +46,10 @@ entity stays refused.
   log: `POST admin/tenants/:slug/subscriber/identity` and
   `…/business-status` behind the second factor, `…/vat-id-check` without it,
   and `GET …/history`, the latest first.
+- **`canonicalVatId`** in `@saasicat/core` gives a VAT number in the one form
+  the platform stores, compares and checks it in — `atu 123.456-78` is
+  `ATU12345678`. The platform settles every number with it, and a form asking
+  whether a number changed compares with it too.
 - **`@saasicat/ui-vue`.** `TenantDetailPage` offers both corrections in a
   dialog that asks for the reason and then for the second factor, the check
   where an adapter decides and a number is held, and the subscriber's history.
@@ -53,4 +57,6 @@ entity stays refused.
   `AdminFormDialog` keeps a form open, without an error and without its
   `successMessage`, when its `submit` resolves `null` — a `submit` of yours
   that resolves `null` after a successful write resolves something else
-  now, or the dialog stays open after it.
+  now, or the dialog stays open after it. A `successMessage` function given
+  to `useAsyncAction` is passed what the call resolved, and an empty text
+  announces nothing.

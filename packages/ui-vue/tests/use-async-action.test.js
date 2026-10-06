@@ -11,6 +11,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AdminError, DEFAULT_SA_LOCALE, SA_MESSAGES, useAsyncAction } from '../dist/index.js';
+import { raisedWhile } from './support/raised-out-of-band.mjs';
 
 // Without a provider the composable reads the shared default i18n instance,
 // which is the platform's default locale. Derived rather than hardcoded so the
@@ -106,6 +107,18 @@ describe('useAsyncAction — the happy path', () => {
             ['positive', 'Saved first'],
             ['positive', 'Saved second'],
         ]);
+    });
+
+    test('a success message is given what the call resolved, and an empty one announces nothing', async () => {
+        const { notify, calls } = recordingNotify();
+        const action = useAsyncAction(async (key) => key, {
+            notify,
+            notifyOn: 'both',
+            successMessage: (key) => (key === null ? '' : `Saved ${key}`),
+        });
+        await action.run('plan-1');
+        await action.run(null);
+        assert.deepEqual(calls, [['positive', 'Saved plan-1']]);
     });
 });
 
@@ -276,29 +289,6 @@ describe('useAsyncAction — a report cannot change what happened', () => {
     const boom = () => {
         throw new Error('notification centre is not mounted');
     };
-
-    /**
-     * Runs `body` and returns what the isolated report raised out of band.
-     *
-     * The rethrow is deliberate — a broken notify port must not go unnoticed —
-     * so it lands on `uncaughtException`, one tick after the test that caused
-     * it. Capturing it here is what keeps that from failing the file.
-     */
-    async function raisedWhile(body) {
-        const raised = [];
-        const previous = process.listeners('uncaughtException');
-        for (const listener of previous) process.off('uncaughtException', listener);
-        const capture = (err) => raised.push(err.message);
-        process.on('uncaughtException', capture);
-        try {
-            const value = await body();
-            await new Promise((resolve) => setTimeout(resolve, 10));
-            return { value, raised };
-        } finally {
-            process.off('uncaughtException', capture);
-            for (const listener of previous) process.on('uncaughtException', listener);
-        }
-    }
 
     test('a success toast that throws leaves the action successful', async () => {
         // The write reached the server. A caller told it failed may answer with

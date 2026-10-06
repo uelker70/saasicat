@@ -30,6 +30,7 @@ import type {
     tenantsResource,
 } from '../client/resources/tenants.resource.js';
 import type { UiNotify, UiNotifyKind } from './ui-notify.js';
+import { report } from './report.js';
 import { useAsyncData, type AsyncData } from './use-async-data.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
 import { useSaMessages } from './use-super-admin-i18n.js';
@@ -94,16 +95,20 @@ export function useSubscriberCorrections(
     /**
      * Announces what a correction or a check found — what the service answered
      * where a number was checked, with the correction's own line beneath it —
-     * and reads the subscriber and its history again.
+     * and reads the subscriber and its history again. The announcement cannot
+     * fail what it announces: the write has happened by then, and a dialog
+     * told otherwise would invite a second one.
      */
     async function changed(result: AdminSubscriberCorrected, done: string | null): Promise<void> {
         const check = result.vatIdCheck;
-        if (check) {
-            const [kind, message] = checkAnnouncement(check);
-            ports.notify(kind, message, done ? { caption: done } : undefined);
-        } else if (done) {
-            ports.notify('positive', done);
-        }
+        report(() => {
+            if (check) {
+                const [kind, message] = checkAnnouncement(check);
+                ports.notify(kind, message, done ? { caption: done } : undefined);
+            } else if (done) {
+                ports.notify('positive', done);
+            }
+        });
         await Promise.all([history.reload(), ports.onChanged()]);
     }
 
@@ -164,7 +169,7 @@ export function useSubscriberCorrections(
             try {
                 result = await tenants.checkSubscriberVatId(slug.value);
             } catch (err) {
-                ports.notify('negative', adminErrorMessage(err, errors.value));
+                report(() => ports.notify('negative', adminErrorMessage(err, errors.value)));
                 return;
             }
             await changed(result, null);

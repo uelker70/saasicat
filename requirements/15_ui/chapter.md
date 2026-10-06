@@ -684,6 +684,7 @@ _Tested by:_
         - stays silent on success by default
         - notifyOn "both" raises the success message
         - a success message may be computed at call time
+        - a success message is given what the call resolved, and an empty one announces nothing
     - useAsyncAction — failure
         - reports the failure in the result instead of throwing
         - a void action is still distinguishable — the whole reason for the shape
@@ -1626,6 +1627,7 @@ _Tested by:_
         - stays silent on success by default
         - notifyOn "both" raises the success message
         - a success message may be computed at call time
+        - a success message is given what the call resolved, and an empty one announces nothing
     - useAsyncAction — failure
         - reports the failure in the result instead of throwing
         - a void action is still distinguishable — the whole reason for the shape

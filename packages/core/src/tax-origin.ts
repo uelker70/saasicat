@@ -22,6 +22,22 @@ import type {
 } from './tax.types.js';
 import { TAX_TREATMENT_KINDS } from './tax.types.js';
 
+/** What a VAT identification number is written with but does not consist of. */
+const VAT_ID_SEPARATORS = /[\s.-]/g;
+
+/**
+ * A VAT identification number in the one form it is stored, compared and
+ * checked in: upper case, without the spaces, dots and hyphens it is often
+ * written with. `atu 123.456-78` is `ATU12345678` — the same number, so
+ * entering it in another spelling moves nothing. `null` where nothing is left.
+ * The platform settles every number it is given with this, and a form that
+ * asks whether a number changed compares with it too.
+ */
+export function canonicalVatId(written: string): string | null {
+    const vatId = written.replace(VAT_ID_SEPARATORS, '').toUpperCase();
+    return vatId === '' ? null : vatId;
+}
+
 /** A `subscriber_vat_id_checks` row as either adapter reads it back. */
 export interface CanonicalSubscriberVatIdCheckRow {
     id: string;

@@ -23,6 +23,7 @@ describe('the identity correction the form describes', () => {
         ['a reason but no change', { reason: 'Checked, all correct' }],
         ['a change only in the blanks around a value', { legalName: ' Wien GmbH ', reason: 'x' }],
         ['a blank tax number where none is held', { taxNumber: '   ', reason: 'x' }],
+        ['the VAT number held, in another spelling', { vatId: 'atu 123.456-78', reason: 'x' }],
     ])('is none for %s', (_, form) => {
         expect(identityCorrectionOf(HELD, { ...UNCHANGED, ...form })).toBeNull();
     });
@@ -34,8 +35,8 @@ describe('the identity correction the form describes', () => {
             { legalName: 'Wien AG', reason: 'Renamed' },
         ],
         [
-            'another VAT number, trimmed',
-            { vatId: ' ATU87654321 ', reason: 'New number' },
+            'another VAT number, in the form the platform keeps it',
+            { vatId: ' atu 876.543-21 ', reason: 'New number' },
             { vatId: 'ATU87654321', reason: 'New number' },
         ],
         [

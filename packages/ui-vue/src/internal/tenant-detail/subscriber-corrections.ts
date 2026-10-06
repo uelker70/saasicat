@@ -2,7 +2,7 @@
 // the fields that changed, never an empty reason. Framework-free, so the rule
 // is one function the two dialogs share and a test calls without mounting them.
 
-import type { AdminTenantSubscriber } from '@saasicat/core';
+import { canonicalVatId, type AdminTenantSubscriber } from '@saasicat/core';
 
 import type {
     SubscriberBusinessStatusInput,
@@ -33,7 +33,9 @@ export function identityCorrectionOf(
     if (reason === '' || legalName === '') return null;
     const correction: SubscriberIdentityCorrectionInput = { reason };
     if (legalName !== held.legalName) correction.legalName = legalName;
-    const vatId = identifierOf(form.vatId);
+    // In the form the platform compares it in, so another spelling of the
+    // number held is no change — the platform would refuse it as none.
+    const vatId = canonicalVatId(form.vatId);
     if (vatId !== held.vatId) correction.vatId = vatId;
     const taxNumber = identifierOf(form.taxNumber);
     if (taxNumber !== held.taxNumber) correction.taxNumber = taxNumber;

@@ -6288,6 +6288,10 @@ _Tested by:_
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
         - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
           factor
+        - a correction stands though its announcement throws: answered, read again, the throw raised
+          apart
+        - a failed check whose announcement throws still settles: nothing read again, the throw
+          raised apart
         - a change of business status goes out with the second factor and is announced
         - a check needs no second factor, announces what the service found, and reads again
         - a check that fails is reported, and nothing is read again
@@ -13077,6 +13081,10 @@ _Tested by:_
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
         - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
           factor
+        - a correction stands though its announcement throws: answered, read again, the throw raised
+          apart
+        - a failed check whose announcement throws still settles: nothing read again, the throw
+          raised apart
         - a change of business status goes out with the second factor and is announced
         - a check needs no second factor, announces what the service found, and reads again
         - a check that fails is reported, and nothing is read again
@@ -14163,6 +14171,7 @@ _Tested by:_
         - stays silent on success by default
         - notifyOn "both" raises the success message
         - a success message may be computed at call time
+        - a success message is given what the call resolved, and an empty one announces nothing
     - useAsyncAction — failure
         - reports the failure in the result instead of throwing
         - a void action is still distinguishable — the whole reason for the shape
@@ -15105,6 +15114,7 @@ _Tested by:_
         - stays silent on success by default
         - notifyOn "both" raises the success message
         - a success message may be computed at call time
+        - a success message is given what the call resolved, and an empty one announces nothing
     - useAsyncAction — failure
         - reports the failure in the result instead of throwing
         - a void action is still distinguishable — the whole reason for the shape

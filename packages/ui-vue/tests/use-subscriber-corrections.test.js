@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { nextTick, ref } from 'vue';
 
 import { useSubscriberCorrections } from '../dist/index.js';
+import { raisedWhile } from './support/raised-out-of-band.mjs';
 
 async function settle() {
     await nextTick();
@@ -36,9 +37,14 @@ function correctionsOf({
     answer = {},
     failWith,
     whilePrompted,
+    notify: givenNotify,
 } = {}) {
     const calls = [];
     const notices = [];
+    const notify =
+        givenNotify ??
+        ((kind, message, options) =>
+            notices.push(options?.caption ? [kind, message, options.caption] : [kind, message]));
     const prompts = [];
     let changed = 0;
     const answered = (vatIdCheck = null) => ({ subscriber: STANDING, vatIdCheck });
@@ -72,8 +78,7 @@ function correctionsOf({
         },
     };
     const corrections = useSubscriberCorrections(slug, ref(manifest), tenants, {
-        notify: (kind, message, options) =>
-            notices.push(options?.caption ? [kind, message, options.caption] : [kind, message]),
+        notify,
         mfa,
         onChanged: () => {
             changed += 1;
@@ -229,6 +234,36 @@ describe('useSubscriberCorrections', () => {
             );
         });
     }
+
+    test('a correction stands though its announcement throws: answered, read again, the throw raised apart', async () => {
+        const { corrections, changes } = correctionsOf({
+            notify: () => {
+                throw new Error('notification centre is not mounted');
+            },
+        });
+
+        const { value, raised } = await raisedWhile(() =>
+            corrections.correctIdentity({ legalName: 'Wien AG', reason: 'Renamed' }),
+        );
+
+        assert.deepEqual(value.subscriber, STANDING, 'the dialog is told the write happened');
+        assert.equal(changes(), 1);
+        assert.deepEqual(raised, ['notification centre is not mounted']);
+    });
+
+    test('a failed check whose announcement throws still settles: nothing read again, the throw raised apart', async () => {
+        const { corrections, changes } = correctionsOf({
+            failWith: Object.assign(new Error('Service unavailable'), { status: 503 }),
+            notify: () => {
+                throw new Error('notification centre is not mounted');
+            },
+        });
+
+        const { raised } = await raisedWhile(() => corrections.checkVatId());
+
+        assert.equal(changes(), 0);
+        assert.deepEqual(raised, ['notification centre is not mounted']);
+    });
 
     test('a change of business status goes out with the second factor and is announced', async () => {
         const { corrections, writes, notices } = correctionsOf();
