@@ -1354,6 +1354,126 @@ paths:
                                 type: array
                                 items: { $ref: '#/components/schemas/BundleVersionRetirement' }
 
+    # ── Feature withdrawals ──
+    #
+    # Served where the manifest carries the capability `features.withdraw`: where the
+    # installation can list everybody a withdrawal reaches. A feature withdrawn for a reason
+    # outside the platform — an external service stopped, a law changed — is granted to
+    # nobody from the date named until the withdrawal is lifted. The subscriptions holding
+    # it when it is announced are told at once; each line is reduced by the amount named
+    # for its plan or add-on and rhythm, and each may end at once while it is withdrawn.
+
+    /feature-withdrawals:
+        get:
+            tags: [catalog]
+            summary: Every withdrawal, the most recently announced first
+            responses:
+                '200':
+                    description: List, each with how many it reached, told and ended at once
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/FeatureWithdrawal' }
+        post:
+            tags: [catalog]
+            summary: Withdraw a feature from every subscription that holds it
+            description: >-
+                The withdrawal and one notice per subscription are recorded in one transaction,
+                then handed to the application's `SubscriptionNoticePort` as `feature-withdrawn`;
+                a notice that cannot be sent now is sent by the next run. The reductions are
+                written into each subscription's contract. Audited as FEATURE_WITHDRAW.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/FeatureWithdrawalAnnouncement' }
+            responses:
+                '201':
+                    description: Announced
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/FeatureWithdrawalAnnounced' }
+                '404':
+                    description: >-
+                        Not offered here: the stores cannot list everybody a withdrawal reaches
+                        (`FEATURE_WITHDRAWAL_UNAVAILABLE`)
+                '409':
+                    description: >-
+                        The subscriptions it reaches are no longer the ones named
+                        (`FEATURE_WITHDRAWAL_PREVIEW_CHANGED`, with the preview as it stands), or
+                        another withdrawal of the feature landed first (`FEATURE_WITHDRAWAL_OPEN`)
+                '422':
+                    description: >-
+                        An unknown feature (`FEATURE_WITHDRAWAL_FEATURE_UNKNOWN`), a date already
+                        past (`FEATURE_WITHDRAWAL_DATE_IN_PAST`), a reduction that names nothing it
+                        reaches, is named twice or exceeds the lowest price it reduces
+                        (`FEATURE_WITHDRAWAL_REDUCTION_*`), or the first blocker the preview reports
+
+    /feature-withdrawals/preview:
+        get:
+            tags: [catalog]
+            summary: What withdrawing the feature from the date would do now
+            parameters:
+                - name: featureKey
+                  in: query
+                  required: true
+                  schema: { type: string }
+                - name: effectiveFrom
+                  in: query
+                  required: false
+                  description: ISO-8601; now where left out
+                  schema: { type: string, format: date-time }
+            responses:
+                '200':
+                    description: >-
+                        Whom it reaches with which lines, whom it does not and why, the plans and
+                        add-ons a reduction may be named for, and every blocker
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/FeatureWithdrawalPreview' }
+                '404':
+                    description: Not offered here (`FEATURE_WITHDRAWAL_UNAVAILABLE`)
+                '422':
+                    description: >-
+                        An unknown feature (`FEATURE_WITHDRAWAL_FEATURE_UNKNOWN`), or a date already
+                        past (`FEATURE_WITHDRAWAL_DATE_IN_PAST`)
+
+    /feature-withdrawals/{id}/lift:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [catalog]
+            summary: Lift a withdrawal from a date
+            description: >-
+                From the date the feature is granted again, and the reduction and the right to end
+                at once end; every subscription it reached that still runs is told as
+                `feature-withdrawal-lifted`. Audited as FEATURE_WITHDRAWAL_LIFT.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                liftedFrom:
+                                    type: string
+                                    format: date-time
+                                    description: ISO-8601; now where left out
+            responses:
+                '201':
+                    description: Lifted
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/FeatureWithdrawalLifted' }
+                '404':
+                    description: No withdrawal has that id (`FEATURE_WITHDRAWAL_NOT_FOUND`)
+                '409':
+                    description: Lifted already (`FEATURE_WITHDRAWAL_ALREADY_LIFTED`, with its date)
+                '422':
+                    description: A date already past (`FEATURE_WITHDRAWAL_LIFT_IN_PAST`)
+
     # ── Bundles ──
     /catalog/bundles:
         get:
@@ -2383,6 +2503,175 @@ components:
                 retirement: { $ref: '#/components/schemas/VersionRetirement' }
                 told: { type: integer, description: 'Notices sent at once' }
                 failed: { type: integer, description: 'Notices the next run sends' }
+
+        FeatureWithdrawalReduction:
+            type: object
+            required: [kind, key, billingCycle, amountNet]
+            properties:
+                kind: { type: string, enum: [plan, bundle] }
+                key: { type: string, description: 'The plan key, or the add-on key' }
+                billingCycle: { type: string, enum: [MONTHLY, YEARLY] }
+                amountNet:
+                    type: number
+                    description: 'Net, per whole period of the rhythm, to the cent'
+
+        FeatureWithdrawalAnnouncement:
+            type: object
+            required: [featureKey, reason, reductions, subscriptionIds]
+            properties:
+                featureKey: { type: string }
+                reason: { type: string, description: 'Shown to the subscribers as written' }
+                effectiveFrom:
+                    { type: string, format: date-time, description: 'Now where left out' }
+                reductions:
+                    type: array
+                    items: { $ref: '#/components/schemas/FeatureWithdrawalReduction' }
+                subscriptionIds:
+                    type: array
+                    description: 'The subscriptions the operator was shown in the preview'
+                    items: { type: string }
+
+        FeatureWithdrawalRow:
+            type: object
+            required:
+                [
+                    id,
+                    featureKey,
+                    reason,
+                    effectiveFrom,
+                    liftedFrom,
+                    reductions,
+                    announcedAt,
+                    announcedBy,
+                    liftedAt,
+                    liftedBy,
+                ]
+            properties:
+                id: { type: string }
+                featureKey: { type: string }
+                reason: { type: string }
+                effectiveFrom: { type: string, format: date-time }
+                liftedFrom: { type: [string, 'null'], format: date-time }
+                reductions:
+                    type: array
+                    items: { $ref: '#/components/schemas/FeatureWithdrawalReduction' }
+                announcedAt: { type: string, format: date-time }
+                announcedBy:
+                    { type: string, description: 'An actor tag, as the audit log writes it' }
+                liftedAt: { type: [string, 'null'], format: date-time }
+                liftedBy: { type: [string, 'null'] }
+
+        FeatureWithdrawal:
+            allOf:
+                - $ref: '#/components/schemas/FeatureWithdrawalRow'
+                - type: object
+                  required: [featureLabel, progress]
+                  properties:
+                      featureLabel: { type: string }
+                      progress:
+                          type: object
+                          required: [reached, told, endedAtOnce]
+                          properties:
+                              reached: { type: integer, description: 'Subscriptions it reached' }
+                              told:
+                                  type: integer
+                                  description: 'Of those, the ones whose notice reached somebody'
+                              endedAtOnce:
+                                  type: integer
+                                  description: 'Subscriptions and bookings ended at once under it'
+
+        FeatureWithdrawalAnnounced:
+            type: object
+            required: [withdrawal, told, failed]
+            properties:
+                withdrawal: { $ref: '#/components/schemas/FeatureWithdrawalRow' }
+                told: { type: integer, description: 'Notices sent at once' }
+                failed: { type: integer, description: 'Notices the next run sends' }
+
+        FeatureWithdrawalLifted:
+            type: object
+            required: [withdrawal, told, failed]
+            properties:
+                withdrawal: { $ref: '#/components/schemas/FeatureWithdrawalRow' }
+                told: { type: integer, description: 'Notices sent at once' }
+                failed: { type: integer, description: 'Notices the next run sends' }
+
+        FeatureWithdrawalPreview:
+            type: object
+            required: [feature, effectiveFrom, asOf, reached, skipped, targets, blockers]
+            properties:
+                feature:
+                    type: object
+                    required: [key, label]
+                    properties:
+                        key: { type: string }
+                        label: { type: string }
+                effectiveFrom: { type: string, description: 'ISO-8601' }
+                asOf: { type: string, description: 'ISO-8601: the moment it is computed for' }
+                reached:
+                    type: array
+                    items:
+                        type: object
+                        required: [tenantId, subscriptionId, status, lines, specialTerms]
+                        properties:
+                            tenantId: { type: string }
+                            subscriptionId: { type: string }
+                            status: { type: string }
+                            lines:
+                                type: array
+                                items:
+                                    type: object
+                                    required:
+                                        [
+                                            line,
+                                            key,
+                                            label,
+                                            subscriptionBundleId,
+                                            billingCycle,
+                                            priceNet,
+                                        ]
+                                    properties:
+                                        line: { type: string, enum: [plan, bundle] }
+                                        key: { type: string }
+                                        label: { type: string }
+                                        subscriptionBundleId: { type: [string, 'null'] }
+                                        billingCycle: { type: string, enum: [MONTHLY, YEARLY] }
+                                        priceNet: { type: [number, 'null'] }
+                            specialTerms:
+                                type: boolean
+                                description: 'Holds the feature through special terms, and no line'
+                skipped:
+                    type: array
+                    items:
+                        type: object
+                        required: [tenantId, subscriptionId, reason]
+                        properties:
+                            tenantId: { type: string }
+                            subscriptionId: { type: string }
+                            reason: { type: string, enum: [ends-before] }
+                targets:
+                    type: array
+                    description: 'Each plan and add-on in a rhythm a reduction may be named for'
+                    items:
+                        type: object
+                        required: [kind, key, label, billingCycle, lines, lowestPriceNet]
+                        properties:
+                            kind: { type: string, enum: [plan, bundle] }
+                            key: { type: string }
+                            label: { type: string }
+                            billingCycle: { type: string, enum: [MONTHLY, YEARLY] }
+                            lines: { type: integer }
+                            lowestPriceNet: { type: [number, 'null'] }
+                blockers:
+                    type: array
+                    description: 'Empty where it may be announced as it stands'
+                    items:
+                        type: object
+                        required: [code, message, params]
+                        properties:
+                            code: { type: string, description: 'FEATURE_WITHDRAWAL_*' }
+                            message: { type: string }
+                            params: { type: object }
 
         RetiredBundleVersionRef:
             type: object

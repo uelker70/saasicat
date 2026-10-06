@@ -31,11 +31,17 @@
 
         <p v-if="features.added.length > 0" class="sp-version-comparison__features">
             <strong>{{ i18n.versionOfferFeaturesAdded }}:</strong>
-            {{ features.added.map(featureLabel).join(', ') }}
+            <template v-for="(key, index) in features.added" :key="key">
+                {{ index > 0 ? ', ' : ' ' }}{{ featureLabel(key) }}
+                <WithdrawnFeatureMark :feature-key="key" />
+            </template>
         </p>
         <p v-if="features.removed.length > 0" class="sp-version-comparison__features">
             <strong>{{ i18n.versionOfferFeaturesRemoved }}:</strong>
-            {{ features.removed.map(featureLabel).join(', ') }}
+            <template v-for="(key, index) in features.removed" :key="key">
+                {{ index > 0 ? ', ' : ' ' }}{{ featureLabel(key) }}
+                <WithdrawnFeatureMark :feature-key="key" />
+            </template>
         </p>
     </div>
 </template>
@@ -49,6 +55,7 @@
 import { computed } from 'vue';
 
 import { useTenantI18n } from '../tenant-i18n.js';
+import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
 import {
     offerFeatureChanges,
     offerPriceRows,

@@ -14,6 +14,7 @@ import { composeAdminResources } from './admin-resources.js';
 import { composeCatalog } from './catalog.js';
 import type { CompositionContext } from './context.js';
 import { composeEntitlement } from './entitlement.js';
+import { composeFeatureWithdrawal } from './feature-withdrawal.js';
 import { composeMaintenance } from './maintenance.js';
 import {
     composeAdminStats,
@@ -51,6 +52,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeSubscriberAdmin,
     // After tenant billing: it imports it.
     composeVersionRetirement,
+    // After tenant billing: it imports it.
+    composeFeatureWithdrawal,
     composeMaintenance,
 ];
 

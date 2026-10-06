@@ -100,7 +100,7 @@ describe('the bundle path does not consult a notice period', () => {
     });
 });
 
-// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
 // @requirement SC-BUN-011 — An add-on has no notice period
 describe('cancelling an add-on', () => {
     const cancel = (overrides = {}) =>

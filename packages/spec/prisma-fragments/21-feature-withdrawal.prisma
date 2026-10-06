@@ -1,0 +1,51 @@
+// =============================================================================
+// SaaS platform Prisma fragment: FeatureWithdrawal
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per feature withdrawn for a reason outside the platform: an external
+// service the feature depends on stopped, or a law took it away or changed it.
+// From `effectiveFrom` the platform grants the feature to nobody, until the
+// operator lifts the withdrawal from `liftedFrom`. Kept as evidence of what was
+// announced, why, when and by whom, and of the reductions the operator named.
+//
+// What it means for each subscription it reaches — which lines, what each is
+// reduced by — is a `subscription_notices` row of kind feature-withdrawn,
+// written in the same transaction: its subject is this row's id.
+//
+// `reductions` is a JSON list of `{ kind, key, billingCycle, amountNet }`: the
+// net amount a plan or an add-on, by its key, is reduced by for one whole
+// period of that rhythm without the feature.
+//
+// At most ONE withdrawal of a feature is not lifted at a time. Prisma cannot
+// express a partial unique index; the one that holds it is in
+// sql/constraints.postgres.sql, and it is what makes two operators announcing
+// at the same moment land one withdrawal rather than two.
+//
+// Optional: adopt it where an operator may withdraw features. Without it,
+// withdrawing a feature is off.
+//
+// Contract: @saasicat/core (FeatureWithdrawalRepository).
+
+model FeatureWithdrawal {
+    id         String    @id @default(uuid())
+    featureKey String
+    // Why, in the operator's words, shown to the subscribers as written.
+    reason     String
+
+    effectiveFrom DateTime
+    // Null until the operator lifts it.
+    liftedFrom    DateTime?
+
+    reductions Json @default("[]")
+
+    announcedAt DateTime @default(now())
+    // Who announced it, and who lifted it — actor tags, as the audit log writes them.
+    announcedBy String
+    liftedAt    DateTime?
+    liftedBy    String?
+
+    @@index([featureKey])
+    @@map("feature_withdrawals")
+}

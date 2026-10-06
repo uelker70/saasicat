@@ -35,6 +35,7 @@ import {
     DrizzleSubscriptionUsageAdapter,
     DrizzleVersionRetirementRepository,
     DrizzleBundleVersionRetirementRepository,
+    DrizzleFeatureWithdrawalRepository,
 } from '../../dist/index.js';
 import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '../../dist/index.js';
 import {
@@ -80,6 +81,7 @@ const PLATFORM_TABLES = [
     'subscription_notices',
     'version_retirements',
     'bundle_version_retirements',
+    'feature_withdrawals',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -124,6 +126,7 @@ function createHarness() {
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),
             versionRetirements: new DrizzleVersionRetirementRepository(db),
             bundleVersionRetirements: new DrizzleBundleVersionRetirementRepository(db),
+            featureWithdrawals: new DrizzleFeatureWithdrawalRepository(db),
             subscriptionUsage: new DrizzleSubscriptionUsageAdapter(db),
         },
         seed: {

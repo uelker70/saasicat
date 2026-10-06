@@ -7,6 +7,11 @@
 
 import type { BundleVersionOfferView } from './bundle-version-offer.types.js';
 import type {
+    EndedAtOnceNotice,
+    FeatureWithdrawalLiftedNotice,
+    FeatureWithdrawnNotice,
+} from './feature-withdrawal.types.js';
+import type {
     BundleVersionRetiredNotice,
     BundleVersionRetirementReminder,
 } from './bundle-version-retirement.types.js';
@@ -23,7 +28,10 @@ export type SubscriptionNoticeKind =
     | 'version-retirement-reminder'
     | 'bundle-version-retired'
     | 'bundle-version-retirement-reminder'
-    | 'bundle-version-offered';
+    | 'bundle-version-offered'
+    | 'feature-withdrawn'
+    | 'feature-withdrawal-lifted'
+    | 'ended-at-once';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -42,7 +50,10 @@ export interface SubscriptionNoticeKey {
      * the retirement once. For `bundle-version-retirement-reminder`, the id of
      * the add-on version retired as well: that booking is reminded of it once.
      * For `bundle-version-offered`, the id of the add-on version offered: that
-     * booking is told of the version once.
+     * booking is told of the version once. For `feature-withdrawn` and
+     * `feature-withdrawal-lifted`, the id of the withdrawal: a subscription is
+     * told of each once. For `ended-at-once`, the id of what ended — the
+     * subscription, or the booking — which ends once.
      */
     readonly subject: string;
 }
@@ -106,4 +117,7 @@ export type SubscriptionNotice =
     | VersionRetirementReminder
     | BundleVersionRetiredNotice
     | BundleVersionRetirementReminder
-    | BundleVersionOfferedNotice;
+    | BundleVersionOfferedNotice
+    | FeatureWithdrawnNotice
+    | FeatureWithdrawalLiftedNotice
+    | EndedAtOnceNotice;

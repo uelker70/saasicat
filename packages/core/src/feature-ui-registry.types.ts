@@ -16,6 +16,13 @@ export interface FeatureUiMeta {
     plannedOnly?: boolean;
     /** true = base infrastructure, included in every plan (not bookable). */
     core?: boolean;
+    /**
+     * Set where the feature is withdrawn now or from a date ahead: why, from
+     * when, and until when where the withdrawal is lifted from a date ahead. A
+     * page that shows the feature as part of a plan or an add-on shows this
+     * beside it, so whoever concludes knows before they do.
+     */
+    withdrawn?: { reason: string; effectiveFrom: string; liftedFrom: string | null };
 }
 
 /** Map FeatureKey → UI metadata. Consumer apps supply a complete table. */

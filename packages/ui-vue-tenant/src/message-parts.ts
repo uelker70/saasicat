@@ -44,3 +44,14 @@ export function messageParts(
     parts.push({ text: rest, strong: false });
     return parts.filter((part) => part.text !== '');
 }
+
+/**
+ * A message template with its values in place, as one string. Values go in as
+ * they are: unlike `String.prototype.replace`, a `$&` in a reason somebody
+ * typed stays a `$&`.
+ */
+export function messageText(template: string, values: Record<string, string>): string {
+    return messageParts(template, values)
+        .map((part) => part.text)
+        .join('');
+}

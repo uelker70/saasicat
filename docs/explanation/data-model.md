@@ -73,6 +73,7 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 | `SubscriptionNotice` (`subscription_notices`)                                                             | subscription + kind + subject unique                                    | One notice to a subscriber — a newer version offered, the retirement of its plan version or of an add-on version it booked, or a retirement's reminder — with what it said, when it went out, to whom and through which channel. Claimed by the run that sends it, confirmed after (invariant 12). Keeps the tenant and the subscription as values and outlives them.                                                                                                                                                      |
 | `VersionRetirement` (`version_retirements`)                                                               | one per announcement                                                    | An operator's retirement of a plan version for the subscriptions on it: the version retired, the replacement named, when and by whom. What it means for each subscription is that subscription's notice, recorded in the same transaction.                                                                                                                                                                                                                                                                                 |
 | `BundleVersionRetirement` (`bundle_version_retirements`)                                                  | one per announcement                                                    | The same for an add-on version and the bookings on it; the replacement is a version of the same add-on.                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `FeatureWithdrawal` (`feature_withdrawals`)                         | one per announcement; at most one not lifted per feature (partial unique index) | An operator's withdrawal of a feature from everybody who holds it: the feature, the reason the subscribers read, from when, the reductions named per plan and add-on in each rhythm, when and by whom; `liftedFrom`, `liftedAt` and `liftedBy` once lifted. Whom it reached, and what each line is reduced by, is that subscription's `feature-withdrawn` notice, recorded in the same transaction (invariant 15).                                                                                                         |
 | `SubscriptionBundle` (`subscription_bundles`)                                                             | booking identity                                                        | Pins a standalone add-on booking to one concrete `BundleVersion`; runs its own billing window, aligned so its periods end on the day the plan's do; cancellation becomes effective at its stored cutoff.                                                                                                                                                                                                                                                                                                                   |
 
 ### Catalog & versioning
@@ -276,6 +277,19 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     another invoice took first comes back unwritten, and the invoice is refused
     with `SUBSCRIPTION_INVOICE_CHARGE_INVOICED` before its transaction ends — so
     the refusal, too, leaves no number behind.
+15. **A feature has one withdrawal not lifted, and a lift lands once.**
+    `FeatureWithdrawalRepository.create` writes a withdrawal only where none of
+    the feature is open — the partial unique index decides, so two operators
+    announcing at the same moment land one, and the other is answered `null` —
+    and `lift` records a lift only on a withdrawal not lifted yet. Both run on
+    the transaction they are given, so a withdrawal and the notices telling of
+    it are written together or not at all.
+16. **Ending at once ends what was read.** `TenantSubscriptionWritePort.endNow`
+    and `SubscriptionBundleRepository.endNow` end a subscription or a booking
+    cancelled for a later date at the moment named, and only while its
+    cancellation is still the one the caller read. One whose cancellation moved,
+    was taken back or has already ended it at once is left as it is, and one
+    not cancelled is not ended here.
 
 ## Capability requirements
 

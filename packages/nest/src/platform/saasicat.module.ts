@@ -40,6 +40,7 @@ import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { retirementTermsConfirmed } from '../billing/version-retirement.service.js';
+import { FeatureWithdrawalService } from '../billing/feature-withdrawal.service.js';
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
 import type { TaxTreatments } from '../tax/tax-treatments.js';
 import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
@@ -227,6 +228,7 @@ export class SaaSiCatModule {
                     manifest: AdminManifestService,
                     settings: PlanCatalogSettings,
                     taxes: TaxTreatments | null,
+                    featureWithdrawals: FeatureWithdrawalService | null,
                 ) => {
                     const contribution = buildStandardManifestContribution(
                         catalogConfig,
@@ -242,6 +244,9 @@ export class SaaSiCatModule {
                                 versionRetirements && retirementTermsConfirmed(settings),
                             bundleVersionRetirements:
                                 bundleVersionRetirements && retirementTermsConfirmed(settings),
+                            // Known once the stores exist: whether they can list
+                            // everybody a withdrawal reaches.
+                            featureWithdrawals: Boolean(featureWithdrawals?.available),
                         },
                     );
                     manifest.register(contribution);
@@ -251,6 +256,7 @@ export class SaaSiCatModule {
                     AdminManifestService,
                     PLAN_CATALOG_SETTINGS_TOKEN,
                     { token: TAX_TREATMENTS_TOKEN, optional: true },
+                    { token: FeatureWithdrawalService, optional: true },
                 ],
             });
         }

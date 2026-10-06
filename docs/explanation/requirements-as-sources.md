@@ -204,7 +204,7 @@ discovered by a customer. It was the most common defect across the documents thi
 assembled from.
 
 Naming the exception is not a weaker answer than testing it — usually it is the better one.
-`SC-ENTL-021` names the single catalogue edit that does reach a running contract, and
+`SC-ENTL-026` names the two things that do reach a running contract, and
 `SC-LANG-002` names the two defaults that disagree with each other; a reader learns more from
 either than from the unqualified version. What is refused is the third option, which is to claim
 everything and measure nothing.

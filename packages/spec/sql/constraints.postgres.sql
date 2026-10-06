@@ -66,6 +66,13 @@ ALTER TABLE subscription_bundles
 CREATE UNIQUE INDEX IF NOT EXISTS maintenance_windows_one_open
     ON maintenance_windows ((true)) WHERE "endedAt" IS NULL;
 
+-- At most ONE withdrawal of a feature is not lifted. A lifted one keeps its row
+-- with `liftedFrom` set and leaves the index, so the feature can be withdrawn
+-- again from that date. Two operators announcing at the same moment therefore
+-- land one withdrawal, because the second insert meets the first.
+CREATE UNIQUE INDEX IF NOT EXISTS feature_withdrawals_one_open_per_feature
+    ON feature_withdrawals ("featureKey") WHERE "liftedFrom" IS NULL;
+
 -- A subscriber is live for at most ONE tenant, and a tenant has at most ONE
 -- live subscriber. A link that ended keeps its row with `unlinkedAt` set, so the
 -- tenants a subscriber had before stay in its history. Two partial unique

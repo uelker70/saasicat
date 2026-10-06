@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { messageParts } from '../../src/message-parts';
+import { messageParts, messageText } from '../../src/message-parts';
 
 // Dates are set in bold inside a sentence, which means the sentence has to
 // arrive as parts rather than as a string. `v-html` would have done it in one
@@ -45,5 +45,15 @@ describe('a message becomes parts', () => {
     test('two dates are both emphasised', () => {
         const parts = messageParts('{deadline} then {date}', { deadline: 'A', date: 'B' });
         expect(parts.filter((p) => p.strong).map((p) => p.text)).toEqual(['A', 'B']);
+    });
+});
+
+describe('a message becomes one string', () => {
+    test('with its values in place, as they were given', () => {
+        // `String.prototype.replace` reads `$&` in a replacement as the match;
+        // a reason somebody typed must arrive as typed.
+        expect(messageText('Reason: {reason}', { reason: 'costs $& more' })).toBe(
+            'Reason: costs $& more',
+        );
     });
 });

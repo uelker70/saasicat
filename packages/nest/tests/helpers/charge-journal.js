@@ -102,6 +102,7 @@ export function anAccount({
     subscription: overrides = {},
     subscriber = { id: 'subscriber-1' },
     freeze = null,
+    reductions = null,
 } = {}) {
     const subscription = {
         id: 'sub-1',
@@ -126,6 +127,8 @@ export function anAccount({
     const ledger = journal();
     // The retirement notices the subscription was told, as the record keeps them.
     const told = [];
+    // The feature withdrawals on record.
+    const withdrawals = [];
     const subscribers = { findByTenantId: async () => subscriber };
     const subscriptions = { findForTenant: async () => subscription };
     const service = new SubscriberChargeService(
@@ -136,6 +139,9 @@ export function anAccount({
         { listBySubscription: async () => bookings },
         freeze,
         { listForSubscription: async () => told },
+        { list: async () => withdrawals },
+        null,
+        reductions,
     );
     const reader = new SubscriberAccountService(ledger, contracts, subscribers, subscriptions);
     return {
@@ -230,6 +236,48 @@ export function anAccount({
                     retired: { bundleVersionId: retired },
                     replacement: { bundleVersionId: replacement },
                     effectiveAt: effectiveAt.toISOString(),
+                },
+            });
+        },
+        /**
+         * Records a feature withdrawal and that the subscription was told of it,
+         * as the announcement writes both. The withdrawal is kept as given, so a
+         * test lifts it by setting `liftedFrom` on it.
+         */
+        toldOfWithdrawal(withdrawal) {
+            withdrawals.push(withdrawal);
+            told.push({
+                kind: 'feature-withdrawn',
+                subject: withdrawal.id,
+                subscriptionId: subscription.id,
+                delivery: null,
+                content: { withdrawalId: withdrawal.id },
+            });
+            return withdrawal;
+        },
+        /**
+         * Ends the subscription — or, with a booking's id, that booking — at
+         * once at `at`, as ending at once under a withdrawal records it.
+         */
+        endAtOnce(at, subscriptionBundleId = null) {
+            if (subscriptionBundleId === null) {
+                subscription.canceledAt = at;
+                subscription.canceledEffectiveAt = at;
+                subscription.status = 'CANCELED';
+            } else {
+                const booking = bookings.find((one) => one.id === subscriptionBundleId);
+                booking.canceledAt = at;
+                booking.canceledEffectiveAt = at;
+            }
+            told.push({
+                kind: 'ended-at-once',
+                subject: subscriptionBundleId ?? subscription.id,
+                subscriptionId: subscription.id,
+                delivery: null,
+                content: {
+                    withdrawalId: 'fw-1',
+                    subscriptionBundleId,
+                    endedAt: at.toISOString(),
                 },
             });
         },

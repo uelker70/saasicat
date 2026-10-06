@@ -6,6 +6,7 @@ import { CatalogModule } from '../../catalog/catalog.module.js';
 import { PaymentGatewayRegistry } from '../../payments/payment-gateway-registry.js';
 
 import { operatorGuards, type CompositionContext } from './context.js';
+import { featureWithdrawalsOf } from './feature-withdrawal.js';
 
 /**
  * The plan/bundle catalogue, and the public projection of it.
@@ -14,7 +15,8 @@ import { operatorGuards, type CompositionContext } from './context.js';
  * pricing page reads, and it is on unless the app says otherwise — a catalogue
  * nobody outside can see is the rarer intent.
  */
-export function composeCatalog({ options, persistence }: CompositionContext): DynamicModule[] {
+export function composeCatalog(ctx: CompositionContext): DynamicModule[] {
+    const { options, persistence } = ctx;
     const config = options.catalog;
     if (!config) return [];
 
@@ -54,6 +56,7 @@ export function composeCatalog({ options, persistence }: CompositionContext): Dy
                 bundleRepository: catalog.bundleRepository,
                 marketingRepository: catalog.marketingProjectionRepository,
                 catalogEntryRepository: catalog.catalogEntryRepository,
+                featureWithdrawals: featureWithdrawalsOf(ctx)?.repository,
                 imports: config.imports ?? options.imports,
             }),
         );

@@ -51,6 +51,7 @@
             <div v-if="row.bundle.features.length > 0" class="sp-public-bundle__features">
                 <span v-for="featureKey in row.bundle.features" :key="featureKey">
                     {{ featureLabel(featureKey) }}
+                    <WithdrawnFeatureMark :feature-key="featureKey" />
                 </span>
             </div>
 
@@ -83,6 +84,7 @@ import {
     type PublicMarketingBundle,
 } from '@saasicat/core';
 import type { BillingCycleStr } from '@saasicat/ui-vue';
+import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
 
 interface I18n {
     perMonth: string;

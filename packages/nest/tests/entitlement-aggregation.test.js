@@ -248,7 +248,7 @@ describe('hasFeature / hasAnyFeature', () => {
     });
 });
 
-// @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
+// @requirement SC-ENTL-026 — What was sold stays sold, except a feature losing its code or withdrawn
 describe('toEffectiveLimitsSnapshot', () => {
     test('set becomes sorted array (deterministic)', () => {
         const snap = toEffectiveLimitsSnapshot({

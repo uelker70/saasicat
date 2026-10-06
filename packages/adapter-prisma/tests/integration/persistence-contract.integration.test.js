@@ -48,6 +48,7 @@ import {
     PrismaSubscriptionUsageAdapter,
     PrismaVersionRetirementRepository,
     PrismaBundleVersionRetirementRepository,
+    PrismaFeatureWithdrawalRepository,
 } from '../../dist/index.js';
 import { generatedPrismaClient, rebuildFromReferenceSchema, testDatabaseUrl } from './database.js';
 
@@ -81,6 +82,7 @@ const PLATFORM_TABLES = [
     'subscription_notices',
     'version_retirements',
     'bundle_version_retirements',
+    'feature_withdrawals',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -129,6 +131,7 @@ function createHarness() {
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),
             versionRetirements: new PrismaVersionRetirementRepository(prisma),
             bundleVersionRetirements: new PrismaBundleVersionRetirementRepository(prisma),
+            featureWithdrawals: new PrismaFeatureWithdrawalRepository(prisma),
             subscriptionUsage: new PrismaSubscriptionUsageAdapter(prisma),
         },
         seed: {

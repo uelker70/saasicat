@@ -877,7 +877,7 @@ describe('rolling a booking on, period after period', () => {
     });
 });
 
-// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
 // @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
 describe('cancelling one, against its own period', () => {
     // A cancellation takes effect at the end of the period being paid for. For

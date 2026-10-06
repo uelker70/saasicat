@@ -14,6 +14,7 @@ import {
     SUBSCRIBER_CORRECTION_CAPABILITY,
     SUBSCRIBER_STANDING_CAPABILITY,
     BUNDLE_VERSION_RETIREMENT_CAPABILITY,
+    FEATURE_WITHDRAWAL_CAPABILITY,
     VERSION_RETIREMENT_CAPABILITY,
     type ManifestContribution,
     type PlanCatalogSettings,
@@ -52,6 +53,7 @@ export function buildStandardManifestContribution(
         subscriberAttention?: boolean;
         versionRetirements: boolean;
         bundleVersionRetirements?: boolean;
+        featureWithdrawals?: boolean;
     },
 ): ManifestContribution {
     // `settings.read` does not follow `includeSettingsController`: that flag
@@ -102,6 +104,7 @@ export function buildStandardManifestContribution(
     if (served.bundleVersionRetirements) {
         capabilities[BUNDLE_VERSION_RETIREMENT_CAPABILITY] = true;
     }
+    if (served.featureWithdrawals) capabilities[FEATURE_WITHDRAWAL_CAPABILITY] = true;
     if (promoCodes) {
         Object.assign(capabilities, {
             'promoCodes.read': true,

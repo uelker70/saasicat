@@ -7,6 +7,7 @@ import {
     toSubscriptionBundleRecord,
     type CancelSubscriptionBundleData,
     type CreateSubscriptionBundleData,
+    type EndNowInput,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type TransactionContext,
@@ -204,6 +205,28 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 asc(subscriptionBundles.id),
             );
         return rows.map(toSubscriptionBundleRecord);
+    }
+
+    /**
+     * One guarded `UPDATE`: the effective date the caller read is in the
+     * `WHERE`, so a cancellation moved or reinstated between the read and the
+     * write returns no row instead of being overwritten.
+     */
+    async endNow(
+        subscriptionBundleId: string,
+        input: EndNowInput,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const [row] = await this.db
+            .update(subscriptionBundles)
+            .set({ canceledAt: input.at, canceledEffectiveAt: input.at, updatedAt: new Date() })
+            .where(
+                and(
+                    eq(subscriptionBundles.id, subscriptionBundleId),
+                    eq(subscriptionBundles.canceledEffectiveAt, input.expectedCanceledEffectiveAt),
+                ),
+            )
+            .returning();
+        return row ? toSubscriptionBundleRecord(row) : null;
     }
 
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {

@@ -119,6 +119,22 @@ export {
     type VersionRetirementAdminModuleOptions,
 } from './version-retirement-admin.module.js';
 export * from './dto/version-retirement.dto.js';
+export {
+    FeatureWithdrawalService,
+    type FeatureWithdrawalAnnouncement,
+    type FeatureWithdrawalNoticeRun,
+} from './feature-withdrawal.service.js';
+export { EndAtOnceService } from './end-at-once.service.js';
+export { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.controller.js';
+export {
+    FeatureWithdrawalContractService,
+    type ReductionsRecorded,
+} from './feature-withdrawal-contract.service.js';
+export {
+    FeatureWithdrawalAdminModule,
+    type FeatureWithdrawalAdminModuleOptions,
+} from './feature-withdrawal-admin.module.js';
+export * from './dto/feature-withdrawal.dto.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';

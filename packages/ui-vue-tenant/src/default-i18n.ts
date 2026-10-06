@@ -61,6 +61,45 @@ export interface TenantPlanSectionI18n {
     featuresOverviewTitle: string;
     featuresActive: string;
     featuresLocked: string;
+    /** Beside a feature withdrawn now; `{date}` is when it was taken away. */
+    featureWithdrawnBadge: string;
+    /** Beside a feature withdrawn from a date ahead; `{date}` is that date. */
+    featureWithdrawnBadgeAhead: string;
+    /** After the badge, where it is granted again from a date; `{date}` is that date. */
+    featureWithdrawnBack: string;
+    /** The notice beside the plan; `{feature}` has been withdrawn since `{date}`. */
+    featureWithdrawnTitle: string;
+    /** The same, for a withdrawal from a date ahead. */
+    featureWithdrawnTitleAhead: string;
+    /** `{reason}` in the provider's words. */
+    featureWithdrawnReason: string;
+    featureWithdrawnLoadFailed: string;
+    /** `{date}` is when it is granted again. */
+    featureWithdrawnLifted: string;
+    /** `{line}` is reduced by `{amount}` per `{unit}`. */
+    featureWithdrawnReduction: string;
+    /** `{line}` is not reduced. */
+    featureWithdrawnNoReduction: string;
+    /** `{line}`'s reduction ended with a change of plan or rhythm the subscriber made. */
+    featureWithdrawnReductionEnded: string;
+    featureWithdrawnSpecialTerms: string;
+    featureWithdrawnEndRight: string;
+    featureWithdrawnEndSubscription: string;
+    /** `{addOn}` is the add-on's name. */
+    featureWithdrawnEndAddOn: string;
+    endAtOnceTitleSubscription: string;
+    /** `{addOn}` is the add-on's name. */
+    endAtOnceTitleAddOn: string;
+    /** `{date}` is the moment it ends. */
+    endAtOnceBodySubscription: string;
+    /** `{addOn}` ends at `{date}`. */
+    endAtOnceBodyAddOn: string;
+    /** `{amount}` is credited, net. */
+    endAtOnceCredit: string;
+    endAtOnceNoCredit: string;
+    endAtOnceConfirm: string;
+    /** `{addOn}` has ended. */
+    endAtOnceEndedAddOn: string;
     /** #15 — bundle store (booked + available bundles). */
     bundlesStoreTitle: string;
     bundlesBookedTitle: string;
@@ -425,6 +464,34 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     featuresOverviewTitle: 'Leistungsumfang',
     featuresActive: 'Enthalten',
     featuresLocked: 'Nicht enthalten',
+    featureWithdrawnBadge: 'Nicht verfügbar seit {date}',
+    featureWithdrawnBadgeAhead: 'Ab {date} nicht verfügbar',
+    featureWithdrawnBack: 'wieder ab {date}',
+    featureWithdrawnTitle: '{feature} steht seit dem {date} nicht zur Verfügung',
+    featureWithdrawnTitleAhead: '{feature} steht ab dem {date} nicht mehr zur Verfügung',
+    featureWithdrawnReason: 'Grund: {reason}',
+    featureWithdrawnLoadFailed:
+        'Ob ein Feature Ihres Abonnements zurückgezogen ist, konnte nicht gelesen werden.',
+    featureWithdrawnLifted: 'Ab dem {date} steht es wieder zur Verfügung.',
+    featureWithdrawnReduction: '{line}: Sie zahlen {amount} {unit} weniger, solange es fehlt.',
+    featureWithdrawnNoReduction: '{line}: Der Preis bleibt unverändert.',
+    featureWithdrawnReductionEnded: '{line}: Die Minderung endete mit Ihrem Wechsel.',
+    featureWithdrawnSpecialTerms:
+        'Sie haben dieses Feature über Sonderkonditionen. Eine Minderung vereinbart Ihr Anbieter direkt mit Ihnen.',
+    featureWithdrawnEndRight:
+        'Solange es fehlt, können Sie sofort und ohne Frist beenden. Die bereits bezahlte Zeit danach wird Ihnen gutgeschrieben.',
+    featureWithdrawnEndSubscription: 'Abonnement sofort beenden',
+    featureWithdrawnEndAddOn: '{addOn} sofort beenden',
+    endAtOnceTitleSubscription: 'Abonnement sofort beenden?',
+    endAtOnceTitleAddOn: '{addOn} sofort beenden?',
+    endAtOnceBodySubscription:
+        'Ihr Abonnement und alle Zusatzpakete enden sofort, am {date}. Ab dann können Sie nichts mehr davon nutzen.',
+    endAtOnceBodyAddOn: '{addOn} endet sofort, am {date}. Ihr Abonnement läuft weiter.',
+    endAtOnceCredit:
+        'Für die bereits bezahlte Zeit danach werden Ihrem Konto {amount} netto gutgeschrieben.',
+    endAtOnceNoCredit: 'Für die Zeit danach wurde nichts berechnet; es gibt nichts gutzuschreiben.',
+    endAtOnceConfirm: 'Sofort beenden',
+    endAtOnceEndedAddOn: '{addOn} ist beendet.',
     bundlesStoreTitle: 'Bundles',
     bundlesBookedTitle: 'Gebuchte Bundles',
     bundlesAvailableTitle: 'Verfügbare Bundles',
@@ -749,6 +816,35 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     featuresOverviewTitle: 'Features',
     featuresActive: 'Included',
     featuresLocked: 'Not included',
+    featureWithdrawnBadge: 'Not available since {date}',
+    featureWithdrawnBadgeAhead: 'Not available from {date}',
+    featureWithdrawnBack: 'again from {date}',
+    featureWithdrawnTitle: '{feature} has not been available since {date}',
+    featureWithdrawnTitleAhead: '{feature} will not be available from {date}',
+    featureWithdrawnReason: 'Reason: {reason}',
+    featureWithdrawnLoadFailed:
+        'Whether a feature of your subscription is withdrawn could not be read.',
+    featureWithdrawnLifted: 'It is available again from {date}.',
+    featureWithdrawnReduction: '{line}: you pay {amount} {unit} less for as long as it is missing.',
+    featureWithdrawnNoReduction: '{line}: the price stays as it is.',
+    featureWithdrawnReductionEnded: '{line}: the reduction ended with your change.',
+    featureWithdrawnSpecialTerms:
+        'You hold this feature through special terms. Your provider agrees any reduction with you directly.',
+    featureWithdrawnEndRight:
+        'For as long as it is missing, you may end at once, without notice. The time already paid after that is credited to you.',
+    featureWithdrawnEndSubscription: 'End subscription now',
+    featureWithdrawnEndAddOn: 'End {addOn} now',
+    endAtOnceTitleSubscription: 'End your subscription now?',
+    endAtOnceTitleAddOn: 'End {addOn} now?',
+    endAtOnceBodySubscription:
+        'Your subscription and every add-on end at once, on {date}. From then on, nothing it includes can be used.',
+    endAtOnceBodyAddOn: '{addOn} ends at once, on {date}. Your subscription continues.',
+    endAtOnceCredit:
+        '{amount} net for the time already paid after that is credited to your account.',
+    endAtOnceNoCredit:
+        'Nothing was charged for the time after that, so there is nothing to credit.',
+    endAtOnceConfirm: 'End now',
+    endAtOnceEndedAddOn: '{addOn} has ended.',
     bundlesStoreTitle: 'Bundles',
     bundlesBookedTitle: 'Booked bundles',
     bundlesAvailableTitle: 'Available bundles',
