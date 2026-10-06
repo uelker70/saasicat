@@ -684,6 +684,7 @@ _Tested by:_
         - stays silent on success by default
         - notifyOn "both" raises the success message
         - a success message may be computed at call time
+        - a success message is given what the call resolved, and an empty one announces nothing
     - useAsyncAction — failure
         - reports the failure in the result instead of throwing
         - a void action is still distinguishable — the whole reason for the shape
@@ -729,7 +730,11 @@ _Tested by:_
         - a superseded load that FAILS does not wipe the page or raise its error
     - useAsyncData — watch
         - reloads when a watched source changes
+        - a change keeps what was loaded until the new load answers
         - a watched source combines with immediate: false — the first load is the change
+    - useAsyncData — subject
+        - a change of subject drops what was loaded at once, so the previous one's never shows as
+          the new one's
 
 <!-- END proof -->
 
@@ -1626,6 +1631,7 @@ _Tested by:_
         - stays silent on success by default
         - notifyOn "both" raises the success message
         - a success message may be computed at call time
+        - a success message is given what the call resolved, and an empty one announces nothing
     - useAsyncAction — failure
         - reports the failure in the result instead of throwing
         - a void action is still distinguishable — the whole reason for the shape
@@ -1671,7 +1677,11 @@ _Tested by:_
         - a superseded load that FAILS does not wipe the page or raise its error
     - useAsyncData — watch
         - reloads when a watched source changes
+        - a change keeps what was loaded until the new load answers
         - a watched source combines with immediate: false — the first load is the change
+    - useAsyncData — subject
+        - a change of subject drops what was loaded at once, so the previous one's never shows as
+          the new one's
 
 <!-- END proof -->
 

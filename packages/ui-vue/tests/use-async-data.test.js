@@ -227,6 +227,28 @@ describe('useAsyncData — watch', () => {
         assert.equal(state.data.value, 'GLOBEX');
     });
 
+    test('a change keeps what was loaded until the new load answers', async () => {
+        const filter = ref('open');
+        const answers = new Map();
+        const state = useAsyncData(
+            () => new Promise((resolve) => answers.set(filter.value, resolve)),
+            { initial: null, watch: [filter] },
+        );
+        await settle();
+        answers.get('open')(['a']);
+        await settle();
+
+        filter.value = 'all';
+        await settle();
+
+        assert.deepEqual(
+            state.data.value,
+            ['a'],
+            'the rows of the filter left, until the new ones',
+        );
+        assert.equal(state.pending.value, true);
+    });
+
     test('a watched source combines with immediate: false — the first load is the change', async () => {
         const slug = ref('acme');
         let calls = 0;
@@ -242,5 +264,29 @@ describe('useAsyncData — watch', () => {
         slug.value = 'globex';
         await settle();
         assert.equal(calls, 1);
+    });
+});
+
+describe('useAsyncData — subject', () => {
+    test("a change of subject drops what was loaded at once, so the previous one's never shows as the new one's", async () => {
+        const slug = ref('wien');
+        const answers = new Map();
+        const state = useAsyncData(
+            () => new Promise((resolve) => answers.set(slug.value, resolve)),
+            { initial: null, subject: slug },
+        );
+        await settle();
+        answers.get('wien')('Wien GmbH');
+        await settle();
+        assert.equal(state.data.value, 'Wien GmbH');
+
+        slug.value = 'graz';
+        await nextTick();
+
+        assert.equal(state.data.value, null);
+        assert.equal(state.pending.value, true);
+        answers.get('graz')('Graz AG');
+        await settle();
+        assert.equal(state.data.value, 'Graz AG');
     });
 });

@@ -1372,3 +1372,90 @@ _Tested by:_
         - is not shown on a subscription that has ended
 
 <!-- END proof -->
+
+### SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
+
+🟢 💰 On the tenant's page the operator corrects the legal name, the VAT identification number and
+the tax number of the same legal entity, and whether it acts as a business. Each change needs a
+written reason and the operator's second factor, and is recorded with the values it replaced, the
+reason and who made it; a running contract keeps the copy it was concluded with, and the next
+contract names the corrected party (`SC-SUB-017`). Another legal entity taking over is refused rather
+than recorded as an edit, and a change of the business status that moves nothing records nothing.
+This is the operator's half of `SC-SUB-017` and the correction named in `SC-ADM-020`; the invoices
+that carry the corrected identity come with the invoices.
+
+_Source:_ #331 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - the operator corrects a subscriber's legal identity
+        - the corrected values are what the subscriber now shows, recorded with who and why, and
+          audited
+        - a VAT number it gives is checked right after, and a valid answer releases the next
+          contract
+        - a number the service found ${answered} is kept, and so is the hold on the next contract
+        - a check that fails after the correction leaves the correction audited, not unrecorded
+        - declared as another legal entity taking over, it is refused, nothing changes and nothing
+          is audited
+        - that changes nothing is refused as such
+        - where no tax adapter decides, a VAT number is corrected and not checked
+    - the operator changes whether a subscriber acts as a business
+        - with a reason it is recorded, answered as it now stands, and audited
+        - to the status it has, nothing is recorded and nothing audited
+        - without a reason it is refused
+- `packages/ui-vue/tests/component/a-correction-sends-only-what-changed.test.ts`
+    - the identity correction the form describes
+        - is none for %s
+        - sends %s
+    - the change of business status the form describes
+        - is none for %s
+        - sends %s, the reason trimmed
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber on the tenant page
+        - offers the corrections, and a check where a tax adapter decides and a number is held
+        - offers no check where no tax adapter names a service
+        - without the capability, nothing is offered and no history is shown
+        - a correction is sent only once something changed and a reason is given, with the second
+          factor
+        - stepping back from the second factor sends nothing and keeps the form
+        - moving to another tenant closes an open dialog and shows nothing of the first one's
+          subscriber while the next one's is read
+        - the next tenant's subscriber read and its history not yet: none of the first one's history
+          is shown
+        - a "${label}" dialog left open does not open again for the next tenant once it is read
+        - while the subscriber is read again after a correction, its actions wait for it
+        - a check is asked without the second factor
+        - the history lists each correction and check with what it changed, why and by whom
+    - the subscriber section on its own
+        - closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown
+- `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
+    - the subscriber's corrections
+        - a correction is declared one of the same legal entity, and carries the second factor
+        - a change of business status carries the second factor
+        - a check sends nothing but the request, and no second factor
+        - the history is read as its entries
+- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
+    - useSubscriberCorrections
+        - where the manifest announces the corrections, the history is read for the tenant
+        - with ${label}, nothing is offered and nothing is read
+        - a check is offered only where a tax adapter decides
+        - a correction goes out with the second factor, is announced, and the subscriber and its
+          history are read again
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
+        - stepping back from the second factor writes nothing, announces nothing and answers null
+        - a correction the server refuses rejects, so the dialog keeps the form and shows why
+        - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
+          factor
+        - a correction stands though its announcement throws: answered, read again, the throw raised
+          apart
+        - a failed check whose announcement throws still settles: nothing read again, the throw
+          raised apart
+        - a change of business status goes out with the second factor and is announced
+        - a check needs no second factor, announces what the service found, and reads again
+        - a check that fails is reported, and nothing is read again
+
+<!-- END proof -->

@@ -14,6 +14,8 @@ import AdminRowActions from '../../src/ui/data/AdminRowActions.vue';
 import { flushPromises } from '@vue/test-utils';
 
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
+import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
+import { raisedWhile } from '../support/raised-out-of-band.mjs';
 
 // Dialogs teleport into `document.body` and stay there until unmounted. Without
 // this, the second test in a block queries the FIRST test's buttons — which is
@@ -83,10 +85,24 @@ describe('AdminErrorBanner is bound unconditionally and decides for itself', () 
 });
 
 describe('AdminFormDialog owns the submit lifecycle', () => {
-    async function openWith(submit: () => Promise<unknown>) {
+    async function openWith(
+        submit: () => Promise<unknown>,
+        {
+            successMessage,
+            notices = [],
+            notify = (kind: string, message: string) => notices.push([kind, message]),
+        }: {
+            successMessage?: string;
+            notices?: string[][];
+            notify?: (kind: string, message: string) => unknown;
+        } = {},
+    ) {
         const wrapper = mountWithQuasar(AdminFormDialog, {
-            props: { modelValue: true, title: 'Create plan', submit },
+            props: { modelValue: true, title: 'Create plan', submit, successMessage },
             attachTo: document.body,
+            global: {
+                provide: { [SUPER_ADMIN_NOTIFY_KEY as symbol]: notify },
+            },
         });
         mounted.push(wrapper);
         // The dialog reaches its portal a tick after mounting; querying before
@@ -102,6 +118,50 @@ describe('AdminFormDialog owns the submit lifecycle', () => {
         await flushPromises();
         expect(wrapper.emitted('update:modelValue')).toBeUndefined();
         expect(document.querySelector('.sa-dialog')?.textContent).toContain('Key already taken');
+    });
+
+    test('a submit that resolves null wrote nothing: the dialog stays as it was, with no error', async () => {
+        // What a write behind the second factor answers when the operator
+        // stepped back from it.
+        const wrapper = await openWith(() => Promise.resolve(null));
+        primaryButton().click();
+        await flushPromises();
+        expect(wrapper.emitted('submitted')).toBeUndefined();
+        expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+        expect(document.querySelector('.sa-dialog .sa-banner--negative')).toBeNull();
+    });
+
+    test.each([
+        ['resolves null, nothing is announced', null, []],
+        [
+            'resolves a value, it is announced once',
+            { id: 'plan-1' },
+            [['positive', 'Plan created']],
+        ],
+    ])('with a success message, a submit that %s', async (_, value, expected) => {
+        const notices: string[][] = [];
+        await openWith(() => Promise.resolve(value), { successMessage: 'Plan created', notices });
+        primaryButton().click();
+        await flushPromises();
+        expect(notices).toEqual(expected);
+    });
+
+    test('a success message that throws still closes the dialog on the write that happened', async () => {
+        const wrapper = await openWith(() => Promise.resolve({ id: 'plan-1' }), {
+            successMessage: 'Plan created',
+            notify: () => {
+                throw new Error('notification centre is not mounted');
+            },
+        });
+
+        const { raised } = await raisedWhile(async () => {
+            primaryButton().click();
+            await flushPromises();
+        });
+
+        expect(wrapper.emitted('submitted')).toHaveLength(1);
+        expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([false]);
+        expect(raised).toEqual(['notification centre is not mounted']);
     });
 
     test('a successful submit closes it and says so once', async () => {

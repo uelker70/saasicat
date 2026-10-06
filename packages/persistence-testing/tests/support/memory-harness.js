@@ -807,7 +807,11 @@ export function createMemoryHarness() {
     // they are written, as the adapters date them — the places this harness
     // reads a clock, because the scenarios hold those dates to the moment of
     // the call.
-    const recordTaxOriginChange = (subscriberId, origin, changedBy, changedAt = new Date()) => {
+    const recordTaxOriginChange = (
+        subscriberId,
+        origin,
+        { changedBy, reason = null, changedAt = new Date() },
+    ) => {
         if (!origin.moved) return null;
         const change = {
             id: nextId('tax-origin-change'),
@@ -816,6 +820,7 @@ export function createMemoryHarness() {
             changed: origin.changed,
             changedBy,
             changedAt,
+            reason,
         };
         state.subscriberTaxOriginChanges.push(change);
         return structuredClone(change);
@@ -853,7 +858,7 @@ export function createMemoryHarness() {
             if (!row) return null;
             const origin = taxOriginWrite(row, { country: change.country });
             Object.assign(row, structuredClone(change));
-            recordTaxOriginChange(subscriberId, origin, changedBy);
+            recordTaxOriginChange(subscriberId, origin, { changedBy });
             return subscriberRecord(row);
         },
         async correctIdentity(subscriberId, data) {
@@ -866,7 +871,11 @@ export function createMemoryHarness() {
             const changedAt = new Date();
             const origin = taxOriginWrite(row, { vatId: delta.corrected.vatId });
             Object.assign(row, delta.corrected);
-            recordTaxOriginChange(subscriberId, origin, data.correctedBy, changedAt);
+            recordTaxOriginChange(subscriberId, origin, {
+                changedBy: data.correctedBy,
+                reason: data.reason,
+                changedAt,
+            });
             if (origin.endsCountingVatIdCheck) {
                 row.currentVatIdCheckId = null;
                 row.vatIdSince = changedAt;
@@ -900,7 +909,10 @@ export function createMemoryHarness() {
             );
             if (!origin.moved) return { subscriber: subscriberRecord(row), change: null };
             row.business = data.business;
-            const change = recordTaxOriginChange(subscriberId, origin, data.changedBy);
+            const change = recordTaxOriginChange(subscriberId, origin, {
+                changedBy: data.changedBy,
+                reason: data.reason,
+            });
             return { subscriber: subscriberRecord(row), change };
         },
         async recordVatIdCheck(subscriberId, check) {

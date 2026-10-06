@@ -18,11 +18,13 @@ import type {
     SubscriberRepository,
     SubscriberTaxOrigin,
     SubscriberTaxOriginChangeRecord,
+    SubscriberVatIdCheckResult,
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
 import {
     SUBSCRIBER_ERROR_CODES,
+    TAX_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
     contractPartiesOf,
     taxOriginOf,
@@ -337,6 +339,11 @@ export class SubscriberService {
      * The operator declares what the change is, because nothing here can tell:
      * another legal entity taking over is a transfer, and is refused with
      * `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER` rather than recorded as an edit.
+     *
+     * A VAT number the correction gives is not checked here: the correction
+     * is written on its own, inside a transaction if the caller has one, and
+     * `checkCorrectedVatId` checks the number once whatever records the
+     * correction — an audit entry — has been written.
      */
     async correctIdentity(
         subscriberId: string,
@@ -374,6 +381,78 @@ export class SubscriberService {
         return result.correction;
     }
 
+    /**
+     * Checks the VAT number a correction gave the subscriber with the service
+     * the tax adapter names, and records the check, valid or not
+     * (`SC-PRIC-071`); `null` where no adapter decides, or where the correction
+     * cleared the number or did not move it. Called after the correction, not
+     * before, because a check counts only for a number it completed while the
+     * subscriber held it. It reaches an outside service, so never call it
+     * inside a transaction.
+     *
+     * The number checked is the one the correction wrote, not the one read
+     * back: another correction may land in between, and its number is not this
+     * one's to check. The repository counts the check only while the
+     * subscriber still holds the number.
+     */
+    async checkCorrectedVatId(
+        correction: SubscriberCorrectionRecord,
+    ): Promise<SubscriberVatIdCheckResult | null> {
+        const corrected = correction.corrected.vatId;
+        const taxes = this.taxes;
+        if (!taxes?.adapter || corrected === undefined || corrected === null) return null;
+        return this.checkAndRecord(taxes, correction.subscriberId, corrected);
+    }
+
+    /**
+     * Checks the VAT identification number the subscriber holds with the
+     * service the tax adapter names, and records the check as it completed —
+     * valid or not — so the number counts as validated only on a valid answer
+     * (`SC-PRIC-040`). A check that does not complete records nothing and says
+     * why. It reaches an outside service, so never call it inside a
+     * transaction.
+     *
+     * Refused with `TAX_VAT_ID_CHECK_NOT_AVAILABLE` where no adapter names a
+     * service, and with `SUBSCRIBER_VAT_ID_MISSING` for a subscriber without a
+     * number.
+     */
+    async checkVatIdOf(
+        subject: { tenantId: string } | { subscriberId: string },
+    ): Promise<SubscriberVatIdCheckResult> {
+        const taxes = this.taxes;
+        if (!taxes?.adapter) {
+            throw new ConflictException(codedError(TAX_ERROR_CODES.TAX_VAT_ID_CHECK_NOT_AVAILABLE));
+        }
+        const subscriber = await this.requireOf(subject);
+        if (subscriber.vatId === null) {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_VAT_ID_MISSING),
+            );
+        }
+        return this.checkAndRecord(taxes, subscriber.id, subscriber.vatId);
+    }
+
+    /**
+     * Checks `vatId` with the service the adapter names and records the check
+     * if it completed; whether it counts is the repository's to say, from the
+     * number the subscriber holds when the check is written.
+     */
+    private async checkAndRecord(
+        taxes: TaxTreatments,
+        subscriberId: string,
+        vatId: string,
+    ): Promise<SubscriberVatIdCheckResult> {
+        const outcome = await taxes.checkVatId(vatId);
+        if (!outcome.completed) return { completed: false, reason: outcome.reason };
+        const recorded = await this.repo.recordVatIdCheck(subscriberId, outcome.check);
+        if (!recorded) throw subscriberNotFound(subscriberId);
+        return {
+            completed: true,
+            check: recorded.recorded,
+            counts: recorded.current?.id === recorded.recorded.id,
+        };
+    }
+
     /** Every correction of the subscriber's legal identity, the latest first. */
     listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]> {
         return this.repo.listCorrections(subscriberId);
@@ -389,15 +468,27 @@ export class SubscriberService {
      * of changes reads in the order they were made.
      *
      * Setting the status it already has records nothing and answers the
-     * subscriber as it is, with `change` `null`.
+     * subscriber as it is, with `change` `null`. The reason is asked either way:
+     * it is refused with `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED` when it
+     * states none, because the status decides the tax treatment.
      */
     async changeBusinessStatus(
         subscriberId: string,
-        change: { business: boolean | null; changedBy: string },
+        change: { business: boolean | null; changedBy: string; reason: string },
     ): Promise<SubscriberBusinessStatusResult> {
         const changedBy = settleActor(change.changedBy);
         const business = settleBusinessStatus(change.business);
-        const result = await this.repo.changeBusinessStatus(subscriberId, { business, changedBy });
+        const reason = typeof change.reason === 'string' ? change.reason.trim() : '';
+        if (reason === '') {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED),
+            );
+        }
+        const result = await this.repo.changeBusinessStatus(subscriberId, {
+            business,
+            changedBy,
+            reason,
+        });
         if (!result) throw subscriberNotFound(subscriberId);
         return result;
     }

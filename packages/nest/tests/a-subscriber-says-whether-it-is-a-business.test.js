@@ -66,6 +66,9 @@ describe('a new subscriber', () => {
     }
 });
 
+/** Why the business status moves, as an operator writes it. */
+const WHY = 'Trade register extract handed in';
+
 describe('the business status', () => {
     // @requirement SC-PRIC-043 — A change to a subscriber's tax origin applies from its next invoice
     test('changes as a change of the tax origin, recorded with its date and who made it', async () => {
@@ -76,6 +79,7 @@ describe('the business status', () => {
         const result = await service.changeBusinessStatus(id, {
             business: true,
             changedBy: ' operator:anna ',
+            reason: ` ${WHY} `,
         });
 
         assert.equal(result.subscriber.business, true);
@@ -85,11 +89,13 @@ describe('the business status', () => {
                 previous: result.change?.previous,
                 changed: result.change?.changed,
                 changedBy: result.change?.changedBy,
+                reason: result.change?.reason,
             },
             {
                 previous: { business: null },
                 changed: { business: true },
                 changedBy: 'operator:anna',
+                reason: WHY,
             },
         );
         const at = result.change?.changedAt.getTime() ?? 0;
@@ -99,11 +105,16 @@ describe('the business status', () => {
     test('set to the status it has records nothing', async () => {
         const { service } = await subscribersFor(['tenant-1']);
         const { id } = await service.requireForTenant('tenant-1');
-        await service.changeBusinessStatus(id, { business: false, changedBy: 'operator:anna' });
+        await service.changeBusinessStatus(id, {
+            business: false,
+            changedBy: 'operator:anna',
+            reason: WHY,
+        });
 
         const again = await service.changeBusinessStatus(id, {
             business: false,
             changedBy: 'operator:anna',
+            reason: WHY,
         });
 
         assert.equal(again.change, null);
@@ -113,11 +124,16 @@ describe('the business status', () => {
     test('can be set back to not stated', async () => {
         const { service } = await subscribersFor(['tenant-1']);
         const { id } = await service.requireForTenant('tenant-1');
-        await service.changeBusinessStatus(id, { business: true, changedBy: 'operator:anna' });
+        await service.changeBusinessStatus(id, {
+            business: true,
+            changedBy: 'operator:anna',
+            reason: WHY,
+        });
 
         const cleared = await service.changeBusinessStatus(id, {
             business: null,
             changedBy: 'operator:anna',
+            reason: 'Not known after all',
         });
 
         assert.equal(cleared.subscriber.business, null);
@@ -133,7 +149,7 @@ describe('the business status', () => {
             const { id } = await service.requireForTenant('tenant-1');
 
             await assert.rejects(
-                () => service.changeBusinessStatus(id, { business: true, changedBy }),
+                () => service.changeBusinessStatus(id, { business: true, changedBy, reason: WHY }),
                 refusedWith('SUBSCRIBER_CHANGE_ACTOR_REQUIRED'),
             );
             assert.equal((await service.getById(id)).business, null);
@@ -141,12 +157,56 @@ describe('the business status', () => {
         });
     }
 
+    for (const [what, reason] of [
+        ['no reason', undefined],
+        ['an empty reason', ''],
+        ['a reason of blanks', '   '],
+    ]) {
+        // @requirement SC-PRIC-043 — A change to a subscriber's tax origin applies from its next invoice
+        test(`with ${what} is refused, and nothing moves`, async () => {
+            const { service } = await subscribersFor(['tenant-1']);
+            const { id } = await service.requireForTenant('tenant-1');
+
+            await assert.rejects(
+                () =>
+                    service.changeBusinessStatus(id, {
+                        business: true,
+                        changedBy: 'operator:anna',
+                        reason,
+                    }),
+                refusedWith('SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED'),
+            );
+            assert.equal((await service.getById(id)).business, null);
+            assert.deepEqual(await service.listTaxOriginChanges(id), []);
+        });
+    }
+
+    test('set to the status it has, without a reason, is refused all the same', async () => {
+        const { service } = await subscribersFor(['tenant-1']);
+        const { id } = await service.requireForTenant('tenant-1');
+
+        await assert.rejects(
+            () =>
+                service.changeBusinessStatus(id, {
+                    business: null,
+                    changedBy: 'operator:anna',
+                    reason: '',
+                }),
+            refusedWith('SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED'),
+        );
+    });
+
     test('given as anything but yes, no or not stated is refused', async () => {
         const { service } = await subscribersFor(['tenant-1']);
         const { id } = await service.requireForTenant('tenant-1');
 
         await assert.rejects(
-            () => service.changeBusinessStatus(id, { business: 'no', changedBy: 'operator:anna' }),
+            () =>
+                service.changeBusinessStatus(id, {
+                    business: 'no',
+                    changedBy: 'operator:anna',
+                    reason: WHY,
+                }),
             refusedWith('SUBSCRIBER_DETAIL_INVALID', { field: 'business' }),
         );
         assert.equal((await service.getById(id)).business, null);
@@ -160,6 +220,7 @@ describe('the business status', () => {
                 service.changeBusinessStatus('subscriber-nobody', {
                     business: true,
                     changedBy: 'operator:anna',
+                    reason: WHY,
                 }),
             refusedWith('SUBSCRIBER_NOT_FOUND', { subscriberId: 'subscriber-nobody' }),
         );
@@ -205,15 +266,29 @@ describe('the changes of the tax origin', () => {
             reason: 'Legal form spelt as registered',
             correctedBy: 'operator:anna',
         });
-        await service.changeBusinessStatus(id, { business: true, changedBy: 'operator:ben' });
+        await service.changeBusinessStatus(id, {
+            business: true,
+            changedBy: 'operator:ben',
+            reason: WHY,
+        });
 
         const listed = await service.listTaxOriginChanges(id);
         assert.deepEqual(
-            listed.map((change) => [change.changed, change.previous, change.changedBy]),
+            listed.map((change) => [
+                change.changed,
+                change.previous,
+                change.changedBy,
+                change.reason,
+            ]),
             [
-                [{ business: true }, { business: null }, 'operator:ben'],
-                [{ vatId: 'ATU12345678' }, { vatId: null }, 'operator:anna'],
-                [{ country: 'AT' }, { country: 'DE' }, TENANT_USER],
+                [{ business: true }, { business: null }, 'operator:ben', WHY],
+                [
+                    { vatId: 'ATU12345678' },
+                    { vatId: null },
+                    'operator:anna',
+                    'VAT id handed in after sign-up',
+                ],
+                [{ country: 'AT' }, { country: 'DE' }, TENANT_USER, null],
             ],
         );
     });

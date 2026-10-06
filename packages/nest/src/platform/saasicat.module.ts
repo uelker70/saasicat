@@ -66,7 +66,7 @@ import {
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
-import { servesSubscriberStanding } from './compose/subscriber-standing.js';
+import { servesSubscriberAdmin } from './compose/subscriber-admin.js';
 import {
     servesBundleVersionRetirements,
     servesVersionRetirements,
@@ -215,7 +215,7 @@ export class SaaSiCatModule {
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
-            const subscriberStanding = servesSubscriberStanding(composition);
+            const subscriberStanding = servesSubscriberAdmin(composition);
             const versionRetirements = servesVersionRetirements(composition);
             const bundleVersionRetirements = servesBundleVersionRetirements(composition);
             lightweightProviders.push({

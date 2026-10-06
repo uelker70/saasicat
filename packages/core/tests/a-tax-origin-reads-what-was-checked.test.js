@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
     SUBSCRIBER_TAX_ORIGIN_FIELDS,
     TAX_TREATMENT_KINDS,
+    canonicalVatId,
     keepsVatIdCheck,
     taxOriginOf,
     taxOriginWrite,
@@ -65,6 +66,21 @@ describe('a VAT id counts as validated only on a counting check that found that 
         assert.equal(taxOriginOf(subscriber(), null).validatedVatId, null);
         assert.equal(taxOriginOf(subscriber({ vatId: null }), check()).validatedVatId, null);
     });
+});
+
+describe('a VAT identification number has one form', () => {
+    for (const [written, canonical] of [
+        ['ATU12345678', 'ATU12345678'],
+        ['atu 123.456-78', 'ATU12345678'],
+        [' de\t123 456 789\n', 'DE123456789'],
+        ['FR-12.345.678.901', 'FR12345678901'],
+        ['', null],
+        [' . - ', null],
+    ]) {
+        test(`${JSON.stringify(written)} is ${JSON.stringify(canonical)}`, () => {
+            assert.equal(canonicalVatId(written), canonical);
+        });
+    }
 });
 
 describe('a tax origin', () => {
@@ -235,6 +251,7 @@ describe('a write to the tax origin', () => {
                 changed: { business: true },
                 changedBy: 'operator:anna',
                 changedAt: CHECKED_AT,
+                reason: 'Trade register extract handed in',
             }),
             {
                 id: 'change-1',
@@ -243,6 +260,7 @@ describe('a write to the tax origin', () => {
                 changed: { business: true },
                 changedBy: 'operator:anna',
                 changedAt: CHECKED_AT,
+                reason: 'Trade register extract handed in',
             },
         );
     });

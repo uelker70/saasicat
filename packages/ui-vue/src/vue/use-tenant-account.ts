@@ -31,7 +31,7 @@ export function useTenantAccount(
     );
     const account = useAsyncData(
         async () => (available.value && slug.value ? tenants.charges(slug.value) : null),
-        { initial: null, watch: [slug, available] },
+        { initial: null, watch: [available], subject: slug },
     );
     return { ...account, available };
 }

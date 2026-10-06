@@ -104,6 +104,13 @@ export const SUBSCRIBER_ATTENTION_CAPABILITY = 'subscribers.attention';
  */
 export const SUBSCRIBER_ATTENTION_PAGE_SIZE = 200;
 
+/**
+ * The manifest capability that announces the operator's corrections of a
+ * subscriber — its legal identity, its business status, a check of its VAT
+ * identification number — beside the subscriber's view.
+ */
+export const SUBSCRIBER_CORRECTION_CAPABILITY = 'subscribers.correct';
+
 /** A tenant whose subscriber cannot be given its next contract, and why. */
 export interface AdminSubscriberAttention {
     tenantId: string;
@@ -267,6 +274,12 @@ export interface SubscriberTaxOriginChangeRecord {
      * whose clocks differ may date neighbouring changes out of it.
      */
     changedAt: Date;
+    /**
+     * Why it was changed: the reason of the correction or of the change of
+     * business status that made it; `null` for a change of the country, which
+     * comes with the contact details and states none.
+     */
+    reason: string | null;
 }
 
 /** What a repository writes for a change of the business status the service has accepted. */
@@ -274,6 +287,8 @@ export interface SubscriberBusinessStatusData {
     business: boolean | null;
     /** Who changes it, as an actor tag the audit log would write. */
     changedBy: string;
+    /** Why, in the operator's words: whether it is a business decides the tax treatment. */
+    reason: string;
 }
 
 /** The outcome of writing a business status: nothing is recorded when it does not move. */
@@ -303,3 +318,69 @@ export interface RecordedVatIdCheck {
      */
     current: SubscriberVatIdCheckRecord | null;
 }
+
+/**
+ * What became of a check of a subscriber's VAT identification number: the
+ * check as it was recorded, and whether it counts for the number held — or why
+ * it did not complete, in which case nothing was recorded and the number stays
+ * as validated as it was (`SC-PRIC-040`).
+ */
+export type SubscriberVatIdCheckResult =
+    | { completed: true; check: SubscriberVatIdCheckRecord; counts: boolean }
+    | { completed: false; reason: string };
+
+/** A check of a subscriber's VAT identification number, as the operator is shown it. */
+export type AdminVatIdCheckOutcome =
+    | {
+          completed: true;
+          valid: boolean;
+          /** When the service answered, as an ISO string. */
+          checkedAt: string;
+          service: string;
+          /** Whether it is the check that counts for the number held now. */
+          counts: boolean;
+      }
+    | { completed: false; reason: string };
+
+/**
+ * The answer to an operator's correction or check: the subscriber as it now
+ * stands, and the check a VAT identification number got, where one was made.
+ */
+export interface AdminSubscriberCorrected {
+    subscriber: AdminTenantSubscriber;
+    vatIdCheck: AdminVatIdCheckOutcome | null;
+}
+
+/**
+ * One entry of a subscriber's history as the operator reads it, the latest
+ * first: a correction of its legal identity, a change of its country or
+ * business status, or a check of its VAT identification number. Dates are ISO
+ * strings.
+ */
+export type AdminSubscriberHistoryEntry =
+    | {
+          kind: 'identity-corrected';
+          at: string;
+          by: string;
+          previous: SubscriberIdentityValues;
+          corrected: SubscriberIdentityValues;
+          reason: string;
+      }
+    | {
+          kind: 'tax-origin-changed';
+          at: string;
+          by: string;
+          previous: SubscriberTaxOriginValues;
+          changed: SubscriberTaxOriginValues;
+          /** `null` for a change of the country with the contact details. */
+          reason: string | null;
+      }
+    | {
+          kind: 'vat-id-checked';
+          at: string;
+          vatId: string;
+          valid: boolean;
+          service: string;
+          /** Whether it is the check that counts for the number held now. */
+          counts: boolean;
+      };

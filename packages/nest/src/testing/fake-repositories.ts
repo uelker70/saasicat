@@ -519,7 +519,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         const origin = taxOriginWrite(record, { country: change.country });
         const updated = { ...record, ...change, updatedAt: changedAt };
         this.byId.set(subscriberId, updated);
-        this.recordTaxOriginChange(subscriberId, origin, changedBy, changedAt);
+        this.recordTaxOriginChange(subscriberId, origin, changedBy, changedAt, null);
         return { ...updated };
     }
 
@@ -545,7 +545,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             this.currentVatIdCheck.delete(subscriberId);
             this.vatIdSince.set(subscriberId, changedAt);
         }
-        this.recordTaxOriginChange(subscriberId, origin, data.correctedBy, changedAt);
+        this.recordTaxOriginChange(subscriberId, origin, data.correctedBy, changedAt, data.reason);
         const correction: SubscriberCorrectionRecord = {
             id: `correction-${this.nextCorrectionId++}`,
             subscriberId,
@@ -577,7 +577,13 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         const changedAt = new Date();
         const updated = { ...record, business: data.business, updatedAt: changedAt };
         this.byId.set(subscriberId, updated);
-        const change = this.recordTaxOriginChange(subscriberId, origin, data.changedBy, changedAt);
+        const change = this.recordTaxOriginChange(
+            subscriberId,
+            origin,
+            data.changedBy,
+            changedAt,
+            data.reason,
+        );
         return { subscriber: { ...updated }, change };
     }
 
@@ -648,6 +654,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
         origin: TaxOriginWrite,
         changedBy: string,
         changedAt: Date,
+        reason: string | null,
     ): SubscriberTaxOriginChangeRecord | null {
         if (!origin.moved) return null;
         const change: SubscriberTaxOriginChangeRecord = {
@@ -657,6 +664,7 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             changed: origin.changed,
             changedBy,
             changedAt,
+            reason,
         };
         this.taxOriginChanges.push(change);
         return { ...change };

@@ -25,6 +25,7 @@ import { inject, ref, type Ref } from 'vue';
 import { adminErrorMessage, toAdminError, type AdminError } from '../client/admin-error.js';
 import { useSaMessages } from './use-super-admin-i18n.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from './ui-notify.js';
+import { report } from './report.js';
 
 /**
  * What an action did. `ok` is the branch to read — it answers for a
@@ -49,8 +50,12 @@ export interface UseAsyncActionOptions<T> {
      * something visible needs no announcement, a failure always does.
      */
     notifyOn?: 'error' | 'both' | 'none';
-    /** Text for the success toast. Required for `notifyOn: 'both'` to say anything. */
-    successMessage?: string | (() => string);
+    /**
+     * Text for the success toast. Required for `notifyOn: 'both'` to say
+     * anything. A function is given what the call resolved, and an empty text
+     * announces nothing — for a result that says nothing was done.
+     */
+    successMessage?: string | ((result: T) => string);
     /**
      * Overrides how a failure is worded.
      *
@@ -71,29 +76,6 @@ export interface UseAsyncActionOptions<T> {
      * and without this option, failures are reported through `error` alone.
      */
     notify?: UiNotify;
-}
-
-/**
- * Announces an outcome without being able to change it.
- *
- * A report is not part of the action. A notify port whose notification centre
- * is not mounted used to throw from inside the `try`, so a mutation the server
- * had already applied came back as a failure — and because the catch then
- * announced *that*, the same port threw again and `run()` rejected outright. A
- * caller answering a failed write with a retry repeated a non-idempotent
- * request over a toast.
- *
- * The throw is isolated, not swallowed: it is raised again out of band, where
- * the app's error handler still sees it and no result is left to corrupt.
- */
-function report(announce: () => void): void {
-    try {
-        announce();
-    } catch (err: unknown) {
-        queueMicrotask(() => {
-            throw err;
-        });
-    }
 }
 
 export function useAsyncAction<A extends unknown[], T>(
@@ -135,7 +117,7 @@ export function useAsyncAction<A extends unknown[], T>(
                 report(() => {
                     const message =
                         typeof options.successMessage === 'function'
-                            ? options.successMessage()
+                            ? options.successMessage(result)
                             : options.successMessage;
                     if (message) notify?.('positive', message);
                 });

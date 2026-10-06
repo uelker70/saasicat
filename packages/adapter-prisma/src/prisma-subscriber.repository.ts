@@ -157,7 +157,7 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
                 data: change,
                 include: WITH_LIVE_TENANT,
             });
-            await recordTaxOriginChange(db, subscriberId, origin, changedBy, changedAt);
+            await recordTaxOriginChange(db, subscriberId, origin, changedBy, changedAt, null);
             return toRecord(updated);
         });
     }
@@ -199,7 +199,14 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
                     correctedAt: changedAt,
                 },
             });
-            await recordTaxOriginChange(db, subscriberId, origin, data.correctedBy, changedAt);
+            await recordTaxOriginChange(
+                db,
+                subscriberId,
+                origin,
+                data.correctedBy,
+                changedAt,
+                data.reason,
+            );
             return {
                 subscriber: toRecord(updated),
                 correction: toSubscriberCorrectionRecord(correction),
@@ -237,6 +244,7 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
                 origin,
                 data.changedBy,
                 changedAt,
+                data.reason,
             );
             return { subscriber: toRecord(updated), change };
         });
@@ -362,13 +370,17 @@ async function vatIdCheckById(
     return row ? toSubscriberVatIdCheckRecord(row) : null;
 }
 
-/** Records what a write moved of the tax origin; nothing when it moved nothing. */
+/**
+ * Records what a write moved of the tax origin, with why where the write
+ * states it; nothing when it moved nothing.
+ */
 async function recordTaxOriginChange(
     db: SubscriberPrisma,
     subscriberId: string,
     origin: TaxOriginWrite,
     changedBy: string,
     changedAt: Date,
+    reason: string | null,
 ): Promise<SubscriberTaxOriginChangeRecord | null> {
     if (!origin.moved) return null;
     const row = await db.subscriberTaxOriginChange.create({
@@ -378,6 +390,7 @@ async function recordTaxOriginChange(
             changed: origin.changed,
             changedBy,
             changedAt,
+            reason,
         },
     });
     return toSubscriberTaxOriginChangeRecord(row);

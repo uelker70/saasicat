@@ -59,6 +59,11 @@
                     :pending="subscriber.pending.value"
                     :error="subscriber.error.value"
                     :retry="subscriber.reload"
+                    :corrections="corrections"
+                />
+                <TenantSubscriberHistory
+                    v-if="corrections.available.value && subscriber.data.value?.subscriber"
+                    :history="corrections.history"
                 />
 
                 <!-- Usage -->
@@ -134,6 +139,7 @@ import { formatMessage } from '../client/i18n/format.js';
 import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantSubscriber from '../internal/tenant-detail/TenantSubscriber.vue';
+import TenantSubscriberHistory from '../internal/tenant-detail/TenantSubscriberHistory.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
 import TenantUsers from '../internal/tenant-detail/TenantUsers.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
@@ -141,6 +147,7 @@ import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDia
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantAccount } from '../vue/use-tenant-account.js';
+import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
@@ -272,6 +279,13 @@ function formatDateResolved(value: string | null | undefined): string {
 const manifestRef = computed(() => props.options?.manifest ?? null);
 
 const mfa = useMfaPrompt();
+
+// The operator's corrections of the subscriber, behind the page's one second-factor dialog.
+const corrections = useSubscriberCorrections(tenantSlug, servedBy, tenants, {
+    notify,
+    mfa,
+    onChanged: () => subscriber.reload(),
+});
 
 function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<string | null> {
     return mfa.prompt(

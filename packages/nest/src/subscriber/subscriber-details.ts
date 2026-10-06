@@ -18,6 +18,7 @@ import type {
     SubscriberIdentityValues,
 } from '@saasicat/core';
 import {
+    canonicalVatId,
     LEGAL_IDENTITY_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
@@ -28,9 +29,6 @@ import { codedError } from '../errors/coded-error.js';
 
 /** ISO 3166-1 alpha-2, as the schema of `config/saas.yaml` holds the issuer's. */
 const COUNTRY_CODE = /^[A-Z]{2}$/;
-
-/** What a VAT identification number is written with but does not consist of. */
-const VAT_ID_SEPARATORS = /[\s.-]/g;
 
 /** RFC 5321 caps an address at 254 characters. */
 const MAX_EMAIL_LENGTH = 254;
@@ -114,17 +112,10 @@ function settleIdentityValue(field: LegalIdentityField, value: unknown): string 
     return settleText(field, value);
 }
 
-/**
- * A VAT identification number in the one form it is stored, compared and
- * checked in: upper case, without the spaces, dots and hyphens it is often
- * written with. `atu 123.456-78` is `ATU12345678` — the same number, so
- * entering it again in another spelling moves nothing.
- */
+/** A VAT identification number given as text, in its canonical form (`canonicalVatId`). */
 function settleVatId(value: unknown): string | null {
     const text = settleText('vatId', value);
-    if (text === null) return null;
-    const vatId = text.replace(VAT_ID_SEPARATORS, '').toUpperCase();
-    return vatId === '' ? null : vatId;
+    return text === null ? null : canonicalVatId(text);
 }
 
 function settleLegalName(value: unknown): string {

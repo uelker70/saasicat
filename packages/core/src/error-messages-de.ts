@@ -360,6 +360,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIBER_DETAIL_INVALID: 'Das Feld {field} des Vertragspartners ist ungültig.',
     SUBSCRIBER_IDENTITY_INCOMPLETE:
         'Die Rechnungsadresse des Vertragspartners ist noch nicht vollständig: Ein Vertrag nennt ihn nur mit Straße und Hausnummer, PLZ, Ort und Land.',
+    SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED:
+        'Eine Änderung, ob der Vertragspartner ein Unternehmen ist, braucht eine Begründung.',
+    SUBSCRIBER_VAT_ID_MISSING:
+        'Der Vertragspartner hat keine Umsatzsteuer-Identifikationsnummer, die sich prüfen ließe.',
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
         '{field} gehört zur rechtlichen Identität des Vertragspartners und ändert sich nur als Korrektur mit Begründung.',
     SUBSCRIBER_CORRECTION_REASON_REQUIRED:
@@ -426,4 +430,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Steueradapter {adapter} unterstützt diesen Fall nicht: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:
         'Die Umsatzsteuer-Identifikationsnummer ließ sich gerade nicht prüfen ({reason}). Bitte später erneut versuchen.',
+    TAX_VAT_ID_CHECK_NOT_AVAILABLE:
+        'Diese Installation nennt keinen Steueradapter, darum wird keine Umsatzsteuer-Identifikationsnummer geprüft.',
 };

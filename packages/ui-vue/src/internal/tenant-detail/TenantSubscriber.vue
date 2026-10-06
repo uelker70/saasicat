@@ -1,5 +1,33 @@
 <template>
     <AdminSection :title="msg.subscriber.title" :subtitle="holderLine" class="q-mb-md">
+        <template v-if="corrections?.available.value && standing?.subscriber" #actions>
+            <q-btn
+                flat
+                no-caps
+                icon="edit"
+                :label="msg.subscriber.correct"
+                :disable="pending"
+                @click="identityOpen = true"
+            />
+            <q-btn
+                flat
+                no-caps
+                icon="business"
+                :label="msg.subscriber.changeBusiness"
+                :disable="pending"
+                @click="businessOpen = true"
+            />
+            <q-btn
+                v-if="corrections.canCheckVatId.value && standing.subscriber.vatId"
+                flat
+                no-caps
+                icon="verified"
+                :label="msg.subscriber.checkVatId"
+                :disable="pending"
+                :loading="checking"
+                @click="onCheck"
+            />
+        </template>
         <AdminErrorBanner :error="error" :title="msg.subscriber.loadFailed" :retry="retry" />
         <p v-if="!error && pending && !standing" class="sa-tenant-subscriber__note">
             {{ common.loading }}
@@ -27,13 +55,25 @@
                         :value="row.value"
                     />
                 </div>
+                <template v-if="corrections?.available.value">
+                    <SubscriberIdentityDialog
+                        v-model="identityOpen"
+                        :subscriber="standing.subscriber"
+                        :submit="corrections.correctIdentity"
+                    />
+                    <SubscriberBusinessStatusDialog
+                        v-model="businessOpen"
+                        :business="standing.subscriber.business"
+                        :submit="corrections.changeBusinessStatus"
+                    />
+                </template>
             </template>
         </template>
     </AdminSection>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { AdminTenantSubscriber } from '@saasicat/core';
 
 import { formatMessage } from '../../client/i18n/format.js';
@@ -42,19 +82,48 @@ import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import type { SubscriberCorrections } from '../../vue/use-subscriber-corrections.js';
 import { heldBackReasons } from '../tenants/held-back.js';
+import SubscriberBusinessStatusDialog from './SubscriberBusinessStatusDialog.vue';
+import SubscriberIdentityDialog from './SubscriberIdentityDialog.vue';
 
 // Whom the tenant's contracts are concluded with: the legal name, the address
-// an invoice names, and what a tax adapter decides from. Read only — the
-// operator corrects a subscriber's identity, its business status and its VAT
-// id through their own steps. Where a tax adapter decides and something holds
-// the next contract back, a warning names it first.
+// an invoice names, and what a tax adapter decides from. Where a tax adapter
+// decides and something holds the next contract back, a warning names it
+// first. Where the platform serves the corrections, the section offers them:
+// the legal identity and the business status, each in its own dialog, and a
+// check of the VAT number held where an adapter names a service.
 const props = defineProps<{
     standing: AdminTenantSubscriber | null;
     pending: boolean;
     error: unknown | null;
     retry: () => void | Promise<void>;
+    corrections?: SubscriberCorrections;
 }>();
+
+const identityOpen = ref(false);
+const businessOpen = ref(false);
+
+// A dialog belongs to the subscriber it was opened for. Once another one is
+// shown — or none, while the next tenant's is read — it closes rather than
+// open again with its form for whoever comes next.
+watch(
+    () => props.standing?.subscriber?.id,
+    () => {
+        identityOpen.value = false;
+        businessOpen.value = false;
+    },
+);
+const checking = ref(false);
+
+async function onCheck(): Promise<void> {
+    checking.value = true;
+    try {
+        await props.corrections?.checkVatId();
+    } finally {
+        checking.value = false;
+    }
+}
 
 const msg = useSaMessages('tenants');
 const common = useSaMessages('common');

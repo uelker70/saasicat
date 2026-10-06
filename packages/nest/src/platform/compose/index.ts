@@ -24,7 +24,7 @@ import {
 import { composePayments } from './payments.js';
 import { composePromoCodes } from './promo-codes.js';
 import { composeSubscriberAccount } from './subscriber-account.js';
-import { composeSubscriberStanding } from './subscriber-standing.js';
+import { composeSubscriberAdmin } from './subscriber-admin.js';
 import { composeSubscriptionBundles, composeTenantBilling } from './tenant-billing.js';
 import { composeVersionRetirement } from './version-retirement.js';
 
@@ -48,7 +48,7 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     // After the admin resources and tenant billing: it imports both.
     composeSubscriberAccount,
     // After the admin resources: it imports them.
-    composeSubscriberStanding,
+    composeSubscriberAdmin,
     // After tenant billing: it imports it.
     composeVersionRetirement,
     composeMaintenance,

@@ -30,7 +30,7 @@ export function useTenantSubscriber(
     );
     const subscriber = useAsyncData(
         async () => (available.value && slug.value ? tenants.subscriber(slug.value) : null),
-        { initial: null, watch: [slug, available] },
+        { initial: null, watch: [available], subject: slug },
     );
     return { ...subscriber, available };
 }

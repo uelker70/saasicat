@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type {
     AdminSubscriberAttention,
+    AdminSubscriberHistoryEntry,
     AdminTenantSubscriber,
     SubscriberRepository,
 } from '@saasicat/core';
@@ -8,6 +9,7 @@ import { taxOriginOf } from '@saasicat/core';
 
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
 import type { TaxTreatments } from '../tax/tax-treatments.js';
+import { subscriberHistoryOf } from './subscriber-history.js';
 import { readinessOf, standingPeriod } from './subscriber-readiness.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
 
@@ -53,6 +55,29 @@ export class SubscriberStandingService {
                 ? readinessOf(subscriber, check, this.taxes, standingPeriod(asOf))
                 : null,
         };
+    }
+
+    /**
+     * The history of the tenant's subscriber, the latest first: its
+     * corrections, its changes of country and business status, and the checks
+     * of its VAT number, each with who and why where it says. Empty for a
+     * tenant without a subscriber.
+     */
+    async historyOfTenant(tenantId: string): Promise<AdminSubscriberHistoryEntry[]> {
+        const subscriber = await this.repo.findByTenantId(tenantId);
+        if (!subscriber) return [];
+        const [corrections, taxOriginChanges, vatIdChecks, counting] = await Promise.all([
+            this.repo.listCorrections(subscriber.id),
+            this.repo.listTaxOriginChanges(subscriber.id),
+            this.repo.listVatIdChecks(subscriber.id),
+            this.repo.findCurrentVatIdCheck(subscriber.id),
+        ]);
+        return subscriberHistoryOf({
+            corrections,
+            taxOriginChanges,
+            vatIdChecks,
+            countingCheckId: counting?.id ?? null,
+        });
     }
 
     /**

@@ -357,6 +357,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "The subscriber's billing address is not complete yet: a contract names it only with street and number, postal code, city and country.",
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
         "{field} is part of the subscriber's legal identity and changes only as a correction, with a reason.",
+    SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED:
+        'A change of whether the subscriber is a business needs a reason.',
+    SUBSCRIBER_VAT_ID_MISSING: 'The subscriber has no VAT identification number to check.',
     SUBSCRIBER_CORRECTION_REASON_REQUIRED: 'A correction of the legal identity needs a reason.',
     SUBSCRIBER_CORRECTION_ACTOR_REQUIRED:
         'A correction of the legal identity has to say who makes it.',
@@ -414,6 +417,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     TAX_TREATMENT_NOT_SUPPORTED: 'The tax adapter {adapter} does not support this case: {reason}',
     TAX_VAT_ID_CHECK_NOT_COMPLETED:
         'The VAT identification number could not be checked just now ({reason}). Please try again later.',
+    TAX_VAT_ID_CHECK_NOT_AVAILABLE:
+        'This installation names no tax adapter, so no VAT identification number is checked.',
 };
 
 /** Values available for interpolation into a message template. */

@@ -132,7 +132,7 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
                 .set({ ...change, updatedAt: changedAt })
                 .where(eq(subscribers.id, subscriberId))
                 .returning();
-            await recordTaxOriginChange(db, subscriberId, origin, changedBy, changedAt);
+            await recordTaxOriginChange(db, subscriberId, origin, changedBy, changedAt, null);
             return this.withLiveTenant(db, updated);
         });
     }
@@ -178,7 +178,14 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
                     correctedAt: changedAt,
                 })
                 .returning();
-            await recordTaxOriginChange(db, subscriberId, origin, data.correctedBy, changedAt);
+            await recordTaxOriginChange(
+                db,
+                subscriberId,
+                origin,
+                data.correctedBy,
+                changedAt,
+                data.reason,
+            );
             return {
                 subscriber: await this.withLiveTenant(db, updated),
                 correction: toSubscriberCorrectionRecord(correction),
@@ -220,6 +227,7 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
                 origin,
                 data.changedBy,
                 changedAt,
+                data.reason,
             );
             return { subscriber: await this.withLiveTenant(db, updated), change };
         });
@@ -373,13 +381,17 @@ async function vatIdCheckById(
     return row ? toSubscriberVatIdCheckRecord(row) : null;
 }
 
-/** Records what a write moved of the tax origin; nothing when it moved nothing. */
+/**
+ * Records what a write moved of the tax origin, with why where the write
+ * states it; nothing when it moved nothing.
+ */
 async function recordTaxOriginChange(
     db: DrizzleClient,
     subscriberId: string,
     origin: TaxOriginWrite,
     changedBy: string,
     changedAt: Date,
+    reason: string | null,
 ): Promise<SubscriberTaxOriginChangeRecord | null> {
     if (!origin.moved) return null;
     const [row] = await db
@@ -391,6 +403,7 @@ async function recordTaxOriginChange(
             changed: origin.changed,
             changedBy,
             changedAt,
+            reason,
         })
         .returning();
     return toSubscriberTaxOriginChangeRecord(row);

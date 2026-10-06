@@ -11,6 +11,7 @@ import type { FactoryProvider } from '@nestjs/common';
 import {
     SUBSCRIBER_ACCOUNT_CAPABILITY,
     SUBSCRIBER_ATTENTION_CAPABILITY,
+    SUBSCRIBER_CORRECTION_CAPABILITY,
     SUBSCRIBER_STANDING_CAPABILITY,
     BUNDLE_VERSION_RETIREMENT_CAPABILITY,
     VERSION_RETIREMENT_CAPABILITY,
@@ -91,7 +92,11 @@ export function buildStandardManifestContribution(
         };
     }
     if (served.subscriberAccounts) capabilities[SUBSCRIBER_ACCOUNT_CAPABILITY] = true;
-    if (served.subscriberStanding) capabilities[SUBSCRIBER_STANDING_CAPABILITY] = true;
+    if (served.subscriberStanding) {
+        // One module serves the view and the corrections beside it.
+        capabilities[SUBSCRIBER_STANDING_CAPABILITY] = true;
+        capabilities[SUBSCRIBER_CORRECTION_CAPABILITY] = true;
+    }
     if (served.subscriberAttention) capabilities[SUBSCRIBER_ATTENTION_CAPABILITY] = true;
     if (served.versionRetirements) capabilities[VERSION_RETIREMENT_CAPABILITY] = true;
     if (served.bundleVersionRetirements) {

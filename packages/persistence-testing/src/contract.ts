@@ -5062,6 +5062,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 subscribers.changeBusinessStatus(created.id, {
                     business: true,
                     changedBy: 'operator:ben',
+                    reason: 'Trade register extract handed in',
                 }),
             );
             assert.equal(stated.result?.subscriber.business, true);
@@ -5077,6 +5078,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const again = await subscribers.changeBusinessStatus(created.id, {
                 business: true,
                 changedBy: 'operator:ben',
+                reason: 'Trade register extract handed in again',
             });
             assert.equal(again?.change, null, 'a business status that did not move was recorded');
             assert.equal(again?.subscriber.business, true);
@@ -5088,6 +5090,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     previous: change.previous,
                     changed: change.changed,
                     changedBy: change.changedBy,
+                    reason: change.reason,
                 })),
                 [
                     {
@@ -5095,21 +5098,24 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         previous: { business: null },
                         changed: { business: true },
                         changedBy: 'operator:ben',
+                        reason: 'Trade register extract handed in',
                     },
                     {
                         subscriberId: created.id,
                         previous: { vatId: null },
                         changed: { vatId: 'ATU12345678' },
                         changedBy: 'operator:anna',
+                        reason: 'VAT id handed in after sign-up',
                     },
                     {
                         subscriberId: created.id,
                         previous: { country: 'DE' },
                         changed: { country: 'AT' },
                         changedBy: TENANT_USER,
+                        reason: null,
                     },
                 ],
-                'the changes come back the latest written first, and only the three that moved the tax origin',
+                'the changes come back the latest written first, only the three that moved the tax origin, each with why where its write said why',
             );
             // Each dated while its own write ran, so the dates read in the order
             // the changes were written.
@@ -5130,6 +5136,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 await subscribers.changeBusinessStatus('subscriber-nobody-created', {
                     business: true,
                     changedBy: 'operator:ben',
+                    reason: 'Nobody to change',
                 }),
                 null,
             );
@@ -5456,7 +5463,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     await subscribers.updateContact(created.id, { country: 'FR' }, TENANT_USER, tx);
                     await subscribers.changeBusinessStatus(
                         created.id,
-                        { business: true, changedBy: 'operator:anna' },
+                        {
+                            business: true,
+                            changedBy: 'operator:anna',
+                            reason: 'Undone with its transaction',
+                        },
                         tx,
                     );
                     await subscribers.recordVatIdCheck(
