@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 70      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 30      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 606 entries: 🟢 522 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 607 entries: 🟢 523 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 17 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -222,7 +222,7 @@ Of 606 entries: 🟢 522 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 606 requirements. Do not edit by hand:
+Generated from `requirements/` — 607 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -10984,6 +10984,56 @@ _Tested by:_
           code
         - the operator may allow it to leave nothing
         - concluding asks again: an allowance taken back since refuses the offer
+
+<!-- END proof -->
+
+### SC-PROMO-031 — The administration reads a promo code's days in the zone the application names
+
+🟢 💰 The days of a promo code — its first and last day in the list, the edit dialog and the detail
+page, and the start and end of each redemption's term — are read in the time zone the application
+names for them, and in UTC where it names none, at whose midnight the platform's own promo-code
+routes store a day. The zone is never the browser's: an operator abroad reads the days an operator
+at home reads, and a code opened and saved with something else changed sends neither day back. A
+redemption's moment is shown with the zone it is read in. A zone the browser cannot read stops the
+administration at start.
+
+_Source:_ uelker70/autohauspro#515
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/promo-days-are-read-in-the-zone-the-app-names.test.ts`
+    - the edit dialog
+        - shows the days the code was given in Berlin, on the days the clocks change
+        - shows the UTC days where the application names no zone
+        - sends neither day back when something else is changed
+    - the list
+        - shows a code’s last day in the zone the application names, and in UTC without one
+        - shows a day the server sends as a day as that day, whatever the zone named
+    - the detail page
+        - shows each redemption’s term and moment in the zone the application names, saying which
+        - and in UTC where it names none
+        - shows the code’s own first and last day in its settings in the zone named, and in UTC
+          without one
+    - the shell
+        - hands the pages the zone the application names, and UTC where it names none
+        - refuses a zone the browser cannot read before it touches the document
+- `packages/ui-vue/tests/promo-days-are-read-in-a-zone.test.js`
+    - a promo code’s day, read in a zone
+        - the start of 29 March in Berlin, the day the clocks go forward, is that day there and the
+          day before in UTC
+        - the end of 25 October in Berlin, the day the clocks go back, is that day, and a moment
+          later the next
+        - is the day itself where the server sends a day, west of UTC and far east of it
+        - is nothing where there is no instant, or none that is a date
+    - a promo code’s moment, read in a zone
+        - says the zone it is read in
+        - is nothing where there is no instant
+    - the zone promo days are read in
+        - is UTC where the application names none
+        - is the one the application names, where the runtime can read it
+        - refuses a name the runtime cannot read, naming it, with the runtime’s reason as cause
 
 <!-- END proof -->
 

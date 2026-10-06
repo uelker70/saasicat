@@ -26,6 +26,8 @@ import { computed, ref, watch } from 'vue';
 import PromoCodeDialogFields from './PromoCodeDialogFields.vue';
 import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
 import { formatMessage } from '../../client/i18n/format.js';
+import { promoDayOf } from '../../client/promo-days.js';
+import { useSuperAdminPromoCodes } from '../../vue/use-super-admin-context.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type {
     PromoCodeDurationType,
@@ -83,6 +85,7 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('promos');
+const promoCodes = useSuperAdminPromoCodes();
 const common = useSaMessages('common');
 
 interface EditForm {
@@ -125,7 +128,12 @@ function emptyForm(): EditForm {
     };
 }
 
-function fromRow(row: PromoCodeEditRow): EditForm {
+/**
+ * The form as `row` fills it, its days read in `timeZone` — the zone the
+ * server turned them into instants in, so that a save without a change sends
+ * neither day back.
+ */
+function fromRow(row: PromoCodeEditRow, timeZone: string): EditForm {
     return {
         status: row.status === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
         valueType: row.valueType ?? 'PERCENT',
@@ -133,8 +141,8 @@ function fromRow(row: PromoCodeEditRow): EditForm {
         durationType: row.durationType ?? 'ONCE',
         durationValue: row.durationValue ?? null,
         maxRedemptions: row.maxRedemptions,
-        validFrom: row.validFrom ? row.validFrom.slice(0, 10) : '',
-        validUntil: row.validUntil ? row.validUntil.slice(0, 10) : '',
+        validFrom: promoDayOf(row.validFrom, timeZone),
+        validUntil: promoDayOf(row.validUntil, timeZone),
         appliesToPlans: row.appliesToPlans ? [...row.appliesToPlans] : [],
         appliesToBilling: row.appliesToBilling ?? null,
         firstTimeCustomersOnly: row.firstTimeCustomersOnly ?? false,
@@ -206,7 +214,7 @@ watch(
     () => [props.modelValue, props.row] as const,
     ([open, row]) => {
         if (!open) return;
-        const next = row ? fromRow(row) : emptyForm();
+        const next = row ? fromRow(row, promoCodes.timeZone) : emptyForm();
         form.value = next;
         initial.value = { ...next, appliesToPlans: [...next.appliesToPlans] };
         advancedOpen.value = false;

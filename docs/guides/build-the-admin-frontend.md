@@ -545,6 +545,26 @@ The German object is the reference structure; the compiler rejects a translation
 with missing or extra keys. For a single app, `additionalLocales` is the shorter
 road.
 
+## Promo-Code Days
+
+A promo code's first and last day reach the browser as instants: your server turned the day an
+operator picked into the start or the end of that day in a zone of its own. The administration reads
+them back in the zone you name, so that the list, the edit dialog and the detail page show the day
+that was picked, and a code saved with something else changed sends neither day back
+(`SC-PROMO-031`):
+
+```ts
+createSuperAdminApp({
+    // …
+    promoCodes: { timeZone: 'Europe/Berlin' },
+});
+```
+
+Name the zone your server converts days in. Leave it out, and the days are read in UTC — the zone the
+platform's own promo-code routes store a day at midnight of — whatever zone the browser is in. A
+redemption's moment on the detail page is shown with the zone it is read in. A name the browser
+cannot read stops `createSuperAdminApp` at start.
+
 ## Overriding one operation
 
 When one call has to go somewhere else — a legacy host, an approval recorded
