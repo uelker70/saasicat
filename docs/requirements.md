@@ -6241,6 +6241,7 @@ _Tested by:_
         - a VAT number it gives is checked right after, and a valid answer releases the next
           contract
         - a number the service found ${answered} is kept, and so is the hold on the next contract
+        - a check that fails after the correction leaves the correction audited, not unrecorded
         - declared as another legal entity taking over, it is refused, nothing changes and nothing
           is audited
         - that changes nothing is refused as such
@@ -6281,8 +6282,8 @@ _Tested by:_
         - a check is offered only where a tax adapter decides
         - a correction goes out with the second factor, is announced, and the subscriber and its
           history are read again
-        - a corrected number the service found ${found} is announced as such, the correction beneath
-          it
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
         - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
@@ -9650,6 +9651,7 @@ _Tested by:_
         - a valid check of the number replaced does not count for the new one
     - a correction that checks nothing
         - ${what}: the service is not asked
+        - the correction alone: written, and the service is asked only when its number is checked
         - where no tax adapter decides: the number is corrected, and nothing is checked
     - checking the number held, again
         - records a valid answer, which then counts
@@ -9673,8 +9675,8 @@ _Tested by:_
         - a check is asked without the second factor
 - `packages/ui-vue/tests/use-subscriber-corrections.test.js`
     - useSubscriberCorrections
-        - a corrected number the service found ${found} is announced as such, the correction beneath
-          it
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
         - a check needs no second factor, announces what the service found, and reads again
 
 <!-- END proof -->
@@ -13069,8 +13071,8 @@ _Tested by:_
         - a check is offered only where a tax adapter decides
         - a correction goes out with the second factor, is announced, and the subscriber and its
           history are read again
-        - a corrected number the service found ${found} is announced as such, the correction beneath
-          it
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
         - ${what} goes to the tenant it was confirmed on, though the page moved on during the second

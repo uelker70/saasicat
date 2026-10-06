@@ -875,9 +875,10 @@ written reason and behind the second factor, recorded with what it replaced and 
 `…/vat-id-check` checks the number held again without it, and `GET …/history` lists the
 corrections, the changes of country and business status, and the checks, the latest first. A VAT
 number a correction gives is checked with the adapter's service right after it is written, and the
-check is kept whether the service found it valid, invalid or did not answer; your own code reaches
-the same through `SubscriberService.correctIdentity` and `checkVatIdOf`. `TenantDetailPage` offers
-all of it beside the subscriber.
+check is kept whether the service found it valid, invalid or did not answer. Your own code does the
+same in three steps — `SubscriberService.correctIdentity`, which writes only, then whatever records
+the correction, then `checkCorrectedVatId(correction)` outside any transaction — and checks the
+number held with `checkVatIdOf`. `TenantDetailPage` offers all of it beside the subscriber.
 
 ## The Subscriber's Account
 

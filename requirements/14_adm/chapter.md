@@ -586,8 +586,8 @@ _Tested by:_
         - a check is offered only where a tax adapter decides
         - a correction goes out with the second factor, is announced, and the subscriber and its
           history are read again
-        - a corrected number the service found ${found} is announced as such, the correction beneath
-          it
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
         - ${what} goes to the tenant it was confirmed on, though the page moved on during the second

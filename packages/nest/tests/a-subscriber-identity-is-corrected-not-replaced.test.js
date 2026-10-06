@@ -221,12 +221,10 @@ describe('a correction of the legal identity', () => {
     test('writes the corrected values and records the ones it replaced, why, and by whom', async () => {
         const { service, record } = await subscriber();
 
-        const { correction: recorded, vatIdCheck } = await service.correctIdentity(
+        const recorded = await service.correctIdentity(
             record.id,
             correction({ legalName: 'Müller GmbH', vatId: null, taxNumber: '12/345/67890' }),
         );
-
-        assert.equal(vatIdCheck, null, 'a number cleared is not checked');
 
         assert.deepEqual(recorded.previous, {
             legalName: 'Mueller GmbH',

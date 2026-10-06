@@ -1781,15 +1781,12 @@ service right after, and the check is kept whatever it found.
    country with the contact details.
 3. `SubscriberService.changeBusinessStatus` needs `reason`; without one it is refused with
    `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`.
-4. `SubscriberService.correctIdentity` answers `{ correction, vatIdCheck }` instead of the
-   correction alone. Where an adapter decides and the correction gives another VAT number, it checks
-   that number before it answers, so it reaches an outside service: never call it inside a
-   transaction.
-5. An application that words refusals itself adds `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`,
+4. An application that words refusals itself adds `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`,
    `SUBSCRIBER_VAT_ID_MISSING` and `TAX_VAT_ID_CHECK_NOT_AVAILABLE`.
 
-What you get: `SubscriberService.checkVatIdOf` checks the number a subscriber holds again and keeps
-the check; the operator's routes `POST admin/tenants/:slug/subscriber/identity` and
+What you get: `SubscriberService.checkCorrectedVatId(correction)` checks the number a correction
+gave, after the correction and outside any transaction, and `checkVatIdOf` the number a subscriber
+holds; both keep the check. The operator's routes `POST admin/tenants/:slug/subscriber/identity` and
 `…/business-status` (second factor), `…/vat-id-check` and `GET …/history`, announced as
 `subscribers.correct` wherever the subscriber view is served; and in `TenantDetailPage` the two
 corrections, the check where an adapter decides, and the subscriber's history

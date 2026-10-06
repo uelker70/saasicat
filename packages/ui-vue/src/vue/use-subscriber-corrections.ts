@@ -107,11 +107,17 @@ export function useSubscriberCorrections(
         await Promise.all([history.reload(), ports.onChanged()]);
     }
 
+    /**
+     * What the service found — or, where the check no longer describes the
+     * number held because it changed meanwhile, only that it does not count:
+     * its "invalid" would announce a hold a later valid check already lifted.
+     */
     function checkAnnouncement(check: AdminVatIdCheckOutcome): [UiNotifyKind, string] {
         const m = msg.value.subscriber;
         if (!check.completed) {
             return ['warning', formatMessage(m.vatIdNotChecked, { reason: check.reason })];
         }
+        if (!check.counts) return ['info', m.vatIdCheckNotCounting];
         return check.valid
             ? ['positive', formatMessage(m.vatIdValid, { service: check.service })]
             : ['warning', formatMessage(m.vatIdInvalid, { service: check.service })];

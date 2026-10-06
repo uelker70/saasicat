@@ -1397,6 +1397,7 @@ _Tested by:_
         - a VAT number it gives is checked right after, and a valid answer releases the next
           contract
         - a number the service found ${answered} is kept, and so is the hold on the next contract
+        - a check that fails after the correction leaves the correction audited, not unrecorded
         - declared as another legal entity taking over, it is refused, nothing changes and nothing
           is audited
         - that changes nothing is refused as such
@@ -1437,8 +1438,8 @@ _Tested by:_
         - a check is offered only where a tax adapter decides
         - a correction goes out with the second factor, is announced, and the subscriber and its
           history are read again
-        - a corrected number the service found ${found} is announced as such, the correction beneath
-          it
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
         - ${what} goes to the tenant it was confirmed on, though the page moved on during the second

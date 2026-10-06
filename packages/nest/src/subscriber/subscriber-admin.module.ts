@@ -161,7 +161,9 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
          * Corrects the legal identity of the tenant's subscriber, with the
          * second factor. A VAT number it gives the subscriber is checked right
          * after, where a tax adapter decides, and the outcome is answered — the
-         * correction stands whatever the check found.
+         * correction stands whatever the check found. The audit entry is
+         * written between the two, so a check that fails cannot leave a
+         * correction nobody recorded.
          */
         @Post('tenants/:slug/subscriber/identity')
         @HttpCode(200)
@@ -173,7 +175,7 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
         ): Promise<AdminSubscriberCorrected> {
             return this.rlsBypass.runWithBypass(async () => {
                 const { tenantId, subscriberId } = await this.subscriberAt(slug);
-                const corrected = await this.subscribers.correctIdentity(subscriberId, {
+                const correction = await this.subscribers.correctIdentity(subscriberId, {
                     kind: body.kind,
                     legalName: body.legalName,
                     vatId: body.vatId,
@@ -188,13 +190,14 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
                     'SUBSCRIBER_IDENTITY_CORRECTED',
                     {
                         tenantId,
-                        fields: Object.keys(corrected.correction.corrected),
-                        reason: corrected.correction.reason,
+                        fields: Object.keys(correction.corrected),
+                        reason: correction.reason,
                     },
                 );
+                const vatIdCheck = await this.subscribers.checkCorrectedVatId(correction);
                 return {
                     subscriber: await this.standing.ofTenant(tenantId),
-                    vatIdCheck: corrected.vatIdCheck && vatIdCheckOutcomeOf(corrected.vatIdCheck),
+                    vatIdCheck: vatIdCheck && vatIdCheckOutcomeOf(vatIdCheck),
                 };
             });
         }

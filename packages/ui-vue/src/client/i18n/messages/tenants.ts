@@ -111,6 +111,8 @@ export const tenantsMessages = defineMessages(
                 'USt-IdNr. ist laut {service} ungültig. Der nächste Vertrag bleibt blockiert, bis eine gültige Prüfung vorliegt.',
             vatIdNotChecked:
                 'USt-IdNr. ließ sich gerade nicht prüfen ({reason}). Bitte später erneut prüfen.',
+            vatIdCheckNotCounting:
+                'Die Prüfung ist festgehalten, zählt aber nicht: Der Abonnent hat inzwischen eine andere Nummer, oder eine spätere Prüfung hat schon geantwortet. Der Verlauf zeigt, welche zählt.',
             reason: 'Begründung',
             reasonHint: 'Steht mit der Änderung im Verlauf, für Sie, den Kunden und eine Prüfung.',
             identityDialog: {
@@ -271,6 +273,8 @@ export const tenantsMessages = defineMessages(
                 'VAT ID is invalid according to {service}. The next contract stays held back until a valid check counts.',
             vatIdNotChecked:
                 'VAT ID could not be checked just now ({reason}). Please check again later.',
+            vatIdCheckNotCounting:
+                'The check is kept but does not count: the subscriber holds another number by now, or a later check has already answered. The history shows which one counts.',
             reason: 'Reason',
             reasonHint: 'Kept with the change in the history, for you, the customer and an audit.',
             identityDialog: {

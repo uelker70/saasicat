@@ -145,15 +145,24 @@ describe('useSubscriberCorrections', () => {
     for (const [found, vatIdCheck, expected] of [
         [
             'valid',
-            { completed: true, valid: true, service: 'VIES' },
+            { completed: true, valid: true, service: 'VIES', counts: true },
             ['positive', 'VAT ID is valid (VIES).', 'Correction saved.'],
         ],
         [
             'invalid',
-            { completed: true, valid: false, service: 'VIES' },
+            { completed: true, valid: false, service: 'VIES', counts: true },
             [
                 'warning',
                 'VAT ID is invalid according to VIES. The next contract stays held back until a valid check counts.',
+                'Correction saved.',
+            ],
+        ],
+        [
+            'invalid for a number no longer held',
+            { completed: true, valid: false, service: 'VIES', counts: false },
+            [
+                'info',
+                'The check is kept but does not count: the subscriber holds another number by now, or a later check has already answered. The history shows which one counts.',
                 'Correction saved.',
             ],
         ],
@@ -168,7 +177,7 @@ describe('useSubscriberCorrections', () => {
         ],
     ]) {
         // @requirement SC-PRIC-071 — A VAT number the operator corrects or checks is checked, and every outcome kept
-        test(`a corrected number the service found ${found} is announced as such, the correction beneath it`, async () => {
+        test(`after a correction, the service's answer — ${found} — is announced as such, the correction beneath it`, async () => {
             const { corrections, notices } = correctionsOf({ answer: { identity: vatIdCheck } });
 
             await corrections.correctIdentity({ vatId: 'ATU1', reason: 'New number' });
@@ -235,7 +244,7 @@ describe('useSubscriberCorrections', () => {
     // @requirement SC-PRIC-071 — A VAT number the operator corrects or checks is checked, and every outcome kept
     test('a check needs no second factor, announces what the service found, and reads again', async () => {
         const { corrections, writes, prompts, notices, changes } = correctionsOf({
-            answer: { check: { completed: true, valid: true, service: 'VIES' } },
+            answer: { check: { completed: true, valid: true, service: 'VIES', counts: true } },
         });
 
         await corrections.checkVatId();

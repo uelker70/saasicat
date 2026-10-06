@@ -30,13 +30,13 @@ entity stays refused.
   origin keeps its reason — the correction's, the business status's, `null`
   for a change of the country with the contact details. Your own
   `SubscriberRepository` writes and reads `reason`.
-- **A corrected VAT number is checked.** `SubscriberService.correctIdentity`
-  answers `{ correction, vatIdCheck }` instead of the correction alone: where a
-  tax adapter decides and the correction gives another number, it is checked
-  right after the correction is written, valid, invalid and not completed
-  alike, and the correction stands whatever the check found; the next contract
-  stays held back until a valid check counts. Since the check reaches an
-  outside service, never call `correctIdentity` inside a transaction.
+- **A corrected VAT number is checked.**
+  `SubscriberService.checkCorrectedVatId(correction)` checks the number a
+  correction gave, where a tax adapter decides, and keeps the check — valid,
+  invalid or not completed alike; the correction stands whatever it found, and
+  the next contract stays held back until a valid check counts. It reaches an
+  outside service, so it runs after the correction and outside any
+  transaction; `correctIdentity` itself still only writes.
 - **`SubscriberService.checkVatIdOf`** checks the number a subscriber holds
   again, named by `tenantId` or `subscriberId`, and keeps the check — refused
   with `409 TAX_VAT_ID_CHECK_NOT_AVAILABLE` without an adapter and with
@@ -50,5 +50,7 @@ entity stays refused.
   dialog that asks for the reason and then for the second factor, the check
   where an adapter decides and a number is held, and the subscriber's history.
   `useSubscriberCorrections` carries the sequences for your own pages.
-  `AdminFormDialog` keeps a form open, without an error, when its `submit`
-  resolves `null`.
+  `AdminFormDialog` keeps a form open, without an error and without its
+  `successMessage`, when its `submit` resolves `null` — a `submit` of yours
+  that resolves `null` after a successful write resolves something else
+  now, or the dialog stays open after it.

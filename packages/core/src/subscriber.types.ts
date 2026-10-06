@@ -329,16 +329,6 @@ export type SubscriberVatIdCheckResult =
     | { completed: true; check: SubscriberVatIdCheckRecord; counts: boolean }
     | { completed: false; reason: string };
 
-/**
- * A correction of a subscriber's legal identity as it was recorded, and — where
- * it gave the subscriber another VAT identification number and a tax adapter
- * decides — the check of that number made right after it; `null` otherwise.
- */
-export interface SubscriberIdentityCorrected {
-    correction: SubscriberCorrectionRecord;
-    vatIdCheck: SubscriberVatIdCheckResult | null;
-}
-
 /** A check of a subscriber's VAT identification number, as the operator is shown it. */
 export type AdminVatIdCheckOutcome =
     | {

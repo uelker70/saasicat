@@ -128,6 +128,33 @@ describe("the operator corrects a subscriber's legal identity", () => {
         });
     }
 
+    test('a check that fails after the correction leaves the correction audited, not unrecorded', async () => {
+        // An adapter of an application's own that throws breaks its contract
+        // ("an outcome whatever the service does"); the correction is already
+        // written by then, and the audit log must say so.
+        const admin = await anAdministration({
+            checkVatId: async () => {
+                throw new Error('adapter crashed');
+            },
+        });
+
+        await assert.rejects(
+            admin.correct('contoso', {
+                kind: 'correction',
+                vatId: 'FR12345678901',
+                reason: 'Customer handed in its VAT number',
+            }),
+            /adapter crashed/,
+        );
+
+        assert.deepEqual(admin.auditedActions(), ['SUBSCRIBER_IDENTITY_CORRECTED']);
+        const [entry] = await admin.history('contoso');
+        assert.deepEqual(
+            [entry.kind, entry.corrected],
+            ['identity-corrected', { vatId: 'FR12345678901' }],
+        );
+    });
+
     test('declared as another legal entity taking over, it is refused, nothing changes and nothing is audited', async () => {
         const admin = await anAdministration();
 

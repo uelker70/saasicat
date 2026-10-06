@@ -12,7 +12,6 @@ import type {
     SubscriberBusinessStatusResult,
     SubscriberContactChange,
     SubscriberCorrectionRecord,
-    SubscriberIdentityCorrected,
     SubscriberIdentityCorrection,
     SubscriberReadiness,
     SubscriberRecord,
@@ -341,17 +340,15 @@ export class SubscriberService {
      * another legal entity taking over is a transfer, and is refused with
      * `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER` rather than recorded as an edit.
      *
-     * Where a tax adapter decides and the correction gives the subscriber
-     * another VAT identification number, that number is checked right after
-     * the correction is written and the check recorded, valid or not
-     * (`SC-PRIC-043`); a check that does not complete leaves the correction in
-     * place and the number unvalidated. It reaches an outside service, so
-     * never call it inside a transaction.
+     * A VAT number the correction gives is not checked here: the correction
+     * is written on its own, inside a transaction if the caller has one, and
+     * `checkCorrectedVatId` checks the number once whatever records the
+     * correction — an audit entry — has been written.
      */
     async correctIdentity(
         subscriberId: string,
         correction: SubscriberIdentityCorrection,
-    ): Promise<SubscriberIdentityCorrected> {
+    ): Promise<SubscriberCorrectionRecord> {
         if (correction.kind !== 'correction') {
             throw new UnprocessableEntityException(
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_TAKEOVER_IS_A_TRANSFER),
@@ -381,25 +378,24 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_CORRECTION_CHANGES_NOTHING),
             );
         }
-        return {
-            correction: result.correction,
-            vatIdCheck: await this.checkCorrectedVatId(result.correction),
-        };
+        return result.correction;
     }
 
     /**
-     * The VAT number a correction gave the subscriber, checked once the
-     * correction holds it — after, not before, because a check counts only for
-     * a number it completed while the subscriber held it. Nothing is checked
-     * where no adapter decides, or where the correction cleared the number or
-     * did not move it.
+     * Checks the VAT number a correction gave the subscriber with the service
+     * the tax adapter names, and records the check, valid or not
+     * (`SC-PRIC-071`); `null` where no adapter decides, or where the correction
+     * cleared the number or did not move it. Called after the correction, not
+     * before, because a check counts only for a number it completed while the
+     * subscriber held it. It reaches an outside service, so never call it
+     * inside a transaction.
      *
-     * The number checked is the one this correction wrote, not the one read
-     * back: another correction may land in between, and the answer to this one
-     * must neither check that one's number nor fail after its own write. The
-     * repository counts the check only while the subscriber still holds it.
+     * The number checked is the one the correction wrote, not the one read
+     * back: another correction may land in between, and its number is not this
+     * one's to check. The repository counts the check only while the
+     * subscriber still holds the number.
      */
-    private async checkCorrectedVatId(
+    async checkCorrectedVatId(
         correction: SubscriberCorrectionRecord,
     ): Promise<SubscriberVatIdCheckResult | null> {
         const corrected = correction.corrected.vatId;

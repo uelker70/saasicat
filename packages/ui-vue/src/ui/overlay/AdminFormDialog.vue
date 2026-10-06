@@ -33,9 +33,12 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue';
+
 import AdminDialog from './AdminDialog.vue';
 import AdminErrorBanner from '../feedback/AdminErrorBanner.vue';
 import { useAsyncAction } from '../../vue/use-async-action.js';
+import { SUPER_ADMIN_NOTIFY_KEY } from '../../vue/ui-notify.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // A dialog whose point is a write. The lifecycle around that write — disable
@@ -64,7 +67,7 @@ const props = withDefaults(
          * as it was, with no error and nothing announced.
          */
         submit: () => Promise<unknown>;
-        /** Announced as a toast when `submit` resolves. */
+        /** Announced as a toast when `submit` resolves to anything but `null`. */
         successMessage?: string;
     }>(),
     {
@@ -83,11 +86,11 @@ const emit = defineEmits<{
 }>();
 
 const common = useSaMessages('common');
+const notify = inject(SUPER_ADMIN_NOTIFY_KEY, undefined);
 
-const action = useAsyncAction(() => props.submit(), {
-    notifyOn: props.successMessage ? 'both' : 'error',
-    successMessage: () => props.successMessage ?? '',
-});
+// Only the failure is announced by the action: whether a success is one
+// depends on what `submit` resolved, which the action does not judge.
+const action = useAsyncAction(() => props.submit());
 
 function close(): void {
     // Dropping a failure on the way out: reopening the dialog to a stale error
@@ -103,6 +106,7 @@ function onDialogModel(open: boolean): void {
 async function onSubmit(): Promise<void> {
     const result = await action.run();
     if (!result.ok || result.value === null) return;
+    if (props.successMessage) notify?.('positive', props.successMessage);
     emit('submitted');
     close();
 }

@@ -1943,6 +1943,7 @@ _Tested by:_
         - a valid check of the number replaced does not count for the new one
     - a correction that checks nothing
         - ${what}: the service is not asked
+        - the correction alone: written, and the service is asked only when its number is checked
         - where no tax adapter decides: the number is corrected, and nothing is checked
     - checking the number held, again
         - records a valid answer, which then counts
@@ -1966,8 +1967,8 @@ _Tested by:_
         - a check is asked without the second factor
 - `packages/ui-vue/tests/use-subscriber-corrections.test.js`
     - useSubscriberCorrections
-        - a corrected number the service found ${found} is announced as such, the correction beneath
-          it
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
         - a check needs no second factor, announces what the service found, and reads again
 
 <!-- END proof -->

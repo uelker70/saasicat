@@ -71,6 +71,12 @@ const correcting = (fields) => ({
     ...fields,
 });
 
+/** A correction as the operator's route makes it: written, then its number checked. */
+async function correctAndCheck(subscribers, id, fields) {
+    const correction = await subscribers.correctIdentity(id, correcting(fields));
+    return { correction, vatIdCheck: await subscribers.checkCorrectedVatId(correction) };
+}
+
 const refusedWith = (status, code) => (error) =>
     error.getStatus() === status && error.getResponse().code === code;
 
@@ -83,10 +89,9 @@ describe('a correction that gives the subscriber another VAT number', () => {
     test('has the number checked once it holds it: a valid answer counts, and the next contract may follow', async () => {
         const { subscribers, repo, asked, id } = await aBusinessInAustria();
 
-        const { correction, vatIdCheck } = await subscribers.correctIdentity(
-            id,
-            correcting({ vatId: 'atu 123 456 78' }),
-        );
+        const { correction, vatIdCheck } = await correctAndCheck(subscribers, id, {
+            vatId: 'atu 123 456 78',
+        });
 
         assert.deepEqual(correction.corrected, { vatId: 'ATU12345678' });
         assert.deepEqual(asked, ['ATU12345678'], 'the number is checked as it is held');
@@ -105,10 +110,7 @@ describe('a correction that gives the subscriber another VAT number', () => {
     test('keeps the correction where the number is found invalid: the check is recorded, and nothing is validated', async () => {
         const { subscribers, repo, id } = await aBusinessInAustria({ answer: answers.invalid });
 
-        const { vatIdCheck } = await subscribers.correctIdentity(
-            id,
-            correcting({ vatId: 'ATU99999999' }),
-        );
+        const { vatIdCheck } = await correctAndCheck(subscribers, id, { vatId: 'ATU99999999' });
 
         assert.equal((await subscribers.getById(id)).vatId, 'ATU99999999');
         assert.deepEqual([vatIdCheck.completed, vatIdCheck.check.valid], [true, false]);
@@ -123,10 +125,7 @@ describe('a correction that gives the subscriber another VAT number', () => {
     test('keeps the correction where the check does not complete: nothing is recorded, and why is said', async () => {
         const { subscribers, repo, id } = await aBusinessInAustria({ answer: answers.unreachable });
 
-        const { vatIdCheck } = await subscribers.correctIdentity(
-            id,
-            correcting({ vatId: 'ATU12345678' }),
-        );
+        const { vatIdCheck } = await correctAndCheck(subscribers, id, { vatId: 'ATU12345678' });
 
         assert.equal((await subscribers.getById(id)).vatId, 'ATU12345678');
         assert.deepEqual(vatIdCheck, { completed: false, reason: 'VIES timed out after 10 s.' });
@@ -154,10 +153,9 @@ describe('a correction that gives the subscriber another VAT number', () => {
                 return written;
             };
 
-            const { correction, vatIdCheck } = await subscribers.correctIdentity(
-                id,
-                correcting({ vatId: 'ATU87654321' }),
-            );
+            const { correction, vatIdCheck } = await correctAndCheck(subscribers, id, {
+                vatId: 'ATU87654321',
+            });
 
             assert.deepEqual(correction.corrected, { vatId: 'ATU87654321' });
             assert.deepEqual(asked, ['ATU87654321'], 'the number this correction wrote');
@@ -180,7 +178,7 @@ describe('a correction that gives the subscriber another VAT number', () => {
         assert.equal(await validated(subscribers), 'ATU11111111');
         answer = answers.unreachable;
 
-        await subscribers.correctIdentity(id, correcting({ vatId: 'ATU22222222' }));
+        await correctAndCheck(subscribers, id, { vatId: 'ATU22222222' });
 
         assert.equal(await validated(subscribers), null, 'the old number validated the new one');
     });
@@ -195,20 +193,31 @@ describe('a correction that checks nothing', () => {
         test(`${what}: the service is not asked`, async () => {
             const { subscribers, asked, id } = await aBusinessInAustria({ vatId: 'ATU12345678' });
 
-            const { vatIdCheck } = await subscribers.correctIdentity(id, correcting(fields));
+            const { vatIdCheck } = await correctAndCheck(subscribers, id, fields);
 
             assert.equal(vatIdCheck, null);
             assert.deepEqual(asked, []);
         });
     }
 
-    test('where no tax adapter decides: the number is corrected, and nothing is checked', async () => {
-        const { subscribers, asked, id } = await aBusinessInAustria({ adapter: false });
+    test('the correction alone: written, and the service is asked only when its number is checked', async () => {
+        const { subscribers, asked, id } = await aBusinessInAustria();
 
-        const { vatIdCheck } = await subscribers.correctIdentity(
+        const correction = await subscribers.correctIdentity(
             id,
             correcting({ vatId: 'ATU12345678' }),
         );
+
+        assert.deepEqual(asked, [], 'a correction may run inside a transaction');
+        assert.equal((await subscribers.getById(id)).vatId, 'ATU12345678');
+        await subscribers.checkCorrectedVatId(correction);
+        assert.deepEqual(asked, ['ATU12345678']);
+    });
+
+    test('where no tax adapter decides: the number is corrected, and nothing is checked', async () => {
+        const { subscribers, asked, id } = await aBusinessInAustria({ adapter: false });
+
+        const { vatIdCheck } = await correctAndCheck(subscribers, id, { vatId: 'ATU12345678' });
 
         assert.equal(vatIdCheck, null);
         assert.deepEqual(asked, []);
@@ -251,7 +260,7 @@ describe('checking the number held, again', () => {
             answer: async (number) => {
                 if (!corrected) {
                     corrected = true;
-                    await subscribers.correctIdentity(id, correcting({ vatId: 'ATU87654321' }));
+                    await correctAndCheck(subscribers, id, { vatId: 'ATU87654321' });
                 }
                 return answers.valid(number);
             },
