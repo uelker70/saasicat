@@ -79,16 +79,16 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 61      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 40      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 41      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 70      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 71      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 32      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 26      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 607 entries: 🟢 523 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 610 entries: 🟢 526 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 17 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

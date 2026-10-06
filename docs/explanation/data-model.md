@@ -253,9 +253,11 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     correction takes, dated while the lock is held and numbered by the database,
     so the value recorded as replaced is the one the write replaced and the list
     reads in the order the writes happened; the dates follow that order on one
-    clock. A write that moves none of the three records nothing. A correction
-    of the legal identity is dated and numbered the same way, and shares its
-    date with the change of the VAT id it makes.
+    clock. A write that moves none of the three records nothing. Each change
+    keeps why where its write says why — the correction's reason, the business
+    status's reason; a change of the country with the contact details states
+    none. A correction of the legal identity is dated and numbered the same way,
+    and shares its date with the change of the VAT id it makes.
     `recordVatIdCheck` records every check and, under the same lock, makes it
     count only for the number the subscriber holds, completed since it holds it,
     and never over a check that completed later (`keepsVatIdCheck`); a

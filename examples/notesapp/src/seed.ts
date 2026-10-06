@@ -383,6 +383,7 @@ async function seedSubscribers(prisma: PrismaClient): Promise<void> {
             await subscribers.changeBusinessStatus(existing.id, {
                 business: true,
                 changedBy: SEEDED_BY,
+                reason: 'Every demo tenant is a business.',
             });
         }
     }

@@ -52,6 +52,7 @@ export interface CanonicalSubscriberTaxOriginChangeRow {
     changed: unknown;
     changedBy: string;
     changedAt: Date;
+    reason: string | null;
 }
 
 /** A `subscriber_corrections` row as either adapter reads it back. */
@@ -123,6 +124,7 @@ export function toSubscriberTaxOriginChangeRecord(
         changed: toTaxOriginValues(row.changed),
         changedBy: row.changedBy,
         changedAt: row.changedAt,
+        reason: row.reason,
     };
 }
 

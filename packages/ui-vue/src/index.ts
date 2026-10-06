@@ -83,6 +83,7 @@ export * from './vue/use-tenant-action-flow.js';
 export * from './vue/use-tenant-account.js';
 export * from './vue/use-tenant-subscriber.js';
 export * from './vue/use-subscriber-attention.js';
+export * from './vue/use-subscriber-corrections.js';
 export * from './vue/use-platform-tenant-actions.js';
 export * from './vue/use-batch-columns.js';
 export * from './vue/use-row-reorder.js';

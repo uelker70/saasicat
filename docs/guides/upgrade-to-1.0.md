@@ -1571,7 +1571,8 @@ counts as checked until it is checked, and a contract concluded before records n
   method names who it acts for.
 - **Whether a subscriber is a business** is recorded, never derived from a tax identifier:
   `createForTenant` takes `business` — `true`, `false`, or absent for not stated — and
-  `changeBusinessStatus(subscriberId, { business, changedBy })` changes it. A contact change naming
+  `changeBusinessStatus(subscriberId, { business, changedBy, reason })` changes it, with a reason
+  ([below](#the-operator-corrects-a-subscribers-tax-identity)). A contact change naming
   `business` is refused with `SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT`. An application that words
   refusals itself adds both new codes.
 - **A change of the tax origin is recorded whichever way it arrives** — a contact change of the
@@ -1761,6 +1762,37 @@ and subscription lists mark each tenant held back (`GET admin/subscribers/attent
 is on and a subscriber repository is composed. `GET` and `PATCH billing/details` answer `business`
 and `readiness`, and `TenantBillingSection` shows both to the tenant; an application with a page of
 its own for those routes can show them too
+([wire the backend](wire-the-backend.md#the-tax-adapter)).
+
+### The operator corrects a subscriber's tax identity
+
+The operator corrects a subscriber's legal name, VAT identification number and tax number, and
+whether it acts as a business, on the tenant's page — each with a written reason and the second
+factor. Where a tax adapter decides, a VAT number a correction gives is checked with the adapter's
+service right after, and the check is kept whatever it found.
+
+1. The change log of the tax origin keeps a `reason`: `SubscriberTaxOriginChange` in
+   `prisma-fragments/13-subscriber.prisma` declares it, and
+   `1.0-a-subscriber-has-a-tax-origin.postgres.sql`
+   ([above](#a-subscriber-has-a-tax-origin-and-a-contract-records-its-treatment)) creates the table
+   with it — there is nothing more to run.
+2. Your own `SubscriberRepository` writes and reads that `reason`: the correction's reason for a
+   change of the VAT id, the business status's reason for a change of it, `null` for a change of the
+   country with the contact details.
+3. `SubscriberService.changeBusinessStatus` needs `reason`; without one it is refused with
+   `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`.
+4. `SubscriberService.correctIdentity` answers `{ correction, vatIdCheck }` instead of the
+   correction alone. Where an adapter decides and the correction gives another VAT number, it checks
+   that number before it answers, so it reaches an outside service: never call it inside a
+   transaction.
+5. An application that words refusals itself adds `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`,
+   `SUBSCRIBER_VAT_ID_MISSING` and `TAX_VAT_ID_CHECK_NOT_AVAILABLE`.
+
+What you get: `SubscriberService.checkVatIdOf` checks the number a subscriber holds again and keeps
+the check; the operator's routes `POST admin/tenants/:slug/subscriber/identity` and
+`…/business-status` (second factor), `…/vat-id-check` and `GET …/history`, announced as
+`subscribers.correct` wherever the subscriber view is served; and in `TenantDetailPage` the two
+corrections, the check where an adapter decides, and the subscriber's history
 ([wire the backend](wire-the-backend.md#the-tax-adapter)).
 
 ### The operator's own legal identity changes only as a declared correction

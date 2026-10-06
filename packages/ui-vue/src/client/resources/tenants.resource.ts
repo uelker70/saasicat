@@ -11,14 +11,16 @@
 //
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
-// encoded on the way into the path there, so they are encoded here. `charges`,
-// `subscriber` and `subscriberAttention` have no twin there: the pages read
-// them through this descriptor alone.
+// encoded on the way into the path there, so they are encoded here. `charges`
+// and the subscriber's operations have no twin there: the pages reach them
+// through this descriptor alone.
 
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
     type AdminSubscriberAccount,
     type AdminSubscriberAttention,
+    type AdminSubscriberCorrected,
+    type AdminSubscriberHistoryEntry,
     type AdminTenantDetail,
     type AdminTenantSubscriber,
     type TenantDto,
@@ -32,6 +34,24 @@ import { requestJson, requestJsonBody } from './resource-request.js';
 
 /** What the tenants list can be narrowed by. The page number is not a filter. */
 export type TenantsListFilter = ListFilterOf<TenantListFilter>;
+
+/**
+ * A correction of a subscriber's legal identity, as the operator states it:
+ * the fields that change — `null` clears a tax identifier — and why. It is
+ * always a correction of the same legal entity; a takeover is not an edit.
+ */
+export interface SubscriberIdentityCorrectionInput {
+    legalName?: string;
+    vatId?: string | null;
+    taxNumber?: string | null;
+    reason: string;
+}
+
+/** Whether the subscriber acts as a business — `null` for not stated — and why. */
+export interface SubscriberBusinessStatusInput {
+    business: boolean | null;
+    reason: string;
+}
 
 function tenantsUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/tenants`;
@@ -98,6 +118,63 @@ export const tenantsResource = defineResource('tenants', {
             http,
             `${tenantUrl(ctx, slug)}/subscriber`,
             'The subscriber returned no body',
+        ),
+
+    /** The subscriber's corrections, changes of country or business status, and checks, the latest first. */
+    subscriberHistory: async (http, ctx, slug: string): Promise<AdminSubscriberHistoryEntry[]> => {
+        const answer = await requestJsonBody<{ entries: AdminSubscriberHistoryEntry[] }>(
+            http,
+            `${tenantUrl(ctx, slug)}/subscriber/history`,
+            'The history returned no body',
+        );
+        return answer.entries;
+    },
+
+    /**
+     * Corrects the subscriber's legal identity — the same legal entity, with a
+     * reason. Requires the second factor. A VAT number it gives is checked
+     * right after, where a tax adapter decides, and the answer says how.
+     */
+    correctSubscriberIdentity: async (
+        http,
+        ctx,
+        slug: string,
+        correction: SubscriberIdentityCorrectionInput,
+        mfaCode?: string,
+    ): Promise<AdminSubscriberCorrected> =>
+        requestJsonBody<AdminSubscriberCorrected>(
+            http,
+            `${tenantUrl(ctx, slug)}/subscriber/identity`,
+            'The correction returned no body',
+            {
+                method: 'POST',
+                body: { kind: 'correction', ...correction },
+                headers: mfaHeader(mfaCode),
+            },
+        ),
+
+    /** Records whether the subscriber acts as a business, and why. Requires the second factor. */
+    changeSubscriberBusinessStatus: async (
+        http,
+        ctx,
+        slug: string,
+        change: SubscriberBusinessStatusInput,
+        mfaCode?: string,
+    ): Promise<AdminSubscriberCorrected> =>
+        requestJsonBody<AdminSubscriberCorrected>(
+            http,
+            `${tenantUrl(ctx, slug)}/subscriber/business-status`,
+            'The change returned no body',
+            { method: 'POST', body: change, headers: mfaHeader(mfaCode) },
+        ),
+
+    /** Checks the VAT number the subscriber holds again, without changing it. */
+    checkSubscriberVatId: async (http, ctx, slug: string): Promise<AdminSubscriberCorrected> =>
+        requestJsonBody<AdminSubscriberCorrected>(
+            http,
+            `${tenantUrl(ctx, slug)}/subscriber/vat-id-check`,
+            'The check returned no body',
+            { method: 'POST' },
         ),
 
     /**

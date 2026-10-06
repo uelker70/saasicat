@@ -57,7 +57,12 @@ const props = withDefaults(
         submitLabel?: string;
         cancelLabel?: string;
         submitDisabled?: boolean;
-        /** The write. Rejecting keeps the dialog open and shows the reason. */
+        /**
+         * The write. Rejecting keeps the dialog open and shows the reason.
+         * Resolving `null` says nothing was written — the operator stepped back
+         * from a further step, such as the second factor — and the dialog stays
+         * as it was, with no error and nothing announced.
+         */
         submit: () => Promise<unknown>;
         /** Announced as a toast when `submit` resolves. */
         successMessage?: string;
@@ -97,7 +102,7 @@ function onDialogModel(open: boolean): void {
 
 async function onSubmit(): Promise<void> {
     const result = await action.run();
-    if (!result.ok) return;
+    if (!result.ok || result.value === null) return;
     emit('submitted');
     close();
 }

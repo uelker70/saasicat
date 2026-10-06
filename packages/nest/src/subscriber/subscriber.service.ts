@@ -12,17 +12,20 @@ import type {
     SubscriberBusinessStatusResult,
     SubscriberContactChange,
     SubscriberCorrectionRecord,
+    SubscriberIdentityCorrected,
     SubscriberIdentityCorrection,
     SubscriberReadiness,
     SubscriberRecord,
     SubscriberRepository,
     SubscriberTaxOrigin,
     SubscriberTaxOriginChangeRecord,
+    SubscriberVatIdCheckResult,
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
 import {
     SUBSCRIBER_ERROR_CODES,
+    TAX_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
     contractPartiesOf,
     taxOriginOf,
@@ -337,11 +340,18 @@ export class SubscriberService {
      * The operator declares what the change is, because nothing here can tell:
      * another legal entity taking over is a transfer, and is refused with
      * `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER` rather than recorded as an edit.
+     *
+     * Where a tax adapter decides and the correction gives the subscriber
+     * another VAT identification number, that number is checked right after
+     * the correction is written and the check recorded, valid or not
+     * (`SC-PRIC-043`); a check that does not complete leaves the correction in
+     * place and the number unvalidated. It reaches an outside service, so
+     * never call it inside a transaction.
      */
     async correctIdentity(
         subscriberId: string,
         correction: SubscriberIdentityCorrection,
-    ): Promise<SubscriberCorrectionRecord> {
+    ): Promise<SubscriberIdentityCorrected> {
         if (correction.kind !== 'correction') {
             throw new UnprocessableEntityException(
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_TAKEOVER_IS_A_TRANSFER),
@@ -371,7 +381,61 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_CORRECTION_CHANGES_NOTHING),
             );
         }
-        return result.correction;
+        return {
+            correction: result.correction,
+            vatIdCheck: await this.checkCorrectedVatId(result.correction),
+        };
+    }
+
+    /**
+     * The VAT number a correction gave the subscriber, checked once the
+     * correction holds it — after, not before, because a check counts only for
+     * a number it completed while the subscriber held it. Nothing is checked
+     * where no adapter decides, or where the correction cleared the number or
+     * did not move it.
+     */
+    private async checkCorrectedVatId(
+        correction: SubscriberCorrectionRecord,
+    ): Promise<SubscriberVatIdCheckResult | null> {
+        const corrected = correction.corrected.vatId;
+        if (!this.taxes?.adapter || corrected === undefined || corrected === null) return null;
+        return this.checkVatIdOf({ subscriberId: correction.subscriberId });
+    }
+
+    /**
+     * Checks the VAT identification number the subscriber holds with the
+     * service the tax adapter names, and records the check as it completed —
+     * valid or not — so the number counts as validated only on a valid answer
+     * (`SC-PRIC-040`). A check that does not complete records nothing and says
+     * why. It reaches an outside service, so never call it inside a
+     * transaction.
+     *
+     * Refused with `TAX_VAT_ID_CHECK_NOT_AVAILABLE` where no adapter names a
+     * service, and with `SUBSCRIBER_VAT_ID_MISSING` for a subscriber without a
+     * number.
+     */
+    async checkVatIdOf(
+        subject: { tenantId: string } | { subscriberId: string },
+    ): Promise<SubscriberVatIdCheckResult> {
+        const taxes = this.taxes;
+        if (!taxes?.adapter) {
+            throw new ConflictException(codedError(TAX_ERROR_CODES.TAX_VAT_ID_CHECK_NOT_AVAILABLE));
+        }
+        const subscriber = await this.requireOf(subject);
+        if (subscriber.vatId === null) {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_VAT_ID_MISSING),
+            );
+        }
+        const outcome = await taxes.checkVatId(subscriber.vatId);
+        if (!outcome.completed) return { completed: false, reason: outcome.reason };
+        const recorded = await this.repo.recordVatIdCheck(subscriber.id, outcome.check);
+        if (!recorded) throw subscriberNotFound(subscriber.id);
+        return {
+            completed: true,
+            check: recorded.recorded,
+            counts: recorded.current?.id === recorded.recorded.id,
+        };
     }
 
     /** Every correction of the subscriber's legal identity, the latest first. */
@@ -389,15 +453,27 @@ export class SubscriberService {
      * of changes reads in the order they were made.
      *
      * Setting the status it already has records nothing and answers the
-     * subscriber as it is, with `change` `null`.
+     * subscriber as it is, with `change` `null`. The reason is asked either way:
+     * it is refused with `SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED` when it
+     * states none, because the status decides the tax treatment.
      */
     async changeBusinessStatus(
         subscriberId: string,
-        change: { business: boolean | null; changedBy: string },
+        change: { business: boolean | null; changedBy: string; reason: string },
     ): Promise<SubscriberBusinessStatusResult> {
         const changedBy = settleActor(change.changedBy);
         const business = settleBusinessStatus(change.business);
-        const result = await this.repo.changeBusinessStatus(subscriberId, { business, changedBy });
+        const reason = typeof change.reason === 'string' ? change.reason.trim() : '';
+        if (reason === '') {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED),
+            );
+        }
+        const result = await this.repo.changeBusinessStatus(subscriberId, {
+            business,
+            changedBy,
+            reason,
+        });
         if (!result) throw subscriberNotFound(subscriberId);
         return result;
     }

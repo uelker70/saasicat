@@ -37,6 +37,10 @@ const LASTING = [
     'POST admin/maintenance/lock',
     'POST admin/maintenance/unlock',
     'POST admin/tenants/:slug/reactivate',
+    // What the next invoice's tax is decided from, and whom it names
+    // (`SC-SUB-017`, `SC-PRIC-043`).
+    'POST admin/tenants/:slug/subscriber/business-status',
+    'POST admin/tenants/:slug/subscriber/identity',
     'POST admin/tenants/:slug/suspend',
 ];
 const TENANT_STATE = ['POST admin/tenants/:slug/reactivate', 'POST admin/tenants/:slug/suspend'];

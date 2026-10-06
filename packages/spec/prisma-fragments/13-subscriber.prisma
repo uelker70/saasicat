@@ -136,6 +136,9 @@ model SubscriberTaxOriginChange {
     changed      Json
     changedBy    String
     changedAt    DateTime
+    // Why: the reason of the correction or of the change of business status
+    // that made it; null for a change of the country with the contact details.
+    reason       String?
 
     subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
 

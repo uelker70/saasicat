@@ -104,6 +104,17 @@ describe('AdminFormDialog owns the submit lifecycle', () => {
         expect(document.querySelector('.sa-dialog')?.textContent).toContain('Key already taken');
     });
 
+    test('a submit that resolves null wrote nothing: the dialog stays as it was, with no error', async () => {
+        // What a write behind the second factor answers when the operator
+        // stepped back from it.
+        const wrapper = await openWith(() => Promise.resolve(null));
+        primaryButton().click();
+        await flushPromises();
+        expect(wrapper.emitted('submitted')).toBeUndefined();
+        expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+        expect(document.querySelector('.sa-dialog .sa-banner--negative')).toBeNull();
+    });
+
     test('a successful submit closes it and says so once', async () => {
         const wrapper = await openWith(() => Promise.resolve());
         primaryButton().click();

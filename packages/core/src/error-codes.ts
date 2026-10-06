@@ -622,6 +622,14 @@ export const SUBSCRIBER_ERROR_CODES = {
      * shipped sentence names all four rather than the keys.
      */
     SUBSCRIBER_IDENTITY_INCOMPLETE: 'SUBSCRIBER_IDENTITY_INCOMPLETE',
+    /**
+     * A change of whether the subscriber is a business states no reason. It
+     * decides the tax treatment of the next invoice, so the change log keeps
+     * why it moved (`SC-PRIC-043`).
+     */
+    SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED: 'SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED',
+    /** A check of the subscriber's VAT identification number was asked for, and it holds none. */
+    SUBSCRIBER_VAT_ID_MISSING: 'SUBSCRIBER_VAT_ID_MISSING',
 } as const;
 
 export type SubscriberErrorCode =
@@ -771,6 +779,12 @@ export const TAX_ERROR_CODES = {
      * `reason` says why.
      */
     TAX_VAT_ID_CHECK_NOT_COMPLETED: 'TAX_VAT_ID_CHECK_NOT_COMPLETED',
+    /**
+     * A VAT identification number was to be checked, and `config/saas.yaml`
+     * names no tax adapter, which is what names the service to check with
+     * (`409`).
+     */
+    TAX_VAT_ID_CHECK_NOT_AVAILABLE: 'TAX_VAT_ID_CHECK_NOT_AVAILABLE',
 } as const;
 export type TaxErrorCode = (typeof TAX_ERROR_CODES)[keyof typeof TAX_ERROR_CODES];
 

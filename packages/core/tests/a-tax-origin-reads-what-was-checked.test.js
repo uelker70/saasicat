@@ -235,6 +235,7 @@ describe('a write to the tax origin', () => {
                 changed: { business: true },
                 changedBy: 'operator:anna',
                 changedAt: CHECKED_AT,
+                reason: 'Trade register extract handed in',
             }),
             {
                 id: 'change-1',
@@ -243,6 +244,7 @@ describe('a write to the tax origin', () => {
                 changed: { business: true },
                 changedBy: 'operator:anna',
                 changedAt: CHECKED_AT,
+                reason: 'Trade register extract handed in',
             },
         );
     });

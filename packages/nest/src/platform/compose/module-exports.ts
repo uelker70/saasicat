@@ -68,14 +68,14 @@ function optionalExports({ options, requiresFullEntitlement }: CompositionContex
  * from `billing`, which means something else (see CONTRIBUTING, "One bundle,
  * many entries").
  *
- * `SubscriberStandingModule` is the operator's two routes about a tenant's
- * subscriber and the service behind them, which exports nothing: an
- * application asks `SubscriberService.readinessFor` for a subscriber's
- * standing, from the module it already imports.
+ * `SubscriberAdminModule` is the operator's routes about a tenant's
+ * subscriber and the services behind them, which exports nothing: an
+ * application asks `SubscriberService` for a subscriber's standing and makes
+ * its corrections there, from the module it already imports.
  */
 export const MOUNTED_BUT_NOT_EXPORTED: readonly string[] = [
     'PublicCatalogModule',
-    'SubscriberStandingModule',
+    'SubscriberAdminModule',
 ];
 
 /** The `exports` of the assembled module, plus whatever it provides itself. */

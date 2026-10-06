@@ -1320,6 +1320,7 @@ _Tested by:_
 - `packages/nest/tests/a-subscriber-says-whether-it-is-a-business.test.js`
     - the business status
         - changes as a change of the tax origin, recorded with its date and who made it
+        - with ${what} is refused, and nothing moves
     - the changes of the tax origin
         - are listed the latest first, whichever way each arrived, and only those that moved it
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
@@ -1881,6 +1882,11 @@ _Tested by:_
     - tenantsResource.subscriber
         - asks for the tenant's subscriber, with its slug escaped
         - an answer with no body is an error, not a tenant without a subscriber
+    - the subscriber's corrections
+        - a correction is declared one of the same legal entity, and carries the second factor
+        - a change of business status carries the second factor
+        - a check sends nothing but the request, and no second factor
+        - the history is read as its entries
     - tenantsResource.subscriberAttention
         - names each tenant once, and answers what the server holds back
         - a list longer than the server takes is asked in pages of two hundred
@@ -1904,5 +1910,63 @@ _Tested by:_
         - the empty address fields by their labels, then the adapter sentence
         - once the tenant fills the address in and nothing holds it back, the notice goes
         - where ${label}, there is no notice
+
+<!-- END proof -->
+
+### SC-PRIC-071 — A VAT number the operator corrects or checks is checked, and every outcome kept
+
+🟢 💰 Where a tax adapter decides, a VAT identification number a correction gives the subscriber is
+checked with the service the adapter names as soon as the subscriber holds it, and the operator can
+check the number held again at any time, without the second factor. A completed check is kept with
+its date and the service's confirmation, valid or not; the number counts as validated only on a
+valid answer, and only for the number it checked. A check that does not complete keeps nothing and
+says why: the correction stands, and the number is as validated as it was — never validated on a
+number not checked (`SC-PRIC-040`). Without an adapter a number is corrected and not checked, and a
+check is refused as unavailable. This is the part of `SC-PRIC-040` and `SC-PRIC-043` the corrections
+hold.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-corrected-vat-id-is-checked-and-recorded.test.js`
+    - a correction that gives the subscriber another VAT number
+        - has the number checked once it holds it: a valid answer counts, and the next contract may
+          follow
+        - keeps the correction where the number is found invalid: the check is recorded, and nothing
+          is validated
+        - keeps the correction where the check does not complete: nothing is recorded, and why is
+          said
+        - a valid check of the number replaced does not count for the new one
+    - a correction that checks nothing
+        - ${what}: the service is not asked
+        - where no tax adapter decides: the number is corrected, and nothing is checked
+    - checking the number held, again
+        - records a valid answer, which then counts
+        - records an invalid answer, which a later valid one replaces
+        - kept, and not counting, where the number was corrected while the service answered
+        - says why where it does not complete, and leaves an earlier valid check counting
+        - is refused for a subscriber without a number, and the service is not asked
+        - is refused where no tax adapter names a service to check with
+        - is refused for a tenant without a subscriber
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - the operator corrects a subscriber's legal identity
+        - a VAT number it gives is checked right after, and a valid answer releases the next
+          contract
+    - the operator checks the VAT number held, again
+        - the answer is recorded, counts for the number, and is audited
+        - an answer that did not come is said, and the earlier valid check still counts
+        - a subscriber without a number has none to check
+        - without a tax adapter there is no service to check with
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber on the tenant page
+        - a check is asked without the second factor
+- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
+    - useSubscriberCorrections
+        - a corrected number the service found ${found} is announced as such, the correction beneath
+          it
+        - a check needs no second factor, announces what the service found, and reads again
 
 <!-- END proof -->

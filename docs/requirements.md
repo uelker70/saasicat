@@ -111,16 +111,16 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 61      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 40      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 41      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 70      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 71      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 31      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 32      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 26      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 607 entries: 🟢 523 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 610 entries: 🟢 526 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 17 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -222,7 +222,7 @@ Of 607 entries: 🟢 523 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 607 requirements. Do not edit by hand:
+Generated from `requirements/` — 610 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -6217,6 +6217,78 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
+
+🟢 💰 On the tenant's page the operator corrects the legal name, the VAT identification number and
+the tax number of the same legal entity, and whether it acts as a business. Each change needs a
+written reason and the operator's second factor, and is recorded with the values it replaced, the
+reason and who made it; a running contract keeps the copy it was concluded with, and the next
+contract names the corrected party (`SC-SUB-017`). Another legal entity taking over is refused rather
+than recorded as an edit, and a change of the business status that moves nothing records nothing.
+This is the operator's half of `SC-SUB-017` and the correction named in `SC-ADM-020`; the invoices
+that carry the corrected identity come with the invoices.
+
+_Source:_ #331 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - the operator corrects a subscriber's legal identity
+        - the corrected values are what the subscriber now shows, recorded with who and why, and
+          audited
+        - a VAT number it gives is checked right after, and a valid answer releases the next
+          contract
+        - a number the service found ${answered} is kept, and so is the hold on the next contract
+        - declared as another legal entity taking over, it is refused, nothing changes and nothing
+          is audited
+        - that changes nothing is refused as such
+        - where no tax adapter decides, a VAT number is corrected and not checked
+    - the operator changes whether a subscriber acts as a business
+        - with a reason it is recorded, answered as it now stands, and audited
+        - to the status it has, nothing is recorded and nothing audited
+        - without a reason it is refused
+- `packages/ui-vue/tests/component/a-correction-sends-only-what-changed.test.ts`
+    - the identity correction the form describes
+        - is none for %s
+        - sends %s
+    - the change of business status the form describes
+        - is none for %s
+        - sends %s, the reason trimmed
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber on the tenant page
+        - offers the corrections, and a check where a tax adapter decides and a number is held
+        - offers no check where no tax adapter names a service
+        - without the capability, nothing is offered and no history is shown
+        - a correction is sent only once something changed and a reason is given, with the second
+          factor
+        - stepping back from the second factor sends nothing and keeps the form
+        - a check is asked without the second factor
+        - the history lists each correction and check with what it changed, why and by whom
+- `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
+    - the subscriber's corrections
+        - a correction is declared one of the same legal entity, and carries the second factor
+        - a change of business status carries the second factor
+        - a check sends nothing but the request, and no second factor
+        - the history is read as its entries
+- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
+    - useSubscriberCorrections
+        - where the manifest announces the corrections, the history is read for the tenant
+        - with ${label}, nothing is offered and nothing is read
+        - a check is offered only where a tax adapter decides
+        - a correction goes out with the second factor, is announced, and the subscriber and its
+          history are read again
+        - a corrected number the service found ${found} is announced as such, the correction beneath
+          it
+        - stepping back from the second factor writes nothing, announces nothing and answers null
+        - a correction the server refuses rejects, so the dialog keeps the form and shows why
+        - a change of business status goes out with the second factor and is announced
+        - a check needs no second factor, announces what the service found, and reads again
+        - a check that fails is reported, and nothing is read again
+
+<!-- END proof -->
+
 ## 6. Changing a plan
 
 A plan change is where a tenant's money and a tenant's expectations meet, and both can be lost
@@ -8951,6 +9023,7 @@ _Tested by:_
 - `packages/nest/tests/a-subscriber-says-whether-it-is-a-business.test.js`
     - the business status
         - changes as a change of the tax origin, recorded with its date and who made it
+        - with ${what} is refused, and nothing moves
     - the changes of the tax origin
         - are listed the latest first, whichever way each arrived, and only those that moved it
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
@@ -9512,6 +9585,11 @@ _Tested by:_
     - tenantsResource.subscriber
         - asks for the tenant's subscriber, with its slug escaped
         - an answer with no body is an error, not a tenant without a subscriber
+    - the subscriber's corrections
+        - a correction is declared one of the same legal entity, and carries the second factor
+        - a change of business status carries the second factor
+        - a check sends nothing but the request, and no second factor
+        - the history is read as its entries
     - tenantsResource.subscriberAttention
         - names each tenant once, and answers what the server holds back
         - a list longer than the server takes is asked in pages of two hundred
@@ -9535,6 +9613,64 @@ _Tested by:_
         - the empty address fields by their labels, then the adapter sentence
         - once the tenant fills the address in and nothing holds it back, the notice goes
         - where ${label}, there is no notice
+
+<!-- END proof -->
+
+### SC-PRIC-071 — A VAT number the operator corrects or checks is checked, and every outcome kept
+
+🟢 💰 Where a tax adapter decides, a VAT identification number a correction gives the subscriber is
+checked with the service the adapter names as soon as the subscriber holds it, and the operator can
+check the number held again at any time, without the second factor. A completed check is kept with
+its date and the service's confirmation, valid or not; the number counts as validated only on a
+valid answer, and only for the number it checked. A check that does not complete keeps nothing and
+says why: the correction stands, and the number is as validated as it was — never validated on a
+number not checked (`SC-PRIC-040`). Without an adapter a number is corrected and not checked, and a
+check is refused as unavailable. This is the part of `SC-PRIC-040` and `SC-PRIC-043` the corrections
+hold.
+
+_Source:_ #331 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-corrected-vat-id-is-checked-and-recorded.test.js`
+    - a correction that gives the subscriber another VAT number
+        - has the number checked once it holds it: a valid answer counts, and the next contract may
+          follow
+        - keeps the correction where the number is found invalid: the check is recorded, and nothing
+          is validated
+        - keeps the correction where the check does not complete: nothing is recorded, and why is
+          said
+        - a valid check of the number replaced does not count for the new one
+    - a correction that checks nothing
+        - ${what}: the service is not asked
+        - where no tax adapter decides: the number is corrected, and nothing is checked
+    - checking the number held, again
+        - records a valid answer, which then counts
+        - records an invalid answer, which a later valid one replaces
+        - kept, and not counting, where the number was corrected while the service answered
+        - says why where it does not complete, and leaves an earlier valid check counting
+        - is refused for a subscriber without a number, and the service is not asked
+        - is refused where no tax adapter names a service to check with
+        - is refused for a tenant without a subscriber
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - the operator corrects a subscriber's legal identity
+        - a VAT number it gives is checked right after, and a valid answer releases the next
+          contract
+    - the operator checks the VAT number held, again
+        - the answer is recorded, counts for the number, and is audited
+        - an answer that did not come is said, and the earlier valid check still counts
+        - a subscriber without a number has none to check
+        - without a tax adapter there is no service to check with
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber on the tenant page
+        - a check is asked without the second factor
+- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
+    - useSubscriberCorrections
+        - a corrected number the service found ${found} is announced as such, the correction beneath
+          it
+        - a check needs no second factor, announces what the service found, and reads again
 
 <!-- END proof -->
 
@@ -12733,6 +12869,9 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - every subscriber route
+        - the corrections are announced beside the subscriber view, and only there
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - where the view is served
         - without ${without}, neither the routes nor the capabilities exist
@@ -12765,6 +12904,9 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber on the tenant page
+        - without the capability, nothing is offered and no history is shown
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - is offered on the version no longer on sale, and on no other
@@ -12915,6 +13057,20 @@ _Tested by:_
         - an empty list asks nothing
         - another page of tenants is asked about again
         - a read that fails leaves an error, and nobody marked
+- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
+    - useSubscriberCorrections
+        - where the manifest announces the corrections, the history is read for the tenant
+        - with ${label}, nothing is offered and nothing is read
+        - a check is offered only where a tax adapter decides
+        - a correction goes out with the second factor, is announced, and the subscriber and its
+          history are read again
+        - a corrected number the service found ${found} is announced as such, the correction beneath
+          it
+        - stepping back from the second factor writes nothing, announces nothing and answers null
+        - a correction the server refuses rejects, so the dialog keeps the form and shows why
+        - a change of business status goes out with the second factor and is announced
+        - a check needs no second factor, announces what the service found, and reads again
+        - a check that fails is reported, and nothing is read again
 - `packages/ui-vue/tests/use-tenant-account.test.js`
     - useTenantAccount
         - where the manifest announces the account, it is read for the tenant
@@ -13277,6 +13433,38 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-retires-an-add-on-version.test.ts`
     - a deleted add-on
         - reads "Deleted", in its row and in the status filter
+
+<!-- END proof -->
+
+### SC-ADM-032 — The operator reads a subscriber's history, with who, when and why
+
+🟢 Beside the subscriber on the tenant's page, the latest first: each correction of its legal
+identity with the values before and after, each change of its country or business status, and each
+check of its VAT number with what the service found and whether it counts now — each with when, who
+made it and why, where it says. A change of the number is named once, as the correction it was. The
+history is read from the records the corrections write, so it shows what is kept rather than a
+second log (`SC-SUB-017`, `SC-PRIC-043`).
+
+_Source:_ #331 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - the subscriber's history
+        - names each correction, change and check once, the latest first, with who and why
+        - a tenant without a subscriber has none
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber on the tenant page
+        - offers the corrections, and a check where a tax adapter decides and a number is held
+        - offers no check where no tax adapter names a service
+        - without the capability, nothing is offered and no history is shown
+        - a correction is sent only once something changed and a reason is given, with the second
+          factor
+        - stepping back from the second factor sends nothing and keeps the form
+        - a check is asked without the second factor
+        - the history lists each correction and check with what it changed, why and by whom
 
 <!-- END proof -->
 
@@ -17821,6 +18009,9 @@ _Source:_ #344
 
 _Tested by:_
 
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - every subscriber route
+        - ${what}: the tenant is found and its subscriber read outside the tenants' row-level policy
 - `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
     - the frame a route runs in follows its guard chain
         - every route behind the administrator runs in the bypass, and no other does

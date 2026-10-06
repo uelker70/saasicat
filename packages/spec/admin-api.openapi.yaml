@@ -408,6 +408,139 @@ paths:
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
+    /tenants/{slug}/subscriber/history:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [subscriptions]
+            summary: Every correction, change of country or business status, and check of the subscriber, the latest first
+            description: >-
+                Served beside `/tenants/{slug}/subscriber`; the manifest
+                announces it as `subscribers.correct`. A correction that gives
+                another VAT number is named once, as the correction it was. Empty
+                for a tenant without a subscriber.
+            responses:
+                '200':
+                    description: The history
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [entries]
+                                properties:
+                                    entries:
+                                        type: array
+                                        items:
+                                            $ref: '#/components/schemas/AdminSubscriberHistoryEntry'
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+
+    /tenants/{slug}/subscriber/identity:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [subscriptions]
+            summary: Correct the legal identity of the tenant's subscriber
+            description: >-
+                A correction of the same legal entity — a field left out keeps
+                its value, `null` clears a tax identifier — recorded with the
+                values it replaced, the reason and who made it. `kind` is the
+                operator's declaration: a takeover by another entity is refused
+                (`SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`). Where a tax adapter
+                decides and the correction gives another VAT number, that
+                number is checked right after and the check recorded, whatever
+                it found; the answer says how it went.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [kind, reason]
+                            properties:
+                                kind: { type: string, enum: [correction, takeover] }
+                                legalName: { type: string }
+                                vatId: { type: string, nullable: true }
+                                taxNumber: { type: string, nullable: true }
+                                reason: { type: string, maxLength: 500 }
+            responses:
+                '200':
+                    description: The subscriber as it now stands, and the check its new number got
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberCorrected' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                '409':
+                    description: The tenant has no subscriber (`SUBSCRIBER_REQUIRED`)
+                '422':
+                    description: >-
+                        A takeover, no reason, or a correction that changes
+                        nothing (`SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`,
+                        `SUBSCRIBER_CORRECTION_REASON_REQUIRED`,
+                        `SUBSCRIBER_CORRECTION_CHANGES_NOTHING`)
+
+    /tenants/{slug}/subscriber/business-status:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [subscriptions]
+            summary: Record whether the tenant's subscriber acts as a business, and why
+            description: >-
+                Recorded as a change of the tax origin with its reason and who
+                made it; it applies from the next contract. Setting the status it
+                has records nothing.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [business, reason]
+                            properties:
+                                business: { type: boolean, nullable: true }
+                                reason: { type: string, maxLength: 500 }
+            responses:
+                '200':
+                    description: The subscriber as it now stands
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberCorrected' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                '409':
+                    description: The tenant has no subscriber (`SUBSCRIBER_REQUIRED`)
+                '422':
+                    description: No reason (`SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`)
+
+    /tenants/{slug}/subscriber/vat-id-check:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [subscriptions]
+            summary: Check the VAT number the tenant's subscriber holds, again
+            description: >-
+                Asks the service the tax adapter names and records a completed
+                check, valid or not; a check that does not complete records
+                nothing and says why. No second factor: nothing is entered, and
+                the answer is the service's.
+            responses:
+                '200':
+                    description: The subscriber as it now stands, and what the check found
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberCorrected' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+                '409':
+                    description: >-
+                        The tenant has no subscriber, or no tax adapter names a
+                        service (`SUBSCRIBER_REQUIRED`, `TAX_VAT_ID_CHECK_NOT_AVAILABLE`)
+                '422':
+                    description: The subscriber holds no VAT number (`SUBSCRIBER_VAT_ID_MISSING`)
+
     /subscribers/attention:
         get:
             tags: [subscriptions]
@@ -2780,6 +2913,72 @@ components:
                     description: Null where no tax adapter decides, or the tenant has no subscriber.
                     allOf:
                         - $ref: '#/components/schemas/SubscriberReadiness'
+
+        AdminVatIdCheckOutcome:
+            description: >-
+                A check of a VAT number as the operator is shown it — what the
+                service found, or why the check did not complete.
+            oneOf:
+                - type: object
+                  required: [completed, valid, checkedAt, service, counts]
+                  properties:
+                      completed: { type: boolean, enum: [true] }
+                      valid: { type: boolean }
+                      checkedAt: { type: string, format: date-time }
+                      service: { type: string }
+                      counts:
+                          type: boolean
+                          description: Whether it is the check that counts for the number held now.
+                - type: object
+                  required: [completed, reason]
+                  properties:
+                      completed: { type: boolean, enum: [false] }
+                      reason: { type: string }
+
+        AdminSubscriberCorrected:
+            type: object
+            required: [subscriber, vatIdCheck]
+            properties:
+                subscriber: { $ref: '#/components/schemas/AdminTenantSubscriber' }
+                vatIdCheck:
+                    nullable: true
+                    description: The check a VAT number got, where one was made.
+                    allOf:
+                        - $ref: '#/components/schemas/AdminVatIdCheckOutcome'
+
+        AdminSubscriberHistoryEntry:
+            description: One correction, change of the tax origin, or check of the VAT number.
+            oneOf:
+                - type: object
+                  required: [kind, at, by, previous, corrected, reason]
+                  properties:
+                      kind: { type: string, enum: [identity-corrected] }
+                      at: { type: string, format: date-time }
+                      by: { type: string }
+                      previous: { type: object, additionalProperties: true }
+                      corrected: { type: object, additionalProperties: true }
+                      reason: { type: string }
+                - type: object
+                  required: [kind, at, by, previous, changed, reason]
+                  properties:
+                      kind: { type: string, enum: [tax-origin-changed] }
+                      at: { type: string, format: date-time }
+                      by: { type: string }
+                      previous: { type: object, additionalProperties: true }
+                      changed: { type: object, additionalProperties: true }
+                      reason:
+                          type: string
+                          nullable: true
+                          description: Null for a change of the country with the contact details.
+                - type: object
+                  required: [kind, at, vatId, valid, service, counts]
+                  properties:
+                      kind: { type: string, enum: [vat-id-checked] }
+                      at: { type: string, format: date-time }
+                      vatId: { type: string }
+                      valid: { type: boolean }
+                      service: { type: string }
+                      counts: { type: boolean }
 
         # ────────── User ──────────
         AdminUserRow:

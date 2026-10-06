@@ -17,7 +17,8 @@
 --
 --   `subscriber_tax_origin_changes` — created with its indexes and its foreign
 --   key to `subscribers`: every change of a subscriber's country, business
---   status or VAT id, numbered in the order it was written.
+--   status or VAT id, numbered in the order it was written, with why where the
+--   write states it.
 --
 --   `subscriber_vat_id_checks` — created with its index and its foreign key to
 --   `subscribers`: every completed check of a subscriber's VAT id, never
@@ -57,6 +58,7 @@ BEGIN
             "changed" JSONB NOT NULL,
             "changedBy" TEXT NOT NULL,
             "changedAt" TIMESTAMP(3) NOT NULL,
+            "reason" TEXT,
             CONSTRAINT "subscriber_tax_origin_changes_pkey" PRIMARY KEY ("id")
         );
         CREATE UNIQUE INDEX IF NOT EXISTS "subscriber_tax_origin_changes_seq_key"

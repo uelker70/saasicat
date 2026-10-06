@@ -534,6 +534,7 @@ export const subscriberTaxOriginChanges = pgTable('subscriber_tax_origin_changes
     changed: jsonb('changed').notNull(),
     changedBy: text('changedBy').notNull(),
     changedAt: ts('changedAt').notNull(),
+    reason: text('reason'),
 });
 
 // Every completed check of a subscriber's VAT id, never rewritten.

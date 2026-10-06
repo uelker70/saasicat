@@ -1,9 +1,9 @@
 import type { DynamicModule } from '@nestjs/common';
 
 import {
-    SubscriberStandingModule,
-    type SubscriberStandingModuleOptions,
-} from '../../subscriber/subscriber-standing.module.js';
+    SubscriberAdminModule,
+    type SubscriberAdminModuleOptions,
+} from '../../subscriber/subscriber-admin.module.js';
 
 import { adminResourceGuards } from './admin-resources.js';
 import { optionsOf, type CompositionContext } from './context.js';
@@ -11,10 +11,10 @@ import { optionsOf, type CompositionContext } from './context.js';
 /** The subscriber repository the platform reads subscribers from, where it has one. */
 function subscriberRepositoryOf(
     ctx: Pick<CompositionContext, 'options' | 'persistence'>,
-): SubscriberStandingModuleOptions['subscriberRepository'] | undefined {
+): SubscriberAdminModuleOptions['subscriberRepository'] | undefined {
     return (optionsOf(ctx.options.subscriptionContract).subscriberRepository ??
         ctx.persistence?.entitlement?.subscriberRepository) as
-        SubscriberStandingModuleOptions['subscriberRepository'] | undefined;
+        SubscriberAdminModuleOptions['subscriberRepository'] | undefined;
 }
 
 /**
@@ -22,27 +22,28 @@ function subscriberRepositoryOf(
  * shows tenants and subscribers are kept. The route and the capability that
  * announces it both ask this, so neither can exist without the other.
  */
-export function servesSubscriberStanding(
+export function servesSubscriberAdmin(
     ctx: Pick<CompositionContext, 'options' | 'persistence'>,
 ): boolean {
     return Boolean(ctx.options.adminResources && subscriberRepositoryOf(ctx));
 }
 
 /**
- * The operator's view of a tenant's subscriber, beside the tenant's detail,
- * and the question which tenants of a list hold their subscriber back.
+ * The operator's routes about a tenant's subscriber, beside the tenant's
+ * detail — its view and history, the question which tenants of a list hold
+ * their subscriber back, and the corrections of its tax identity.
  *
  * Runs after `composeAdminResources` and imports the module it built: the
  * tenant lookup is its.
  */
-export function composeSubscriberStanding(ctx: CompositionContext): DynamicModule[] {
+export function composeSubscriberAdmin(ctx: CompositionContext): DynamicModule[] {
     const { adminResourcesModule } = ctx.shared;
     const subscriberRepository = subscriberRepositoryOf(ctx);
-    if (!servesSubscriberStanding(ctx) || !adminResourcesModule || !subscriberRepository) {
+    if (!servesSubscriberAdmin(ctx) || !adminResourcesModule || !subscriberRepository) {
         return [];
     }
     return [
-        SubscriberStandingModule.forRoot({
+        SubscriberAdminModule.forRoot({
             guards: adminResourceGuards(ctx.options),
             subscriberRepository,
             imports: [

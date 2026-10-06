@@ -650,6 +650,7 @@ CREATE TABLE "subscriber_tax_origin_changes" (
     "changed" JSONB NOT NULL,
     "changedBy" TEXT NOT NULL,
     "changedAt" TIMESTAMP(3) NOT NULL,
+    "reason" TEXT,
 
     CONSTRAINT "subscriber_tax_origin_changes_pkey" PRIMARY KEY ("id")
 );
