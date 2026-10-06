@@ -7,6 +7,7 @@ import { BundleRetirementReminderService } from './bundle-retirement-reminder.se
 import { BundleVersionNoticeService } from './bundle-version-notice.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
 import { BundleVersionSwitchRunService } from './bundle-version-switch-run.service.js';
+import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
 import { VersionNoticeService } from './version-notice.service.js';
@@ -20,7 +21,9 @@ import { VersionRetirementService } from './version-retirement.service.js';
  * version, and the reminders whose day has come (`SC-SUB-034`, `SC-BUN-056`) —
  * and moves the subscriptions and the add-on bookings whose retirement has
  * taken effect (`SC-SUB-031`, `SC-BUN-049`), and the bookings whose switch to a
- * newer version was taken for the end of their term (`SC-BUN-059`).
+ * newer version was taken for the end of their term (`SC-BUN-059`). It also
+ * sends the notices of a feature withdrawal an announcement or a lift could not
+ * send at once.
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.versionNotices.includeCron: false` — for a CLI boot, or an
@@ -31,7 +34,8 @@ import { VersionRetirementService } from './version-retirement.service.js';
  * `RetirementReminderService.remindDue`,
  * `BundleRetirementReminderService.remindDue`, `RetirementMoveService.moveDue`,
  * `BundleRetirementMoveService.moveDue` and
- * `BundleVersionSwitchRunService.switchDue` from a scheduler of its own. A
+ * `BundleVersionSwitchRunService.switchDue` and
+ * `FeatureWithdrawalService.sendUndelivered` from a scheduler of its own. A
  * retirement whose notice is not sent waits for it (`SC-SUB-038`), so a
  * scheduler that leaves out a `sendUndelivered` leaves those retirements
  * waiting, and one that leaves out `switchDue` leaves the switches taken for
@@ -80,6 +84,10 @@ export class VersionNoticeCron {
         @Optional()
         @Inject(BundleVersionSwitchRunService)
         private readonly bundleSwitches: BundleVersionSwitchRunService | null = null,
+        // Present where an operator may withdraw features.
+        @Optional()
+        @Inject(FeatureWithdrawalService)
+        private readonly featureWithdrawals: FeatureWithdrawalService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'versionNotices' })
@@ -125,6 +133,15 @@ export class VersionNoticeCron {
                 this.logger.log(
                     `Add-on retirement notices: ${addOnsRetired.told} sent, ` +
                         `${addOnsRetired.failed} to try again.`,
+                );
+            }
+            const withdrawn = await this.step('Feature withdrawal notices', () =>
+                this.featureWithdrawals?.sendUndelivered(new Date()),
+            );
+            if (withdrawn && (withdrawn.told > 0 || withdrawn.failed > 0)) {
+                this.logger.log(
+                    `Feature withdrawal notices: ${withdrawn.told} sent, ` +
+                        `${withdrawn.failed} to try again.`,
                 );
             }
             const reminded = await this.step('Retirement reminders', () =>

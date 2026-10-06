@@ -86,6 +86,7 @@ export function createMemoryHarness() {
         subscriptionNotices: [],
         versionRetirements: [],
         bundleVersionRetirements: [],
+        featureWithdrawals: [],
     });
 
     let transactionCounter = 0;
@@ -111,6 +112,8 @@ export function createMemoryHarness() {
                 tenantId: row.tenantId,
                 plan: row.plan,
                 status: row.status,
+                canceledAt: row.canceledAt ?? null,
+                canceledEffectiveAt: row.canceledEffectiveAt ?? null,
                 customLimits: readCustomLimits(row.customLimits).limits,
                 planVersionId: row.planVersionId,
                 planVersion: { planId: pv.planId, quotas: pv.quotas, features: pv.features },
@@ -263,8 +266,44 @@ export function createMemoryHarness() {
             row.pendingChangeVersionId = input.pendingChangeVersionId;
             return { claimed: true };
         },
-        async cancelSubscription() {
-            return { canceledAt: new Date(), status: 'CANCELED' };
+        // A conditional claim, as the adapters make it: written only while
+        // both cancellation fields are empty, and the loser reads back what
+        // the winner wrote.
+        async cancelSubscription(tenantId, input) {
+            const row = state.subscriptions.find((s) => s.tenantId === tenantId);
+            if (!row) throw subscriptionGone(tenantId);
+            const free =
+                (row.canceledAt ?? null) === null && (row.canceledEffectiveAt ?? null) === null;
+            if (free) {
+                row.canceledAt = input.canceledAt;
+                row.canceledEffectiveAt = input.effectiveAt;
+                if (input.minimumTermUntil) row.minimumTermUntil = input.minimumTermUntil;
+                if (input.terminateNow) row.status = 'CANCELED';
+            }
+            return {
+                canceledAt: row.canceledAt ?? null,
+                canceledEffectiveAt: row.canceledEffectiveAt ?? null,
+                status: row.status,
+                alreadyCanceled: !free,
+            };
+        },
+        async endNow(tenantId, input) {
+            const row = state.subscriptions.find((s) => s.tenantId === tenantId);
+            if (!row) throw subscriptionGone(tenantId);
+            const stored = row.canceledEffectiveAt ?? null;
+            const ended =
+                stored !== null && stored.getTime() === input.expectedCanceledEffectiveAt.getTime();
+            if (ended) {
+                row.canceledAt = input.at;
+                row.canceledEffectiveAt = input.at;
+                row.status = 'CANCELED';
+            }
+            return {
+                ended,
+                canceledAt: row.canceledAt ?? null,
+                canceledEffectiveAt: row.canceledEffectiveAt ?? null,
+                status: row.status,
+            };
         },
     };
 
@@ -596,6 +635,19 @@ export function createMemoryHarness() {
             if (row.canceledAt !== null) throw subscriptionBundleAlreadyCancelled(id);
             row.canceledAt = canceledAt;
             row.canceledEffectiveAt = canceledEffectiveAt;
+            return toSubscriptionBundleRecord(row);
+        },
+        async endNow(id, { at, expectedCanceledEffectiveAt }) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (
+                !row ||
+                row.canceledEffectiveAt === null ||
+                row.canceledEffectiveAt.getTime() !== expectedCanceledEffectiveAt.getTime()
+            ) {
+                return null;
+            }
+            row.canceledAt = at;
+            row.canceledEffectiveAt = at;
             return toSubscriptionBundleRecord(row);
         },
         async moveToVersion(id, from, to) {
@@ -1637,6 +1689,42 @@ export function createMemoryHarness() {
         },
     };
 
+    /** Feature withdrawals: a feature has at most one not lifted, as the partial unique index holds it. */
+    const featureWithdrawals = {
+        async create(data) {
+            const open = state.featureWithdrawals.some(
+                (row) => row.featureKey === data.featureKey && row.liftedFrom === null,
+            );
+            if (open) return null;
+            const row = {
+                id: nextId('withdrawal'),
+                ...structuredClone(data),
+                liftedFrom: null,
+                liftedAt: null,
+                liftedBy: null,
+            };
+            state.featureWithdrawals.push(row);
+            return structuredClone(row);
+        },
+        async list() {
+            return structuredClone(
+                [...state.featureWithdrawals].sort(
+                    (a, b) => b.announcedAt - a.announcedAt || (a.id < b.id ? 1 : -1),
+                ),
+            );
+        },
+        async findById(id) {
+            const row = state.featureWithdrawals.find((candidate) => candidate.id === id);
+            return row ? structuredClone(row) : null;
+        },
+        async lift(id, lift) {
+            const row = state.featureWithdrawals.find((candidate) => candidate.id === id);
+            if (!row || row.liftedFrom !== null) return null;
+            Object.assign(row, structuredClone(lift));
+            return structuredClone(row);
+        },
+    };
+
     /** A subscription row as the usage read answers it: with its version, and what it scheduled. */
     function usageOf(row) {
         const planVersion = state.planVersions.find((version) => version.id === row.planVersionId);
@@ -1810,6 +1898,7 @@ export function createMemoryHarness() {
             subscriptionNotices,
             versionRetirements,
             bundleVersionRetirements,
+            featureWithdrawals,
             subscriptionUsage,
         },
         seed,

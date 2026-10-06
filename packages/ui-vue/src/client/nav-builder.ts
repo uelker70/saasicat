@@ -35,6 +35,7 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     platformEmailHistory: '/admin/platform-email-history',
     settings: '/admin/settings',
     maintenance: '/admin/maintenance',
+    featureWithdrawals: '/admin/feature-withdrawals',
 };
 
 function isSupportedStandardPageKey(key: string): key is StandardPageKey {
@@ -118,6 +119,7 @@ const DEFAULT_ICONS: Record<StandardPageKey, string> = {
     platformEmailHistory: 'mark_email_read',
     settings: 'tune',
     maintenance: 'construction',
+    featureWithdrawals: 'block',
 };
 
 type SectionKey = keyof (typeof navMessages)['de']['sections'];
@@ -129,6 +131,7 @@ const PAGE_SECTIONS: Partial<Record<StandardPageKey, SectionKey>> = {
     plans: 'catalog',
     marketingCatalog: 'catalog',
     promoCodes: 'catalog',
+    featureWithdrawals: 'catalog',
     tenants: 'customers',
     subscriptions: 'customers',
     users: 'customers',

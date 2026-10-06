@@ -412,6 +412,75 @@ export const BILLING_ERROR_CODES = {
      */
     BUNDLE_VERSION_OFFER_CHANGED: 'BUNDLE_VERSION_OFFER_CHANGED',
 
+    // ── withdrawing a feature for an external reason ──
+    /**
+     * Withdrawing a feature is not offered: the installation's stores cannot
+     * list everybody a withdrawal would reach.
+     */
+    FEATURE_WITHDRAWAL_UNAVAILABLE: 'FEATURE_WITHDRAWAL_UNAVAILABLE',
+    /** The catalogue knows no feature of that key, so there is nothing to withdraw. Carries `featureKey`. */
+    FEATURE_WITHDRAWAL_FEATURE_UNKNOWN: 'FEATURE_WITHDRAWAL_FEATURE_UNKNOWN',
+    /**
+     * The date names a moment before now. A feature is withdrawn from the
+     * moment it is announced or from a later date: the days before were
+     * delivered.
+     */
+    FEATURE_WITHDRAWAL_DATE_IN_PAST: 'FEATURE_WITHDRAWAL_DATE_IN_PAST',
+    /** A withdrawal of the feature is not lifted yet; one at a time. Carries `featureKey`. */
+    FEATURE_WITHDRAWAL_OPEN: 'FEATURE_WITHDRAWAL_OPEN',
+    /**
+     * A withdrawal of the feature is lifted only from a date after the one
+     * named, so the two would overlap. Carries `featureKey` and the `date` a
+     * new one may begin on.
+     */
+    FEATURE_WITHDRAWAL_OVERLAPS: 'FEATURE_WITHDRAWAL_OVERLAPS',
+    /**
+     * A reduction names a plan or an add-on, in a rhythm, that no line the
+     * withdrawal reaches is. Carries `kind`, `key` and `billingCycle`.
+     */
+    FEATURE_WITHDRAWAL_REDUCTION_NOT_REACHED: 'FEATURE_WITHDRAWAL_REDUCTION_NOT_REACHED',
+    /** A reduction is named twice. Carries `kind`, `key` and `billingCycle`. */
+    FEATURE_WITHDRAWAL_REDUCTION_NAMED_TWICE: 'FEATURE_WITHDRAWAL_REDUCTION_NAMED_TWICE',
+    /**
+     * A reduction is more than the lowest price among the lines it reduces:
+     * a price is reduced to nothing at most. Carries `key`, `billingCycle` and
+     * that `price`.
+     */
+    FEATURE_WITHDRAWAL_REDUCTION_EXCEEDS_PRICE: 'FEATURE_WITHDRAWAL_REDUCTION_EXCEEDS_PRICE',
+    /**
+     * The subscriptions the withdrawal reaches changed since the preview the
+     * operator looked at. Nothing was announced; carries the current `preview`.
+     */
+    FEATURE_WITHDRAWAL_PREVIEW_CHANGED: 'FEATURE_WITHDRAWAL_PREVIEW_CHANGED',
+    /** No withdrawal has that id. Carries `withdrawalId`. */
+    FEATURE_WITHDRAWAL_NOT_FOUND: 'FEATURE_WITHDRAWAL_NOT_FOUND',
+    /** The withdrawal was lifted already. Carries the `date` it is lifted from. */
+    FEATURE_WITHDRAWAL_ALREADY_LIFTED: 'FEATURE_WITHDRAWAL_ALREADY_LIFTED',
+    /**
+     * The date a withdrawal would be lifted from lies before now: what was
+     * withdrawn until then was withdrawn.
+     */
+    FEATURE_WITHDRAWAL_LIFT_IN_PAST: 'FEATURE_WITHDRAWAL_LIFT_IN_PAST',
+    /**
+     * The withdrawal does not take its feature away now — its date is ahead,
+     * or it was lifted — so nothing ends at once because of it. Carries
+     * `featureKey`.
+     */
+    FEATURE_WITHDRAWAL_NOT_IN_EFFECT: 'FEATURE_WITHDRAWAL_NOT_IN_EFFECT',
+    /**
+     * The withdrawal did not reach the subscription, or the line to end: it
+     * was not running at the announcement, or no longer holds the feature.
+     */
+    FEATURE_WITHDRAWAL_DOES_NOT_REACH: 'FEATURE_WITHDRAWAL_DOES_NOT_REACH',
+    /** What was to be ended at once has ended already. */
+    FEATURE_WITHDRAWAL_ALREADY_ENDED: 'FEATURE_WITHDRAWAL_ALREADY_ENDED',
+    /**
+     * A cancellation is declared for a later date, and the installation's
+     * subscription write or booking store cannot bring it forward (`endNow`).
+     * It ends as declared. Carries that `date`.
+     */
+    FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED: 'FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED',
+
     // ── the preview routes' own blockers and warnings ──
     //
     // These travel inside a 200 response, in `blockers[]` and `warnings[]`, not

@@ -189,7 +189,7 @@ const PARTIES = {
 };
 
 // @requirement SC-ENTL-001 — What a tenant may do is their plan plus the add-ons they booked
-// @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
+// @requirement SC-ENTL-026 — What was sold stays sold, except a feature losing its code or withdrawn
 describe('EntitlementService — deriveLimits + Resolution', () => {
     test('TRIAL: uses trialEntitlementPlan via DB lookup', async () => {
         const { svc, subRepo } = buildHarness({
@@ -235,7 +235,7 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
     });
 });
 
-// @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
+// @requirement SC-ENTL-026 — What was sold stays sold, except a feature losing its code or withdrawn
 // @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 describe('EntitlementService — V3 ContractLineItems', () => {
     test('reads entitlements from active contract snapshot without catalog join', async () => {

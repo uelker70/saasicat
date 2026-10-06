@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
     BillingCycle,
+    EndedAtOnceNotice,
+    FeatureWithdrawalRepository,
+    NewSubscriberCharge,
     SubscriberChargeRecord,
     SubscriberLedgerRepository,
     SubscriberRepository,
@@ -8,10 +11,12 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
+    SubscriptionNoticeRecord,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
 } from '@saasicat/core';
+import { toCents } from '@saasicat/core';
 
 import { SUBSCRIBER_REPOSITORY_TOKEN } from '../../subscriber/subscriber.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
@@ -21,10 +26,17 @@ import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from '../contract
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../subscription-bundles.tokens.js';
 import { retiredBundleVersionsOf, retiredVersionsOf } from '../retirement-notices.js';
 import {
+    FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
     SUBSCRIPTION_USAGE_PORT_TOKEN,
 } from '../tenant-billing.tokens.js';
-import { bookingsTheContractMisses, deriveDueCharges } from './charge-derivation.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../../entitlement/entitlement.tokens.js';
+import { FeatureWithdrawalContractService } from '../feature-withdrawal-contract.service.js';
+import {
+    bookingsTheContractMisses,
+    deriveDueCharges,
+    type ChargeDerivationInput,
+} from './charge-derivation.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './subscriber-charge.tokens.js';
 
 /**
@@ -77,6 +89,22 @@ export class SubscriberChargeService {
         @Optional()
         @Inject(SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN)
         private readonly notices: SubscriptionNoticeRepository | null = null,
+        // Optional — without it no feature is withdrawn, and nothing reduced.
+        @Optional()
+        @Inject(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN)
+        private readonly featureWithdrawals: FeatureWithdrawalRepository | null = null,
+        // Whether a line grants a withdrawn feature through a `replaces` chain.
+        @Optional()
+        @Inject(ENTITLEMENT_SERVICE_TOKEN)
+        private readonly entitlements: {
+            withReplacements(features: ReadonlySet<string>): Set<string>;
+        } | null = null,
+        // Present where features are withdrawn and contracts frozen: writes a
+        // reduction the announcement could not into the contract before it is
+        // charged, since a charge points at a contract line.
+        @Optional()
+        @Inject(FeatureWithdrawalContractService)
+        private readonly withdrawalReductions: FeatureWithdrawalContractService | null = null,
     ) {}
 
     /**
@@ -97,22 +125,70 @@ export class SubscriberChargeService {
      * window, and moves it only when the call succeeded.
      */
     async recordDueCharges(tenantId: string, now = new Date()): Promise<SubscriberChargeRecord[]> {
+        const input = await this.inputOf(tenantId, now, { writesContracts: true });
+        if (!input) return [];
+        return this.ledger.recordCharges(deriveDueCharges(input));
+    }
+
+    /**
+     * What ending the subscription — or, with a booking's id, that booking —
+     * at once at `at` would credit, worked out by the derivation that writes it
+     * and written nowhere: the unused rest of what was charged, net of the
+     * reductions taken back with it, as a positive amount.
+     */
+    async creditOfEndingAtOnce(
+        tenantId: string,
+        subscriptionBundleId: string | null,
+        at: Date,
+    ): Promise<{ creditNet: number; currency: string | null }> {
+        const input = await this.inputOf(tenantId, at, {
+            writesContracts: false,
+            endsAtOnce: { subscriptionBundleId, at },
+        });
+        return creditAt(input ? deriveDueCharges(input) : [], at);
+    }
+
+    /**
+     * Everything the derivation reads, or null where nothing can be charged.
+     * Contracts a booking or a reduction lacks are written first where
+     * `writesContracts` says so; a preview writes nothing. `endsAtOnce` reads
+     * the account as it would stand had the subscription or the booking ended
+     * at once at that moment.
+     */
+    private async inputOf(
+        tenantId: string,
+        now: Date,
+        options: {
+            writesContracts: boolean;
+            endsAtOnce?: { subscriptionBundleId: string | null; at: Date };
+        },
+    ): Promise<ChargeDerivationInput | null> {
         const subscription = await this.subscriptions.findForTenant(tenantId);
-        if (!subscription?.id) return [];
+        if (!subscription?.id) return null;
         const subscriber = await this.subscribers.findByTenantId(tenantId);
-        if (!subscriber) return [];
+        if (!subscriber) return null;
         const [bookings, written, told] = await Promise.all([
             this.bookings?.listBySubscription(subscription.id) ?? [],
             this.ledger.listBySubscription(subscription.id),
             this.notices?.listForSubscription(subscription.id) ?? [],
         ]);
-        const contracts = await this.contractsNamingEveryBooking(
-            tenantId,
-            subscription,
-            bookings,
-            now,
-        );
-        const due = deriveDueCharges({
+        let contracts: SubscriptionContractRecord[];
+        if (options.writesContracts) {
+            await this.recordWithdrawalReductions(tenantId, told, now);
+            contracts = await this.contractsNamingEveryBooking(
+                tenantId,
+                subscription,
+                bookings,
+                now,
+            );
+        } else {
+            contracts = await this.contracts.list({ tenantId });
+        }
+        const end = options.endsAtOnce;
+        const endedHere = (bookingId: string | null) =>
+            end !== undefined && end.subscriptionBundleId === bookingId;
+        const withdrawalInputs = await this.withdrawalInputsOf(told);
+        return {
             now,
             subscriberId: subscriber.id,
             subscription: {
@@ -124,15 +200,88 @@ export class SubscriberChargeService {
                 currentPeriodEnd: subscription.currentPeriodEnd,
                 anchorDay: resolvePlanAnchorDay(subscription),
                 startedAt: subscription.startedAt,
-                endsAt: endOf(subscription),
+                endsAt: endedHere(null) ? end!.at : endOf(subscription),
             },
             contracts,
-            bookings,
+            bookings: bookings.map((booking) =>
+                endedHere(booking.id)
+                    ? { ...booking, canceledAt: end!.at, canceledEffectiveAt: end!.at }
+                    : booking,
+            ),
             written,
             retired: retiredVersionsOf(told),
             retiredAddOns: retiredBundleVersionsOf(told),
-        });
-        return this.ledger.recordCharges(due);
+            ...withdrawalInputs,
+            ...(end ? { endedAtOnce: [...(withdrawalInputs.endedAtOnce ?? []), end] } : {}),
+        };
+    }
+
+    /**
+     * Writes the reductions of the withdrawals the subscription was told of
+     * that no contract records yet. Logged, not thrown, like the contract for a
+     * missed booking: the rest is charged, and the next call tries again.
+     */
+    private async recordWithdrawalReductions(
+        tenantId: string,
+        told: readonly SubscriptionNoticeRecord[],
+        now: Date,
+    ): Promise<void> {
+        if (!this.withdrawalReductions) return;
+        if (!told.some((record) => record.kind === 'feature-withdrawn')) return;
+        try {
+            await this.withdrawalReductions.recordReductions(tenantId, now);
+        } catch (err) {
+            this.logger.error(
+                `Writing the reductions of a feature withdrawal into the contract failed ` +
+                    `(tenant ${tenantId}): ${String(err)}`,
+            );
+        }
+    }
+
+    /**
+     * What the feature withdrawals that reached the subscription change in its
+     * account: their days, read from the withdrawals themselves — a lift is
+     * recorded there, after the contracts that carry the reductions — and what
+     * ended at once under them. A withdrawal counts whether or not its notice
+     * reached anybody: the feature is gone either way.
+     */
+    private async withdrawalInputsOf(
+        told: readonly SubscriptionNoticeRecord[],
+    ): Promise<Pick<ChargeDerivationInput, 'withdrawals' | 'endedAtOnce' | 'lineGrants'>> {
+        const reachedBy = new Set(
+            told
+                .filter((record) => record.kind === 'feature-withdrawn')
+                .map((record) => record.subject),
+        );
+        if (reachedBy.size === 0 || !this.featureWithdrawals) return {};
+        const withdrawals = (await this.featureWithdrawals.list())
+            .filter((withdrawal) => reachedBy.has(withdrawal.id))
+            .map(({ id, featureKey, effectiveFrom, liftedFrom }) => ({
+                id,
+                featureKey,
+                effectiveFrom,
+                liftedFrom,
+            }));
+        const endedAtOnce = told
+            .filter((record) => record.kind === 'ended-at-once')
+            .map((record) => record.content as EndedAtOnceNotice)
+            .map((notice) => ({
+                subscriptionBundleId: notice.subscriptionBundleId,
+                at: new Date(notice.endedAt),
+            }));
+        const entitlements = this.entitlements;
+        return {
+            withdrawals,
+            endedAtOnce,
+            ...(entitlements
+                ? {
+                      lineGrants: (line, featureKey) =>
+                          entitlements
+                              .withReplacements(new Set(line.featuresSnapshot))
+                              .has(featureKey),
+                  }
+                : {}),
+        };
     }
 
     /**
@@ -178,4 +327,18 @@ export class SubscriberChargeService {
         }
         return this.contracts.list({ tenantId });
     }
+}
+
+/** What the entries ending at once at `at` credit, net, as a positive amount, and in which currency. */
+function creditAt(
+    charges: readonly NewSubscriberCharge[],
+    at: Date,
+): { creditNet: number; currency: string | null } {
+    const credits = charges.filter(
+        (charge) =>
+            charge.periodStart.getTime() === at.getTime() &&
+            (charge.origin === 'credit' || charge.origin === 'reductionTakenBack'),
+    );
+    const cents = credits.reduce((sum, charge) => sum + toCents(charge.amountNet), 0);
+    return { creditNet: cents === 0 ? 0 : -cents / 100, currency: credits[0]?.currency ?? null };
 }

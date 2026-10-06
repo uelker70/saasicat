@@ -298,7 +298,7 @@ describe('an immediate upgrade into a longer rhythm', () => {
 });
 
 // @requirement SC-CHG-021 — An immediate upgrade into a longer rhythm starts today, less the unused rest
-// @requirement SC-PRIC-003 — This platform never pays money back
+// @requirement SC-PRIC-075 — No charge is paid back, except the unused rest of what a withdrawal ends at once
 describe('the unused rest at its edges', () => {
     const charge = (now, currentPriceNet, targetPriceNet) =>
         computeNewPeriodCharge({

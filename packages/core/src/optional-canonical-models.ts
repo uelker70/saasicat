@@ -18,6 +18,7 @@ export const OPTIONAL_CANONICAL_MODELS = {
     SubscriptionNotice: ['tenantBilling.subscriptionNotices'],
     VersionRetirement: ['tenantBilling.versionRetirements'],
     BundleVersionRetirement: ['tenantBilling.bundleVersionRetirements'],
+    FeatureWithdrawal: ['tenantBilling.featureWithdrawals'],
     SubscriberLedgerEntry: ['entitlement.subscriberLedgerRepository'],
     PromoCodeHold: ['promo.holdRepository'],
 } as const;

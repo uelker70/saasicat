@@ -533,3 +533,51 @@ _Tested by:_
         - is none for a subscription told only of an offer
 
 <!-- END proof -->
+
+### SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
+
+🟢 💰 Without notice, at the moment the tenant's administrator declares it, for as long as the feature
+is missing — also where the subscription is already cancelled for a later date, provided the
+application's subscription store can end it early; where it cannot, the refusal says so and the
+cancellation stands. Before confirming, the tenant reads what ends and what is credited
+(`SC-PRIC-074`). Every add-on ends with the subscription. Nobody else in the tenant may end it, and
+a subscription the withdrawal did not reach, or one that has ended, is refused with its code. Nobody
+is reminded: doing nothing costs the subscriber nothing, because the reduction applies by itself
+(`SC-PRIC-072`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - what the tenant sees of a withdrawal
+        - says what is reduced, and what may end at once
+        - opens nothing before the date, and is gone once the withdrawal is lifted
+        - ends the reduction with a change of plan or rhythm, and the right with the feature
+        - shows nothing to a subscription it did not reach
+    - ending a subscription at once
+        - ends it now, records it first, ends the contract and credits the unused rest
+        - brings forward a cancellation declared for the end of the term
+        - is refused, and nothing recorded, where the store cannot bring a declared end forward
+        - is refused for a withdrawal it was not told of, or one not in effect now
+        - is refused once it has ended, and where the plan no longer grants the feature
+        - is open to a subscription reached through its special terms alone
+        - a second attempt after a failure ends at the moment the first recorded
+        - is refused where the cancellation moved meanwhile
+        - shows what it would credit first, refused as the end would be
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - ending at once
+        - asks what the subscription would credit, and ends it, under the prefix given
+        - ends one booking by its own path
+        - a refused end is thrown to the card, and nothing is read again
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - ending at once while a feature is withdrawn
+        - names what ends and what is credited before the click, and ends it on confirmation
+        - ends one add-on by name, and says when nothing is credited
+        - a refused question says why and offers no confirmation
+    - the page of the tenant’s add-ons
+        - tells of the withdrawal too, and reads the bookings again once one ended at once
+
+<!-- END proof -->

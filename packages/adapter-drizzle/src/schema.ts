@@ -472,6 +472,28 @@ export const bundleVersionRetirements = pgTable('bundle_version_retirements', {
 });
 
 // ---------------------------------------------------------------------------
+// Feature withdrawals — a feature granted to nobody for a reason outside the platform
+// ---------------------------------------------------------------------------
+//
+// What it means for each subscription is a `subscription_notices` row of kind
+// `feature-withdrawn`, whose subject is this row's id. A feature has at most
+// one withdrawal not lifted; the partial unique index that holds it is in
+// `constraints.postgres.sql`.
+
+export const featureWithdrawals = pgTable('feature_withdrawals', {
+    id: text('id').primaryKey(),
+    featureKey: text('featureKey').notNull(),
+    reason: text('reason').notNull(),
+    effectiveFrom: ts('effectiveFrom').notNull(),
+    liftedFrom: ts('liftedFrom'),
+    reductions: jsonb('reductions').notNull().default([]),
+    announcedAt: writtenAt('announcedAt'),
+    announcedBy: text('announcedBy').notNull(),
+    liftedAt: ts('liftedAt'),
+    liftedBy: text('liftedBy'),
+});
+
+// ---------------------------------------------------------------------------
 // Subscribers — the party a contract is concluded with
 // ---------------------------------------------------------------------------
 //

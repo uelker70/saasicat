@@ -26,6 +26,7 @@ import {
     catalogResource,
     createAdminResourceClient,
     discoveryResource,
+    featureWithdrawalsResource,
     emailHistoryResource,
     maintenanceResource,
     marketingResource,
@@ -771,6 +772,8 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     // `tests/version-retirements-resource.test.js`.
     versionRetirements: Object.keys(versionRetirementsResource.ops),
     bundleVersionRetirements: Object.keys(bundleVersionRetirementsResource.ops),
+    // And for withdrawing a feature: `tests/feature-withdrawals-resource.test.js`.
+    featureWithdrawals: Object.keys(featureWithdrawalsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
     // `charges` and the subscriber's operations are platform-served with no

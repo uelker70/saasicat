@@ -536,3 +536,35 @@ _Tested by:_
         - findings are deterministically sorted (kind, entityKey, version, code)
 
 <!-- END proof -->
+
+### SC-CAT-017 — A withdrawn feature is marked wherever a plan or an add-on is shown with what it includes
+
+🟢 💰 With its reason and from when — and until when, where the withdrawal is lifted from a date ahead
+— beside the feature in the tenant's plan overview, the plan change, the add-on store and the
+booking preview, and the comparison of two versions; in the sign-up and the add-on page where the
+application hands them the feature registry; and as a field of the public feature registry, for a
+page the integrator writes. Whoever concludes while it is withdrawn does so knowing, at the price
+offered, without a reduction and without the right to end at once (`SC-PRIC-072`, `SC-CANC-024`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the features a catalogue marks as withdrawn
+        - are those withdrawn now or from a date ahead, until they are lifted
+    - the public feature registry
+        - marks a feature withdrawn now or ahead with why and from when
+        - marks nothing once the withdrawal is lifted, or where none is kept
+        - fails rather than show a withdrawn feature as available
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, where the plan section names it
+        - marks the feature as not available rather than as not included
+    - the mark beside a withdrawn feature, mounted on its own and so in the default language
+        - says from when it is withdrawn ahead, and until when where it is lifted
+        - keeps the reason as it was typed
+        - says nothing where nothing is withdrawn, or nobody said
+
+<!-- END proof -->

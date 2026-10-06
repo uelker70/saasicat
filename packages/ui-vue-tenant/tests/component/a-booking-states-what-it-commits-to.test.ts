@@ -1,4 +1,4 @@
-// @requirement SC-BUN-016 — A tenant reads what a booking commits to before confirming it
+// @requirement SC-BUN-065 — A tenant reads what a booking commits to before confirming it
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';

@@ -53,11 +53,21 @@ _Tested by:_
 
 ### SC-PRIC-003 — This platform never pays money back
 
-🟢 💰 A prorated fee is floored at zero. Where a change lowers the price, the upgrade is free rather
-than producing a credit, and a cancellation is never refunded pro rata — the booking stays active
-and paid to the end of its period.
+🔵 _(Superseded on 2026-10-06 by `SC-PRIC-075`.)_ 💰 A prorated fee is floored at zero. Where a change
+lowers the price, the upgrade is free rather than producing a credit, and a cancellation is never
+refunded pro rata — the booking stays active and paid to the end of its period.
 
 _Source:_ #212 · release 1.0.0-rc.6
+
+### SC-PRIC-075 — No charge is paid back, except the unused rest of what a withdrawal ends at once
+
+🟢 💰 A prorated fee is floored at zero. Where a change lowers the price, the upgrade is free rather
+than producing a credit, and a cancellation is never refunded pro rata — the booking stays active
+and paid to the end of its period. The one exception is a subscription or a booking ended at once
+while a feature it holds is withdrawn: the unused rest of what was charged is credited to the
+account (`SC-PRIC-074`). SaaSiCat itself never initiates a refund.
+
+_Source:_ #212 · release 1.0.0-rc.6 · #357
 
 <!-- BEGIN proof -->
 
@@ -757,7 +767,7 @@ of 30 is 25.00. A further upgrade in the same period is charged from the price b
 longer rhythm it is the new period in full, less the unused rest of the period it replaces, at the
 price in force just before the change: 990 − 24.50 = 965.50. That is never below nothing, and the
 renewals run on from the new period's end. A contract written again at the same price adds
-nothing, and nothing is paid out (`SC-PRIC-003`).
+nothing, and nothing is paid out (`SC-PRIC-075`).
 
 _Source:_ #318
 
@@ -1122,7 +1132,7 @@ settled there, and the credit it became shrinks by its part; never an invoice al
 partial reversal reduces the credit first and reopens invoices only with what remains, so the
 operator is not left refunding what is owed again. Where the credit's part was already refunded,
 that part is shown to the operator to reconcile. A refund is different: SaaSiCat never initiates
-one (`SC-PRIC-003`), and one the operator makes in the gateway is recorded against the credit it
+one (`SC-PRIC-075`), and one the operator makes in the gateway is recorded against the credit it
 pays out, reopening nothing; a refund that matches no credit is shown to the operator to reconcile.
 A credit the gateway can no longer refund, because the payment's gateway account is no longer
 configured (`SC-PRIC-030`) or the gateway's own refund period has passed, is paid out by the
@@ -1970,5 +1980,95 @@ _Tested by:_
         - after a correction, the service's answer — ${found} — is announced as such, the correction
           beneath it
         - a check needs no second factor, announces what the service found, and reads again
+
+<!-- END proof -->
+
+### SC-PRIC-072 — A line that loses a withdrawn feature is charged less for the time without it
+
+🟢 💰 Each plan line and each booking the withdrawal reached is reduced by the amount named for its
+plan or add-on in its rhythm, for the days without the feature, pro rata within a period and never
+below nothing. Where the date falls inside a period already charged, the rest of that period from
+the date is credited. The reduction is written into the contract as a generated discount line — at
+the announcement, or into the next contract written for another reason — and it stays with the line
+it reached: across a move to another version of the same plan or add-on that still grants the
+feature, and not past a change of plan or rhythm the subscriber makes, which ends it from the new
+plan's first period. What is concluded after the announcement is not reduced (`SC-CAT-017`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the reductions of a withdrawal
+        - are written into a successor of the contract in force, which keeps everything else
+        - are written once
+        - reduce a line no further than its price
+        - reduce only the lines the subscription was told of, as it was told of them
+        - write nothing for a withdrawal lifted before its date
+        - wait for a contract where none is in force
+        - go into a contract a later change writes, where none records them yet
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - a period charged before the withdrawal takes effect
+        - is credited from its date for the rest of the period, and not before the date
+    - a period charged while the feature is withdrawn
+        - is reduced with its charge, and the next one is not once the feature is back
+        - is reduced in advance for the days from a date that falls inside it
+        - is reduced pro rata where the return is known when it is charged
+        - is never taken below nothing
+    - the line a reduction stays with
+        - is the plan in its rhythm on any version that grants the feature
+        - and not a version that no longer grants it
+        - and not another plan the subscriber changed to
+    - a reduction no contract records yet
+        - is written into the contract before the period is charged
+        - is asked for only where the subscription was told of a withdrawal
+        - leaves the rest charged where writing it fails
+
+<!-- END proof -->
+
+### SC-PRIC-073 — A reduction for days the feature turned out not to miss is taken back
+
+🟢 💰 Where the days without the feature turn out fewer than a period was reduced for — the withdrawal
+is lifted, or the line stops running before the period ends — the journal takes back the reduction
+for the days it no longer covers, under its own origin `reductionTakenBack` rather than as a
+correction.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - a reduction granted for days the feature turned out to be there
+        - is taken back from the day it returned, on that day
+        - takes nothing back where the withdrawal was lifted before its date
+        - ends with a change into a longer rhythm, which credits the rest of the period
+
+<!-- END proof -->
+
+### SC-PRIC-074 — Ending at once under a withdrawal credits the unused rest of what was charged
+
+🟢 💰 A subscription ended at once (`SC-CANC-024`) is credited the unused rest of every period already
+charged — its plan's and every add-on's — and a booking ended at once (`SC-BUN-062`) its own, each
+net of the reduction for those days. The credit is shown before the end is confirmed and written to
+the subscriber's account once; SaaSiCat starts no payment, and the operator pays it out.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - ending at once while the feature is withdrawn
+        - credits the unused rest of the plan and of every add-on, net of the reduction
+        - credits the rest of a booking that ends at once alone, and its reduction
+        - shows first the credit it then writes, and writes nothing to show it
+        - credits nothing for an end the account was not told was at once
+        - credits nothing where the end recorded is not the one the notice names
+        - writes each entry once however often the account is brought up to date
 
 <!-- END proof -->

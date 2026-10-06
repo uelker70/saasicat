@@ -115,13 +115,24 @@ _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
 
 ### SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
 
-🟢 What was sold stays sold: a price, a quota or a feature set changed in the catalogue leaves an
-agreed contract alone. The one edit that does reach it is a feature marked as not yet rolled out,
-because that is not a statement about the offer but about whether the capability exists —
-`SC-ENTL-003` holds there too, and granting a feature with no code behind it would only weaken the
-guard in front of it.
+🔵 _(Superseded on 2026-10-06 by `SC-ENTL-026`.)_ What was sold stays sold: a price, a quota or a
+feature set changed in the catalogue leaves an agreed contract alone. The one edit that does reach
+it is a feature marked as not yet rolled out, because that is not a statement about the offer but
+about whether the capability exists — `SC-ENTL-003` holds there too, and granting a feature with no
+code behind it would only weaken the guard in front of it.
 
 _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
+
+### SC-ENTL-026 — What was sold stays sold, except a feature losing its code or withdrawn
+
+🟢 A price, a quota or a feature set changed in the catalogue leaves an agreed contract alone. Two
+things do reach it, and neither is a statement about the offer. One is a feature marked as not yet
+rolled out, because that says whether the capability exists — `SC-ENTL-003` holds there too, and
+granting a feature with no code behind it would only weaken the guard in front of it. The other is a
+feature withdrawn for a reason outside the platform (`SC-ENTL-025`), whose subscribers are told at
+once and charged less for the time without it (`SC-PRIC-072`).
+
+_Source:_ `docs/explanation/capability-to-contract.md` · `README.md` · #357
 
 <!-- BEGIN proof -->
 
@@ -145,7 +156,7 @@ _Tested by:_
 ### SC-ENTL-022 — An operator is told which running contracts hold a feature vocabulary left behind
 
 🟢 A contract keeps the feature keys it was frozen with, so a key renamed, dropped or added in a plan
-version afterwards does not reach it (`SC-ENTL-021`). `<app> doctor` names each contract in force
+version afterwards does not reach it (`SC-ENTL-026`). `<app> doctor` names each contract in force
 whose frozen features hold a key that neither the application's code nor the catalogue knows any
 more, or lack a feature that the plan version its subscription is bound to and the add-on versions
 it covers grant today and that no `replaces` declaration carries one of its keys to. It names them
@@ -182,7 +193,7 @@ _Tested by:_
 ### SC-ENTL-023 — An operator carries a changed vocabulary into running contracts, seeing it first
 
 🟢 Only on the operator's command, for the contracts named or for every contract in force — never by
-itself (`SC-ENTL-021`). For each contract the command first shows what it would change: its
+itself (`SC-ENTL-026`). For each contract the command first shows what it would change: its
 features, quotas, price, tax rate and currency. It writes only when asked a second time. By default
 it replaces the frozen features alone, with those the plan version and the add-on versions the
 contract covers grant today, and copies the lines, prices, terms and parties as they stand. Asked to
@@ -640,5 +651,40 @@ _Tested by:_
         - names exactly the keys the platform reads
         - every route that carries them refers to it
         - a value written to the schema is read whole
+
+<!-- END proof -->
+
+### SC-ENTL-025 — A feature withdrawn for a reason outside the platform is granted to nobody
+
+🟢 💰 From the date the operator names until the withdrawal is lifted, whatever grants it: a plan
+version, an add-on, a contract frozen with it, or special terms. The cause lies outside the platform
+— a service the feature depends on stopped, or a law took it away — so it reaches everybody who
+holds the feature, and an answer cached before the date is not given after it (`SC-SUB-042`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-granted-to-nobody.test.js`
+    - a withdrawn feature
+        - is granted by no plan while the withdrawal holds, and nothing else is taken
+        - is granted until its date and from the moment it is lifted, to the millisecond
+        - that was lifted before its date never takes the feature away
+        - of another feature leaves this one alone
+        - is not granted by a contract frozen with it
+        - is not granted by an add-on booked on top
+        - is not granted by special terms
+        - is not granted by the floor a cancelled subscription falls back to
+        - is not granted through an old key that a replaces chain carries to it
+        - is still recorded by a contract frozen while it is withdrawn
+        - is withdrawn from nobody where the installation keeps no withdrawals
+    - an answer cached before a withdrawal changes
+        - is not served past the moment it takes effect
+        - nor past the moment it is lifted
+    - the default enforcement stack
+        - does not grant a withdrawn feature either
+        - and grants it where nothing is withdrawn
 
 <!-- END proof -->

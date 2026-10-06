@@ -100,11 +100,18 @@ import PlanGrid from './plan/PlanGrid.vue';
 import PublicBundleGrid from './plan/PublicBundleGrid.vue';
 import PromoCodeInput from './plan/PromoCodeInput.vue';
 import PriceSummary from './plan/PriceSummary.vue';
-import { useSubscriptionDraft, type PromoState, type SubscriptionDraft } from '@saasicat/ui-vue';
+import {
+    useSubscriptionDraft,
+    useSuperAdminI18n,
+    type PromoState,
+    type SubscriptionDraft,
+} from '@saasicat/ui-vue';
+import { provideWithdrawnFeatures } from './withdrawn-features.js';
 import { latestAnswerWins } from './latest-answer-wins.js';
 import type { CatalogPlan } from '@saasicat/ui-vue';
 import type { BillingCycleStr } from '@saasicat/ui-vue';
 import type {
+    FeatureUiRegistry,
     OnboardingSelectionRequest,
     OnboardingSelectionResponse,
     PromoPreviewRequest,
@@ -191,6 +198,12 @@ const props = defineProps<{
     formatQuotaValue: (key: string, value: number) => string;
     quotaLabel: (key: string) => string;
     featureLabel: (key: string) => string;
+    /**
+     * The feature registry from `/billing/feature-registry`, where the app has
+     * it: a feature withdrawn now or from a date ahead is then marked beside
+     * every add-on that includes it, so whoever concludes sees it first.
+     */
+    featureRegistry?: FeatureUiRegistry | null;
     /** Async hook for `POST /billing/promo/preview`. */
     previewPromo?: (req: PromoPreviewRequest) => Promise<PromoPreviewResponse>;
     /** Async hook for `POST /billing/onboarding/initial-subscription`. */
@@ -204,6 +217,12 @@ const emit = defineEmits<{
     submitted: [OnboardingSelectionResponse];
     error: [Error];
 }>();
+
+const { intlLocale } = useSuperAdminI18n();
+provideWithdrawnFeatures(
+    () => props.featureRegistry,
+    (iso) => new Date(iso).toLocaleDateString(intlLocale.value),
+);
 
 const subscriptionBundleOptions = computed(() => props.availableBundles ?? []);
 

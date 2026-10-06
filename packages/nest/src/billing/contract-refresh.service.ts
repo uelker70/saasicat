@@ -127,7 +127,7 @@ const NO_VOCABULARY: ContractVocabulary = { unknown: [], missing: [] };
  * (`SC-ENTL-022`).
  *
  * A contract keeps the feature keys it was frozen with, and that is the point
- * of freezing it (`SC-ENTL-021`). So nothing here runs by itself, and every
+ * of freezing it (`SC-ENTL-026`). So nothing here runs by itself, and every
  * write is preceded by the preview it would show, worked out on the same path —
  * `apply` computes what `preview` shows and writes it, rather than trusting a
  * preview made earlier.

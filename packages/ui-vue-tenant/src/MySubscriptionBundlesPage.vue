@@ -27,6 +27,15 @@
         <div v-if="switchError" class="msb-error" role="alert">{{ switchError }}</div>
         <p v-if="switchNote" class="msb-note" role="status">{{ switchNote }}</p>
 
+        <!-- A feature a booking grants is withdrawn, and what may end at once. -->
+        <FeatureWithdrawnNotices
+            :http="http"
+            :api-prefix="`${billingEndpoint}/billing`"
+            :format-currency="formatAmount"
+            :format-date="formatDate"
+            @ended="load()"
+        />
+
         <div v-if="loading && bundles.length === 0" class="msb-loading">
             {{ effectiveI18n.loading }}
         </div>
@@ -213,7 +222,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import type { SubscriptionBundleRecord } from '@saasicat/core';
+import type { FeatureUiRegistry, SubscriptionBundleRecord } from '@saasicat/core';
 import type { HttpClient } from '@saasicat/ui-vue';
 
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
@@ -222,9 +231,11 @@ import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './defa
 import { defaultQuotaValue } from './plan/quota-value.js';
 import { refusalMessage } from './refusal-of.js';
 import BundleRetiredNotice from './tenant-plan-section/BundleRetiredNotice.vue';
+import FeatureWithdrawnNotices from './tenant-plan-section/FeatureWithdrawnNotices.vue';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
+import { provideWithdrawnFeatures } from './withdrawn-features.js';
 
 // MySubscriptionBundlesPage — tenant self-service page "Meine Bundles".
 // The hosting app embeds the page
@@ -282,6 +293,12 @@ const props = withDefaults(
         quotaLabel?: (key: string) => string;
         featureLabel?: (key: string) => string;
         formatQuotaValue?: (key: string, value: number) => string;
+        /**
+         * The feature registry from `/billing/feature-registry`, where the app
+         * has it: a feature withdrawn now or from a date ahead is then marked
+         * wherever this page names it.
+         */
+        featureRegistry?: FeatureUiRegistry | null;
     }>(),
     {
         bundleLabels: () => ({}),
@@ -291,6 +308,10 @@ const props = withDefaults(
 );
 
 const { locale, intlLocale } = useSuperAdminI18n();
+provideWithdrawnFeatures(
+    () => props.featureRegistry,
+    (iso) => formatDate(iso),
+);
 
 function formatAmount(n: number): string {
     return (

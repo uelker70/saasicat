@@ -15,7 +15,7 @@
 // subscription has, and keep its term and its period. What that costs is the
 // charge journal's to say, not this service's: a successor contract taking
 // effect inside a paid period is charged the difference where its plan line is
-// dearer, and nothing where it is not (`SC-CHG-020`, `SC-PRIC-003`) — so an
+// dearer, and nothing where it is not (`SC-CHG-020`, `SC-PRIC-075`) — so an
 // improvement is free, and a version dearer only in the rhythm the subscriber
 // does not pay in costs them nothing either. One that takes something away is
 // scheduled for the end of the term like a downgrade, bound to the version

@@ -82,5 +82,6 @@ export { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.r
 export { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';
 export { PrismaVersionRetirementRepository } from './prisma-version-retirement.repository.js';
 export { PrismaBundleVersionRetirementRepository } from './prisma-bundle-version-retirement.repository.js';
+export { PrismaFeatureWithdrawalRepository } from './prisma-feature-withdrawal.repository.js';
 export { type PrismaModelDelegateLike } from './prisma-client-token.js';
 export * from './admin-resources-schema.js';

@@ -26,6 +26,7 @@ import { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.r
 import { PrismaSubscriptionNoticeRepository } from './prisma-subscription-notice.repository.js';
 import { PrismaVersionRetirementRepository } from './prisma-version-retirement.repository.js';
 import { PrismaBundleVersionRetirementRepository } from './prisma-bundle-version-retirement.repository.js';
+import { PrismaFeatureWithdrawalRepository } from './prisma-feature-withdrawal.repository.js';
 import { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
 import { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
@@ -284,6 +285,10 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             bundleVersionRetirements: unless(
                 'tenantBilling.bundleVersionRetirements',
                 provide((prisma) => new PrismaBundleVersionRetirementRepository(canonical(prisma))),
+            ),
+            featureWithdrawals: unless(
+                'tenantBilling.featureWithdrawals',
+                provide((prisma) => new PrismaFeatureWithdrawalRepository(canonical(prisma))),
             ),
         },
         adminResources:

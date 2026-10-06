@@ -113,7 +113,7 @@ async function createPublishedBundle({
     });
 }
 
-// @requirement SC-BUN-016 — A tenant reads what a booking commits to before confirming it
+// @requirement SC-BUN-065 — A tenant reads what a booking commits to before confirming it
 // @requirement SC-BUN-020 — An add-on whose contents a tenant already has raises a warning, not a refusal
 // @requirement SC-BUN-021 — An add-on whose own dependencies nothing covers cannot be booked
 // @requirement SC-BUN-026 — An add-on that is not sold self-service says so and says who to ask
@@ -294,7 +294,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
     });
 });
 
-// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
 // @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('SubscriptionBundlePreviewService — previewCancel', () => {
     test('effectiveAt = period end when minimum term expired', async () => {

@@ -1459,3 +1459,109 @@ _Tested by:_
         - a check that fails is reported, and nothing is read again
 
 <!-- END proof -->
+
+### SC-SUB-042 — The operator withdraws a feature from everybody who holds it, and tells them at once
+
+🟢 💰 The operator names the feature, the reason the subscribers read, the date — now or later, never
+before the announcement — and a net reduction per plan and per add-on in each rhythm, at most the
+lowest price it reduces. The preview lists every subscription it reaches with the lines that grant
+the feature, and the ones it does not reach because they end before the date. Announcing needs the
+second factor, is refused where the subscriptions it reaches are no longer the ones shown, tells
+each of them at once and is audited; a notice that cannot be sent now is sent by the next run. A
+feature has one withdrawal not lifted at a time. Lifting it from a date grants the feature again
+from then, ends the reduction and the right to end at once, and tells every subscription still
+running. The tenant reads the withdrawal beside its plan. It is offered only where every
+subscription it reaches can be found — the application's subscription store lists by plan version
+and by id, its booking store by add-on version — and not offered elsewhere. A subscription without a
+contract in force that holds the feature only through its special terms is not found.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal
+        - refuses a feature the catalogue does not know, before anything is read
+        - refuses a date before now, and takes now and a date ahead
+        - reaches a subscription on a plan version that grants the feature, with its line
+        - reaches through an old key a replaces chain carries to the feature
+        - does not count a draft that grants the feature
+        - reaches each booking of an add-on version that grants it, in its rhythm and price
+        - leaves out a booking that ends by the date, and skips a subscription that does
+        - reads the plan line from the contract in force, which is what is granted
+        - reaches special terms a contract in force records where no line grants the feature
+        - names each plan and add-on in a rhythm it reaches, with how many and the lowest price
+        - is blocked while a withdrawal of the feature is not lifted, or lifted only after the date
+    - where withdrawing a feature is offered
+        - only where everybody a withdrawal reaches can be found
+        - and is refused by the routes elsewhere, before anything is read
+    - announcing a withdrawal
+        - records it with a notice for each subscription in one transaction, then tells each
+        - writes the reductions into the contract of each subscription with a line reduced
+        - stands where writing a contract fails, which the journal does before it charges
+        - tells a line no reduction was named for that none applies
+        - refuses what is blocked, and keeps nothing
+        - refuses a reduction for nothing it reaches, one named twice, or one above the lowest price
+        - takes a reduction of the whole lowest price
+        - refuses when the subscriptions it reaches are not the ones shown
+        - lands once where another announcement got there first, and keeps nothing of its own
+        - leaves a notice it could not send for the next run
+    - lifting a withdrawal
+        - records the date, tells every subscription it reached that still runs
+        - from now where no date is given; never from a date already past
+        - refuses an unknown withdrawal, and one lifted already, naming its date
+        - lifted meanwhile by another operator, keeps what they recorded
+    - the list of withdrawals
+        - says how many it reached, how many were told, and how many ended at once
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - reading the withdrawals
+        - a tenant whose subscription was told sees them
+        - a 404 hides everything without an error: the installation does not withdraw features
+        - any other failure is an error to say, not an empty list
+        - a list of something else is an error, not withdrawals to draw
+        - an answer that is not a list is an error, not "nothing withdrawn"
+- `packages/ui-vue/tests/component/feature-withdrawals-page.test.ts`
+    - FeatureWithdrawalsPage
+        - with nothing withdrawn, it says what a withdrawal does and offers one
+        - a withdrawal shows its reason, where it stands and how far it has come; only an unlifted
+          one can be lifted
+        - a resource of the application’s own that answers another shape does not take the page down
+    - lifting in the dialog
+        - a date left empty lifts at once
+    - withdrawing in the dialog
+        - says whom it reaches, who holds it only by special terms, and who ends before
+        - asks a reduction per plan in its rhythm, and says which amount it cannot send
+        - a blocker is said in the operator’s words, with its date as they read one, and refuses the
+          button
+- `packages/ui-vue/tests/use-feature-withdrawals.test.js`
+    - the list of withdrawals, and lifting one
+        - reads every withdrawal when the page opens
+        - lifts from the date chosen behind the second factor, naming the feature, and reads the
+          list again
+        - a cancelled code lifts nothing and says nothing was written
+        - a refusal reaches the dialog, which keeps the form and shows why
+    - announcing a withdrawal
+        - offers every feature the catalogue still has
+        - reads the preview at once where no date is chosen, and from the date where one is
+        - asks for at once again when the date is cleared
+        - asks nothing for a date it cannot read, rather than taking it for at once
+        - keeps the answer to the latest question, not the one that arrives last
+        - a preview that fails says why and shows none
+        - is offered once a reason is given, and not while anything refuses it
+        - announces at once, with the reason, the reductions and the subscriptions shown
+        - announces from the date chosen, as an instant
+        - a cancelled code announces nothing, and says nothing was written
+        - a preview that changed meanwhile replaces the one shown, and says so
+        - a refusal reaches the dialog, which keeps the form and shows why
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, beside the plan
+        - says why, from when, and what each line is reduced by
+        - is not shown where the installation does not withdraw features
+        - says it could not read them where the route answers something else, and keeps the page
+        - is not shown where nothing is withdrawn
+        - says from when it will be missing, when it returns, and what a change or special terms
+          mean
+
+<!-- END proof -->

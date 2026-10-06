@@ -61,6 +61,16 @@
                 @take="onTakeVersionOffer"
             />
 
+            <!-- A feature the subscription holds is withdrawn, and what it may do about it. -->
+            <FeatureWithdrawnNotices
+                v-if="!hasEnded"
+                :http="http"
+                :api-prefix="apiPrefix"
+                :format-currency="formatCurrency"
+                :format-date="formatDate"
+                @ended="billing.reload()"
+            />
+
             <!-- Current plan card + actions -->
             <TenantCard class="sp-plan-section__card">
                 <TenantPlanCardHeader
@@ -296,6 +306,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { provideTenantI18n } from './tenant-i18n.js';
+import { provideWithdrawnFeatures } from './withdrawn-features.js';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
 import PlanChangeWizard from './PlanChangeWizard.vue';
 import {
@@ -331,6 +342,7 @@ import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
 import type { VersionOfferView } from '@saasicat/core';
 import { refusalMessage, refusalOf } from './refusal-of.js';
+import FeatureWithdrawnNotices from './tenant-plan-section/FeatureWithdrawnNotices.vue';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import VersionRetiredCard from './tenant-plan-section/VersionRetiredCard.vue';
 import { dayAsInstant } from './tenant-plan-section/version-retirement-day.js';
@@ -477,6 +489,10 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
 // receive it as a prop from here; the fourth pass-through of one object is the
 // shape AP3's resource ports exist to remove.
 provideTenantI18n(effectiveI18n);
+provideWithdrawnFeatures(
+    () => catalog.featureRegistry.value,
+    (iso) => props.formatDate(iso),
+);
 
 const catalogQuotaKeys = computed(() => {
     // Ordered union over all plans + effective limits: higher tiers

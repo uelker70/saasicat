@@ -86,7 +86,7 @@ _Tested by:_
 the customer is billed on becomes that day. It is charged in full, less what is left of the period
 it replaces at the price that was paid for it: Standard at 49 a month to Pro at 990 a year on day 15
 of 30 costs 990 − 24.50 = 965.50. The rest only reduces this charge and is never paid out
-(`SC-PRIC-003`).
+(`SC-PRIC-075`).
 
 _Source:_ #318
 

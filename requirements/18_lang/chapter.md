@@ -395,6 +395,8 @@ _Tested by:_
         - an unclosed brace is left alone rather than eating the rest
         - a message without placeholders is one part
         - two dates are both emphasised
+    - a message becomes one string
+        - with its values in place, as they were given
 
 <!-- END proof -->
 

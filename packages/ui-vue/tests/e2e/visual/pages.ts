@@ -197,6 +197,13 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // its message, and an ended and a cancelled one before it.
     }),
     visualCase({
+        id: 'feature-withdrawals',
+        load: () => import('../../../src/pages/FeatureWithdrawalsPage.vue'),
+        // Reads `/api/admin/feature-withdrawals` from the registry: one
+        // withdrawal taking its feature away, which can be lifted, and an older
+        // one lifted already.
+    }),
+    visualCase({
         id: 'dashboard',
         load: () => import('../../../src/pages/DashboardPage.vue'),
         // Nothing: the manifest comes from `SUPER_ADMIN_MANIFEST_KEY` and the
@@ -358,6 +365,17 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'tenant-plan-offer',
         load: () => import('@saasicat/ui-vue-tenant/TenantPlanSection.vue'),
         props: ({ http }) => tenantPlanProps(http, '/api/offer-billing'),
+    }),
+    // The plan section with a feature withdrawn: the notice beside the plan with
+    // what each line is reduced by and the two ends at once, and the matrix
+    // marking the feature rather than calling it not included.
+    visualCase({
+        id: 'tenant-plan-withdrawn',
+        load: () => import('@saasicat/ui-vue-tenant/TenantPlanSection.vue'),
+        props: ({ http }) => ({
+            ...tenantPlanProps(http, '/api/withdrawn-billing'),
+            showFeatureMatrix: true,
+        }),
     }),
     visualCase({
         id: 'tenant-bundles',
