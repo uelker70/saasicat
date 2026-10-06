@@ -248,7 +248,7 @@ _Tested by:_
           continues
         - a second run leaves every number where the first one put it
     - a correction carries its order under row-level security
-        - a role the policy hides ${hidden} from is refused, and nothing changes
+        - a role ${reached} is refused, and nothing changes
         - a policy lifted by a setting numbers every correction, and the numbering continues after
           them
     - a booking's scheduled switch holds its version and its moment together
@@ -367,7 +367,7 @@ _Tested by:_
           continues
         - a second run leaves every number where the first one put it
     - a correction carries its order under row-level security
-        - a role the policy hides ${hidden} from is refused, and nothing changes
+        - a role ${reached} is refused, and nothing changes
         - a policy lifted by a setting numbers every correction, and the numbering continues after
           them
     - a booking's scheduled switch holds its version and its moment together

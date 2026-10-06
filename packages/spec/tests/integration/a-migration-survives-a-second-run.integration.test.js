@@ -1986,10 +1986,10 @@ describe('a correction carries the order it was recorded in', () => {
 describe('a correction carries its order under row-level security', () => {
     // The file runs as the table's owner, as a deploy does, and a forced policy
     // binds the owner too. Adding the column numbers every row, seen or not;
-    // the renumbering reaches only the rows the policy lets through. A role
-    // that sees fewer than all is therefore refused before anything changes,
-    // and one that sees all — however its policy is lifted — numbers them in
-    // the order they were listed.
+    // the renumbering reaches only the rows the policies let it read and update.
+    // A role that reaches fewer than all is therefore refused before anything
+    // changes, and one that reaches all — however its policy is lifted —
+    // numbers them in the order they were listed.
     const MIGRATION = '1.0-a-correction-carries-its-order.postgres.sql';
     const MIGRATOR = 'saasicat_test_correction_migrator';
     const insert = (id, correctedAt) =>
@@ -2010,9 +2010,10 @@ describe('a correction carries its order under row-level security', () => {
 
     /**
      * Three corrections recorded before the column, in a table owned by a role
-     * that `policy` binds; the session then acts as that role, as a deploy does.
+     * that `policies` bind — each `[command, using]`; the session then acts as
+     * that role, as a deploy does.
      */
-    async function ownedUnderPolicy(policy) {
+    async function ownedUnderPolicies(policies) {
         await freshGround();
         await client.query('ALTER TABLE "subscriber_corrections" DROP COLUMN "seq"');
         await client.query(
@@ -2032,7 +2033,11 @@ describe('a correction carries its order under row-level security', () => {
         await client.query(`ALTER TABLE "subscriber_corrections" OWNER TO ${MIGRATOR}`);
         await client.query('ALTER TABLE "subscriber_corrections" ENABLE ROW LEVEL SECURITY');
         await client.query('ALTER TABLE "subscriber_corrections" FORCE ROW LEVEL SECURITY');
-        await client.query(`CREATE POLICY "fenced" ON "subscriber_corrections" USING (${policy})`);
+        for (const [index, [command, using]] of policies.entries()) {
+            await client.query(
+                `CREATE POLICY "fenced_${index}" ON "subscriber_corrections" FOR ${command} USING (${using})`,
+            );
+        }
         await client.query(`SET ROLE ${MIGRATOR}`);
     }
 
@@ -2045,16 +2050,23 @@ describe('a correction carries its order under row-level security', () => {
         await client.query(`DROP ROLE ${MIGRATOR}`);
     }
 
-    for (const [hidden, policy] of [
-        ['one of three corrections', `"id" <> 'c'`],
-        ['every correction', 'false'],
+    for (const [reached, policies] of [
+        ['a policy hides one of three corrections from', [['ALL', `"id" <> 'c'`]]],
+        ['a policy hides every correction from', [['ALL', 'false']]],
+        [
+            'policies let read every correction but update none',
+            [
+                ['SELECT', 'true'],
+                ['UPDATE', 'false'],
+            ],
+        ],
     ]) {
-        test(`a role the policy hides ${hidden} from is refused, and nothing changes`, async () => {
-            await ownedUnderPolicy(policy);
+        test(`a role ${reached} is refused, and nothing changes`, async () => {
+            await ownedUnderPolicies(policies);
             try {
                 await assert.rejects(
                     apply(MIGRATION),
-                    /Cannot see every row of subscriber_corrections under row-level security/,
+                    /Cannot reach every row of subscriber_corrections under row-level security/,
                 );
             } finally {
                 await asTheTestAgain();
@@ -2072,7 +2084,7 @@ describe('a correction carries its order under row-level security', () => {
     }
 
     test('a policy lifted by a setting numbers every correction, and the numbering continues after them', async () => {
-        await ownedUnderPolicy("current_setting('app.bypass_rls', true) = 'true'");
+        await ownedUnderPolicies([['ALL', "current_setting('app.bypass_rls', true) = 'true'"]]);
         try {
             await client.query("SELECT set_config('app.bypass_rls', 'true', false)");
             await apply(MIGRATION);
