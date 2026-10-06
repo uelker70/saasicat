@@ -6264,6 +6264,8 @@ _Tested by:_
         - a correction is sent only once something changed and a reason is given, with the second
           factor
         - stepping back from the second factor sends nothing and keeps the form
+        - moving to another tenant closes an open dialog, and nothing is offered until its
+          subscriber is read
         - a check is asked without the second factor
         - the history lists each correction and check with what it changed, why and by whom
 - `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
@@ -6283,6 +6285,8 @@ _Tested by:_
           it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
+        - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
+          factor
         - a change of business status goes out with the second factor and is announced
         - a check needs no second factor, announces what the service found, and reads again
         - a check that fails is reported, and nothing is read again
@@ -9642,6 +9646,7 @@ _Tested by:_
           is validated
         - keeps the correction where the check does not complete: nothing is recorded, and why is
           said
+        - checks the number it wrote where another correction ${what} before the check
         - a valid check of the number replaced does not count for the new one
     - a correction that checks nothing
         - ${what}: the service is not asked
@@ -13068,6 +13073,8 @@ _Tested by:_
           it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
+        - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
+          factor
         - a change of business status goes out with the second factor and is announced
         - a check needs no second factor, announces what the service found, and reads again
         - a check that fails is reported, and nothing is read again
@@ -13463,6 +13470,8 @@ _Tested by:_
         - a correction is sent only once something changed and a reason is given, with the second
           factor
         - stepping back from the second factor sends nothing and keeps the form
+        - moving to another tenant closes an open dialog, and nothing is offered until its
+          subscriber is read
         - a check is asked without the second factor
         - the history lists each correction and check with what it changed, why and by whom
 

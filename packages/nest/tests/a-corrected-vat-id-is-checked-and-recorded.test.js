@@ -134,6 +134,42 @@ describe('a correction that gives the subscriber another VAT number', () => {
         assert.equal(await validated(subscribers), null);
     });
 
+    for (const [what, next] of [
+        ['cleared it', null],
+        ['gave it another number', 'ATU22222222'],
+    ]) {
+        test(`checks the number it wrote where another correction ${what} before the check`, async () => {
+            const { subscribers, repo, asked, id } = await aBusinessInAustria({
+                vatId: 'ATU12345678',
+            });
+            // Another operator's correction lands between this one's write and its check.
+            const write = repo.correctIdentity.bind(repo);
+            let landed = false;
+            repo.correctIdentity = async (subscriberId, data) => {
+                const written = await write(subscriberId, data);
+                if (!landed) {
+                    landed = true;
+                    await write(subscriberId, { ...data, corrected: { vatId: next } });
+                }
+                return written;
+            };
+
+            const { correction, vatIdCheck } = await subscribers.correctIdentity(
+                id,
+                correcting({ vatId: 'ATU87654321' }),
+            );
+
+            assert.deepEqual(correction.corrected, { vatId: 'ATU87654321' });
+            assert.deepEqual(asked, ['ATU87654321'], 'the number this correction wrote');
+            assert.deepEqual(
+                [vatIdCheck.completed, vatIdCheck.check.vatId, vatIdCheck.counts],
+                [true, 'ATU87654321', false],
+            );
+            assert.equal((await subscribers.getById(id)).vatId, next);
+            assert.equal(await validated(subscribers), null);
+        });
+    }
+
     test('a valid check of the number replaced does not count for the new one', async () => {
         let answer = answers.valid;
         const { subscribers, id } = await aBusinessInAustria({

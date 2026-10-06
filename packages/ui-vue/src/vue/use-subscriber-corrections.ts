@@ -117,13 +117,21 @@ export function useSubscriberCorrections(
             : ['warning', formatMessage(m.vatIdInvalid, { service: check.service })];
     }
 
-    /** Runs a correction behind the second factor; `null` where the operator stepped back. */
+    /**
+     * Runs a correction of the tenant on screen behind the second factor;
+     * `null` where the operator stepped back. The tenant is taken before the
+     * prompt opens: the page may move to another tenant while it is open, and
+     * what the operator confirmed belongs to the one they confirmed it on.
+     */
     async function behindSecondFactor(
         description: string,
-        write: (code: string) => Promise<AdminSubscriberCorrected>,
+        write: (tenant: string, code: string) => Promise<AdminSubscriberCorrected>,
         done: string,
     ): Promise<AdminSubscriberCorrected | null> {
-        const outcome = await ports.mfa.run(description, shell.value.mfa.invalidCode, write);
+        const tenant = slug.value;
+        const outcome = await ports.mfa.run(description, shell.value.mfa.invalidCode, (code) =>
+            write(tenant, code),
+        );
         if (!outcome.done) return null;
         await changed(outcome.value, done);
         return outcome.value;
@@ -136,13 +144,13 @@ export function useSubscriberCorrections(
         correctIdentity: (input) =>
             behindSecondFactor(
                 msg.value.subscriber.mfaIdentity,
-                (code) => tenants.correctSubscriberIdentity(slug.value, input, code),
+                (tenant, code) => tenants.correctSubscriberIdentity(tenant, input, code),
                 msg.value.subscriber.corrected,
             ),
         changeBusinessStatus: (input) =>
             behindSecondFactor(
                 msg.value.subscriber.mfaBusiness,
-                (code) => tenants.changeSubscriberBusinessStatus(slug.value, input, code),
+                (tenant, code) => tenants.changeSubscriberBusinessStatus(tenant, input, code),
                 msg.value.subscriber.businessChanged,
             ),
         async checkVatId() {

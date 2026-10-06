@@ -393,13 +393,19 @@ export class SubscriberService {
      * a number it completed while the subscriber held it. Nothing is checked
      * where no adapter decides, or where the correction cleared the number or
      * did not move it.
+     *
+     * The number checked is the one this correction wrote, not the one read
+     * back: another correction may land in between, and the answer to this one
+     * must neither check that one's number nor fail after its own write. The
+     * repository counts the check only while the subscriber still holds it.
      */
     private async checkCorrectedVatId(
         correction: SubscriberCorrectionRecord,
     ): Promise<SubscriberVatIdCheckResult | null> {
         const corrected = correction.corrected.vatId;
-        if (!this.taxes?.adapter || corrected === undefined || corrected === null) return null;
-        return this.checkVatIdOf({ subscriberId: correction.subscriberId });
+        const taxes = this.taxes;
+        if (!taxes?.adapter || corrected === undefined || corrected === null) return null;
+        return this.checkAndRecord(taxes, correction.subscriberId, corrected);
     }
 
     /**
@@ -427,10 +433,23 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_VAT_ID_MISSING),
             );
         }
-        const outcome = await taxes.checkVatId(subscriber.vatId);
+        return this.checkAndRecord(taxes, subscriber.id, subscriber.vatId);
+    }
+
+    /**
+     * Checks `vatId` with the service the adapter names and records the check
+     * if it completed; whether it counts is the repository's to say, from the
+     * number the subscriber holds when the check is written.
+     */
+    private async checkAndRecord(
+        taxes: TaxTreatments,
+        subscriberId: string,
+        vatId: string,
+    ): Promise<SubscriberVatIdCheckResult> {
+        const outcome = await taxes.checkVatId(vatId);
         if (!outcome.completed) return { completed: false, reason: outcome.reason };
-        const recorded = await this.repo.recordVatIdCheck(subscriber.id, outcome.check);
-        if (!recorded) throw subscriberNotFound(subscriber.id);
+        const recorded = await this.repo.recordVatIdCheck(subscriberId, outcome.check);
+        if (!recorded) throw subscriberNotFound(subscriberId);
         return {
             completed: true,
             check: recorded.recorded,

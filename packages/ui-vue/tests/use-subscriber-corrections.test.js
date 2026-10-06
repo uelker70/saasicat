@@ -25,8 +25,18 @@ const serving = (extra = {}) => ({
     capabilities: { 'subscribers.read': true, 'subscribers.correct': true, ...extra },
 });
 
-/** The corrections of tenant `wien`, every call recorded, the second factor answered as `code`. */
-function correctionsOf({ manifest = serving(), code = '123456', answer = {}, failWith } = {}) {
+/**
+ * The corrections of tenant `wien`, every call recorded, the second factor
+ * answered as `code` — after `whilePrompted` has run, as whatever the operator
+ * does while the prompt is open.
+ */
+function correctionsOf({
+    manifest = serving(),
+    code = '123456',
+    answer = {},
+    failWith,
+    whilePrompted,
+} = {}) {
     const calls = [];
     const notices = [];
     const prompts = [];
@@ -52,14 +62,16 @@ function correctionsOf({ manifest = serving(), code = '123456', answer = {}, fai
             return answered(answer.check);
         },
     };
+    const slug = ref('wien');
     const mfa = {
         async run(description, invalidCode, action) {
             prompts.push(description);
+            whilePrompted?.(slug);
             if (code === null) return { done: false };
             return { done: true, value: await action(code) };
         },
     };
-    const corrections = useSubscriberCorrections(ref('wien'), ref(manifest), tenants, {
+    const corrections = useSubscriberCorrections(slug, ref(manifest), tenants, {
         notify: (kind, message, options) =>
             notices.push(options?.caption ? [kind, message, options.caption] : [kind, message]),
         mfa,
@@ -188,6 +200,26 @@ describe('useSubscriberCorrections', () => {
         assert.deepEqual(notices, []);
         assert.equal(changes(), 0);
     });
+
+    for (const [what, correct, input] of [
+        ['a correction', 'correctIdentity', { legalName: 'Wien AG', reason: 'Renamed' }],
+        ['a change of business status', 'changeBusinessStatus', { business: false, reason: 'x' }],
+    ]) {
+        test(`${what} goes to the tenant it was confirmed on, though the page moved on during the second factor`, async () => {
+            const { corrections, writes } = correctionsOf({
+                whilePrompted: (slug) => {
+                    slug.value = 'graz';
+                },
+            });
+
+            await corrections[correct](input);
+
+            assert.deepEqual(
+                writes().map(([, slug]) => slug),
+                ['wien'],
+            );
+        });
+    }
 
     test('a change of business status goes out with the second factor and is announced', async () => {
         const { corrections, writes, notices } = correctionsOf();

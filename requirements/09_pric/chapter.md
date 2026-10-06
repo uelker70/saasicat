@@ -1939,6 +1939,7 @@ _Tested by:_
           is validated
         - keeps the correction where the check does not complete: nothing is recorded, and why is
           said
+        - checks the number it wrote where another correction ${what} before the check
         - a valid check of the number replaced does not count for the new one
     - a correction that checks nothing
         - ${what}: the service is not asked

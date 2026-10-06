@@ -80,7 +80,13 @@ async function settle(): Promise<void> {
 
 type Call = [string, ...unknown[]];
 
-async function mountPage(manifest: unknown = DECIDING) {
+/** A read that has not answered yet, as a slow network leaves it. */
+const unanswered = () => new Promise<never>(() => {});
+
+async function mountPage(
+    manifest: unknown = DECIDING,
+    { slowTenant }: { slowTenant?: string } = {},
+) {
     const calls: Call[] = [];
     const notices: Array<[string, string]> = [];
     const answer = { subscriber: STANDING, vatIdCheck: null };
@@ -101,7 +107,8 @@ async function mountPage(manifest: unknown = DECIDING) {
                 ...provideStubResources({
                     tenants: {
                         detail: async () => TENANT,
-                        subscriber: async () => STANDING,
+                        subscriber: (slug: string) =>
+                            slug === slowTenant ? unanswered() : Promise.resolve(STANDING),
                         subscriberHistory: async () => HISTORY,
                         correctSubscriberIdentity: async (...args: unknown[]) => {
                             calls.push(['identity', ...args]);
@@ -134,7 +141,7 @@ async function mountPage(manifest: unknown = DECIDING) {
     });
     mounted.push(wrapper);
     await settle();
-    return { wrapper, calls, notices };
+    return { wrapper, calls, notices, router };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountPage>>['wrapper'];
@@ -251,6 +258,27 @@ describe('the operator corrects the subscriber on the tenant page', () => {
         expect(calls).toEqual([]);
         expect(dialog().node, 'the form was closed').toBeTruthy();
         expect(dialog().node?.querySelector('.sa-banner--negative')).toBeNull();
+    });
+
+    test('moving to another tenant closes an open dialog, and nothing is offered until its subscriber is read', async () => {
+        const { wrapper, router, calls } = await mountPage(DECIDING, { slowTenant: 'graz' });
+        await buttonNamed(wrapper, 'Correct identity')!.trigger('click');
+        await settle();
+        expect(dialog().node, 'the premise: the dialog is open').toBeTruthy();
+
+        await router.push('/admin/tenants/graz');
+        await settle();
+
+        expect(dialog().node, "the dialog with the first tenant's form").toBeUndefined();
+        for (const label of ['Correct identity', 'Change business status', 'Check VAT ID']) {
+            const button = buttonNamed(wrapper, label);
+            expect(button, `${label} is shown`).toBeTruthy();
+            expect(
+                button!.attributes('disabled'),
+                `${label} with the first tenant's subscriber`,
+            ).toBeDefined();
+        }
+        expect(calls).toEqual([]);
     });
 
     // @requirement SC-PRIC-071 — A VAT number the operator corrects or checks is checked, and every outcome kept

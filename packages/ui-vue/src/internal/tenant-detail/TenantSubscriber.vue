@@ -6,6 +6,7 @@
                 no-caps
                 icon="edit"
                 :label="msg.subscriber.correct"
+                :disable="pending"
                 @click="identityOpen = true"
             />
             <q-btn
@@ -13,6 +14,7 @@
                 no-caps
                 icon="business"
                 :label="msg.subscriber.changeBusiness"
+                :disable="pending"
                 @click="businessOpen = true"
             />
             <q-btn
@@ -21,6 +23,7 @@
                 no-caps
                 icon="verified"
                 :label="msg.subscriber.checkVatId"
+                :disable="pending"
                 :loading="checking"
                 @click="onCheck"
             />
