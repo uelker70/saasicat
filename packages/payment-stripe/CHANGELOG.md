@@ -1,5 +1,22 @@
 # @saasicat/payment-stripe
 
+## 1.0.0-rc.25
+
+### Patch Changes
+
+- Updated dependencies [5f7a41b]
+- Updated dependencies [5a4e6ca]
+- Updated dependencies [d34e3e5]
+- Updated dependencies [b4a961d]
+- Updated dependencies [3258251]
+- Updated dependencies [5776198]
+- Updated dependencies [8fe675c]
+- Updated dependencies [8683c32]
+- Updated dependencies [cf12963]
+- Updated dependencies [808cd9f]
+- Updated dependencies [3496864]
+    - @saasicat/core@1.0.0-rc.25
+
 ## 1.0.0-rc.24
 
 ### Patch Changes
