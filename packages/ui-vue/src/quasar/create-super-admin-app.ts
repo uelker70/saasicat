@@ -24,6 +24,7 @@ import {
     type RouterHistory,
 } from 'vue-router';
 
+import { promoDayZoneOf } from '../client/promo-days.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import {
     SUPER_ADMIN_ACTIONS_KEY,
@@ -34,6 +35,7 @@ import {
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
     SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,
     SUPER_ADMIN_MANIFEST_KEY,
+    SUPER_ADMIN_PROMO_CODES_KEY,
     buildNavigationGuard,
     type ActionsMap,
     type ExtensionsMap,
@@ -42,6 +44,7 @@ import {
     type SuperAdminEndpoints,
     type SuperAdminGuardOptions,
     type SuperAdminLoginAdapter,
+    type SuperAdminPromoCodeOptions,
 } from '../vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
 import { SUPER_ADMIN_CONFIRM_KEY, type UiConfirm } from '../vue/ui-confirm.js';
@@ -167,6 +170,15 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * never disagree.
      */
     theme?: SaThemeOptions;
+    /**
+     * How promo codes are read. `timeZone` names the zone a code's days are
+     * read in — their first and last day, and the term of each redemption —
+     * and has to be the zone your server turns those days into instants in.
+     * UTC where it is left out, as the platform's own promo-code routes store
+     * a day at its UTC midnight. A name the browser cannot read stops the app
+     * here, at start.
+     */
+    promoCodes?: SuperAdminPromoCodeOptions;
 }
 
 export interface SuperAdminAppHandle {
@@ -235,6 +247,9 @@ export function resolveQuasarOptions(own?: Partial<QuasarPluginOptions>): Quasar
  * components.
  */
 export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperAdminAppHandle {
+    // Read before anything touches the document: a zone the browser cannot
+    // read stops the start with nothing half set up.
+    const promoCodes = { timeZone: promoDayZoneOf(options.promoCodes?.timeZone) };
     const app = createApp(options.rootComponent);
 
     // Quasar teleports every dialog, menu and tooltip into a div appended to
@@ -316,6 +331,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
     app.provide(SA_THEME_KEY, theme);
     app.provide(SUPER_ADMIN_ENDPOINTS_KEY, endpoints);
+    app.provide(SUPER_ADMIN_PROMO_CODES_KEY, promoCodes);
     app.provide(SUPER_ADMIN_EXTENSIONS_KEY, options.extensions ?? {});
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
     app.provide(SUPER_ADMIN_NOTIFY_KEY, options.notify ?? quasarNotify);

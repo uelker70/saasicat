@@ -145,6 +145,8 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import AdminStatistics from '../ui/data/AdminStatistics.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminPromoCodes } from '../vue/use-super-admin-context.js';
+import { promoDayOf } from '../client/promo-days.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import PromoCodeCreateDialog from '../internal/dialogs/PromoCodeCreateDialog.vue';
@@ -249,6 +251,7 @@ const msg = useSaMessages('promos');
 const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
+const promoCodes = useSuperAdminPromoCodes();
 const resolvedCreateLabel = computed(() => props.options?.createLabel ?? msg.value.createAction);
 
 // The data layer, reached by name. Before this the page took four function
@@ -589,13 +592,21 @@ function onUpdated(): void {
     void reload();
 }
 
+/**
+ * A code's day, as `promoDayOf` reads it in the zone the application names for
+ * promo days, written out in the reader's language.
+ */
 function formatDate(iso: string | Date | null | undefined): string | null {
     if (!iso) return null;
+    const day = promoDayOf(iso instanceof Date ? iso.toISOString() : iso, promoCodes.timeZone);
+    if (!day) return String(iso);
     try {
-        return new Date(iso).toLocaleDateString(intlLocale.value, {
+        // The day's own UTC midnight, written in UTC, is that day in every zone.
+        return new Date(`${day}T00:00:00Z`).toLocaleDateString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
+            timeZone: 'UTC',
         });
     } catch {
         return String(iso);
