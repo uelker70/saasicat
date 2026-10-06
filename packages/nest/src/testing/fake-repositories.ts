@@ -40,6 +40,7 @@ import type {
     RecordedVatIdCheck,
     SubscriberTaxOriginChangeRecord,
     SubscriberVatIdCheckRecord,
+    SubscriberWithCurrentCheck,
     TaxOriginWrite,
     VatIdCheck,
     SubscriptionContractFilter,
@@ -614,6 +615,20 @@ export class FakeSubscriberRepository implements SubscriberRepository {
             .reverse()
             .sort((a, b) => b.checkedAt.getTime() - a.checkedAt.getTime())
             .map((check) => ({ ...check }));
+    }
+
+    async listForTenants(tenantIds: readonly string[]): Promise<SubscriberWithCurrentCheck[]> {
+        return [...new Set(tenantIds)].flatMap((tenantId) => {
+            const record = this.liveFor(tenantId);
+            if (!record) return [];
+            const counting = this.countingCheck(record.id);
+            return [
+                {
+                    subscriber: { ...record },
+                    currentVatIdCheck: counting && { ...counting },
+                },
+            ];
+        });
     }
 
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {

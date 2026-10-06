@@ -87,7 +87,7 @@ function contractsWith({ runner = new FakeTransactionRunner() } = {}) {
         repo,
         {
             requireForTenant: async () => ({ id: 'subscriber-t1' }),
-            contractPartiesFor: async () => subscriber.parties,
+            contractPartyFor: async () => ({ parties: subscriber.parties, origin: null }),
         },
         runner,
     );

@@ -936,6 +936,18 @@ export function createMemoryHarness() {
                 )
                 .map(({ check }) => structuredClone(check));
         },
+        async listForTenants(tenantIds) {
+            return [...new Set(tenantIds)].flatMap((tenantId) => {
+                const row = state.subscribers.find((candidate) => candidate.tenantId === tenantId);
+                if (!row) return [];
+                return [
+                    {
+                        subscriber: subscriberRecord(row),
+                        currentVatIdCheck: vatIdCheckById(row.currentVatIdCheckId),
+                    },
+                ];
+            });
+        },
         async listTaxOriginChanges(subscriberId) {
             // The latest written first, as the adapters read them by the number
             // the database gave each.

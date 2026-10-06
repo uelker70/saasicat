@@ -28,7 +28,7 @@ import {
     told,
     usageOver,
 } from './helpers/retirement-fixtures.js';
-import { unsupportedTaxCase } from './helpers/tax-adapter.js';
+import { incompleteAddressRefusal, unsupportedTaxCase } from './helpers/tax-adapter.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const BEFORE = new Date('2026-03-20T10:00:00.000Z');
@@ -354,6 +354,25 @@ describe('the move at the date', () => {
         assert.equal(run.failed, 1);
         assert.equal(writes.calls.length, 0);
         assert.equal(audited[0].changes.reason, 'tax-not-supported');
+    });
+
+    test('a subscriber whose invoice address is incomplete is not moved, and the failure names the empty fields', async () => {
+        const refusal = await incompleteAddressRefusal(['city']);
+        const { service, writes, audited } = await aRun({
+            party: async () => {
+                throw refusal;
+            },
+        });
+
+        const run = await service.moveDue(DATE);
+
+        assert.equal(run.failed, 1);
+        assert.equal(writes.calls.length, 0);
+        assert.deepEqual(
+            [audited[0].changes.reason, audited[0].changes.missing],
+            ['identity-incomplete', ['city']],
+            'the tenant has a subscriber: what is missing is its address',
+        );
     });
 
     for (const [offSale, ended] of OFF_SALE) {

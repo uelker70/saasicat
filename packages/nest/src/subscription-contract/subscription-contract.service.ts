@@ -14,6 +14,7 @@ import type {
     ContractLineItemRecord,
     CreateSubscriptionContractData,
     SubscriptionContractParties,
+    SubscriberTaxOrigin,
     InvoiceLineItemSnapshot,
     NewContractLineItemData,
     NewSubscriberDetails,
@@ -215,12 +216,29 @@ export class SubscriptionContractService {
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord> {
         this.assertCreateData(data);
-        const decided = await this.decidedTaxFor(data, { tenantId: data.tenantId }, tx);
-        const parties = await this.subscribers.contractPartiesFor(data.tenantId, tx);
+        const { parties, decided } = await this.partyAndTaxFor(data, tx);
         return this.repo.create(
             { ...this.cloneCreateData(data), parties, ...taxTreatmentOf(decided) },
             tx,
         );
+    }
+
+    /**
+     * The parties `data` is concluded between and the treatment decided for
+     * them, from one read of the subscriber: the rate is decided for exactly
+     * the party the contract copies (`SC-PRIC-069`, `SC-PRIC-067`).
+     */
+    private async partyAndTaxFor(
+        data: CreateSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<{ parties: SubscriptionContractParties; decided: AppliedTax | null }> {
+        const { parties, origin } = await this.subscribers.contractPartyFor(
+            data.tenantId,
+            { forTaxAdapter: this.taxAdapterDecides },
+            tx,
+        );
+        const taxes = this.taxes;
+        return { parties, decided: origin && taxes ? this.decidedOver(taxes, data, origin) : null };
     }
 
     /**
@@ -237,12 +255,13 @@ export class SubscriptionContractService {
         tx?: TransactionContext,
     ): Promise<void> {
         await this.subscribers.requireForTenant(tenantId, tx);
-        // A subscriber the tax adapter cannot treat gets no new contract: refused
-        // here, before a plan change or a booking moves anything (`SC-PRIC-039`),
-        // over the period the contract will have — an adapter may answer a
-        // yearly period, or one starting later, otherwise than another.
+        // A subscriber whose invoice address is incomplete (`SC-PRIC-032`), or
+        // whom the tax adapter cannot treat (`SC-PRIC-039`), gets no new
+        // contract: refused here, before a plan change or a booking moves
+        // anything, over the period the contract will have — an adapter may
+        // answer a yearly period, or one starting later, otherwise than another.
         if (this.taxes?.adapter && intended) {
-            const origin = await this.subscribers.taxOriginFor({ tenantId }, tx);
+            const origin = await this.subscribers.taxOriginOfComplete({ tenantId }, tx);
             this.taxes.decide(
                 origin,
                 contractTaxPeriod({
@@ -270,10 +289,7 @@ export class SubscriptionContractService {
         tx?: TransactionContext,
     ): Promise<number | undefined> {
         if (!this.taxes?.adapter) return undefined;
-        const origin =
-            'newSubscriber' in subject
-                ? this.subscribers.taxOriginOfNew(subject.newSubscriber)
-                : await this.subscribers.taxOriginFor(subject, tx);
+        const origin = await this.subscribers.taxOriginOfComplete(subject, tx);
         return this.taxes.decide(origin, period).rate;
     }
 
@@ -289,8 +305,22 @@ export class SubscriptionContractService {
         tx?: TransactionContext,
     ): Promise<AppliedTax | null> {
         if (!this.taxes?.adapter) return null;
-        const origin = await this.subscribers.taxOriginFor(subject, tx);
-        const decided = this.taxes.decide(origin, contractTaxPeriodOf(data));
+        // Parties copied now are copied complete (`SC-PRIC-032`); a successor
+        // that keeps the parties of the contract it succeeds copies nothing.
+        const origin =
+            'tenantId' in subject
+                ? await this.subscribers.taxOriginOfComplete(subject, tx)
+                : await this.subscribers.taxOriginFor(subject, tx);
+        return this.decidedOver(this.taxes, data, origin);
+    }
+
+    /** The treatment decided for `origin` over `data`'s period; refused where `data` states another rate. */
+    private decidedOver(
+        taxes: TaxTreatments,
+        data: CreateSubscriptionContractData,
+        origin: SubscriberTaxOrigin,
+    ): AppliedTax {
+        const decided = taxes.decide(origin, contractTaxPeriodOf(data));
         const stated: Array<[string, number]> = [
             ['priceSnapshot.vatRate', data.priceSnapshot.vatRate],
             ...data.lineItems.map((item, index): [string, number] => [
@@ -367,7 +397,9 @@ export class SubscriptionContractService {
      * look between them and find nothing.
      *
      * Everything that can refuse `next` is asked before either write, so a
-     * refusal never lands after the contract it replaces has ended.
+     * refusal never lands after the contract it replaces has ended — on the
+     * write's own transaction, from the same read of the subscriber the
+     * successor copies.
      */
     async writeSuccessor(
         previous: SubscriptionContractRecord | null,
@@ -384,15 +416,19 @@ export class SubscriptionContractService {
         }
         if (previous) this.assertTerminable(previous, { effectiveUntil: at, status: 'superseded' });
         const kept = options.keepParties && previous ? previous : null;
-        // The party only: the decision below is made over `next` itself.
-        if (!kept) await this.subscribers.requireForTenant(next.tenantId);
-        const decided = await this.decidedTaxFor(
-            next,
-            kept ? { subscriberId: kept.subscriberId } : { tenantId: next.tenantId },
-        );
         const write = async (
             tx?: TransactionContext,
         ): Promise<SubscriptionContractRecord | null> => {
+            const { parties, decided } = kept
+                ? {
+                      parties: partiesOf(kept),
+                      decided: await this.decidedTaxFor(
+                          next,
+                          { subscriberId: kept.subscriberId },
+                          tx,
+                      ),
+                  }
+                : await this.partyAndTaxFor(next, tx);
             if (previous) {
                 const superseded = await this.repo.supersede(
                     previous.id,
@@ -403,9 +439,6 @@ export class SubscriptionContractService {
             } else if (await this.runsFrom(next.tenantId, at)) {
                 return null;
             }
-            const parties = kept
-                ? partiesOf(kept)
-                : await this.subscribers.contractPartiesFor(next.tenantId, tx);
             return this.repo.create(
                 {
                     ...this.cloneCreateData(next),

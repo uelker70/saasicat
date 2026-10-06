@@ -11,7 +11,8 @@ import { validate } from 'class-validator';
 
 import { BillingPermissionGuard, ComposedTenantAuthGuard } from '../dist/billing/index.js';
 import { ChangeBillingDetailsDto, TenantBillingDetailsController } from '../dist/payments/index.js';
-import { closePaymentsApps, paymentsApp } from './helpers/payments.js';
+import { closePaymentsApps, paymentsApp, paymentsCatalog } from './helpers/payments.js';
+import { TAX_SETTINGS, TEST_TAX_ADAPTER } from './helpers/tax-adapter.js';
 
 afterEach(closePaymentsApps);
 
@@ -79,7 +80,12 @@ describe('the tenant reads whom it is billed to', () => {
     test('its own subscriber, with the customer number, the legal identity and the contact details', async () => {
         const { details, meier } = await billingArea();
         assert.deepEqual(await details.current(sessionOf('tenant-meier')), {
-            details: { customerNumber: meier.customerNumber, ...MEIER },
+            details: {
+                customerNumber: meier.customerNumber,
+                ...MEIER,
+                business: null,
+                readiness: null,
+            },
         });
     });
 
@@ -122,6 +128,8 @@ describe('the tenant changes how it is reached', () => {
             addressLine2: null,
             country: 'AT',
             invoiceEmail: 'finanzen@meier.example',
+            business: null,
+            readiness: null,
         };
         assert.deepEqual((await details.change(sessionOf('tenant-meier'), dto)).details, expected);
         assert.deepEqual((await details.current(sessionOf('tenant-meier'))).details, expected);
@@ -243,4 +251,55 @@ describe('the tenant changes how it is reached', () => {
             assert.equal(kept.details.city, MEIER.city);
         });
     }
+});
+
+/** The tenant routes in an installation whose tax adapter decides, with one subscriber of these details. */
+async function billingAreaDeciding(subscriber) {
+    const catalog = { ...paymentsCatalog(), ...TAX_SETTINGS };
+    // With an adapter the rate is the adapter's, and the file names none.
+    delete catalog.vatRate;
+    const ctx = await paymentsApp({
+        catalog,
+        taxAdapter: { adapterName: 'test-tax', create: () => TEST_TAX_ADAPTER },
+    });
+    await ctx.subscribers.createForTenant('tenant-meier', { ...MEIER, ...subscriber });
+    return ctx;
+}
+
+// @requirement SC-PRIC-070 — The operator and the tenant see what holds a subscriber's next contract back
+describe('the tenant sees what holds its next contract back', () => {
+    test('nothing, with its address complete in a case the adapter treats; and whether it acts as a business', async () => {
+        const { details } = await billingAreaDeciding({ business: true });
+        const shown = (await details.current(sessionOf('tenant-meier'))).details;
+        assert.equal(shown.business, true);
+        assert.deepEqual(shown.readiness, { ready: true, missing: [], taxRefusal: null });
+    });
+
+    test('the fields of its address that are empty — and none once it fills them in', async () => {
+        const { details } = await billingAreaDeciding({ postalCode: null, city: null });
+        assert.deepEqual((await details.current(sessionOf('tenant-meier'))).details.readiness, {
+            ready: false,
+            missing: ['postalCode', 'city'],
+            taxRefusal: null,
+        });
+
+        const changed = await details.change(sessionOf('tenant-meier'), {
+            postalCode: '10115',
+            city: 'Berlin',
+        });
+
+        assert.deepEqual(changed.details.readiness, { ready: true, missing: [], taxRefusal: null });
+    });
+
+    test('the adapter sentence where it treats no such case — and none once the country it can treat is named', async () => {
+        const { details } = await billingAreaDeciding({ country: 'FR', business: false });
+        assert.equal(
+            (await details.current(sessionOf('tenant-meier'))).details.readiness.taxRefusal,
+            'A consumer outside Germany is not supported.',
+        );
+
+        const changed = await details.change(sessionOf('tenant-meier'), { country: 'DE' });
+
+        assert.equal(changed.details.readiness.ready, true);
+    });
 });

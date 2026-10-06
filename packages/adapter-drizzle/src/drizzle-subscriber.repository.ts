@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type {
     CreateSubscriberData,
     RecordedVatIdCheck,
@@ -14,6 +14,7 @@ import type {
     SubscriberRepository,
     SubscriberTaxOriginChangeRecord,
     SubscriberVatIdCheckRecord,
+    SubscriberWithCurrentCheck,
     TaxOriginWrite,
     TransactionContext,
     VatIdCheck,
@@ -282,6 +283,35 @@ export class DrizzleSubscriberRepository implements SubscriberRepository {
                 desc(subscriberVatIdChecks.id),
             );
         return rows.map(toSubscriberVatIdCheckRecord);
+    }
+
+    async listForTenants(
+        tenantIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<SubscriberWithCurrentCheck[]> {
+        if (tenantIds.length === 0) return [];
+        const rows = await resolveDb(this.db, tx)
+            .select({
+                tenantId: subscriberTenants.tenantId,
+                subscriber: subscribers,
+                check: subscriberVatIdChecks,
+            })
+            .from(subscriberTenants)
+            .innerJoin(subscribers, eq(subscribers.id, subscriberTenants.subscriberId))
+            .leftJoin(
+                subscriberVatIdChecks,
+                eq(subscriberVatIdChecks.id, subscribers.currentVatIdCheckId),
+            )
+            .where(
+                and(
+                    inArray(subscriberTenants.tenantId, [...tenantIds]),
+                    isNull(subscriberTenants.unlinkedAt),
+                ),
+            );
+        return rows.map((row) => ({
+            subscriber: toSubscriberRecord(row.subscriber, row.tenantId),
+            currentVatIdCheck: row.check ? toSubscriberVatIdCheckRecord(row.check) : null,
+        }));
     }
 
     async listTaxOriginChanges(subscriberId: string): Promise<SubscriberTaxOriginChangeRecord[]> {

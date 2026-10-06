@@ -316,6 +316,16 @@ export interface TenantPlanSectionI18n {
     billingDetailsLegalName: string;
     billingDetailsVatId: string;
     billingDetailsTaxNumber: string;
+    /** Whether the subscriber acts as a business or as a consumer. */
+    billingDetailsBusiness: string;
+    billingDetailsBusinessTrue: string;
+    billingDetailsBusinessFalse: string;
+    /** Above the reasons a new contract cannot be concluded yet. */
+    billingDetailsHeldBack: string;
+    /** `{fields}` are the labels of the empty address fields. */
+    billingDetailsMissing: string;
+    /** `{reason}` is the tax adapter's own sentence. */
+    billingDetailsTaxRefusal: string;
     /** In place of a tax identifier the subscriber has none of. */
     billingDetailsNotStated: string;
     /** Why the name and the tax identifiers are not a form: the operator corrects them. */
@@ -649,6 +659,14 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     billingDetailsLegalName: 'Firmenname',
     billingDetailsVatId: 'USt-IdNr.',
     billingDetailsTaxNumber: 'Steuernummer',
+    billingDetailsBusiness: 'Kundenart',
+    billingDetailsBusinessTrue: 'Unternehmen',
+    billingDetailsBusinessFalse: 'Verbraucher',
+    billingDetailsHeldBack:
+        'Ein neuer Vertrag – etwa für einen Planwechsel – ist so noch nicht möglich.',
+    billingDetailsMissing: 'Bitte ergänze: {fields}.',
+    billingDetailsTaxRefusal:
+        'Für deinen Fall können wir die Umsatzsteuer noch nicht berechnen ({reason}). Bitte melde dich bei uns.',
     billingDetailsNotStated: 'nicht angegeben',
     billingDetailsIdentityNote:
         'Firmenname und Steuernummern ändern wir auf Anfrage, denn auf sie lauten deine Verträge und Rechnungen.',
@@ -964,6 +982,14 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     billingDetailsLegalName: 'Company name',
     billingDetailsVatId: 'VAT ID',
     billingDetailsTaxNumber: 'Tax number',
+    billingDetailsBusiness: 'Customer type',
+    billingDetailsBusinessTrue: 'Business',
+    billingDetailsBusinessFalse: 'Consumer',
+    billingDetailsHeldBack:
+        'A new contract – for a plan change, say – is not possible like this yet.',
+    billingDetailsMissing: 'Please add: {fields}.',
+    billingDetailsTaxRefusal:
+        'We cannot work out the VAT for your case yet ({reason}). Please get in touch with us.',
     billingDetailsNotStated: 'not stated',
     billingDetailsIdentityNote:
         'We change the company name and tax identifiers on request, because your contracts and invoices are made out to them.',

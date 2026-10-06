@@ -67,8 +67,16 @@ function optionalExports({ options, requiresFullEntitlement }: CompositionContex
  * injects. Re-exporting it would also collide with the identically named token
  * from `billing`, which means something else (see CONTRIBUTING, "One bundle,
  * many entries").
+ *
+ * `SubscriberStandingModule` is the operator's two routes about a tenant's
+ * subscriber and the service behind them, which exports nothing: an
+ * application asks `SubscriberService.readinessFor` for a subscriber's
+ * standing, from the module it already imports.
  */
-export const MOUNTED_BUT_NOT_EXPORTED: readonly string[] = ['PublicCatalogModule'];
+export const MOUNTED_BUT_NOT_EXPORTED: readonly string[] = [
+    'PublicCatalogModule',
+    'SubscriberStandingModule',
+];
 
 /** The `exports` of the assembled module, plus whatever it provides itself. */
 export function composeModuleExports(

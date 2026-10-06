@@ -614,6 +614,14 @@ export const SUBSCRIBER_ERROR_CODES = {
     SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT: 'SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT',
     /** A change of the subscriber's contact details or business status did not say who makes it. */
     SUBSCRIBER_CHANGE_ACTOR_REQUIRED: 'SUBSCRIBER_CHANGE_ACTOR_REQUIRED',
+    /**
+     * Where a tax adapter decides, a contract names its subscriber only once
+     * the address an invoice names is complete (`SC-PRIC-032`): a party copied
+     * onto a contract incomplete cannot be completed afterwards. Carries
+     * `missing`, the empty fields, for a screen to name by their labels; the
+     * shipped sentence names all four rather than the keys.
+     */
+    SUBSCRIBER_IDENTITY_INCOMPLETE: 'SUBSCRIBER_IDENTITY_INCOMPLETE',
 } as const;
 
 export type SubscriberErrorCode =

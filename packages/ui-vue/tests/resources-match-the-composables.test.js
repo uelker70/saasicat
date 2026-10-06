@@ -773,9 +773,11 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     bundleVersionRetirements: Object.keys(bundleVersionRetirementsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    // `charges` is platform-served with no admin-client twin, like the
-    // settings: its request is pinned in `tests/tenant-charges-resource.test.js`.
-    tenants: [LIST_OP, 'charges'],
+    // `charges`, `subscriber` and `subscriberAttention` are platform-served
+    // with no admin-client twin, like the settings: their requests are pinned
+    // in `tests/tenant-charges-resource.test.js` and
+    // `tests/tenant-subscriber-resource.test.js`.
+    tenants: [LIST_OP, 'charges', 'subscriber', 'subscriberAttention'],
 };
 
 describe('the comparison covers the whole roster', () => {

@@ -28,6 +28,18 @@ import {
 import { partiesNamed } from './helpers/contract-parties.js';
 import { boundPlanVersion, usageRecord } from './helpers/subscription-fixtures.js';
 import { TAX_SETTINGS, originIn, taxesDeciding } from './helpers/tax-adapter.js';
+import { UnprocessableEntityException } from '@nestjs/common';
+import { ERROR_MESSAGES_EN, formatErrorMessage } from '@saasicat/core';
+
+/** The refusal of a subscriber whose invoice address lacks `missing`, as the platform words it. */
+function anIncompleteAddress(missing) {
+    const code = 'SUBSCRIBER_IDENTITY_INCOMPLETE';
+    return new UnprocessableEntityException({
+        code,
+        message: formatErrorMessage(ERROR_MESSAGES_EN[code], { missing }),
+        params: { missing },
+    });
+}
 
 const FROZEN = new Date('2026-05-01T00:00:00.000Z');
 const NOW = new Date('2026-06-15T00:00:00.000Z');
@@ -104,8 +116,16 @@ function installation({ replaces = null, taxes = null } = {}) {
         repo,
         {
             requireForTenant: async () => ({ id: 'subscriber-t1' }),
-            contractPartiesFor: async () => parties.current,
             taxOriginFor: async () => origin.current,
+            async taxOriginOfComplete() {
+                if (installed.identityIncomplete) throw anIncompleteAddress(['city']);
+                return origin.current;
+            },
+            async contractPartyFor(tenantId, { forTaxAdapter }) {
+                if (!forTaxAdapter) return { parties: parties.current, origin: null };
+                if (installed.identityIncomplete) throw anIncompleteAddress(['city']);
+                return { parties: parties.current, origin: origin.current };
+            },
         },
         null,
         taxes,
@@ -161,7 +181,7 @@ function installation({ replaces = null, taxes = null } = {}) {
         null,
         new AdminAuditService(audit),
     );
-    return {
+    const installed = {
         plan,
         catalog,
         subscription,
@@ -197,6 +217,7 @@ function installation({ replaces = null, taxes = null } = {}) {
             return entitlements.computeLimits('t1', at);
         },
     };
+    return installed;
 }
 
 /** An installation whose contract was frozen before the vocabulary was renamed. */
@@ -575,6 +596,25 @@ describe('where a tax adapter decides', () => {
 
         assert.equal(preview.refusal?.code, 'REFUSED');
         assert.match(preview.refusal.reason, /A consumer outside Germany is not supported/);
+    });
+
+    test('a features refresh keeps the agreed parties, so an address emptied since does not hold it back', async () => {
+        const { t } = await frozenAtTheDecidedRate();
+        t.identityIncomplete = true;
+
+        const [outcome] = await t.refresh.apply({}, 'features', OPERATOR, NOW);
+
+        assert.ok(outcome.successorId, 'carried over on the parties of the contract it succeeds');
+    });
+
+    test('a full re-freeze copies the parties anew, and an incomplete address refuses it', async () => {
+        const { t } = await frozenAtTheDecidedRate();
+        t.identityIncomplete = true;
+
+        const [outcome] = await t.refresh.preview({}, 'full', NOW);
+
+        assert.equal(outcome.refusal?.code, 'REFUSED');
+        assert.match(outcome.refusal.reason, /billing address is not complete/);
     });
 
     test('re-freezing in full at a newly decided rate is a change of money, refused', async () => {

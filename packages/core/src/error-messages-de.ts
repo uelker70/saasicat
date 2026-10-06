@@ -358,6 +358,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIBER_NOT_FOUND: "Vertragspartner '{subscriberId}' nicht gefunden",
     SUBSCRIBER_LEGAL_NAME_REQUIRED: 'Ein Vertragspartner braucht seinen rechtlichen Namen.',
     SUBSCRIBER_DETAIL_INVALID: 'Das Feld {field} des Vertragspartners ist ungültig.',
+    SUBSCRIBER_IDENTITY_INCOMPLETE:
+        'Die Rechnungsadresse des Vertragspartners ist noch nicht vollständig: Ein Vertrag nennt ihn nur mit Straße und Hausnummer, PLZ, Ort und Land.',
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
         '{field} gehört zur rechtlichen Identität des Vertragspartners und ändert sich nur als Korrektur mit Begründung.',
     SUBSCRIBER_CORRECTION_REASON_REQUIRED:

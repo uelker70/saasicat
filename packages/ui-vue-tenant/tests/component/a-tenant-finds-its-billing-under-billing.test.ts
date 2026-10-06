@@ -38,6 +38,8 @@ const DETAILS = {
     city: 'Berlin',
     country: 'DE',
     invoiceEmail: 'rechnung@meier.example',
+    business: true,
+    readiness: null,
 };
 
 type Answer = [number, unknown];
@@ -293,6 +295,86 @@ describe('the billing details', () => {
         expect(wrapper.find('[role="alert"]').text()).toBe(i18n.billingDetailsLoadFailed);
         expect(wrapper.find('input').exists()).toBe(false);
     });
+});
+
+// @requirement SC-PRIC-070 — The operator and the tenant see what holds a subscriber's next contract back
+describe('what holds the next contract back', () => {
+    const HELD_BACK = {
+        ready: false,
+        missing: ['postalCode', 'city'],
+        taxRefusal: 'A consumer outside Germany is not supported.',
+    };
+
+    async function detailsWith(details: Record<string, unknown>, patch?: Answer) {
+        const routing = httpRouting({
+            'GET /billing/payment-method': [404, {}],
+            'GET /billing/details': [200, { details: { ...DETAILS, ...details } }],
+            ...(patch ? { 'PATCH /billing/details': patch } : {}),
+        });
+        return { ...routing, wrapper: await mountSection(routing.http) };
+    }
+
+    const heldBack = (wrapper: VueWrapper) => wrapper.find('.sp-billing-details__held-back');
+
+    test('the customer type is shown with the identity, as the operator keeps it', async () => {
+        const { wrapper } = await detailsWith({ business: false });
+
+        expect(wrapper.find('dl').text()).toContain(
+            `${i18n.billingDetailsBusiness}${i18n.billingDetailsBusinessFalse}`,
+        );
+    });
+
+    test('the empty address fields by their labels, then the adapter sentence', async () => {
+        const { wrapper } = await detailsWith({
+            postalCode: null,
+            city: null,
+            readiness: HELD_BACK,
+        });
+
+        expect(heldBack(wrapper).attributes('role')).toBe('status');
+        expect(heldBack(wrapper).text()).toContain(i18n.billingDetailsHeldBack);
+        expect(
+            heldBack(wrapper)
+                .findAll('li')
+                .map((item) => item.text()),
+        ).toEqual([
+            'Please add: Postal code, City.',
+            'We cannot work out the VAT for your case yet (A consumer outside Germany is not supported.). Please get in touch with us.',
+        ]);
+    });
+
+    test('once the tenant fills the address in and nothing holds it back, the notice goes', async () => {
+        const { wrapper } = await detailsWith(
+            { postalCode: null, city: null, readiness: { ...HELD_BACK, taxRefusal: null } },
+            [
+                200,
+                {
+                    details: {
+                        ...DETAILS,
+                        readiness: { ready: true, missing: [], taxRefusal: null },
+                    },
+                },
+            ],
+        );
+        await input(wrapper, 'postalCode').setValue('10115');
+        await input(wrapper, 'city').setValue('Berlin');
+
+        await wrapper.find('.sp-billing-details__actions button').trigger('click');
+        await flushPromises();
+
+        expect(heldBack(wrapper).exists()).toBe(false);
+    });
+
+    for (const [label, readiness] of [
+        ['no tax adapter decides', null],
+        ['nothing holds it back', { ready: true, missing: [], taxRefusal: null }],
+    ] as const) {
+        test(`where ${label}, there is no notice`, async () => {
+            const { wrapper } = await detailsWith({ readiness });
+
+            expect(heldBack(wrapper).exists()).toBe(false);
+        });
+    }
 });
 
 describe('the plan page', () => {

@@ -7,7 +7,7 @@
 // change, a correction of the legal identity. A rule held on one of them and
 // not the others would let the same value in through the next door.
 
-import { UnprocessableEntityException } from '@nestjs/common';
+import { HttpException, UnprocessableEntityException } from '@nestjs/common';
 import type {
     LegalIdentityField,
     NewSubscriberDetails,
@@ -17,7 +17,12 @@ import type {
     SubscriberIdentityCorrection,
     SubscriberIdentityValues,
 } from '@saasicat/core';
-import { SUBSCRIBER_ERROR_CODES, LEGAL_IDENTITY_FIELDS } from '@saasicat/core';
+import {
+    LEGAL_IDENTITY_FIELDS,
+    SUBSCRIBER_ERROR_CODES,
+    SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
+    type SubscriberInvoiceAddressField,
+} from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
 
@@ -29,13 +34,6 @@ const VAT_ID_SEPARATORS = /[\s.-]/g;
 
 /** RFC 5321 caps an address at 254 characters. */
 const MAX_EMAIL_LENGTH = 254;
-
-/**
- * The address an invoice names. Sign-up asks for every one of them, and once
- * given they can be changed but not cleared: without them nothing can be
- * invoiced (`SC-PRIC-032`).
- */
-export const INVOICE_ADDRESS_FIELDS = ['addressLine1', 'postalCode', 'city', 'country'] as const;
 
 const CONTACT_FIELDS: readonly (keyof SubscriberContact)[] = [
     'addressLine1',
@@ -192,4 +190,34 @@ function invalid(field: keyof SubscriberDetails): UnprocessableEntityException {
     return new UnprocessableEntityException(
         codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field }),
     );
+}
+
+/** The fields of the address an invoice names that are empty. */
+export function invoiceAddressGapsOf(
+    details: Pick<SubscriberDetails, SubscriberInvoiceAddressField>,
+): SubscriberInvoiceAddressField[] {
+    return SUBSCRIBER_INVOICE_ADDRESS_FIELDS.filter((field) => details[field] === null);
+}
+
+/**
+ * Where a tax adapter decides, a contract names its subscriber only once the
+ * address an invoice names is complete (`SC-PRIC-032`).
+ */
+export function identityIncomplete(
+    missing: readonly SubscriberInvoiceAddressField[],
+): UnprocessableEntityException {
+    return new UnprocessableEntityException(
+        codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE, {
+            missing: [...missing],
+        }),
+    );
+}
+
+/** The empty fields `identityIncomplete` named, or `null` where `error` is another refusal. */
+export function identityGapsOf(error: unknown): SubscriberInvoiceAddressField[] | null {
+    if (!(error instanceof HttpException)) return null;
+    const response = error.getResponse() as { code?: unknown; params?: { missing?: unknown } };
+    if (response.code !== SUBSCRIBER_ERROR_CODES.SUBSCRIBER_IDENTITY_INCOMPLETE) return null;
+    const missing = response.params?.missing;
+    return Array.isArray(missing) ? (missing as SubscriberInvoiceAddressField[]) : [];
 }

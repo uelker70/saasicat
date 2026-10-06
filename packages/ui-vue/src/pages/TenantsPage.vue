@@ -93,6 +93,15 @@
                                         :tone="p.tone"
                                     />
                                 </slot>
+                                <!-- Beside the app's pills, not among them: a slot that
+                                     replaces the status pills does not hide it. -->
+                                <AdminStatusPill
+                                    v-for="pill in heldBackOf(row)"
+                                    :key="pill.label"
+                                    :label="pill.label"
+                                    :icon="pill.icon"
+                                    :tone="pill.tone"
+                                />
                             </div>
                         </q-td>
                     </template>
@@ -162,7 +171,7 @@
 import AdminTable from '../ui/data/AdminTable.vue';
 import { LIST_PAGE_SIZE_DEFAULT } from '../client/resources/list-resource.js';
 import { useResourceList } from '../vue/use-resource-list.js';
-import type { ResourceOverride } from '../vue/resource-registry.js';
+import { useResource, type ResourceOverride } from '../vue/resource-registry.js';
 import type { tenantsResource } from '../client/resources/tenants.resource.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
@@ -182,6 +191,9 @@ import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
 import type { PillTone } from '../vue/status.js';
 import { identityChipStyle } from '../client/identity-accents.js';
 import { formatDate, planAccent, tenantInitials } from '../internal/tenants/format.js';
+import { heldBackPill, type HeldBackPill } from '../internal/tenants/held-back.js';
+import { useSubscriberAttention } from '../vue/use-subscriber-attention.js';
+import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 
 // Platform standard page: tenant list.
 //
@@ -369,6 +381,21 @@ setPageSize(props.options?.pageSize ?? LIST_PAGE_SIZE_DEFAULT);
 // addresses cells by column name and an app may render a field the DTO does not
 // declare. The resource answers with the DTO; this is where the two meet.
 const rows = computed<TenantRow[]>(() => items.value as TenantRow[]);
+
+// Which tenants of the page shown hold their subscriber back, asked once per
+// page and only where the manifest says a tax adapter decides.
+const shellManifest = useSuperAdminManifest();
+const attention = useSubscriberAttention(
+    computed(() => rows.value.map((row) => row.id)),
+    computed(() => props.options?.manifest ?? shellManifest),
+    useResource('tenants', props.resources),
+);
+
+/** The pill for a tenant whose subscriber is held back: one, or none. */
+function heldBackOf(row: TenantRow): HeldBackPill[] {
+    const pill = heldBackPill(attention.of(row.id), msg.value.subscriber);
+    return pill ? [pill] : [];
+}
 
 const tenantColumns = computed<QTableColumn[]>(() => {
     const cols: QTableColumn[] = [

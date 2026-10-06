@@ -42,7 +42,6 @@ import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
-import { isTaxNotSupported } from '../tax/tax-treatments.js';
 import { chargeWhatItRanOn, putBookingBack, type BookingMove } from './booking-move-guards.js';
 import { ownersOf } from './bundle-bookings-of-version.js';
 import { bookingOverBy } from './bundle-retirement-reach.js';
@@ -50,6 +49,7 @@ import { recordChargesAfter } from './charges/record-charges-after.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import { contractUnlessTrialOf } from './freeze-contract-after.js';
+import { partyRefusalOf, type PartyRefusal } from './party-refusal.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from './tenant-billing.tokens.js';
 
@@ -63,7 +63,7 @@ export interface BundleVersionSwitchRun {
 const JOB = 'add-on-version-switches';
 
 /** Why a switch was not made, as its audit entry and the log say it. */
-type SwitchFailure = 'no-party' | 'tax-not-supported' | 'contract-not-written';
+type SwitchFailure = PartyRefusal | 'contract-not-written';
 
 /** A switch due: the booking's move, and the moment it was taken for. */
 interface DueSwitch extends BookingMove {
@@ -189,7 +189,8 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
                 contractUnlessTrialOf(readByTheRun, now),
             );
         } catch (error) {
-            return this.failed(due, isTaxNotSupported(error) ? 'tax-not-supported' : 'no-party');
+            const { reason, extra } = partyRefusalOf(error);
+            return this.failed(due, reason, extra);
         }
         // `canRun` holds the store to having it. Nothing claimed: the booking
         // moved between the read and the write, and the next run decides afresh.

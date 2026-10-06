@@ -1882,6 +1882,7 @@ _Tested by:_
         - fails without a party to the contract, audited once though every run fails
         - asks the party about the contract each move then writes
         - fails for a subscriber the tax adapter supports no treatment for, and says so
+        - fails for a subscriber whose invoice address is incomplete, and names the empty fields
         - puts the booking back where its contract cannot be written, and the next run makes both
         - goes on with the next booking where putting one back fails, and says so
         - says so where the booking cannot be put back either
@@ -2365,6 +2366,8 @@ _Tested by:_
         - is cleared, and nothing asked, where the tenant is on another subscription now
     - a switch the run cannot make
         - for want of a party is left as it is, recorded once, and tried again by the next run
+        - for a subscriber whose invoice address is incomplete is left as it is, and the failure
+          names the empty fields
         - whose contract cannot be written is put back, schedule and all
         - leaves a booking that moved between the read and the write for the next run
         - puts back a booking whose subscription ended between the read and the write

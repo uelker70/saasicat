@@ -30,7 +30,8 @@ import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.
  *
  * Mutable, and the only mutable thing here: `composeTenantBilling` and
  * `composeAdminResources` write it; `composeSubscriptionBundles`,
- * `composeSubscriberAccount` and the entitlement runtime read it. A composer
+ * `composeSubscriberAccount`, `composeSubscriberStanding` and the entitlement
+ * runtime read it. A composer
  * that runs before them sees the initial values, which is correct — there was
  * nothing resolved yet.
  */

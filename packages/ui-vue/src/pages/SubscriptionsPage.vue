@@ -13,18 +13,39 @@
                     :columns="effectiveColumns"
                     :loading="loading"
                     storage-key="subscriptions"
-                />
+                >
+                    <!-- The column's own alignment comes with `props`. -->
+                    <template #body-cell-tenant="cell">
+                        <q-td :props="cell">
+                            <span class="sa-subscriptions__tenant">
+                                {{ cell.value }}
+                                <AdminStatusPill
+                                    v-for="pill in heldBackOf(cell.row)"
+                                    :key="pill.label"
+                                    :label="pill.label"
+                                    :icon="pill.icon"
+                                    :tone="pill.tone"
+                                    size="sm"
+                                />
+                            </span>
+                        </q-td>
+                    </template>
+                </AdminTable>
             </AdminSection>
         </AdminBody>
     </AdminPage>
 </template>
 
 <script setup lang="ts">
+import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
 import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { subscriptionsResource } from '../client/resources/subscriptions.resource.js';
 import { computed, onMounted, ref } from 'vue';
+import { heldBackPill, type HeldBackPill } from '../internal/tenants/held-back.js';
+import { useSubscriberAttention } from '../vue/use-subscriber-attention.js';
+import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
@@ -37,7 +58,7 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 
 export interface SubscriptionRow {
     id: string;
-    tenant?: { slug?: string; name?: string };
+    tenant?: { id?: string; slug?: string; name?: string };
     tenantSlug?: string;
     plan?: string;
     planId?: string;
@@ -78,6 +99,21 @@ const { intlLocale } = useSuperAdminI18n();
 
 const rows = ref<SubscriptionRow[]>([]);
 const loading = ref(false);
+
+// Which tenants of the list hold their subscriber back, asked only where the
+// manifest says a tax adapter decides.
+const shellManifest = useSuperAdminManifest();
+const attention = useSubscriberAttention(
+    computed(() => rows.value.flatMap((row) => (row.tenant?.id ? [row.tenant.id] : []))),
+    computed(() => shellManifest),
+    useResource('tenants'),
+);
+
+/** The pill for a row whose subscriber is held back: one, or none. */
+function heldBackOf(row: SubscriptionRow): HeldBackPill[] {
+    const pill = heldBackPill(attention.of(row.tenant?.id), msg.value.subscriber);
+    return pill ? [pill] : [];
+}
 
 const defaultColumns = computed<Column[]>(() => [
     {
@@ -139,4 +175,11 @@ function formatDate(iso: string | null | undefined): string | null {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.sa-subscriptions__tenant {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sa-space-2);
+    flex-wrap: wrap;
+}
+</style>

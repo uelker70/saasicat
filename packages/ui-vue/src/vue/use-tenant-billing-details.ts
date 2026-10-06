@@ -8,6 +8,7 @@
 // contract was concluded with, shown here and corrected by the operator.
 
 import { ref, type Ref } from 'vue';
+import type { SubscriberReadiness } from '@saasicat/core';
 
 import { httpStatusOf } from '../client/admin-error.js';
 import { isHiddenFromThisUser } from '../client/billing-area.js';
@@ -27,6 +28,13 @@ export interface TenantBillingDetailsShape {
     /** ISO 3166-1 alpha-2, upper case. */
     country: string | null;
     invoiceEmail: string | null;
+    /** Whether it acts as a business; set at sign-up and corrected by the operator. */
+    business: boolean | null;
+    /**
+     * Where a tax adapter decides, what holds its next contract back; `null`
+     * where none decides.
+     */
+    readiness: SubscriberReadiness | null;
 }
 
 /** The details a tenant changes itself: how it is reached. */

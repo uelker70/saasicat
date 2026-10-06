@@ -11,14 +11,18 @@
 //
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
-// encoded on the way into the path there, so they are encoded here. `charges`
-// has no twin there: the page reads it through this descriptor alone.
+// encoded on the way into the path there, so they are encoded here. `charges`,
+// `subscriber` and `subscriberAttention` have no twin there: the pages read
+// them through this descriptor alone.
 
-import type {
-    AdminSubscriberAccount,
-    AdminTenantDetail,
-    TenantDto,
-    TenantListFilter,
+import {
+    SUBSCRIBER_ATTENTION_PAGE_SIZE,
+    type AdminSubscriberAccount,
+    type AdminSubscriberAttention,
+    type AdminTenantDetail,
+    type AdminTenantSubscriber,
+    type TenantDto,
+    type TenantListFilter,
 } from '@saasicat/core';
 
 import { mfaHeader } from '../mfa-header.js';
@@ -35,6 +39,16 @@ function tenantsUrl(ctx: ResourceContext): string {
 
 function tenantUrl(ctx: ResourceContext, slug: string): string {
     return `${tenantsUrl(ctx)}/${encodeURIComponent(slug)}`;
+}
+
+/** The tenant ids in pages the server takes, each named once. */
+function attentionPages(tenantIds: readonly string[]): string[][] {
+    const unique = [...new Set(tenantIds)];
+    const pages: string[][] = [];
+    for (let start = 0; start < unique.length; start += SUBSCRIBER_ATTENTION_PAGE_SIZE) {
+        pages.push(unique.slice(start, start + SUBSCRIBER_ATTENTION_PAGE_SIZE));
+    }
+    return pages;
 }
 
 export const tenantsResource = defineResource('tenants', {
@@ -73,4 +87,40 @@ export const tenantsResource = defineResource('tenants', {
             `${tenantUrl(ctx, slug)}/charges`,
             'The account returned no body',
         ),
+
+    /**
+     * The tenant's subscriber, its tax details and what holds its next
+     * contract back. Served only where the manifest announces
+     * `subscribers.read`.
+     */
+    subscriber: async (http, ctx, slug: string): Promise<AdminTenantSubscriber> =>
+        requestJsonBody<AdminTenantSubscriber>(
+            http,
+            `${tenantUrl(ctx, slug)}/subscriber`,
+            'The subscriber returned no body',
+        ),
+
+    /**
+     * Which of these tenants hold their subscriber back from its next
+     * contract, and why. Asked in pages the server takes; served only where
+     * the manifest announces `subscribers.attention`.
+     */
+    subscriberAttention: async (
+        http,
+        ctx,
+        tenantIds: readonly string[],
+    ): Promise<AdminSubscriberAttention[]> => {
+        const answers = await Promise.all(
+            attentionPages(tenantIds).map(async (page) => {
+                const query = new URLSearchParams(page.map((id) => ['tenantId', id]));
+                const answer = await requestJsonBody<{ attention: AdminSubscriberAttention[] }>(
+                    http,
+                    `${ctx.apiBase}/subscribers/attention?${query.toString()}`,
+                    'The attention returned no body',
+                );
+                return answer.attention;
+            }),
+        );
+        return answers.flat();
+    },
 });

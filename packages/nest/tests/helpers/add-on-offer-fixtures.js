@@ -141,6 +141,7 @@ export function offering({
     withRun = true,
     store = bookingStore(bookings),
     noParty = [],
+    partyRefusal = null,
     freezeFails = false,
     journalFailures = 0,
 } = {}) {
@@ -159,6 +160,8 @@ export function offering({
                 store.rows.find((row) => row.id === `sb-${tenantId}`)?.bundleVersionId,
             );
             if (noParty.includes(tenantId)) throw new Error('no party');
+            // As the platform refuses a party it has: `{ tenants, error }`.
+            if (partyRefusal?.tenants.includes(tenantId)) throw partyRefusal.error;
         },
         async freezeOnPlanChange(...args) {
             if (freezeFails) throw new Error('the contract store is down');

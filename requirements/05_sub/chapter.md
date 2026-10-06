@@ -919,6 +919,8 @@ _Tested by:_
         - the party is asked about the contract the move then writes
         - a subscriber the tax adapter supports no treatment for is not moved, and the failure says
           so
+        - a subscriber whose invoice address is incomplete is not moved, and the failure names the
+          empty fields
         - a move whose contract cannot be written is put back, and the next run makes both, where
           the version retired ${offSale}
         - a move put back takes the change of rhythm it scheduled back to the plan it left

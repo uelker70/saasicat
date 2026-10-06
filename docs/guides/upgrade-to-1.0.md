@@ -1729,6 +1729,40 @@ give them back.
 Without an adapter, step 4 keeps `business` and checks nothing. A subscriber created another way —
 a backfill, a migration of existing tenants — is not refused here.
 
+### A contract names a subscriber only with its whole address
+
+Where `config/saas.yaml` names a tax adapter, every way a contract comes about — a sign-up, an offer,
+a plan change, an add-on, a full re-freeze — refuses a subscriber without the whole address an
+invoice names: `422 SUBSCRIBER_IDENTITY_INCOMPLETE`, with the empty fields in `params.missing`. A
+refresh that keeps the parties a running contract names is not refused. Without an adapter nothing
+changes.
+
+1. Before you deploy with an adapter, fill in the street and number, postal code, city and country
+   of every subscriber a sign-up did not create — a backfill, a migration of existing tenants —
+   through `SubscriberService.changeContactOfTenant`. `SubscriberService.readinessFor({ tenantId })`
+   tells you which are held back and why; the NotesApp's seed fills in only what is missing. A
+   scheduled run refused this way — a retirement's move of a plan or an add-on, an add-on switch
+   taken for the end of its term — is logged and audited as `identity-incomplete`, with the empty
+   fields in `missing`, and the next run makes the change once the address is complete.
+2. Your own `SubscriberRepository` implements the new `listForTenants(tenantIds, tx?)`: the live
+   subscriber of each tenant named, with the VAT id check that counts now. Both shipped adapters
+   have it.
+3. Your own `AdminResourcesPort.listSubscriptions` gives each row its `tenant.id` beside `slug` and
+   `name`; `PrismaAdminResourcesAdapter` does.
+4. An application that words refusals itself adds `SUBSCRIBER_IDENTITY_INCOMPLETE`.
+5. Code that called `SubscriberService.contractPartiesFor(tenantId, tx)` calls
+   `contractPartyFor(tenantId, { forTaxAdapter }, tx)`: the parties and the tax origin of one read
+   of the subscriber, so a rate decided from the origin is decided for the party a contract copies.
+
+What you get: the operator sees a tenant's subscriber beside the tenant, with what holds its next
+contract back (`GET admin/tenants/:slug/subscriber`, announced as `subscribers.read`), and the tenant
+and subscription lists mark each tenant held back (`GET admin/subscribers/attention`, announced as
+`subscribers.attention` only where an adapter decides). Both are mounted wherever `adminResources`
+is on and a subscriber repository is composed. `GET` and `PATCH billing/details` answer `business`
+and `readiness`, and `TenantBillingSection` shows both to the tenant; an application with a page of
+its own for those routes can show them too
+([wire the backend](wire-the-backend.md#the-tax-adapter)).
+
 ### The operator's own legal identity changes only as a declared correction
 
 `config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract

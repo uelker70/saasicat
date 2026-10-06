@@ -126,7 +126,7 @@ function tenant() {
         // tenant's subscriber answering with the same parties.
         new SubscriptionContractService(contracts, {
             requireForTenant: async () => ({ id: PARTIES.subscriberId }),
-            contractPartiesFor: async () => PARTIES,
+            contractPartyFor: async () => ({ parties: PARTIES, origin: null }),
         }),
         {
             findBoundPlanVersion: async () => boundPlanVersion(STANDARD, 'pv-standard'),

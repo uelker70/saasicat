@@ -387,6 +387,68 @@ paths:
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
+    /tenants/{slug}/subscriber:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [subscriptions]
+            summary: The tenant's subscriber, its tax details and what holds its next contract back
+            description: >-
+                Served where the platform keeps subscribers and shows tenants
+                (`adminResources`); the manifest announces it as
+                `subscribers.read`. The standing is computed when it is read,
+                and only where a tax adapter decides; elsewhere `readiness` is
+                null.
+            responses:
+                '200':
+                    description: The subscriber, or none
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminTenantSubscriber' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+
+    /subscribers/attention:
+        get:
+            tags: [subscriptions]
+            summary: Which of these tenants hold their subscriber back from its next contract
+            description: >-
+                Served beside `/tenants/{slug}/subscriber`; the manifest
+                announces `subscribers.attention` only where a tax adapter
+                decides, and without one the answer is always empty. A tenant
+                whose subscriber is ready, and one without a subscriber, are
+                left out.
+            parameters:
+                - name: tenantId
+                  in: query
+                  description: The tenants of the page shown; repeat the parameter for each.
+                  schema:
+                      type: array
+                      maxItems: 200
+                      items: { type: string, minLength: 1 }
+                  style: form
+                  explode: true
+            responses:
+                '200':
+                    description: The tenants held back, each with why
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [attention]
+                                properties:
+                                    attention:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required: [tenantId, readiness]
+                                            properties:
+                                                tenantId: { type: string }
+                                                readiness:
+                                                    $ref: '#/components/schemas/SubscriberReadiness'
+                '400':
+                    description: More than 200 tenants, or an empty tenant id
+
     # ────────────────────────────────────────────────────────
     # Users
     # ────────────────────────────────────────────────────────
@@ -812,8 +874,9 @@ paths:
                                         id: { type: string }
                                         tenant:
                                             type: object
-                                            required: [slug, name]
+                                            required: [id, slug, name]
                                             properties:
+                                                id: { type: string }
                                                 slug: { type: string }
                                                 name: { type: string }
                                         plan: { type: string }
@@ -2650,6 +2713,73 @@ components:
                                     The contract line's title as it was when the
                                     contract was concluded; null where that line
                                     cannot be read.
+
+        SubscriberReadiness:
+            type: object
+            description: >-
+                Whether a subscriber can be given its next contract where a tax
+                adapter decides: the empty fields of the address an invoice
+                names, and the adapter's sentence where it supports no
+                treatment for the subscriber as it stands.
+            required: [ready, missing, taxRefusal]
+            properties:
+                ready: { type: boolean }
+                missing:
+                    type: array
+                    items:
+                        type: string
+                        enum: [addressLine1, postalCode, city, country]
+                taxRefusal:
+                    type: string
+                    nullable: true
+
+        AdminTenantSubscriber:
+            type: object
+            required: [subscriber, readiness]
+            properties:
+                subscriber:
+                    type: object
+                    nullable: true
+                    description: Null for a tenant that has no subscriber.
+                    required:
+                        [
+                            id,
+                            customerNumber,
+                            legalName,
+                            addressLine1,
+                            addressLine2,
+                            postalCode,
+                            city,
+                            country,
+                            business,
+                            vatId,
+                            vatIdValidated,
+                            taxNumber,
+                            migrated,
+                        ]
+                    properties:
+                        id: { type: string }
+                        customerNumber: { type: string }
+                        legalName: { type: string }
+                        addressLine1: { type: string, nullable: true }
+                        addressLine2: { type: string, nullable: true }
+                        postalCode: { type: string, nullable: true }
+                        city: { type: string, nullable: true }
+                        country: { type: string, nullable: true }
+                        business: { type: boolean, nullable: true }
+                        vatId: { type: string, nullable: true }
+                        vatIdValidated:
+                            type: boolean
+                            description: Whether the check that counts for the VAT id found it valid.
+                        taxNumber: { type: string, nullable: true }
+                        migrated:
+                            type: boolean
+                            description: Created from the application's own tenant record.
+                readiness:
+                    nullable: true
+                    description: Null where no tax adapter decides, or the tenant has no subscriber.
+                    allOf:
+                        - $ref: '#/components/schemas/SubscriberReadiness'
 
         # ────────── User ──────────
         AdminUserRow:
