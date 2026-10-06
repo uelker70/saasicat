@@ -1555,6 +1555,13 @@ adapter yet, so no amount changes.
     the numbering continues after them. Each does nothing on a second run and leaves a database
     without its tables alone.
 
+    Run the second as a role that may read and update every row of `subscriber_corrections`. A
+    forced row-level policy binds the table's owner too, and where a policy keeps some corrections
+    from the role the file stops before anything changes, naming how many it renumbered of how many
+    there are — the others would keep the order the table stores them in. A policy lifted by a
+    setting is lifted for the file the same way, as AutohausPro lifts its policies with
+    `app.bypass_rls`.
+
 3. Where your subscriber tables carry row-level policies, give the two new tables the policy
    `subscriber_corrections` has: both hold rows of one subscriber, reached through
    `subscriberId`.
