@@ -1,5 +1,13 @@
 # @saasicat/nest
 
+## 1.0.0-rc.26
+
+### Patch Changes
+
+- Updated dependencies [7a9b37b]
+    - @saasicat/spec@1.0.0-rc.26
+    - @saasicat/core@1.0.0-rc.26
+
 ## 1.0.0-rc.25
 
 ### Minor Changes

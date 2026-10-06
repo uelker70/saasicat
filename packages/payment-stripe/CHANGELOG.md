@@ -1,5 +1,11 @@
 # @saasicat/payment-stripe
 
+## 1.0.0-rc.26
+
+### Patch Changes
+
+- @saasicat/core@1.0.0-rc.26
+
 ## 1.0.0-rc.25
 
 ### Patch Changes

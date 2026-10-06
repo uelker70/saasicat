@@ -1,5 +1,7 @@
 # @saasicat/types
 
+## 1.0.0-rc.26
+
 ## 1.0.0-rc.25
 
 ### Minor Changes
