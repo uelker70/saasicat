@@ -8,10 +8,11 @@
 // @requirement SC-ADM-032 — The operator reads a subscriber's history, with who, when and why
 
 import { afterEach, describe, expect, test } from 'vitest';
-import { nextTick } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import TenantSubscriber from '../../src/internal/tenant-detail/TenantSubscriber.vue';
 import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../../src/vue/super-admin-context.js';
@@ -320,6 +321,23 @@ describe('the operator corrects the subscriber on the tenant page', () => {
         expect(wrapper.text()).not.toContain('Legal form spelt as registered');
     });
 
+    for (const label of ['Correct identity', 'Change business status']) {
+        test(`a "${label}" dialog left open does not open again for the next tenant once it is read`, async () => {
+            const { wrapper, router } = await mountPage(DECIDING);
+            await buttonNamed(wrapper, label)!.trigger('click');
+            await settle();
+            expect(dialog().node, 'the premise: the dialog is open').toBeTruthy();
+
+            await router.push('/admin/tenants/graz');
+            await settle();
+
+            expect(wrapper.text(), "the premise: the next tenant's subscriber").toContain(
+                'Graz AG',
+            );
+            expect(dialog().node, 'a dialog opened for the first tenant').toBeUndefined();
+        });
+    }
+
     test('while the subscriber is read again after a correction, its actions wait for it', async () => {
         const { wrapper } = await mountPage(DECIDING, { rereadsHang: true });
         await buttonNamed(wrapper, 'Correct identity')!.trigger('click');
@@ -371,4 +389,46 @@ describe('the operator corrects the subscriber on the tenant page', () => {
             ['VAT ID checked', 'ATU12345678: invalid (VIES) · counts', '—', '—'],
         ]);
     });
+});
+
+describe('the subscriber section on its own', () => {
+    /** The corrections as the page hands them in, with nothing behind them. */
+    const corrections = {
+        available: computed(() => true),
+        canCheckVatId: computed(() => false),
+        history: { data: ref([]), pending: ref(false), error: ref(null), reload: async () => {} },
+        correctIdentity: async () => null,
+        changeBusinessStatus: async () => null,
+        checkVatId: async () => {},
+    };
+
+    for (const [label, next] of [
+        ['Correct identity', GRAZ],
+        ['Change business status', null],
+    ] as const) {
+        test(`closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown`, async () => {
+            const wrapper = mountWithQuasar(TenantSubscriber as never, {
+                attachTo: document.body,
+                props: {
+                    standing: STANDING,
+                    pending: false,
+                    error: null,
+                    retry: () => {},
+                    corrections,
+                },
+            });
+            mounted.push(wrapper);
+            await settle();
+            await buttonNamed(wrapper as never, label)!.trigger('click');
+            await settle();
+            expect(dialog().node, 'the premise: the dialog is open').toBeTruthy();
+
+            await wrapper.setProps({ standing: next, pending: next === null });
+            await settle();
+            await wrapper.setProps({ standing: GRAZ, pending: false });
+            await settle();
+
+            expect(dialog().node, 'a dialog opened for the first subscriber').toBeUndefined();
+        });
+    }
 });

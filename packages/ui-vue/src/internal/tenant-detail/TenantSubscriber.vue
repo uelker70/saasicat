@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { AdminTenantSubscriber } from '@saasicat/core';
 
 import { formatMessage } from '../../client/i18n/format.js';
@@ -103,6 +103,17 @@ const props = defineProps<{
 
 const identityOpen = ref(false);
 const businessOpen = ref(false);
+
+// A dialog belongs to the subscriber it was opened for. Once another one is
+// shown — or none, while the next tenant's is read — it closes rather than
+// open again with its form for whoever comes next.
+watch(
+    () => props.standing?.subscriber?.id,
+    () => {
+        identityOpen.value = false;
+        businessOpen.value = false;
+    },
+);
 const checking = ref(false);
 
 async function onCheck(): Promise<void> {

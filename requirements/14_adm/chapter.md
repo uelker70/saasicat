@@ -999,8 +999,11 @@ _Tested by:_
           subscriber while the next one's is read
         - the next tenant's subscriber read and its history not yet: none of the first one's history
           is shown
+        - a "${label}" dialog left open does not open again for the next tenant once it is read
         - while the subscriber is read again after a correction, its actions wait for it
         - a check is asked without the second factor
         - the history lists each correction and check with what it changed, why and by whom
+    - the subscriber section on its own
+        - closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown
 
 <!-- END proof -->
