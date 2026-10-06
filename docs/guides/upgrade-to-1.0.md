@@ -1741,8 +1741,9 @@ changes.
    of every subscriber a sign-up did not create — a backfill, a migration of existing tenants —
    through `SubscriberService.changeContactOfTenant`. `SubscriberService.readinessFor({ tenantId })`
    tells you which are held back and why; the NotesApp's seed fills in only what is missing. A
-   retirement move refused this way is logged and audited as `identity-incomplete`, with the empty
-   fields in `missing`, and the next run moves the subscription once the address is complete.
+   scheduled run refused this way — a retirement's move of a plan or an add-on, an add-on switch
+   taken for the end of its term — is logged and audited as `identity-incomplete`, with the empty
+   fields in `missing`, and the next run makes the change once the address is complete.
 2. Your own `SubscriberRepository` implements the new `listForTenants(tenantIds, tx?)`: the live
    subscriber of each tenant named, with the VAT id check that counts now. Both shipped adapters
    have it.

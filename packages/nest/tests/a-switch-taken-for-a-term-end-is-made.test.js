@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 
 import { subscriptionOf } from './helpers/add-on-retirement-fixtures.js';
+import { incompleteAddressRefusal } from './helpers/tax-adapter.js';
 import {
     BOOKED,
     TAKES_AWAY,
@@ -374,6 +375,21 @@ describe('a switch the run cannot make', () => {
         assert.equal(booking.pendingBundleVersionId, TAKES_AWAY.id);
         assert.deepEqual(actionsOf(world), ['BUNDLE_VERSION_SWITCH_FAILED']);
         assert.equal(world.audited[0].changes.reason, 'no-party');
+    });
+
+    test('for a subscriber whose invoice address is incomplete is left as it is, and the failure names the empty fields', async () => {
+        const error = await incompleteAddressRefusal(['addressLine1']);
+        const world = scheduled({ partyRefusal: { tenants: ['t1'], error } });
+
+        const run = await world.run.switchDue(ON_TIME);
+
+        assert.deepEqual(run, { switched: 0, failed: 1 });
+        assert.equal(bookingIn(world, 'sb-t1').bundleVersionId, BOOKED.id);
+        assert.deepEqual(
+            [world.audited[0].changes.reason, world.audited[0].changes.missing],
+            ['identity-incomplete', ['addressLine1']],
+            'the tenant has a subscriber: what is missing is its address',
+        );
     });
 
     test('whose contract cannot be written is put back, schedule and all', async () => {

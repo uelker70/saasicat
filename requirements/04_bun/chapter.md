@@ -2366,6 +2366,8 @@ _Tested by:_
         - is cleared, and nothing asked, where the tenant is on another subscription now
     - a switch the run cannot make
         - for want of a party is left as it is, recorded once, and tried again by the next run
+        - for a subscriber whose invoice address is incomplete is left as it is, and the failure
+          names the empty fields
         - whose contract cannot be written is put back, schedule and all
         - leaves a booking that moved between the read and the write for the next run
         - puts back a booking whose subscription ended between the read and the write
