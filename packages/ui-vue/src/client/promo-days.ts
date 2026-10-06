@@ -16,6 +16,13 @@ import { attachCause } from './attach-cause.js';
 export const DEFAULT_PROMO_DAY_ZONE = 'UTC';
 
 /**
+ * A value that is a calendar day already. A server that sends a day rather than
+ * an instant means that day, in any zone; read as an instant it would be its
+ * UTC midnight, the day before west of Greenwich.
+ */
+const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
  * The zone promo days are read in: `named`, where it is one this runtime can
  * read, or UTC where none is named. A name it cannot read is refused here, at
  * start, rather than on the first page that shows a day.
@@ -63,8 +70,12 @@ function momentOf(iso: string | null | undefined): Date | null {
     return Number.isNaN(moment.getTime()) ? null : moment;
 }
 
-/** The day (`YYYY-MM-DD`) `iso` falls on in `timeZone`; empty where there is none. */
+/**
+ * The day (`YYYY-MM-DD`) `iso` falls on in `timeZone` — `iso` itself where it is
+ * a day already; empty where there is none.
+ */
 export function promoDayOf(iso: string | null | undefined, timeZone: string): string {
+    if (iso && CALENDAR_DAY.test(iso)) return iso;
     const moment = momentOf(iso);
     if (!moment) return '';
     const fields = fieldsIn(moment, timeZone, false);

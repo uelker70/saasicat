@@ -44,6 +44,16 @@ describe('a promo code’s day, read in a zone', () => {
         );
     });
 
+    test('is the day itself where the server sends a day, west of UTC and far east of it', () => {
+        assert.deepEqual(
+            [
+                promoDayOf('2026-10-31', 'America/New_York'),
+                promoDayOf('2026-10-31', 'Pacific/Kiritimati'),
+            ],
+            ['2026-10-31', '2026-10-31'],
+        );
+    });
+
     test('is nothing where there is no instant, or none that is a date', () => {
         assert.deepEqual(
             [null, undefined, '', 'not a date'].map((iso) => promoDayOf(iso, 'Europe/Berlin')),

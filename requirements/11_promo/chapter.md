@@ -829,6 +829,7 @@ _Tested by:_
         - sends neither day back when something else is changed
     - the list
         - shows a code’s last day in the zone the application names, and in UTC without one
+        - shows a day the server sends as a day as that day, whatever the zone named
     - the detail page
         - shows each redemption’s term and moment in the zone the application names, saying which
         - and in UTC where it names none
@@ -843,6 +844,7 @@ _Tested by:_
           day before in UTC
         - the end of 25 October in Berlin, the day the clocks go back, is that day, and a moment
           later the next
+        - is the day itself where the server sends a day, west of UTC and far east of it
         - is nothing where there is no instant, or none that is a date
     - a promo code’s moment, read in a zone
         - says the zone it is read in

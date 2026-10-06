@@ -111,7 +111,7 @@ describe('the edit dialog', () => {
 });
 
 describe('the list', () => {
-    const rows = [
+    const rowEnding = (validUntil: string) => [
         {
             id: '1',
             code: 'SPRING',
@@ -121,7 +121,7 @@ describe('the list', () => {
             redemptionsCount: 0,
             heldCount: 0,
             maxRedemptions: null,
-            validUntil: PAST_MIDNIGHT_IN_BERLIN,
+            validUntil,
             campaignTag: null,
         },
     ];
@@ -133,11 +133,16 @@ describe('the list', () => {
             timeZone,
         });
 
-    async function cellsIn(timeZone: string | null): Promise<string[]> {
+    async function cellsIn(
+        timeZone: string | null,
+        validUntil = PAST_MIDNIGHT_IN_BERLIN,
+    ): Promise<string[]> {
         const wrapper = mountWithQuasar(PromoCodesPage, {
             global: {
                 provide: {
-                    ...provideStubResources({ promoCodes: { list: () => Promise.resolve(rows) } }),
+                    ...provideStubResources({
+                        promoCodes: { list: () => Promise.resolve(rowEnding(validUntil)) },
+                    }),
                     ...shellWith(timeZone),
                 },
             },
@@ -156,6 +161,17 @@ describe('the list', () => {
             true,
             true,
         ]);
+    });
+    test('shows a day the server sends as a day as that day, whatever the zone named', async () => {
+        const inNewYork = await cellsIn('America/New_York', '2026-10-31');
+        const thatDay = new Date('2026-10-31T00:00:00Z').toLocaleDateString('de-DE', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'UTC',
+        });
+
+        expect(inNewYork.includes(thatDay)).toBe(true);
     });
 });
 
