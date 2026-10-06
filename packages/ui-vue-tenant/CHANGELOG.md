@@ -1,5 +1,244 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.25
+
+### Minor Changes
+
+- 5a4e6ca: A newer version of a booked add-on is offered beside the booking
+
+    A booking keeps its add-on version, and a newer one of the same add-on is
+    offered beside it in the plan section and on the tenant's add-on page
+    (`SC-BUN-057`), judged with the price in the rhythm the booking is billed in.
+    An improvement and more for more are taken at once, keeping the booking's
+    period, terms and minimum term, and the journal charges what a dearer version
+    costs for the rest of the booking's period (origin `bundleChange`), nothing
+    otherwise (`SC-BUN-058`). One that takes something away is scheduled for the
+    end of the booking's term, and the quarter-hour run makes it then
+    (`SC-BUN-059`); a plan change asks that version as it asks a retirement's
+    replacement, and both where a booking has both (`SC-BUN-061`). With version
+    notices on, each booking is told once (`SC-BUN-060`).
+
+    - **Migration:** run `1.0-an-add-on-switch-waits-for-its-term.postgres.sql`
+      before `db push`, then `constraints.postgres.sql`. `subscription_bundles`
+      gains `pendingBundleVersionId` and `pendingVersionEffectiveAt`; fragments 05
+      and 11 name the two relations between `BundleVersion` and
+      `SubscriptionBundle`. A second run of the migration changes nothing.
+    - **Your port** is handed a new kind, `bundle-version-offered`
+      (`BundleVersionOfferedNotice`). A port that switches on `kind` adds it.
+    - **A repository of your own** returns the two new fields and gains the
+      optional `scheduleVersion`, `unscheduleVersion` and
+      `listScheduledVersionsDue`; without them a version that takes something away
+      is not offered. A contract harness without them declares `bookingsScheduled`.
+    - **Routes:** `POST /billing/subscription-bundles/:id/version-offer/accept`
+      with `{ bundleVersionId }`, for the tenant's administrators and audited; a
+      version that is no longer offered is refused with
+      `BUNDLE_VERSION_OFFER_CHANGED` and the offer as it stands. The booking list
+      carries `offer` and `pendingVersion`. The early switch to a
+      retirement's replacement is audited too, and like the plan's switches it now
+      needs the request to name its user.
+    - **Checkout:** `CheckoutOfferService.conclude` refuses a tenant whose contract
+      is in force when the offer's would take effect, or begins after it
+      (`CHECKOUT_OFFER_CONTRACT_IN_FORCE`, `SC-MKT-028`), and an offer naming
+      another version of an add-on the tenant has booked
+      (`CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION`, `SC-MKT-029`).
+    - **Beside a told retirement**, a version offer — of a plan or of an add-on —
+      leaves the replacement to the early switch, which holds the price, and offers
+      nothing that takes something away until the move has been made; a newer
+      version that applies at once stands beside the notice (`SC-SUB-040`,
+      superseding `SC-SUB-020`). In a trial the replacement waits for the trial
+      to end, as the early switch does; an add-on booking that ends by the
+      retirement's date is offered as any other.
+    - An application with a scheduler of its own calls
+      `BundleVersionNoticeService.sendDue` and, after the moves,
+      `BundleVersionSwitchRunService.switchDue`.
+
+- b4a961d: A subscriber shows what holds its next contract back
+
+    Where `config/saas.yaml` names a tax adapter, a contract names its subscriber
+    only with the whole address an invoice names (`SC-PRIC-069`), and the operator
+    and the tenant both see what holds a subscriber's next contract back
+    (`SC-PRIC-070`). Without an adapter nothing is refused and nothing is marked.
+
+    - **Every way a contract comes about** — a sign-up, an offer, a plan change,
+      an add-on, a full re-freeze — refuses a subscriber without its street and
+      number, postal code, city and country with the new code
+      `422 SUBSCRIBER_IDENTITY_INCOMPLETE`, the empty fields in `params.missing`,
+      before the adapter is asked. A refresh that keeps the parties a running
+      contract names is not refused. Fill in the address of every subscriber a
+      sign-up did not create through `SubscriberService.changeContactOfTenant`
+      before deploying with an adapter. A scheduled run refused this way — a
+      retirement's move of a plan or an add-on, an add-on switch taken for the end
+      of its term — records `identity-incomplete`, the empty fields in `missing`.
+    - **`SubscriberService.readinessFor`** answers a subscriber's standing — the
+      empty address fields and the adapter's sentence where it supports no
+      treatment — computed from the record and the adapter as they are then; `null`
+      without an adapter. An adapter that fails is not read as a refusal.
+    - **The operator** sees a tenant's subscriber beside the tenant,
+      `GET admin/tenants/:slug/subscriber`, announced as `subscribers.read`: its
+      address, whether it acts as a business, its VAT id and whether the check that
+      counts found it valid, and its standing. `GET admin/subscribers/attention`
+      answers which of up to 200 tenants are held back and why; the manifest
+      announces `subscribers.attention` only where an adapter decides. Both are
+      mounted wherever `adminResources` is on and a subscriber repository is
+      composed, and run inside the RLS bypass. `TenantDetailPage` shows the
+      subscriber with a warning naming each reason, and `TenantsPage` and
+      `SubscriptionsPage` mark each tenant held back.
+    - **The tenant** reads `business` and `readiness` from `GET` and
+      `PATCH billing/details`; `TenantBillingSection` shows the customer type and
+      what to add, and the notice goes once nothing holds the contract back.
+    - **Ports.** `SubscriberRepository.listForTenants(tenantIds, tx?)` is new and
+      required — both shipped adapters and the persistence contract have it — and
+      `AdminSubscriptionListRow.tenant` carries the tenant's `id`, which
+      `PrismaAdminResourcesAdapter` gives. `TenantBillingDetailsShape` gains
+      `business` and `readiness`.
+    - **A contract is decided for the party it copies.** The subscriber is read
+      once per contract, and its rate decided from that read: a change landing in
+      between can no longer leave a contract naming one party at a rate decided
+      for another. `SubscriberService.contractPartiesFor` is now
+      `contractPartyFor(tenantId, { forTaxAdapter }, tx?)`, answering the parties
+      and the tax origin of the same read.
+
+- 8683c32: A booking may switch to its retirement's replacement before the date
+
+    Until its date, a booking on an add-on version being retired may move to the
+    replacement at once, beside the add-on's notice in the plan section and on
+    `MySubscriptionBundlesPage` (`SC-BUN-054`). The switch keeps the booking, its
+    period, its terms and its rhythm, and writes the contract the move at the date
+    would have written, so nothing is left to move then.
+
+    - **The price is held until the date** (`SC-BUN-055`). Where the replacement
+      costs more for the plan the add-on runs beside, in the booking's rhythm, the
+      contract records the difference as a generated discount line, and the charge
+      journal takes it off each of the booking's periods before the date. The
+      difference stays as agreed when the plan changes after the switch. Where the
+      replacement costs the same or less, its price applies from the booking's next
+      period.
+    - **When it is open.** After a trial, for a booking that runs past the date —
+      a cancellation landing after it stands — and only while neither the plan nor
+      its rhythm changes before the date: a scheduled change, or a told retirement
+      onto another plan, refuses it with `BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES`
+      (`bundleName`, `date`); one onto another version of the same plan does not.
+      Switching ends the cancellation without the minimum term.
+    - **The route** is `POST /billing/subscription-bundles/:id/retirement/switch`
+      with `{ bundleVersionId }`, behind `TenantAdminGuard`; a page that showed
+      another version is refused with `RETIREMENT_SWITCH_CHANGED` and the retirement
+      as it stands. The booking list carries `retirementSwitch`
+      (`BundleRetirementSwitchTerms`): what switching now costs, and in which
+      rhythm.
+    - **UI.** `useTenantBilling().switchBundleToReplacement` and
+      `useTenantSubscriptionBundles().switchToReplacement`; `BundleRetiredNotice`
+      offers the switch with a confirmation that says what it costs until the date
+      and after it, and `TenantBundleStore` emits `switch` and takes `switchingId`
+      and `note`. New catalogue keys `bundleRetiredSwitch*` and
+      `bundleRetiredSwitched`.
+    - **The add-on list** no longer shows a retirement beside a booking whose
+      subscription ends by the date: like a booking cancelled to end by then, it
+      never moves (`SC-BUN-046`).
+
+- cf12963: An operator can retire an add-on version for the bookings on it
+
+    An add-on version no longer on sale can be retired the way a plan version is:
+    the bookings on it are told that they continue on the add-on's version on sale,
+    each at the first end of its own period at least three calendar months after
+    its notice reached an administrator (`SC-BUN-038` to `SC-BUN-048`). It rests on
+    the same `tenantBilling.orderlyRetirement.termsConfirmed`.
+
+    - **Wiring.** Adopt `prisma-fragments/19-bundle-version-retirement.prisma` and
+      run `sql/1.0-an-add-on-retirement-is-announced.postgres.sql` once, or pass
+      `notAdopted: ['BundleVersionRetirement']`, which leaves it off. Both shipped
+      bundles provide `persistence.tenantBilling.bundleVersionRetirements`. The
+      routes are `GET` and `POST /admin/catalog/bundle-versions/:id/retirement` —
+      the announcement behind the second factor — and
+      `GET /admin/catalog/bundle-version-retirements`; the manifest announces them
+      as `bundleVersions.retire`. With `versionNotices.includeCron: false`, call
+      `VersionRetirementService.sendUndelivered` and
+      `BundleVersionRetirementService.sendUndelivered` from your scheduler: a
+      retirement whose notice is not sent waits for it.
+    - **Notices.** One `bundle-version-retired` notice per booking, through the
+      same `SubscriptionNoticePort`: the plan the add-on runs beside at the date,
+      both versions with their prices for that plan, the booking's rhythm, the date
+      and the last day to cancel without the minimum term. A port that narrows on
+      `notice.kind` has to handle the new kind.
+    - **Twelve months, plan and add-on together.** A retirement of either kind is
+      refused for a subscription told of either within twelve months
+      (`SC-BUN-041`), counted from delivery — for plan versions too. A notice still
+      waiting holds no announcement back; when it can go out at last, it waits
+      instead while another was told within the twelve months (`SC-SUB-038`
+      supersedes `SC-SUB-036` to say so).
+    - **Every plan from the date.** The replacement has to run beside the plan each
+      booking runs beside at its date — a scheduled change and a told retirement of
+      the plan version included, which the notice's prices follow too — and beside
+      every plan the subscription is set to move to after it (`SC-BUN-044`). After
+      an announcement, the tenant's own plan change, a plan version's retirement
+      onto another plan and its early switch are refused where the version a booking
+      continues on could not run beside the plan the subscription moves to: while
+      that date is ahead and the booking is not cancelled yet,
+      `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN` and
+      `RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW` name that version and its
+      date, since cancelling it then ends it before the date. A notice that waited
+      goes out only while what it announces still fits at its date — an add-on's
+      replacement beside the plans the booking meets, a plan's replacement with the
+      add-ons then held; until then it waits.
+    - **Cancelling.** Until its date, a booking it reached is cancelled without its
+      minimum term, at the end of the period running; the tenant's route and its
+      preview decide that by the server's clock, and
+      `CancelBundleFromSubscriptionInput` and `previewCancel` take
+      `minimumTermLapses`. A booking it did not reach is not reinstated while it
+      runs: `BUNDLE_RETIREMENT_REINSTATE_REFUSED` names the day the replacement can
+      be booked from (`bookableFrom`),
+      `BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS` says the subscription ends by
+      then too, and `BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN` that the
+      replacement cannot run beside the subscription's plans. A booking cancelled to
+      end by its date no longer shows the retirement.
+    - **New refusals** in the preview: `BUNDLE_RETIREMENT_VERSION_ON_SALE`,
+      `BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE`,
+      `BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE`,
+      `BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN` and
+      `BUNDLE_RETIREMENT_NOTHING_AFFECTED`. An announcement is audited as
+      `BUNDLE_VERSION_RETIRE`.
+    - **Ports.** `SubscriptionBundleRepository.listOfVersion` and
+      `SubscriptionUsagePort.listByIds` are optional and in both shipped adapters; a
+      start with confirmed terms is refused without them. The persistence contract
+      gains the `bundleVersionRetirements` member and the gaps
+      `bundleVersionRetirements`, `bookingsOfVersion` and `subscriptionsById`.
+      `PlanAhead` carries an optional `by`: what moves the subscription to that
+      plan, a change it scheduled or a retirement it was told of.
+    - **Admin UI.** The status of an add-on version no longer on sale offers
+      "Retire…", with a dialog that shows the list prices, the dates, the bookings
+      not reached and every blocker before anything is sent, and a retired version
+      says onto which version and how far that has come. New:
+      `useBundleVersionRetirement`, the `bundleVersionRetirements` resource and the
+      catalogue keys `bundles.retireDialog.*` and `bundles.statusBanner.retire*`,
+      `retired*` and `retirementsUnreadable`. The plan cockpit and the add-on page
+      share the dialog and the progress words, which move from
+      `planDetail.versions.retiredProgress.*`, where 1.0.0-rc.24 put them, to
+      `common.retirementProgress.*`; the progress chip's class moves from
+      `pd-retirement-progress` to `sa-retirement-progress`. An application that
+      overrides either renames it. A deleted add-on now reads "Deleted"; its keys
+      are unchanged.
+    - **Tenant UI.** The plan section's add-on list and `MySubscriptionBundlesPage`
+      show the retirement beside the booked add-on (`SC-BUN-046`), for which
+      `MySubscriptionBundlesPage` takes the optional `formatCurrency`,
+      `quotaLabel`, `featureLabel` and `formatQuotaValue`. A refused reinstatement
+      is said in the reader's language. The bookings carry `retirement`.
+
+### Patch Changes
+
+- Updated dependencies [5f7a41b]
+- Updated dependencies [5a4e6ca]
+- Updated dependencies [d34e3e5]
+- Updated dependencies [b4a961d]
+- Updated dependencies [3258251]
+- Updated dependencies [5776198]
+- Updated dependencies [8fe675c]
+- Updated dependencies [8683c32]
+- Updated dependencies [cf12963]
+- Updated dependencies [d4830b7]
+- Updated dependencies [808cd9f]
+- Updated dependencies [3496864]
+    - @saasicat/core@1.0.0-rc.25
+    - @saasicat/ui-vue@1.0.0-rc.25
+
 ## 1.0.0-rc.24
 
 ### Major Changes

@@ -1,5 +1,375 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.25
+
+### Minor Changes
+
+- 5a4e6ca: A newer version of a booked add-on is offered beside the booking
+
+    A booking keeps its add-on version, and a newer one of the same add-on is
+    offered beside it in the plan section and on the tenant's add-on page
+    (`SC-BUN-057`), judged with the price in the rhythm the booking is billed in.
+    An improvement and more for more are taken at once, keeping the booking's
+    period, terms and minimum term, and the journal charges what a dearer version
+    costs for the rest of the booking's period (origin `bundleChange`), nothing
+    otherwise (`SC-BUN-058`). One that takes something away is scheduled for the
+    end of the booking's term, and the quarter-hour run makes it then
+    (`SC-BUN-059`); a plan change asks that version as it asks a retirement's
+    replacement, and both where a booking has both (`SC-BUN-061`). With version
+    notices on, each booking is told once (`SC-BUN-060`).
+
+    - **Migration:** run `1.0-an-add-on-switch-waits-for-its-term.postgres.sql`
+      before `db push`, then `constraints.postgres.sql`. `subscription_bundles`
+      gains `pendingBundleVersionId` and `pendingVersionEffectiveAt`; fragments 05
+      and 11 name the two relations between `BundleVersion` and
+      `SubscriptionBundle`. A second run of the migration changes nothing.
+    - **Your port** is handed a new kind, `bundle-version-offered`
+      (`BundleVersionOfferedNotice`). A port that switches on `kind` adds it.
+    - **A repository of your own** returns the two new fields and gains the
+      optional `scheduleVersion`, `unscheduleVersion` and
+      `listScheduledVersionsDue`; without them a version that takes something away
+      is not offered. A contract harness without them declares `bookingsScheduled`.
+    - **Routes:** `POST /billing/subscription-bundles/:id/version-offer/accept`
+      with `{ bundleVersionId }`, for the tenant's administrators and audited; a
+      version that is no longer offered is refused with
+      `BUNDLE_VERSION_OFFER_CHANGED` and the offer as it stands. The booking list
+      carries `offer` and `pendingVersion`. The early switch to a
+      retirement's replacement is audited too, and like the plan's switches it now
+      needs the request to name its user.
+    - **Checkout:** `CheckoutOfferService.conclude` refuses a tenant whose contract
+      is in force when the offer's would take effect, or begins after it
+      (`CHECKOUT_OFFER_CONTRACT_IN_FORCE`, `SC-MKT-028`), and an offer naming
+      another version of an add-on the tenant has booked
+      (`CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION`, `SC-MKT-029`).
+    - **Beside a told retirement**, a version offer — of a plan or of an add-on —
+      leaves the replacement to the early switch, which holds the price, and offers
+      nothing that takes something away until the move has been made; a newer
+      version that applies at once stands beside the notice (`SC-SUB-040`,
+      superseding `SC-SUB-020`). In a trial the replacement waits for the trial
+      to end, as the early switch does; an add-on booking that ends by the
+      retirement's date is offered as any other.
+    - An application with a scheduler of its own calls
+      `BundleVersionNoticeService.sendDue` and, after the moves,
+      `BundleVersionSwitchRunService.switchDue`.
+
+- d34e3e5: A subscriber has a tax origin, and a contract records its tax treatment
+
+    The first part of the tax adapter (ADR 0013): what an adapter decides a
+    subscriber's tax from, and where its answers are kept. Nothing asks an
+    adapter yet, so no amount changes; `@saasicat/tax-de` and the refusal of a
+    case it cannot treat follow.
+
+    - **The tax port** in `@saasicat/core`: `TaxAdapter` decides a
+      `TaxTreatment` — its kind, rate and note, with the adapter's name and
+      version — from the issuer, the period and the subscriber's
+      `SubscriberTaxOrigin`, or answers that the case is not supported, and
+      checks a VAT id (`VatIdCheckOutcome`). A check that cannot complete is no
+      result. `taxOriginOf(subscriber, check)` counts a VAT id as validated only
+      when the check that counts for it is of that very number and found it
+      valid.
+    - **Whether a subscriber is a business** is recorded, never derived from a
+      tax identifier: `business` — `true`, `false`, or `null` for not stated —
+      taken at creation and changed by `SubscriberService.changeBusinessStatus`.
+      A contact change naming it is refused
+      (`SUBSCRIBER_BUSINESS_STATUS_NOT_A_CONTACT`).
+    - **Every check of a VAT id is kept as it was answered** and never
+      rewritten (`SubscriberVatIdCheck`, `recordVatIdCheck`, `listVatIdChecks`):
+      it is the evidence a reverse charge rests on. The one that counts is the
+      latest completed check of the number the subscriber holds, completed since
+      it holds it (`vatIdSince`), never an older one written later, and none once
+      the number is corrected (`findCurrentVatIdCheck`, `keepsVatIdCheck`).
+    - **Every change of the tax origin is recorded with who made it**
+      (`SubscriberTaxOriginChange`, `listTaxOriginChanges`), whichever way it
+      arrives — a contact change of the country, a correction of the VAT id, a
+      change of the business status — in the transaction that makes it, dated
+      while the write holds the subscriber's row lock and listed in the order
+      the database numbered it, which the dates follow on one clock.
+    - **A change of the contact details names who makes it**:
+      `changeContact` and `changeContactOfTenant` take `changedBy`
+      (`SUBSCRIBER_CHANGE_ACTOR_REQUIRED` without), and the tenant's
+      `PATCH billing/details` passes the user behind the request.
+    - **A VAT id is stored in one form**, upper case and without spaces, dots
+      or hyphens, so the same number in another spelling moves nothing.
+    - **A correction of the legal identity is dated by the write that makes
+      it**, while it holds the row lock, numbered by the database (`seq` on
+      `SubscriberCorrection`) and listed by that number. `SubscriberCorrectionData`
+      no longer carries `correctedAt`; a correction that moves the VAT id and
+      the change it records share one date.
+    - **A contract records its tax treatment** (`taxTreatment`), null where no
+      adapter was asked.
+    - **`saasicat schema check` reports a fragment taken halfway** — one model
+      of it adopted, another left out that the bundle cannot do without — as
+      drift, rather than as a fragment not adopted.
+    - The Prisma fragments `13-subscriber.prisma` and
+      `08-subscription-contract.prisma`, both shipped adapters, the persistence
+      contract, and two migrations:
+      `1.0-a-subscriber-has-a-tax-origin.postgres.sql`, which backfills nothing,
+      and `1.0-a-correction-carries-its-order.postgres.sql`, which numbers the
+      corrections already recorded in the order they were listed.
+
+    What an application does: adopt the fragment changes — both new models are
+    required wherever the shipped subscriber repositories are used — run both
+    migrations once, before `db push`, and give the two new tables the row-level
+    policy its subscriber tables carry. Code that calls `changeContact` or
+    `changeContactOfTenant` passes who it acts for. A hand-written
+    `SubscriberRepository` takes `changedBy` in `updateContact`, dates a
+    correction itself and lists corrections by `seq`, and adds
+    `changeBusinessStatus`, `recordVatIdCheck`, `findCurrentVatIdCheck`,
+    `listVatIdChecks` and `listTaxOriginChanges`; a hand-written
+    `SubscriptionContractRepository` writes and reads `taxTreatment`; and code
+    that builds a `SubscriberRecord`, `SubscriptionContractRecord` or
+    `CreateSubscriberData` by hand adds `business` or `taxTreatment`. The
+    upgrade guide has the steps.
+
+    `SC-PRIC-038`, `SC-PRIC-040` and `SC-PRIC-043` stay decided, not yet
+    delivered: this is where their answers are kept, and they are delivered once
+    sign-up and the conclusion of a contract ask the adapter.
+
+- b4a961d: A subscriber shows what holds its next contract back
+
+    Where `config/saas.yaml` names a tax adapter, a contract names its subscriber
+    only with the whole address an invoice names (`SC-PRIC-069`), and the operator
+    and the tenant both see what holds a subscriber's next contract back
+    (`SC-PRIC-070`). Without an adapter nothing is refused and nothing is marked.
+
+    - **Every way a contract comes about** — a sign-up, an offer, a plan change,
+      an add-on, a full re-freeze — refuses a subscriber without its street and
+      number, postal code, city and country with the new code
+      `422 SUBSCRIBER_IDENTITY_INCOMPLETE`, the empty fields in `params.missing`,
+      before the adapter is asked. A refresh that keeps the parties a running
+      contract names is not refused. Fill in the address of every subscriber a
+      sign-up did not create through `SubscriberService.changeContactOfTenant`
+      before deploying with an adapter. A scheduled run refused this way — a
+      retirement's move of a plan or an add-on, an add-on switch taken for the end
+      of its term — records `identity-incomplete`, the empty fields in `missing`.
+    - **`SubscriberService.readinessFor`** answers a subscriber's standing — the
+      empty address fields and the adapter's sentence where it supports no
+      treatment — computed from the record and the adapter as they are then; `null`
+      without an adapter. An adapter that fails is not read as a refusal.
+    - **The operator** sees a tenant's subscriber beside the tenant,
+      `GET admin/tenants/:slug/subscriber`, announced as `subscribers.read`: its
+      address, whether it acts as a business, its VAT id and whether the check that
+      counts found it valid, and its standing. `GET admin/subscribers/attention`
+      answers which of up to 200 tenants are held back and why; the manifest
+      announces `subscribers.attention` only where an adapter decides. Both are
+      mounted wherever `adminResources` is on and a subscriber repository is
+      composed, and run inside the RLS bypass. `TenantDetailPage` shows the
+      subscriber with a warning naming each reason, and `TenantsPage` and
+      `SubscriptionsPage` mark each tenant held back.
+    - **The tenant** reads `business` and `readiness` from `GET` and
+      `PATCH billing/details`; `TenantBillingSection` shows the customer type and
+      what to add, and the notice goes once nothing holds the contract back.
+    - **Ports.** `SubscriberRepository.listForTenants(tenantIds, tx?)` is new and
+      required — both shipped adapters and the persistence contract have it — and
+      `AdminSubscriptionListRow.tenant` carries the tenant's `id`, which
+      `PrismaAdminResourcesAdapter` gives. `TenantBillingDetailsShape` gains
+      `business` and `readiness`.
+    - **A contract is decided for the party it copies.** The subscriber is read
+      once per contract, and its rate decided from that read: a change landing in
+      between can no longer leave a contract naming one party at a rate decided
+      for another. `SubscriberService.contractPartiesFor` is now
+      `contractPartyFor(tenantId, { forTaxAdapter }, tx?)`, answering the parties
+      and the tax origin of the same read.
+
+- 8fe675c: An add-on booking moves at its retirement's date
+
+    A booking an add-on retirement told continues on the replacement at its date
+    (`SC-BUN-049`): a run every quarter of an hour moves it, keeping its period,
+    its terms and its rhythm, and writes the contract that charges it.
+
+    - **The move and its contract are one** (`SC-BUN-050`). The contract's line
+      for the booking names the replacement, marked with the retirement. Where the
+      contract cannot be written — `ContractFreezeSourcePort.loadBookedBundles`
+      handing no line for the replacement included — the booking goes back onto
+      the version retired, and the next run makes both. Each move is audited as
+      `BUNDLE_VERSION_RETIREMENT_MOVE`, and one that cannot be made, once per
+      process, as `BUNDLE_VERSION_RETIREMENT_MOVE_FAILED`, by the actor
+      `job:platform:add-on-retirement-moves`.
+    - **Charges wait for the move.** The charge journal charges a booking's
+      periods from its date at the replacement's price, from the line the move
+      writes, however late it came, and a period before the date at the version
+      retired. A booking that ended, or whose subscription did, before any move
+      came is not moved: its periods from the date are charged at the version it
+      ran on.
+    - **The promise holds** (`SC-BUN-051`). The move binds the replacement whatever
+      its sale by then, and the add-on cannot be deleted while bookings still move
+      onto one of its versions: `BUNDLE_DELETE_WHILE_RETIREMENT_MOVES_PENDING`,
+      with `count` and `bundleKey`.
+    - **The operator sees why a notice waits** (`SC-BUN-052`, `SC-SUB-039`).
+      Beside each retired version, plan and add-on alike, the ones not told yet
+      are counted by what holds their notice back:
+      `RetirementProgress.notToldReasons`, worded by the catalogue keys
+      `common.retirementProgress.notToldBecause.*`. A booking that ended past its
+      date before anything moved it counts as ended rather than overdue
+      (`SC-BUN-053` supersedes `SC-BUN-047`).
+    - **Ports.** `SubscriptionBundleRepository.moveToVersion(id, from, to)` is
+      optional and in both shipped adapters: it writes `to` only while the booking
+      is on `from`, and answers `null` otherwise. A start with confirmed terms is
+      refused without it, and the persistence contract gains the gap
+      `bookingsMoved`. With `versionNotices.includeCron: false`, call
+      `BundleRetirementMoveService.moveDue(new Date())` from your scheduler.
+    - **A booking's end** is read as `canceledEffectiveAt ?? canceledAt` by the
+      charge journal too, as by every other reader: a booking on a row from before
+      the two dates separated is no longer charged past its `canceledAt`.
+
+- cf12963: An operator can retire an add-on version for the bookings on it
+
+    An add-on version no longer on sale can be retired the way a plan version is:
+    the bookings on it are told that they continue on the add-on's version on sale,
+    each at the first end of its own period at least three calendar months after
+    its notice reached an administrator (`SC-BUN-038` to `SC-BUN-048`). It rests on
+    the same `tenantBilling.orderlyRetirement.termsConfirmed`.
+
+    - **Wiring.** Adopt `prisma-fragments/19-bundle-version-retirement.prisma` and
+      run `sql/1.0-an-add-on-retirement-is-announced.postgres.sql` once, or pass
+      `notAdopted: ['BundleVersionRetirement']`, which leaves it off. Both shipped
+      bundles provide `persistence.tenantBilling.bundleVersionRetirements`. The
+      routes are `GET` and `POST /admin/catalog/bundle-versions/:id/retirement` —
+      the announcement behind the second factor — and
+      `GET /admin/catalog/bundle-version-retirements`; the manifest announces them
+      as `bundleVersions.retire`. With `versionNotices.includeCron: false`, call
+      `VersionRetirementService.sendUndelivered` and
+      `BundleVersionRetirementService.sendUndelivered` from your scheduler: a
+      retirement whose notice is not sent waits for it.
+    - **Notices.** One `bundle-version-retired` notice per booking, through the
+      same `SubscriptionNoticePort`: the plan the add-on runs beside at the date,
+      both versions with their prices for that plan, the booking's rhythm, the date
+      and the last day to cancel without the minimum term. A port that narrows on
+      `notice.kind` has to handle the new kind.
+    - **Twelve months, plan and add-on together.** A retirement of either kind is
+      refused for a subscription told of either within twelve months
+      (`SC-BUN-041`), counted from delivery — for plan versions too. A notice still
+      waiting holds no announcement back; when it can go out at last, it waits
+      instead while another was told within the twelve months (`SC-SUB-038`
+      supersedes `SC-SUB-036` to say so).
+    - **Every plan from the date.** The replacement has to run beside the plan each
+      booking runs beside at its date — a scheduled change and a told retirement of
+      the plan version included, which the notice's prices follow too — and beside
+      every plan the subscription is set to move to after it (`SC-BUN-044`). After
+      an announcement, the tenant's own plan change, a plan version's retirement
+      onto another plan and its early switch are refused where the version a booking
+      continues on could not run beside the plan the subscription moves to: while
+      that date is ahead and the booking is not cancelled yet,
+      `BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN` and
+      `RETIREMENT_SWITCH_BUNDLE_REPLACEMENT_CANNOT_FOLLOW` name that version and its
+      date, since cancelling it then ends it before the date. A notice that waited
+      goes out only while what it announces still fits at its date — an add-on's
+      replacement beside the plans the booking meets, a plan's replacement with the
+      add-ons then held; until then it waits.
+    - **Cancelling.** Until its date, a booking it reached is cancelled without its
+      minimum term, at the end of the period running; the tenant's route and its
+      preview decide that by the server's clock, and
+      `CancelBundleFromSubscriptionInput` and `previewCancel` take
+      `minimumTermLapses`. A booking it did not reach is not reinstated while it
+      runs: `BUNDLE_RETIREMENT_REINSTATE_REFUSED` names the day the replacement can
+      be booked from (`bookableFrom`),
+      `BUNDLE_RETIREMENT_REINSTATE_SUBSCRIPTION_ENDS` says the subscription ends by
+      then too, and `BUNDLE_RETIREMENT_REINSTATE_REPLACEMENT_CANNOT_RUN` that the
+      replacement cannot run beside the subscription's plans. A booking cancelled to
+      end by its date no longer shows the retirement.
+    - **New refusals** in the preview: `BUNDLE_RETIREMENT_VERSION_ON_SALE`,
+      `BUNDLE_RETIREMENT_REPLACEMENT_NOT_ON_SALE`,
+      `BUNDLE_RETIREMENT_REPLACEMENT_OF_ANOTHER_BUNDLE`,
+      `BUNDLE_RETIREMENT_REPLACEMENT_CANNOT_RUN` and
+      `BUNDLE_RETIREMENT_NOTHING_AFFECTED`. An announcement is audited as
+      `BUNDLE_VERSION_RETIRE`.
+    - **Ports.** `SubscriptionBundleRepository.listOfVersion` and
+      `SubscriptionUsagePort.listByIds` are optional and in both shipped adapters; a
+      start with confirmed terms is refused without them. The persistence contract
+      gains the `bundleVersionRetirements` member and the gaps
+      `bundleVersionRetirements`, `bookingsOfVersion` and `subscriptionsById`.
+      `PlanAhead` carries an optional `by`: what moves the subscription to that
+      plan, a change it scheduled or a retirement it was told of.
+    - **Admin UI.** The status of an add-on version no longer on sale offers
+      "Retire…", with a dialog that shows the list prices, the dates, the bookings
+      not reached and every blocker before anything is sent, and a retired version
+      says onto which version and how far that has come. New:
+      `useBundleVersionRetirement`, the `bundleVersionRetirements` resource and the
+      catalogue keys `bundles.retireDialog.*` and `bundles.statusBanner.retire*`,
+      `retired*` and `retirementsUnreadable`. The plan cockpit and the add-on page
+      share the dialog and the progress words, which move from
+      `planDetail.versions.retiredProgress.*`, where 1.0.0-rc.24 put them, to
+      `common.retirementProgress.*`; the progress chip's class moves from
+      `pd-retirement-progress` to `sa-retirement-progress`. An application that
+      overrides either renames it. A deleted add-on now reads "Deleted"; its keys
+      are unchanged.
+    - **Tenant UI.** The plan section's add-on list and `MySubscriptionBundlesPage`
+      show the retirement beside the booked add-on (`SC-BUN-046`), for which
+      `MySubscriptionBundlesPage` takes the optional `formatCurrency`,
+      `quotaLabel`, `featureLabel` and `formatQuotaValue`. A refused reinstatement
+      is said in the reader's language. The bookings carry `retirement`.
+
+- 3496864: The operator corrects a subscriber's tax identity
+
+    The operator corrects a subscriber's legal name, VAT identification number and
+    tax number, and whether it acts as a business, beside the tenant — each with a
+    written reason and behind the second factor (`SC-SUB-041`). A VAT number a
+    correction gives, or the number held when the operator asks, is checked with
+    the tax adapter's service and the check kept whatever it found
+    (`SC-PRIC-071`), and the operator reads the subscriber's history: who changed
+    what, when and why, and every check (`SC-ADM-032`). A takeover by another legal
+    entity stays refused.
+
+    - **The change log of the tax origin keeps a `reason`.**
+      `1.0-a-subscriber-has-a-tax-origin.postgres.sql`, new in this release, creates
+      `subscriber_tax_origin_changes` with it, and `SubscriberTaxOriginChange` in
+      `prisma-fragments/13-subscriber.prisma` declares it — no further file to run.
+    - **A change of the business status needs a reason.**
+      `SubscriberService.changeBusinessStatus` takes `reason` beside `business`
+      and `changedBy`, and refuses a blank one with the new code
+      `422 SUBSCRIBER_BUSINESS_STATUS_REASON_REQUIRED`, and every change of the tax
+      origin keeps its reason — the correction's, the business status's, `null`
+      for a change of the country with the contact details. Your own
+      `SubscriberRepository` writes and reads `reason`.
+    - **A corrected VAT number is checked.**
+      `SubscriberService.checkCorrectedVatId(correction)` checks the number a
+      correction gave, where a tax adapter decides, and keeps the check — valid,
+      invalid or not completed alike; the correction stands whatever it found, and
+      the next contract stays held back until a valid check counts. It reaches an
+      outside service, so it runs after the correction and outside any
+      transaction; `correctIdentity` itself still only writes.
+    - **`SubscriberService.checkVatIdOf`** checks the number a subscriber holds
+      again, named by `tenantId` or `subscriberId`, and keeps the check — refused
+      with `409 TAX_VAT_ID_CHECK_NOT_AVAILABLE` without an adapter and with
+      `422 SUBSCRIBER_VAT_ID_MISSING` without a number.
+    - **The operator's routes**, announced as `subscribers.correct` wherever the
+      subscriber view is served, inside the RLS bypass and recorded in the audit
+      log: `POST admin/tenants/:slug/subscriber/identity` and
+      `…/business-status` behind the second factor, `…/vat-id-check` without it,
+      and `GET …/history`, the latest first.
+    - **`canonicalVatId`** in `@saasicat/core` gives a VAT number in the one form
+      the platform stores, compares and checks it in — `atu 123.456-78` is
+      `ATU12345678`. The platform settles every number with it, and a form asking
+      whether a number changed compares with it too.
+    - **`@saasicat/ui-vue`.** `TenantDetailPage` offers both corrections in a
+      dialog that asks for the reason and then for the second factor, the check
+      where an adapter decides and a number is held, and the subscriber's history.
+      `useSubscriberCorrections` carries the sequences for your own pages.
+      `AdminFormDialog` keeps a form open, without an error and without its
+      `successMessage`, when its `submit` resolves `null` — a `submit` of yours
+      that resolves `null` after a successful write resolves something else
+      now, or the dialog stays open after it. A `successMessage` function given
+      to `useAsyncAction` is passed what the call resolved, and an empty text
+      announces nothing. `useAsyncData` takes a `subject` — a tenant's slug —
+      whose change drops what was loaded at once: moving from one tenant to the
+      next, the tenant page no longer shows the first one's subscriber, history or
+      account while the next one's are read.
+
+### Patch Changes
+
+- Updated dependencies [5f7a41b]
+- Updated dependencies [5a4e6ca]
+- Updated dependencies [d34e3e5]
+- Updated dependencies [b4a961d]
+- Updated dependencies [3258251]
+- Updated dependencies [5776198]
+- Updated dependencies [8fe675c]
+- Updated dependencies [8683c32]
+- Updated dependencies [cf12963]
+- Updated dependencies [808cd9f]
+- Updated dependencies [3496864]
+    - @saasicat/core@1.0.0-rc.25
+
 ## 1.0.0-rc.24
 
 ### Major Changes
