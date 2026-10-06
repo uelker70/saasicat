@@ -962,7 +962,7 @@ What it does not do yet: collect anything, or show a tenant its own account.
 ## Telling Subscribers of a Newer Version
 
 A subscription keeps the plan version it was sold, and a newer one sits beside the plan as an offer
-(`SC-SUB-020`). With version notices on, the tenant's administrators also hear of it once, in your
+(`SC-SUB-040`). With version notices on, the tenant's administrators also hear of it once, in your
 words (`SC-SUB-022`): when the offer appears — not when the version is published — so a version
 whose window opens later is told when it opens, and a subscription with a change still to land is
 told once it has landed. Each newer version is told once per subscription. There is no reminder,
@@ -1000,6 +1000,11 @@ export class VersionNoticeMailer implements SubscriptionNoticePort {
             } else if (notice.kind === 'bundle-version-retired') {
                 // An add-on version's retirement: see "Retiring an Add-on Version" below.
                 await this.mail.send(admin.email, 'add-on-version-retired', { retirement: notice });
+            } else if (notice.kind === 'bundle-version-offered') {
+                // A newer version of a booked add-on: see "Offering a Newer Add-on Version" below.
+                await this.mail.send(admin.email, 'add-on-version-offered', {
+                    offer: notice.offer,
+                });
             } else {
                 // Its one reminder, 14 days before the date, where staying put costs something.
                 await this.mail.send(admin.email, 'plan-version-reminder', { reminder: notice });
@@ -1161,6 +1166,10 @@ at once and keeps the term. Where the replacement costs more, the subscriber goe
 they paid until the date: the contract the switch writes records the difference as a discount line
 "Price held until …" (`SC-PRIC-063`). The switch opens after a trial and not while a change is
 scheduled, and it ends the right to cancel without notice, which rests on the version being retired.
+It is the one way to the replacement while the retirement reaches the subscription: the version
+offer leaves the replacement to it, and offers nothing that takes something away until the move has
+been made; a newer version that applies at once is offered beside the notice (`SC-SUB-040`). In a
+trial the replacement waits for the trial to end, as the switch does.
 
 **Ending the replacement.** A version subscriptions still move onto cannot be terminated before the
 day after the last of their dates; the catalogue refuses with
@@ -1280,6 +1289,65 @@ one whose subscription ends after the date can still cancel or switch, and is; a
 recipients counts as sent, and the reminder is not tried again. The add-on page counts the bookings
 reminded beside each retired version. An application that runs the steps from a scheduler of its own
 calls `BundleRetirementReminderService.remindDue` beside the others.
+
+## Offering a Newer Add-on Version
+
+A booking keeps the add-on version it was made on, and a newer one of the same add-on sits beside the
+booking as an offer (`SC-BUN-057`), in the plan section and on `MySubscriptionBundlesPage`: both
+versions side by side, priced for the plan the subscription is on, the kind of offer, and when a
+switch taken now would take effect. The kind follows the plan's rule, judged with the price in the
+rhythm the booking is billed in and no other. Nothing is configured for it: tenant billing offers it
+wherever it reads the bookings (`persistence.entitlement.subscriptionBundleRepository`), and the
+booking list carries it as `offer`, null where there is none the booking could take — while the
+plan or its rhythm is set to change, while a switch is scheduled, for an add-on in
+`selfServiceBlockedBundles`, or where the version cannot run beside the plan in the booking's
+rhythm. Beside a retirement told for the version booked, the replacement is left to the early
+switch, which holds the price, and nothing that takes something away is offered until the move has
+been made; a newer version that applies at once stands beside the notice. A booking that ends by
+the retirement's date is not reached by it and is offered as any other; in a trial, the replacement
+waits for the trial to end, as the early switch does.
+
+**Taking it.** `POST /billing/subscription-bundles/:id/version-offer/accept` with the version the
+page showed (`{ bundleVersionId }`), for the tenant's administrators, audited as
+`SWITCH_ADD_ON_VERSION` or `SCHEDULE_ADD_ON_VERSION_SWITCH` (`SC-BUN-058`). An improvement and more
+for more apply at once and keep the booking's period, terms, rhythm and minimum term; the contract
+the switch writes marks the booking's new line (`metadata.addOnSwitch`), and where the new version
+is dearer in the booking's rhythm the journal charges the prorated difference for the rest of the
+booking's period, as an entry of origin `bundleChange`, and nothing where it is not. A switch whose
+contract cannot be written is put back and refused. In a trial the booking moves and nothing is
+charged. A version that takes something away is scheduled for the end of the booking's running term
+— the later of its period end and its minimum term, never after the subscription ends — and the
+booking carries it as `pendingBundleVersionId`, `pendingVersionEffectiveAt` and, in the list,
+`pendingVersion`. A version named that is no longer the one offered is refused with
+`BUNDLE_VERSION_OFFER_CHANGED` and the offer as it stands.
+
+**The switch at the end of the term.** The quarter-hour run makes every scheduled switch whose
+moment has come (`SC-BUN-059`): it moves the booking, writes its contract, clears the schedule and
+audits `BUNDLE_VERSION_SWITCH` by the actor `job:platform:add-on-version-switches`. Until then the
+journal charges no period of the booking from that moment; a switch whose contract cannot be
+written is put back and recorded once as `BUNDLE_VERSION_SWITCH_FAILED`, and one whose booking or
+subscription has ended by the time a run comes is cleared as `BUNDLE_VERSION_SWITCH_LAPSED` — after
+the run has asked the journal for the periods the booking ran on past the moment, at the version it
+ran on; where the journal cannot record them, the switch stays for the next run to ask again. It
+needs the migration `sql/1.0-an-add-on-switch-waits-for-its-term.postgres.sql`, fragments 05 and 11
+as they stand, `constraints.postgres.sql` applied after it, and version notices on, whose run makes
+the switch: without version notices — or with a `SubscriptionBundleRepository` of your own that
+lacks `scheduleVersion`, `unscheduleVersion` and `listScheduledVersionsDue` — a version that takes
+something away is not offered, which the start says once in its log. With
+`versionNotices.includeCron: false`, call `BundleVersionSwitchRunService.switchDue(new Date())` from
+your scheduler after the moves.
+
+**What your port is handed.** With version notices on, one `bundle-version-offered` notice per
+booking and version, when the offer appears beside the booking (`SC-BUN-060`): the offer as the
+booking list shows it. An application that runs the steps from a scheduler of its own calls
+`BundleVersionNoticeService.sendDue(new Date())` beside `VersionNoticeService.sendDue`. A
+`SubscriptionBundleRepository` of your own needs `listOfVersion` and a `SubscriptionUsagePort` of your
+own `listByIds` for it, or a start with version notices is refused.
+
+**Checkout.** An offer concludes a first contract: `CheckoutOfferService.conclude` refuses a tenant
+with a contract in force when the offer's would take effect, or one beginning after it, with
+`CHECKOUT_OFFER_CONTRACT_IN_FORCE` (`SC-MKT-028`), and an offer naming another version of an add-on
+the tenant has booked with `CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION` (`SC-MKT-029`).
 
 ## Admin Module
 

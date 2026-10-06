@@ -301,6 +301,12 @@ describe('a plan change, and an add-on told it continues on another version', ()
         dto.blockers.filter((b) => b.code === 'BUNDLE_BOOKING_DOES_NOT_FIT_TARGET_PLAN');
     const continuationBlockers = (dto) =>
         dto.blockers.filter((b) => b.code === 'BUNDLE_REPLACEMENT_DOES_NOT_FIT_TARGET_PLAN');
+    /** The monthly booking with a switch to `to` taken for `at`. */
+    const switching = (to, at = '2026-07-01T00:00:00.000Z', booking = monthly) => ({
+        ...booking,
+        pendingBundleVersionId: to,
+        pendingVersionEffectiveAt: new Date(at),
+    });
 
     test('is refused where the version it continues on cannot run beside the target plan, naming that version', async () => {
         const dto = await preview('MONTHLY', [monthly], {
@@ -325,6 +331,153 @@ describe('a plan change, and an add-on told it continues on another version', ()
 
         assert.deepEqual(fitBlockers(dto), []);
         assert.deepEqual(continuationBlockers(dto), []);
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('a switch the booking took for the end of its term is asked the same way, from its date', async () => {
+        const refused = await preview('MONTHLY', [switching('bv-reports-2')], { versions });
+        const fits = await preview('MONTHLY', [switching('bv-reports-1b')], { versions });
+
+        assert.deepEqual(
+            continuationBlockers(refused).map((b) => b.params),
+            [{ bundleName: 'Reports', version: '2', from: '2026-07-01', planName: 'Pro' }],
+        );
+        assert.deepEqual(continuationBlockers(fits), []);
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('a switch the booking took lifts no minimum term from the day it can end', async () => {
+        const standardOnly = {
+            async findVersionById(id) {
+                return {
+                    ...(await versions.findVersionById(id)),
+                    compatibility: { planIds: id === 'bv-reports' ? ['STANDARD'] : [] },
+                };
+            },
+        };
+        const committed = {
+            ...monthly,
+            currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
+            minimumTermEndsAt: new Date('2027-03-01T00:00:00.000Z'),
+            pendingBundleVersionId: 'bv-reports-1b',
+            pendingVersionEffectiveAt: new Date('2026-07-01T00:00:00.000Z'),
+        };
+
+        const dto = await preview('MONTHLY', [committed], { versions: standardOnly });
+
+        assert.deepEqual(
+            fitBlockers(dto).map((b) => b.params.until),
+            ['2027-03-01'],
+        );
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('where it took a switch for after the retirement’s date, asks the switch’s version as well', async () => {
+        const dto = await preview(
+            'MONTHLY',
+            [switching('bv-reports-2', '2026-11-01T00:00:00.000Z')],
+            {
+                versions,
+                addOnsAhead: toldOnto('bv-reports-1b'),
+            },
+        );
+
+        assert.deepEqual(
+            continuationBlockers(dto).map((b) => b.params),
+            [{ bundleName: 'Reports', version: '2', from: '2026-11-01', planName: 'Pro' }],
+        );
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('where its switch lands before the retirement’s date, asks the switch’s version and not the replacement', async () => {
+        const fits = await preview('MONTHLY', [switching('bv-reports-1b')], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-2'),
+        });
+        const refused = await preview('MONTHLY', [switching('bv-reports-2')], {
+            versions,
+            addOnsAhead: toldOnto('bv-reports-1b'),
+        });
+
+        assert.deepEqual(continuationBlockers(fits), []);
+        assert.deepEqual(
+            continuationBlockers(refused).map((b) => b.params),
+            [{ bundleName: 'Reports', version: '2', from: '2026-07-01', planName: 'Pro' }],
+        );
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('asks the replacement where the switch lands on the retirement’s date, and not where it lands a moment before', async () => {
+        const landing = (at) =>
+            preview('MONTHLY', [switching('bv-reports-1b', at)], {
+                versions,
+                addOnsAhead: toldOnto('bv-reports-2'),
+            });
+
+        const onTheDate = await landing('2026-10-01T00:00:00.000Z');
+        const aMomentBefore = await landing('2026-09-30T23:59:59.999Z');
+
+        assert.deepEqual(
+            continuationBlockers(onTheDate).map((b) => b.params),
+            [{ bundleName: 'Reports', version: '2', from: '2026-10-01', planName: 'Pro' }],
+        );
+        assert.deepEqual(continuationBlockers(aMomentBefore), []);
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('asks nothing of a version after a date by which the booking ends', async () => {
+        const endsBetween = {
+            ...monthly,
+            canceledAt: new Date('2026-06-01T00:00:00.000Z'),
+            canceledEffectiveAt: new Date('2026-10-15T00:00:00.000Z'),
+        };
+
+        const dto = await preview(
+            'MONTHLY',
+            [switching('bv-reports-2', '2026-11-01T00:00:00.000Z', endsBetween)],
+            { versions, addOnsAhead: toldOnto('bv-reports-1b') },
+        );
+
+        assert.deepEqual(fitBlockers(dto), []);
+        assert.deepEqual(continuationBlockers(dto), []);
+    });
+
+    // @requirement SC-BUN-061 — A plan change asks every version a booking continues on
+    test('counts no minimum term while the retirement is ahead, whichever version stands in the way', async () => {
+        const committed = {
+            ...monthly,
+            currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
+            minimumTermEndsAt: new Date('2027-03-01T00:00:00.000Z'),
+        };
+        const standardOnly = {
+            async findVersionById(id) {
+                return {
+                    ...(await versions.findVersionById(id)),
+                    compatibility: { planIds: id === 'bv-reports' ? ['STANDARD'] : [] },
+                };
+            },
+        };
+
+        // The version it is on cannot run beside Pro.
+        const itsOwn = await preview(
+            'MONTHLY',
+            [switching('bv-reports-1b', undefined, committed)],
+            {
+                versions: standardOnly,
+                addOnsAhead: toldOnto('bv-reports-1b'),
+            },
+        );
+        // The switch's version cannot, and its date has passed without a run.
+        const theSwitchs = await preview(
+            'MONTHLY',
+            [switching('bv-reports-2', '2026-06-01T00:00:00.000Z', committed)],
+            { versions, addOnsAhead: toldOnto('bv-reports-1b') },
+        );
+
+        assert.deepEqual(
+            [...fitBlockers(itsOwn), ...fitBlockers(theSwitchs)].map((b) => b.params.until),
+            ['2026-07-01', '2026-07-01'],
+        );
     });
 
     test('asks nothing of a booking that ends before its version would change', async () => {

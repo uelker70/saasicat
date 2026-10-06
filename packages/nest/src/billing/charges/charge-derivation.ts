@@ -445,35 +445,35 @@ function deriveBundleCharges(
                       endsAt,
                   }),
               ].filter((period) => isChargeable(period, input, endsAt));
-        // A booking a retirement moves runs on the version retired until the
-        // date and on the replacement from it, and its row names only the one
-        // it is on now: each period is priced from the line of the version it
-        // ran on, and one from the date waits for the contract the move writes
-        // (`SC-BUN-050`), as a plan's does (`SC-PRIC-062`).
+        // A booking that moves runs on the version it leaves until the moment
+        // and on the version it moves to from then, and its row names only the
+        // one it is on now: each period is priced from the line of the version
+        // it ran on, and one from the moment waits for the contract the move
+        // writes. A retirement moves it at its date (`SC-BUN-050`), as a
+        // plan's does (`SC-PRIC-062`), and a switch taken for the end of its
+        // term at that end (`SC-BUN-059`).
         //
-        // Not where the booking has ended still on the version retired. The
-        // run moves nothing that has ended, and the source of a contract hands
-        // no line for an ended booking, so nothing it waited for comes: its
-        // periods from the date are the version it ran on.
+        // Not where the booking has ended still on the version it was to
+        // leave. Nothing moves a booking that has ended, and the source of a
+        // contract hands no line for one, so nothing it waited for comes: its
+        // periods from the moment are the version it ran on.
         const movesNoMore = bookingOverBy(booking, subscription.endsAt, input.now);
-        const retirements = (input.retiredAddOns ?? []).filter(
-            (retirement) =>
-                retirement.subscriptionBundleId === booking.id &&
-                !(movesNoMore && retirement.bundleVersionId === booking.bundleVersionId),
-        );
+        const leaves = [
+            ...(input.retiredAddOns ?? [])
+                .filter((retirement) => retirement.subscriptionBundleId === booking.id)
+                .map(leftByRetirement),
+            ...switchesOf(booking, input.contracts),
+        ].filter((leave) => !(movesNoMore && leave.bundleVersionId === booking.bundleVersionId));
         const versions = new Set([
             booking.bundleVersionId,
-            ...retirements.flatMap((retirement) => [
-                retirement.bundleVersionId,
-                retirement.replacementBundleVersionId,
-            ]),
+            ...leaves.flatMap((leave) => [leave.bundleVersionId, leave.replacementBundleVersionId]),
         ]);
-        const retiredBy = (line: ContractLineItemRecord, period: ChargePeriod) =>
-            retirements.find(
-                (retirement) =>
-                    retirement.bundleVersionId === line.sourceVersionId &&
-                    retirement.from <= period.start,
+        const retiredBy: LeftBy = (line, period) =>
+            leaves.find(
+                (leave) =>
+                    leave.bundleVersionId === line.sourceVersionId && leave.from <= period.start,
             ) ?? null;
+        const pricedPeriods: ChargePeriod[] = [];
         for (const period of periods) {
             const priced = lineFor(
                 input.contracts,
@@ -506,6 +506,7 @@ function deriveBundleCharges(
                 bookedAt: period.start,
             });
             charges.push(charged);
+            pricedPeriods.push(period);
             // A switch to a dearer replacement holds the price it had until
             // the date: the difference comes off each period of the booking
             // that switched, on the replacement, that starts before it, in
@@ -532,8 +533,195 @@ function deriveBundleCharges(
                 );
             }
         }
+        charges.push(
+            ...switchDifferences(input, booking, {
+                periods: [...wholeBundlePeriods(input.written, booking.id), ...pricedPeriods],
+                cycle,
+                anchorDay,
+                endsAt,
+            }),
+        );
     }
     return charges;
+}
+
+/**
+ * A booking leaving one add-on version for another from a moment: a
+ * retirement's move, or a switch to a newer version the subscriber took. It is
+ * also what a period starting from that moment waits for: the line the move's
+ * contract marks.
+ */
+interface BookingLeaves extends AwaitedLine {
+    /** The version it leaves. */
+    readonly bundleVersionId: string;
+    /** The version it continues on. */
+    readonly replacementBundleVersionId: string;
+    readonly from: Date;
+}
+
+function leftByRetirement(retirement: RetiredBundleVersion): BookingLeaves {
+    return {
+        bundleVersionId: retirement.bundleVersionId,
+        replacementBundleVersionId: retirement.replacementBundleVersionId,
+        from: retirement.from,
+        marks: (line) => isWrittenBy(line, retirement.retirementId),
+    };
+}
+
+/**
+ * The switches the booking took to newer versions of its add-on: each one a
+ * contract recorded, read off the line it marks, and the one scheduled on the
+ * booking that no contract has recorded yet (`SC-BUN-058`).
+ */
+function switchesOf(
+    booking: SubscriptionBundleRecord,
+    contracts: readonly SubscriptionContractRecord[],
+): BookingLeaves[] {
+    const switches = new Map<string, BookingLeaves>();
+    const add = (from: string, to: string, at: Date) => {
+        const key = `${from}>${to}@${at.toISOString()}`;
+        if (switches.has(key)) return;
+        switches.set(key, {
+            bundleVersionId: from,
+            replacementBundleVersionId: to,
+            from: at,
+            marks: (line) => isSwitchedTo(line, booking.id, to, at),
+        });
+    };
+    for (const contract of contracts) {
+        for (const line of contract.lineItems) {
+            const mark = switchMarkOf(line);
+            if (mark?.subscriptionBundleId === booking.id && line.sourceVersionId !== null) {
+                add(mark.fromBundleVersionId, line.sourceVersionId, mark.effectiveAt);
+            }
+        }
+    }
+    const scheduled = booking.pendingBundleVersionId;
+    const at = booking.pendingVersionEffectiveAt;
+    // A booking already on it has been switched, and its contract says so.
+    if (scheduled && at && scheduled !== booking.bundleVersionId) {
+        add(booking.bundleVersionId, scheduled, at);
+    }
+    return [...switches.values()];
+}
+
+/**
+ * What a booking's switch to a dearer version adds: the difference between
+ * the line its contract marks and the booking's line in force just before it,
+ * for the rest of the period the switch falls in (`SC-BUN-058`) — and nothing
+ * where the new line is not dearer, since nothing is paid back
+ * (`SC-PRIC-003`). A switch at the start of a period adds nothing: that period
+ * is priced from the new line whole.
+ */
+function switchDifferences(
+    input: ChargeDerivationInput,
+    booking: SubscriptionBundleRecord,
+    chain: {
+        /** The booking's whole periods, written and due. */
+        periods: readonly ChargePeriod[];
+        cycle: BillingCycle;
+        anchorDay: number | null;
+        endsAt: Date | null;
+    },
+): NewSubscriberCharge[] {
+    const charges: NewSubscriberCharge[] = [];
+    const seen = new Set<number>();
+    for (const contract of [...input.contracts].sort(byEffectiveFrom)) {
+        if (contract.status === 'scheduled') continue;
+        for (const line of contract.lineItems) {
+            const mark = switchMarkOf(line);
+            if (mark?.subscriptionBundleId !== booking.id) continue;
+            const at = mark.effectiveAt;
+            // Recorded once, by the earliest contract that marks it.
+            if (seen.has(at.getTime())) continue;
+            seen.add(at.getTime());
+            const period = chain.periods.find((one) => one.start < at && at < one.end);
+            if (!period || !isChargeable({ start: at, end: period.end }, input, chain.endsAt)) {
+                continue;
+            }
+            const before = contractInForce(
+                input.contracts,
+                new Date(at.getTime() - 1),
+            )?.lineItems.find(
+                (item) =>
+                    item.kind === 'bundle' && item.sourceVersionId === mark.fromBundleVersionId,
+            );
+            if (!before || before.billingCycle !== line.billingCycle) continue;
+            const difference = computeProration({
+                periodStart: bundleFirstPeriodStart(period.end, chain.cycle, chain.anchorDay),
+                periodEnd: period.end,
+                now: at,
+                currentPriceNet: before.priceNet,
+                targetPriceNet: line.priceNet,
+            }).prorataDeltaNet;
+            if (difference <= 0) continue;
+            charges.push(
+                chargeOf(input, contract, line, {
+                    origin: 'bundleChange',
+                    source: 'bundle',
+                    sourceRef: booking.id,
+                    period: { start: at, end: period.end },
+                    amountNet: difference,
+                    bookedAt: at,
+                }),
+            );
+        }
+    }
+    return charges;
+}
+
+/** The whole periods the journal holds for a booking: its first one, and each renewal. */
+function wholeBundlePeriods(
+    written: readonly SubscriberChargeRecord[],
+    subscriptionBundleId: string,
+): ChargePeriod[] {
+    return written
+        .filter(
+            (charge) =>
+                charge.source === 'bundle' &&
+                charge.sourceRef === subscriptionBundleId &&
+                (charge.origin === 'bundleBooking' || charge.origin === 'renewal'),
+        )
+        .map((charge) => ({ start: charge.periodStart, end: charge.periodEnd }));
+}
+
+/** The switch a booking's add-on line was written for, or null for any other line. */
+function switchMarkOf(
+    line: ContractLineItemRecord,
+): { subscriptionBundleId: string; fromBundleVersionId: string; effectiveAt: Date } | null {
+    if (line.kind !== 'bundle' || !isRecord(line.metadata)) return null;
+    const mark = line.metadata.addOnSwitch;
+    if (
+        !isRecord(mark) ||
+        typeof mark.subscriptionBundleId !== 'string' ||
+        typeof mark.fromBundleVersionId !== 'string' ||
+        typeof mark.effectiveAt !== 'string'
+    ) {
+        return null;
+    }
+    const effectiveAt = new Date(mark.effectiveAt);
+    if (Number.isNaN(effectiveAt.getTime())) return null;
+    return {
+        subscriptionBundleId: mark.subscriptionBundleId,
+        fromBundleVersionId: mark.fromBundleVersionId,
+        effectiveAt,
+    };
+}
+
+/** Whether `line` is the one a switch of the booking to `to` at `at` marks. */
+function isSwitchedTo(
+    line: ContractLineItemRecord,
+    subscriptionBundleId: string,
+    to: string,
+    at: Date,
+): boolean {
+    const mark = switchMarkOf(line);
+    return (
+        mark !== null &&
+        line.sourceVersionId === to &&
+        mark.subscriptionBundleId === subscriptionBundleId &&
+        mark.effectiveAt.getTime() === at.getTime()
+    );
 }
 
 // ── The discount ─────────────────────────────────────────────────────────
@@ -976,24 +1164,21 @@ function monthsAfter(from: Date, months: number, anchorDay: number | null): Date
  * booked before the contract that takes it in. A contract taking effect after
  * the period has ended prices nothing in it.
  *
- * Except where a retirement has taken the line in force off the subscription,
- * or off the booking, by the time the period starts (`retiredBy`). The period
- * is the replacement's from the date the subscriber was told, and the move to
- * it is written by a run that comes some time after that date: only the
- * contract that retirement writes — marked with it — prices the period, however
- * late it came, and the period stays uncharged until it exists. Any other
- * contract written in between prices from its own start only, so a change the
- * subscriber makes weeks later does not reach back over time they spent on the
- * version being retired.
+ * Except where a move has taken the line in force off the subscription, or off
+ * the booking, by the time the period starts (`retiredBy`): a retirement's, or
+ * a booking's switch taken for the end of its term. The period is the new
+ * version's from that moment, and the move to it is written by a run that comes
+ * some time after: only the contract that move writes — marked with it — prices
+ * the period, however late it came, and the period stays uncharged until it
+ * exists. Any other contract written in between prices from its own start only,
+ * so a change the subscriber makes weeks later does not reach back over time
+ * they spent on the version being left.
  */
 function lineFor(
     contracts: readonly SubscriptionContractRecord[],
     period: ChargePeriod,
     matches: (line: ContractLineItemRecord) => boolean,
-    retiredBy: (
-        line: ContractLineItemRecord,
-        period: ChargePeriod,
-    ) => { readonly retirementId: string } | null = () => null,
+    retiredBy: LeftBy = () => null,
 ): { contract: SubscriptionContractRecord; line: ContractLineItemRecord } | null {
     const inForce = contractInForce(contracts, period.start);
     const inForceLine = inForce?.lineItems.find(matches);
@@ -1005,27 +1190,34 @@ function lineFor(
         if (!awaited && contract.effectiveFrom >= period.end) continue;
         const line = contract.lineItems.find(matches);
         if (!line) continue;
-        const prices = awaited
-            ? isWrittenBy(line, awaited.retirementId)
-            : retiredBy(line, period) === null;
+        const prices = awaited ? awaited.marks(line) : retiredBy(line, period) === null;
         if (prices) return { contract, line };
     }
     return null;
 }
 
+/**
+ * What a period waits for where the line in force was left by its start: the
+ * line that prices it from then, written by the move that left it.
+ */
+interface AwaitedLine {
+    readonly marks: (line: ContractLineItemRecord) => boolean;
+}
+
+/** Whether a line in force has been left by the start of a period, and for what. */
+type LeftBy = (line: ContractLineItemRecord, period: ChargePeriod) => AwaitedLine | null;
+
 /** The retirement that takes a plan line off the subscription by the start of a period, or null. */
-function retiredLines(
-    input: ChargeDerivationInput,
-): (line: ContractLineItemRecord, period: ChargePeriod) => RetiredPlanVersion | null {
+function retiredLines(input: ChargeDerivationInput): LeftBy {
     const retired = input.retired ?? [];
-    return (line, period) =>
-        line.kind === 'plan'
-            ? (retired.find(
-                  (version) =>
-                      version.planVersionId === line.sourceVersionId &&
-                      version.from <= period.start,
-              ) ?? null)
-            : null;
+    return (line, period) => {
+        if (line.kind !== 'plan') return null;
+        const by = retired.find(
+            (version) =>
+                version.planVersionId === line.sourceVersionId && version.from <= period.start,
+        );
+        return by ? { marks: (other) => isWrittenBy(other, by.retirementId) } : null;
+    };
 }
 
 /** Whether a retirement wrote the plan line: its move, or the switch it offers. */

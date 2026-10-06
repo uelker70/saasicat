@@ -20,8 +20,8 @@ export interface BookingsOnVersion {
  * caller's RLS bypass. A booking whose subscription cannot be read has no
  * owner here.
  *
- * Both ports are optional on their interfaces; an add-on retirement is refused
- * at start-up without them, and nothing else reads this.
+ * Both ports are optional on their interfaces; what reads this is refused at
+ * start-up without them, or not started.
  */
 export async function bookingsOfVersion(
     bookings: Pick<SubscriptionBundleRepository, 'listOfVersion'>,
@@ -29,6 +29,17 @@ export async function bookingsOfVersion(
     bundleVersionId: string,
 ): Promise<BookingsOnVersion> {
     const rows = await bookings.listOfVersion!(bundleVersionId);
+    return {
+        bookings: new Map(rows.map((row) => [row.id, row])),
+        owners: await ownersOf(subscriptions, rows),
+    };
+}
+
+/** The subscription each of `rows` belongs to, by id, read inside the caller's RLS bypass. */
+export async function ownersOf(
+    subscriptions: Pick<SubscriptionUsagePort, 'listByIds'>,
+    rows: readonly SubscriptionBundleRecord[],
+): Promise<Map<string, TenantSubscriptionUsage>> {
     const ids = [...new Set(rows.map((row) => row.subscriptionId))];
     // In slices: a query binds a bounded number of values, and a version can
     // be booked on more subscriptions than that.
@@ -36,8 +47,5 @@ export async function bookingsOfVersion(
     for (let start = 0; start < ids.length; start += IDS_PER_READ) {
         owners.push(...(await subscriptions.listByIds!(ids.slice(start, start + IDS_PER_READ))));
     }
-    return {
-        bookings: new Map(rows.map((row) => [row.id, row])),
-        owners: new Map(owners.map((owner) => [owner.subscription.id, owner])),
-    };
+    return new Map(owners.map((owner) => [owner.subscription.id, owner]));
 }

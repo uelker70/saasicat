@@ -361,6 +361,11 @@ export const subscriptionBundles = pgTable('subscription_bundles', {
     billingCycle: text('billingCycle'),
     currentPeriodStart: ts('currentPeriodStart'),
     currentPeriodEnd: ts('currentPeriodEnd'),
+    // A switch to a newer version taken for the end of the booking's term: the
+    // version it continues on, and from when. Both null where none is
+    // scheduled.
+    pendingBundleVersionId: text('pendingBundleVersionId'),
+    pendingVersionEffectiveAt: ts('pendingVersionEffectiveAt'),
     canceledAt: ts('canceledAt'),
     canceledEffectiveAt: ts('canceledEffectiveAt'),
     createdAt: writtenAt('createdAt'),

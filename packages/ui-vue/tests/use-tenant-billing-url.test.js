@@ -94,7 +94,7 @@ describe('useTenantBilling URL construction', () => {
     });
 });
 
-// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+// @requirement SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
 test('the version offer is read under the same prefix and answered as the offer itself', async () => {
     const offer = { plan: 'STANDARD', class: 'improvement' };
     const calls = [];
@@ -158,6 +158,27 @@ test('switchBundleToReplacement posts the version shown to the booking’s switc
             [
                 'POST',
                 '/billing/subscription-bundles/sb-1/retirement/switch',
+                { bundleVersionId: 'bv-2' },
+            ],
+            ['GET', '/billing/usage', undefined],
+            ['GET', '/billing/subscription-bundles', undefined],
+        ],
+    );
+});
+
+// @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+test('acceptBundleVersionOffer posts the version shown to the booking’s offer, then reloads', async () => {
+    const { client, calls } = makeRecordingHttp();
+    const billing = useTenantBilling({ http: client, autoLoad: false });
+
+    await billing.acceptBundleVersionOffer('sb-1', 'bv-2');
+
+    assert.deepEqual(
+        calls.map((c) => [c.method, c.url, c.body]),
+        [
+            [
+                'POST',
+                '/billing/subscription-bundles/sb-1/version-offer/accept',
                 { bundleVersionId: 'bv-2' },
             ],
             ['GET', '/billing/usage', undefined],

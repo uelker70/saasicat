@@ -209,7 +209,7 @@ const cellsOf = (label: string) =>
 const accepts = (server: ReturnType<typeof aServer>) =>
     server.calls.filter((call) => call.url.endsWith('/version-offer/accept'));
 
-// @requirement SC-SUB-020 — A newer version is offered, classified against the version bound
+// @requirement SC-SUB-040 — A newer version is offered, leaving a retirement's replacement to the early switch
 describe('the offer beside the plan', () => {
     test('is not there where nothing is offered', async () => {
         await aSection(aServer({ offer: null }));

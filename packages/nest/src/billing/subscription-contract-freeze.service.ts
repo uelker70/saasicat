@@ -34,6 +34,8 @@ import {
 } from './plan-helpers.js';
 import {
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
+    type AddOnSwitchContractTerms,
+    type ContractChangeTerms,
     type ContractFreezePort,
     type ContractFreezeSourcePort,
     type RetirementContractTerms,
@@ -128,7 +130,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         billingCycle: BillingCycle,
         effectiveFrom: Date,
         endsAt: Date | null = null,
-        retirement?: RetirementContractTerms,
+        terms?: ContractChangeTerms,
     ): Promise<void> {
         const data = await this.composeOnPlanChange(
             tenantId,
@@ -136,7 +138,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             billingCycle,
             effectiveFrom,
             endsAt,
-            retirement,
+            terms,
         );
         for (let attempt = 0; attempt < SUCCESSOR_ATTEMPTS; attempt++) {
             const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
@@ -165,9 +167,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         billingCycle: BillingCycle,
         effectiveFrom: Date,
         endsAt: Date | null = null,
-        retirement?: RetirementContractTerms,
+        terms?: ContractChangeTerms,
     ): Promise<CreateSubscriptionContractData> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
+        const retirement = terms && 'retirementId' in terms ? terms : undefined;
+        const addOnSwitch = terms && 'addOnSwitch' in terms ? terms.addOnSwitch : undefined;
         // The catalogue gives the currency and the name the plan is sold under,
         // and the rate where no tax adapter decides; it is the reading the
         // entitlement snapshot below is filtered against.
@@ -211,7 +215,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             )) as number);
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle);
-        assertTheMovedBookingHasItsLine(tenantId, bundles.lineItems, retirement);
+        assertTheMovedBookingHasItsLine(
+            tenantId,
+            bundles.lineItems,
+            retirement?.addOn?.bundleVersionId ?? addOnSwitch?.bundleVersionId,
+        );
 
         const planPriceNet = listPriceNet(planDef, billingCycle) ?? 0;
 
@@ -256,7 +264,9 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const lineItems = recordContractLinesMoney(
             [
                 planLineItem,
-                ...bundles.lineItems.map((line) => markedForAddOnMove(line, retirement)),
+                ...bundles.lineItems.map((line) =>
+                    markedForAddOnSwitch(markedForAddOnMove(line, retirement), addOnSwitch),
+                ),
                 ...(redeemed ? [redeemed.line] : []),
                 ...(held ? [held] : []),
             ],
@@ -415,18 +425,41 @@ function markedForAddOnMove(
 }
 
 /**
- * Refuses the contract of an add-on retirement's move where the source hands
- * no line for the version the booking moves onto. Written without it, the
- * contract would name nothing the journal could price the booking's periods
- * from the date with, and they would wait for good; refused, the move puts the
- * booking back and the next run makes both (`SC-BUN-050`).
+ * The add-on line a booking's switch to a newer version moves it onto, marked
+ * with the switch: the booking, the version it left and when (`SC-BUN-058`).
+ * Every other line stays as it was.
+ */
+function markedForAddOnSwitch(
+    line: PricedContractLineItem,
+    addOnSwitch: AddOnSwitchContractTerms['addOnSwitch'] | undefined,
+): PricedContractLineItem {
+    if (!addOnSwitch || line.kind !== 'bundle') return line;
+    if (line.sourceVersionId !== addOnSwitch.bundleVersionId) return line;
+    return {
+        ...line,
+        metadata: {
+            ...line.metadata,
+            addOnSwitch: {
+                subscriptionBundleId: addOnSwitch.subscriptionBundleId,
+                fromBundleVersionId: addOnSwitch.fromBundleVersionId,
+                effectiveAt: addOnSwitch.effectiveAt.toISOString(),
+            },
+        },
+    };
+}
+
+/**
+ * Refuses the contract of an add-on retirement's move, or of a switch to a
+ * newer version, where the source hands no line for the version the booking
+ * moves onto (`target`). Written without it, the contract would name nothing
+ * the journal could price the booking's periods with from then, and they would
+ * wait for good; refused, the move puts the booking back (`SC-BUN-050`).
  */
 function assertTheMovedBookingHasItsLine(
     tenantId: string,
     lines: readonly PricedContractLineItem[],
-    retirement: RetirementContractTerms | undefined,
+    target: string | undefined,
 ): void {
-    const target = retirement?.addOn?.bundleVersionId;
     if (!target) return;
     if (lines.some((line) => line.kind === 'bundle' && line.sourceVersionId === target)) return;
     throw new Error(

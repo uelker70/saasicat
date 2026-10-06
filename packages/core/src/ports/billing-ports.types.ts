@@ -226,15 +226,47 @@ export interface SubscriptionBundleRepository {
      * so a move and the put-back of a move that could not write its contract
      * never write over each other, nor two runs over one booking.
      *
-     * Only an add-on retirement moves a booking, at its date. Optional, so a
-     * repository written before it keeps working; retiring an add-on version
-     * over one without it is refused at start-up.
+     * An add-on retirement moves a booking at its date, and a subscriber by
+     * taking a newer version offered (`SC-BUN-058`). Optional, so a repository
+     * written before it keeps working; retiring an add-on version over one
+     * without it is refused at start-up, and no newer version is offered.
      */
     moveToVersion?(
         subscriptionBundleId: string,
         from: string,
         to: string,
     ): Promise<SubscriptionBundleRecord | null>;
+    /**
+     * Schedules the booking `subscriptionBundleId` to continue on the add-on
+     * version `to` from `effectiveAt` — `pendingBundleVersionId` and
+     * `pendingVersionEffectiveAt` — and answers it as it now stands, or null
+     * where it is not on `from` any more, already has a switch scheduled, or is
+     * gone. Nothing else changes, its version included: the switch is made at
+     * that moment by the run (`listScheduledVersionsDue`).
+     *
+     * Optional, and so are the two methods after it: without all three, a
+     * newer version that takes something away is not offered.
+     */
+    scheduleVersion?(
+        subscriptionBundleId: string,
+        switchTo: { from: string; to: string; effectiveAt: Date },
+    ): Promise<SubscriptionBundleRecord | null>;
+    /**
+     * Clears the switch scheduled for the booking `subscriptionBundleId`, and
+     * answers it as it now stands; null where no switch to `to` is scheduled
+     * any more, or it is gone. Its version stays as it is.
+     */
+    unscheduleVersion?(
+        subscriptionBundleId: string,
+        to: string,
+    ): Promise<SubscriptionBundleRecord | null>;
+    /**
+     * Every booking, in every tenant and whatever its state, with a switch
+     * scheduled to take effect at or before `asOf` — oldest first. The
+     * platform reads it inside the RLS bypass and decides itself which of
+     * them still move.
+     */
+    listScheduledVersionsDue?(asOf: Date): Promise<SubscriptionBundleRecord[]>;
 }
 
 /**

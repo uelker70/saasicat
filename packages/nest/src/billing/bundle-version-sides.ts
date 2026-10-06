@@ -1,10 +1,12 @@
 // An add-on version as a subscriber compares it with another: the side a
-// retirement's notice, its reminder and the early switch each read, priced
-// beside one plan, and the differences between two of them.
+// retirement's notice, its reminder, the early switch and an offer each read,
+// priced beside one plan, and the differences between two of them.
 
 import {
     classifyBundleVersionDiff,
-    type BundleRetirementSide,
+    type BillingCycle,
+    type BundleVersionFields,
+    type BundleVersionSide,
     type BundleVersionRetiredNotice,
     type BundleVersionRow,
     type VersionChange,
@@ -16,10 +18,10 @@ import { resolveBundlePriceNet } from './bundle-price.js';
  * One version as a subscriber compares it, priced beside `planKey` —
  * `pricingOverrides` included — or at its own prices where no plan is named.
  */
-export function bundleRetirementSide(
+export function bundleVersionSide(
     version: BundleVersionRow,
     planKey: string | null,
-): BundleRetirementSide {
+): BundleVersionSide {
     const priced = planKey === null ? { ...version, pricingOverrides: [] } : version;
     return {
         bundleVersionId: version.id,
@@ -33,18 +35,29 @@ export function bundleRetirementSide(
     };
 }
 
-/** Every difference, retired to replacement, as the catalogue's diff states it. */
-export function bundleRetirementChanges(
-    retired: BundleRetirementSide,
-    replacement: BundleRetirementSide,
-): VersionChange[] {
-    const fields = (side: BundleRetirementSide) => ({
+/**
+ * What the catalogue's diff compares of a side: what it grants, and its price
+ * in each rhythm — or, with `inRhythm`, in that rhythm alone, the other left
+ * out of the comparison.
+ */
+export function comparedFieldsOfSide(
+    side: BundleVersionSide,
+    inRhythm?: BillingCycle,
+): BundleVersionFields {
+    return {
         features: [...side.features],
         quotas: { ...side.quotas },
-        monthlyNet: side.monthlyNet,
-        yearlyNet: side.yearlyNet,
-    });
-    return classifyBundleVersionDiff(fields(retired), fields(replacement)).changes;
+        monthlyNet: inRhythm === 'YEARLY' ? null : side.monthlyNet,
+        yearlyNet: inRhythm === 'MONTHLY' ? null : side.yearlyNet,
+    };
+}
+
+/** Every difference, from one version to the other, as the catalogue's diff states it. */
+export function bundleVersionChanges(
+    from: BundleVersionSide,
+    to: BundleVersionSide,
+): VersionChange[] {
+    return classifyBundleVersionDiff(comparedFieldsOfSide(from), comparedFieldsOfSide(to)).changes;
 }
 
 /**
@@ -59,14 +72,14 @@ export function bundleRetirementSidesFor(
     retired: BundleVersionRow | null,
     replacement: BundleVersionRow | null,
 ): Pick<BundleVersionRetiredNotice, 'planKey' | 'retired' | 'replacement' | 'changes'> {
-    const retiredSide = retired ? bundleRetirementSide(retired, planKey) : told.retired;
+    const retiredSide = retired ? bundleVersionSide(retired, planKey) : told.retired;
     const replacementSide = replacement
-        ? bundleRetirementSide(replacement, planKey)
+        ? bundleVersionSide(replacement, planKey)
         : told.replacement;
     return {
         planKey,
         retired: retiredSide,
         replacement: replacementSide,
-        changes: bundleRetirementChanges(retiredSide, replacementSide),
+        changes: bundleVersionChanges(retiredSide, replacementSide),
     };
 }

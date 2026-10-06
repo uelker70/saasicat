@@ -212,7 +212,12 @@ export class SubscriptionBundlesService {
         // the catalog can exclude filtered/superseded versions).
         return Promise.all(
             records.map(async (r) => {
-                const bv = await this.bundles.findVersionById(r.bundleVersionId);
+                const [bv, pending] = await Promise.all([
+                    this.bundles.findVersionById(r.bundleVersionId),
+                    r.pendingBundleVersionId
+                        ? this.bundles.findVersionById(r.pendingBundleVersionId)
+                        : null,
+                ]);
                 // A booking made before the column existed took the plan's
                 // rhythm, because that was the only thing it could take.
                 const cycle = r.billingCycle ?? planCycle;
@@ -221,6 +226,7 @@ export class SubscriptionBundlesService {
                     bundleKey: bv?.bundleKey ?? null,
                     label: bv?.label ?? null,
                     priceNet: bv ? resolveBundlePriceNet(bv, planKey, cycle) : null,
+                    pendingVersion: pending?.version ?? null,
                 };
             }),
         );

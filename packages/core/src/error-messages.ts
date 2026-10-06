@@ -226,6 +226,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Version {version} of {bundleKey} is being retired, and this booking ends before it would move. Your subscription ends by then as well.',
     BUNDLE_RETIREMENT_SWITCH_PLAN_CHANGES:
         '{bundleName} moves to its new version on {date}, and your plan changes before then, so the price a switch would keep is not known yet. Switch once your plan has changed, or let it move on that date.',
+    BUNDLE_VERSION_OFFER_CHANGED:
+        'The offer changed since it was shown. Look at the current one before switching.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',
@@ -335,6 +337,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "CheckoutOffer '{offerId}' must be consumed before the contract is created",
     CHECKOUT_OFFER_CHANGED:
         "Checkout offer '{offerId}' changed while it was being concluded. Load it again.",
+    CHECKOUT_OFFER_CONTRACT_IN_FORCE:
+        "Checkout offer '{offerId}' concludes a first contract, and this tenant already has one. A running subscription changes through its plan and its add-ons.",
+    CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION:
+        "Checkout offer '{offerId}' names version {offeredVersion} of add-on '{bundleKey}', which this tenant has booked in version {bookedVersion} (booking {subscriptionBundleId}). Its version changes through the offer beside the add-on.",
     SUBSCRIPTION_CONTRACT_NOT_FOUND: "SubscriptionContract '{contractId}' not found",
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'No active subscription contract for tenant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: "SubscriptionContract '{contractId}' is already closed",

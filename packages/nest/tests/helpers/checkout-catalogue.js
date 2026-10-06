@@ -175,6 +175,8 @@ export function buildOfferService(overrides = {}) {
         transactions: null,
         subscribers: null,
         taxes: null,
+        subscriptionUsage: null,
+        bookings: null,
         ...overrides,
     };
     const pricing = new CheckoutOfferPricing(
@@ -196,6 +198,8 @@ export function buildOfferService(overrides = {}) {
         deps.subscribers,
         // A fake above prices a code and holds none; the promo service does both.
         deps.promoCodes instanceof PromoCodesService ? deps.promoCodes : null,
+        deps.subscriptionUsage,
+        deps.bookings,
     );
     return { service, ...deps };
 }

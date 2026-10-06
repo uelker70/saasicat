@@ -190,6 +190,19 @@ export interface TenantPlanSectionI18n {
     bundleRetiredSwitchCancelLapses: string;
     /** After the switch; `{bundle}` names the add-on, `{version}` the replacement's version. */
     bundleRetiredSwitched: string;
+    /** A newer add-on version offered beside the booking; `{bundle}` names the add-on, `{version}` the version offered. */
+    bundleOfferTitle: string;
+    /** `{bundle}` names the add-on. */
+    bundleOfferLeadImprovement: string;
+    /** `{bundle}` names the add-on. */
+    bundleOfferLeadMoreForMore: string;
+    /** `{bundle}` names the add-on. */
+    bundleOfferLeadTakesAway: string;
+    bundleOfferConfirmMoreForMore: string;
+    /** `{date}` is when it takes effect, `{bundle}` names the add-on. */
+    bundleOfferConfirmTakesAway: string;
+    /** A switch scheduled for the end of the booking's term; `{bundle}`, `{version}` and `{date}`. */
+    bundleOfferSwitchScheduled: string;
     wizardTitle: string;
     wizardClose: string;
     wizardCurrent: string;
@@ -530,6 +543,18 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     bundleRetiredSwitchCancelLapses:
         'Mit dem Wechsel entfällt die Kündigung ohne Mindestlaufzeit. Die Laufzeit der Buchung bleibt, wie sie ist.',
     bundleRetiredSwitched: '{bundle} läuft jetzt auf Version {version}.',
+    bundleOfferTitle: 'Version {version} von {bundle}',
+    bundleOfferLeadImprovement:
+        'Diese Version von {bundle} bietet mehr und kostet nicht mehr. Ein Wechsel gilt sofort, kostet nichts, und Abrechnungszeitraum und Laufzeit der Buchung bleiben.',
+    bundleOfferLeadMoreForMore:
+        'Diese Version von {bundle} bietet mehr und kostet mehr. Ein Wechsel gilt sofort; für den Rest des laufenden Abrechnungszeitraums der Buchung wird die anteilige Differenz berechnet.',
+    bundleOfferLeadTakesAway:
+        'Diese Version von {bundle} enthält weniger als Ihre jetzige. Ein Wechsel gilt erst zum Ende der Laufzeit der Buchung; bis dahin bleibt alles, wie es ist.',
+    bundleOfferConfirmMoreForMore:
+        'Der Wechsel gilt sofort. Für den Rest des laufenden Abrechnungszeitraums der Buchung wird die anteilige Differenz berechnet; ab dem nächsten gilt der neue Preis.',
+    bundleOfferConfirmTakesAway:
+        'Der Wechsel gilt zum {date}. Ab dann enthält {bundle}, was die Spalte „Neue Version“ zeigt — was dort fehlt oder niedriger ist, entfällt. Bis dahin bleibt alles, wie es ist.',
+    bundleOfferSwitchScheduled: '{bundle} wechselt zum {date} auf Version {version}.',
     wizardTitle: 'Paket wechseln',
     wizardClose: 'Schließen',
     wizardCurrent: 'Aktuell',
@@ -841,6 +866,18 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundleRetiredSwitchCancelLapses:
         'With the switch, cancelling without the minimum term is no longer available. The booking’s term stays as it is.',
     bundleRetiredSwitched: '{bundle} runs on version {version} now.',
+    bundleOfferTitle: 'Version {version} of {bundle}',
+    bundleOfferLeadImprovement:
+        'This version of {bundle} offers more and costs no more. A switch applies at once, costs nothing, and keeps the booking’s billing period and term.',
+    bundleOfferLeadMoreForMore:
+        'This version of {bundle} offers more and costs more. A switch applies at once; for the rest of the booking’s current billing period the prorated difference is charged.',
+    bundleOfferLeadTakesAway:
+        'This version of {bundle} includes less than yours. A switch applies at the end of the booking’s term; until then nothing changes.',
+    bundleOfferConfirmMoreForMore:
+        'The switch applies at once. For the rest of the booking’s current billing period the prorated difference is charged; from its next one the new price applies.',
+    bundleOfferConfirmTakesAway:
+        'The switch applies on {date}. From then {bundle} includes what the “New version” column shows — whatever is missing or lower there is gone. Until then nothing changes.',
+    bundleOfferSwitchScheduled: '{bundle} switches to version {version} on {date}.',
     wizardTitle: 'Change plan',
     wizardClose: 'Close',
     wizardCurrent: 'Current',

@@ -961,3 +961,71 @@ describe('a contract a retirement writes', () => {
         );
     });
 });
+
+// @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says
+describe('a contract a switch to a newer add-on version writes', () => {
+    const SWITCHED_AT = new Date('2026-10-15T09:00:00.000Z');
+    const addOnSwitch = {
+        subscriptionBundleId: 'sb-1',
+        fromBundleVersionId: 'bv-1',
+        bundleVersionId: 'bv-2',
+        effectiveAt: new Date('2026-11-01T00:00:00.000Z'),
+    };
+
+    test('marks the line of the version taken with the booking, the version left and its moment, and only that one', async () => {
+        const { calls, service } = makeService({
+            bundles: {
+                lineItems: [
+                    { ...monthlyAddOn(12), sourceVersionId: 'bv-2' },
+                    { ...monthlyAddOn(8), sourceKey: 'ARCHIVE', sourceVersionId: 'bv-archive' },
+                ],
+                bundleVersionIds: ['bv-2', 'bv-archive'],
+            },
+        });
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', SWITCHED_AT, null, {
+            addOnSwitch,
+        });
+
+        const [data] = calls.created;
+        assert.deepEqual(
+            data.lineItems.map((line) => [line.kind, line.sourceVersionId, line.metadata]),
+            [
+                ['plan', 'pv-standard-3', null],
+                [
+                    'bundle',
+                    'bv-2',
+                    {
+                        addOnSwitch: {
+                            subscriptionBundleId: 'sb-1',
+                            fromBundleVersionId: 'bv-1',
+                            effectiveAt: '2026-11-01T00:00:00.000Z',
+                        },
+                    },
+                ],
+                ['bundle', 'bv-archive', null],
+            ],
+        );
+        assert.equal(data.effectiveFrom, SWITCHED_AT);
+    });
+
+    test('whose booking the source hands no line for writes nothing', async () => {
+        const { calls, service } = makeService({
+            bundles: {
+                lineItems: [
+                    { ...monthlyAddOn(8), sourceKey: 'ARCHIVE', sourceVersionId: 'bv-archive' },
+                ],
+                bundleVersionIds: ['bv-archive'],
+            },
+        });
+
+        await assert.rejects(
+            () =>
+                service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', SWITCHED_AT, null, {
+                    addOnSwitch,
+                }),
+            /returned no line for that version/,
+        );
+        assert.equal(calls.created.length, 0);
+    });
+});

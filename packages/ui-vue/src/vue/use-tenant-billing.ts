@@ -15,7 +15,9 @@ import {
     BUNDLE_PRICE_LOOKUP_LIMIT,
     type BundleRetirementSwitchResult,
     type BundleRetirementSwitchTerms,
+    type BundleVersionOfferView,
     type BundleVersionRetiredNotice,
+    type BundleVersionSwitchResult,
     type VersionOfferView,
     type RetirementSwitchResult,
     type RetirementSwitchTerms,
@@ -274,6 +276,22 @@ export interface SubscriptionBundleShape {
      * the date); null where it may not. Optional as `retirement` is.
      */
     retirementSwitch?: BundleRetirementSwitchTerms | null;
+    /**
+     * A newer version of the add-on, offered beside the booking where it could
+     * take it; null where there is none. It stands beside a retirement's
+     * notice. Optional because a platform that does not read bookings in
+     * tenant billing answers without it.
+     */
+    offer?: BundleVersionOfferView | null;
+    /**
+     * A switch to a newer version taken for the end of the booking's term: the
+     * version it continues on, and from when. Optional because an adapter
+     * predating the columns answers without them.
+     */
+    pendingBundleVersionId?: string | null;
+    pendingVersionEffectiveAt?: string | null;
+    /** The number of the version scheduled; null where none is. */
+    pendingVersion?: number | null;
 }
 
 /**
@@ -520,6 +538,16 @@ export interface UseTenantBillingResult {
         bundleVersionId: string,
     ) => Promise<BundleRetirementSwitchResult>;
     /**
+     * Takes the newer version offered beside a booking — `bundleVersionId`,
+     * the version the page showed — and reloads. Refused with
+     * `BUNDLE_VERSION_OFFER_CHANGED` when that is no longer the version
+     * offered; the refusal carries the current offer.
+     */
+    acceptBundleVersionOffer: (
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ) => Promise<BundleVersionSwitchResult>;
+    /**
      * Add preview (#37): proration, next-period price, redundancy hint,
      * requires check and blockers — show BEFORE booking.
      */
@@ -687,6 +715,19 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         return result;
     }
 
+    async function acceptBundleVersionOffer(
+        subscriptionBundleId: string,
+        bundleVersionId: string,
+    ): Promise<BundleVersionSwitchResult> {
+        const result = await fetchOrThrow<BundleVersionSwitchResult>(
+            `/subscription-bundles/${subscriptionBundleId}/version-offer/accept`,
+            { method: 'POST', body: { bundleVersionId } },
+        );
+        // A switch at once moves the add-on's features and quotas: the usage too.
+        await reload();
+        return result;
+    }
+
     async function previewAddBundle(
         bundleVersionId: string,
         options: BundleBookingOptions = {},
@@ -798,6 +839,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         cancelBundle,
         reactivateBundle,
         switchBundleToReplacement,
+        acceptBundleVersionOffer,
         previewAddBundle,
         previewCancelBundle,
     };

@@ -5,6 +5,7 @@
 // when one is due and keeps the record; the application says who it went to
 // and how.
 
+import type { BundleVersionOfferView } from './bundle-version-offer.types.js';
 import type {
     BundleVersionRetiredNotice,
     BundleVersionRetirementReminder,
@@ -21,7 +22,8 @@ export type SubscriptionNoticeKind =
     | 'version-retired'
     | 'version-retirement-reminder'
     | 'bundle-version-retired'
-    | 'bundle-version-retirement-reminder';
+    | 'bundle-version-retirement-reminder'
+    | 'bundle-version-offered';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -39,6 +41,8 @@ export interface SubscriptionNoticeKey {
      * subscription holds one booking of an add-on, so that booking is told of
      * the retirement once. For `bundle-version-retirement-reminder`, the id of
      * the add-on version retired as well: that booking is reminded of it once.
+     * For `bundle-version-offered`, the id of the add-on version offered: that
+     * booking is told of the version once.
      */
     readonly subject: string;
 }
@@ -81,10 +85,25 @@ export interface VersionOfferedNotice {
     readonly offer: VersionOfferView;
 }
 
+/**
+ * A newer version of an add-on a booking is on is now offered to it. Sent once
+ * per booking and version, when the offer appears beside the add-on — the
+ * notice and the offer say the same thing.
+ */
+export interface BundleVersionOfferedNotice {
+    readonly kind: 'bundle-version-offered';
+    readonly tenantId: string;
+    readonly subscriptionId: string;
+    readonly subscriptionBundleId: string;
+    /** The offer as the list of the tenant's bookings shows it at the moment the notice is due. */
+    readonly offer: BundleVersionOfferView;
+}
+
 /** A notice handed to the application to send. */
 export type SubscriptionNotice =
     | VersionOfferedNotice
     | VersionRetiredNotice
     | VersionRetirementReminder
     | BundleVersionRetiredNotice
-    | BundleVersionRetirementReminder;
+    | BundleVersionRetirementReminder
+    | BundleVersionOfferedNotice;

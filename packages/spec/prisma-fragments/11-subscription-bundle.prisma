@@ -46,6 +46,14 @@ model SubscriptionBundle {
     currentPeriodStart DateTime?
     currentPeriodEnd   DateTime?
 
+    // A switch to a newer version of the add-on that takes something away,
+    // taken for the end of the booking's running term: the version it continues
+    // on, and from when. Both null, or both set — `constraints.postgres.sql`
+    // holds them to that. The platform's quarter-hourly run makes the switch at
+    // that moment and clears both.
+    pendingBundleVersionId    String?
+    pendingVersionEffectiveAt DateTime?
+
     // Cancellation: requested at `canceledAt`, effective at
     // `canceledEffectiveAt` (period/term end). Both null = active booking.
     canceledAt          DateTime?
@@ -56,11 +64,13 @@ model SubscriptionBundle {
 
     // The subscription this add-on is booked on. Restrict the BundleVersion so
     // a booked version cannot be hard-deleted from the catalog.
-    subscription  Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-    bundleVersion BundleVersion @relation(fields: [bundleVersionId], references: [id], onDelete: Restrict)
+    subscription         Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    bundleVersion        BundleVersion  @relation("SubscriptionBundleVersion", fields: [bundleVersionId], references: [id], onDelete: Restrict)
+    pendingBundleVersion BundleVersion? @relation("SubscriptionBundlePendingVersion", fields: [pendingBundleVersionId], references: [id], onDelete: Restrict)
 
     @@index([subscriptionId])
     @@index([bundleVersionId])
     @@index([canceledEffectiveAt])
+    @@index([pendingVersionEffectiveAt])
     @@map("subscription_bundles")
 }

@@ -494,6 +494,16 @@ const CONTRACT_GAPS: Record<
                 adapter.subscriptionBundleRepository?.moveToVersion && seed.createBundleVersion,
             ),
     },
+    bookingsScheduled: {
+        reason: 'adapter provides no SubscriptionBundleRepository that schedules a switch to another version',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriptionBundleRepository?.scheduleVersion &&
+                adapter.subscriptionBundleRepository.unscheduleVersion &&
+                adapter.subscriptionBundleRepository.listScheduledVersionsDue &&
+                seed.createBundleVersion,
+            ),
+    },
     subscriptionsById: {
         reason: 'adapter provides no SubscriptionUsagePort that reads subscriptions by id',
         present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listByIds),
@@ -7782,6 +7792,167 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         retired.bundleVersionId,
                         replacement.bundleVersionId,
                     ),
+                    null,
+                );
+            });
+        });
+
+        describe("a switch scheduled for the end of a booking's term", () => {
+            test('stands beside the version it is on, from that version only, once, until it is cleared', async (t) => {
+                const repository = harness.adapter.subscriptionBundleRepository;
+                const { seed } = harness;
+                if (
+                    !repository?.scheduleVersion ||
+                    !repository.unscheduleVersion ||
+                    !repository.listScheduledVersionsDue ||
+                    !seed.createBundleVersion
+                ) {
+                    missing(t, 'bookingsScheduled');
+                    return;
+                }
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'SCHEDULE_ADD_ON',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const booked = await seed.createBundleVersion({
+                    bundleKey: 'SCHEDULED_FROM',
+                    features: ['REPORTS'],
+                });
+                const taken = await seed.createBundleVersion({
+                    bundleKey: 'SCHEDULED_TO',
+                    features: [],
+                });
+                const bookingIn = async (tenantId: string) => {
+                    const { subscriptionId } = await seed.createSubscription({
+                        tenantId,
+                        plan: 'SCHEDULE_ADD_ON',
+                        planVersionId,
+                    });
+                    return repository.add({
+                        subscriptionId,
+                        bundleVersionId: booked.bundleVersionId,
+                        startedAt: new Date('2026-02-01T00:00:00.000Z'),
+                        minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
+                        billingCycle: 'MONTHLY',
+                        currentPeriodStart: new Date('2026-03-01T00:00:00.000Z'),
+                        currentPeriodEnd: new Date('2026-04-01T00:00:00.000Z'),
+                    });
+                };
+                const first = await bookingIn('tenant-scheduled-a');
+                const second = await bookingIn('tenant-scheduled-b');
+                assert.equal(first.pendingBundleVersionId, null, 'a booking starts with none');
+                assert.equal(first.pendingVersionEffectiveAt, null);
+                const at = new Date('2027-02-01T00:00:00.000Z');
+                const earlier = new Date('2026-04-01T00:00:00.000Z');
+
+                const scheduled = await repository.scheduleVersion(first.id, {
+                    from: booked.bundleVersionId,
+                    to: taken.bundleVersionId,
+                    effectiveAt: at,
+                });
+
+                assert.ok(scheduled, 'the switch is scheduled');
+                assert.equal(scheduled.pendingBundleVersionId, taken.bundleVersionId);
+                assert.equal(scheduled.pendingVersionEffectiveAt?.toISOString(), at.toISOString());
+                /** A booking without its schedule and the moment it was last written. */
+                const unscheduled = ({
+                    pendingBundleVersionId: _version,
+                    pendingVersionEffectiveAt: _at,
+                    updatedAt: _written,
+                    ...rest
+                }: typeof first) => rest;
+                assert.deepEqual(
+                    unscheduled(scheduled),
+                    unscheduled(first),
+                    'its version, period, terms and rhythm stay',
+                );
+                assert.equal(
+                    await repository.scheduleVersion(first.id, {
+                        from: booked.bundleVersionId,
+                        to: taken.bundleVersionId,
+                        effectiveAt: earlier,
+                    }),
+                    null,
+                    'a second schedule while one stands claims nothing',
+                );
+                assert.equal(
+                    await repository.scheduleVersion(second.id, {
+                        from: taken.bundleVersionId,
+                        to: booked.bundleVersionId,
+                        effectiveAt: earlier,
+                    }),
+                    null,
+                    'nor one from a version the booking is not on',
+                );
+                assert.ok(
+                    await repository.scheduleVersion(second.id, {
+                        from: booked.bundleVersionId,
+                        to: taken.bundleVersionId,
+                        effectiveAt: earlier,
+                    }),
+                );
+                assert.equal(
+                    (await repository.findById(first.id))?.pendingBundleVersionId,
+                    taken.bundleVersionId,
+                    'and read so afterwards',
+                );
+
+                const listDue = repository.listScheduledVersionsDue.bind(repository);
+                const due = async (asOf: Date) =>
+                    (await listDue(asOf)).map((booking) => booking.id);
+                assert.deepEqual(await due(new Date(earlier.getTime() - 1)), [], 'none before');
+                assert.deepEqual(await due(earlier), [second.id], 'one at its moment');
+                assert.deepEqual(
+                    await due(at),
+                    [second.id, first.id],
+                    'every tenant, oldest moment first',
+                );
+
+                const moved = await repository.moveToVersion?.(
+                    first.id,
+                    booked.bundleVersionId,
+                    taken.bundleVersionId,
+                );
+                if (moved) {
+                    assert.equal(
+                        moved.pendingBundleVersionId,
+                        taken.bundleVersionId,
+                        'a move keeps the schedule, which the run clears after it',
+                    );
+                }
+                assert.equal(
+                    await repository.unscheduleVersion(first.id, booked.bundleVersionId),
+                    null,
+                    'a clear names the version scheduled, or claims nothing',
+                );
+                const cleared = await repository.unscheduleVersion(first.id, taken.bundleVersionId);
+                assert.ok(cleared, 'the switch is cleared');
+                assert.equal(cleared.pendingBundleVersionId, null);
+                assert.equal(cleared.pendingVersionEffectiveAt, null);
+                assert.equal(
+                    cleared.bundleVersionId,
+                    moved ? taken.bundleVersionId : booked.bundleVersionId,
+                    'and the version stays as it is',
+                );
+                assert.equal(
+                    await repository.unscheduleVersion(first.id, taken.bundleVersionId),
+                    null,
+                    'a second clear claims nothing',
+                );
+                assert.deepEqual(await due(at), [second.id], 'and it is no longer due');
+                assert.equal(
+                    await repository.scheduleVersion(NO_SUCH_BOOKING, {
+                        from: booked.bundleVersionId,
+                        to: taken.bundleVersionId,
+                        effectiveAt: at,
+                    }),
+                    null,
+                );
+                assert.equal(
+                    await repository.unscheduleVersion(NO_SUCH_BOOKING, taken.bundleVersionId),
                     null,
                 );
             });

@@ -4,7 +4,9 @@ import { Cron } from '@nestjs/schedule';
 import { MaintenanceService } from '../maintenance/maintenance.service.js';
 import { BundleRetirementMoveService } from './bundle-retirement-move.service.js';
 import { BundleRetirementReminderService } from './bundle-retirement-reminder.service.js';
+import { BundleVersionNoticeService } from './bundle-version-notice.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
+import { BundleVersionSwitchRunService } from './bundle-version-switch-run.service.js';
 import { RetirementMoveService } from './retirement-move.service.js';
 import { RetirementReminderService } from './retirement-reminder.service.js';
 import { VersionNoticeService } from './version-notice.service.js';
@@ -12,23 +14,28 @@ import { VersionRetirementService } from './version-retirement.service.js';
 
 /**
  * Sends the version notices that are due, every quarter of an hour, so an
- * offer that appears is told within one — the retirement notices an
+ * offer that appears is told within one — of a newer plan version or of a
+ * newer version of an add-on booked (`SC-BUN-060`), the retirement notices an
  * announcement could not send at once, of a plan version or of an add-on
  * version, and the reminders whose day has come (`SC-SUB-034`, `SC-BUN-056`) —
  * and moves the subscriptions and the add-on bookings whose retirement has
- * taken effect (`SC-SUB-031`, `SC-BUN-049`).
+ * taken effect (`SC-SUB-031`, `SC-BUN-049`), and the bookings whose switch to a
+ * newer version was taken for the end of their term (`SC-BUN-059`).
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.versionNotices.includeCron: false` — for a CLI boot, or an
  * application that calls `VersionNoticeService.sendDue`,
+ * `BundleVersionNoticeService.sendDue`,
  * `VersionRetirementService.sendUndelivered`,
  * `BundleVersionRetirementService.sendUndelivered`,
  * `RetirementReminderService.remindDue`,
- * `BundleRetirementReminderService.remindDue`, `RetirementMoveService.moveDue`
- * and `BundleRetirementMoveService.moveDue` from a scheduler of its own. A
+ * `BundleRetirementReminderService.remindDue`, `RetirementMoveService.moveDue`,
+ * `BundleRetirementMoveService.moveDue` and
+ * `BundleVersionSwitchRunService.switchDue` from a scheduler of its own. A
  * retirement whose notice is not sent waits for it (`SC-SUB-038`), so a
  * scheduler that leaves out a `sendUndelivered` leaves those retirements
- * waiting.
+ * waiting, and one that leaves out `switchDue` leaves the switches taken for
+ * the end of a term unmade.
  */
 @Injectable()
 export class VersionNoticeCron {
@@ -65,6 +72,14 @@ export class VersionNoticeCron {
         @Optional()
         @Inject(BundleRetirementReminderService)
         private readonly bundleReminders: BundleRetirementReminderService | null = null,
+        // Present where bookings are read: newer add-on versions offered.
+        @Optional()
+        @Inject(BundleVersionNoticeService)
+        private readonly bundleOffers: BundleVersionNoticeService | null = null,
+        // Present where bookings are read: the switches taken for a term's end.
+        @Optional()
+        @Inject(BundleVersionSwitchRunService)
+        private readonly bundleSwitches: BundleVersionSwitchRunService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'versionNotices' })
@@ -86,6 +101,14 @@ export class VersionNoticeCron {
             const sent = await this.step('Version notices', () => this.notices.sendDue(new Date()));
             if (sent && (sent.told > 0 || sent.failed > 0)) {
                 this.logger.log(`Version notices: ${sent.told} sent, ${sent.failed} to try again.`);
+            }
+            const offered = await this.step('Add-on version notices', () =>
+                this.bundleOffers?.sendDue(new Date()),
+            );
+            if (offered && (offered.told > 0 || offered.failed > 0)) {
+                this.logger.log(
+                    `Add-on version notices: ${offered.told} sent, ${offered.failed} to try again.`,
+                );
             }
             const retired = await this.step('Retirement notices', () =>
                 this.retirements?.sendUndelivered(new Date()),
@@ -136,6 +159,17 @@ export class VersionNoticeCron {
                 this.logger.log(
                     `Add-on retirement moves: ${addOnMoves.moved} moved, ` +
                         `${addOnMoves.failed} to try again.`,
+                );
+            }
+            // After the moves: a booking a retirement moved meanwhile is
+            // switched from the version it is on now.
+            const addOnSwitches = await this.step('Add-on version switches', () =>
+                this.bundleSwitches?.switchDue(new Date()),
+            );
+            if (addOnSwitches && (addOnSwitches.switched > 0 || addOnSwitches.failed > 0)) {
+                this.logger.log(
+                    `Add-on version switches: ${addOnSwitches.switched} made, ` +
+                        `${addOnSwitches.failed} to try again.`,
                 );
             }
         } finally {

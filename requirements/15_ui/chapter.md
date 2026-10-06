@@ -1050,6 +1050,7 @@ _Tested by:_
     - an offer is taken by posting the version shown, and the usage reloaded after
     - switchToReplacement posts the version shown to /billing/retirement/switch, then reloads
     - switchBundleToReplacement posts the version shown to the booking’s switch, then reloads
+    - acceptBundleVersionOffer posts the version shown to the booking’s offer, then reloads
     - useTenantBillingCatalog URL construction
         - default apiPrefix is /billing — catalog endpoints land under
           /billing/{plans,bundles,feature-registry}
