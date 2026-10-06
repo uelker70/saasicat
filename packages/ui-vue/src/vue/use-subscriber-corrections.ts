@@ -89,7 +89,7 @@ export function useSubscriberCorrections(
     );
     const history = useAsyncData<AdminSubscriberHistoryEntry[]>(
         async () => (available.value && slug.value ? tenants.subscriberHistory(slug.value) : []),
-        { initial: [], watch: [slug, available] },
+        { initial: [], watch: [available], subject: slug },
     );
 
     /**

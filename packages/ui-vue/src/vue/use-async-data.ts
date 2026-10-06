@@ -30,8 +30,17 @@ export interface UseAsyncDataOptions<T> {
     initial: T;
     /** Load once on creation. Default `true`. */
     immediate?: boolean;
-    /** Reload whenever any of these changes — a filter, a selected row, a locale. */
+    /**
+     * Reload whenever any of these changes — a filter, a selected row, a
+     * locale. What was loaded stays until the new load answers.
+     */
     watch?: WatchSource[];
+    /**
+     * What the data is about — a tenant's slug. When it changes, `data` goes
+     * back to `initial` at once and loads again: what was loaded describes the
+     * previous subject, and shown under the new one it reads as the new one's.
+     */
+    subject?: WatchSource;
 }
 
 export function useAsyncData<T>(
@@ -71,6 +80,12 @@ export function useAsyncData<T>(
 
     if (options.watch?.length) {
         watch(options.watch, () => void reload());
+    }
+    if (options.subject !== undefined) {
+        watch(options.subject, () => {
+            data.value = options.initial;
+            void reload();
+        });
     }
 
     if (options.immediate !== false) {

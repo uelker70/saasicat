@@ -41,6 +41,17 @@ const STANDING = {
     readiness: { ready: false, missing: [], taxRefusal: 'No validated VAT number.' },
 };
 
+const GRAZ = {
+    subscriber: {
+        ...SUBSCRIBER,
+        id: 's-2',
+        customerNumber: 'K-10002',
+        legalName: 'Graz AG',
+        vatId: null,
+    },
+    readiness: null,
+};
+
 const HISTORY = [
     {
         kind: 'identity-corrected',
@@ -85,8 +96,20 @@ const unanswered = () => new Promise<never>(() => {});
 
 async function mountPage(
     manifest: unknown = DECIDING,
-    { slowTenant }: { slowTenant?: string } = {},
+    {
+        slowTenant,
+        slowHistoryOf,
+        rereadsHang = false,
+    }: {
+        /** A tenant whose subscriber and history do not answer while the test runs. */
+        slowTenant?: string;
+        /** A tenant whose subscriber answers and whose history does not. */
+        slowHistoryOf?: string;
+        /** Whether reading the subscriber again, after the first read, never answers. */
+        rereadsHang?: boolean;
+    } = {},
 ) {
+    let subscriberReads = 0;
     const calls: Call[] = [];
     const notices: Array<[string, string]> = [];
     const answer = { subscriber: STANDING, vatIdCheck: null };
@@ -107,9 +130,16 @@ async function mountPage(
                 ...provideStubResources({
                     tenants: {
                         detail: async () => TENANT,
-                        subscriber: (slug: string) =>
-                            slug === slowTenant ? unanswered() : Promise.resolve(STANDING),
-                        subscriberHistory: async () => HISTORY,
+                        subscriber: (slug: string) => {
+                            subscriberReads += 1;
+                            if (slug === slowTenant) return unanswered();
+                            if (rereadsHang && subscriberReads > 1) return unanswered();
+                            return Promise.resolve(slug === 'graz' ? GRAZ : STANDING);
+                        },
+                        subscriberHistory: (slug: string) =>
+                            slug === slowTenant || slug === slowHistoryOf
+                                ? unanswered()
+                                : Promise.resolve(HISTORY),
                         correctSubscriberIdentity: async (...args: unknown[]) => {
                             calls.push(['identity', ...args]);
                             return answer;
@@ -260,25 +290,51 @@ describe('the operator corrects the subscriber on the tenant page', () => {
         expect(dialog().node?.querySelector('.sa-banner--negative')).toBeNull();
     });
 
-    test('moving to another tenant closes an open dialog, and nothing is offered until its subscriber is read', async () => {
+    test("moving to another tenant closes an open dialog and shows nothing of the first one's subscriber while the next one's is read", async () => {
         const { wrapper, router, calls } = await mountPage(DECIDING, { slowTenant: 'graz' });
         await buttonNamed(wrapper, 'Correct identity')!.trigger('click');
         await settle();
         expect(dialog().node, 'the premise: the dialog is open').toBeTruthy();
+        expect(wrapper.text(), 'the premise: the first subscriber is shown').toContain('Wien GmbH');
 
         await router.push('/admin/tenants/graz');
         await settle();
 
         expect(dialog().node, "the dialog with the first tenant's form").toBeUndefined();
+        expect(wrapper.text(), "the first tenant's subscriber or history").not.toContain(
+            'Wien GmbH',
+        );
+        expect(wrapper.text()).not.toContain('Legal form spelt as registered');
+        expect(buttonNamed(wrapper, 'Correct identity')).toBeUndefined();
+        expect(calls).toEqual([]);
+    });
+
+    test("the next tenant's subscriber read and its history not yet: none of the first one's history is shown", async () => {
+        const { wrapper, router } = await mountPage(DECIDING, { slowHistoryOf: 'graz' });
+        expect(wrapper.text(), 'the premise').toContain('Legal form spelt as registered');
+
+        await router.push('/admin/tenants/graz');
+        await settle();
+
+        expect(wrapper.text(), "the next tenant's subscriber").toContain('Graz AG');
+        expect(wrapper.text()).not.toContain('Legal form spelt as registered');
+    });
+
+    test('while the subscriber is read again after a correction, its actions wait for it', async () => {
+        const { wrapper } = await mountPage(DECIDING, { rereadsHang: true });
+        await buttonNamed(wrapper, 'Correct identity')!.trigger('click');
+        await settle();
+        await typeInto('Tax number', '12/345/67890');
+        await typeInto('Reason', 'Tax number handed in');
+        dialog().submit!.click();
+        await enterTheCode();
+
         for (const label of ['Correct identity', 'Change business status', 'Check VAT ID']) {
-            const button = buttonNamed(wrapper, label);
-            expect(button, `${label} is shown`).toBeTruthy();
             expect(
-                button!.attributes('disabled'),
-                `${label} with the first tenant's subscriber`,
+                buttonNamed(wrapper, label)?.attributes('disabled'),
+                `${label} on the values from before the correction`,
             ).toBeDefined();
         }
-        expect(calls).toEqual([]);
     });
 
     // @requirement SC-PRIC-071 — A VAT number the operator corrects or checks is checked, and every outcome kept

@@ -59,4 +59,7 @@ entity stays refused.
   that resolves `null` after a successful write resolves something else
   now, or the dialog stays open after it. A `successMessage` function given
   to `useAsyncAction` is passed what the call resolved, and an empty text
-  announces nothing.
+  announces nothing. `useAsyncData` takes a `subject` — a tenant's slug —
+  whose change drops what was loaded at once: moving from one tenant to the
+  next, the tenant page no longer shows the first one's subscriber, history or
+  account while the next one's are read.

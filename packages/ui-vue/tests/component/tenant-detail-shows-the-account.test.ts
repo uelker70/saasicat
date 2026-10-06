@@ -74,7 +74,7 @@ async function settle(): Promise<void> {
 async function mountPage({
     manifest = SERVING as unknown,
     optionsManifest = undefined as unknown,
-    charges = async (): Promise<unknown> => ACCOUNT,
+    charges = async (_slug: string): Promise<unknown> => ACCOUNT,
 } = {}) {
     const asked: string[] = [];
     const router = createRouter({
@@ -99,7 +99,7 @@ async function mountPage({
                         detail: async () => TENANT,
                         charges: async (slug: string) => {
                             asked.push(slug);
-                            return charges();
+                            return charges(slug);
                         },
                     },
                 } as never),
@@ -109,7 +109,7 @@ async function mountPage({
     });
     mounted.push(wrapper);
     await settle();
-    return { wrapper, asked };
+    return { wrapper, asked, router };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountPage>>['wrapper'];
@@ -126,6 +126,20 @@ function chargeRows(wrapper: Mounted): string[][] {
 }
 
 describe("the tenant detail shows the subscriber's account", () => {
+    test("moving to another tenant shows nothing of the first one's account while the next one's is read", async () => {
+        const { wrapper, router } = await mountPage({
+            charges: (slug: string) =>
+                slug === 'contoso' ? new Promise(() => {}) : Promise.resolve(ACCOUNT),
+        });
+        expect(wrapper.text(), 'the premise').toContain('Northwind GmbH');
+
+        await router.push('/admin/tenants/contoso');
+        await settle();
+
+        expect(wrapper.text()).not.toContain('Northwind GmbH');
+        expect(wrapper.text()).not.toContain('Welcome 20 %');
+    });
+
     test('whose account it is, and each charge in the order the platform serves them', async () => {
         const { wrapper, asked } = await mountPage();
 

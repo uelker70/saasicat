@@ -730,7 +730,11 @@ _Tested by:_
         - a superseded load that FAILS does not wipe the page or raise its error
     - useAsyncData — watch
         - reloads when a watched source changes
+        - a change keeps what was loaded until the new load answers
         - a watched source combines with immediate: false — the first load is the change
+    - useAsyncData — subject
+        - a change of subject drops what was loaded at once, so the previous one's never shows as
+          the new one's
 
 <!-- END proof -->
 
@@ -1673,7 +1677,11 @@ _Tested by:_
         - a superseded load that FAILS does not wipe the page or raise its error
     - useAsyncData — watch
         - reloads when a watched source changes
+        - a change keeps what was loaded until the new load answers
         - a watched source combines with immediate: false — the first load is the change
+    - useAsyncData — subject
+        - a change of subject drops what was loaded at once, so the previous one's never shows as
+          the new one's
 
 <!-- END proof -->
 

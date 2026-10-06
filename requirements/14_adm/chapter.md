@@ -467,6 +467,8 @@ _Tested by:_
         - an installation that keeps no windows is not asked about them
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
     - the tenant detail shows the subscriber's account
+        - moving to another tenant shows nothing of the first one's account while the next one's is
+          read
         - whose account it is, and each charge in the order the platform serves them
         - an amount is shown in the currency it was charged in
         - a tenant without a subscriber says so
@@ -859,6 +861,8 @@ _Tested by:_
         - with it, it starts
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
     - the tenant detail shows the subscriber's account
+        - moving to another tenant shows nothing of the first one's account while the next one's is
+          read
         - whose account it is, and each charge in the order the platform serves them
         - an amount is shown in the currency it was charged in
         - a tenant without a subscriber says so
@@ -991,8 +995,11 @@ _Tested by:_
         - a correction is sent only once something changed and a reason is given, with the second
           factor
         - stepping back from the second factor sends nothing and keeps the form
-        - moving to another tenant closes an open dialog, and nothing is offered until its
-          subscriber is read
+        - moving to another tenant closes an open dialog and shows nothing of the first one's
+          subscriber while the next one's is read
+        - the next tenant's subscriber read and its history not yet: none of the first one's history
+          is shown
+        - while the subscriber is read again after a correction, its actions wait for it
         - a check is asked without the second factor
         - the history lists each correction and check with what it changed, why and by whom
 
