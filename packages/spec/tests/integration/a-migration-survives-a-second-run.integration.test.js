@@ -1983,6 +1983,115 @@ describe('a correction carries the order it was recorded in', () => {
     });
 });
 
+describe('a correction carries its order under row-level security', () => {
+    // The file runs as the table's owner, as a deploy does, and a forced policy
+    // binds the owner too. Adding the column numbers every row, seen or not;
+    // the renumbering reaches only the rows the policy lets through. A role
+    // that sees fewer than all is therefore refused before anything changes,
+    // and one that sees all — however its policy is lifted — numbers them in
+    // the order they were listed.
+    const MIGRATION = '1.0-a-correction-carries-its-order.postgres.sql';
+    const MIGRATOR = 'saasicat_test_correction_migrator';
+    const insert = (id, correctedAt) =>
+        client.query(
+            'INSERT INTO "subscriber_corrections" ' +
+                '("id", "subscriberId", "previous", "corrected", "reason", "correctedBy", "correctedAt") ' +
+                "VALUES ($1, 's-1', '{}', '{}', 'typo', 'operator:anna', $2)",
+            [id, correctedAt],
+        );
+    const seqColumn = async () =>
+        (
+            await client.query(
+                'SELECT 1 FROM information_schema.columns ' +
+                    "WHERE table_schema = current_schema() AND table_name = 'subscriber_corrections' " +
+                    "AND column_name = 'seq'",
+            )
+        ).rows.length;
+
+    /**
+     * Three corrections recorded before the column, in a table owned by a role
+     * that `policy` binds; the session then acts as that role, as a deploy does.
+     */
+    async function ownedUnderPolicy(policy) {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriber_corrections" DROP COLUMN "seq"');
+        await client.query(
+            'CREATE INDEX "subscriber_corrections_subscriberId_correctedAt_idx" ' +
+                'ON "subscriber_corrections"("subscriberId", "correctedAt")',
+        );
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") ` +
+                `VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await insert('b', '2026-09-01T06:30:00.000Z');
+        await insert('a', '2026-09-01T06:30:00.000Z');
+        await insert('c', '2026-08-01T06:30:00.000Z');
+        await client.query(`DROP ROLE IF EXISTS ${MIGRATOR}`);
+        await client.query(`CREATE ROLE ${MIGRATOR}`);
+        await client.query(`GRANT USAGE, CREATE ON SCHEMA public TO ${MIGRATOR}`);
+        await client.query(`ALTER TABLE "subscriber_corrections" OWNER TO ${MIGRATOR}`);
+        await client.query('ALTER TABLE "subscriber_corrections" ENABLE ROW LEVEL SECURITY');
+        await client.query('ALTER TABLE "subscriber_corrections" FORCE ROW LEVEL SECURITY');
+        await client.query(`CREATE POLICY "fenced" ON "subscriber_corrections" USING (${policy})`);
+        await client.query(`SET ROLE ${MIGRATOR}`);
+    }
+
+    /** Back to the test's own role, which takes the table over; the migrating role is gone. */
+    async function asTheTestAgain() {
+        await client.query('ROLLBACK').catch(() => {});
+        await client.query('RESET ROLE');
+        await client.query(`REASSIGN OWNED BY ${MIGRATOR} TO CURRENT_USER`);
+        await client.query(`DROP OWNED BY ${MIGRATOR}`);
+        await client.query(`DROP ROLE ${MIGRATOR}`);
+    }
+
+    for (const [hidden, policy] of [
+        ['one of three corrections', `"id" <> 'c'`],
+        ['every correction', 'false'],
+    ]) {
+        test(`a role the policy hides ${hidden} from is refused, and nothing changes`, async () => {
+            await ownedUnderPolicy(policy);
+            try {
+                await assert.rejects(
+                    apply(MIGRATION),
+                    /Cannot see every row of subscriber_corrections under row-level security/,
+                );
+            } finally {
+                await asTheTestAgain();
+            }
+
+            assert.equal(await seqColumn(), 0, 'the column was added after all');
+            const { rows } = await client.query(
+                'SELECT "id" FROM "subscriber_corrections" ORDER BY "id"',
+            );
+            assert.deepEqual(
+                rows.map((row) => row.id),
+                ['a', 'b', 'c'],
+            );
+        });
+    }
+
+    test('a policy lifted by a setting numbers every correction, and the numbering continues after them', async () => {
+        await ownedUnderPolicy("current_setting('app.bypass_rls', true) = 'true'");
+        try {
+            await client.query("SELECT set_config('app.bypass_rls', 'true', false)");
+            await apply(MIGRATION);
+            await insert('d', '2026-07-01T06:30:00.000Z');
+            const { rows } = await client.query(
+                'SELECT "id", "seq" FROM "subscriber_corrections" ORDER BY "seq"',
+            );
+
+            assert.deepEqual(
+                rows.map((row) => `${row.id}:${row.seq}`),
+                ['c:1', 'a:2', 'b:3', 'd:4'],
+            );
+        } finally {
+            await asTheTestAgain();
+            await client.query("SELECT set_config('app.bypass_rls', '', false)");
+        }
+    });
+});
+
 // @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
 describe("a booking's scheduled switch holds its version and its moment together", () => {
     // The repositories write both columns or neither, and the persistence

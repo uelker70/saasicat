@@ -18864,6 +18864,10 @@ _Tested by:_
         - rows recorded before the column keep the order they were listed in, and the numbering
           continues
         - a second run leaves every number where the first one put it
+    - a correction carries its order under row-level security
+        - a role the policy hides ${hidden} from is refused, and nothing changes
+        - a policy lifted by a setting numbers every correction, and the numbering continues after
+          them
     - a booking's scheduled switch holds its version and its moment together
         - one without the other is refused by the constraint, both or neither are not, on the
           reference schema
@@ -18979,6 +18983,10 @@ _Tested by:_
         - rows recorded before the column keep the order they were listed in, and the numbering
           continues
         - a second run leaves every number where the first one put it
+    - a correction carries its order under row-level security
+        - a role the policy hides ${hidden} from is refused, and nothing changes
+        - a policy lifted by a setting numbers every correction, and the numbering continues after
+          them
     - a booking's scheduled switch holds its version and its moment together
         - one without the other is refused by the constraint, both or neither are not, on the
           reference schema
