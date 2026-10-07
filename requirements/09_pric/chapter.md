@@ -2006,6 +2006,8 @@ _Tested by:_
         - are written once
         - reduce a line no further than its price
         - reduce only the lines the subscription was told of, as it was told of them
+        - reduce the line a change scheduled before the announcement brings, once its contract is
+          written
         - write nothing for a withdrawal lifted before its date
         - wait for a contract where none is in force
         - go into a contract a later change writes, where none records them yet

@@ -349,6 +349,121 @@ describe('the preview of a withdrawal', () => {
     });
 });
 
+// @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+describe('the preview of a withdrawal, where a change is scheduled', () => {
+    const BASIC = { plan: 'BASIC', planVersion: { id: 'pv-basic-1', planId: 'BASIC', version: 1 } };
+    const VERSIONS = [
+        planVersion('pv-pro-1'),
+        planVersion('pv-basic-1', {
+            planId: 'BASIC',
+            features: ['REPORTS'],
+            monthlyNet: '19.00',
+            yearlyNet: '190.00',
+        }),
+    ];
+    const proLine = (billingCycle, priceNet) => ({
+        line: 'plan',
+        key: 'PRO',
+        label: 'Pro',
+        subscriptionBundleId: null,
+        billingCycle,
+        priceNet,
+    });
+    const linesOf = async (subscription, extra = {}) => {
+        const { service } = withdrawing({
+            subscriptions: [subscription],
+            planVersions: VERSIONS,
+            ...extra,
+        });
+        return (await service.preview('EXPORT', DATE, NOW)).reached.map((row) => row.lines);
+    };
+
+    test('reaches a subscription the change brings onto a version that grants the feature, with that line', async () => {
+        const scheduled = subscriptionOf('t1', {
+            ...BASIC,
+            pendingPlan: 'PRO',
+            pendingBillingCycle: 'MONTHLY',
+            pendingEffectiveAt: DATE,
+            pendingChangeVersionId: 'pv-pro-1',
+        });
+        assert.deepEqual(await linesOf(scheduled), [[proLine('MONTHLY', 49)]]);
+    });
+
+    test('reaches the plan in the rhythm the change brings it to, beside the one it holds', async () => {
+        const scheduled = subscriptionOf('t1', {
+            pendingPlan: 'PRO',
+            pendingBillingCycle: 'YEARLY',
+            pendingEffectiveAt: new Date('2026-08-01T00:00:00.000Z'),
+        });
+        assert.deepEqual(await linesOf(scheduled), [
+            [proLine('MONTHLY', 49), proLine('YEARLY', 490)],
+        ]);
+    });
+
+    test('still tells a subscription the change takes away from the feature, with the line it holds', async () => {
+        const scheduled = subscriptionOf('t1', {
+            pendingPlan: 'BASIC',
+            pendingBillingCycle: 'MONTHLY',
+            pendingEffectiveAt: DATE,
+            pendingChangeVersionId: 'pv-basic-1',
+        });
+        assert.deepEqual(await linesOf(scheduled), [[proLine('MONTHLY', 49)]]);
+    });
+
+    test('takes the newest version of another plan where the change names none', async () => {
+        const scheduled = subscriptionOf('t1', {
+            ...BASIC,
+            pendingPlan: 'PRO',
+            pendingBillingCycle: 'MONTHLY',
+            pendingEffectiveAt: DATE,
+        });
+        assert.deepEqual(
+            await linesOf(scheduled, {
+                planVersions: [
+                    ...VERSIONS.map((version) =>
+                        version.id === 'pv-pro-1' ? { ...version, features: ['REPORTS'] } : version,
+                    ),
+                    planVersion('pv-pro-2', { version: 2, monthlyNet: '52.00' }),
+                ],
+            }),
+            [[proLine('MONTHLY', 52)]],
+        );
+    });
+
+    test('reaches a booking the move brings onto an add-on version that grants the feature', async () => {
+        const { service } = withdrawing({
+            subscriptions: [subscriptionOf('t1', BASIC)],
+            planVersions: VERSIONS,
+            addOnVersions: [
+                addOnVersion('bv-export-1', { features: [] }),
+                addOnVersion('bv-export-2', { version: 2, monthlyNet: '12.00' }),
+            ],
+            bookings: [
+                bookingOf('t1', {
+                    pendingBundleVersionId: 'bv-export-2',
+                    pendingVersionEffectiveAt: DATE,
+                }),
+            ],
+        });
+        const preview = await service.preview('EXPORT', DATE, NOW);
+        assert.deepEqual(
+            preview.reached.map((row) => row.lines),
+            [
+                [
+                    {
+                        line: 'bundle',
+                        key: 'EXPORT_PLUS',
+                        label: 'Export plus',
+                        subscriptionBundleId: 'sb-t1',
+                        billingCycle: 'MONTHLY',
+                        priceNet: 12,
+                    },
+                ],
+            ],
+        );
+    });
+});
+
 // @requirement SC-SUB-042 — The operator withdraws a feature from everybody who holds it, and tells them at once
 describe('where withdrawing a feature is offered', () => {
     test('only where everybody a withdrawal reaches can be found', () => {

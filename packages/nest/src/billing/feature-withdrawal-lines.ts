@@ -47,14 +47,18 @@ export interface WithdrawalTold {
     readonly everInEffect: boolean;
 }
 
-/** The key a reduction line is recorded under: one per withdrawal and line reduced. */
+/**
+ * The key a reduction line is recorded under: one per withdrawal and line
+ * reduced — the plan in its rhythm, since a change scheduled before the
+ * announcement can bring a second, or the booking.
+ */
 export function reductionSourceKeyOf(
     withdrawalId: string,
-    subscriptionBundleId: string | null,
+    reached: Pick<FeatureWithdrawalNoticeLine, 'subscriptionBundleId' | 'key' | 'billingCycle'>,
 ): string {
-    return subscriptionBundleId === null
-        ? `${FEATURE_WITHDRAWAL_LINE_SOURCE}:${withdrawalId}`
-        : `${FEATURE_WITHDRAWAL_LINE_SOURCE}:${withdrawalId}:${subscriptionBundleId}`;
+    return reached.subscriptionBundleId === null
+        ? `${FEATURE_WITHDRAWAL_LINE_SOURCE}:${withdrawalId}:plan:${reached.key}:${reached.billingCycle}`
+        : `${FEATURE_WITHDRAWAL_LINE_SOURCE}:${withdrawalId}:${reached.subscriptionBundleId}`;
 }
 
 /**
@@ -77,10 +81,7 @@ export function withdrawalReductionLines(
         if (!everInEffect) continue;
         for (const reached of notice.lines) {
             if (reached.reductionNet === null) continue;
-            const sourceKey = reductionSourceKeyOf(
-                notice.withdrawalId,
-                reached.subscriptionBundleId,
-            );
+            const sourceKey = reductionSourceKeyOf(notice.withdrawalId, reached);
             if (recorded.has(sourceKey)) continue;
             const reduced = lineReduced(lines, reached, bookingVersions);
             if (!reduced) continue;

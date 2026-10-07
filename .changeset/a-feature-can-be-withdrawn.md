@@ -17,9 +17,10 @@ administration page "Withdrawn features": the reason the subscribers read, the
 date, and a net reduction per plan and add-on in each rhythm, read against a
 preview of every subscription it reaches, behind the second factor. From the
 date the platform grants the feature to nobody, whatever grants it
-(`SC-ENTL-025`); everybody who holds it is told at once (`SC-SUB-042`), pays
-less for the time without it, written into the contract as a generated
-discount (`SC-PRIC-072`), and may end the subscription — or the add-on that
+(`SC-ENTL-025`); everybody who holds it, or will through a change already
+scheduled, is told at once (`SC-SUB-042`, `SC-SUB-043`), pays less for the time
+without it, written into the contract as a generated discount
+(`SC-PRIC-072`), and may end the subscription — or the add-on that
 grants it — at once while it is missing, with the unused rest credited to the
 account (`SC-CANC-024`, `SC-BUN-062`, `SC-PRIC-074`). Lifting the withdrawal
 grants the feature again and takes back what was reduced for days it was there

@@ -1568,3 +1568,34 @@ _Tested by:_
           mean
 
 <!-- END proof -->
+
+### SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+
+🟢 💰 A subscription is reached where a change scheduled before the announcement — of plan, rhythm
+or plan version, or of a booking's add-on version — brings it to a line that grants the feature,
+whether the change lands before the date or after it. The preview lists that line beside the one it
+holds, the operator names a reduction for it as for any line, and the reduction applies to whichever
+of the two runs. A subscription scheduled away from the feature is still told, because the change
+can be taken back before it lands. A change scheduled after the announcement is concluded knowing
+(`SC-CAT-017`) and reaches nothing.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the reductions of a withdrawal
+        - reduce the line a change scheduled before the announcement brings, once its contract is
+          written
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal, where a change is scheduled
+        - reaches a subscription the change brings onto a version that grants the feature, with that
+          line
+        - reaches the plan in the rhythm the change brings it to, beside the one it holds
+        - still tells a subscription the change takes away from the feature, with the line it holds
+        - takes the newest version of another plan where the change names none
+        - reaches a booking the move brings onto an add-on version that grants the feature
+
+<!-- END proof -->

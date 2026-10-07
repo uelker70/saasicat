@@ -64,6 +64,8 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js'
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { ownersOf } from './bundle-bookings-of-version.js';
 import {
+    bookingVersionGranting,
+    scheduledVersionOf,
     targetKeyOf,
     withdrawalReachOf,
     withdrawalTargetsOf,
@@ -520,7 +522,10 @@ export class FeatureWithdrawalService {
      * Who holds the feature at `effectiveFrom`: the subscriptions bound to a
      * plan version that grants it, the bookings of an add-on version that
      * grants it, and the tenants whose contract in force grants it — which is
-     * where special terms are recorded.
+     * where special terms are recorded — and those a change scheduled now
+     * brings onto a version that grants it. Every subscription and booking is
+     * read for the last, because a store lists them by the version they are
+     * on, not the one they move to.
      */
     private async reachOf(
         featureKey: string,
@@ -530,8 +535,8 @@ export class FeatureWithdrawalService {
     ): Promise<Pick<FeatureWithdrawalPreview, 'reached' | 'skipped'>> {
         const grants = (features: readonly string[]) =>
             this.entitlements.withReplacements(new Set(features)).has(featureKey);
-        const planVersions = await this.planVersionsGranting(grants);
-        const bundleVersions = await this.bundleVersionsGranting(grants);
+        const planVersions = await this.publishedPlanVersions();
+        const bundleVersions = await this.publishedBundleVersions();
         const inputs: WithdrawalReachInputs = {
             effectiveFrom,
             grants,
@@ -553,14 +558,20 @@ export class FeatureWithdrawalService {
                 bookings: [...(known?.bookings ?? []), ...(booking ? [booking] : [])],
             });
         };
-        for (const versionId of planVersions.keys()) {
+        for (const [versionId, version] of planVersions) {
             // `available` asked for it before anything is read.
             for (const owner of await this.subscriptions.listBoundToVersion!(versionId)) {
-                if (!candidates.has(owner.subscription.id)) add(owner);
+                if (candidates.has(owner.subscription.id)) continue;
+                const scheduled = scheduledVersionOf(owner.subscription, planVersions);
+                if (grants(version.features) || (scheduled && grants(scheduled.features))) {
+                    add(owner);
+                }
             }
         }
         for (const versionId of bundleVersions.keys()) {
-            const booked = await this.bookings!.listOfVersion!(versionId);
+            const booked = (await this.bookings!.listOfVersion!(versionId)).filter((booking) =>
+                bookingVersionGranting(booking, inputs),
+            );
             const owners = await ownersOf(this.subscriptions, booked);
             for (const booking of booked) {
                 const owner = owners.get(booking.subscriptionId);
@@ -598,33 +609,25 @@ export class FeatureWithdrawalService {
         return { reached: reached.sort(bySubscription), skipped: skipped.sort(bySubscription) };
     }
 
-    /** Every published version of every plan that grants the feature, by id. */
-    private async planVersionsGranting(
-        grants: (features: readonly string[]) => boolean,
-    ): Promise<Map<string, PlanVersionRow>> {
+    /** Every published version of every plan, by id. */
+    private async publishedPlanVersions(): Promise<Map<string, PlanVersionRow>> {
         const versions = new Map<string, PlanVersionRow>();
         // `available` asked for both before anything is read.
         for (const plan of await this.plans!.list({ excludeDeleted: false })) {
             for (const version of await this.plans!.listVersions!(plan.planKey)) {
-                if (version.publishedAt && grants(version.features)) {
-                    versions.set(version.id, version);
-                }
+                if (version.publishedAt) versions.set(version.id, version);
             }
         }
         return versions;
     }
 
-    /** Every published version of every add-on that grants the feature, by id. */
-    private async bundleVersionsGranting(
-        grants: (features: readonly string[]) => boolean,
-    ): Promise<Map<string, BundleVersionRow>> {
+    /** Every published version of every add-on, by id. */
+    private async publishedBundleVersions(): Promise<Map<string, BundleVersionRow>> {
         const versions = new Map<string, BundleVersionRow>();
         if (!this.bookings || !this.bundles) return versions;
         for (const bundle of await this.bundles.list({ excludeDeleted: false })) {
             for (const version of await this.bundles.listVersions(bundle.id)) {
-                if (version.publishedAt && grants(version.features)) {
-                    versions.set(version.id, version);
-                }
+                if (version.publishedAt) versions.set(version.id, version);
             }
         }
         return versions;

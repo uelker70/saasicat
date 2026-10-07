@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 42      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 43      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 623 entries: 🟢 534 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+Of 624 entries: 🟢 535 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
 🔵 22 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -227,7 +227,7 @@ Of 623 entries: 🟢 534 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 623 requirements. Do not edit by hand:
+Generated from `requirements/` — 624 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -6517,6 +6517,37 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+
+🟢 💰 A subscription is reached where a change scheduled before the announcement — of plan, rhythm
+or plan version, or of a booking's add-on version — brings it to a line that grants the feature,
+whether the change lands before the date or after it. The preview lists that line beside the one it
+holds, the operator names a reduction for it as for any line, and the reduction applies to whichever
+of the two runs. A subscription scheduled away from the feature is still told, because the change
+can be taken back before it lands. A change scheduled after the announcement is concluded knowing
+(`SC-CAT-017`) and reaches nothing.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the reductions of a withdrawal
+        - reduce the line a change scheduled before the announcement brings, once its contract is
+          written
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal, where a change is scheduled
+        - reaches a subscription the change brings onto a version that grants the feature, with that
+          line
+        - reaches the plan in the rhythm the change brings it to, beside the one it holds
+        - still tells a subscription the change takes away from the feature, with the line it holds
+        - takes the newest version of another plan where the change names none
+        - reaches a booking the move brings onto an add-on version that grants the feature
+
+<!-- END proof -->
+
 ## 6. Changing a plan
 
 A plan change is where a tenant's money and a tenant's expectations meet, and both can be lost
@@ -9991,6 +10022,8 @@ _Tested by:_
         - are written once
         - reduce a line no further than its price
         - reduce only the lines the subscription was told of, as it was told of them
+        - reduce the line a change scheduled before the announcement brings, once its contract is
+          written
         - write nothing for a withdrawal lifted before its date
         - wait for a contract where none is in force
         - go into a contract a later change writes, where none records them yet
