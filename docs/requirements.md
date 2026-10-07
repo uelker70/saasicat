@@ -10050,7 +10050,7 @@ _Tested by:_
 
 - `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
     - ending at once while the feature is withdrawn
-        - shows first what it then credits where no contract records the reduction yet: ${name}
+        - shows first what it then credits: ${name}
         - credits the unused rest of the plan and of every add-on, net of the reduction
         - credits no more than the period cost, however the rest and the reduction round
         - credits the rest of a booking that ends at once alone, and its reduction
