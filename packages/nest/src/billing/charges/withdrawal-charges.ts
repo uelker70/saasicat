@@ -34,6 +34,7 @@ import type { ChargeDerivationInput, ChargePeriod } from './charge-derivation.js
 import {
     addOnHoldOf,
     chargeOf,
+    entryKeyOf,
     isWholePlanPeriod,
     lineById,
     sameInstant,
@@ -71,8 +72,13 @@ export function deriveWithdrawalCharges(
     input: ChargeDerivationInput,
     due: readonly NewSubscriberCharge[],
 ): NewSubscriberCharge[] {
-    const entries: Entry[] = [...input.written, ...due];
-    const dueSet = new Set<Entry>(due);
+    // What is due may hold what the account has already: the period an
+    // upgrade into a longer rhythm opens is derived again on every run inside
+    // it, and the account keeps it once. Counted twice, it would be two periods.
+    const written = new Set(input.written.map(entryKeyOf));
+    const fresh = due.filter((entry) => !written.has(entryKeyOf(entry)));
+    const entries: Entry[] = [...input.written, ...fresh];
+    const dueSet = new Set<Entry>(fresh);
     const charges: NewSubscriberCharge[] = [];
     const slices = reductionSlices(input, entries, dueSet);
     // The moments a reduction of a period stops: where another reduction of
@@ -85,9 +91,11 @@ export function deriveWithdrawalCharges(
             endsOf.set(slice.periodKey, [...(endsOf.get(slice.periodKey) ?? []), slice.to]);
         }
     }
-    // What the reductions derived so far take off each period.
+    // What the reductions take off each period in the end, and what the
+    // account holds for them once this run is written.
     const reducedSoFar = new Map<string, number>();
-    for (const slice of slices) {
+    const held = new Map<string, number>();
+    const moves = slices.map((slice) => {
         const { reduction, period, days, periodKey } = slice;
         const netCents = netOfOthers(period, entries, input);
         const targetCents = -Math.min(
@@ -102,16 +110,33 @@ export function deriveWithdrawalCharges(
             (sum, entry) => sum + cents(entry.amountNet),
             0,
         );
-        const difference = targetCents - writtenCents;
-        if (difference === 0) continue;
+        held.set(periodKey, (held.get(periodKey) ?? 0) - writtenCents);
+        return { slice, netCents, difference: targetCents - writtenCents };
+    });
+    const move = (slice: ReductionSlice, difference: number) => {
         const entry = reductionEntry(
             input,
             slice,
             difference,
             entries,
-            endsOf.get(periodKey) ?? [],
+            endsOf.get(slice.periodKey) ?? [],
         );
-        if (entry) charges.push(entry);
+        if (!entry) return;
+        charges.push(entry);
+        held.set(slice.periodKey, (held.get(slice.periodKey) ?? 0) - difference);
+    };
+    // What a reduction gives back is written first. A reduction grows only
+    // into what the period still has room for once it is: one lifted from a
+    // date ahead keeps its days until that date, and another reduction of the
+    // period takes them when they are free, not before.
+    for (const { slice, difference } of moves) {
+        if (difference > 0) move(slice, difference);
+    }
+    for (const { slice, netCents, difference } of moves) {
+        if (difference >= 0) continue;
+        const room = Math.max(0, netCents - (held.get(slice.periodKey) ?? 0));
+        const growth = Math.max(difference, -room);
+        if (growth < 0) move(slice, growth);
     }
     charges.push(...unusedRestCredits(input, [...entries, ...charges], dueSet));
     return charges;
@@ -167,8 +192,21 @@ function writtenFor(slice: ReductionSlice, entries: readonly Entry[]): Entry[] {
         (entry) =>
             entry.source === 'discount' &&
             entry.sourceRef === slice.reduction.line.sourceKey &&
-            entry.periodStart >= slice.period.start &&
-            entry.periodStart < slice.period.end,
+            belongsTo(entry, slice.period),
+    );
+}
+
+/**
+ * Whether an entry moves `period`: it starts inside the period and runs to
+ * its end, as every entry of the period does. An entry of the period a change
+ * into a longer rhythm replaced starts inside the new one too, and ends with
+ * the old.
+ */
+function belongsTo(entry: Entry, period: ChargePeriod): boolean {
+    return (
+        entry.periodStart >= period.start &&
+        entry.periodStart < period.end &&
+        entry.periodEnd.getTime() === period.end.getTime()
     );
 }
 
@@ -429,20 +467,17 @@ function othersOf(
 ): Entry[] {
     const { source, sourceRef } = period.charge;
     return entries.filter((entry) => {
-        if (entry.periodStart < period.start || entry.periodStart >= period.end) return false;
+        if (!belongsTo(entry, period)) return false;
         if (entry.source === source && entry.sourceRef === sourceRef) {
             // The period's own charge, and what a change inside it added up to
             // its end; never a period of its own, nor a credit.
             return (
                 entry === period.charge ||
                 ((entry.origin === 'planChange' || entry.origin === 'bundleChange') &&
-                    entry.periodStart > period.start &&
-                    entry.periodEnd.getTime() === period.end.getTime())
+                    entry.periodStart > period.start)
             );
         }
-        if (entry.source !== 'discount' || entry.periodEnd.getTime() !== period.end.getTime()) {
-            return false;
-        }
+        if (entry.source !== 'discount') return false;
         const line = lineById(input.contracts, entry.contractLineItemId);
         if (!line || withdrawalReductionOf(line)) return false;
         const hold = addOnHoldOf(line);
@@ -458,8 +493,7 @@ function withdrawalReductionsIn(
 ): Entry[] {
     const { source, sourceRef } = period.charge;
     return entries.filter((entry) => {
-        if (entry.source !== 'discount') return false;
-        if (entry.periodStart < period.start || entry.periodStart >= period.end) return false;
+        if (entry.source !== 'discount' || !belongsTo(entry, period)) return false;
         const line = lineById(input.contracts, entry.contractLineItemId);
         const reduction = line ? withdrawalReductionOf(line) : null;
         if (!reduction) return false;

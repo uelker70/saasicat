@@ -72,11 +72,15 @@ export function discountLine(discountNet, { promoCode = null, promotions = [] } 
 
 function journal() {
     const rows = [];
+    // Everything a run asked to write, including what the key turned away.
+    const offered = [];
     const keyOf = (c) =>
         [c.subscriptionId, c.source, c.sourceRef, c.periodStart.toISOString(), c.origin].join('|');
     return {
         rows,
+        offered,
         async recordCharges(charges) {
+            offered.push(...charges);
             const written = [];
             for (const charge of charges) {
                 if (rows.some((row) => keyOf(row) === keyOf(charge))) continue;

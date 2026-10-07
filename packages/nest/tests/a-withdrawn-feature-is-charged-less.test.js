@@ -278,6 +278,97 @@ describe('two withdrawals of one line', () => {
         );
         assert.deepEqual(await account.charge(utc('2026-04-22')), [], 'and nothing again');
     });
+
+    test('give the other nothing of the days one returns before they have returned', async () => {
+        const account = await chargedThroughMarch([twoFeaturePlan()]);
+        await renew(account, '2026-04-01', '2026-05-01');
+        const [first] = await twoWithdrawals(
+            account,
+            utc('2026-04-10'),
+            { effectiveFrom: utc('2026-04-10') },
+            { effectiveFrom: utc('2026-04-10') },
+        );
+        await account.charge(utc('2026-04-10'));
+        first.liftedFrom = utc('2026-04-20');
+
+        // Lifted on the 15th from the 20th: until then the first still holds
+        // those days, so a run between asks to write nothing — not even an
+        // entry the account would turn away.
+        const asked = account.ledger.offered.length;
+        await account.charge(utc('2026-04-15'));
+        await account.charge(utc('2026-04-19'));
+        assert.deepEqual(account.ledger.offered.slice(asked), []);
+        await account.charge(utc('2026-04-21'));
+        assert.deepEqual(
+            account.discounts().filter(([day]) => day >= '2026-04-10'),
+            [
+                ['2026-04-10', 'feature-withdrawal:fw-1', 'credit', -7],
+                ['2026-04-10', 'feature-withdrawal:fw-2', 'credit', -3],
+                ['2026-04-20', 'feature-withdrawal:fw-1', 'reductionTakenBack', 3.67],
+                ['2026-04-20', 'feature-withdrawal:fw-2', 'credit', -3.67],
+            ],
+        );
+    });
+
+    test('never take more together than the period costs before one returns, where the other holds nothing yet', async () => {
+        const account = await chargedThroughMarch([twoFeaturePlan()]);
+        const [first] = await twoWithdrawals(
+            account,
+            utc('2026-03-10'),
+            { effectiveFrom: utc('2026-04-01') },
+            { effectiveFrom: utc('2026-04-10') },
+        );
+        // The first takes all of April's 10.00, so the second is charged nothing off.
+        await renew(account, '2026-04-01', '2026-05-01');
+        first.liftedFrom = utc('2026-04-20');
+
+        assert.deepEqual(await account.charge(utc('2026-04-15')), [], 'nothing before the 20th');
+        await account.charge(utc('2026-04-21'));
+        // 19 days for the first, 6.33; the second gets the 3.67 that leaves.
+        assert.deepEqual(
+            account.discounts().filter(([day]) => day >= '2026-04-01'),
+            [
+                ['2026-04-01', 'feature-withdrawal:fw-1', 'renewal', -10],
+                ['2026-04-10', 'feature-withdrawal:fw-2', 'credit', -3.67],
+                ['2026-04-20', 'feature-withdrawal:fw-1', 'reductionTakenBack', 3.67],
+            ],
+        );
+    });
+
+    test('never take more together than the period costs where one begins after the other', async () => {
+        const account = await chargedThroughMarch([twoFeaturePlan()]);
+        await renew(account, '2026-04-01', '2026-05-01');
+        await twoWithdrawals(
+            account,
+            utc('2026-04-01'),
+            { effectiveFrom: utc('2026-04-10') },
+            { effectiveFrom: utc('2026-04-01') },
+        );
+        await account.charge(utc('2026-04-01'));
+        await account.charge(utc('2026-04-10'));
+
+        // The second is credited at once what the first will leave it, and the
+        // first its own share on its date: 10.00 together, never more.
+        assert.deepEqual(
+            account.discounts().filter(([day]) => day >= '2026-04-01'),
+            [
+                ['2026-04-01', 'feature-withdrawal:fw-2', 'credit', -3],
+                ['2026-04-10', 'feature-withdrawal:fw-1', 'credit', -7],
+            ],
+        );
+        assert.deepEqual(
+            await account
+                .charge(utc('2026-05-01'))
+                .then((entries) =>
+                    entries.filter(
+                        (entry) =>
+                            entry.source === 'discount' && entry.periodStart < utc('2026-05-01'),
+                    ),
+                ),
+            [],
+            'and nothing taken back at its end',
+        );
+    });
 });
 
 // @requirement SC-PRIC-073 — A reduction for days the feature turned out not to miss is taken back
@@ -509,6 +600,46 @@ describe('ending at once while the feature is withdrawn', () => {
         const april = account.entries().filter(([day]) => day >= '2026-04-01');
         const cents = april.reduce((sum, [, , , amount]) => sum + Math.round(amount * 100), 0);
         assert.equal(cents, 0, JSON.stringify(april));
+    });
+
+    test("credits no more than a longer rhythm's period cost, whatever the period it replaced gave back", async () => {
+        const account = anAccount({
+            subscription: {
+                startedAt: utc('2027-03-01'),
+                currentPeriodStart: utc('2027-03-01'),
+                currentPeriodEnd: utc('2027-04-01'),
+            },
+        });
+        account.toldOfWithdrawal(withdrawal({ effectiveFrom: utc('2027-03-01') }));
+        await account.contract({
+            effectiveFrom: utc('2027-03-01'),
+            lineItems: [plan(1), planReduction(1)],
+        });
+        await account.charge(utc('2027-03-01'));
+        // Into the yearly rhythm on 16 March, reduced to nothing there too. The
+        // year has 366 days, so half of it falls on half a cent.
+        await account.supersede(utc('2027-03-16'));
+        await account.contract({
+            effectiveFrom: utc('2027-03-16'),
+            lineItems: [
+                plan(1.83, { billingCycle: 'yearly' }),
+                planReduction(1.83, {
+                    sourceKey: 'feature-withdrawal:fw-1:yearly',
+                    billingCycle: 'yearly',
+                }),
+            ],
+        });
+        account.subscription.billingCycle = 'YEARLY';
+        account.roll(utc('2027-03-16'), utc('2028-03-16'));
+        await account.charge(utc('2027-03-16'));
+        account.endAtOnce(utc('2027-09-15'));
+        await account.charge(utc('2027-09-15'));
+
+        // March gave back its reduction from the 16th, which belongs to March:
+        // the year cost nothing, so its end credits nothing either.
+        const atTheEnd = account.entries().filter(([day]) => day === '2027-09-15');
+        const cents = atTheEnd.reduce((sum, [, , , amount]) => sum + Math.round(amount * 100), 0);
+        assert.equal(cents, 0, JSON.stringify(atTheEnd));
     });
 
     test('credits the rest of a booking that ends at once alone, and its reduction', async () => {

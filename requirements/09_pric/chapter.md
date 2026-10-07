@@ -2021,6 +2021,10 @@ _Tested by:_
         - each take off their own days, up to what those days cost
         - take off no more than their days cost where another discount lowers the period
         - never take more together than the period costs, and the other gains what one gives back
+        - give the other nothing of the days one returns before they have returned
+        - never take more together than the period costs before one returns, where the other holds
+          nothing yet
+        - never take more together than the period costs where one begins after the other
     - the line a reduction stays with
         - is the plan in its rhythm on any version that grants the feature
         - and not a version that no longer grants it
@@ -2071,6 +2075,8 @@ _Tested by:_
         - shows first what it then credits: ${name}
         - credits the unused rest of the plan and of every add-on, net of the reduction
         - credits no more than the period cost, however the rest and the reduction round
+        - credits no more than a longer rhythm's period cost, whatever the period it replaced gave
+          back
         - credits the rest of a booking that ends at once alone, and its reduction
         - shows first the credit it then writes, and writes nothing to show it
         - credits nothing for an end the account was not told was at once
