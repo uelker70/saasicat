@@ -1851,6 +1851,63 @@ nothing, and the identity is not guarded. A contract whose party copy the subscr
 names no issuer at all; those neither block a change nor are blocked by one, and are confirmed
 against the contract before they are invoiced.
 
+### An invoice is issued from the charge journal
+
+New and optional, and switched off until you switch it on: invoices issued from the charge journal,
+numbered without gaps in one range per year. **Do not switch it on for real customers before
+`1.0.0-rc.28`**, which brings the cancellation invoice: an issued invoice is never edited, so until
+then a wrong one cannot be corrected. The document, the archive and the mail come in a later
+release. To adopt it ([wire the backend](wire-the-backend.md#invoices)):
+
+1. Add `SubscriptionInvoice`, `SubscriptionInvoiceLine` and `SubscriptionInvoiceNumber` from
+   `prisma-fragments/20-subscription-invoice.prisma` to your schema, with the back-relations it
+   names on `Subscriber`, `SubscriptionContract`, `ContractLineItem` and `SubscriberLedgerEntry`.
+   They need the charge journal
+   ([above](#a-subscribers-account-records-its-charges)). Leave them out and `saasicat schema check`
+   lists them as not adopted; with `prismaPersistence()` or `drizzlePersistence()`, pass all three
+   in `notAdopted` and the bundle builds no invoice repository.
+2. Run the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-an-invoice-is-issued.postgres.sql
+    ```
+
+    It creates the three tables and does nothing on a second run, or on a database without the
+    charge journal, its contracts and subscribers.
+
+3. Name the range and the payment term in `config/saas.yaml` under `invoicing` — `numberPrefix`,
+   letters and digits, and `paymentTermDays`, both required. The block needs `tax` and `issuer`.
+4. Configure `tenantBilling.chargeJournal.invoices` with
+   `persistence.entitlement.subscriptionInvoiceRepository` from either shipped adapter. The start
+   refuses the wiring without the block and, where tenant billing is configured, the block without
+   the wiring; either without a tax adapter or an issuer; and a prefix other than the one the issued
+   invoices carry.
+5. The platform issues every quarter of an hour, which needs `ScheduleModule`; with
+   `includeCron: false` your own scheduler calls `SubscriptionInvoiceService.issueDue(now)`.
+6. The run works across tenants inside `RlsBypassPort`: where the invoice tables, the journal, the
+   contracts or the subscribers carry a row-level policy, check that your implementation of that
+   port lifts it.
+
+A contract whose parties a migration copied — `1.0-a-contract-names-its-subscriber.postgres.sql`
+marks them `partiesMigrated` — or that names no issuer is not invoiced: its charges wait, and the
+audit log records `SUBSCRIPTION_INVOICE_HELD` with `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`.
+Confirming such parties is not part of this release.
+
+One installation is the range of exactly one issuer, and an issuer keeps one range: a second
+application issuing for the same issuer is not supported. This replaces `SC-PRIC-023`, under which
+two applications of one issuer stayed apart by their prefixes.
+
+- **A tax adapter of your own** implements two more members of `TaxAdapter`: `invoiceTax(lines)`,
+  its rule for an invoice's tax per rate, and `invoiceContentGaps(draft)`, what the law it names
+  requires of an invoice and the draft lacks. `@saasicat/tax-de` has both, and `taxPerRate` in
+  `@saasicat/core` is the rule of EN 16931.
+- **A persistence contract harness** gains the `subscriptionInvoiceRepository` member, which needs
+  the journal's members beside it; a harness without it declares `gaps: ['subscriptionInvoices']`.
+  Empty `subscription_invoice_numbers` between scenarios as well: no foreign key reaches it, so a
+  `TRUNCATE … CASCADE` from `subscribers` leaves it, and the next scenario's first number is not 1.
+- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`,
+  `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE` and `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

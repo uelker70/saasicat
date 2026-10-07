@@ -4,7 +4,12 @@
 // the issuer, the subscriber's tax origin, the period and the calendar it is
 // read in, so every case can be tested by its inputs (`SC-PRIC-064`).
 
-import type { TaxDecision, TaxDecisionRequest, TaxTreatment } from '@saasicat/core';
+import {
+    lastDayInZone,
+    type TaxDecision,
+    type TaxDecisionRequest,
+    type TaxTreatment,
+} from '@saasicat/core';
 import { NOT_TAXABLE_NOTE, REVERSE_CHARGE_NOTE, SMALL_BUSINESS_NOTE } from './notes.js';
 import { isMemberStateVatId } from './vat-numbers.js';
 
@@ -80,30 +85,6 @@ const GERMAN_STANDARD_RATES: readonly { from: string; rate: number }[] = [
     { from: '2007-01-01', rate: 19 },
 ];
 
-/**
- * The calendar day, as `YYYY-MM-DD`, of the period's last moment in `timeZone`.
- * The period ends before `until`, so its last moment is one millisecond earlier.
- * Throws a `RangeError` for a time zone the runtime does not know.
- */
-export function lastDayOfPeriod(period: { from: Date; until: Date }, timeZone: string): string {
-    // Without a zone `Intl` would read the host's, and the day would depend on the machine.
-    if (typeof timeZone !== 'string' || timeZone === '') {
-        throw new RangeError('A request names the time zone its days count in.');
-    }
-    if (!(period.until.getTime() > period.from.getTime())) {
-        throw new RangeError('A period ends after it begins.');
-    }
-    const lastMoment = new Date(period.until.getTime() - 1);
-    const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).formatToParts(lastMoment);
-    const part = (type: string) => parts.find((candidate) => candidate.type === type)?.value;
-    return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
 /** The German standard rate on `day`, or `null` before the first rate the adapter knows. */
 export function germanStandardRateOn(day: string): number | null {
     return GERMAN_STANDARD_RATES.find((entry) => entry.from <= day)?.rate ?? null;
@@ -141,7 +122,7 @@ export function decideGermanTax(
     const { issuer, origin } = request;
     // Read first, so a malformed period or zone is an error on every path, not
     // only on the one that looks up a rate.
-    const lastDay = lastDayOfPeriod(request.period, request.timeZone);
+    const lastDay = lastDayInZone(request.period, request.timeZone);
     if (issuer.country !== 'DE') {
         return unsupported(
             `The German tax adapter decides for an issuer in Germany; the issuer's country is ${issuer.country ?? 'not configured'}.`,

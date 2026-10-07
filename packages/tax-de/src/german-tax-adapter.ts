@@ -1,12 +1,17 @@
 import { readFileSync } from 'node:fs';
-import type {
-    TaxAdapter,
-    TaxAdapterFactory,
-    TaxDecision,
-    TaxDecisionRequest,
-    TaxIssuer,
-    VatIdCheckOutcome,
+import {
+    taxPerRate,
+    type InvoiceContentDraft,
+    type InvoiceTaxLine,
+    type TaxAdapter,
+    type TaxAdapterFactory,
+    type TaxDecision,
+    type TaxDecisionRequest,
+    type TaxIssuer,
+    type TaxPerRate,
+    type VatIdCheckOutcome,
 } from '@saasicat/core';
+import { germanInvoiceContentGaps } from './invoice-content.js';
 import { decideGermanTax } from './rules.js';
 import { checkVatIdWithVies } from './vies.js';
 
@@ -89,6 +94,15 @@ export class GermanTaxAdapter implements TaxAdapter {
             timeoutMs: this.viesTimeoutMs,
             now: this.now,
         });
+    }
+
+    /** The rule of EN 16931, which ZUGFeRD computes the invoice's tax by: once per rate. */
+    invoiceTax(lines: readonly InvoiceTaxLine[]): TaxPerRate {
+        return taxPerRate(lines);
+    }
+
+    invoiceContentGaps(draft: InvoiceContentDraft): readonly string[] {
+        return germanInvoiceContentGaps(draft);
     }
 }
 

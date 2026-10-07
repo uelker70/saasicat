@@ -130,6 +130,13 @@ export {
 } from './charges/subscriber-account.module.js';
 export { SubscriberAccountService } from './charges/subscriber-account.service.js';
 export { SubscriberChargeService } from './charges/subscriber-charge.service.js';
+export {
+    SubscriptionInvoiceService,
+    type InvoiceHold,
+    type SubscriptionInvoiceRun,
+} from './invoices/subscription-invoice.service.js';
+export { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
+export { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './invoices/subscription-invoice.tokens.js';
 export { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 export * from './trial-carryover.js';
 export * from './dto/tenant-billing.dto.js';

@@ -186,6 +186,28 @@ export class SubscriberService {
     }
 
     /**
+     * Who an invoice issued now is between: the subscriber as its record
+     * stands, and the issuer as the running configuration names it — the
+     * configuration's half of the issuer an invoice names (`SC-PRIC-026`) —
+     * with the tax origin the invoice's treatment is decided from. Refused with
+     * `SUBSCRIBER_IDENTITY_INCOMPLETE` while the address an invoice names has
+     * gaps (`SC-PRIC-032`), and with `SUBSCRIBER_NOT_FOUND` for no subscriber.
+     */
+    async invoicePartyOf(
+        subscriberId: string,
+        tx?: TransactionContext,
+    ): Promise<ContractParty & { origin: SubscriberTaxOrigin }> {
+        const subscriber = await this.requireById(subscriberId, tx);
+        const missing = invoiceAddressGapsOf(subscriber);
+        if (missing.length > 0) throw identityIncomplete(missing);
+        const check = await this.repo.findCurrentVatIdCheck(subscriber.id, tx);
+        return {
+            parties: contractPartiesOf(subscriber, this.settings.issuer),
+            origin: taxOriginOf(subscriber, check),
+        };
+    }
+
+    /**
      * The tax origin a tax adapter decides from: the subscriber's country,
      * business status and VAT id as the record stands, and the VAT id only as
      * validated where the check that counts for it found it valid. Refused with

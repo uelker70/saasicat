@@ -185,6 +185,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Add-on booking could not be moved to the replacement of a retired version',
                 severity: 'high',
             },
+            {
+                key: 'SUBSCRIPTION_INVOICE_HELD',
+                label: 'Invoice held back until what it lacks is supplied',
+                severity: 'high',
+            },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
             { key: 'USER_DEACTIVATE', label: 'User deactivated', severity: 'high' },
