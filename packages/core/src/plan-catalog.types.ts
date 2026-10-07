@@ -182,6 +182,14 @@ export interface PlanCatalogSubscribers {
     customerNumberPrefix?: string;
 }
 
+/** `config/saas.yaml#invoicing`: how the invoices issued from the charge journal are numbered and when they are due. */
+export interface PlanCatalogInvoicing {
+    /** Put in front of every invoice number: `AHP` gives `AHP-2026-000123`. */
+    numberPrefix: string;
+    /** Days from an invoice's issue date to the day it is due (`SC-PRIC-046`). */
+    paymentTermDays: number;
+}
+
 /** One account at a payment gateway, by the name `PlanCatalogPayments.accounts` gives it. */
 export interface PlanCatalogPaymentAccount {
     /** The provider its bound adapter names itself as, e.g. `stripe`. */
@@ -242,6 +250,8 @@ export interface PlanCatalogSettings {
     issuer?: PlanCatalogIssuer;
     /** How subscribers are numbered. Optional. */
     subscribers?: PlanCatalogSubscribers;
+    /** How invoices are numbered and when they are due; named exactly where invoices are issued. */
+    invoicing?: PlanCatalogInvoicing;
     /** The payment gateway accounts. Optional until payment methods are taken. */
     payments?: PlanCatalogPayments;
 }

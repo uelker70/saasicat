@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 240 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 243 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -245,6 +245,16 @@ Checkout offers and subscription contracts.
 | `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED`        | The contract states {stated} % in {field}, and the tax adapter decides {decided} %.                                                                                                                                                   |
 | `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT`        | A subscription contract states a tax rate of {taxRate} at {field}, which is not a percentage: a rate lies from 0 to 100, and a value between 0 and 1 is refused as a fraction.                                                        |
 | `SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START`    | effectiveUntil must be after the effectiveFrom of the contract.                                                                                                                                                                       |
+
+## Invoices
+
+Invoices issued from the charge journal.
+
+| Code                                       | Shipped English text                                                                                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`     | Charge '{chargeId}' already stands on an invoice.                                                                                                         |
+| `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`  | The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.                                           |
+| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED` | Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced. |
 
 ## Subscribers
 

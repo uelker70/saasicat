@@ -27,6 +27,8 @@ import type {
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
     NewBundleVersionRetirement,
+    NewSubscriptionInvoice,
+    SubscriberChargeRecord,
     TaxTreatment,
     VatIdCheck,
     NewVersionRetirement,
@@ -41,8 +43,10 @@ import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     CONTRACT_ERROR_CODES,
+    INVOICE_ERROR_CODES,
     PROMO_ERROR_CODES,
     isPersistenceRefusal,
+    taxPerRate,
 } from '@saasicat/core';
 import type {
     ContractGap,
@@ -99,6 +103,14 @@ function refusedAs(
         return true;
     };
 }
+
+/** The treatment the invoices of the contract record, unless a scenario names another. */
+const INVOICE_TREATMENT: TaxTreatment = {
+    kind: 'standard',
+    rate: 19,
+    note: null,
+    adapter: { name: '@saasicat/tax-de', version: '1.0.0-rc.25' },
+};
 
 /** An offer as a pricing page stores it: one plan line, priced. */
 const OFFER: CreateCheckoutOfferData = {
@@ -447,6 +459,16 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no SubscriberLedgerRepository, or no contracts and subscriber seed for it',
         present: ({ adapter, seed }) =>
             Boolean(
+                adapter.subscriberLedgerRepository &&
+                adapter.subscriptionContractRepository &&
+                seed.createSubscriber,
+            ),
+    },
+    subscriptionInvoices: {
+        reason: 'adapter provides no SubscriptionInvoiceRepository, or no charge journal, contracts and subscriber seed for it',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriptionInvoiceRepository &&
                 adapter.subscriberLedgerRepository &&
                 adapter.subscriptionContractRepository &&
                 seed.createSubscriber,
@@ -6504,6 +6526,443 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ledger.recordCharges([charge({ contractLineItemId: 'no-such-line' })]),
             );
             assert.deepEqual(await ledger.listBySubscription(subscriptionId), []);
+        });
+
+        // -------------------------------------------------------------
+        // Invoices — numbered without a gap, each charge on one invoice
+        // -------------------------------------------------------------
+
+        /**
+         * A subscriber's account (`anAccount`) with what an invoice needs: a
+         * writer for its charges and a builder for an invoice of 2026 under
+         * `EX` over the charges it is handed. Null where the adapter provides
+         * no invoices.
+         */
+        async function anInvoiceAccount(t: TestContext, tenantId: string) {
+            const invoices = harness.adapter.subscriptionInvoiceRepository;
+            if (!invoices || !CONTRACT_GAPS.subscriptionInvoices.present(harness)) {
+                missing(t, 'subscriptionInvoices');
+                return null;
+            }
+            const account = await anAccount(t, tenantId);
+            if (!account) return null;
+            const { ledger, charge } = account;
+            const { subscriberId, contractId } = charge();
+            const parties = partiesWith(subscriberId, `${tenantId} GmbH`);
+            const record = async (
+                ...overrides: Partial<NewSubscriberCharge>[]
+            ): Promise<SubscriberChargeRecord[]> => {
+                const written = await ledger.recordCharges(overrides.map((each) => charge(each)));
+                assert.equal(written.length, overrides.length, 'a charge was not recorded');
+                return written;
+            };
+            const invoiceOf = (
+                charges: readonly SubscriberChargeRecord[],
+                overrides: Partial<NewSubscriptionInvoice> = {},
+                treatment: TaxTreatment = INVOICE_TREATMENT,
+            ): NewSubscriptionInvoice => {
+                const tax = taxPerRate(
+                    charges.map((each) => ({ net: each.amountNet, rate: treatment.rate })),
+                );
+                return {
+                    numberPrefix: 'EX',
+                    numberYear: 2026,
+                    tenantId,
+                    subscriberId,
+                    subscriptionId: charges[0]?.subscriptionId ?? account.subscriptionId,
+                    contractId,
+                    issuedAt: new Date('2026-02-01T05:15:00.000Z'),
+                    issueDate: '2026-02-01',
+                    dueDate: '2026-02-15',
+                    servicePeriodFrom: '2026-02-01',
+                    servicePeriodUntil: '2026-02-28',
+                    currency: 'EUR',
+                    issuer: parties.issuer!,
+                    subscriber: parties.subscriber,
+                    taxTreatment: treatment,
+                    taxes: tax.rates,
+                    totalNet: tax.net,
+                    totalTax: tax.tax,
+                    totalGross: tax.gross,
+                    lines: charges.map((each, index) => ({
+                        position: index + 1,
+                        chargeId: each.id,
+                        contractLineItemId: each.contractLineItemId,
+                        title: each.source === 'discount' ? 'Welcome discount' : 'Standard',
+                        origin: each.origin,
+                        source: each.source,
+                        periodFrom: '2026-02-01',
+                        periodUntil: '2026-02-28',
+                        amountNet: each.amountNet,
+                        taxRate: treatment.rate,
+                    })),
+                    ...overrides,
+                };
+            };
+            return { ...account, invoices, subscriberId, record, invoiceOf };
+        }
+
+        /** The charge of the month starting `month` (0 for January), booked when it starts. */
+        const monthly = (month: number): Partial<NewSubscriberCharge> => ({
+            periodStart: new Date(Date.UTC(2026, month, 1)),
+            periodEnd: new Date(Date.UTC(2026, month + 1, 1)),
+            bookedAt: new Date(Date.UTC(2026, month, 1)),
+        });
+
+        // @requirement SC-PRIC-072
+        test('invoices are numbered from 1 under their prefix and year, one after the other', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-numbers');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+
+            const first = await invoices.issue(invoiceOf([february!]));
+            const second = await invoices.issue(invoiceOf([march!]));
+
+            assert.deepEqual(
+                [first, second].map((invoice) => [invoice.number, invoice.numberSequence]),
+                [
+                    ['EX-2026-000001', 1],
+                    ['EX-2026-000002', 2],
+                ],
+            );
+        });
+
+        // @requirement SC-PRIC-072
+        test('a new year starts its numbers at 1 again, and the year before runs on', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-years');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [february, march, april] = await record(monthly(1), monthly(2), monthly(3));
+
+            const numbers = [
+                (await invoices.issue(invoiceOf([february!]))).number,
+                (await invoices.issue(invoiceOf([march!], { numberYear: 2027 }))).number,
+                (await invoices.issue(invoiceOf([april!]))).number,
+            ];
+
+            assert.deepEqual(numbers, ['EX-2026-000001', 'EX-2027-000001', 'EX-2026-000002']);
+        });
+
+        // @requirement SC-PRIC-072
+        test('an invoice written on a transaction that rolls back hands its number back', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-rollback');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId } = account;
+            const [february] = await record(monthly(1));
+
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    await invoices.issue(invoiceOf([february!]), tx);
+                    throw new Error('the run that issued it failed');
+                }),
+                /the run that issued it failed/,
+            );
+
+            assert.deepEqual(await invoices.listBySubscriber(subscriberId), []);
+            assert.equal((await invoices.issue(invoiceOf([february!]))).number, 'EX-2026-000001');
+        });
+
+        // @requirement SC-PRIC-072
+        test('invoices issued at the same time take consecutive numbers', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-race');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const charges = await record(monthly(1), monthly(2), monthly(3), monthly(4));
+
+            const issued = await Promise.all(
+                charges.map((each) => invoices.issue(invoiceOf([each]))),
+            );
+
+            assert.deepEqual(
+                issued.map((invoice) => invoice.numberSequence).sort((a, b) => a - b),
+                [1, 2, 3, 4],
+            );
+        });
+
+        // @requirement SC-PRIC-022
+        // @requirement SC-PRIC-072
+        test('a charge stands on one invoice: a second one naming it is refused and draws no number', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-once');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+            await invoices.issue(invoiceOf([february!]));
+
+            await assert.rejects(
+                invoices.issue(invoiceOf([march!, february!])),
+                refusedAs(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CHARGE_INVOICED, {
+                    chargeId: february!.id,
+                }),
+            );
+
+            assert.equal((await invoices.listBySubscriber(subscriberId)).length, 1);
+            assert.equal((await invoices.issue(invoiceOf([march!]))).number, 'EX-2026-000002');
+        });
+
+        // @requirement SC-PRIC-022
+        test('two invoices naming the same charge at the same time: one is issued', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-once-race');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+
+            const settled = await Promise.allSettled(
+                Array.from({ length: 4 }, () => invoices.issue(invoiceOf([february!]))),
+            );
+
+            const refused = settled.filter((each) => each.status === 'rejected');
+            assert.equal(refused.length, 3);
+            for (const each of refused) {
+                refusedAs(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CHARGE_INVOICED)(each.reason);
+            }
+            assert.equal((await invoices.listBySubscriber(subscriberId)).length, 1);
+            assert.equal((await invoices.issue(invoiceOf([march!]))).number, 'EX-2026-000002');
+        });
+
+        // @requirement SC-PRIC-072
+        test('an invoice naming a charge that does not exist is refused and draws no number', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-orphan');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId } = account;
+            const [february] = await record(monthly(1));
+
+            await assert.rejects(
+                invoices.issue(
+                    invoiceOf([{ ...february!, id: '00000000-0000-4000-8000-00000000c0de' }]),
+                ),
+            );
+
+            assert.deepEqual(await invoices.listBySubscriber(subscriberId), []);
+            assert.equal((await invoices.issue(invoiceOf([february!]))).number, 'EX-2026-000001');
+        });
+
+        // @requirement SC-PRIC-022
+        test('the charges left to invoice are those on no invoice', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-left');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriptionId } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+
+            await invoices.issue(invoiceOf([february!]));
+
+            assert.deepEqual(
+                (await invoices.listUninvoicedCharges(subscriptionId)).map((each) => each.id),
+                [march!.id],
+            );
+            assert.deepEqual(await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }), [
+                subscriptionId,
+            ]);
+
+            await invoices.issue(invoiceOf([march!]));
+
+            assert.deepEqual(await invoices.listUninvoicedCharges(subscriptionId), []);
+            assert.deepEqual(
+                await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }),
+                [],
+            );
+        });
+
+        // @requirement SC-PRIC-048
+        test('a subscription whose charges left to invoice are all zero is not due', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-zero');
+            if (!account) return;
+            const { invoices, record, discountLineId } = account;
+            const free = 'sub-tenant-invoice-zero-free';
+            const zeroBeside = 'sub-tenant-invoice-zero-beside';
+            const discounted = 'sub-tenant-invoice-zero-discounted';
+            const discount = {
+                source: 'discount' as const,
+                sourceRef: 'WELCOME100',
+                contractLineItemId: discountLineId,
+            };
+            await record(
+                { subscriptionId: free, sourceRef: free, amountNet: 0 },
+                { subscriptionId: free, sourceRef: free, amountNet: 0, ...monthly(2) },
+                { subscriptionId: zeroBeside, sourceRef: zeroBeside, amountNet: 0 },
+                { subscriptionId: zeroBeside, ...discount, amountNet: -3.98 },
+                { subscriptionId: discounted, sourceRef: discounted, amountNet: 19.9 },
+                { subscriptionId: discounted, ...discount, amountNet: -19.9 },
+            );
+
+            assert.deepEqual(
+                [...(await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }))].sort(),
+                [discounted, zeroBeside].sort(),
+            );
+            assert.equal(
+                (await invoices.listUninvoicedCharges(free)).length,
+                2,
+                'a zero charge stays in the journal for the invoice that may come with it',
+            );
+        });
+
+        // @requirement SC-PRIC-048
+        test('a zero group beside another of the same subscription does not make it due on its own', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-zero-group');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriptionId } = account;
+            const [february] = await record(
+                { ...monthly(1), amountNet: 19.9 },
+                { ...monthly(2), amountNet: 0 },
+            );
+
+            assert.deepEqual(await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }), [
+                subscriptionId,
+            ]);
+            await invoices.issue(invoiceOf([february!]));
+
+            assert.deepEqual(
+                await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }),
+                [],
+            );
+        });
+
+        // @requirement SC-PRIC-048
+        test('due subscriptions are read page by page, and one with only zero charges takes no place', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-due-pages');
+            if (!account) return;
+            const { invoices, record } = account;
+            const subscription = (
+                name: string,
+                month: number,
+                amountNet = 19.9,
+            ): Partial<NewSubscriberCharge> => ({
+                subscriptionId: name,
+                sourceRef: name,
+                amountNet,
+                ...monthly(month),
+            });
+            await record(
+                subscription('sub-page-c', 3),
+                subscription('sub-page-a', 1),
+                subscription('sub-page-b', 2),
+                subscription('sub-page-b', 4),
+                subscription('sub-page-bb', 2, 0),
+            );
+            const page = (after?: string) =>
+                invoices.listSubscriptionsWithUninvoicedCharges({ limit: 2, after });
+
+            assert.deepEqual(await page(), ['sub-page-a', 'sub-page-b']);
+            assert.deepEqual(await page('sub-page-b'), ['sub-page-c']);
+            assert.deepEqual(await page('sub-page-c'), []);
+        });
+
+        // @requirement SC-AUD-013
+        // @requirement SC-PRIC-026
+        test('an invoice reads back as it was written: its days, its cents, its parties and its treatment', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-exact');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId, discountLineId } = account;
+            const [plan, discount] = await record(
+                { ...monthly(11), amountNet: 99_999_999.99 },
+                {
+                    ...monthly(11),
+                    source: 'discount',
+                    sourceRef: 'WELCOME20',
+                    contractLineItemId: discountLineId,
+                    amountNet: -3.98,
+                },
+            );
+            const written = invoiceOf(
+                [plan!, discount!],
+                {
+                    issuedAt: new Date('2026-12-31T23:30:00.123Z'),
+                    issueDate: '2027-01-01',
+                    dueDate: '2027-01-15',
+                    servicePeriodFrom: '2026-12-01',
+                    servicePeriodUntil: '2026-12-31',
+                    numberYear: 2027,
+                    subscriber: {
+                        customerNumber: 'K-10002',
+                        legalName: 'Müller & Söhne GmbH',
+                        vatId: null,
+                        taxNumber: null,
+                        addressLine1: 'Am Ufer 3',
+                        addressLine2: 'Hinterhaus',
+                        postalCode: '20095',
+                        city: 'Hamburg',
+                        country: 'DE',
+                    },
+                },
+                {
+                    kind: 'reverse-charge',
+                    rate: 0,
+                    note: 'Steuerschuldnerschaft des Leistungsempfängers',
+                    adapter: { name: '@saasicat/tax-de', version: '1.0.0-rc.25' },
+                },
+            );
+
+            const issued = await invoices.issue(written);
+            const read = await invoices.findById(issued.id);
+
+            assert.ok(read);
+            assert.deepEqual(read, issued, 'the invoice issued is the invoice read');
+            const { lines, ...head } = written;
+            const { id, number, numberSequence, lines: readLines, createdAt, ...readHead } = read;
+            assert.deepEqual(readHead, head);
+            assert.deepEqual(
+                readLines.map(({ id: _lineId, invoiceId: _invoiceId, ...line }) => line),
+                lines,
+            );
+            assert.ok(readLines.every((line) => line.invoiceId === id));
+            assert.deepEqual([number, numberSequence], ['EX-2027-000001', 1]);
+            assert.ok(createdAt instanceof Date);
+            assert.equal(await invoices.findById('00000000-0000-4000-8000-000000000000'), null);
+            assert.deepEqual(
+                (await invoices.listBySubscriber(subscriberId)).map((each) => each.id),
+                [issued.id],
+            );
+        });
+
+        test("a subscriber's invoices come back latest number first, each with its lines in order", async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-list');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId, discountLineId } = account;
+            const [february, discount, march] = await record(
+                monthly(1),
+                {
+                    ...monthly(1),
+                    source: 'discount',
+                    sourceRef: 'WELCOME20',
+                    contractLineItemId: discountLineId,
+                    amountNet: -3.98,
+                },
+                monthly(2),
+            );
+            await invoices.issue(invoiceOf([discount!, february!]));
+            await invoices.issue(invoiceOf([march!]));
+
+            const listed = await invoices.listBySubscriber(subscriberId);
+
+            assert.deepEqual(
+                listed.map((invoice) => [
+                    invoice.number,
+                    invoice.lines.map((line) => line.chargeId),
+                ]),
+                [
+                    ['EX-2026-000002', [march!.id]],
+                    ['EX-2026-000001', [discount!.id, february!.id]],
+                ],
+            );
+            assert.deepEqual(await invoices.listBySubscriber('no-such-subscriber'), []);
+        });
+
+        // @requirement SC-PRIC-024
+        test('the prefixes invoices were issued under are listed, two at most', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-prefixes');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [february, march, april] = await record(monthly(1), monthly(2), monthly(3));
+
+            assert.deepEqual(await invoices.listIssuedNumberPrefixes(), []);
+            await invoices.issue(invoiceOf([february!]));
+            assert.deepEqual(await invoices.listIssuedNumberPrefixes(), ['EX']);
+            await invoices.issue(invoiceOf([march!], { numberPrefix: 'AB' }));
+            await invoices.issue(invoiceOf([april!], { numberPrefix: 'ZZ' }));
+
+            const prefixes = await invoices.listIssuedNumberPrefixes();
+            assert.equal(prefixes.length, 2);
+            assert.ok(prefixes.every((prefix) => ['AB', 'EX', 'ZZ'].includes(prefix)));
         });
 
         // -------------------------------------------------------------

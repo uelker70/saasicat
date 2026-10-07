@@ -46,12 +46,18 @@ function sourceFiles(dir, out = []) {
  * is listed with its line so a reader can check the claim, and anything else
  * fails.
  *
- * The last entry is the one that reads. It takes one thing out of the record
- * and it is not a setting: which legal entity this installation last ran as,
- * and what it decides is whether the start continues at all. A list cannot say
- * that it reads nothing else, so that half is behavioural and lives in
- * `an-operator-corrects-its-own-details.test.js`: a record disagreeing with the
- * file about every other value still starts, and still runs on the file's.
+ * The last two entries are the ones that read, and each takes one thing out of
+ * the record that is not a setting. The start check reads which legal entity
+ * this installation last ran as, and decides whether the start continues at
+ * all; the invoice run reads the corrections of that entity the operator
+ * declared, and decides which name and identifiers an invoice carries for a
+ * contract concluded before them (`SC-PRIC-026`). A list cannot say that
+ * either reads nothing else, so that half is behavioural: in
+ * `an-operator-corrects-its-own-details.test.js` a record disagreeing with the
+ * file about every other value still starts, and still runs on the file's, and
+ * in `packages/core/tests/an-invoice-names-the-issuer-of-its-contract.test.js`
+ * a recorded change of any other value leaves the issuer an invoice names as it
+ * was.
  */
 const WIRING = new Map([
     ['platform/saasicat.module.ts', 'merges the bundle slice into the adapter slots'],
@@ -60,6 +66,10 @@ const WIRING = new Map([
     [
         'platform/issuer-identity.check.ts',
         'reads the recorded issuer identity to refuse an undeclared change of legal entity',
+    ],
+    [
+        'billing/invoices/subscription-invoice.service.ts',
+        'reads the recorded corrections of the issuer identity to name the corrected issuer on an invoice',
     ],
 ]);
 

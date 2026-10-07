@@ -14,6 +14,7 @@ const CATALOGUES = [
     ['CATALOG_ERROR_CODES', 'Catalogue', 'Plans, versions, bundles, marketing entries.'],
     ['BILLING_ERROR_CODES', 'Billing', 'Subscriptions, plan changes, entitlements.'],
     ['CONTRACT_ERROR_CODES', 'Contracts', 'Checkout offers and subscription contracts.'],
+    ['INVOICE_ERROR_CODES', 'Invoices', 'Invoices issued from the charge journal.'],
     ['SUBSCRIBER_ERROR_CODES', 'Subscribers', 'The party a contract is concluded with.'],
     [
         'PAYMENT_ERROR_CODES',

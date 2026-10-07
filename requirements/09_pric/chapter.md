@@ -840,9 +840,31 @@ inside the tenant it was for and what a tenant downloads never shows another ten
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the charges one invoice issues
+        - are those booked at the same moment under the same contract
+        - come the oldest first, whatever order the journal hands them in
+        - issue nothing where all of them are zero
+        - keep a zero beside an amount, and a discount that brings the total to zero
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice is issued for the charges booked together
+        - the opening of a period is one invoice, its lines in the contract’s order
+        - a charge that arises later in the period is an invoice of its own, numbered after
+        - groups waiting from earlier are issued oldest first, so their numbers follow the charges
+        - a second run issues nothing the first one issued
+        - a charge another instance invoiced first is passed over, neither issued nor failed
+        - a failure of one invoice holds up none of the others, and the next run issues it
+
+<!-- END proof -->
+
 ### SC-PRIC-023 — Invoice numbers have no gaps within an installation, and a prefix sets it apart
 
-🟡 _(Decided, not yet delivered.)_ 💰 The number is assigned in the transaction that writes the
+🔵 _(Superseded on 2026-10-07 by `SC-PRIC-072`.)_
+💰 The number is assigned in the transaction that writes the
 invoice, so an issue that fails leaves no gap, and only after the tax adapter has accepted the
 invoice's content (`SC-PRIC-027`), so a refusal leaves no number behind. The prefix is named in
 `config/saas.yaml`, and two applications run by one issuer stay apart as long as each names its own.
@@ -853,10 +875,23 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-024 — An installation's invoice number prefix cannot change once an invoice exists
 
-🟡 _(Decided, not yet delivered.)_ 💰 Otherwise a number issued before the change and one issued
+🟢 💰 Otherwise a number issued before the change and one issued
 after it no longer read as one range.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the prefix of the invoice numbers
+        - may be anything while no invoice exists
+        - is the one the issued invoices carry, and the start goes on
+        - refuses the start where it is another, naming the one in use
+        - refuses it where invoices carry two, even if one of them is the configured one
+
+<!-- END proof -->
 
 ### SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
 
@@ -932,6 +967,20 @@ _Tested by:_
         - an unchanged identity says what changing it would cost
         - a declared correction is reported before the start applies it
         - the first naming, and an installation that names none
+- `packages/core/tests/an-invoice-names-the-issuer-of-its-contract.test.js`
+    - the issuer an invoice names
+        - is the file’s, address and all, while the file names the entity the contract copied
+        - is the file’s where the operator declared the change a correction of that entity
+        - follows one declared correction after another back to the copy
+        - stays the corrected one after the declaration has left the file
+        - is the contract’s copy where nothing recorded connects it to the file’s entity
+        - is the contract’s copy where the recorded change was not declared a correction
+        - is the contract’s copy where the declaration names another value than the copy holds
+        - is not moved by a correction of an entity the contract was not concluded with
+        - is not moved by a recorded change of any other setting
+        - is the contract’s copy where the file names no issuer
+        - reads the copy and the file the way the start does, so a stray space is the same entity
+        - reads a recorded block it cannot use as no identity rather than as a wrong one
 - `packages/core/tests/an-issuer-is-the-same-entity-or-another-one.test.js`
     - the identity of an issuer
         - is the three fields a contract names it by, and nothing about how it is reached
@@ -962,6 +1011,11 @@ _Tested by:_
         - a block whose name reads as nothing is refused however well it is declared
         - a declaration left in the file after its correction landed changes nothing
         - and it does not license the next change
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the parties an invoice names
+        - are the subscriber as its record stands and the issuer the file names
+        - name the issuer’s corrected identity where the operator declared the correction
+        - name the contract’s copy where nothing recorded connects it to the file’s issuer
 - `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
     - a start that finds the issuer where it left it
         - names one for the first time, and says so
@@ -1000,12 +1054,52 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 The installation's tax adapter (`SC-PRIC-037`) names that
 content, the names of the documents and the note each tax treatment needs, and checks an invoice's
-content against them before its number is drawn (`SC-PRIC-023`). An invoice missing any of it draws
+content against them before its number is drawn (`SC-PRIC-072`). An invoice missing any of it draws
 no number and is not issued, and the operator is shown what is missing, such as a billing address
 the format rejects; once it is corrected, the invoice takes the next number then. Another country's
 law is another adapter rather than an addition to one, and German law is the first (`SC-PRIC-064`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice that cannot be issued yet
+        - waits for the subscriber’s address, draws no number, and takes the next one once it is
+          complete
+        - is recorded in the audit log once, however many runs find it waiting
+        - waits where the adapter supports no treatment for the subscriber
+        - waits for what the adapter finds missing, and draws no number
+        - is shown to the adapter as it would be issued
+        - waits under a contract ${what}
+        - keeps no other subscription waiting, however many wait before it
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - where they are wired, the file names their range and term, an adapter decides and an
+          issuer is named
+        - with the quarter-hourly run unless the application leaves it out
+        - not where the application wires them and the file names no range or term
+        - not where the file names them and the application wires none
+        - not without a tax adapter, nor without an issuer
+        - and no wiring nor block at all is no invoicing, and starts
+- `packages/tax-de/tests/an-invoice-carries-what-german-law-requires.test.js`
+    - what an invoice of an issuer in Germany has to carry
+        - a complete invoice lacks nothing
+        - the ${side}'s ${field}, missing or blank, is named
+        - the ${side}'s second address line may be missing
+        - the issuer's tax number or its VAT number — either is enough, neither is a gap
+        - the reverse charge names both parties' VAT numbers, and its note
+        - a standard invoice asks for no VAT number of the subscriber
+        - a ${kind} invoice says why it carries no German VAT
+        - an invoice without lines, or with a line nobody named, is not complete
+        - every gap is named, in the order an invoice reads
+    - an invoice's tax, once per rate
+        - is the rate applied to the net total, not the sum of the lines’ rounded taxes
+        - keeps each rate apart, the lowest first, and a discount lowers its rate’s net
+
+<!-- END proof -->
 
 ### SC-PRIC-028 — A direct debit is announced before it is collected
 
@@ -1134,7 +1228,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-032 — No contract is frozen and no invoice issued before the subscriber's identity is complete
 
-🟡 _(Decided, not yet delivered.)_ 💰 The identity is the legal name, the billing address and the
+🟢 💰 The identity is the legal name, the billing address and the
 tax identifiers. Sign-up asks for it before the tenant is activated. A subscriber created
 another way is asked for what is missing before its subscription becomes a paid one, which is
 when its contract is frozen (`SC-SPEC-005`, `SC-AUD-012`); until then the operator sees the
@@ -1142,6 +1236,23 @@ subscription waiting and why, because a party copied onto a contract incomplete 
 completed afterwards.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice that cannot be issued yet
+        - waits for the subscriber’s address, draws no number, and takes the next one once it is
+          complete
+        - is recorded in the audit log once, however many runs find it waiting
+        - waits where the adapter supports no treatment for the subscriber
+        - waits for what the adapter finds missing, and draws no number
+        - is shown to the adapter as it would be issued
+        - waits under a contract ${what}
+        - keeps no other subscription waiting, however many wait before it
+
+<!-- END proof -->
 
 ### SC-PRIC-033 — An invoice interrupted in archiving keeps its number and is never issued twice
 
@@ -1152,7 +1263,7 @@ and the rendered document is then archived under that number, which makes a repe
 same write rather than a second document. Until the archive confirms, the invoice is neither sent
 nor offered for download, the register shows it as awaiting its document (`SC-ADM-022`), and an
 attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-022`,
-`SC-PRIC-023`).
+`SC-PRIC-072`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -1228,6 +1339,17 @@ update never changes a document already issued (`SC-PRIC-025`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the tax of an invoice
+        - is the adapter’s, computed once per rate, with the treatment and the adapter recorded
+        - is decided anew for the subscriber as it stands when the invoice is issued
+
+<!-- END proof -->
+
 ### SC-PRIC-039 — A subscriber the tax adapter cannot treat is refused before a contract exists
 
 🟡 _(Decided, not yet delivered.)_ 💰 Sign-up and an operator creating a subscriber ask the adapter
@@ -1282,7 +1404,7 @@ _Tested by:_
 
 ### SC-PRIC-041 — An invoice computes its tax once per rate, by the rule its tax adapter names
 
-🟡 _(Decided, not yet delivered.)_ 💰 The German adapter names the rule of EN 16931: the tax of each
+🟢 💰 The German adapter names the rule of EN 16931: the tax of each
 rate is that rate applied to the net total of its lines, rounded once, and the invoice total is the
 net total plus that tax. The amount the invoice states, the amount collected and the amount a
 payment settles are that one figure. The total is never the sum of the lines' own rounded taxes,
@@ -1290,6 +1412,37 @@ which can differ from it by cents: ten lines of 12.34 net at 19 % carry 2.34 eac
 while the rate applied to 123.40 gives 23.45.
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the tax an invoice states
+        - is the rate applied once to the net of its lines, not the sum of each line’s rounded tax
+        - is the adapter’s, whatever rule it names
+        - carries the treatment the adapter decided, and its rate on every line
+        - is computed per rate, the lowest rate first, and a discount lowers its rate’s net
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the tax of an invoice
+        - is the adapter’s, computed once per rate, with the treatment and the adapter recorded
+        - is decided anew for the subscriber as it stands when the invoice is issued
+- `packages/tax-de/tests/an-invoice-carries-what-german-law-requires.test.js`
+    - what an invoice of an issuer in Germany has to carry
+        - a complete invoice lacks nothing
+        - the ${side}'s ${field}, missing or blank, is named
+        - the ${side}'s second address line may be missing
+        - the issuer's tax number or its VAT number — either is enough, neither is a gap
+        - the reverse charge names both parties' VAT numbers, and its note
+        - a standard invoice asks for no VAT number of the subscriber
+        - a ${kind} invoice says why it carries no German VAT
+        - an invoice without lines, or with a line nobody named, is not complete
+        - every gap is named, in the order an invoice reads
+    - an invoice's tax, once per rate
+        - is the rate applied to the net total, not the sum of the lines’ rounded taxes
+        - keeps each rate apart, the lowest first, and a discount lowers its rate’s net
+
+<!-- END proof -->
 
 ### SC-PRIC-042 — An invoice is issued in the format its tax adapter requires
 
@@ -1326,6 +1479,10 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - the tenant changes how it is reached
         - a change of the country is recorded with the user who made it, as the audit log tags them
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the tax of an invoice
+        - is the adapter’s, computed once per rate, with the treatment and the adapter recorded
+        - is decided anew for the subscriber as it stands when the invoice is issued
 
 <!-- END proof -->
 
@@ -1352,6 +1509,32 @@ year whatever the server's clock says (`SC-OPS-011`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the days an invoice states
+        - are read in the installation’s zone: a month starting at midnight in Berlin is that month
+        - span every line: from the first day any covers to the last
+        - belong to the new year half an hour after midnight on 1 January, whatever UTC says
+        - belong to the old year until midnight in the zone
+        - fall due the payment term after the issue date, across a month and a year
+    - a calendar day in a zone
+        - is the day the instant falls on there, on either side of midnight
+        - is read in a named zone only
+        - ends a period on the day before the moment it ends
+        - moves on by whole days, through the end of February in a leap year
+        - belongs to its year
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the days and the number of an invoice
+        - are counted in the installation’s zone: issued at 00:30 on 1 January in Berlin it is the
+          new year’s first
+        - fall due the payment term the file names after the issue date
+        - carry the prefix the file names
+
+<!-- END proof -->
+
 ### SC-PRIC-046 — An invoice states the day it is due
 
 🟡 _(Decided, not yet delivered.)_ 💰 An invoice collected by direct debit is due on the collection
@@ -1360,6 +1543,35 @@ date it announces (`SC-PRIC-028`), any other on its issue date plus the payment 
 announced again with a later date leaves the due date as the invoice states it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the days an invoice states
+        - are read in the installation’s zone: a month starting at midnight in Berlin is that month
+        - span every line: from the first day any covers to the last
+        - belong to the new year half an hour after midnight on 1 January, whatever UTC says
+        - belong to the old year until midnight in the zone
+        - fall due the payment term after the issue date, across a month and a year
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the days and the number of an invoice
+        - are counted in the installation’s zone: issued at 00:30 on 1 January in Berlin it is the
+          new year’s first
+        - fall due the payment term the file names after the issue date
+        - carry the prefix the file names
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - where they are wired, the file names their range and term, an adapter decides and an
+          issuer is named
+        - with the quarter-hourly run unless the application leaves it out
+        - not where the application wires them and the file names no range or term
+        - not where the file names them and the application wires none
+        - not without a tax adapter, nor without an issuer
+        - and no wiring nor block at all is no invoicing, and starts
+
+<!-- END proof -->
 
 ### SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
 
@@ -1377,11 +1589,28 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
 
-🟡 _(Decided, not yet delivered.)_ 💰 A free plan does not use up an invoice number every period. A
+🟢 💰 A free plan does not use up an invoice number every period. A
 charge of zero is invoiced beside charges that are not, and an invoice whose total a discount brings
 to zero is issued, because it records the service and the discount.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the charges one invoice issues
+        - are those booked at the same moment under the same contract
+        - come the oldest first, whatever order the journal hands them in
+        - issue nothing where all of them are zero
+        - keep a zero beside an amount, and a discount that brings the total to zero
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - a period whose charges are all zero
+        - issues no invoice and draws no number
+        - beside a period with an amount leaves that one to be issued
+
+<!-- END proof -->
 
 ### SC-PRIC-049 — A subscriber's account is shown to the tenant's users holding the billing permission
 
@@ -1970,5 +2199,38 @@ _Tested by:_
         - after a correction, the service's answer — ${found} — is announced as such, the correction
           beneath it
         - a check needs no second factor, announces what the service found, and reads again
+
+<!-- END proof -->
+
+### SC-PRIC-072 — Invoice numbers run without gaps in one range per issuer, restarting each year
+
+🟢 💰 An invoice number is `<prefix>-<year>-<sequence>`, such as `AHP-2026-000123`: the prefix
+`config/saas.yaml` names under `invoicing`, the year of the issue date in the installation's time
+zone (`SC-PRIC-045`), and the sequence, which starts at 1 again on 1 January and is written with six
+digits at least. The number is drawn in the transaction that writes the invoice, so an invoice that
+fails to be written leaves no gap, and two issued at the same moment take two numbers one after the
+other; and it is drawn only after the tax adapter has accepted the invoice's content
+(`SC-PRIC-027`), so a refusal leaves no number behind. An installation is the range of exactly one
+issuer, and an issuer keeps one range: a second application of the same issuer is not supported.
+The law asks for a unique, sequential number; the gapless range spares an audit the question of a
+missing one.
+
+_Source:_ #332 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - an invoice number
+        - is the prefix, the year and the sequence in six digits at least
+        - has no sequence below 1, and no fraction of one
+        - takes the prefix the invoice is drawn up with
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the days and the number of an invoice
+        - are counted in the installation’s zone: issued at 00:30 on 1 January in Berlin it is the
+          new year’s first
+        - fall due the payment term the file names after the issue date
+        - carry the prefix the file names
 
 <!-- END proof -->

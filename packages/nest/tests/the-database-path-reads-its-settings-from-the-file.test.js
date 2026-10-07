@@ -31,8 +31,9 @@ import { SETTINGS_SOURCE_TOKEN, storeSecretsInPlainText } from '../dist/index.js
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 
 // Every settings block the schema declares but `tax`, which excludes `vatRate`
-// and has a file of its own below, so that a block the chain dropped shows up
-// as missing rather than never being compared. `plans` is here on purpose: it
+// and has a file of its own below together with `invoicing`, which needs it, so
+// that a block the chain dropped shows up as missing rather than never being
+// compared. `plans` is here on purpose: it
 // is what a database-path file keeps as the seed for `saasicat catalog
 // import`, and it must not become the catalogue.
 const LINES = [
@@ -112,9 +113,14 @@ function fileWith(lines = LINES) {
     return path;
 }
 
-/** The same file naming a tax adapter where the other names `vatRate`. */
-const TAX_LINES = LINES.map((line) =>
-    line === 'vatRate: ${VAT}' ? 'tax: { adapter: test-tax, options: { flat: true } }' : line,
+/** The same file naming a tax adapter where the other names `vatRate`, and invoicing beside it. */
+const TAX_LINES = LINES.flatMap((line) =>
+    line === 'vatRate: ${VAT}'
+        ? [
+              'tax: { adapter: test-tax, options: { flat: true } }',
+              'invoicing: { numberPrefix: EX, paymentTermDays: 14 }',
+          ]
+        : [line],
 );
 
 /** A tax adapter that charges 19 % to everybody, bound under the name the file gives. */
@@ -159,11 +165,12 @@ async function boot(dbCatalog, port, extra) {
 }
 
 describe('the settings an installation with a database catalogue runs on', () => {
-    // `vatRate` and `tax` exclude each other, so the two files between them
-    // carry every settings block the schema declares.
-    const declaredBut = (left) =>
+    // `vatRate` and `tax` exclude each other, and `invoicing` needs `tax`, so
+    // the two files between them carry every settings block the schema
+    // declares.
+    const declaredBut = (...left) =>
         Object.keys(planCatalogSchema.properties)
-            .filter((key) => !CATALOGUE_KEYS.has(key) && key !== left)
+            .filter((key) => !CATALOGUE_KEYS.has(key) && !left.includes(key))
             .sort();
     const NOT_ASKED =
         'a settings block the schema declares is not in the fixture, or did not reach the ' +
@@ -175,7 +182,7 @@ describe('the settings an installation with a database catalogue runs on', () =>
         const running = settingsSubtreeOf(app.get(PLAN_CATALOG_SETTINGS_TOKEN));
 
         assert.deepEqual(running, settingsSubtreeOf(loadPlanCatalogFromFile({ path, env: ENV })));
-        assert.deepEqual(Object.keys(running).sort(), declaredBut('tax'), NOT_ASKED);
+        assert.deepEqual(Object.keys(running).sort(), declaredBut('tax', 'invoicing'), NOT_ASKED);
     });
 
     test('are the ones in the file dbCatalog names where it names a tax adapter instead of a rate', async () => {

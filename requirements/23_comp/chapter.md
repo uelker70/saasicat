@@ -758,6 +758,16 @@ _Tested by:_
         - opening leaves the refusal to the index, under an id of its own
         - a move is guarded on the window being open and at the stage the caller read
         - a move that matched nothing answers null and reads nothing back
+- `packages/adapter-prisma/tests/prisma-subscription-invoice.repository.test.js`
+    - PrismaSubscriptionInvoiceRepository
+        - issuing draws the year’s next number and writes the invoice with it, in one transaction
+        - days reach their date columns as midnight UTC, amounts as two-place text
+        - a line the unique key left unwritten refuses the invoice by code, naming the charge
+        - a year whose row cannot be raised is said, rather than numbered from nothing
+        - on the caller’s transaction it opens none of its own
+        - the due subscriptions are asked for after the page given, or from the start
+        - the charges left to invoice are those with no invoice line, in the journal’s order
+        - reads ask for the lines in their order, and the prefixes two at most
 - `packages/adapter-prisma/tests/prisma-subscription-notice.repository.test.js`
     - PrismaSubscriptionNoticeRepository
         - a claim records the notice where it is new, then takes it in one guarded update

@@ -2,12 +2,15 @@ import { HttpException, UnprocessableEntityException } from '@nestjs/common';
 import {
     TAX_ERROR_CODES,
     type BillingCycle,
+    type InvoiceContentDraft,
+    type InvoiceTaxLine,
     type PlanCatalogSettings,
     type SubscriberTaxOrigin,
     type TaxAdapter,
     type TaxAdapterIdentity,
     type TaxDecisionRequest,
     type TaxIssuer,
+    type TaxPerRate,
     type TaxTreatment,
     type VatIdCheckOutcome,
 } from '@saasicat/core';
@@ -140,16 +143,35 @@ export class TaxTreatments {
         return { rate: decision.treatment.rate, treatment: decision.treatment };
     }
 
+    /** The tax of an invoice's lines, by the adapter's rule (`SC-PRIC-041`); only where an adapter decides. */
+    invoiceTax(lines: readonly InvoiceTaxLine[]): TaxPerRate {
+        return this.requireBound('computes no invoice tax').invoiceTax(lines);
+    }
+
+    /**
+     * What the law the adapter names requires of an invoice and `draft` lacks
+     * (`SC-PRIC-027`); empty where nothing is missing. Only where an adapter
+     * decides.
+     */
+    invoiceContentGaps(draft: InvoiceContentDraft): readonly string[] {
+        return this.requireBound('checks no invoice content').invoiceContentGaps(draft);
+    }
+
     /**
      * Checks a VAT identification number with the service the adapter names,
      * the issuer's own number as the requester. An outcome whatever the service
      * does; only where an adapter decides.
      */
     checkVatId(vatId: string): Promise<VatIdCheckOutcome> {
-        if (!this.bound) {
-            throw new Error('No tax adapter is bound, so no VAT identification number is checked.');
-        }
-        return this.bound.checkVatId(vatId, taxIssuerOf(this.settings));
+        return this.requireBound('checks no VAT identification number').checkVatId(
+            vatId,
+            taxIssuerOf(this.settings),
+        );
+    }
+
+    private requireBound(what: string): TaxAdapter {
+        if (!this.bound) throw new Error(`No tax adapter is bound, so it ${what}.`);
+        return this.bound;
     }
 }
 

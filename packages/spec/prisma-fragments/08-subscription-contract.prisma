@@ -73,6 +73,7 @@ model SubscriptionContract {
 
     lineItems     ContractLineItem[]
     ledgerEntries SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
+    invoices      SubscriptionInvoice[]     // see 20-subscription-invoice.prisma
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -131,6 +132,7 @@ model ContractLineItem {
 
     contract      SubscriptionContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
     ledgerEntries SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
+    invoiceLines  SubscriptionInvoiceLine[] // see 20-subscription-invoice.prisma
 
     @@index([contractId, kind])
     @@index([sourceVersionId])

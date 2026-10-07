@@ -22,6 +22,7 @@
 --   prisma-fragments/17-subscription-notice.prisma
 --   prisma-fragments/18-version-retirement.prisma
 --   prisma-fragments/19-bundle-version-retirement.prisma
+--   prisma-fragments/20-subscription-invoice.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -804,6 +805,61 @@ CREATE TABLE "bundle_version_retirements" (
     CONSTRAINT "bundle_version_retirements_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscription_invoices" (
+    "id" TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    "numberPrefix" TEXT NOT NULL,
+    "numberYear" INTEGER NOT NULL,
+    "numberSequence" INTEGER NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "contractId" TEXT NOT NULL,
+    "issuedAt" TIMESTAMP(3) NOT NULL,
+    "issueDate" DATE NOT NULL,
+    "dueDate" DATE NOT NULL,
+    "servicePeriodFrom" DATE NOT NULL,
+    "servicePeriodUntil" DATE NOT NULL,
+    "currency" TEXT NOT NULL,
+    "issuerParty" JSONB NOT NULL,
+    "subscriberParty" JSONB NOT NULL,
+    "taxTreatment" JSONB NOT NULL,
+    "taxes" JSONB NOT NULL,
+    "totalNet" DECIMAL(12,2) NOT NULL,
+    "totalTax" DECIMAL(12,2) NOT NULL,
+    "totalGross" DECIMAL(12,2) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "subscription_invoices_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscription_invoice_lines" (
+    "id" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "chargeId" TEXT NOT NULL,
+    "contractLineItemId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "origin" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "periodFrom" DATE NOT NULL,
+    "periodUntil" DATE NOT NULL,
+    "amountNet" DECIMAL(10,2) NOT NULL,
+    "taxRate" DECIMAL(5,2) NOT NULL,
+
+    CONSTRAINT "subscription_invoice_lines_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscription_invoice_numbers" (
+    "year" INTEGER NOT NULL,
+    "last" INTEGER NOT NULL,
+
+    CONSTRAINT "subscription_invoice_numbers_pkey" PRIMARY KEY ("year")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1068,6 +1124,27 @@ CREATE INDEX "version_retirements_retiredPlanVersionId_idx" ON "version_retireme
 -- CreateIndex
 CREATE INDEX "bundle_version_retirements_retiredBundleVersionId_idx" ON "bundle_version_retirements"("retiredBundleVersionId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoices_number_key" ON "subscription_invoices"("number");
+
+-- CreateIndex
+CREATE INDEX "subscription_invoices_subscriberId_issuedAt_idx" ON "subscription_invoices"("subscriberId", "issuedAt");
+
+-- CreateIndex
+CREATE INDEX "subscription_invoices_subscriptionId_idx" ON "subscription_invoices"("subscriptionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoices_numberYear_numberSequence_key" ON "subscription_invoices"("numberYear", "numberSequence");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_lines_chargeId_key" ON "subscription_invoice_lines"("chargeId");
+
+-- CreateIndex
+CREATE INDEX "subscription_invoice_lines_contractLineItemId_idx" ON "subscription_invoice_lines"("contractLineItemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_lines_invoiceId_position_key" ON "subscription_invoice_lines"("invoiceId", "position");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1136,6 +1213,21 @@ ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entrie
 
 -- AddForeignKey
 ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entries_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoices" ADD CONSTRAINT "subscription_invoices_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoices" ADD CONSTRAINT "subscription_invoices_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_chargeId_fkey" FOREIGN KEY ("chargeId") REFERENCES "subscriber_ledger_entries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.

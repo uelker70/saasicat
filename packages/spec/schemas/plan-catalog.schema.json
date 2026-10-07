@@ -258,6 +258,24 @@
                 }
             }
         },
+        "invoicing": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["numberPrefix", "paymentTermDays"],
+            "description": "Invoices issued from the charge journal (SC-PRIC-022). Named exactly where the application wires `tenantBilling.chargeJournal.invoices`; the start refuses the one without the other. Needs `tax`, whose adapter decides an invoice's treatment, checks its content and computes its tax, and `issuer`, the party every invoice names.",
+            "properties": {
+                "numberPrefix": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9]{1,16}$",
+                    "description": "Put in front of every invoice number: `AHP` gives AHP-2026-000123. The installation is one range of its issuer, numbered from 1 again each year as `timeZone` counts it (SC-PRIC-072). Once an invoice exists, the start refuses another prefix (SC-PRIC-024)."
+                },
+                "paymentTermDays": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed."
+                }
+            }
+        },
         "payments": {
             "type": "object",
             "additionalProperties": false,
@@ -419,5 +437,5 @@
             }
         }
     },
-    "dependentRequired": { "tax": ["timeZone"] }
+    "dependentRequired": { "tax": ["timeZone"], "invoicing": ["tax", "issuer"] }
 }

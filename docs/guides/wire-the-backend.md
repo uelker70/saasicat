@@ -971,6 +971,80 @@ other reads the administration makes.
 
 What it does not do yet: collect anything, or show a tenant its own account.
 
+## Invoices
+
+The charges of the journal, issued as invoices: one invoice for the charges booked together under a
+contract — the charges a billing period opens with, or one that arises later in the period — numbered
+without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. **Switch it on for
+real customers only from the release that brings the cancellation invoice** (`1.0.0-rc.28`): an
+issued invoice is never edited (`SC-PRIC-025`), so until then a wrong one cannot be corrected. This
+release issues the invoice as a record; its document, the archive and the mail follow.
+
+It needs the charge journal above, a tax adapter, and the issuer in `config/saas.yaml`. Adopt
+`prisma-fragments/20-subscription-invoice.prisma`, run
+`sql/1.0-an-invoice-is-issued.postgres.sql` once, name the range and the payment term, and wire the
+repository beside the journal:
+
+```yaml
+# config/saas.yaml
+invoicing:
+    numberPrefix: AHP # AHP-2026-000123
+    paymentTermDays: 14 # due 14 days after the issue date
+```
+
+```ts
+tenantBilling: {
+    // … contractFreeze as above
+    chargeJournal: {
+        ledgerRepository: persistence.entitlement!.subscriberLedgerRepository!,
+        invoices: {
+            invoiceRepository: persistence.entitlement!.subscriptionInvoiceRepository!,
+        },
+    },
+},
+```
+
+The start refuses the wiring without the `invoicing` block, the block without the wiring where tenant
+billing is configured, either without a tax adapter or an issuer, and a `numberPrefix` other than
+the one the invoices already issued carry (`SC-PRIC-024`). The prefix is letters and digits; the
+number puts the year and the sequence behind it, each after a hyphen.
+
+`SubscriptionInvoiceService.issueDue(now)` issues what is owed, and the platform runs it every
+quarter of an hour, which needs `ScheduleModule` in your application. With
+`invoices.includeCron: false` the platform leaves the run to your own scheduler, which calls
+`issueDue`. Each invoice is put together from what holds on its issue date:
+
+- **the subscriber** as its record stands, with its customer number;
+- **the issuer** of the contract its charges belong to — the file's, address and all, while the file
+  names the entity the contract was concluded with or a correction of it the operator declared
+  (`SC-PRIC-026`); the contract's own copy otherwise;
+- **the treatment** the tax adapter decides for the subscriber now (`SC-PRIC-043`), recorded with
+  the adapter's name and version, and **the tax** by the adapter's rule, once per rate
+  (`SC-PRIC-041`);
+- **its days** in the installation's `timeZone`: the issue date, each line's period, and the due
+  date, the issue date plus `paymentTermDays` (`SC-PRIC-045`, `SC-PRIC-046`);
+- **its lines** in the order of the contract's lines, each naming its charge and its contract line
+  (`SC-AUD-013`) and titled as the contract line is.
+
+A billing period whose charges are all zero issues no invoice; a charge of zero beside one that is
+not stays on its invoice (`SC-PRIC-048`). The adapter checks the content before the number is drawn
+(`SC-PRIC-027`), and the store draws it in the transaction that writes the invoice, so an invoice
+that is refused or fails leaves no gap.
+
+An invoice that cannot be issued yet waits, and its charges with it: a subscriber whose invoice
+address has gaps (`SC-PRIC-032`), one the adapter supports no treatment for, a contract whose
+parties a migration copied or that names no issuer, or content the adapter finds missing. Each run
+logs it, and the audit log records it once per process as `SUBSCRIPTION_INVOICE_HELD` by the actor
+`job:platform:subscription-invoices`, with the refusal's code and what it names. Once what held it is
+put right, the next run issues it under the next number.
+
+The run reads and writes across tenants inside `RlsBypassPort`. If the invoice tables, the journal,
+your contracts or subscribers carry a row-level policy, your implementation of that port has to lift
+it there.
+
+One installation is the range of exactly one issuer, and an issuer keeps one range: a second
+application issuing for the same issuer is not supported.
+
 ## Telling Subscribers of a Newer Version
 
 A subscription keeps the plan version it was sold, and a newer one sits beside the plan as an offer

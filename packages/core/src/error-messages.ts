@@ -294,6 +294,11 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     // ── contract ──
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
         'The contract states {stated} % in {field}, and the tax adapter decides {decided} %.',
+    SUBSCRIPTION_INVOICE_CHARGE_INVOICED: "Charge '{chargeId}' already stands on an invoice.",
+    SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
+        'The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.',
+    SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
+        'Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'A checkout offer can yield only one contract, and only once its line items are frozen.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED: 'A checkout offer requires a frozen plan line item.',
