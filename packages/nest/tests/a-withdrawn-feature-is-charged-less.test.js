@@ -416,11 +416,17 @@ describe('ending at once while the feature is withdrawn', () => {
         return account;
     }
 
-    for (const [name, chargedFirst] of [
-        ['a period charged before its date', true],
-        ['a period charged while the feature is withdrawn', false],
+    for (const [name, chargedFirst, creditedBetween] of [
+        ['no contract records the reduction yet, the period charged before its date', true, false],
+        [
+            'no contract records the reduction yet, the period charged while the feature is withdrawn',
+            false,
+            false,
+        ],
+        // The end then takes back the part of that reduction it credits as rest.
+        ['a run between the date and the end has credited the whole reduction', true, true],
     ]) {
-        test(`shows first what it then credits where no contract records the reduction yet: ${name}`, async () => {
+        test(`shows first what it then credits: ${name}`, async () => {
             let account;
             let written = false;
             account = anAccount({
@@ -456,6 +462,7 @@ describe('ending at once while the feature is withdrawn', () => {
                 await renew(account, '2026-04-01', '2026-05-01');
                 written = false;
             }
+            if (creditedBetween) await account.charge(utc('2026-04-05'));
 
             const shown = await account.service.creditOfEndingAtOnce('t1', null, utc('2026-04-11'));
             account.endAtOnce(utc('2026-04-11'));

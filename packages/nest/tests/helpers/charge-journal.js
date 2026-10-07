@@ -306,7 +306,6 @@ export function anAccount({
             bookings.push(booking);
             return booking;
         },
-        /** The journal as `[period start, source, origin, amount]`, oldest first. */
         /** The discount entries, each with the reference that says whose reduction it is. */
         discounts() {
             return [...ledger.rows]
@@ -324,6 +323,7 @@ export function anAccount({
                     row.amountNet,
                 ]);
         },
+        /** The journal as `[period start, source, origin, amount]`, oldest first. */
         entries() {
             return [...ledger.rows]
                 .sort((a, b) => a.periodStart - b.periodStart || a.source.localeCompare(b.source))
