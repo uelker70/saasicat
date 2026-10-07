@@ -8,6 +8,7 @@ import {
     type CatalogEntryRepository,
     type FeatureRequiresIndex,
     type FeatureUiRegistry,
+    type FeatureWithdrawalMark,
     type FeatureWithdrawalRepository,
     type MarketingProjectionRepository,
     type MarketingProjectionRow,
@@ -140,11 +141,15 @@ export class PublicCatalogController {
         if (!this.featureWithdrawals) return registry;
         const withdrawn = withdrawnFeaturesOf(await this.featureWithdrawals.list(), new Date());
         if (withdrawn.length === 0) return registry;
-        const marked: FeatureUiRegistry = { ...registry };
+        const byFeature = new Map<string, FeatureWithdrawalMark[]>();
         for (const { featureKey, reason, effectiveFrom, liftedFrom } of withdrawn) {
+            const marks = byFeature.get(featureKey) ?? [];
+            byFeature.set(featureKey, [...marks, { reason, effectiveFrom, liftedFrom }]);
+        }
+        const marked: FeatureUiRegistry = { ...registry };
+        for (const [featureKey, marks] of byFeature) {
             const meta = marked[featureKey];
-            if (meta)
-                marked[featureKey] = { ...meta, withdrawn: { reason, effectiveFrom, liftedFrom } };
+            if (meta) marked[featureKey] = { ...meta, withdrawn: marks };
         }
         return marked;
     }

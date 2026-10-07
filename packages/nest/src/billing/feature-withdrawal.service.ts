@@ -50,9 +50,7 @@ import {
     type SubscriptionUsagePort,
     type TenantSubscriptionUsage,
     type TransactionRunner,
-    type WithdrawnFeature,
     featureWithdrawalRowOf,
-    withdrawnFeaturesOf,
 } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
@@ -268,15 +266,6 @@ export class FeatureWithdrawalService {
                 };
             });
         });
-    }
-
-    /**
-     * The features withdrawn at `now` or from a date ahead, and not lifted by
-     * then: what a catalogue marks beside every plan and add-on that grants
-     * them, so whoever concludes is shown it first.
-     */
-    async withdrawnFeatures(now: Date): Promise<WithdrawnFeature[]> {
-        return withdrawnFeaturesOf(await this.withdrawals.list(), now);
     }
 
     /** One withdrawal, or null where none has that id. */

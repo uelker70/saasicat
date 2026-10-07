@@ -94,7 +94,7 @@ const features = computed<FeatureRow[]>(() => {
             label: meta?.label ?? props.featureLabel(key),
             description: meta?.description ?? null,
             icon: meta?.icon ?? null,
-            withdrawn: withdrawn.of(key) !== null,
+            withdrawn: withdrawn.of(key).length > 0,
         };
     });
     // Included first, then alphabetically by label.

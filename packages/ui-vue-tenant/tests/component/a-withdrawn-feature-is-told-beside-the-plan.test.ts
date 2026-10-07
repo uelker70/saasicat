@@ -87,7 +87,7 @@ const REGISTRY = {
         label: 'Datenexport',
         description: '',
         icon: '',
-        withdrawn: { reason: REASON, effectiveFrom: WITHDRAWAL.effectiveFrom, liftedFrom: null },
+        withdrawn: [{ reason: REASON, effectiveFrom: WITHDRAWAL.effectiveFrom, liftedFrom: null }],
     },
 };
 
@@ -387,28 +387,49 @@ describe('the mark beside a withdrawn feature, mounted on its own and so in the 
 
     test('says from when it is withdrawn ahead, and until when where it is lifted', () => {
         expect(
-            aMark({
-                reason: 'Gesetz',
-                effectiveFrom: '2999-01-01T00:00:00.000Z',
-                liftedFrom: null,
-            }),
+            aMark([
+                {
+                    reason: 'Gesetz',
+                    effectiveFrom: '2999-01-01T00:00:00.000Z',
+                    liftedFrom: null,
+                },
+            ]),
         ).toContain('Not available from 2999-01-01');
         expect(
-            aMark({
-                reason: 'Gesetz',
+            aMark([
+                {
+                    reason: 'Gesetz',
+                    effectiveFrom: '2026-01-01T00:00:00.000Z',
+                    liftedFrom: '2999-02-01T00:00:00.000Z',
+                },
+            ]),
+        ).toContain('Not available since 2026-01-01, again from 2999-02-01');
+    });
+
+    test('says each withdrawal, where one begins the day another is lifted', () => {
+        const text = aMark([
+            {
+                reason: 'Dienst eingestellt',
                 effectiveFrom: '2026-01-01T00:00:00.000Z',
                 liftedFrom: '2999-02-01T00:00:00.000Z',
-            }),
-        ).toContain('Not available since 2026-01-01, again from 2999-02-01');
+            },
+            { reason: 'Gesetz', effectiveFrom: '2999-02-01T00:00:00.000Z', liftedFrom: null },
+        ]);
+        expect(text).toContain('Not available since 2026-01-01, again from 2999-02-01');
+        expect(text).toContain('Reason: Dienst eingestellt');
+        expect(text).toContain('Not available from 2999-02-01');
+        expect(text).toContain('Reason: Gesetz');
     });
 
     test('keeps the reason as it was typed', () => {
         expect(
-            aMark({
-                reason: 'Kostet $& mehr',
-                effectiveFrom: '2026-01-01T00:00:00.000Z',
-                liftedFrom: null,
-            }),
+            aMark([
+                {
+                    reason: 'Kostet $& mehr',
+                    effectiveFrom: '2026-01-01T00:00:00.000Z',
+                    liftedFrom: null,
+                },
+            ]),
         ).toContain('Reason: Kostet $& mehr');
     });
 

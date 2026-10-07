@@ -557,6 +557,8 @@ _Tested by:_
         - are those withdrawn now or from a date ahead, until they are lifted
     - the public feature registry
         - marks a feature withdrawn now or ahead with why and from when
+        - marks both withdrawals of a feature withdrawn again from the day it returns, the earlier
+          first
         - marks nothing once the withdrawal is lifted, or where none is kept
         - fails rather than show a withdrawn feature as available
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
@@ -564,6 +566,7 @@ _Tested by:_
         - marks the feature as not available rather than as not included
     - the mark beside a withdrawn feature, mounted on its own and so in the default language
         - says from when it is withdrawn ahead, and until when where it is lifted
+        - says each withdrawal, where one begins the day another is lifted
         - keeps the reason as it was typed
         - says nothing where nothing is withdrawn, or nobody said
 

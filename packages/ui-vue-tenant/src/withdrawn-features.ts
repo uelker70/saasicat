@@ -7,15 +7,15 @@
 // place that names features shows the mark without being told a second time.
 
 import { inject, provide, type InjectionKey } from 'vue';
-import type { FeatureUiMeta, FeatureUiRegistry } from '@saasicat/core';
-
-/** Why a feature is withdrawn and from when, as the registry marks it. */
-export type WithdrawnFeature = NonNullable<FeatureUiMeta['withdrawn']>;
+import type { FeatureUiRegistry, FeatureWithdrawalMark } from '@saasicat/core';
 
 /** What every feature named below can ask: whether it is withdrawn, and how a date is written. */
 export interface WithdrawnFeatures {
-    /** The withdrawal of `featureKey`, or null where it is not withdrawn. */
-    of(featureKey: string): WithdrawnFeature | null;
+    /**
+     * Each withdrawal of `featureKey` not over yet, the earliest first; empty
+     * where it is not withdrawn.
+     */
+    of(featureKey: string): readonly FeatureWithdrawalMark[];
     /** An ISO date as the page writes dates. */
     formatDate(iso: string): string;
 }
@@ -25,7 +25,7 @@ const WITHDRAWN_FEATURES_KEY: InjectionKey<WithdrawnFeatures> = Symbol.for(
 );
 
 const NOTHING_WITHDRAWN: WithdrawnFeatures = {
-    of: () => null,
+    of: () => [],
     formatDate: (iso) => new Date(iso).toLocaleDateString(),
 };
 
@@ -35,7 +35,7 @@ export function provideWithdrawnFeatures(
     formatDate: (iso: string) => string,
 ): void {
     provide(WITHDRAWN_FEATURES_KEY, {
-        of: (featureKey) => registry()?.[featureKey]?.withdrawn ?? null,
+        of: (featureKey) => registry()?.[featureKey]?.withdrawn ?? [],
         formatDate,
     });
 }
