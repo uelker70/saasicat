@@ -667,6 +667,9 @@ _Source:_ #357
 
 _Tested by:_
 
+- `packages/nest/tests/a-feature-withdrawal-is-offered-where-it-is-wired.test.js`
+    - the default feature guard, in the composed module
+        - grants a withdrawn feature to nobody, and the feature again where nothing is withdrawn
 - `packages/nest/tests/a-withdrawn-feature-is-granted-to-nobody.test.js`
     - a withdrawn feature
         - is granted by no plan while the withdrawal holds, and nothing else is taken

@@ -3022,8 +3022,10 @@ do:
 
 1. **Run the migration, and adopt the fragment.** `feature_withdrawals` keeps one row per
    withdrawal, with a partial unique index that holds a feature to one withdrawal not lifted. Adopt
-   `prisma-fragments/20-feature-withdrawal.prisma` — or declare the model in `notAdopted` — and apply
-   `constraints.postgres.sql` after it, as on every deployment.
+   `prisma-fragments/20-feature-withdrawal.prisma` — or declare the model in `notAdopted` — and
+   apply `constraints.postgres.sql` after it, as on every deployment. Run it before the new version
+   serves a request: once the persistence bundle can keep withdrawals, every entitlement check reads
+   them, so without the table every check fails — not only the new routes.
 
     ```bash
     psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-feature-is-withdrawn.postgres.sql

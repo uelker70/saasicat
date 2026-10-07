@@ -2017,6 +2017,10 @@ _Tested by:_
         - is reduced in advance for the days from a date that falls inside it
         - is reduced pro rata where the return is known when it is charged
         - is never taken below nothing
+    - two withdrawals of one line
+        - each take off their own days, up to what those days cost
+        - take off no more than their days cost where another discount lowers the period
+        - never take more together than the period costs, and the other gains what one gives back
     - the line a reduction stays with
         - is the plan in its rhythm on any version that grants the feature
         - and not a version that no longer grants it
@@ -2064,7 +2068,9 @@ _Tested by:_
 
 - `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
     - ending at once while the feature is withdrawn
+        - shows first what it then credits where no contract records the reduction yet: ${name}
         - credits the unused rest of the plan and of every add-on, net of the reduction
+        - credits no more than the period cost, however the rest and the reduction round
         - credits the rest of a booking that ends at once alone, and its reduction
         - shows first the credit it then writes, and writes nothing to show it
         - credits nothing for an end the account was not told was at once
