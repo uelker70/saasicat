@@ -333,6 +333,33 @@ describe('ending a subscription at once', () => {
             0,
         );
         assert.deepEqual(calls, []);
+        assert.equal(
+            (await refusalOf(service.preview('t1', 'fw-1', null, NOW))).code,
+            'FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED',
+            'and no credit is shown for an end that cannot happen',
+        );
+    });
+
+    test('is refused as one that cannot be brought forward where only the declaration date names the end', async () => {
+        // A declared end only `canceledAt` carries: the guarded write compares
+        // the effective date, so it would refuse every attempt as a change.
+        const { service, calls } = await ending({
+            subscription: {
+                canceledAt: new Date('2027-01-01T00:00:00.000Z'),
+                canceledEffectiveAt: null,
+            },
+        });
+        for (const attempt of [
+            service.preview('t1', 'fw-1', null, NOW),
+            service.end('t1', 'fw-1', null, NOW),
+        ]) {
+            const refusal = await refusalOf(attempt);
+            assert.deepEqual(
+                [refusal.code, refusal.params],
+                ['FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED', { date: '2027-01-01' }],
+            );
+        }
+        assert.deepEqual(calls, []);
     });
 
     test('is refused for a withdrawal it was not told of, or one not in effect now', async () => {
