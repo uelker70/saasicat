@@ -107,7 +107,8 @@ export function entitlementServiceFor(EntitlementService, subscription, options 
         bundles ? { findVersionById: async (id) => versions?.[id] ?? null } : null,
         contract ? { findActiveByTenantId: async () => contract } : null,
         null,
-        withdrawals ? { list: async () => withdrawals } : null,
+        // A list of withdrawals, or a repository of the test's own.
+        Array.isArray(withdrawals) ? { list: async () => withdrawals } : withdrawals,
     );
 }
 

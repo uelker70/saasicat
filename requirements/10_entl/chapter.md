@@ -682,6 +682,7 @@ _Tested by:_
         - is withdrawn from nobody where the installation keeps no withdrawals
     - an answer cached before a withdrawal changes
         - is not served past the moment it takes effect
+        - is not put back by an answer read before ${name} was invalidated
         - nor past the moment it is lifted
     - the default enforcement stack
         - does not grant a withdrawn feature either

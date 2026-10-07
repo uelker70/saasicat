@@ -136,6 +136,13 @@ export class EntitlementService {
     // through mutations, not through time (a pending plan's effective date
     // is day-granular).
     private readonly cache = new Map<string, CacheEntry>();
+    // Invalidations so far, all tenants' and each tenant's. An answer is
+    // written to the cache only where neither moved while it was computed: a
+    // computation that read before a mutation and finishes after its
+    // invalidation would otherwise put back the answer the invalidation
+    // removed, for up to the TTL.
+    private generation = 0;
+    private readonly tenantGenerations = new Map<string, number>();
 
     // #39 — replaces alias index, built lazily from the boot-static snapshot;
     // throws on replaces cycles (a clear error instead of an infinite loop).
@@ -199,6 +206,7 @@ export class EntitlementService {
             if (cached) return cached;
         }
 
+        const startedAt = this.generationOf(tenantId);
         const sub = await this.requireSubscription(tenantId);
         const withdrawals = await this.withdrawalsOnRecord();
         if (catalog)
@@ -213,16 +221,18 @@ export class EntitlementService {
         // a date arriving is not a mutation, so nothing would have cleared it
         // and the old features would be granted for up to a further minute past
         // the end.
-        this.writeCache(
-            tenantId,
-            answer.limits,
-            now.getTime(),
-            firstAfter(now, [
-                cancellationLandsAt(sub),
-                answer.nextBookingEnd,
-                answer.nextWithdrawalChange,
-            ]),
-        );
+        if (this.generationOf(tenantId) === startedAt) {
+            this.writeCache(
+                tenantId,
+                answer.limits,
+                now.getTime(),
+                firstAfter(now, [
+                    cancellationLandsAt(sub),
+                    answer.nextBookingEnd,
+                    answer.nextWithdrawalChange,
+                ]),
+            );
+        }
         return answer.limits;
     }
 
@@ -313,12 +323,22 @@ export class EntitlementService {
      * 60s.
      */
     invalidateTenant(tenantId: string): void {
+        this.tenantGenerations.set(tenantId, (this.tenantGenerations.get(tenantId) ?? 0) + 1);
         this.cache.delete(tenantId);
     }
 
-    /** Clears the entire cache. Only for tests / bootstrap. */
+    /**
+     * Clears the entire cache — for a change that reaches every tenant at
+     * once, such as a feature withdrawn or a withdrawal lifted.
+     */
     invalidateAll(): void {
+        this.generation += 1;
         this.cache.clear();
+    }
+
+    /** What a computation for `tenantId` started now compares against before it writes. */
+    private generationOf(tenantId: string): string {
+        return `${this.generation}:${this.tenantGenerations.get(tenantId) ?? 0}`;
     }
 
     /**
