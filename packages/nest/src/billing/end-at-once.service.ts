@@ -131,7 +131,8 @@ export class EndAtOnceService {
         now: Date,
     ): Promise<EndAtOncePreview> {
         const situation = await this.situationOf(tenantId);
-        this.assertMayEnd(situation, withdrawalId, subscriptionBundleId, now);
+        const { booking } = this.assertMayEnd(situation, withdrawalId, subscriptionBundleId, now);
+        this.declaredEndToBringForward(situation!.subscription, booking);
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
         return { endsAt: now.toISOString(), ...credit };
     }
@@ -157,19 +158,8 @@ export class EndAtOnceService {
             now,
         );
         const { subscription } = situation!;
-        const declared = booking ? declaredEndOf(booking) : cancellationLandsAt(subscription);
-        // Refused before anything is written: a cancellation declared for a
-        // later date can be brought forward only where the store can.
-        if (declared && !(booking ? this.bookings?.endNow : this.writes.endNow)) {
-            throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED,
-                message:
-                    `Your cancellation for ${declared.toISOString().slice(0, 10)} is recorded, and ` +
-                    'it cannot be brought forward here. It ends on that date, and until then the ' +
-                    'reduction applies.',
-                params: { date: declared.toISOString().slice(0, 10) },
-            });
-        }
+        // Refused before anything is written.
+        const declared = this.declaredEndToBringForward(subscription, booking);
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
         const { content: notice, subject } = await this.recordEnd(told, subscription, booking, now);
         const at = now;
@@ -289,6 +279,34 @@ export class EndAtOnceService {
     }
 
     // ── the end ──────────────────────────────────────────────────────────
+
+    /**
+     * The end a cancellation declared for a later date names, which ending at
+     * once brings forward — null where none is declared — or the refusal where
+     * it cannot be brought forward here: the store has no `endNow`, or only
+     * `canceledAt` carries the declared end, a shape no write produces any
+     * more and one the guarded write, which compares `canceledEffectiveAt`,
+     * can never match. Asked by the preview as by the end, so a credit is
+     * shown only where the end it is shown for can happen.
+     */
+    private declaredEndToBringForward(
+        subscription: Situation['subscription'],
+        booking: SubscriptionBundleRecord | null,
+    ): Date | null {
+        const declared = booking ? declaredEndOf(booking) : cancellationLandsAt(subscription);
+        if (!declared) return null;
+        const store = booking ? this.bookings?.endNow : this.writes.endNow;
+        const recorded = (booking ?? subscription).canceledEffectiveAt;
+        if (store && recorded !== null) return declared;
+        throw new UnprocessableEntityException({
+            code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED,
+            message:
+                `Your cancellation for ${declared.toISOString().slice(0, 10)} is recorded, and ` +
+                'it cannot be brought forward here. It ends on that date, and until then the ' +
+                'reduction applies.',
+            params: { date: declared.toISOString().slice(0, 10) },
+        });
+    }
 
     /**
      * Records that it ends at `now`, before anything is ended: the account
