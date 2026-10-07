@@ -307,6 +307,23 @@ export function anAccount({
             return booking;
         },
         /** The journal as `[period start, source, origin, amount]`, oldest first. */
+        /** The discount entries, each with the reference that says whose reduction it is. */
+        discounts() {
+            return [...ledger.rows]
+                .filter((row) => row.source === 'discount')
+                .sort(
+                    (a, b) =>
+                        a.periodStart - b.periodStart ||
+                        a.sourceRef.localeCompare(b.sourceRef) ||
+                        a.origin.localeCompare(b.origin),
+                )
+                .map((row) => [
+                    row.periodStart.toISOString().slice(0, 10),
+                    row.sourceRef,
+                    row.origin,
+                    row.amountNet,
+                ]);
+        },
         entries() {
             return [...ledger.rows]
                 .sort((a, b) => a.periodStart - b.periodStart || a.source.localeCompare(b.source))

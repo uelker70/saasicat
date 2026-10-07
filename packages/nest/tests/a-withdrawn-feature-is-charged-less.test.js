@@ -173,6 +173,113 @@ describe('a period charged while the feature is withdrawn', () => {
     });
 });
 
+/** A plan that grants two features, at 10 a month. */
+const twoFeaturePlan = () => plan(10, { featuresSnapshot: ['EXPORT', 'IMPORT'] });
+
+/** The reduction line of withdrawal `id` for the plan. */
+const reductionOf = (id, amountNet) =>
+    line('discount', `feature-withdrawal:${id}`, -amountNet, {
+        metadata: {
+            generated: true,
+            source: 'feature-withdrawal',
+            reduction: {
+                withdrawalId: id,
+                line: 'plan',
+                key: 'STANDARD',
+                subscriptionBundleId: null,
+                amountNet,
+            },
+        },
+    });
+
+/** Both features withdrawn, each reducing the plan by its whole price, announced at `at`. */
+async function twoWithdrawals(account, at, first, second) {
+    const told = [
+        account.toldOfWithdrawal(withdrawal({ id: 'fw-1', featureKey: 'EXPORT', ...first })),
+        account.toldOfWithdrawal(withdrawal({ id: 'fw-2', featureKey: 'IMPORT', ...second })),
+    ];
+    await account.supersede(at);
+    await account.contract({
+        effectiveFrom: at,
+        lineItems: [twoFeaturePlan(), reductionOf('fw-1', 10), reductionOf('fw-2', 10)],
+    });
+    return told;
+}
+
+// @requirement SC-PRIC-072 — A line that loses a withdrawn feature is charged less for the time without it
+describe('two withdrawals of one line', () => {
+    test('each take off their own days, up to what those days cost', async () => {
+        const account = await chargedThroughMarch([twoFeaturePlan()]);
+        await twoWithdrawals(
+            account,
+            utc('2026-03-10'),
+            { effectiveFrom: utc('2026-04-01'), liftedFrom: utc('2026-04-16') },
+            { effectiveFrom: utc('2026-04-16') },
+        );
+        await renew(account, '2026-04-01', '2026-05-01');
+
+        // Fifteen of April's thirty days each, at 10 a month.
+        assert.deepEqual(
+            account.discounts().filter(([day]) => day >= '2026-04-01'),
+            [
+                ['2026-04-01', 'feature-withdrawal:fw-1', 'renewal', -5],
+                ['2026-04-01', 'feature-withdrawal:fw-2', 'renewal', -5],
+            ],
+        );
+    });
+
+    test('take off no more than their days cost where another discount lowers the period', async () => {
+        // Agreed with the contract of 10 March, so April is the first period it takes 8.00 off.
+        const promo = line('discount', 'promo:SPRING', -8);
+        const account = await chargedThroughMarch([twoFeaturePlan()]);
+        account.toldOfWithdrawal(
+            withdrawal({ effectiveFrom: utc('2026-04-16'), featureKey: 'EXPORT' }),
+        );
+        await account.supersede(utc('2026-03-10'));
+        await account.contract({
+            effectiveFrom: utc('2026-03-10'),
+            lineItems: [twoFeaturePlan(), promo, reductionOf('fw-1', 10)],
+        });
+        await renew(account, '2026-04-01', '2026-05-01');
+
+        // April costs 2.00 after the 8.00 off; half of it is without the feature.
+        assert.deepEqual(
+            account
+                .discounts()
+                .filter(([day, ref]) => day >= '2026-04-01' && ref === 'feature-withdrawal:fw-1'),
+            [['2026-04-01', 'feature-withdrawal:fw-1', 'renewal', -1]],
+        );
+    });
+
+    test('never take more together than the period costs, and the other gains what one gives back', async () => {
+        const account = await chargedThroughMarch([twoFeaturePlan()]);
+        await renew(account, '2026-04-01', '2026-05-01');
+        const [first] = await twoWithdrawals(
+            account,
+            utc('2026-04-10'),
+            { effectiveFrom: utc('2026-04-10') },
+            { effectiveFrom: utc('2026-04-10') },
+        );
+        await account.charge(utc('2026-04-10'));
+        first.liftedFrom = utc('2026-04-20');
+        await account.charge(utc('2026-04-21'));
+
+        // From 10 April both are missing: 21 of 30 days, 7.00 for the first and
+        // what is left of the 10.00 for the second. From 20 April the first is
+        // back, and its days return to the second.
+        assert.deepEqual(
+            account.discounts().filter(([day]) => day >= '2026-04-10'),
+            [
+                ['2026-04-10', 'feature-withdrawal:fw-1', 'credit', -7],
+                ['2026-04-10', 'feature-withdrawal:fw-2', 'credit', -3],
+                ['2026-04-20', 'feature-withdrawal:fw-1', 'reductionTakenBack', 3.67],
+                ['2026-04-20', 'feature-withdrawal:fw-2', 'credit', -3.67],
+            ],
+        );
+        assert.deepEqual(await account.charge(utc('2026-04-22')), [], 'and nothing again');
+    });
+});
+
 // @requirement SC-PRIC-073 — A reduction for days the feature turned out not to miss is taken back
 describe('a reduction granted for days the feature turned out to be there', () => {
     test('is taken back from the day it returned, on that day', async () => {
@@ -309,6 +416,61 @@ describe('ending at once while the feature is withdrawn', () => {
         return account;
     }
 
+    for (const [name, chargedFirst] of [
+        ['a period charged before its date', true],
+        ['a period charged while the feature is withdrawn', false],
+    ]) {
+        test(`shows first what it then credits where no contract records the reduction yet: ${name}`, async () => {
+            let account;
+            let written = false;
+            account = anAccount({
+                reductions: {
+                    async linesFor() {
+                        return written ? [] : [planReduction()];
+                    },
+                    async recordReductions(tenantId, now) {
+                        if (written) return 'nothing';
+                        written = true;
+                        await account.supersede(now);
+                        await account.contract({
+                            effectiveFrom: now,
+                            lineItems: [plan(), planReduction()],
+                        });
+                        return 'written';
+                    },
+                },
+            });
+            await account.contract({ lineItems: [plan()] });
+            await account.charge(utc('2026-01-10'));
+            for (const [start, end] of [
+                ['2026-02-01', '2026-03-01'],
+                ['2026-03-01', '2026-04-01'],
+            ]) {
+                await renew(account, start, end);
+            }
+            if (chargedFirst) await renew(account, '2026-04-01', '2026-05-01');
+            account.toldOfWithdrawal(withdrawal({ effectiveFrom: utc('2026-04-01') }));
+            if (!chargedFirst) {
+                // Charged without the line: writing it failed, as it may.
+                written = true;
+                await renew(account, '2026-04-01', '2026-05-01');
+                written = false;
+            }
+
+            const shown = await account.service.creditOfEndingAtOnce('t1', null, utc('2026-04-11'));
+            account.endAtOnce(utc('2026-04-11'));
+            const atTheEnd = (await account.charge(utc('2026-04-11'))).filter(
+                (entry) => entry.periodStart.getTime() === utc('2026-04-11').getTime(),
+            );
+
+            const cents = atTheEnd.reduce(
+                (sum, entry) => sum + Math.round(entry.amountNet * 100),
+                0,
+            );
+            assert.equal(shown.creditNet, -cents / 100);
+        });
+    }
+
     // @requirement SC-BUN-064 — An add-on ending with its plan is not refunded, unless a withdrawal ends it at once
     test('credits the unused rest of the plan and of every add-on, net of the reduction', async () => {
         const account = await withAnAddOn();
@@ -323,6 +485,23 @@ describe('ending at once while the feature is withdrawn', () => {
             ['2026-04-11', 'plan', 'credit', -32.67],
         ]);
         assert.deepEqual(await account.charge(utc('2026-05-01')), [], 'and nothing after');
+    });
+
+    test('credits no more than the period cost, however the rest and the reduction round', async () => {
+        const account = await chargedThroughMarch([plan(10.01)]);
+        await announced(account, { effectiveFrom: utc('2026-04-01') }, [
+            plan(10.01),
+            planReduction(10.01),
+        ]);
+        await renew(account, '2026-04-01', '2026-05-01');
+        account.endAtOnce(utc('2026-04-16'));
+        await account.charge(utc('2026-04-16'));
+
+        // April cost nothing: 10.01, less the reduction of 10.01. Half a cent
+        // either way would credit a cent nobody paid.
+        const april = account.entries().filter(([day]) => day >= '2026-04-01');
+        const cents = april.reduce((sum, [, , , amount]) => sum + Math.round(amount * 100), 0);
+        assert.equal(cents, 0, JSON.stringify(april));
     });
 
     test('credits the rest of a booking that ends at once alone, and its reduction', async () => {
