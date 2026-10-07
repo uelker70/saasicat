@@ -201,6 +201,46 @@ describe('an answer cached before a withdrawal changes', () => {
         assert.deepEqual(await features(svc, ms(FROM, 1)), [], 'the entry outlived the date');
     });
 
+    for (const [name, invalidate] of [
+        ['every tenant', (svc) => svc.invalidateAll()],
+        ['the tenant', (svc) => svc.invalidateTenant('t1')],
+    ]) {
+        test(`is not put back by an answer read before ${name} was invalidated`, async () => {
+            const recorded = [];
+            let release;
+            const gate = new Promise((resolve) => {
+                release = resolve;
+            });
+            let entered;
+            const reading = new Promise((resolve) => {
+                entered = resolve;
+            });
+            let reads = 0;
+            const repository = {
+                async list() {
+                    reads += 1;
+                    const read = [...recorded];
+                    if (reads === 1) {
+                        entered();
+                        await gate;
+                    }
+                    return read;
+                },
+            };
+            const svc = entitlementServiceFor(EntitlementService, subscription(), {
+                withdrawals: repository,
+            });
+            const inFlight = features(svc, NOW);
+            await reading;
+            // Announced while the first answer is computed, which read before it.
+            recorded.push(withdrawal());
+            invalidate(svc);
+            release();
+            assert.deepEqual(await inFlight, ['EXPORT'], 'it answers what it read');
+            assert.deepEqual(await features(svc, ms(NOW, 1)), [], 'and does not cache it');
+        });
+    }
+
     test('nor past the moment it is lifted', async () => {
         const svc = entitlementServiceFor(EntitlementService, subscription(), {
             withdrawals: [withdrawal({ liftedFrom: LIFTED })],
