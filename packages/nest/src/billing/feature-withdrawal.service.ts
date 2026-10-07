@@ -33,6 +33,7 @@ import {
     type FeatureWithdrawalReduction,
     type FeatureWithdrawalRepository,
     type FeatureWithdrawalView,
+    type EndedAtOnceNotice,
     type FeatureWithdrawnNotice,
     type PlanCatalog,
     type PlanRepository,
@@ -44,6 +45,7 @@ import {
     type SubscriptionNotice,
     type SubscriptionNoticeKind,
     type SubscriptionNoticePort,
+    type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
     type SubscriptionUsagePort,
     type TenantSubscriptionUsage,
@@ -250,6 +252,7 @@ export class FeatureWithdrawalService {
                 this.notices.listOfKindSince(WITHDRAWN, new Date(0)),
                 this.notices.listOfKindSince(ENDED_AT_ONCE, new Date(0)),
             ]);
+            const happened = await this.endsThatHappened(ended);
             return withdrawals.map((withdrawal) => {
                 const told = reached.filter((record) => record.subject === withdrawal.id);
                 return {
@@ -258,10 +261,8 @@ export class FeatureWithdrawalService {
                     progress: {
                         reached: told.length,
                         told: told.filter(reachedSomebody).length,
-                        endedAtOnce: ended.filter(
-                            (record) =>
-                                (record.content as { withdrawalId?: unknown }).withdrawalId ===
-                                withdrawal.id,
+                        endedAtOnce: happened.filter(
+                            (notice) => notice.withdrawalId === withdrawal.id,
                         ).length,
                     },
                 };
@@ -294,7 +295,14 @@ export class FeatureWithdrawalService {
             let failed = 0;
             const staleBefore = new Date(now.getTime() - NOTICE_CLAIM_LEASE_MS);
             for (const kind of [WITHDRAWN, LIFTED, ENDED_AT_ONCE]) {
-                for (const record of await this.notices.listUndelivered(kind, staleBefore)) {
+                const undelivered = await this.notices.listUndelivered(kind, staleBefore);
+                // An end at once is told only where it happened: an attempt
+                // that failed after recording it left a record of nothing.
+                const due =
+                    kind === ENDED_AT_ONCE
+                        ? await this.recordsOfEndsThatHappened(undelivered)
+                        : undelivered;
+                for (const record of due) {
                     const outcome = await this.sender.tell(
                         record.content as SubscriptionNotice,
                         record.subject,
@@ -306,6 +314,55 @@ export class FeatureWithdrawalService {
             }
             return { told, failed };
         });
+    }
+
+    /**
+     * Of `records`, the ends at once that happened: the subscription or the
+     * booking records the end at the moment the notice names. An attempt that
+     * failed after recording its notice ended nothing.
+     */
+    private async recordsOfEndsThatHappened(
+        records: readonly SubscriptionNoticeRecord[],
+    ): Promise<SubscriptionNoticeRecord[]> {
+        const notices = records.map((record) => record.content as EndedAtOnceNotice);
+        const subscriptionIds = [
+            ...new Set(
+                notices
+                    .filter((notice) => notice.subscriptionBundleId === null)
+                    .map((notice) => notice.subscriptionId),
+            ),
+        ];
+        const subscriptionEnds = new Map(
+            subscriptionIds.length > 0 && this.subscriptions.listByIds
+                ? (await this.subscriptions.listByIds(subscriptionIds)).map((owner) => [
+                      owner.subscription.id,
+                      (
+                          owner.subscription.canceledEffectiveAt ?? owner.subscription.canceledAt
+                      )?.getTime() ?? null,
+                  ])
+                : [],
+        );
+        const kept: SubscriptionNoticeRecord[] = [];
+        for (const [index, notice] of notices.entries()) {
+            const at = Date.parse(notice.endedAt);
+            const endsAt =
+                notice.subscriptionBundleId === null
+                    ? subscriptionEnds.get(notice.subscriptionId)
+                    : ((
+                          await this.bookings?.findById(notice.subscriptionBundleId)
+                      )?.canceledEffectiveAt?.getTime() ?? null);
+            if (endsAt === at) kept.push(records[index]!);
+        }
+        return kept;
+    }
+
+    /** The ends at once of `records` that happened, as their notices. */
+    private async endsThatHappened(
+        records: readonly SubscriptionNoticeRecord[],
+    ): Promise<EndedAtOnceNotice[]> {
+        return (await this.recordsOfEndsThatHappened(records)).map(
+            (record) => record.content as EndedAtOnceNotice,
+        );
     }
 
     /** Tells one notice now, and says whether it went out. */

@@ -7743,9 +7743,13 @@ _Tested by:_
         - is refused for a withdrawal it was not told of, or one not in effect now
         - is refused once it has ended, and where the plan no longer grants the feature
         - is open to a subscription reached through its special terms alone
-        - a second attempt after a failure ends at the moment the first recorded
+        - a second attempt after a failure ends at its own moment, not the failed one
         - is refused where the cancellation moved meanwhile
         - shows what it would credit first, refused as the end would be
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - an end at once, sent by the run
+        - is told where the subscription or the booking ended at its moment, and never where the end
+          failed
 - `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
     - ending at once
         - asks what the subscription would credit, and ends it, under the prefix given
@@ -10728,6 +10732,7 @@ _Tested by:_
         - is withdrawn from nobody where the installation keeps no withdrawals
     - an answer cached before a withdrawal changes
         - is not served past the moment it takes effect
+        - is not put back by an answer read before ${name} was invalidated
         - nor past the moment it is lifted
     - the default enforcement stack
         - does not grant a withdrawn feature either

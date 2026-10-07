@@ -20,6 +20,7 @@ import {
 } from '@nestjs/common';
 import {
     BILLING_ERROR_CODES,
+    endedAtOnceSubjectOf,
     isFeatureWithdrawnAt,
     type BillingCycle,
     type BundleRepository,
@@ -170,8 +171,8 @@ export class EndAtOnceService {
             });
         }
         const credit = await this.creditOf(tenantId, subscriptionBundleId, now);
-        const notice = await this.recordEnd(told, subscription, booking, now);
-        const at = new Date(notice.endedAt);
+        const { content: notice, subject } = await this.recordEnd(told, subscription, booking, now);
+        const at = now;
         if (booking) {
             await this.endBooking(booking, declared, at);
             await freezeContractAfter(
@@ -192,7 +193,7 @@ export class EndAtOnceService {
         }
         this.entitlements.invalidateTenant(tenantId);
         await this.recordCharges(tenantId, at);
-        await this.tell(notice, booking?.id ?? subscription.id);
+        await this.tell(notice, subject);
         return {
             withdrawalId,
             subscriptionBundleId: booking?.id ?? null,
@@ -290,15 +291,18 @@ export class EndAtOnceService {
     // ── the end ──────────────────────────────────────────────────────────
 
     /**
-     * Records that it ends at once, once: a second request — a retry after a
-     * failure below — finds the record and ends at the moment it names.
+     * Records that it ends at `now`, before anything is ended: the account
+     * credits from this record, so it must exist wherever the end does. An
+     * attempt that fails below leaves its record behind; nothing sends,
+     * counts or credits a record whose end did not happen, and a later
+     * attempt records its own moment.
      */
     private async recordEnd(
         { notice, withdrawal }: Told,
         subscription: Situation['subscription'],
         booking: SubscriptionBundleRecord | null,
         now: Date,
-    ): Promise<EndedAtOnceNotice> {
+    ): Promise<{ content: EndedAtOnceNotice; subject: string }> {
         const content: EndedAtOnceNotice = {
             kind: 'ended-at-once',
             tenantId: notice.tenantId,
@@ -309,8 +313,8 @@ export class EndAtOnceService {
             featureLabel: notice.featureLabel,
             endedAt: now.toISOString(),
         };
-        const subject = booking?.id ?? subscription.id;
-        const recorded = await this.notices.record(
+        const subject = endedAtOnceSubjectOf(booking?.id ?? subscription.id, now);
+        await this.notices.record(
             [
                 {
                     tenantId: notice.tenantId,
@@ -322,11 +326,7 @@ export class EndAtOnceService {
             ],
             now,
         );
-        if (recorded > 0) return content;
-        const earlier = (await this.notices.listForSubscription(subscription.id)).find(
-            (record) => record.kind === 'ended-at-once' && record.subject === subject,
-        );
-        return (earlier?.content as EndedAtOnceNotice | undefined) ?? content;
+        return { content, subject };
     }
 
     private async endSubscription(

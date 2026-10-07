@@ -564,9 +564,13 @@ _Tested by:_
         - is refused for a withdrawal it was not told of, or one not in effect now
         - is refused once it has ended, and where the plan no longer grants the feature
         - is open to a subscription reached through its special terms alone
-        - a second attempt after a failure ends at the moment the first recorded
+        - a second attempt after a failure ends at its own moment, not the failed one
         - is refused where the cancellation moved meanwhile
         - shows what it would credit first, refused as the end would be
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - an end at once, sent by the run
+        - is told where the subscription or the booking ended at its moment, and never where the end
+          failed
 - `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
     - ending at once
         - asks what the subscription would credit, and ends it, under the prefix given

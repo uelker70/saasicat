@@ -719,8 +719,10 @@ describe('lifting a withdrawal', () => {
 describe('the list of withdrawals', () => {
     test('says how many it reached, how many were told, and how many ended at once', async () => {
         const notices = noticeRecord();
+        const endedAt = ms(NOW, 60_000);
+        const subscriptions = [subscriptionOf('t1'), subscriptionOf('t2')];
         const harness = withdrawing({
-            subscriptions: [subscriptionOf('t1'), subscriptionOf('t2')],
+            subscriptions,
             notices,
             port: sendingPort((notice) =>
                 notice.subscriptionId === 'sub-t1'
@@ -733,22 +735,95 @@ describe('the list of withdrawals', () => {
             ACTOR,
             NOW,
         );
+        // t1 ended at once after it was told; t2's attempt left its record and ended nothing.
+        Object.assign(subscriptions[0].subscription, {
+            canceledAt: endedAt,
+            canceledEffectiveAt: endedAt,
+        });
         await notices.record(
-            [
-                {
-                    tenantId: 't1',
-                    subscriptionId: 'sub-t1',
-                    kind: 'ended-at-once',
-                    subject: 'sub-t1',
-                    content: { withdrawalId: withdrawal.id },
-                },
-            ],
-            NOW,
+            [endedAtOnce('t1', withdrawal.id, endedAt), endedAtOnce('t2', withdrawal.id, endedAt)],
+            endedAt,
         );
         const [listed] = await harness.service.list();
         assert.equal(listed.id, withdrawal.id);
         assert.equal(listed.featureLabel, 'Data export');
-        assert.deepEqual(listed.progress, { reached: 2, told: 1, endedAtOnce: 1 });
+        assert.deepEqual(
+            listed.progress,
+            { reached: 2, told: 1, endedAtOnce: 1 },
+            'the end t2 recorded did not happen, and is not counted',
+        );
+    });
+});
+
+/** The record an attempt to end the subscription of `tenantId` at `at` leaves, ended or not. */
+function endedAtOnce(tenantId, withdrawalId, at, subscriptionBundleId = null) {
+    return {
+        tenantId,
+        subscriptionId: `sub-${tenantId}`,
+        kind: 'ended-at-once',
+        subject: `${subscriptionBundleId ?? `sub-${tenantId}`}@${at.toISOString()}`,
+        content: {
+            kind: 'ended-at-once',
+            tenantId,
+            subscriptionId: `sub-${tenantId}`,
+            subscriptionBundleId,
+            withdrawalId,
+            featureKey: 'EXPORT',
+            featureLabel: 'Data export',
+            endedAt: at.toISOString(),
+        },
+    };
+}
+
+// @requirement SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
+describe('an end at once, sent by the run', () => {
+    test('is told where the subscription or the booking ended at its moment, and never where the end failed', async () => {
+        const notices = noticeRecord();
+        const port = sendingPort();
+        const ended = ms(NOW, 60_000);
+        const failed = ms(NOW, 30_000);
+        const harness = withdrawing({
+            subscriptions: [
+                subscriptionOf('t1', { canceledAt: ended, canceledEffectiveAt: ended }),
+                subscriptionOf('t2'),
+            ],
+            notices,
+            port,
+            bookingStore: {
+                async findById(id) {
+                    return id === 'sb-t1'
+                        ? bookingOf('t1', { canceledAt: ended, canceledEffectiveAt: ended })
+                        : bookingOf('t2');
+                },
+            },
+        });
+        await notices.record(
+            [
+                // An attempt that failed before the one that ended it.
+                endedAtOnce('t1', 'fw-1', failed),
+                endedAtOnce('t1', 'fw-1', ended),
+                endedAtOnce('t1', 'fw-1', ended, 'sb-t1'),
+                // A booking whose end failed, and nothing ended since.
+                endedAtOnce('t2', 'fw-1', ended, 'sb-t2'),
+            ],
+            NOW,
+        );
+
+        const run = await harness.service.sendUndelivered(ms(NOW, 3_600_000));
+
+        assert.deepEqual(
+            port.sent.map((notice) => [notice.subscriptionBundleId, notice.endedAt]),
+            [
+                [null, ended.toISOString()],
+                ['sb-t1', ended.toISOString()],
+            ],
+        );
+        assert.deepEqual(run, { told: 2, failed: 0 });
+        assert.equal(
+            (await harness.service.sendUndelivered(ms(NOW, 7_200_000))).told,
+            0,
+            'and the failed ones are not tried again as if they were due',
+        );
     });
 });
 
