@@ -381,7 +381,7 @@ describe('ending a subscription at once', () => {
         assert.equal((await service.end('t1', 'fw-1', null, NOW)).endsAt, NOW.toISOString());
     });
 
-    test('a second attempt after a failure ends at the moment the first recorded', async () => {
+    test('a second attempt after a failure ends at its own moment, not the failed one', async () => {
         const { service, subscription, notices } = await ending({
             writes: {
                 cancelSubscription: async () => {
@@ -390,14 +390,25 @@ describe('ending a subscription at once', () => {
             },
         });
         await assert.rejects(service.end('t1', 'fw-1', null, NOW), /database gone/);
+        assert.equal(subscription.canceledEffectiveAt, null, 'nothing ended');
         const retried = await ending({});
         // The record the first attempt left behind.
         retried.notices.rows.clear();
         for (const [key, row] of notices.rows) retried.notices.rows.set(key, row);
         const result = await retried.service.end('t1', 'fw-1', null, later(60_000));
-        assert.equal(result.endsAt, NOW.toISOString());
-        assert.equal(retried.subscription.canceledEffectiveAt.toISOString(), NOW.toISOString());
-        assert.equal(subscription.canceledEffectiveAt, null);
+        assert.equal(result.endsAt, later(60_000).toISOString(), 'not backdated to the failure');
+        assert.equal(
+            retried.subscription.canceledEffectiveAt.toISOString(),
+            later(60_000).toISOString(),
+        );
+        assert.deepEqual(
+            [...retried.notices.rows.values()]
+                .filter((row) => row.kind === 'ended-at-once')
+                .map((row) => row.content.endedAt)
+                .sort(),
+            [NOW.toISOString(), later(60_000).toISOString()],
+            'each attempt keeps its own record',
+        );
     });
 
     test('is refused where the cancellation moved meanwhile', async () => {

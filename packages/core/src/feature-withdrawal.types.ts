@@ -173,8 +173,11 @@ export interface FeatureWithdrawalLiftedNotice {
 
 /**
  * The subscription, or one booking of it, ended at once while a feature it
- * holds was withdrawn. Kept once per subscription or booking: it is what the
- * account credits the unused rest of the period already charged from.
+ * holds was withdrawn: what the account credits the unused rest of the period
+ * already charged from. Recorded by each attempt before it ends anything, so
+ * the credit never lacks its record; an attempt whose end did not happen leaves
+ * one behind, and only the one whose `endedAt` the subscription or the booking
+ * records is sent, counted or credited (`endedAtOnceSubjectOf`).
  */
 export interface EndedAtOnceNotice {
     readonly kind: 'ended-at-once';
@@ -380,4 +383,13 @@ export interface EndedAtOnce extends EndAtOncePreview {
     readonly withdrawalId: string;
     /** The booking that ended; null where the subscription did. */
     readonly subscriptionBundleId: string | null;
+}
+
+/**
+ * The subject an end at once is recorded under: the subscription or the
+ * booking, and the moment the attempt names, so a later attempt records its
+ * own moment rather than inheriting one whose end never happened.
+ */
+export function endedAtOnceSubjectOf(subscriptionOrBookingId: string, at: Date): string {
+    return `${subscriptionOrBookingId}@${at.toISOString()}`;
 }
