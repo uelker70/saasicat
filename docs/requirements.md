@@ -20379,7 +20379,8 @@ _Tested by:_
         - days reach their date columns as midnight UTC, amounts as two-place text
         - a line the unique key left unwritten refuses the invoice by code, naming the charge
         - a year whose row cannot be raised is said, rather than numbered from nothing
-        - on the caller’s transaction it opens none of its own
+        - on the caller’s transaction it opens none of its own, and writes inside a savepoint
+        - a refusal on the caller’s transaction rolls back to the savepoint before it is thrown
         - the due subscriptions are asked for after the page given, or from the start
         - the charges left to invoice are those with no invoice line, in the journal’s order
         - reads ask for the lines in their order, and the prefixes two at most

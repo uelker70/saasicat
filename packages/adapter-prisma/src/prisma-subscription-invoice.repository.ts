@@ -63,13 +63,20 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         return (tx ?? this.prisma) as unknown as InvoicePrisma;
     }
 
-    /** On the caller's transaction when there is one, otherwise in one of its own. */
+    /**
+     * In a transaction of its own, or on the caller's inside a savepoint: what
+     * `fn` wrote is undone with any error it throws either way, so a caller
+     * that catches the error and commits keeps nothing of it. A refusal is
+     * thrown after statements that succeeded — the number drawn, the invoice
+     * written — and without the savepoint they would stay on the caller's
+     * transaction.
+     */
     private inTransaction<T>(
         tx: TransactionContext | undefined,
         fn: (db: InvoicePrisma) => Promise<T>,
     ): Promise<T> {
-        if (tx) return fn(this.db(tx));
-        return this.prisma.$transaction((own) => fn(own as InvoicePrisma));
+        if (!tx) return this.prisma.$transaction((own) => fn(own as InvoicePrisma));
+        return onSavepoint(this.db(tx), fn);
     }
 
     /**
@@ -192,6 +199,23 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         });
         return rows.map((row) => row.numberPrefix);
     }
+}
+
+/** Runs `fn` inside a savepoint of the transaction `db` is on, rolled back to it on any error. */
+async function onSavepoint<T>(
+    db: InvoicePrisma,
+    fn: (db: InvoicePrisma) => Promise<T>,
+): Promise<T> {
+    await db.$executeRaw`SAVEPOINT "subscription_invoice_issue"`;
+    let result: T;
+    try {
+        result = await fn(db);
+    } catch (error) {
+        await db.$executeRaw`ROLLBACK TO SAVEPOINT "subscription_invoice_issue"`;
+        throw error;
+    }
+    await db.$executeRaw`RELEASE SAVEPOINT "subscription_invoice_issue"`;
+    return result;
 }
 
 /**

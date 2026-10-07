@@ -179,13 +179,33 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
         assert.equal(callsNamed(client, 'create').length, 0);
     });
 
-    test('on the caller’s transaction it opens none of its own', async () => {
+    test('on the caller’s transaction it opens none of its own, and writes inside a savepoint', async () => {
         const client = fakeClient();
 
         await new PrismaSubscriptionInvoiceRepository(client).issue(INVOICE, client);
 
         assert.equal(callsNamed(client, '$transaction').length, 0);
+        const statements = callsNamed(client, '$executeRaw').map(([, strings]) =>
+            strings.join('?'),
+        );
+        assert.match(statements[0], /^SAVEPOINT "subscription_invoice_issue"$/);
+        assert.match(statements.at(-1), /^RELEASE SAVEPOINT "subscription_invoice_issue"$/);
         assert.equal(callsNamed(client, 'create').length, 1);
+    });
+
+    test('a refusal on the caller’s transaction rolls back to the savepoint before it is thrown', async () => {
+        const client = fakeClient({ linesWritten: 0 });
+
+        await assert.rejects(
+            new PrismaSubscriptionInvoiceRepository(client).issue(INVOICE, client),
+            (error) => error.code === INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CHARGE_INVOICED,
+        );
+
+        const statements = callsNamed(client, '$executeRaw').map(([, strings]) =>
+            strings.join('?'),
+        );
+        assert.match(statements.at(-1), /^ROLLBACK TO SAVEPOINT "subscription_invoice_issue"$/);
+        assert.ok(!statements.some((statement) => statement.startsWith('RELEASE')));
     });
 
     test('the due subscriptions are asked for after the page given, or from the start', async () => {

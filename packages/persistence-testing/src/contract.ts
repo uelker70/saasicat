@@ -6664,6 +6664,37 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-072
+        test('an invoice refused on a transaction that goes on leaves nothing on it, and no number', async (t) => {
+            // A caller may catch the refusal and commit what else it wrote;
+            // the refused invoice must not be part of that.
+            const account = await anInvoiceAccount(t, 'tenant-invoice-refused-in-tx');
+            if (!account) return;
+            const { invoices, record, invoiceOf, subscriberId } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+            await invoices.issue(invoiceOf([february!]));
+
+            const issuedAfter = await harness.adapter.transactionRunner.run(async (tx) => {
+                await assert.rejects(
+                    invoices.issue(invoiceOf([march!, february!]), tx),
+                    refusedAs(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CHARGE_INVOICED),
+                );
+                return invoices.issue(invoiceOf([march!]), tx);
+            });
+
+            assert.equal(issuedAfter.number, 'EX-2026-000002');
+            assert.deepEqual(
+                (await invoices.listBySubscriber(subscriberId)).map((invoice) => [
+                    invoice.number,
+                    invoice.lines.map((line) => line.chargeId),
+                ]),
+                [
+                    ['EX-2026-000002', [march!.id]],
+                    ['EX-2026-000001', [february!.id]],
+                ],
+            );
+        });
+
+        // @requirement SC-PRIC-072
         test('invoices issued at the same time take consecutive numbers', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-race');
             if (!account) return;
