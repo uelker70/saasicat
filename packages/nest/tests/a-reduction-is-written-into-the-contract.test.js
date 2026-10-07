@@ -161,7 +161,7 @@ describe('the reductions of a withdrawal', () => {
         assert.notEqual(successor.id, inForce.id);
         assert.equal(successor.effectiveFrom.toISOString(), NOW.toISOString());
         assert.deepEqual(reductionsOf(successor), [
-            ['feature-withdrawal:fw-1', -5, 'monthly'],
+            ['feature-withdrawal:fw-1:plan:PRO:MONTHLY', -5, 'monthly'],
             ['feature-withdrawal:fw-1:sb-t1', -2, 'monthly'],
         ]);
         assert.deepEqual(
@@ -214,7 +214,7 @@ describe('the reductions of a withdrawal', () => {
         });
         await service.recordReductions('t1', NOW);
         assert.deepEqual(reductionsOf(await contracts.findActiveByTenantId('t1', NOW)), [
-            ['feature-withdrawal:fw-1', -49, 'monthly'],
+            ['feature-withdrawal:fw-1:plan:PRO:MONTHLY', -49, 'monthly'],
         ]);
     });
 
@@ -238,6 +238,52 @@ describe('the reductions of a withdrawal', () => {
         assert.deepEqual(reductionsOf(await contracts.findActiveByTenantId('t1', NOW)), [
             ['feature-withdrawal:fw-1:sb-t1', -2, 'monthly'],
         ]);
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('reduce the line a change scheduled before the announcement brings, once its contract is written', async () => {
+        // Told of the plan monthly as it is, and yearly as a change scheduled before the announcement makes it.
+        const told = toldOf({ addOn: null });
+        told.lines.push({ ...told.lines[0], billingCycle: 'YEARLY', reductionNet: 40 });
+        const { repo, contracts, inForce, service } = await aContractInForce({ told });
+        await service.recordReductions('t1', NOW);
+
+        // The change lands on 1 August, and the contract written for it bills the plan yearly.
+        const AUGUST = new Date('2026-08-01T00:00:00.000Z');
+        const monthly = await contracts.findActiveByTenantId('t1', NOW);
+        await repo.terminate(monthly.id, {
+            tenantId: 't1',
+            effectiveUntil: AUGUST,
+            status: 'superseded',
+        });
+        await contracts.create({
+            tenantId: 't1',
+            status: 'active',
+            effectiveFrom: AUGUST,
+            effectiveUntil: null,
+            priceSnapshot: {
+                ...MONTHLY_TOTALS,
+                billingCycle: 'yearly',
+                subtotalNet: 610,
+                totalNet: 610,
+                totalGross: 725.9,
+            },
+            lineItems: [
+                line('plan', 'PRO', 490, { sourceVersionId: 'pv-pro-1', billingCycle: 'yearly' }),
+                ADD_ON,
+            ],
+        });
+        // The next run after it writes what that contract does not record yet.
+        const RUN = new Date('2026-08-02T00:00:00.000Z');
+        assert.equal(await service.recordReductions('t1', RUN), 'written');
+
+        assert.deepEqual(reductionsOf(monthly), [
+            ['feature-withdrawal:fw-1:plan:PRO:MONTHLY', -5, 'monthly'],
+        ]);
+        assert.deepEqual(reductionsOf(await contracts.findActiveByTenantId('t1', RUN)), [
+            ['feature-withdrawal:fw-1:plan:PRO:YEARLY', -40, 'yearly'],
+        ]);
+        assert.notEqual(monthly.id, inForce.id);
     });
 
     test('write nothing for a withdrawal lifted before its date', async () => {

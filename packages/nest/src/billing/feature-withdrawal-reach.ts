@@ -6,8 +6,10 @@
 // The reach is fixed when the withdrawal is announced, and it is what the
 // subscription is told (`FeatureWithdrawnNotice`): the plan in the rhythm it is
 // billed in, each booking running then, or the special terms its contract
-// records where no line grants the feature. What the subscriber concludes
-// afterwards is concluded with the withdrawal shown, at the price offered.
+// records where no line grants the feature — and the line a change already
+// scheduled then brings it to, which was concluded without the withdrawal in
+// sight. What the subscriber concludes afterwards is concluded with the
+// withdrawal shown, at the price offered.
 
 import type {
     BillingCycle,
@@ -25,6 +27,7 @@ import type {
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { bookingOverBy } from './bundle-retirement-reach.js';
+import { rhythmTheChangeLandsIn } from './scheduled-change.js';
 
 /** A subscription that may hold the feature, with what it is read with. */
 export interface WithdrawalCandidate {
@@ -32,7 +35,7 @@ export interface WithdrawalCandidate {
     readonly subscription: SubscriptionUsageRecord & { readonly id: string };
     /** The contract in force when the withdrawal is announced, or null. */
     readonly contract: SubscriptionContractRecord | null;
-    /** Its bookings on add-on versions that grant the feature. */
+    /** Its bookings on an add-on version that grants the feature, or scheduled to move to one. */
     readonly bookings: readonly SubscriptionBundleRecord[];
 }
 
@@ -42,11 +45,11 @@ export interface WithdrawalReachInputs {
     readonly effectiveFrom: Date;
     /** Whether a set of feature keys grants the feature, a `replaces` chain included. */
     readonly grants: (features: readonly string[]) => boolean;
-    /** The published plan versions that grant the feature, by id. */
+    /** Every published plan version, by id. */
     readonly planVersions: ReadonlyMap<string, PlanVersionRow>;
     /** The plans' names, by key. */
     readonly planLabels: ReadonlyMap<string, string>;
-    /** The published add-on versions that grant the feature, by id. */
+    /** Every published add-on version, by id. */
     readonly bundleVersions: ReadonlyMap<string, BundleVersionRow>;
 }
 
@@ -65,16 +68,21 @@ export function withdrawalReachOf(
 ): WithdrawalReach | null {
     const { subscription, contract } = candidate;
     const plan = planLineOf(candidate, inputs);
+    const scheduled = scheduledPlanLineOf(subscription, inputs);
+    const plans = [
+        ...(plan ? [plan] : []),
+        ...(scheduled && !(plan && sameLine(plan, scheduled)) ? [scheduled] : []),
+    ];
     const bookings = candidate.bookings.flatMap((booking) => {
         const line = bookingLineOf(booking, candidate, plan?.key ?? subscription.plan, inputs);
         return line ? [line] : [];
     });
     const specialTerms =
-        !plan &&
+        plans.length === 0 &&
         bookings.length === 0 &&
         contract !== null &&
         inputs.grants(contract.entitlementSnapshot?.features ?? []);
-    if (!plan && bookings.length === 0 && !specialTerms) return null;
+    if (plans.length === 0 && bookings.length === 0 && !specialTerms) return null;
     const endsAt = cancellationLandsAt(subscription);
     if (endsAt !== null && endsAt <= inputs.effectiveFrom) return { endsBefore: true };
     return {
@@ -82,7 +90,7 @@ export function withdrawalReachOf(
             tenantId: candidate.tenantId,
             subscriptionId: subscription.id,
             status: subscription.status,
-            lines: [...(plan ? [plan] : []), ...bookings],
+            lines: [...plans, ...bookings],
             specialTerms,
         },
     };
@@ -149,8 +157,55 @@ function planLineOf(
         };
     }
     const version = inputs.planVersions.get(subscription.planVersion.id);
-    if (!version) return null;
-    const billingCycle = subscription.billingCycle as BillingCycle;
+    if (!version || !inputs.grants(version.features)) return null;
+    return versionLine(version, subscription.billingCycle as BillingCycle, inputs);
+}
+
+/**
+ * The plan line a change scheduled when the withdrawal is announced brings the
+ * subscription to, where its version grants the feature: in the rhythm the
+ * change lands in, on the version it binds (`scheduledVersionOf`).
+ */
+function scheduledPlanLineOf(
+    subscription: SubscriptionUsageRecord,
+    inputs: WithdrawalReachInputs,
+): PricedLine | null {
+    const version = scheduledVersionOf(subscription, inputs.planVersions);
+    if (!version || !inputs.grants(version.features)) return null;
+    return versionLine(version, rhythmTheChangeLandsIn(subscription), inputs);
+}
+
+/**
+ * The version a scheduled change binds when it lands: the one it names; naming
+ * none, the version the subscription is bound to where the change keeps its
+ * plan — it then moves the rhythm only — or the newest published version of
+ * the plan it moves to. Null where no change is scheduled.
+ */
+export function scheduledVersionOf(
+    subscription: Pick<
+        SubscriptionUsageRecord,
+        'plan' | 'planVersion' | 'pendingPlan' | 'pendingChangeVersionId'
+    >,
+    versions: ReadonlyMap<string, PlanVersionRow>,
+): PlanVersionRow | null {
+    const { pendingPlan, pendingChangeVersionId } = subscription;
+    if (pendingPlan === null) return null;
+    if (pendingChangeVersionId) return versions.get(pendingChangeVersionId) ?? null;
+    if (pendingPlan === subscription.plan) return versions.get(subscription.planVersion.id) ?? null;
+    let newest: PlanVersionRow | null = null;
+    for (const version of versions.values()) {
+        if (version.planId === pendingPlan && (!newest || version.version > newest.version)) {
+            newest = version;
+        }
+    }
+    return newest;
+}
+
+function versionLine(
+    version: PlanVersionRow,
+    billingCycle: BillingCycle,
+    inputs: WithdrawalReachInputs,
+): PricedLine {
     return {
         line: 'plan',
         key: version.planId,
@@ -161,10 +216,16 @@ function planLineOf(
     };
 }
 
+/** Whether two plan lines are one: the same plan in the same rhythm, whichever version. */
+function sameLine(a: PricedLine, b: PricedLine): boolean {
+    return a.key === b.key && a.billingCycle === b.billingCycle;
+}
+
 /**
- * A booking's line, where its version grants the feature and it still runs on
- * the date: priced as the contract in force records it, or as the add-on is
- * priced beside the plan where the contract does not name it.
+ * A booking's line, where its version — or the version a move scheduled when
+ * the withdrawal is announced brings it to — grants the feature and it still
+ * runs on the date: priced as the contract in force records the version it is
+ * on, or as the add-on is priced beside the plan otherwise.
  */
 function bookingLineOf(
     booking: SubscriptionBundleRecord,
@@ -172,14 +233,14 @@ function bookingLineOf(
     planKey: string,
     inputs: WithdrawalReachInputs,
 ): PricedLine | null {
-    const version = inputs.bundleVersions.get(booking.bundleVersionId);
+    const version = bookingVersionGranting(booking, inputs);
     if (!version) return null;
     if (bookingOverBy(booking, cancellationLandsAt(subscription), inputs.effectiveFrom)) {
         return null;
     }
     const billingCycle = (booking.billingCycle ?? subscription.billingCycle) as BillingCycle;
     const recorded = contract?.lineItems.find(
-        (item) => item.kind === 'bundle' && item.sourceVersionId === booking.bundleVersionId,
+        (item) => item.kind === 'bundle' && item.sourceVersionId === version.id,
     );
     return {
         line: 'bundle',
@@ -189,6 +250,18 @@ function bookingLineOf(
         billingCycle,
         priceNet: recorded?.priceNet ?? resolveBundlePriceNet(version, planKey, billingCycle),
     };
+}
+
+/** The version of a booking that grants the feature: the one it is on, else the one it moves to. */
+export function bookingVersionGranting(
+    booking: Pick<SubscriptionBundleRecord, 'bundleVersionId' | 'pendingBundleVersionId'>,
+    inputs: Pick<WithdrawalReachInputs, 'bundleVersions' | 'grants'>,
+): BundleVersionRow | null {
+    for (const id of [booking.bundleVersionId, booking.pendingBundleVersionId]) {
+        const version = id ? inputs.bundleVersions.get(id) : undefined;
+        if (version && inputs.grants(version.features)) return version;
+    }
+    return null;
 }
 
 function cycleOf(line: Pick<ContractLineItemRecord, 'billingCycle'>): BillingCycle {
