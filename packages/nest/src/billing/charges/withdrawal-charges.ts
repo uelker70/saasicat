@@ -36,6 +36,7 @@ import {
     chargeOf,
     isWholePlanPeriod,
     lineById,
+    sameInstant,
     type AccountEntry,
 } from './charge-entries.js';
 
@@ -70,13 +71,70 @@ export function deriveWithdrawalCharges(
     input: ChargeDerivationInput,
     due: readonly NewSubscriberCharge[],
 ): NewSubscriberCharge[] {
-    const withdrawals = new Map((input.withdrawals ?? []).map((one) => [one.id, one]));
     const entries: Entry[] = [...input.written, ...due];
     const dueSet = new Set<Entry>(due);
     const charges: NewSubscriberCharge[] = [];
-    // What the reductions derived so far take off each period, so two
-    // withdrawals of one line never take more than the period costs.
+    const slices = reductionSlices(input, entries, dueSet);
+    // The moments a reduction of a period stops: where another reduction of
+    // the same period grows after it was credited — the days the first gave
+    // back are the second's again — the growth is booked at the moment that
+    // freed them, rather than beside its own first credit.
+    const endsOf = new Map<string, Date[]>();
+    for (const slice of slices) {
+        if (slice.to < slice.period.end) {
+            endsOf.set(slice.periodKey, [...(endsOf.get(slice.periodKey) ?? []), slice.to]);
+        }
+    }
+    // What the reductions derived so far take off each period.
     const reducedSoFar = new Map<string, number>();
+    for (const slice of slices) {
+        const { reduction, period, days, periodKey } = slice;
+        const netCents = netOfOthers(period, entries, input);
+        const targetCents = -Math.min(
+            cents(prorate(reduction.mark.amountNet, days, period.cycleDays)),
+            // No more than the days without the feature cost …
+            cents(prorate(netCents / CENTS, days, Math.max(1, periodDays(period)))),
+            // … and, with the other withdrawals of the line, no more than the period.
+            Math.max(0, netCents - (reducedSoFar.get(periodKey) ?? 0)),
+        );
+        reducedSoFar.set(periodKey, (reducedSoFar.get(periodKey) ?? 0) - targetCents);
+        const writtenCents = writtenFor(slice, entries).reduce(
+            (sum, entry) => sum + cents(entry.amountNet),
+            0,
+        );
+        const difference = targetCents - writtenCents;
+        if (difference === 0) continue;
+        const entry = reductionEntry(
+            input,
+            slice,
+            difference,
+            entries,
+            endsOf.get(periodKey) ?? [],
+        );
+        if (entry) charges.push(entry);
+    }
+    charges.push(...unusedRestCredits(input, [...entries, ...charges], dueSet));
+    return charges;
+}
+
+/** One reduction over one period of its line: from when to when the feature is missing. */
+interface ReductionSlice {
+    readonly reduction: ReductionLine;
+    readonly period: LinePeriod;
+    readonly from: Date;
+    readonly to: Date;
+    readonly days: number;
+    readonly periodKey: string;
+}
+
+/** Each reduction over each period of the line it reduces, in the order they are capped. */
+function reductionSlices(
+    input: ChargeDerivationInput,
+    entries: readonly Entry[],
+    dueSet: ReadonlySet<Entry>,
+): ReductionSlice[] {
+    const withdrawals = new Map((input.withdrawals ?? []).map((one) => [one.id, one]));
+    const slices: ReductionSlice[] = [];
     for (const reduction of reductionLines(input.contracts)) {
         const withdrawal = withdrawals.get(reduction.mark.withdrawalId);
         if (!withdrawal) continue;
@@ -97,48 +155,40 @@ export function deriveWithdrawalCharges(
             const to = until && until < period.end ? until : period.end;
             const days = to > from ? remainingDays(from, period) - remainingDays(to, period) : 0;
             const periodKey = `${reduction.mark.subscriptionBundleId ?? 'plan'}@${period.start.getTime()}`;
-            const room = Math.max(
-                0,
-                netOfOthers(period, entries, input) - (reducedSoFar.get(periodKey) ?? 0),
-            );
-            const targetCents = -Math.min(
-                cents(prorate(reduction.mark.amountNet, days, period.cycleDays)),
-                cents(prorate(room / CENTS, days, Math.max(1, periodDays(period)))),
-            );
-            reducedSoFar.set(periodKey, (reducedSoFar.get(periodKey) ?? 0) - targetCents);
-            const writtenCents = entries
-                .filter(
-                    (entry) =>
-                        entry.source === 'discount' &&
-                        entry.sourceRef === reduction.line.sourceKey &&
-                        entry.periodStart >= period.start &&
-                        entry.periodStart < period.end,
-                )
-                .reduce((sum, entry) => sum + cents(entry.amountNet), 0);
-            const difference = targetCents - writtenCents;
-            if (difference === 0) continue;
-            const entry = reductionEntry(input, reduction, period, difference, from, to);
-            if (entry) charges.push(entry);
+            slices.push({ reduction, period, from, to, days, periodKey });
         }
     }
-    charges.push(...unusedRestCredits(input, entries, dueSet));
-    return charges;
+    return slices;
+}
+
+/** The entries that already move this reduction in this period. */
+function writtenFor(slice: ReductionSlice, entries: readonly Entry[]): Entry[] {
+    return entries.filter(
+        (entry) =>
+            entry.source === 'discount' &&
+            entry.sourceRef === slice.reduction.line.sourceKey &&
+            entry.periodStart >= slice.period.start &&
+            entry.periodStart < slice.period.end,
+    );
 }
 
 /**
  * The entry that moves a period's reduction by `difference` cents, or null
  * where it is not due yet: charged with the period where the period is charged
  * now, credited from the withdrawal's date where the period was charged
- * before, taken back from the moment the days without the feature end.
+ * before, taken back from the moment the days without the feature end. A
+ * credit that grows after its first is booked from the latest moment another
+ * reduction of the period stopped by now: the account keeps one entry per
+ * moment, and the first credit already holds the withdrawal's date.
  */
 function reductionEntry(
     input: ChargeDerivationInput,
-    reduction: ReductionLine,
-    period: LinePeriod,
+    slice: ReductionSlice,
     difference: number,
-    from: Date,
-    to: Date,
+    entries: readonly Entry[],
+    endsInPeriod: readonly Date[],
 ): NewSubscriberCharge | null {
+    const { reduction, period, from, to } = slice;
     const charge = (origin: NewSubscriberCharge['origin'], start: Date) =>
         chargeOf(input, reduction.contract, reduction.line, {
             origin,
@@ -150,7 +200,16 @@ function reductionEntry(
         });
     if (difference < 0) {
         if (period.due) return charge(period.charge.origin, period.start);
-        return from <= input.now ? charge('credit', from) : null;
+        if (from > input.now) return null;
+        const creditedAt = (at: Date) =>
+            writtenFor(slice, entries).some(
+                (entry) => entry.origin === 'credit' && sameInstant(entry.periodStart, at),
+            );
+        if (!creditedAt(from)) return charge('credit', from);
+        const freed = endsInPeriod
+            .filter((end) => end > from && end <= input.now && !creditedAt(end))
+            .sort((a, b) => b.getTime() - a.getTime())[0];
+        return charge('credit', freed ?? from);
     }
     return to <= input.now ? charge('reductionTakenBack', to) : null;
 }
@@ -193,7 +252,18 @@ function unusedRestCredits(
                 ),
             0,
         );
-        if (rest <= 0) continue;
+        // Never more than the period still costs once its reductions — those
+        // written and those this derivation takes back — are counted: the rest
+        // and the reduction are each rounded to the cent, and the two halves of
+        // one cent must not credit a cent nobody paid.
+        const stillCosts =
+            netOfOthers(period, entries, input) +
+            withdrawalReductionsIn(period, entries, input).reduce(
+                (sum, entry) => sum + cents(entry.amountNet),
+                0,
+            );
+        const credit = Math.min(rest, stillCosts);
+        if (credit <= 0) continue;
         const line = lineById(input.contracts, period.charge.contractLineItemId);
         const contract = input.contracts.find((one) => one.id === period.charge.contractId);
         if (!line || !contract) continue;
@@ -203,7 +273,7 @@ function unusedRestCredits(
                 source: period.charge.source,
                 sourceRef: period.charge.sourceRef,
                 period: { start: at, end: period.end },
-                amountNet: -rest / CENTS,
+                amountNet: -credit / CENTS,
                 bookedAt: at,
             }),
         );
@@ -377,6 +447,25 @@ function othersOf(
         if (!line || withdrawalReductionOf(line)) return false;
         const hold = addOnHoldOf(line);
         return source === 'bundle' ? hold?.subscriptionBundleId === sourceRef : !hold;
+    });
+}
+
+/** The reductions of withdrawals in a period of its line: written, or derived in this run. */
+function withdrawalReductionsIn(
+    period: LinePeriod,
+    entries: readonly Entry[],
+    input: ChargeDerivationInput,
+): Entry[] {
+    const { source, sourceRef } = period.charge;
+    return entries.filter((entry) => {
+        if (entry.source !== 'discount') return false;
+        if (entry.periodStart < period.start || entry.periodStart >= period.end) return false;
+        const line = lineById(input.contracts, entry.contractLineItemId);
+        const reduction = line ? withdrawalReductionOf(line) : null;
+        if (!reduction) return false;
+        return source === 'bundle'
+            ? reduction.subscriptionBundleId === sourceRef
+            : reduction.subscriptionBundleId === null;
     });
 }
 
