@@ -1437,8 +1437,9 @@ same notices above the add-ons. The routes are `GET /billing/feature-withdrawals
 a plan or an add-on, a withdrawn one is marked with its reason and date rather than shown as
 included or not (`SC-CAT-017`). `OnboardingConfigurator` and `MySubscriptionBundlesPage` mark it
 once you hand them the registry from `/billing/feature-registry` as `featureRegistry`; a marketing
-page of your own reads the same field there, `withdrawn`. Whoever concludes while a feature is
-withdrawn does so at the price offered, without a reduction and without the right to end at once.
+page of your own reads the same field there, `withdrawn` — a list, because a feature can be
+withdrawn again from the day it returns. Whoever concludes while a feature is withdrawn does so at
+the price offered, without a reduction and without the right to end at once.
 
 ## Admin Module
 

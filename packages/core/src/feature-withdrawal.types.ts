@@ -10,6 +10,7 @@
 // ending at once. Whoever concludes while it is withdrawn is shown it first and
 // concludes at the price offered.
 
+import type { FeatureWithdrawalMark } from './feature-ui-registry.types.js';
 import type { BillingCycle } from './promo-code.types.js';
 
 /** What a reduction is named for: a plan, or an add-on, by its key. */
@@ -335,8 +336,10 @@ export interface TenantFeatureWithdrawal {
 
 /**
  * The features `withdrawals` take away at `now` or from a date ahead, and not
- * lifted by then: what a catalogue marks beside every plan and add-on that
- * grants them. A withdrawal lifted before its own date takes nothing away.
+ * lifted by then, the earliest first: what a catalogue marks beside every plan
+ * and add-on that grants them. A withdrawal lifted before its own date takes
+ * nothing away. One feature can appear twice — withdrawn until a date, and
+ * again from it.
  */
 export function withdrawnFeaturesOf(
     withdrawals: readonly FeatureWithdrawalRecord[],
@@ -347,6 +350,7 @@ export function withdrawnFeaturesOf(
             ({ effectiveFrom, liftedFrom }) =>
                 liftedFrom === null || (liftedFrom > now && effectiveFrom < liftedFrom),
         )
+        .sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime())
         .map((withdrawal) => ({
             featureKey: withdrawal.featureKey,
             reason: withdrawal.reason,
@@ -359,13 +363,8 @@ export function withdrawnFeaturesOf(
  * A feature withdrawn now or from a date ahead, as a catalogue marks it beside
  * every plan and add-on that grants it, so whoever concludes is shown it first.
  */
-export interface WithdrawnFeature {
+export interface WithdrawnFeature extends FeatureWithdrawalMark {
     readonly featureKey: string;
-    readonly reason: string;
-    /** ISO 8601. */
-    readonly effectiveFrom: string;
-    /** ISO 8601, where it is lifted from a date ahead. */
-    readonly liftedFrom: string | null;
 }
 
 /** What ending at once now would credit, before the subscriber confirms it. */

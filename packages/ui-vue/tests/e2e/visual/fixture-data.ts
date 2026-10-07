@@ -1216,11 +1216,13 @@ const TENANT_WITHDRAWN = {
             label: 'Audit log',
             description: 'Every change, who made it and when.',
             icon: 'history',
-            withdrawn: {
-                reason: TENANT_WITHDRAWN_REASON,
-                effectiveFrom: '2026-01-10T00:00:00.000Z',
-                liftedFrom: null,
-            },
+            withdrawn: [
+                {
+                    reason: TENANT_WITHDRAWN_REASON,
+                    effectiveFrom: '2026-01-10T00:00:00.000Z',
+                    liftedFrom: null,
+                },
+            ],
         },
         export: { label: 'Export', description: 'Download every note.', icon: 'download' },
     },

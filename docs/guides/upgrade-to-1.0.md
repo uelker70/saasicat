@@ -3060,7 +3060,8 @@ do:
   `FEATURE_WITHDRAW`, `FEATURE_WITHDRAWAL_LIFT`, `END_SUBSCRIPTION_AT_ONCE` and
   `END_ADD_ON_AT_ONCE`. An admin shell that lists its pages by hand adds the page.
 - **`/billing/feature-registry`** marks a feature withdrawn now or from a date ahead with
-  `withdrawn` (reason, `effectiveFrom`, `liftedFrom`). `OnboardingConfigurator` and
+  `withdrawn`: each withdrawal of it not over yet, the earliest first, with its reason,
+  `effectiveFrom` and `liftedFrom`. `OnboardingConfigurator` and
   `MySubscriptionBundlesPage` take that registry as the optional `featureRegistry` to mark it beside
   the features they name; `TenantPlanSection` reads it on its own. Both `TenantPlanSection` and
   `MySubscriptionBundlesPage` show the withdrawals reaching the subscription, with the ends at once,

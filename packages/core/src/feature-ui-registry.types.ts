@@ -17,12 +17,23 @@ export interface FeatureUiMeta {
     /** true = base infrastructure, included in every plan (not bookable). */
     core?: boolean;
     /**
-     * Set where the feature is withdrawn now or from a date ahead: why, from
-     * when, and until when where the withdrawal is lifted from a date ahead. A
-     * page that shows the feature as part of a plan or an add-on shows this
-     * beside it, so whoever concludes knows before they do.
+     * Set where the feature is withdrawn now or from a date ahead: each
+     * withdrawal of it not over yet, the earliest first — why, from when, and
+     * until when where it is lifted from a date ahead. A feature withdrawn
+     * again from the day it returns carries both. A page that shows the
+     * feature as part of a plan or an add-on shows this beside it, so whoever
+     * concludes knows before they do.
      */
-    withdrawn?: { reason: string; effectiveFrom: string; liftedFrom: string | null };
+    withdrawn?: readonly FeatureWithdrawalMark[];
+}
+
+/** One withdrawal of a feature, as a catalogue marks it beside the feature. */
+export interface FeatureWithdrawalMark {
+    readonly reason: string;
+    /** ISO 8601. */
+    readonly effectiveFrom: string;
+    /** ISO 8601, where it is lifted from a date ahead. */
+    readonly liftedFrom: string | null;
 }
 
 /** Map FeatureKey → UI metadata. Consumer apps supply a complete table. */

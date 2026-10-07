@@ -1,7 +1,9 @@
 <template>
-    <span v-if="withdrawn" class="sp-withdrawn-mark">
-        <span class="sp-badge sp-badge--warning">{{ badge }}</span>
-        <span class="sp-withdrawn-mark__reason">{{ reason }}</span>
+    <span v-if="marks.length > 0" class="sp-withdrawn-mark">
+        <template v-for="mark in marks" :key="mark.effectiveFrom">
+            <span class="sp-badge sp-badge--warning">{{ badgeOf(mark) }}</span>
+            <span class="sp-withdrawn-mark__reason">{{ reasonOf(mark) }}</span>
+        </template>
     </span>
 </template>
 
@@ -9,8 +11,11 @@
 // Said beside a feature wherever a plan or an add-on is shown with what it
 // includes, while the feature is withdrawn or about to be: from when, until
 // when where that is known, and why — so whoever concludes or changes now does
-// it knowing, rather than finding out afterwards.
+// it knowing, rather than finding out afterwards. Each withdrawal not over yet
+// is said: a feature that returns on a date and is withdrawn again from it does
+// not come back then.
 
+import type { FeatureWithdrawalMark } from '@saasicat/core';
 import { computed } from 'vue';
 
 import { messageText } from './message-parts.js';
@@ -23,12 +28,10 @@ const props = defineProps<{ featureKey: string }>();
 const i18n = useTenantI18n();
 const features = useWithdrawnFeatures();
 
-const withdrawn = computed(() => features.of(props.featureKey));
+const marks = computed(() => features.of(props.featureKey));
 const dateOf = (iso: string): string => features.formatDate(iso);
 
-const badge = computed(() => {
-    const mark = withdrawn.value;
-    if (!mark) return '';
+function badgeOf(mark: FeatureWithdrawalMark): string {
     const ahead = new Date(mark.effectiveFrom).getTime() > Date.now();
     const from = messageText(
         ahead ? i18n.value.featureWithdrawnBadgeAhead : i18n.value.featureWithdrawnBadge,
@@ -37,13 +40,11 @@ const badge = computed(() => {
     return mark.liftedFrom
         ? `${from}, ${messageText(i18n.value.featureWithdrawnBack, { date: dateOf(mark.liftedFrom) })}`
         : from;
-});
+}
 
-const reason = computed(() =>
-    withdrawn.value
-        ? messageText(i18n.value.featureWithdrawnReason, { reason: withdrawn.value.reason })
-        : '',
-);
+function reasonOf(mark: FeatureWithdrawalMark): string {
+    return messageText(i18n.value.featureWithdrawnReason, { reason: mark.reason });
+}
 </script>
 
 <style scoped>

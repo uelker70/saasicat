@@ -1,5 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { withdrawnFeaturesOf } from '@saasicat/core';
 
 import {
     ACTOR,
@@ -829,9 +830,9 @@ describe('an end at once, sent by the run', () => {
 
 // @requirement SC-CAT-017 — A withdrawn feature is marked wherever a plan or an add-on is shown with what it includes
 describe('the features a catalogue marks as withdrawn', () => {
-    test('are those withdrawn now or from a date ahead, until they are lifted', async () => {
-        const { service } = withdrawing({
-            withdrawals: withdrawalStore([
+    test('are those withdrawn now or from a date ahead, until they are lifted', () => {
+        const marked = withdrawnFeaturesOf(
+            [
                 withdrawalRecord({ id: 'open', featureKey: 'A' }),
                 withdrawalRecord({ id: 'ahead', featureKey: 'B', effectiveFrom: DATE }),
                 withdrawalRecord({ id: 'lifting', featureKey: 'C', liftedFrom: ms(NOW, 1) }),
@@ -842,9 +843,9 @@ describe('the features a catalogue marks as withdrawn', () => {
                     effectiveFrom: DATE,
                     liftedFrom: ms(NOW, 1),
                 }),
-            ]),
-        });
-        const marked = await service.withdrawnFeatures(NOW);
+            ],
+            NOW,
+        );
         assert.deepEqual(marked.map((feature) => feature.featureKey).sort(), ['A', 'B', 'C']);
         assert.deepEqual(
             marked.find((feature) => feature.featureKey === 'C'),
@@ -888,13 +889,41 @@ describe('the public feature registry', () => {
         }).listFeatureRegistry();
         assert.deepEqual(registry.EXPORT, {
             ...REGISTRY.EXPORT,
-            withdrawn: {
+            withdrawn: [
+                {
+                    reason: 'The export service has been switched off.',
+                    effectiveFrom: '2026-06-01T00:00:00.000Z',
+                    liftedFrom: '2099-01-01T00:00:00.000Z',
+                },
+            ],
+        });
+        assert.deepEqual(registry.REPORTS, REGISTRY.REPORTS, 'and leaves the rest as it is');
+    });
+
+    test('marks both withdrawals of a feature withdrawn again from the day it returns, the earlier first', async () => {
+        // Newest announcement first, as the stores list them.
+        const registry = await registryOver({
+            list: async () => [
+                withdrawalRecord({
+                    id: 'again',
+                    reason: 'A law ends it.',
+                    effectiveFrom: new Date('2099-01-01T00:00:00.000Z'),
+                }),
+                withdrawalRecord({ liftedFrom: new Date('2099-01-01T00:00:00.000Z') }),
+            ],
+        }).listFeatureRegistry();
+        assert.deepEqual(registry.EXPORT.withdrawn, [
+            {
                 reason: 'The export service has been switched off.',
                 effectiveFrom: '2026-06-01T00:00:00.000Z',
                 liftedFrom: '2099-01-01T00:00:00.000Z',
             },
-        });
-        assert.deepEqual(registry.REPORTS, REGISTRY.REPORTS, 'and leaves the rest as it is');
+            {
+                reason: 'A law ends it.',
+                effectiveFrom: '2099-01-01T00:00:00.000Z',
+                liftedFrom: null,
+            },
+        ]);
     });
 
     test('marks nothing once the withdrawal is lifted, or where none is kept', async () => {
