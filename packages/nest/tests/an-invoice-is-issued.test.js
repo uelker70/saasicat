@@ -8,7 +8,12 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { INVOICE_ERROR_CODES, SUBSCRIBER_ERROR_CODES, TAX_ERROR_CODES } from '@saasicat/core';
+import {
+    INVOICE_ERROR_CODES,
+    SUBSCRIBER_ERROR_CODES,
+    TAX_ERROR_CODES,
+    contractPartiesOf,
+} from '@saasicat/core';
 
 import { SubscriptionInvoiceCron } from '../dist/billing/index.js';
 
@@ -199,36 +204,26 @@ describe('the parties an invoice names', () => {
 
     test('name the issuer’s corrected identity where the operator declared the correction', async () => {
         const corrected = { ...ISSUER, legalName: 'Issuer Software GmbH' };
-        const appliedSettings = new FakeAppliedSettingsPort();
-        appliedSettings.changes = [
-            {
-                id: 'change-1',
-                noticedAt: new Date('2026-01-15T00:00:00.000Z'),
-                source: 'config/saas.yaml',
-                previous: { issuer: ISSUER },
-                current: {
-                    issuer: {
-                        ...corrected,
-                        correctionOf: { legalName: ISSUER.legalName, reason: 'Renamed' },
-                    },
-                },
-                acknowledgedAt: null,
-                acknowledgedBy: null,
-            },
-        ];
-        const installation = anInvoicingInstallation({ appliedSettings });
-        const subscriber = await installation.aSubscriber('t1');
-        const contract = await installation.aContract(subscriber);
-        installation.charge(contract, 'plan');
-        installation.settings.issuer = corrected;
 
-        try {
-            await installation.run();
-        } finally {
-            installation.settings.issuer = ISSUER;
-        }
+        const issuer = await invoicedUnder(corrected, [
+            recordedCorrection('2026-01-15', ISSUER, corrected, 'Renamed'),
+        ]);
 
-        assert.equal(installation.store.invoices[0].issuer.legalName, 'Issuer Software GmbH');
+        assert.equal(issuer.legalName, 'Issuer Software GmbH');
+    });
+
+    test('follow the corrections in the order the record went through them, whatever the clocks said', async () => {
+        const renamed = { ...ISSUER, legalName: 'Issuer Software GmbH' };
+        const converted = { ...renamed, legalName: 'Issuer Software SE' };
+
+        // Listed the latest first, as the port lists them; the start that
+        // recorded the later correction ran on a clock behind the first one's.
+        const issuer = await invoicedUnder(converted, [
+            recordedCorrection('2026-01-10', renamed, converted, 'Change of legal form'),
+            recordedCorrection('2026-01-15', ISSUER, renamed, 'Renamed'),
+        ]);
+
+        assert.equal(issuer.legalName, 'Issuer Software SE');
     });
 
     test('name the contract’s copy where nothing recorded connects it to the file’s issuer', async () => {
@@ -337,6 +332,39 @@ describe('the tax of an invoice', () => {
         );
     });
 });
+
+/** A start that recorded the issuer moving from `before` to `after`, declared a correction of it. */
+function recordedCorrection(noticedOn, before, after, reason) {
+    return {
+        id: `change-${noticedOn}`,
+        noticedAt: new Date(`${noticedOn}T00:00:00.000Z`),
+        source: 'config/saas.yaml',
+        previous: { issuer: before },
+        current: { issuer: { ...after, correctionOf: { legalName: before.legalName, reason } } },
+        acknowledgedAt: null,
+        acknowledgedBy: null,
+    };
+}
+
+/**
+ * The issuer an invoice names under a file naming `issuer`, for a contract
+ * concluded while the file named `ISSUER`, with `changes` recorded since.
+ */
+async function invoicedUnder(issuer, changes) {
+    const appliedSettings = new FakeAppliedSettingsPort();
+    appliedSettings.changes = changes;
+    const installation = anInvoicingInstallation({
+        settings: { ...INVOICING_SETTINGS, issuer },
+        appliedSettings,
+    });
+    const subscriber = await installation.aSubscriber('t1');
+    const contract = await installation.aContract(subscriber, {
+        issuer: contractPartiesOf(subscriber, ISSUER).issuer,
+    });
+    installation.charge(contract, 'plan');
+    await installation.run();
+    return installation.store.invoices[0].issuer;
+}
 
 /** The audit entries the run wrote for holds, as code and params. */
 const holdsIn = (audits) =>

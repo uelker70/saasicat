@@ -225,8 +225,10 @@ export class SubscriptionInvoiceService {
     /** The recorded settings changes, the oldest first; none without the record. */
     private async issuerHistory(): Promise<IssuerHistoryStep[]> {
         if (!this.appliedSettings) return [];
-        const changes = await this.appliedSettings.listChanges();
-        return [...changes].sort((a, b) => a.noticedAt.getTime() - b.noticedAt.getTime());
+        // The port lists them in the order the database numbered them, the
+        // latest first. Their `noticedAt` is each recording start's own clock,
+        // which can run behind an earlier start's, so it orders nothing.
+        return [...(await this.appliedSettings.listChanges())].reverse();
     }
 
     private async held(group: InvoiceGroup, hold: InvoiceHold): Promise<void> {

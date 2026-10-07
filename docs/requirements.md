@@ -8728,6 +8728,7 @@ _Tested by:_
     - the parties an invoice names
         - are the subscriber as its record stands and the issuer the file names
         - name the issuer’s corrected identity where the operator declared the correction
+        - follow the corrections in the order the record went through them, whatever the clocks said
         - name the contract’s copy where nothing recorded connects it to the file’s issuer
 - `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
     - a start that finds the issuer where it left it
