@@ -127,6 +127,21 @@ export function chargeOf(
     };
 }
 
+/**
+ * The key the account keeps one entry under — subscription, source, source
+ * reference, period start and origin — however often the entry is derived
+ * (`SubscriberLedgerRepository.recordCharges`).
+ */
+export function entryKeyOf(entry: AccountEntry): string {
+    return [
+        entry.subscriptionId,
+        entry.source,
+        entry.sourceRef,
+        entry.periodStart.getTime(),
+        entry.origin,
+    ].join('|');
+}
+
 export function sameInstant(a: Date, b: Date | null): boolean {
     return b !== null && a.getTime() === b.getTime();
 }
