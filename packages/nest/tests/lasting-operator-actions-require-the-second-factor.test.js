@@ -33,6 +33,9 @@ const LASTING = [
     // Running contracts continue on another version.
     'POST admin/catalog/plan-versions/:id/retirement',
     'POST admin/catalog/plan-versions/:id/terminate',
+    // A feature taken from every subscription holding it, and given back.
+    'POST admin/feature-withdrawals',
+    'POST admin/feature-withdrawals/:id/lift',
     // Every tenant locked out at once, and let back in (`SC-ADM-029`).
     'POST admin/maintenance/lock',
     'POST admin/maintenance/unlock',

@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type {
     BundleRepository,
+    FeatureWithdrawalRepository,
     PlanVersionRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -25,6 +26,7 @@ import { ENTITLEMENT_SERVICE_TOKEN } from './entitlement.tokens.js';
 import type { EntitlementResolutionConfig } from './plan-resolution.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
+import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from '../billing/tenant-billing.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import {
     ENTITLEMENT_RESOLUTION_CONFIG_TOKEN,
@@ -54,6 +56,12 @@ export interface EntitlementModuleOptions {
     subscriptionBundleRepository?: ProviderSpec<SubscriptionBundleRepository>;
     /** See `subscriptionBundleRepository` — resolves BundleVersion features/quotas. */
     bundleRepository?: ProviderSpec<BundleRepository>;
+    /**
+     * Optional — where features withdrawn for a reason outside the platform
+     * are kept. With it, a feature withdrawn at the moment of asking is granted
+     * to nobody, whatever grants it; without it, nothing is withdrawn.
+     */
+    featureWithdrawals?: ProviderSpec<FeatureWithdrawalRepository>;
     /** Modules required by repository factory `inject` tokens. */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Register the module globally — default `false`. */
@@ -96,6 +104,11 @@ export class EntitlementModule {
         }
         if (options.bundleRepository) {
             providers.push(asProvider(BUNDLE_REPOSITORY_TOKEN, options.bundleRepository));
+        }
+        if (options.featureWithdrawals) {
+            providers.push(
+                asProvider(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN, options.featureWithdrawals),
+            );
         }
 
         return {

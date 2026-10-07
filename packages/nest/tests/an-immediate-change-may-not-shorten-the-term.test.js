@@ -224,7 +224,7 @@ describe('the deferred upgrade explains itself', () => {
     });
 });
 
-// @requirement SC-PRIC-003 — This platform never pays money back
+// @requirement SC-PRIC-075 — No charge is paid back, except the unused rest of what a withdrawal ends at once
 // @requirement SC-PRIC-004 — "Free upgrade" and "costs nothing" are two different sentences
 describe('a prorated upgrade never asks for less than nothing', () => {
     test('a cheaper target after a price cut is free rather than a credit', async () => {

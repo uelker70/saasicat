@@ -9,8 +9,10 @@
 //      handles the full contract/bundle aggregation).
 //
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { featuresWithdrawnAt, type FeatureWithdrawalRepository } from '@saasicat/core';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
+import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from '../billing/tenant-billing.tokens.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { findPlan } from '../billing/plan-helpers.js';
 import { PLAN_RESOLVER_PORT_TOKEN, type PlanResolverPort } from './plan-resolver.port.js';
@@ -27,6 +29,12 @@ export class StaticEntitlementService {
     constructor(
         @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource,
         @Inject(PLAN_RESOLVER_PORT_TOKEN) private readonly resolver: PlanResolverPort,
+        // The same withdrawals `EntitlementService` takes out: two enforcement
+        // paths that disagree about a withdrawn feature would grant it in half
+        // the applications.
+        @Optional()
+        @Inject(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN)
+        private readonly featureWithdrawals: FeatureWithdrawalRepository | null = null,
     ) {}
 
     /**
@@ -43,9 +51,13 @@ export class StaticEntitlementService {
         if (!plan) {
             return { planId, features: [], quotas: {} };
         }
+        const withdrawn = featuresWithdrawnAt(
+            this.featureWithdrawals ? await this.featureWithdrawals.list() : [],
+            new Date(),
+        );
         return {
             planId,
-            features: plan.features ?? [],
+            features: (plan.features ?? []).filter((feature) => !withdrawn.has(feature)),
             quotas: plan.quotas ?? {},
         };
     }

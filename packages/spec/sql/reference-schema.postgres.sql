@@ -22,6 +22,7 @@
 --   prisma-fragments/17-subscription-notice.prisma
 --   prisma-fragments/18-version-retirement.prisma
 --   prisma-fragments/19-bundle-version-retirement.prisma
+--   prisma-fragments/20-feature-withdrawal.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -804,6 +805,22 @@ CREATE TABLE "bundle_version_retirements" (
     CONSTRAINT "bundle_version_retirements_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "feature_withdrawals" (
+    "id" TEXT NOT NULL,
+    "featureKey" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "effectiveFrom" TIMESTAMP(3) NOT NULL,
+    "liftedFrom" TIMESTAMP(3),
+    "reductions" JSONB NOT NULL DEFAULT '[]',
+    "announcedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "announcedBy" TEXT NOT NULL,
+    "liftedAt" TIMESTAMP(3),
+    "liftedBy" TEXT,
+
+    CONSTRAINT "feature_withdrawals_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1068,6 +1085,9 @@ CREATE INDEX "version_retirements_retiredPlanVersionId_idx" ON "version_retireme
 -- CreateIndex
 CREATE INDEX "bundle_version_retirements_retiredBundleVersionId_idx" ON "bundle_version_retirements"("retiredBundleVersionId");
 
+-- CreateIndex
+CREATE INDEX "feature_withdrawals_featureKey_idx" ON "feature_withdrawals"("featureKey");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1204,6 +1224,13 @@ ALTER TABLE subscription_bundles
 -- because the second insert meets the first and is told a window is open.
 CREATE UNIQUE INDEX IF NOT EXISTS maintenance_windows_one_open
     ON maintenance_windows ((true)) WHERE "endedAt" IS NULL;
+
+-- At most ONE withdrawal of a feature is not lifted. A lifted one keeps its row
+-- with `liftedFrom` set and leaves the index, so the feature can be withdrawn
+-- again from that date. Two operators announcing at the same moment therefore
+-- land one withdrawal, because the second insert meets the first.
+CREATE UNIQUE INDEX IF NOT EXISTS feature_withdrawals_one_open_per_feature
+    ON feature_withdrawals ("featureKey") WHERE "liftedFrom" IS NULL;
 
 -- A subscriber is live for at most ONE tenant, and a tenant has at most ONE
 -- live subscriber. A link that ended keeps its row with `unlinkedAt` set, so the

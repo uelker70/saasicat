@@ -19,6 +19,7 @@ const ORIGINS: Record<SubscriberChargeOrigin, true> = {
     bundleChange: true,
     credit: true,
     correction: true,
+    reductionTakenBack: true,
 };
 const SOURCES: Record<SubscriberChargeSource, true> = {
     plan: true,

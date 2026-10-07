@@ -276,7 +276,7 @@ So an entry that claims every case answers for it in one of two ways, and either
 - **a test names it.** An absolute is the easiest kind of promise to test — there is nothing to
   argue about at the edge.
 - **the entry names its exception.** Where the absolute is not quite true, say where it stops:
-  `SC-ENTL-021` names the one catalogue edit that reaches a running contract, `SC-LANG-002` names
+  `SC-ENTL-026` names the two things that reach a running contract, `SC-LANG-002` names
   the two defaults that disagree. Both are more useful than the absolute would have been.
 
 The rest is debt and is frozen exactly like the proof debt above, with the same fungible credit: a

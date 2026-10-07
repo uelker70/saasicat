@@ -3012,6 +3012,70 @@ installation has to do:
   for the replacement taken through `POST /billing/version-offer/accept` is refused with
   `VERSION_OFFER_CHANGED` and no offer; the early switch takes the subscription there.
 
+### An operator can withdraw a feature from everybody who holds it
+
+When a reason outside the platform takes a feature away, the operator withdraws it from a date: it is
+granted to nobody from then, everybody who holds it is told at once and pays less for the time
+without it, and may end at once while it is missing. How it works:
+[Withdrawing a Feature](wire-the-backend.md#withdrawing-a-feature). What every installation has to
+do:
+
+1. **Run the migration, and adopt the fragment.** `feature_withdrawals` keeps one row per
+   withdrawal, with a partial unique index that holds a feature to one withdrawal not lifted. Adopt
+   `prisma-fragments/20-feature-withdrawal.prisma` — or declare the model in `notAdopted` — and
+   apply `constraints.postgres.sql` after it, as on every deployment. Run it before the new version
+   serves a request: once the persistence bundle can keep withdrawals, every entitlement check reads
+   them, so without the table every check fails — not only the new routes.
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-feature-is-withdrawn.postgres.sql
+    ```
+
+2. **Handle the new kinds of notice.** With version notices on, `SubscriptionNotice` gains
+   `feature-withdrawn` (`FeatureWithdrawnNotice`), `feature-withdrawal-lifted`
+   (`FeatureWithdrawalLiftedNotice`) and `ended-at-once` (`EndedAtOnceNotice`). A port that switches
+   on `kind` adds all three; one whose last branch catches every other kind would send them as
+   whatever that branch sends.
+
+3. **Expect the journal's new entries.** The charge journal writes a reduction for the days without
+   a withdrawn feature, credits the rest of a period already charged and the unused rest of what
+   ends at once with the origin `credit`, and takes a reduction back with the new origin
+   `reductionTakenBack`. Code of your own that reads the journal's origins adds it; paying a credit
+   out is yours, since SaaSiCat starts no refund (`SC-PRIC-075`, which supersedes `SC-PRIC-003`).
+
+- **It is offered only where every subscription it reaches can be found.** A `SubscriptionUsagePort`
+  of your own needs `listBoundToVersion` and `listByIds`, a `SubscriptionBundleRepository` of your
+  own `listOfVersion`, and the plan repository `listVersions`; without them the administration does
+  not offer the action and nothing else changes. AutohausPro and VereinsFux keep their own usage
+  port without the first two, and get the action once they add them.
+- **Ending at once what is already cancelled** for a later date needs the new optional `endNow` on
+  a `TenantSubscriptionWritePort` and a `SubscriptionBundleRepository` of your own. Without it that
+  end is refused with `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` and the cancellation stands; ending
+  at once anything not cancelled works without it.
+- **A persistence contract harness** gains scenarios for a withdrawal and for ending at once; a
+  harness without them declares `gaps: ['featureWithdrawals', 'bookingsEndedNow',
+'subscriptionsEndedNow']` as it lacks each.
+- **The manifest** carries the capability `features.withdraw` where the routes are served, the
+  standard page `featureWithdrawals` (`/admin/feature-withdrawals`), and the audit actions
+  `FEATURE_WITHDRAW`, `FEATURE_WITHDRAWAL_LIFT`, `END_SUBSCRIPTION_AT_ONCE` and
+  `END_ADD_ON_AT_ONCE`. An admin shell that lists its pages by hand adds the page.
+- **`/billing/feature-registry`** marks a feature withdrawn now or from a date ahead with
+  `withdrawn`: each withdrawal of it not over yet, the earliest first, with its reason,
+  `effectiveFrom` and `liftedFrom`. `OnboardingConfigurator` and
+  `MySubscriptionBundlesPage` take that registry as the optional `featureRegistry` to mark it beside
+  the features they name; `TenantPlanSection` reads it on its own. Both `TenantPlanSection` and
+  `MySubscriptionBundlesPage` show the withdrawals reaching the subscription, with the ends at once,
+  and read `/billing/feature-withdrawals` for it — a route that answers 404 where withdrawals are
+  off, which hides them. The tenant texts gain `featureWithdrawn*` and `endAtOnce*`, and the feature
+  matrix's slot row gains `withdrawn`.
+- **New refusals** — the `FEATURE_WITHDRAWAL_*` codes. An application that words refusals itself
+  adds them; the shipped texts cover English and German until it does.
+- **What reaches a running contract** is now two things rather than one: a feature without its
+  code, and a withdrawn feature (`SC-ENTL-026`, which supersedes `SC-ENTL-021`). Add-ons and
+  bookings follow: an add-on that grants a withdrawn feature can be ended at once on its own
+  (`SC-BUN-062`), which `SC-BUN-063`, `SC-BUN-064` and `SC-BUN-065` say beside the rules they
+  supersede (`SC-BUN-009`, `SC-BUN-015`, `SC-BUN-016`).
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

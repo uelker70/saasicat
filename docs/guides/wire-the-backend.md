@@ -1017,6 +1017,14 @@ export class VersionNoticeMailer implements SubscriptionNoticePort {
                 await this.mail.send(admin.email, 'add-on-version-offered', {
                     offer: notice.offer,
                 });
+            } else if (
+                notice.kind === 'feature-withdrawn' ||
+                notice.kind === 'feature-withdrawal-lifted' ||
+                notice.kind === 'ended-at-once'
+            ) {
+                // A feature withdrawn, granted again, or what ended at once under it:
+                // see "Withdrawing a Feature" below.
+                await this.mail.send(admin.email, notice.kind, { notice });
             } else {
                 // Its one reminder, 14 days before the date, where staying put costs something.
                 await this.mail.send(admin.email, 'plan-version-reminder', { reminder: notice });
@@ -1360,6 +1368,78 @@ own `listByIds` for it, or a start with version notices is refused.
 with a contract in force when the offer's would take effect, or one beginning after it, with
 `CHECKOUT_OFFER_CONTRACT_IN_FORCE` (`SC-MKT-028`), and an offer naming another version of an add-on
 the tenant has booked with `CHECKOUT_OFFER_ADD_ON_BOOKED_IN_ANOTHER_VERSION` (`SC-MKT-029`).
+
+## Withdrawing a Feature
+
+A subscription keeps what it was sold — until a reason outside the platform takes a feature away: a
+service it depends on stops, or a law ends or changes it. Withdrawing the feature is the way through.
+From the date the operator names, the platform grants it to nobody, whichever plan version, add-on,
+frozen contract or special terms grant it (`SC-ENTL-025`); everybody who holds it is told at once,
+pays less for the time without it, and may end at once for as long as it is missing.
+
+**Wiring.** It needs version notices (above) and a place to keep each withdrawal: adopt
+`prisma-fragments/20-feature-withdrawal.prisma` and run `sql/1.0-a-feature-is-withdrawn.postgres.sql`
+once; both shipped bundles then provide `persistence.tenantBilling.featureWithdrawals`, and the
+platform writes on its own transaction runner. The administration offers it only where every
+subscription it reaches can be found (`SC-SUB-042`): a `SubscriptionUsagePort` of your own needs
+`listBoundToVersion` and `listByIds`, a `SubscriptionBundleRepository` of your own `listOfVersion`,
+and the plan repository `listVersions`. Without them the action is simply not offered — the
+manifest carries no `features.withdraw` capability and the routes answer
+`FEATURE_WITHDRAWAL_UNAVAILABLE`. Ending at once a subscription or a booking already cancelled for a
+later date needs `endNow` on your `TenantSubscriptionWritePort` and `SubscriptionBundleRepository`;
+without it that end is refused with `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED` and the cancellation
+stands, and everything else works.
+
+**What the operator does.** The administration's page "Withdrawn features" lists every withdrawal
+with how many subscriptions it reached, how many were told and how many ended at once. "Withdraw a
+feature" asks for the feature, the date — now or later, never before the announcement — and the
+reason the subscribers read, and shows the preview before anything is sent: every subscription it
+reaches with the lines that grant the feature, the ones holding it only through special terms, and
+the ones not reached because they end before the date. For each plan and each add-on in each rhythm
+it reaches, the operator names a net reduction per whole period, at most the lowest price it
+reduces; a line left without one is not reduced. The announcement asks for the second factor, is
+refused where the subscriptions it reaches changed since the preview (`FEATURE_WITHDRAWAL_PREVIEW_CHANGED`,
+with the preview as it stands), and is audited as `FEATURE_WITHDRAW`. A feature has one withdrawal
+not lifted at a time. "Lift" names the date from which the feature is granted again — audited as
+`FEATURE_WITHDRAWAL_LIFT` — and ends the reduction and the right to end at once. The routes are
+`GET /admin/feature-withdrawals/preview`, `POST` and `GET /admin/feature-withdrawals`, and
+`POST /admin/feature-withdrawals/:id/lift`.
+
+**What your port is handed.** One `feature-withdrawn` notice per subscription, recorded with the
+withdrawal in one transaction and then sent through the same `SubscriptionNoticePort`: the feature,
+the reason, `effectiveFrom`, each line it reached with its `reductionNet` (`null` where none was
+named), and `specialTerms` where the subscription holds the feature only through them — then no
+reduction applies by itself, which is yours to agree in the special contract. Lifting sends one
+`feature-withdrawal-lifted` to every subscription still running, and ending at once one
+`ended-at-once`, the confirmation of what ended. A notice that cannot be sent at once is sent by the
+next quarter-hourly run; with `versionNotices.includeCron: false`, call
+`FeatureWithdrawalService.sendUndelivered(new Date())` from your scheduler. Nobody is reminded:
+doing nothing costs the subscriber nothing.
+
+**What it costs.** The reductions are written into each subscription's contract as generated
+discount lines, at the announcement or into the next contract written for another reason
+(`SC-PRIC-072`). The journal charges each period less by the reduction for its days without the
+feature; where the date falls inside a period already charged, the rest of that period is credited.
+A reduction stays with the line it reached — across a move to another version of the same plan or
+add-on that still grants the feature, not past a change of plan or rhythm the subscriber makes.
+Where the days without it turn out fewer, the journal takes the difference back under the origin
+`reductionTakenBack` (`SC-PRIC-073`). Ending at once credits the unused rest of what was charged
+(`SC-PRIC-074`); the credit is written to the subscriber's account, and paying it out is yours —
+SaaSiCat starts no refund.
+
+**What the tenant sees.** `TenantPlanSection` shows each withdrawal beside the plan: why, from when,
+what each line is reduced by, and — for the tenant's administrators — "End subscription now" and,
+where an add-on grants the feature, "End … now" for that booking, each with what ends and what is
+credited read before the click (`SC-CANC-024`, `SC-BUN-062`). `MySubscriptionBundlesPage` shows the
+same notices above the add-ons. The routes are `GET /billing/feature-withdrawals` and `GET`/`POST
+/billing/feature-withdrawals/:id/end` and `…/:id/bookings/:subscriptionBundleId/end`, audited as
+`END_SUBSCRIPTION_AT_ONCE` and `END_ADD_ON_AT_ONCE`. Wherever the section names a feature as part of
+a plan or an add-on, a withdrawn one is marked with its reason and date rather than shown as
+included or not (`SC-CAT-017`). `OnboardingConfigurator` and `MySubscriptionBundlesPage` mark it
+once you hand them the registry from `/billing/feature-registry` as `featureRegistry`; a marketing
+page of your own reads the same field there, `withdrawn` — a list, because a feature can be
+withdrawn again from the day it returns. Whoever concludes while a feature is withdrawn does so at
+the price offered, without a reduction and without the right to end at once.
 
 ## Admin Module
 

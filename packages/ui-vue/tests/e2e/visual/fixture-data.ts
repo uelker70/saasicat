@@ -1135,18 +1135,116 @@ const MAINTENANCE_OVERVIEW = {
     takesEffectWithinSeconds: 5,
 };
 
+/**
+ * A withdrawal taking its feature away, and an older one lifted, both dated far
+ * enough back that where each stands does not move with the day the suite runs.
+ */
+const FEATURE_WITHDRAWALS = [
+    {
+        id: 'fw-2',
+        featureKey: 'audit',
+        featureLabel: 'Audit log',
+        reason: 'The archive service the audit log is kept in has been switched off.',
+        effectiveFrom: '2026-01-10T00:00:00.000Z',
+        liftedFrom: null,
+        reductions: [{ kind: 'plan', key: 'pro', billingCycle: 'MONTHLY', amountNet: 5 }],
+        announcedAt: '2026-01-08T09:00:00.000Z',
+        announcedBy: 'web:ops@example.com:s-1',
+        liftedAt: null,
+        liftedBy: null,
+        progress: { reached: 12, told: 11, endedAtOnce: 2 },
+    },
+    {
+        id: 'fw-1',
+        featureKey: 'sso',
+        featureLabel: 'Single sign-on',
+        reason: 'The identity provider changed its terms.',
+        effectiveFrom: '2025-11-01T00:00:00.000Z',
+        liftedFrom: '2025-12-01T00:00:00.000Z',
+        reductions: [],
+        announcedAt: '2025-10-28T09:00:00.000Z',
+        announcedBy: 'web:ops@example.com:s-1',
+        liftedAt: '2025-11-20T09:00:00.000Z',
+        liftedBy: 'web:ops@example.com:s-1',
+        progress: { reached: 4, told: 4, endedAtOnce: 0 },
+    },
+];
+
+/**
+ * A feature taken away from the subscription for a reason outside the
+ * platform: the plan reduced, the add-on that also grants it not, both ending
+ * at once open — and the registry marking the feature for the matrix.
+ */
+const TENANT_WITHDRAWN_REASON =
+    'The archive service the audit log is kept in has been switched off.';
+const TENANT_WITHDRAWN = {
+    withdrawals: [
+        {
+            withdrawalId: 'fw-2',
+            featureKey: 'audit',
+            featureLabel: 'Audit log',
+            reason: TENANT_WITHDRAWN_REASON,
+            effectiveFrom: '2026-01-10T00:00:00.000Z',
+            liftedFrom: null,
+            inEffect: true,
+            lines: [
+                {
+                    line: 'plan',
+                    key: 'PRO',
+                    label: 'Pro',
+                    subscriptionBundleId: null,
+                    billingCycle: 'MONTHLY',
+                    reductionNet: 5,
+                    reduced: true,
+                },
+                {
+                    line: 'bundle',
+                    key: 'ANALYTICS',
+                    label: 'Analytics',
+                    subscriptionBundleId: 'sb-1',
+                    billingCycle: 'MONTHLY',
+                    reductionNet: null,
+                    reduced: true,
+                },
+            ],
+            specialTerms: false,
+            endable: { subscription: true, subscriptionBundleIds: ['sb-1'] },
+        },
+    ],
+    registry: {
+        audit: {
+            label: 'Audit log',
+            description: 'Every change, who made it and when.',
+            icon: 'history',
+            withdrawn: [
+                {
+                    reason: TENANT_WITHDRAWN_REASON,
+                    effectiveFrom: '2026-01-10T00:00:00.000Z',
+                    liftedFrom: null,
+                },
+            ],
+        },
+        export: { label: 'Export', description: 'Download every note.', icon: 'download' },
+    },
+};
+
 /** Routing table. Matched EXACTLY — see `respondTo` for why. */
 /** The tenant billing routes under `prefix`, for one subscription and the offer it is made. */
 function tenantRoutes(
     prefix: string,
     usage: UsageSnapshotShape,
     offer: VersionOfferView | null,
+    withdrawn: { withdrawals: readonly unknown[]; registry: unknown } = {
+        withdrawals: [],
+        registry: { features: {}, quotas: {} },
+    },
 ): ReadonlyArray<readonly [string, unknown]> {
     return [
         [`${prefix}/usage`, usage],
         [`${prefix}/subscription-bundles`, TENANT_BUNDLES],
         [`${prefix}/plans`, TENANT_CATALOG_PLANS],
-        [`${prefix}/feature-registry`, { features: {}, quotas: {} }],
+        [`${prefix}/feature-registry`, withdrawn.registry],
+        [`${prefix}/feature-withdrawals`, withdrawn.withdrawals],
         [`${prefix}/bundles`, TENANT_CATALOG_BUNDLES],
         // Prices resolved for the tenant's plan. The public catalogue above cannot
         // answer this — it has no plan to resolve an override against — so the
@@ -1184,6 +1282,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/subscriptions', SUBSCRIPTION_ROWS],
     ['/api/admin/settings', APPLIED_SETTINGS],
     ['/api/admin/maintenance', MAINTENANCE_OVERVIEW],
+    ['/api/admin/feature-withdrawals', FEATURE_WITHDRAWALS],
     // The full snapshot, not an empty stand-in. It used to be one, because the
     // pages that render a scan were handed `FIXTURE_DISCOVERY` as a prop and
     // nothing read this route for its contents. They fetch it now: an empty
@@ -1232,6 +1331,9 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // A newer version of the plan, offered: a subscription of its own, so the
     // first case keeps rendering the section with nothing on offer.
     ...tenantRoutes('/api/offer-billing', TENANT_USAGE_WITH_AN_OFFER, TENANT_VERSION_OFFER),
+    // A feature withdrawn from the subscription: a subscription of its own, so
+    // the cases above keep rendering the section with nothing withdrawn.
+    ...tenantRoutes('/api/withdrawn-billing', TENANT_USAGE, null, TENANT_WITHDRAWN),
 ];
 
 /**

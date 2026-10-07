@@ -1616,6 +1616,12 @@ _Source:_ release 0.24.1
 
 _Tested by:_
 
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - reading the withdrawals
+        - a list of something else is an error, not withdrawals to draw
+- `packages/ui-vue/tests/component/feature-withdrawals-page.test.ts`
+    - FeatureWithdrawalsPage
+        - a resource of the application’s own that answers another shape does not take the page down
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - MaintenancePage
         - a resource of the application’s own that answers another shape does not take the page down
@@ -1682,6 +1688,9 @@ _Tested by:_
     - useAsyncData — subject
         - a change of subject drops what was loaded at once, so the previous one's never shows as
           the new one's
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, beside the plan
+        - says it could not read them where the route answers something else, and keeps the page
 
 <!-- END proof -->
 

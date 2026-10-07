@@ -52,6 +52,7 @@ export * from './settings.resource.js';
 export * from './maintenance.resource.js';
 export * from './version-retirements.resource.js';
 export * from './bundle-version-retirements.resource.js';
+export * from './feature-withdrawals.resource.js';
 
 import { auditResource } from './audit.resource.js';
 import { pilotsResource } from './pilots.resource.js';
@@ -60,6 +61,7 @@ import { bundleVersionsResource, bundlesResource } from './bundles.resource.js';
 import { catalogResource } from './catalog.resource.js';
 import { dashboardResource } from './dashboard.resource.js';
 import { discoveryResource } from './discovery.resource.js';
+import { featureWithdrawalsResource } from './feature-withdrawals.resource.js';
 import { maintenanceResource } from './maintenance.resource.js';
 import { marketingResource } from './marketing.resource.js';
 import { planVersionsResource, plansResource } from './plans.resource.js';
@@ -98,6 +100,7 @@ export const platformResources = {
     maintenance: maintenanceResource,
     versionRetirements: versionRetirementsResource,
     bundleVersionRetirements: bundleVersionRetirementsResource,
+    featureWithdrawals: featureWithdrawalsResource,
     // ── App-served, platform-shaped ──────────────────────────────────────────
     //
     // The platform ships pages for these three and serves no route for any of

@@ -228,6 +228,34 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         '{bundleName} moves to its new version on {date}, and your plan changes before then, so the price a switch would keep is not known yet. Switch once your plan has changed, or let it move on that date.',
     BUNDLE_VERSION_OFFER_CHANGED:
         'The offer changed since it was shown. Look at the current one before switching.',
+    FEATURE_WITHDRAWAL_UNAVAILABLE:
+        'Withdrawing a feature is not offered here: the stores cannot list everybody a withdrawal reaches.',
+    FEATURE_WITHDRAWAL_FEATURE_UNKNOWN: 'The catalogue knows no feature {featureKey}.',
+    FEATURE_WITHDRAWAL_DATE_IN_PAST:
+        'A feature is withdrawn from now on or from a later date, never from a date already past.',
+    FEATURE_WITHDRAWAL_OPEN:
+        '{featureKey} is withdrawn already, and that withdrawal is not lifted. Lift it before announcing another.',
+    FEATURE_WITHDRAWAL_OVERLAPS:
+        '{featureKey} is withdrawn until {date}. Another withdrawal can begin on that date at the earliest.',
+    FEATURE_WITHDRAWAL_REDUCTION_NOT_REACHED:
+        'The reduction for {key} billed {billingCycle} names nothing this withdrawal reaches.',
+    FEATURE_WITHDRAWAL_REDUCTION_NAMED_TWICE:
+        'The reduction for {key} billed {billingCycle} is named twice.',
+    FEATURE_WITHDRAWAL_REDUCTION_EXCEEDS_PRICE:
+        'The reduction for {key} billed {billingCycle} is more than the lowest price it reduces, {price}.',
+    FEATURE_WITHDRAWAL_PREVIEW_CHANGED:
+        'The subscriptions this withdrawal reaches changed since they were shown. Look at them again before announcing it.',
+    FEATURE_WITHDRAWAL_NOT_FOUND: 'Feature withdrawal {withdrawalId} not found.',
+    FEATURE_WITHDRAWAL_ALREADY_LIFTED: 'This withdrawal is lifted already, from {date}.',
+    FEATURE_WITHDRAWAL_LIFT_IN_PAST:
+        'A withdrawal is lifted from now on or from a later date, never from a date already past.',
+    FEATURE_WITHDRAWAL_NOT_IN_EFFECT:
+        '{featureKey} is not withdrawn now, so nothing can be ended at once because of it.',
+    FEATURE_WITHDRAWAL_DOES_NOT_REACH:
+        'This withdrawal does not reach your subscription, or no longer this booking.',
+    FEATURE_WITHDRAWAL_ALREADY_ENDED: 'This has ended already.',
+    FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
+        'Your cancellation for {date} is recorded, and it cannot be brought forward here. It ends on that date, and until then the reduction applies.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'No retirement of your version is waiting for its date, so there is nothing to switch to.',
     RETIREMENT_SWITCH_IN_TRIAL: 'The switch opens when your trial ends.',

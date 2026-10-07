@@ -15,7 +15,7 @@
 // journal's to say: the contract the switch writes marks the booking's new
 // line, and where it is dearer than the line before, the journal charges the
 // difference for the rest of the booking's period, and nothing where it is not
-// (`SC-PRIC-003`). The switch and that contract are one: where the contract
+// (`SC-PRIC-075`). The switch and that contract are one: where the contract
 // cannot be written, or the subscription moved meanwhile, the booking goes back
 // and the switch is refused. A trial commits to no period: there the booking
 // moves, and its contract is frozen when the trial converts.

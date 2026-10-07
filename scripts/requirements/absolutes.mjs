@@ -12,9 +12,9 @@
 //     more than any wording, and an absolute is the easiest kind of promise to
 //     write a test for: there is nothing to argue about at the edge.
 //   - **a named exception**. Where the absolute is not quite true, the entry
-//     says where it stops. `SC-ENTL-021` names the one catalogue edit that does
-//     reach a running contract; `SC-LANG-002` names the two defaults that
-//     disagree. Both are more useful than the absolute would have been.
+//     says where it stops. `SC-ENTL-026` names the two things that do reach a
+//     running contract; `SC-LANG-002` names the two defaults that disagree.
+//     Both are more useful than the absolute would have been.
 //     "There are no exceptions" is not one of these: it carries the word and
 //     names nothing, so the word standing before it is read too.
 //

@@ -311,7 +311,7 @@ describe('what a bundle may commit to', () => {
     });
 });
 
-// @requirement SC-BUN-016 — A tenant reads what a booking commits to before confirming it
+// @requirement SC-BUN-065 — A tenant reads what a booking commits to before confirming it
 describe('what the dialog promises before the booking', () => {
     // The confirmation states the term the booking commits to, and the write
     // caps that at the parent's end. A preview that does not cap it describes a

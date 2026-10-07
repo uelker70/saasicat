@@ -9,6 +9,7 @@ import type { ProviderSpec } from '../../core/di.js';
 import { EntitlementModule } from '../../entitlement/entitlement.module.js';
 
 import type { CompositionContext } from './context.js';
+import { featureWithdrawalsOf } from './feature-withdrawal.js';
 
 /**
  * The V3 entitlement stack.
@@ -17,12 +18,8 @@ import type { CompositionContext } from './context.js';
  * resolve entitlements and a non-global module would have to be imported by
  * each of them.
  */
-export function composeEntitlement({
-    options,
-    adapters,
-    persistence,
-    requiresFullEntitlement,
-}: CompositionContext): DynamicModule[] {
+export function composeEntitlement(ctx: CompositionContext): DynamicModule[] {
+    const { options, adapters, persistence, requiresFullEntitlement } = ctx;
     if (!requiresFullEntitlement) return [];
     return [
         EntitlementModule.forRoot({
@@ -38,6 +35,7 @@ export function composeEntitlement({
                 persistence?.entitlement?.subscriptionContractRepository,
             subscriptionBundleRepository: persistence?.entitlement?.subscriptionBundleRepository,
             bundleRepository: persistence?.entitlement?.bundleRepository,
+            featureWithdrawals: featureWithdrawalsOf(ctx)?.repository,
             imports: options.imports,
             global: Boolean(options.tenantBilling || options.subscriptionBundles),
         }),

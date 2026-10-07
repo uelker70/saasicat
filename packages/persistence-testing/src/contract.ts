@@ -36,6 +36,8 @@ import type {
     TransactionContext,
     VersionRetirementRepository,
     BundleVersionRetirementRepository,
+    FeatureWithdrawalRepository,
+    NewFeatureWithdrawal,
 } from '@saasicat/core';
 import {
     BILLING_ERROR_CODES,
@@ -507,6 +509,19 @@ const CONTRACT_GAPS: Record<
     subscriptionsById: {
         reason: 'adapter provides no SubscriptionUsagePort that reads subscriptions by id',
         present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listByIds),
+    },
+    featureWithdrawals: {
+        reason: 'adapter provides no FeatureWithdrawalRepository',
+        present: ({ adapter }) => Boolean(adapter.featureWithdrawals),
+    },
+    bookingsEndedNow: {
+        reason: 'adapter provides no SubscriptionBundleRepository that ends a cancelled booking at once',
+        present: ({ adapter, seed }) =>
+            Boolean(adapter.subscriptionBundleRepository?.endNow && seed.createBundleVersion),
+    },
+    subscriptionsEndedNow: {
+        reason: 'adapter provides no TenantSubscriptionWritePort that ends a cancelled subscription at once',
+        present: ({ adapter }) => Boolean(adapter.tenantSubscriptionWrite?.endNow),
     },
 };
 
@@ -7645,6 +7660,401 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     assert.equal(notice?.claimedAt, null, 'recorded, not yet told');
                 },
             );
+        });
+
+        describe('a feature withdrawal', () => {
+            const ANNOUNCED_AT = new Date('2026-05-04T08:15:00.125Z');
+            const WITHDRAWAL: NewFeatureWithdrawal = {
+                featureKey: 'BANK_SYNC',
+                reason: 'The bank interface the feature depends on has been switched off.',
+                effectiveFrom: new Date('2026-05-10T00:00:00.000Z'),
+                reductions: [
+                    { kind: 'plan', key: 'PRO', billingCycle: 'MONTHLY', amountNet: 4.5 },
+                    { kind: 'bundle', key: 'SYNC_PLUS', billingCycle: 'YEARLY', amountNet: 30 },
+                ],
+                announcedAt: ANNOUNCED_AT,
+                announcedBy: 'super-admin:ops@example.com',
+            };
+            const LIFT = {
+                liftedFrom: new Date('2026-06-01T00:00:00.000Z'),
+                liftedAt: new Date('2026-05-28T09:00:00.500Z'),
+                liftedBy: 'super-admin:ops@example.com',
+            };
+            const noticeOf = (withdrawalId: string): NoticeToRecord => ({
+                tenantId: 'tenant-withdrawn',
+                subscriptionId: 'sub-withdrawn',
+                kind: 'feature-withdrawn',
+                subject: withdrawalId,
+                content: { withdrawalId },
+            });
+
+            /** A scenario of the withdrawal, skipped where the harness declares it has none. */
+            function scenario(
+                name: string,
+                body: (
+                    withdrawals: FeatureWithdrawalRepository,
+                    notices: SubscriptionNoticeRepository,
+                ) => Promise<void>,
+            ): void {
+                test(name, async (t) => {
+                    const withdrawals = harness.adapter.featureWithdrawals;
+                    if (!withdrawals) {
+                        missing(t, 'featureWithdrawals');
+                        return;
+                    }
+                    const notices = harness.adapter.subscriptionNotices;
+                    if (!notices) {
+                        missing(t, 'subscriptionNotices');
+                        return;
+                    }
+                    await body(withdrawals, notices);
+                });
+            }
+
+            /** Created, which a scenario that withdraws a feature nobody has withdrawn expects. */
+            async function created(
+                withdrawals: FeatureWithdrawalRepository,
+                data: NewFeatureWithdrawal = WITHDRAWAL,
+                tx?: TransactionContext,
+            ) {
+                const withdrawal = await withdrawals.create(data, tx);
+                assert.ok(withdrawal, `${data.featureKey} is not withdrawn yet, so it is created`);
+                return withdrawal;
+            }
+
+            scenario('is kept with its reductions, when and by whom', async (withdrawals) => {
+                const withdrawal = await created(withdrawals);
+                assert.ok(withdrawal.id, 'the adapter assigns the id');
+                assert.equal(withdrawal.featureKey, WITHDRAWAL.featureKey);
+                assert.equal(withdrawal.reason, WITHDRAWAL.reason);
+                assert.equal(
+                    withdrawal.effectiveFrom.toISOString(),
+                    WITHDRAWAL.effectiveFrom.toISOString(),
+                );
+                assert.deepEqual(withdrawal.reductions, WITHDRAWAL.reductions);
+                assert.equal(withdrawal.announcedAt.toISOString(), ANNOUNCED_AT.toISOString());
+                assert.equal(withdrawal.announcedBy, WITHDRAWAL.announcedBy);
+                assert.equal(withdrawal.liftedFrom, null, 'not lifted');
+                assert.equal(withdrawal.liftedAt, null);
+                assert.equal(withdrawal.liftedBy, null);
+                assert.deepEqual(await withdrawals.findById(withdrawal.id), withdrawal);
+                assert.equal(await withdrawals.findById('no-such-withdrawal'), null);
+            });
+
+            scenario(
+                'holds a feature to one withdrawal not lifted, however many are announced at once',
+                async (withdrawals) => {
+                    const both = await Promise.all([
+                        withdrawals.create(WITHDRAWAL),
+                        withdrawals.create(WITHDRAWAL),
+                    ]);
+                    assert.equal(
+                        both.filter((withdrawal) => withdrawal !== null).length,
+                        1,
+                        'one of two announcements at the same moment lands',
+                    );
+                    assert.equal(
+                        await withdrawals.create(WITHDRAWAL),
+                        null,
+                        'and a later one meets it',
+                    );
+                    await created(withdrawals, { ...WITHDRAWAL, featureKey: 'OTHER_FEATURE' });
+                    assert.deepEqual(
+                        (await withdrawals.list())
+                            .map((withdrawal) => withdrawal.featureKey)
+                            .sort(),
+                        ['BANK_SYNC', 'OTHER_FEATURE'],
+                        'another feature is withdrawn beside it',
+                    );
+                },
+            );
+
+            scenario(
+                'is lifted once, and the feature can be withdrawn again afterwards',
+                async (withdrawals) => {
+                    const withdrawal = await created(withdrawals);
+
+                    const lifted = await withdrawals.lift(withdrawal.id, LIFT);
+
+                    assert.ok(lifted, 'the withdrawal is lifted');
+                    assert.equal(lifted.liftedFrom?.toISOString(), LIFT.liftedFrom.toISOString());
+                    assert.equal(lifted.liftedAt?.toISOString(), LIFT.liftedAt.toISOString());
+                    assert.equal(lifted.liftedBy, LIFT.liftedBy);
+                    assert.deepEqual(
+                        { ...lifted, liftedFrom: null, liftedAt: null, liftedBy: null },
+                        withdrawal,
+                        'and nothing else of it changes',
+                    );
+                    assert.deepEqual(await withdrawals.findById(withdrawal.id), lifted);
+                    assert.equal(
+                        await withdrawals.lift(withdrawal.id, {
+                            ...LIFT,
+                            liftedFrom: new Date('2026-07-01T00:00:00.000Z'),
+                        }),
+                        null,
+                        'a second lift does not move the date the first recorded',
+                    );
+                    assert.equal(
+                        (await withdrawals.findById(withdrawal.id))?.liftedFrom?.toISOString(),
+                        LIFT.liftedFrom.toISOString(),
+                    );
+                    assert.equal(await withdrawals.lift('no-such-withdrawal', LIFT), null);
+                    await created(withdrawals, {
+                        ...WITHDRAWAL,
+                        effectiveFrom: LIFT.liftedFrom,
+                        announcedAt: LIFT.liftedAt,
+                    });
+                },
+            );
+
+            scenario('is listed with the most recently announced first', async (withdrawals) => {
+                const first = await created(withdrawals);
+                const second = await created(withdrawals, {
+                    ...WITHDRAWAL,
+                    featureKey: 'LATER_FEATURE',
+                    announcedAt: new Date('2026-05-20T00:00:00.000Z'),
+                });
+                assert.deepEqual(
+                    (await withdrawals.list()).map((withdrawal) => withdrawal.id),
+                    [second.id, first.id],
+                );
+            });
+
+            scenario(
+                'is written with its notices in one transaction, or not at all',
+                async (withdrawals, notices) => {
+                    await assert.rejects(
+                        harness.adapter.transactionRunner.run(async (tx) => {
+                            const withdrawal = await created(withdrawals, WITHDRAWAL, tx);
+                            await notices.record([noticeOf(withdrawal.id)], ANNOUNCED_AT, tx);
+                            throw new Error('rolled back');
+                        }),
+                        /rolled back/,
+                    );
+                    assert.deepEqual(await withdrawals.list(), [], 'no withdrawal');
+                    assert.deepEqual(
+                        await notices.listForSubscription('sub-withdrawn'),
+                        [],
+                        'and no notice',
+                    );
+
+                    const kept = await harness.adapter.transactionRunner.run(async (tx) => {
+                        const withdrawal = await created(withdrawals, WITHDRAWAL, tx);
+                        await notices.record([noticeOf(withdrawal.id)], ANNOUNCED_AT, tx);
+                        return withdrawal;
+                    });
+                    const [notice] = await notices.listForSubscription('sub-withdrawn');
+                    assert.equal(notice?.kind, 'feature-withdrawn');
+                    assert.deepEqual(notice?.content, { withdrawalId: kept.id });
+                },
+            );
+
+            scenario(
+                'is lifted in the transaction it is given, or not at all',
+                async (withdrawals) => {
+                    const withdrawal = await created(withdrawals);
+                    await assert.rejects(
+                        harness.adapter.transactionRunner.run(async (tx) => {
+                            assert.ok(await withdrawals.lift(withdrawal.id, LIFT, tx));
+                            throw new Error('rolled back');
+                        }),
+                        /rolled back/,
+                    );
+                    assert.equal(
+                        (await withdrawals.findById(withdrawal.id))?.liftedFrom,
+                        null,
+                        'still not lifted',
+                    );
+                },
+            );
+        });
+
+        describe('a booking cancelled for a later date, ended at once', () => {
+            test('ends at the moment named, and only while its cancellation is the one read', async (t) => {
+                const repository = harness.adapter.subscriptionBundleRepository;
+                const { seed } = harness;
+                if (!repository?.endNow || !seed.createBundleVersion) {
+                    missing(t, 'bookingsEndedNow');
+                    return;
+                }
+                const { planVersionId } = await seed.createPlanVersion({
+                    planKey: 'END_ADD_ON',
+                    version: 1,
+                    quotas: {},
+                    features: [],
+                    published: true,
+                });
+                const { bundleVersionId } = await seed.createBundleVersion({
+                    bundleKey: 'ENDED_AT_ONCE',
+                    features: ['BANK_SYNC'],
+                });
+                const { subscriptionId } = await seed.createSubscription({
+                    tenantId: 'tenant-ended-booking',
+                    plan: 'END_ADD_ON',
+                    planVersionId,
+                });
+                const booking = (startedAt: string) =>
+                    repository.add({
+                        subscriptionId,
+                        bundleVersionId,
+                        startedAt: new Date(startedAt),
+                        minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
+                        billingCycle: 'MONTHLY',
+                        currentPeriodStart: new Date('2026-05-01T00:00:00.000Z'),
+                        currentPeriodEnd: new Date('2026-06-01T00:00:00.000Z'),
+                    });
+                const declaredFor = new Date('2027-02-01T00:00:00.000Z');
+                const cancelledBooking = await booking('2026-02-01T00:00:00.000Z');
+                const cancelled = await repository.cancel(cancelledBooking.id, {
+                    canceledAt: new Date('2026-04-10T00:00:00.000Z'),
+                    canceledEffectiveAt: declaredFor,
+                });
+                const at = new Date('2026-05-12T14:30:00.250Z');
+
+                assert.equal(
+                    await repository.endNow(cancelledBooking.id, {
+                        at,
+                        expectedCanceledEffectiveAt: new Date('2027-03-01T00:00:00.000Z'),
+                    }),
+                    null,
+                    'a cancellation other than the one read is left as it is',
+                );
+                const ended = await repository.endNow(cancelledBooking.id, {
+                    at,
+                    expectedCanceledEffectiveAt: declaredFor,
+                });
+
+                assert.ok(ended, 'the booking ends');
+                assert.equal(ended.canceledAt?.toISOString(), at.toISOString());
+                assert.equal(ended.canceledEffectiveAt?.toISOString(), at.toISOString());
+                /** A booking without its cancellation and the moment it was last written. */
+                const unended = ({
+                    canceledAt: _canceledAt,
+                    canceledEffectiveAt: _effectiveAt,
+                    updatedAt: _written,
+                    ...rest
+                }: typeof cancelled) => rest;
+                assert.deepEqual(unended(ended), unended(cancelled), 'nothing else of it changes');
+                assert.equal(
+                    (
+                        await repository.findById(cancelledBooking.id)
+                    )?.canceledEffectiveAt?.toISOString(),
+                    at.toISOString(),
+                    'and read so afterwards',
+                );
+                assert.equal(
+                    await repository.endNow(cancelledBooking.id, {
+                        at: new Date('2026-05-20T00:00:00.000Z'),
+                        expectedCanceledEffectiveAt: declaredFor,
+                    }),
+                    null,
+                    'a second end from the cancellation it has left claims nothing',
+                );
+
+                const running = await booking('2026-03-01T00:00:00.000Z');
+                assert.equal(
+                    await repository.endNow(running.id, {
+                        at,
+                        expectedCanceledEffectiveAt: declaredFor,
+                    }),
+                    null,
+                    'a booking not cancelled is not ended here',
+                );
+                assert.equal(
+                    (await repository.findById(running.id))?.canceledAt,
+                    null,
+                    'and stays uncancelled',
+                );
+                assert.equal(
+                    await repository.endNow(NO_SUCH_BOOKING, {
+                        at,
+                        expectedCanceledEffectiveAt: declaredFor,
+                    }),
+                    null,
+                );
+            });
+        });
+
+        describe('a subscription cancelled for a later date, ended at once', () => {
+            test('ends at the moment named, and only while its cancellation is the one read', async (t) => {
+                const writer = harness.adapter.tenantSubscriptionWrite;
+                if (!writer?.endNow) {
+                    missing(t, 'subscriptionsEndedNow');
+                    return;
+                }
+                const { planVersionId } = await harness.seed.createPlanVersion({
+                    planKey: 'END_PLAN',
+                    version: 1,
+                    quotas: {},
+                    features: ['BANK_SYNC'],
+                    published: true,
+                });
+                const subscriptionIn = (tenantId: string) =>
+                    harness.seed.createSubscription({
+                        tenantId,
+                        plan: 'END_PLAN',
+                        planVersionId,
+                        status: 'ACTIVE',
+                    });
+                await subscriptionIn('tenant-ended');
+                const declaredFor = new Date('2027-01-01T00:00:00.000Z');
+                await writer.cancelSubscription('tenant-ended', {
+                    canceledAt: new Date('2026-04-10T00:00:00.000Z'),
+                    effectiveAt: declaredFor,
+                    terminateNow: false,
+                });
+                const at = new Date('2026-05-12T14:30:00.250Z');
+
+                const moved = await writer.endNow('tenant-ended', {
+                    at,
+                    expectedCanceledEffectiveAt: new Date('2027-02-01T00:00:00.000Z'),
+                });
+                assert.equal(moved.ended, false, 'a cancellation other than the one read is left');
+                assert.equal(moved.canceledEffectiveAt?.toISOString(), declaredFor.toISOString());
+                assert.equal(moved.status, 'ACTIVE');
+
+                const ended = await writer.endNow('tenant-ended', {
+                    at,
+                    expectedCanceledEffectiveAt: declaredFor,
+                });
+                assert.deepEqual(
+                    {
+                        ended: ended.ended,
+                        canceledAt: ended.canceledAt?.toISOString(),
+                        canceledEffectiveAt: ended.canceledEffectiveAt?.toISOString(),
+                        status: ended.status,
+                    },
+                    {
+                        ended: true,
+                        canceledAt: at.toISOString(),
+                        canceledEffectiveAt: at.toISOString(),
+                        status: 'CANCELED',
+                    },
+                );
+                const stored =
+                    await harness.adapter.subscriptionRepository.findByTenantId('tenant-ended');
+                assert.equal(stored?.canceledEffectiveAt?.toISOString(), at.toISOString());
+                assert.equal(stored?.status, 'CANCELED');
+                const again = await writer.endNow('tenant-ended', {
+                    at: new Date('2026-05-20T00:00:00.000Z'),
+                    expectedCanceledEffectiveAt: declaredFor,
+                });
+                assert.equal(again.ended, false, 'a second end claims nothing');
+                assert.equal(again.canceledEffectiveAt?.toISOString(), at.toISOString());
+
+                await subscriptionIn('tenant-running');
+                const running = await writer.endNow('tenant-running', {
+                    at,
+                    expectedCanceledEffectiveAt: declaredFor,
+                });
+                assert.equal(
+                    running.ended,
+                    false,
+                    'a subscription not cancelled is not ended here',
+                );
+                assert.equal(running.canceledEffectiveAt, null);
+                assert.equal(running.status, 'ACTIVE');
+            });
         });
 
         describe('the bookings of one add-on version', () => {

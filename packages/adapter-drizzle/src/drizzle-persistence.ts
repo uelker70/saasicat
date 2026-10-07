@@ -17,6 +17,7 @@ import { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window
 import { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
 import { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
 import { DrizzleBundleVersionRetirementRepository } from './drizzle-bundle-version-retirement.repository.js';
+import { DrizzleFeatureWithdrawalRepository } from './drizzle-feature-withdrawal.repository.js';
 import { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
 import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
 import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
@@ -200,6 +201,10 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             bundleVersionRetirements: unless(
                 'tenantBilling.bundleVersionRetirements',
                 provide((client) => new DrizzleBundleVersionRetirementRepository(client)),
+            ),
+            featureWithdrawals: unless(
+                'tenantBilling.featureWithdrawals',
+                provide((client) => new DrizzleFeatureWithdrawalRepository(client)),
             ),
         },
         promo: {

@@ -77,6 +77,10 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             // module itself, so the page appears exactly where windows are
             // kept.
             maintenance: { enabled: true, requiredCapability: 'maintenance.manage' },
+            // Features withdrawn for a reason outside the platform. The
+            // capability is set where the stores can list everybody a
+            // withdrawal reaches, which is where the routes are served.
+            featureWithdrawals: { enabled: true, requiredCapability: 'features.withdraw' },
         },
     },
     tenants: {
@@ -186,6 +190,22 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
+            { key: 'FEATURE_WITHDRAW', label: 'Feature withdrawn', severity: 'high' },
+            {
+                key: 'FEATURE_WITHDRAWAL_LIFT',
+                label: 'Feature withdrawal lifted',
+                severity: 'high',
+            },
+            {
+                key: 'END_SUBSCRIPTION_AT_ONCE',
+                label: 'Subscription ended at once under a feature withdrawal',
+                severity: 'high',
+            },
+            {
+                key: 'END_ADD_ON_AT_ONCE',
+                label: 'Add-on ended at once under a feature withdrawal',
+                severity: 'medium',
+            },
             { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
             { key: 'USER_DEACTIVATE', label: 'User deactivated', severity: 'high' },
             { key: 'USER_REASSIGN_ADMIN', label: 'Admin role transferred', severity: 'high' },

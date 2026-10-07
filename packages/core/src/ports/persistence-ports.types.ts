@@ -54,6 +54,7 @@ import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
 import type { SubscriptionNoticeRepository } from './subscription-notice-ports.types.js';
 import type { BundleVersionRetirementRepository } from './bundle-version-retirement-ports.types.js';
 import type { VersionRetirementRepository } from './version-retirement-ports.types.js';
+import type { FeatureWithdrawalRepository } from './feature-withdrawal-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -194,6 +195,11 @@ export interface SaaSiCatPersistenceTenantBilling {
      * version is off, and retiring a plan version is not affected.
      */
     bundleVersionRetirements?: PersistenceProvider<BundleVersionRetirementRepository>;
+    /**
+     * The record of every feature withdrawal. Optional so an adapter written
+     * before it keeps working; without it, withdrawing a feature is off.
+     */
+    featureWithdrawals?: PersistenceProvider<FeatureWithdrawalRepository>;
 }
 
 /**

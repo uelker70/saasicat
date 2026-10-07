@@ -12,6 +12,7 @@ import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
     BundleRepository,
     BundleVersionRetirementRepository,
+    FeatureWithdrawalRepository,
     PlanCatalogSettings,
     SubscriberLedgerRepository,
     SubscriberRepository,
@@ -49,6 +50,10 @@ import { BundleVersionOfferService } from './bundle-version-offer.service.js';
 import { BundleVersionSwitchRunService } from './bundle-version-switch-run.service.js';
 import { BundleVersionSwitchService } from './bundle-version-switch.service.js';
 import { BundleVersionRetirementService } from './bundle-version-retirement.service.js';
+import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
+import { FeatureWithdrawalContractService } from './feature-withdrawal-contract.service.js';
+import { EndAtOnceService } from './end-at-once.service.js';
+import { FeatureWithdrawalTenantController } from './feature-withdrawal-tenant.controller.js';
 import type { AddOnsAhead } from './add-on-fits-plan.js';
 import {
     BUNDLE_DELETION_CHECK_TOKEN,
@@ -78,6 +83,8 @@ import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN,
+    FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
+    FEATURE_WITHDRAWAL_TRANSACTION_RUNNER_TOKEN,
     PENDING_PLAN_QUERY_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_PORT_TOKEN,
     SUBSCRIPTION_NOTICE_REPOSITORY_TOKEN,
@@ -220,6 +227,18 @@ export interface VersionNoticesOptions {
      * notices it makes. Confirmed terms without this refuse the start.
      */
     retirements?: VersionRetirementsOptions;
+    /**
+     * Lets an operator withdraw a feature for a reason outside the platform:
+     * where each withdrawal is kept, and the runner that writes it together
+     * with the notices it makes. Offered only where the stores can list
+     * everybody a withdrawal reaches (`FeatureWithdrawalService.available`).
+     */
+    featureWithdrawals?: FeatureWithdrawalsOptions;
+}
+
+export interface FeatureWithdrawalsOptions {
+    repository: ProviderSpec<FeatureWithdrawalRepository>;
+    transactionRunner: ProviderSpec<TransactionRunner>;
 }
 
 export interface VersionRetirementsOptions {
@@ -535,6 +554,20 @@ export class TenantBillingModule {
                 { provide: PLAN_VERSION_ENDING_CHECK_TOKEN, useExisting: VersionRetirementService },
             );
         }
+        const featureWithdrawals = versionNotices?.featureWithdrawals;
+        if (featureWithdrawals) {
+            providers.push(
+                asProvider(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN, featureWithdrawals.repository),
+                asProvider(
+                    FEATURE_WITHDRAWAL_TRANSACTION_RUNNER_TOKEN,
+                    featureWithdrawals.transactionRunner,
+                ),
+                FeatureWithdrawalService,
+                EndAtOnceService,
+                // Where contracts are frozen, the reductions go into them.
+                ...(hasContractFreeze ? [FeatureWithdrawalContractService] : []),
+            );
+        }
         // Retiring an add-on version reads the bookings and the versions they
         // name, which tenant billing has only where bookings are wired.
         const bundleRetirements =
@@ -613,7 +646,10 @@ export class TenantBillingModule {
             module: TenantBillingModule,
             global: options.global ?? false,
             imports: options.imports ?? [],
-            controllers: [TenantBillingController],
+            controllers: [
+                TenantBillingController,
+                ...(featureWithdrawals ? [FeatureWithdrawalTenantController] : []),
+            ],
             providers,
             exports: [
                 ComposedTenantAuthGuard,
@@ -643,6 +679,10 @@ export class TenantBillingModule {
                           RetirementSwitchService,
                           PLAN_VERSION_ENDING_CHECK_TOKEN,
                       ]
+                    : []),
+                ...(featureWithdrawals ? [FeatureWithdrawalService, EndAtOnceService] : []),
+                ...(featureWithdrawals && hasContractFreeze
+                    ? [FeatureWithdrawalContractService]
                     : []),
                 ...(bundleRetirements
                     ? [

@@ -159,7 +159,10 @@
                             {{ i18n.bundleIncludesLabel }}:
                         </div>
                         <ul>
-                            <li v-for="f in row.bundle.features" :key="f">{{ featureLabel(f) }}</li>
+                            <li v-for="f in row.bundle.features" :key="f">
+                                {{ featureLabel(f) }}
+                                <WithdrawnFeatureMark :feature-key="f" />
+                            </li>
                         </ul>
                     </div>
                     <TenantButton
@@ -204,6 +207,7 @@ import type {
 } from '@saasicat/core';
 import BundleRetiredNotice from './BundleRetiredNotice.vue';
 import VersionOfferCard from './VersionOfferCard.vue';
+import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
 
 // TenantBundleStore — bundle sales on the "Plan & usage" section (#15):
 // lists booked (cancelable) and available (bookable) catalog bundles.

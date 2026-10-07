@@ -108,15 +108,15 @@ properties it has while doing it.
 | #   | Chapter                                      | Identifiers  | Entries |
 | --- | -------------------------------------------- | ------------ | ------- |
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
-| 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
+| 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 61      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 41      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 43      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 23      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 71      |
-| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 24      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 75      |
+| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 610 entries: 🟢 526 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
-🔵 17 superseded, 🔴 3 withdrawn.
+Of 624 entries: 🟢 535 stand today, 🟡 64 decided but not yet delivered, ⚪ 0 drafts,
+🔵 22 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -200,18 +200,23 @@ Of 610 entries: 🟢 526 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
-🔵 **Superseded** — [SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
+🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
+[SC-BUN-015](#sc-bun-015--ending-with-the-plan-is-not-a-cancellation),
+[SC-BUN-016](#sc-bun-016--a-tenant-reads-what-a-booking-commits-to-before-confirming-it),
+[SC-BUN-023](#sc-bun-023--only-a-published-current-version-of-an-add-on-can-be-booked),
 [SC-BUN-047](#sc-bun-047--the-operator-sees-how-far-each-add-on-retirement-has-come),
 [SC-SUB-012](#sc-sub-012--a-new-version-of-a-plan-does-not-move-a-customer-who-already-bought-one),
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
 [SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
 [SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
+[SC-ENTL-021](#sc-entl-021--a-commercial-edit-does-not-reach-a-running-contract-a-feature-losing-its-code-does),
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
@@ -222,7 +227,7 @@ Of 610 entries: 🟢 526 stand today, 🟡 64 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 610 requirements. Do not edit by hand:
+Generated from `requirements/` — 624 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -1010,6 +1015,41 @@ _Tested by:_
         - plan with unknown feature → overall=error, kind=plan
         - bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN
         - findings are deterministically sorted (kind, entityKey, version, code)
+
+<!-- END proof -->
+
+### SC-CAT-017 — A withdrawn feature is marked wherever a plan or an add-on is shown with what it includes
+
+🟢 💰 With its reason and from when — and until when, where the withdrawal is lifted from a date ahead
+— beside the feature in the tenant's plan overview, the plan change, the add-on store and the
+booking preview, and the comparison of two versions; in the sign-up and the add-on page where the
+application hands them the feature registry; and as a field of the public feature registry, for a
+page the integrator writes. Whoever concludes while it is withdrawn does so knowing, at the price
+offered, without a reduction and without the right to end at once (`SC-PRIC-072`, `SC-CANC-024`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the features a catalogue marks as withdrawn
+        - are those withdrawn now or from a date ahead, until they are lifted
+    - the public feature registry
+        - marks a feature withdrawn now or ahead with why and from when
+        - marks both withdrawals of a feature withdrawn again from the day it returns, the earlier
+          first
+        - marks nothing once the withdrawal is lifted, or where none is kept
+        - fails rather than show a withdrawn feature as available
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, where the plan section names it
+        - marks the feature as not available rather than as not included
+    - the mark beside a withdrawn feature, mounted on its own and so in the default language
+        - says from when it is withdrawn ahead, and until when where it is lifted
+        - says each withdrawal, where one begins the day another is lifted
+        - keeps the reason as it was typed
+        - says nothing where nothing is withdrawn, or nobody said
 
 <!-- END proof -->
 
@@ -2739,10 +2779,19 @@ _Tested by:_
 
 ### SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
 
-🟢 Up to the moment its next period begins. The premise behind it is that no money is ever paid back:
-the tenant pays for the period they are in, it ends normally, and no refund arises.
+🔵 _(Superseded on 2026-10-06 by `SC-BUN-063`.)_ Up to the moment its next period begins. The premise
+behind it is that no money is ever paid back: the tenant pays for the period they are in, it ends
+normally, and no refund arises.
 
 _Source:_ #239 · #212
+
+### SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
+
+🟢 Up to the moment its next period begins. Cancelling pays nothing back: the tenant pays for the
+period they are in, and it ends normally. Ending a booking at once is a different act, open only
+while a feature it grants is withdrawn (`SC-BUN-062`).
+
+_Source:_ #239 · #212 · #357
 
 <!-- BEGIN proof -->
 
@@ -2983,19 +3032,52 @@ _Tested by:_
 
 ### SC-BUN-015 — Ending with the plan is not a cancellation
 
-🟢 No notice is given and none is needed, and the period the add-on is in when the plan ends is not
-refunded. The alignment exists so that day is a period boundary in the first place.
+🔵 _(Superseded on 2026-10-06 by `SC-BUN-064`.)_ No notice is given and none is needed, and the
+period the add-on is in when the plan ends is not refunded. The alignment exists so that day is a
+period boundary in the first place.
 
 _Source:_ #222
 
+### SC-BUN-064 — An add-on ending with its plan is not refunded, unless a withdrawal ends it at once
+
+🟢 💰 Ending with the plan is not a cancellation: no notice is given and none is needed, and the
+period the add-on is in when the plan ends is not refunded — the alignment exists so that day is a
+period boundary in the first place. Where the subscription ends at once while a feature it holds is
+withdrawn, the add-on's unused rest is credited with the plan's (`SC-PRIC-074`).
+
+_Source:_ #222 · #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - ending at once while the feature is withdrawn
+        - credits the unused rest of the plan and of every add-on, net of the reduction
+        - credits nothing for an end the account was not told was at once
+
+<!-- END proof -->
+
 ### SC-BUN-016 — A tenant reads what a booking commits to before confirming it
+
+🔵 _(Superseded on 2026-10-06 by `SC-BUN-065`.)_ When the first period ends, when the plan it hangs
+on ends, and plainly that a shortened booking is not refunded. The no-refund rule is fair only if it
+is read before the decision rather than discovered after it, and it is stated as a plain sentence
+rather than a warning, because it holds for every booking and a warning that always fires teaches
+people to skip warnings.
+
+_Source:_ #222
+
+### SC-BUN-065 — A tenant reads what a booking commits to before confirming it
 
 🟢 When the first period ends, when the plan it hangs on ends, and plainly that a shortened booking
 is not refunded. The no-refund rule is fair only if it is read before the decision rather than
 discovered after it, and it is stated as a plain sentence rather than a warning, because it holds
-for every booking and a warning that always fires teaches people to skip warnings.
+for every booking a tenant shortens by choice and a warning that always fires teaches people to skip
+warnings. The one shortening that is credited — ending at once while a feature the booking grants is
+withdrawn (`SC-BUN-062`) — is not a choice made when booking.
 
-_Source:_ #222
+_Source:_ #222 · #357
 
 <!-- BEGIN proof -->
 
@@ -4614,7 +4696,7 @@ _Tested by:_
 improvement and more for more take effect at once and keep the booking — its period, its terms, its
 rhythm and its minimum term. They cost the difference for the rest of the booking's current period
 where the new version is dearer in the booking's rhythm, which the journal records as an add-on
-change, and nothing where it is not (`SC-PRIC-003`); from the booking's next period the new price
+change, and nothing where it is not (`SC-PRIC-075`); from the booking's next period the new price
 applies. In a trial the booking moves and nothing is charged. One that takes something away is
 scheduled for the end of the booking's running term — the later of the end of the period it is in
 and its minimum term, never after the subscription ends — and the booking stays on its version until
@@ -4841,6 +4923,28 @@ _Tested by:_
           lands a moment before
         - asks nothing of a version after a date by which the booking ends
         - counts no minimum term while the retirement is ahead, whichever version stands in the way
+
+<!-- END proof -->
+
+### SC-BUN-062 — An add-on that grants a withdrawn feature can be ended at once on its own
+
+🟢 💰 Where a booking rather than the plan grants the feature a withdrawal takes away, the tenant's
+administrator may end that booking at once while the feature is missing, and the subscription runs
+on; the booking is credited its own unused rest (`SC-PRIC-074`). A booking already cancelled for a
+later date can end at once too, provided the application's booking store can end it early.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - ending a booking at once
+        - ends it alone, now, writes the contract again and credits its unused rest
+        - brings forward a booking cancelled for a later date
+        - is refused for a booking it did not reach, or whose version no longer grants it
+        - is refused once the booking has ended
 
 <!-- END proof -->
 
@@ -6304,6 +6408,146 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-042 — The operator withdraws a feature from everybody who holds it, and tells them at once
+
+🟢 💰 The operator names the feature, the reason the subscribers read, the date — now or later, never
+before the announcement — and a net reduction per plan and per add-on in each rhythm, at most the
+lowest price it reduces. The preview lists every subscription it reaches with the lines that grant
+the feature, and the ones it does not reach because they end before the date. Announcing needs the
+second factor, is refused where the subscriptions it reaches are no longer the ones shown, tells
+each of them at once and is audited; a notice that cannot be sent now is sent by the next run. A
+feature has one withdrawal not lifted at a time. Lifting it from a date grants the feature again
+from then, ends the reduction and the right to end at once, and tells every subscription still
+running. The tenant reads the withdrawal beside its plan. It is offered only where every
+subscription it reaches can be found — the application's subscription store lists by plan version
+and by id, its booking store by add-on version — and not offered elsewhere. A subscription without a
+contract in force that holds the feature only through its special terms is not found.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-feature-withdrawal-is-offered-where-it-is-wired.test.js`
+    - a feature withdrawal, in the composed module
+        - is offered where the installation keeps withdrawals and can find everybody
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal
+        - refuses a feature the catalogue does not know, before anything is read
+        - refuses a date before now, and takes now and a date ahead
+        - reaches a subscription on a plan version that grants the feature, with its line
+        - reaches through an old key a replaces chain carries to the feature
+        - does not count a draft that grants the feature
+        - reaches each booking of an add-on version that grants it, in its rhythm and price
+        - leaves out a booking that ends by the date, and skips a subscription that does
+        - reads the plan line from the contract in force, which is what is granted
+        - reaches special terms a contract in force records where no line grants the feature
+        - names each plan and add-on in a rhythm it reaches, with how many and the lowest price
+        - is blocked while a withdrawal of the feature is not lifted, or lifted only after the date
+    - where withdrawing a feature is offered
+        - only where everybody a withdrawal reaches can be found
+        - and is refused by the routes elsewhere, before anything is read
+    - announcing a withdrawal
+        - records it with a notice for each subscription in one transaction, then tells each
+        - writes the reductions into the contract of each subscription with a line reduced
+        - stands where writing a contract fails, which the journal does before it charges
+        - tells a line no reduction was named for that none applies
+        - refuses what is blocked, and keeps nothing
+        - refuses a reduction for nothing it reaches, one named twice, or one above the lowest price
+        - takes a reduction of the whole lowest price
+        - refuses when the subscriptions it reaches are not the ones shown
+        - lands once where another announcement got there first, and keeps nothing of its own
+        - leaves a notice it could not send for the next run
+    - lifting a withdrawal
+        - records the date, tells every subscription it reached that still runs
+        - from now where no date is given; never from a date already past
+        - refuses an unknown withdrawal, and one lifted already, naming its date
+        - lifted meanwhile by another operator, keeps what they recorded
+    - the list of withdrawals
+        - says how many it reached, how many were told, and how many ended at once
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - reading the withdrawals
+        - a tenant whose subscription was told sees them
+        - a 404 hides everything without an error: the installation does not withdraw features
+        - any other failure is an error to say, not an empty list
+        - a list of something else is an error, not withdrawals to draw
+        - an answer that is not a list is an error, not "nothing withdrawn"
+- `packages/ui-vue/tests/component/feature-withdrawals-page.test.ts`
+    - FeatureWithdrawalsPage
+        - with nothing withdrawn, it says what a withdrawal does and offers one
+        - a withdrawal shows its reason, where it stands and how far it has come; only an unlifted
+          one can be lifted
+        - a resource of the application’s own that answers another shape does not take the page down
+    - lifting in the dialog
+        - a date left empty lifts at once
+    - withdrawing in the dialog
+        - says whom it reaches, who holds it only by special terms, and who ends before
+        - asks a reduction per plan in its rhythm, and says which amount it cannot send
+        - a blocker is said in the operator’s words, with its date as they read one, and refuses the
+          button
+- `packages/ui-vue/tests/use-feature-withdrawals.test.js`
+    - the list of withdrawals, and lifting one
+        - reads every withdrawal when the page opens
+        - lifts from the date chosen behind the second factor, naming the feature, and reads the
+          list again
+        - a cancelled code lifts nothing and says nothing was written
+        - a refusal reaches the dialog, which keeps the form and shows why
+    - announcing a withdrawal
+        - offers every feature the catalogue still has
+        - reads the preview at once where no date is chosen, and from the date where one is
+        - asks for at once again when the date is cleared
+        - asks nothing for a date it cannot read, rather than taking it for at once
+        - keeps the answer to the latest question, not the one that arrives last
+        - a preview that fails says why and shows none
+        - is offered once a reason is given, and not while anything refuses it
+        - announces at once, with the reason, the reductions and the subscriptions shown
+        - announces from the date chosen, as an instant
+        - a cancelled code announces nothing, and says nothing was written
+        - a preview that changed meanwhile replaces the one shown, and says so
+        - a refusal reaches the dialog, which keeps the form and shows why
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, beside the plan
+        - says why, from when, and what each line is reduced by
+        - is not shown where the installation does not withdraw features
+        - says it could not read them where the route answers something else, and keeps the page
+        - is not shown where nothing is withdrawn
+        - says from when it will be missing, when it returns, and what a change or special terms
+          mean
+
+<!-- END proof -->
+
+### SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+
+🟢 💰 A subscription is reached where a change scheduled before the announcement — of plan, rhythm
+or plan version, or of a booking's add-on version — brings it to a line that grants the feature,
+whether the change lands before the date or after it. The preview lists that line beside the one it
+holds, the operator names a reduction for it as for any line, and the reduction applies to whichever
+of the two runs. A subscription scheduled away from the feature is still told, because the change
+can be taken back before it lands. A change scheduled after the announcement is concluded knowing
+(`SC-CAT-017`) and reaches nothing.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the reductions of a withdrawal
+        - reduce the line a change scheduled before the announcement brings, once its contract is
+          written
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - the preview of a withdrawal, where a change is scheduled
+        - reaches a subscription the change brings onto a version that grants the feature, with that
+          line
+        - reaches the plan in the rhythm the change brings it to, beside the one it holds
+        - still tells a subscription the change takes away from the feature, with the line it holds
+        - takes the newest version of another plan where the change names none
+        - reaches a booking the move brings onto an add-on version that grants the feature
+
+<!-- END proof -->
+
 ## 6. Changing a plan
 
 A plan change is where a tenant's money and a tenant's expectations meet, and both can be lost
@@ -6390,7 +6634,7 @@ _Tested by:_
 the customer is billed on becomes that day. It is charged in full, less what is left of the period
 it replaces at the price that was paid for it: Standard at 49 a month to Pro at 990 a year on day 15
 of 30 costs 990 − 24.50 = 965.50. The rest only reduces this charge and is never paid out
-(`SC-PRIC-003`).
+(`SC-PRIC-075`).
 
 _Source:_ #318
 
@@ -7506,6 +7750,60 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
+
+🟢 💰 Without notice, at the moment the tenant's administrator declares it, for as long as the feature
+is missing — also where the subscription is already cancelled for a later date, provided the
+application's subscription store can end it early; where it cannot, the refusal says so and the
+cancellation stands. Before confirming, the tenant reads what ends and what is credited
+(`SC-PRIC-074`). Every add-on ends with the subscription. Nobody else in the tenant may end it, and
+a subscription the withdrawal did not reach, or one that has ended, is refused with its code. Nobody
+is reminded: doing nothing costs the subscriber nothing, because the reduction applies by itself
+(`SC-PRIC-072`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - what the tenant sees of a withdrawal
+        - says what is reduced, and what may end at once
+        - opens nothing before the date, and is gone once the withdrawal is lifted
+        - ends the reduction with a change of plan or rhythm, and the right with the feature
+        - shows nothing to a subscription it did not reach
+    - ending a subscription at once
+        - ends it now, records it first, ends the contract and credits the unused rest
+        - brings forward a cancellation declared for the end of the term
+        - is refused, and nothing recorded, where the store cannot bring a declared end forward
+        - is refused as one that cannot be brought forward where only the declaration date names the
+          end
+        - is refused for a withdrawal it was not told of, or one not in effect now
+        - is refused once it has ended, and where the plan no longer grants the feature
+        - is open to a subscription reached through its special terms alone
+        - a second attempt after a failure ends at its own moment, not the failed one
+        - is refused where the cancellation moved meanwhile
+        - shows what it would credit first, refused as the end would be
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - an end at once, sent by the run
+        - is told where the subscription or the booking ended at its moment, and never where the end
+          failed
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - ending at once
+        - asks what the subscription would credit, and ends it, under the prefix given
+        - ends one booking by its own path
+        - a refused end is thrown to the card, and nothing is read again
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - ending at once while a feature is withdrawn
+        - names what ends and what is credited before the click, and ends it on confirmation
+        - ends one add-on by name, and says when nothing is credited
+        - a refused question says why and offers no confirmation
+    - the page of the tenant’s add-ons
+        - tells of the withdrawal too, and reads the bookings again once one ended at once
+
+<!-- END proof -->
+
 ## 8. Trials, pilots and negotiated arrangements
 
 Not every subscription is an ordinary paid one. A trial commits to nothing, a pilot is a granted
@@ -7771,11 +8069,21 @@ _Tested by:_
 
 ### SC-PRIC-003 — This platform never pays money back
 
-🟢 💰 A prorated fee is floored at zero. Where a change lowers the price, the upgrade is free rather
-than producing a credit, and a cancellation is never refunded pro rata — the booking stays active
-and paid to the end of its period.
+🔵 _(Superseded on 2026-10-06 by `SC-PRIC-075`.)_ 💰 A prorated fee is floored at zero. Where a change
+lowers the price, the upgrade is free rather than producing a credit, and a cancellation is never
+refunded pro rata — the booking stays active and paid to the end of its period.
 
 _Source:_ #212 · release 1.0.0-rc.6
+
+### SC-PRIC-075 — No charge is paid back, except the unused rest of what a withdrawal ends at once
+
+🟢 💰 A prorated fee is floored at zero. Where a change lowers the price, the upgrade is free rather
+than producing a credit, and a cancellation is never refunded pro rata — the booking stays active
+and paid to the end of its period. The one exception is a subscription or a booking ended at once
+while a feature it holds is withdrawn: the unused rest of what was charged is credited to the
+account (`SC-PRIC-074`). SaaSiCat itself never initiates a refund.
+
+_Source:_ #212 · release 1.0.0-rc.6 · #357
 
 <!-- BEGIN proof -->
 
@@ -8475,7 +8783,7 @@ of 30 is 25.00. A further upgrade in the same period is charged from the price b
 longer rhythm it is the new period in full, less the unused rest of the period it replaces, at the
 price in force just before the change: 990 − 24.50 = 965.50. That is never below nothing, and the
 renewals run on from the new period's end. A contract written again at the same price adds
-nothing, and nothing is paid out (`SC-PRIC-003`).
+nothing, and nothing is paid out (`SC-PRIC-075`).
 
 _Source:_ #318
 
@@ -8840,7 +9148,7 @@ settled there, and the credit it became shrinks by its part; never an invoice al
 partial reversal reduces the credit first and reopens invoices only with what remains, so the
 operator is not left refunding what is owed again. Where the credit's part was already refunded,
 that part is shown to the operator to reconcile. A refund is different: SaaSiCat never initiates
-one (`SC-PRIC-003`), and one the operator makes in the gateway is recorded against the credit it
+one (`SC-PRIC-075`), and one the operator makes in the gateway is recorded against the credit it
 pays out, reopening nothing; a refund that matches no credit is shown to the operator to reconcile.
 A credit the gateway can no longer refund, because the payment's gateway account is no longer
 configured (`SC-PRIC-030`) or the gateway's own refund period has passed, is paid out by the
@@ -9691,6 +9999,110 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PRIC-072 — A line that loses a withdrawn feature is charged less for the time without it
+
+🟢 💰 Each plan line and each booking the withdrawal reached is reduced by the amount named for its
+plan or add-on in its rhythm, for the days without the feature, pro rata within a period and never
+below nothing. Where the date falls inside a period already charged, the rest of that period from
+the date is credited. The reduction is written into the contract as a generated discount line — at
+the announcement, or into the next contract written for another reason — and it stays with the line
+it reached: across a move to another version of the same plan or add-on that still grants the
+feature, and not past a change of plan or rhythm the subscriber makes, which ends it from the new
+plan's first period. What is concluded after the announcement is not reduced (`SC-CAT-017`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the reductions of a withdrawal
+        - are written into a successor of the contract in force, which keeps everything else
+        - are written once
+        - reduce a line no further than its price
+        - reduce only the lines the subscription was told of, as it was told of them
+        - reduce the line a change scheduled before the announcement brings, once its contract is
+          written
+        - write nothing for a withdrawal lifted before its date
+        - wait for a contract where none is in force
+        - go into a contract a later change writes, where none records them yet
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - a period charged before the withdrawal takes effect
+        - is credited from its date for the rest of the period, and not before the date
+    - a period charged while the feature is withdrawn
+        - is reduced with its charge, and the next one is not once the feature is back
+        - is reduced in advance for the days from a date that falls inside it
+        - is reduced pro rata where the return is known when it is charged
+        - is never taken below nothing
+    - two withdrawals of one line
+        - each take off their own days, up to what those days cost
+        - take off no more than their days cost where another discount lowers the period
+        - never take more together than the period costs, and the other gains what one gives back
+        - give the other nothing of the days one returns before they have returned
+        - never take more together than the period costs before one returns, where the other holds
+          nothing yet
+        - never take more together than the period costs where one begins after the other
+    - the line a reduction stays with
+        - is the plan in its rhythm on any version that grants the feature
+        - and not a version that no longer grants it
+        - and not another plan the subscriber changed to
+    - a reduction no contract records yet
+        - is written into the contract before the period is charged
+        - is asked for only where the subscription was told of a withdrawal
+        - leaves the rest charged where writing it fails
+
+<!-- END proof -->
+
+### SC-PRIC-073 — A reduction for days the feature turned out not to miss is taken back
+
+🟢 💰 Where the days without the feature turn out fewer than a period was reduced for — the withdrawal
+is lifted, or the line stops running before the period ends — the journal takes back the reduction
+for the days it no longer covers, under its own origin `reductionTakenBack` rather than as a
+correction.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - a reduction granted for days the feature turned out to be there
+        - is taken back from the day it returned, on that day
+        - takes nothing back where the withdrawal was lifted before its date
+        - ends with a change into a longer rhythm, which credits the rest of the period
+
+<!-- END proof -->
+
+### SC-PRIC-074 — Ending at once under a withdrawal credits the unused rest of what was charged
+
+🟢 💰 A subscription ended at once (`SC-CANC-024`) is credited the unused rest of every period already
+charged — its plan's and every add-on's — and a booking ended at once (`SC-BUN-062`) its own, each
+net of the reduction for those days. The credit is shown before the end is confirmed and written to
+the subscriber's account once; SaaSiCat starts no payment, and the operator pays it out.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - ending at once while the feature is withdrawn
+        - shows first what it then credits: ${name}
+        - credits the unused rest of the plan and of every add-on, net of the reduction
+        - credits no more than the period cost, however the rest and the reduction round
+        - credits no more than a longer rhythm's period cost, whatever the period it replaced gave
+          back
+        - credits the rest of a booking that ends at once alone, and its reduction
+        - shows first the credit it then writes, and writes nothing to show it
+        - credits nothing for an end the account was not told was at once
+        - credits nothing where the end recorded is not the one the notice names
+        - writes each entry once however often the account is brought up to date
+
+<!-- END proof -->
+
 ## 10. What a tenant may do at runtime
 
 Everything above decides what was sold. This chapter is about the moment it is applied: a request
@@ -9806,13 +10218,24 @@ _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
 
 ### SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
 
-🟢 What was sold stays sold: a price, a quota or a feature set changed in the catalogue leaves an
-agreed contract alone. The one edit that does reach it is a feature marked as not yet rolled out,
-because that is not a statement about the offer but about whether the capability exists —
-`SC-ENTL-003` holds there too, and granting a feature with no code behind it would only weaken the
-guard in front of it.
+🔵 _(Superseded on 2026-10-06 by `SC-ENTL-026`.)_ What was sold stays sold: a price, a quota or a
+feature set changed in the catalogue leaves an agreed contract alone. The one edit that does reach
+it is a feature marked as not yet rolled out, because that is not a statement about the offer but
+about whether the capability exists — `SC-ENTL-003` holds there too, and granting a feature with no
+code behind it would only weaken the guard in front of it.
 
 _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
+
+### SC-ENTL-026 — What was sold stays sold, except a feature losing its code or withdrawn
+
+🟢 A price, a quota or a feature set changed in the catalogue leaves an agreed contract alone. Two
+things do reach it, and neither is a statement about the offer. One is a feature marked as not yet
+rolled out, because that says whether the capability exists — `SC-ENTL-003` holds there too, and
+granting a feature with no code behind it would only weaken the guard in front of it. The other is a
+feature withdrawn for a reason outside the platform (`SC-ENTL-025`), whose subscribers are told at
+once and charged less for the time without it (`SC-PRIC-072`).
+
+_Source:_ `docs/explanation/capability-to-contract.md` · `README.md` · #357
 
 <!-- BEGIN proof -->
 
@@ -9836,7 +10259,7 @@ _Tested by:_
 ### SC-ENTL-022 — An operator is told which running contracts hold a feature vocabulary left behind
 
 🟢 A contract keeps the feature keys it was frozen with, so a key renamed, dropped or added in a plan
-version afterwards does not reach it (`SC-ENTL-021`). `<app> doctor` names each contract in force
+version afterwards does not reach it (`SC-ENTL-026`). `<app> doctor` names each contract in force
 whose frozen features hold a key that neither the application's code nor the catalogue knows any
 more, or lack a feature that the plan version its subscription is bound to and the add-on versions
 it covers grant today and that no `replaces` declaration carries one of its keys to. It names them
@@ -9873,7 +10296,7 @@ _Tested by:_
 ### SC-ENTL-023 — An operator carries a changed vocabulary into running contracts, seeing it first
 
 🟢 Only on the operator's command, for the contracts named or for every contract in force — never by
-itself (`SC-ENTL-021`). For each contract the command first shows what it would change: its
+itself (`SC-ENTL-026`). For each contract the command first shows what it would change: its
 features, quotas, price, tax rate and currency. It writes only when asked a second time. By default
 it replaces the frozen features alone, with those the plan version and the add-on versions the
 contract covers grant today, and copies the lines, prices, terms and parties as they stand. Asked to
@@ -10331,6 +10754,45 @@ _Tested by:_
         - names exactly the keys the platform reads
         - every route that carries them refers to it
         - a value written to the schema is read whole
+
+<!-- END proof -->
+
+### SC-ENTL-025 — A feature withdrawn for a reason outside the platform is granted to nobody
+
+🟢 💰 From the date the operator names until the withdrawal is lifted, whatever grants it: a plan
+version, an add-on, a contract frozen with it, or special terms. The cause lies outside the platform
+— a service the feature depends on stopped, or a law took it away — so it reaches everybody who
+holds the feature, and an answer cached before the date is not given after it (`SC-SUB-042`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-feature-withdrawal-is-offered-where-it-is-wired.test.js`
+    - the default feature guard, in the composed module
+        - grants a withdrawn feature to nobody, and the feature again where nothing is withdrawn
+- `packages/nest/tests/a-withdrawn-feature-is-granted-to-nobody.test.js`
+    - a withdrawn feature
+        - is granted by no plan while the withdrawal holds, and nothing else is taken
+        - is granted until its date and from the moment it is lifted, to the millisecond
+        - that was lifted before its date never takes the feature away
+        - of another feature leaves this one alone
+        - is not granted by a contract frozen with it
+        - is not granted by an add-on booked on top
+        - is not granted by special terms
+        - is not granted by the floor a cancelled subscription falls back to
+        - is not granted through an old key that a replaces chain carries to it
+        - is still recorded by a contract frozen while it is withdrawn
+        - is withdrawn from nobody where the installation keeps no withdrawals
+    - an answer cached before a withdrawal changes
+        - is not served past the moment it takes effect
+        - is not put back by an answer read before ${name} was invalidated
+        - nor past the moment it is lifted
+    - the default enforcement stack
+        - does not grant a withdrawn feature either
+        - and grants it where nothing is withdrawn
 
 <!-- END proof -->
 
@@ -15119,6 +15581,12 @@ _Source:_ release 0.24.1
 
 _Tested by:_
 
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - reading the withdrawals
+        - a list of something else is an error, not withdrawals to draw
+- `packages/ui-vue/tests/component/feature-withdrawals-page.test.ts`
+    - FeatureWithdrawalsPage
+        - a resource of the application’s own that answers another shape does not take the page down
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - MaintenancePage
         - a resource of the application’s own that answers another shape does not take the page down
@@ -15185,6 +15653,9 @@ _Tested by:_
     - useAsyncData — subject
         - a change of subject drops what was loaded at once, so the previous one's never shows as
           the new one's
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, beside the plan
+        - says it could not read them where the route answers something else, and keeps the page
 
 <!-- END proof -->
 
@@ -17313,6 +17784,8 @@ _Tested by:_
         - an unclosed brace is left alone rather than eating the rest
         - a message without placeholders is one part
         - two dates are both emphasised
+    - a message becomes one string
+        - with its values in place, as they were given
 
 <!-- END proof -->
 

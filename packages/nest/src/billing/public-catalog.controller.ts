@@ -2,11 +2,14 @@ import { Controller, Get, Inject, Optional, Query } from '@nestjs/common';
 import {
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
+    withdrawnFeaturesOf,
     type BundleRepository,
     type BundleVersionRow,
     type CatalogEntryRepository,
     type FeatureRequiresIndex,
     type FeatureUiRegistry,
+    type FeatureWithdrawalMark,
+    type FeatureWithdrawalRepository,
     type MarketingProjectionRepository,
     type MarketingProjectionRow,
     type MarketingTopFeature,
@@ -20,6 +23,7 @@ import {
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
 } from './public-catalog.tokens.js';
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
+import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from './tenant-billing.tokens.js';
 import { getMarketedPlans } from './plan-helpers.js';
 
 // PublicCatalogController — auth-free readable catalog for marketing,
@@ -92,6 +96,9 @@ export class PublicCatalogController {
         @Optional()
         @Inject(PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntryRepo: CatalogEntryRepository | null = null,
+        @Optional()
+        @Inject(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN)
+        private readonly featureWithdrawals: FeatureWithdrawalRepository | null = null,
     ) {}
 
     @Get('plans')
@@ -122,8 +129,32 @@ export class PublicCatalogController {
         return plans;
     }
 
+    /**
+     * The feature registry, each feature withdrawn now or from a date ahead
+     * marked with why and from when. Unlike the icon overlay, a failure to read
+     * the withdrawals is not answered with the registry as it stands: that
+     * would show a withdrawn feature as available to somebody about to buy it.
+     */
     @Get('feature-registry')
     async listFeatureRegistry(): Promise<FeatureUiRegistry> {
+        const registry = await this.registryWithIcons();
+        if (!this.featureWithdrawals) return registry;
+        const withdrawn = withdrawnFeaturesOf(await this.featureWithdrawals.list(), new Date());
+        if (withdrawn.length === 0) return registry;
+        const byFeature = new Map<string, FeatureWithdrawalMark[]>();
+        for (const { featureKey, reason, effectiveFrom, liftedFrom } of withdrawn) {
+            const marks = byFeature.get(featureKey) ?? [];
+            byFeature.set(featureKey, [...marks, { reason, effectiveFrom, liftedFrom }]);
+        }
+        const marked: FeatureUiRegistry = { ...registry };
+        for (const [featureKey, marks] of byFeature) {
+            const meta = marked[featureKey];
+            if (meta) marked[featureKey] = { ...meta, withdrawn: marks };
+        }
+        return marked;
+    }
+
+    private async registryWithIcons(): Promise<FeatureUiRegistry> {
         // Overlay (#13): the editable FeatureCatalogEntry.icon from the DB
         // wins over the static registry icon; label/description stay from the
         // registry (auto-sync sets label=featureKey fallback). DB errors must

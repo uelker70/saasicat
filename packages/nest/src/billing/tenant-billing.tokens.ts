@@ -178,6 +178,16 @@ export const VERSION_RETIREMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
     'saasicat/nest/VersionRetirementTransactionRunner',
 );
 
+/** Where feature withdrawals are kept (`FeatureWithdrawalRepository`). */
+export const FEATURE_WITHDRAWAL_REPOSITORY_TOKEN = Symbol.for(
+    'saasicat/nest/FeatureWithdrawalRepository',
+);
+
+/** Writes a withdrawal and its notices in one transaction (`TransactionRunner`). */
+export const FEATURE_WITHDRAWAL_TRANSACTION_RUNNER_TOKEN = Symbol.for(
+    'saasicat/nest/FeatureWithdrawalTransactionRunner',
+);
+
 /** Where add-on retirement announcements are kept (`BundleVersionRetirementRepository`). */
 export const BUNDLE_VERSION_RETIREMENT_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/BundleVersionRetirementRepository',

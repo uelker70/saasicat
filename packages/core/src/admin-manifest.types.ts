@@ -85,7 +85,8 @@ export type StandardPageKey =
     | 'platformEmail'
     | 'platformEmailHistory'
     | 'settings'
-    | 'maintenance';
+    | 'maintenance'
+    | 'featureWithdrawals';
 
 export interface StandardPageDef {
     enabled: boolean;

@@ -243,7 +243,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
     });
 });
 
-// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
 // @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
 // @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {

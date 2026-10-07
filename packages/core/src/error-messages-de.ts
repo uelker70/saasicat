@@ -229,6 +229,34 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{bundleName} zieht am {date} auf seine neue Version um, und Ihr Paket ändert sich vorher. Der Preis, den ein Wechsel halten würde, steht deshalb noch nicht fest. Wechseln Sie, sobald Ihr Paket gewechselt hat, oder lassen Sie es an diesem Tag umziehen.',
     BUNDLE_VERSION_OFFER_CHANGED:
         'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
+    FEATURE_WITHDRAWAL_UNAVAILABLE:
+        'Ein Feature zurückzuziehen ist hier nicht möglich: Die Speicher können nicht alle auflisten, die ein Rückzug erreicht.',
+    FEATURE_WITHDRAWAL_FEATURE_UNKNOWN: 'Der Katalog kennt kein Feature {featureKey}.',
+    FEATURE_WITHDRAWAL_DATE_IN_PAST:
+        'Ein Feature wird ab jetzt oder ab einem späteren Datum zurückgezogen, nie ab einem vergangenen.',
+    FEATURE_WITHDRAWAL_OPEN:
+        '{featureKey} ist bereits zurückgezogen, und dieser Rückzug ist nicht aufgehoben. Heben Sie ihn auf, bevor Sie einen weiteren ankündigen.',
+    FEATURE_WITHDRAWAL_OVERLAPS:
+        '{featureKey} ist bis zum {date} zurückgezogen. Ein weiterer Rückzug kann frühestens an diesem Tag beginnen.',
+    FEATURE_WITHDRAWAL_REDUCTION_NOT_REACHED:
+        'Die Minderung für {key} bei Abrechnung {billingCycle} betrifft nichts, was dieser Rückzug erreicht.',
+    FEATURE_WITHDRAWAL_REDUCTION_NAMED_TWICE:
+        'Die Minderung für {key} bei Abrechnung {billingCycle} ist doppelt angegeben.',
+    FEATURE_WITHDRAWAL_REDUCTION_EXCEEDS_PRICE:
+        'Die Minderung für {key} bei Abrechnung {billingCycle} ist höher als der niedrigste Preis, den sie mindert: {price}.',
+    FEATURE_WITHDRAWAL_PREVIEW_CHANGED:
+        'Die Abonnements, die dieser Rückzug erreicht, haben sich seit der Anzeige geändert. Sehen Sie sie erneut an, bevor Sie ihn ankündigen.',
+    FEATURE_WITHDRAWAL_NOT_FOUND: 'Rückzug {withdrawalId} nicht gefunden.',
+    FEATURE_WITHDRAWAL_ALREADY_LIFTED: 'Dieser Rückzug ist bereits aufgehoben, ab dem {date}.',
+    FEATURE_WITHDRAWAL_LIFT_IN_PAST:
+        'Ein Rückzug wird ab jetzt oder ab einem späteren Datum aufgehoben, nie ab einem vergangenen.',
+    FEATURE_WITHDRAWAL_NOT_IN_EFFECT:
+        '{featureKey} ist gerade nicht zurückgezogen. Deshalb kann nichts sofort beendet werden.',
+    FEATURE_WITHDRAWAL_DOES_NOT_REACH:
+        'Dieser Rückzug betrifft Ihr Abonnement nicht, oder diese Buchung nicht mehr.',
+    FEATURE_WITHDRAWAL_ALREADY_ENDED: 'Das ist bereits beendet.',
+    FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED:
+        'Ihre Kündigung zum {date} ist erfasst und kann hier nicht vorgezogen werden. Sie endet an diesem Tag, und bis dahin gilt die Minderung.',
     RETIREMENT_SWITCH_NOT_PENDING:
         'Für Ihre Version steht keine Einstellung mehr bevor. Es gibt nichts, wohin Sie wechseln könnten.',
     RETIREMENT_SWITCH_IN_TRIAL: 'Der Wechsel ist möglich, sobald Ihre Testphase endet.',

@@ -1387,6 +1387,29 @@ model BundleVersionRetirement {
 }
 
 // =============================================================================
+// FeatureWithdrawal — every feature withdrawn for an external reason (20-feature-withdrawal.prisma)
+// =============================================================================
+
+model FeatureWithdrawal {
+    id         String @id @default(uuid())
+    featureKey String
+    reason     String
+
+    effectiveFrom DateTime
+    liftedFrom    DateTime?
+
+    reductions Json @default("[]")
+
+    announcedAt DateTime  @default(now())
+    announcedBy String
+    liftedAt    DateTime?
+    liftedBy    String?
+
+    @@index([featureKey])
+    @@map("feature_withdrawals")
+}
+
+// =============================================================================
 // Subscriber — the party a contract is concluded with (13-subscriber.prisma)
 // =============================================================================
 

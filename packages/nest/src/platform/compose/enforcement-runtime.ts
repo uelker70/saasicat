@@ -12,6 +12,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import type { DynamicModule, Provider } from '@nestjs/common';
 import type { QuotaProvider, SubscriptionRepository } from '@saasicat/core';
 
+import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from '../../billing/tenant-billing.tokens.js';
 import { asProvider, type ProviderSpec } from '../../core/di.js';
 import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from '../enforce-quota.interceptor.js';
 import { PLAN_RESOLVER_PORT_TOKEN, type PlanResolverPort } from '../plan-resolver.port.js';
@@ -19,6 +20,7 @@ import { StaticPlanResolver } from '../plan-resolver.port.js';
 import { StaticEntitlementService } from '../static-entitlement.service.js';
 import { StaticFeatureGuard } from '../static-feature.guard.js';
 import { SubscriptionPlanResolver } from '../subscription-plan-resolver.js';
+import { featureWithdrawalsOf } from './feature-withdrawal.js';
 import { PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN } from './manifest.js';
 
 import type { CompositionContext } from './context.js';
@@ -81,6 +83,12 @@ export function composeEnforcementRuntime(
             ),
         );
     }
+
+    // The withdrawals `EntitlementService` takes out reach this path as well:
+    // a route behind the default guard must not grant what the platform
+    // grants to nobody.
+    const withdrawals = featureWithdrawalsOf(ctx)?.repository;
+    if (withdrawals) providers.push(asProvider(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN, withdrawals));
 
     providers.push(
         planResolverProvider(ctx, resolution),

@@ -360,10 +360,19 @@ _Tested by:_
 
 ### SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
 
-🟢 Up to the moment its next period begins. The premise behind it is that no money is ever paid back:
-the tenant pays for the period they are in, it ends normally, and no refund arises.
+🔵 _(Superseded on 2026-10-06 by `SC-BUN-063`.)_ Up to the moment its next period begins. The premise
+behind it is that no money is ever paid back: the tenant pays for the period they are in, it ends
+normally, and no refund arises.
 
 _Source:_ #239 · #212
+
+### SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
+
+🟢 Up to the moment its next period begins. Cancelling pays nothing back: the tenant pays for the
+period they are in, and it ends normally. Ending a booking at once is a different act, open only
+while a feature it grants is withdrawn (`SC-BUN-062`).
+
+_Source:_ #239 · #212 · #357
 
 <!-- BEGIN proof -->
 
@@ -604,19 +613,52 @@ _Tested by:_
 
 ### SC-BUN-015 — Ending with the plan is not a cancellation
 
-🟢 No notice is given and none is needed, and the period the add-on is in when the plan ends is not
-refunded. The alignment exists so that day is a period boundary in the first place.
+🔵 _(Superseded on 2026-10-06 by `SC-BUN-064`.)_ No notice is given and none is needed, and the
+period the add-on is in when the plan ends is not refunded. The alignment exists so that day is a
+period boundary in the first place.
 
 _Source:_ #222
 
+### SC-BUN-064 — An add-on ending with its plan is not refunded, unless a withdrawal ends it at once
+
+🟢 💰 Ending with the plan is not a cancellation: no notice is given and none is needed, and the
+period the add-on is in when the plan ends is not refunded — the alignment exists so that day is a
+period boundary in the first place. Where the subscription ends at once while a feature it holds is
+withdrawn, the add-on's unused rest is credited with the plan's (`SC-PRIC-074`).
+
+_Source:_ #222 · #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-withdrawn-feature-is-charged-less.test.js`
+    - ending at once while the feature is withdrawn
+        - credits the unused rest of the plan and of every add-on, net of the reduction
+        - credits nothing for an end the account was not told was at once
+
+<!-- END proof -->
+
 ### SC-BUN-016 — A tenant reads what a booking commits to before confirming it
+
+🔵 _(Superseded on 2026-10-06 by `SC-BUN-065`.)_ When the first period ends, when the plan it hangs
+on ends, and plainly that a shortened booking is not refunded. The no-refund rule is fair only if it
+is read before the decision rather than discovered after it, and it is stated as a plain sentence
+rather than a warning, because it holds for every booking and a warning that always fires teaches
+people to skip warnings.
+
+_Source:_ #222
+
+### SC-BUN-065 — A tenant reads what a booking commits to before confirming it
 
 🟢 When the first period ends, when the plan it hangs on ends, and plainly that a shortened booking
 is not refunded. The no-refund rule is fair only if it is read before the decision rather than
 discovered after it, and it is stated as a plain sentence rather than a warning, because it holds
-for every booking and a warning that always fires teaches people to skip warnings.
+for every booking a tenant shortens by choice and a warning that always fires teaches people to skip
+warnings. The one shortening that is credited — ending at once while a feature the booking grants is
+withdrawn (`SC-BUN-062`) — is not a choice made when booking.
 
-_Source:_ #222
+_Source:_ #222 · #357
 
 <!-- BEGIN proof -->
 
@@ -2235,7 +2277,7 @@ _Tested by:_
 improvement and more for more take effect at once and keep the booking — its period, its terms, its
 rhythm and its minimum term. They cost the difference for the rest of the booking's current period
 where the new version is dearer in the booking's rhythm, which the journal records as an add-on
-change, and nothing where it is not (`SC-PRIC-003`); from the booking's next period the new price
+change, and nothing where it is not (`SC-PRIC-075`); from the booking's next period the new price
 applies. In a trial the booking moves and nothing is charged. One that takes something away is
 scheduled for the end of the booking's running term — the later of the end of the period it is in
 and its minimum term, never after the subscription ends — and the booking stays on its version until
@@ -2462,5 +2504,27 @@ _Tested by:_
           lands a moment before
         - asks nothing of a version after a date by which the booking ends
         - counts no minimum term while the retirement is ahead, whichever version stands in the way
+
+<!-- END proof -->
+
+### SC-BUN-062 — An add-on that grants a withdrawn feature can be ended at once on its own
+
+🟢 💰 Where a booking rather than the plan grants the feature a withdrawal takes away, the tenant's
+administrator may end that booking at once while the feature is missing, and the subscription runs
+on; the booking is credited its own unused rest (`SC-PRIC-074`). A booking already cancelled for a
+later date can end at once too, provided the application's booking store can end it early.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - ending a booking at once
+        - ends it alone, now, writes the contract again and credits its unused rest
+        - brings forward a booking cancelled for a later date
+        - is refused for a booking it did not reach, or whose version no longer grants it
+        - is refused once the booking has ended
 
 <!-- END proof -->

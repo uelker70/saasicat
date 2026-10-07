@@ -52,3 +52,4 @@ export { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window
 export { DrizzleSubscriptionNoticeRepository } from './drizzle-subscription-notice.repository.js';
 export { DrizzleVersionRetirementRepository } from './drizzle-version-retirement.repository.js';
 export { DrizzleBundleVersionRetirementRepository } from './drizzle-bundle-version-retirement.repository.js';
+export { DrizzleFeatureWithdrawalRepository } from './drizzle-feature-withdrawal.repository.js';

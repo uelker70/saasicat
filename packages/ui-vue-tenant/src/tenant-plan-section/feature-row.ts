@@ -17,4 +17,10 @@ export interface FeatureRow {
      * host's icon font. It is handed to the slot so the host can draw its own.
      */
     icon: string | null;
+    /**
+     * Whether the feature is withdrawn now or from a date ahead: it then reads
+     * as not available for the time being, with why and from when, rather
+     * than as not included.
+     */
+    withdrawn: boolean;
 }

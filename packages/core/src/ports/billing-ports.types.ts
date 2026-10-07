@@ -267,6 +267,30 @@ export interface SubscriptionBundleRepository {
      * them still move.
      */
     listScheduledVersionsDue?(asOf: Date): Promise<SubscriptionBundleRecord[]>;
+    /**
+     * Ends at `input.at` the booking `subscriptionBundleId` whose cancellation
+     * was declared for a later date, provided its effective date is still
+     * `input.expectedCanceledEffectiveAt`, and answers it as it now stands;
+     * null where its cancellation moved meanwhile, or it is gone. Both
+     * cancellation fields become `input.at`. What a feature withdrawn for an
+     * external reason lets a subscriber do, cancelled or not; a booking not
+     * cancelled is ended through `cancel`.
+     *
+     * Optional, so a repository written before it keeps working; without it, a
+     * booking already cancelled for a later date cannot be ended at once.
+     */
+    endNow?(
+        subscriptionBundleId: string,
+        input: EndNowInput,
+    ): Promise<SubscriptionBundleRecord | null>;
+}
+
+/** What ending at once something cancelled for a later date is told to write. */
+export interface EndNowInput {
+    /** The moment it ends, and the moment that is declared. */
+    readonly at: Date;
+    /** The effective date of the cancellation the caller read: the write is conditional on it. */
+    readonly expectedCanceledEffectiveAt: Date;
 }
 
 /**
@@ -869,6 +893,15 @@ export interface CancelSubscriptionInput {
     minimumTermUntil?: Date;
 }
 
+/** What `endNow` answers with. */
+export interface EndSubscriptionNowResult {
+    /** False where the cancellation moved since it was read, and nothing was written. */
+    ended: boolean;
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
+    status: string;
+}
+
 /** What `cancelSubscription` answers with. */
 export interface CancelSubscriptionResult {
     canceledAt: Date | null;
@@ -949,6 +982,23 @@ export interface TenantSubscriptionWritePort {
         tenantId: string,
         input: CancelSubscriptionInput,
     ): Promise<CancelSubscriptionResult>;
+
+    /**
+     * Ends at `input.at` a subscription whose cancellation was declared for a
+     * later date, provided its effective date is still
+     * `input.expectedCanceledEffectiveAt`: both cancellation fields become
+     * `input.at` and the status `CANCELED`. Answers `ended: false`, with the
+     * stored fields, where the cancellation moved meanwhile. A conditional
+     * claim, like `cancelSubscription`, so an end written in between is not
+     * written over.
+     *
+     * What a feature withdrawn for an external reason lets a subscriber do,
+     * cancelled or not; a subscription not cancelled is ended through
+     * `cancelSubscription` with `terminateNow`. Optional, so a port written
+     * before it keeps working; without it, a subscription already cancelled
+     * for a later date cannot be ended at once.
+     */
+    endNow?(tenantId: string, input: EndNowInput): Promise<EndSubscriptionNowResult>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

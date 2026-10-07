@@ -4,6 +4,8 @@ import type {
     CancelSubscriptionInput,
     CancelSubscriptionResult,
     ApplyOnboardingSelectionResult,
+    EndNowInput,
+    EndSubscriptionNowResult,
     ImmediatePlanChangeInput,
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
@@ -406,6 +408,34 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             canceledEffectiveAt: current.canceledEffectiveAt ?? null,
             status: current.status,
             alreadyCanceled: claimed.count === 0,
+        };
+    }
+
+    /**
+     * The same conditional claim as `cancelSubscription`, on the effective date
+     * the caller read rather than on its absence: a cancellation moved, ended
+     * or written between the read and the write leaves the count at zero, and
+     * the caller reads back what is stored instead of overwriting it.
+     */
+    async endNow(tenantId: string, input: EndNowInput): Promise<EndSubscriptionNowResult> {
+        const subscription = this.subscription(this.prisma);
+        const claimed = await subscription.updateMany({
+            where: { tenantId, canceledEffectiveAt: input.expectedCanceledEffectiveAt },
+            data: {
+                canceledAt: input.at,
+                canceledEffectiveAt: input.at,
+                status: 'CANCELED',
+            },
+        });
+        const current = await subscription.findUnique({ where: { tenantId } });
+        if (!current) {
+            throw subscriptionGone(tenantId);
+        }
+        return {
+            ended: claimed.count === 1,
+            canceledAt: current.canceledAt ?? null,
+            canceledEffectiveAt: current.canceledEffectiveAt ?? null,
+            status: current.status,
         };
     }
 

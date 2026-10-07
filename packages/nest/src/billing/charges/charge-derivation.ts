@@ -11,7 +11,6 @@ import type {
     BillingCycle,
     ContractLineItemRecord,
     NewSubscriberCharge,
-    SubscriberChargeOrigin,
     SubscriberChargeRecord,
     SubscriptionBundleRecord,
     SubscriptionContractRecord,
@@ -23,6 +22,17 @@ import { bundleFirstPeriodStart } from '../bundle-period.js';
 import { bookingOverBy } from '../bundle-retirement-reach.js';
 import { computeNewPeriodCharge, computeProration } from '../proration.js';
 import { toCents } from '@saasicat/core';
+import {
+    PERIOD_ORIGINS,
+    addOnHoldOf,
+    chargeOf,
+    isRecord,
+    isWholePlanPeriod,
+    lineById,
+    numberOr0,
+    sameInstant,
+} from './charge-entries.js';
+import { deriveWithdrawalCharges } from './withdrawal-charges.js';
 
 /** A billing period, start inclusive, end exclusive. */
 export interface ChargePeriod {
@@ -68,6 +78,37 @@ export interface ChargeDerivationInput {
      * period of that booking that starts on that date or later.
      */
     retiredAddOns?: readonly RetiredBundleVersion[];
+    /**
+     * The feature withdrawals that reached the subscription: when each took
+     * the feature away, and when it gave it back. A contract's reduction line
+     * names its withdrawal; its days are these.
+     */
+    withdrawals?: readonly WithdrawalDays[];
+    /**
+     * What ended at once while a feature was withdrawn — the subscription, as
+     * null, or a booking — and when. Counted only where the end is the one the
+     * subscription or the booking records.
+     */
+    endedAtOnce?: readonly EndedAtOnceAt[];
+    /**
+     * Whether a contract line grants a feature, a `replaces` chain included.
+     * Where left out, a line grants what its snapshot names.
+     */
+    lineGrants?: (line: ContractLineItemRecord, featureKey: string) => boolean;
+}
+
+/** The days a feature withdrawal takes its feature away. */
+export interface WithdrawalDays {
+    id: string;
+    featureKey: string;
+    effectiveFrom: Date;
+    liftedFrom: Date | null;
+}
+
+/** The subscription (null) or a booking, ended at once at `at`. */
+export interface EndedAtOnceAt {
+    subscriptionBundleId: string | null;
+    at: Date;
 }
 
 /** A plan version a retirement moves the subscription off, from the date it was told. */
@@ -88,20 +129,6 @@ export interface RetiredBundleVersion {
     /** The retirement, whose mark the contract its move writes carries. */
     retirementId: string;
 }
-
-/**
- * Charges written for a whole period rather than a part of one — including the
- * new period an upgrade into a longer rhythm opens, which is charged as a
- * `planChange`. The difference a same-rhythm upgrade adds is a `planChange`
- * too, but for the rest of a period another charge already covers; see
- * `isDifference`.
- */
-const PERIOD_ORIGINS: readonly SubscriberChargeOrigin[] = [
-    'activation',
-    'renewal',
-    'bundleBooking',
-    'planChange',
-];
 
 /** A whole plan period, written or about to be, with the rhythm it is priced in. */
 interface PlanPeriod {
@@ -135,12 +162,13 @@ const CENTS = 100;
 export function deriveDueCharges(input: ChargeDerivationInput): NewSubscriberCharge[] {
     const planCharges = derivePlanCharges(input);
     const periods = [...writtenPlanPeriods(input), ...planCharges.map(({ period }) => period)];
-    return [
+    const due = [
         ...planCharges.map(({ charge }) => charge),
         ...deriveUpgradeDifferences(input, periods),
         ...deriveDiscountCharges(input, planCharges, periods),
         ...deriveBundleCharges(input, accountStart(input)),
     ];
+    return [...due, ...deriveWithdrawalCharges(input, due)];
 }
 
 /**
@@ -255,7 +283,7 @@ function periodReplacedBy(
  * The new period an upgrade into a longer rhythm opens: charged in full, less
  * what is left of the period it replaces at the price that was paid for it,
  * and never below nothing — the arithmetic the preview quoted (`SC-CHG-021`,
- * `SC-PRIC-003`). The renewals after it run on from its end.
+ * `SC-PRIC-075`). The renewals after it run on from its end.
  */
 function newPeriodAfterChange(
     input: ChargeDerivationInput,
@@ -310,7 +338,7 @@ function pricePaidBefore(
  * period's rhythm than the one before it, the difference for what is left of
  * the period (`SC-CHG-020`). A contract written again at the same price — an
  * add-on booked, a code recorded — adds nothing, and nothing is ever given
- * back (`SC-PRIC-003`).
+ * back (`SC-PRIC-075`).
  */
 function deriveUpgradeDifferences(
     input: ChargeDerivationInput,
@@ -365,34 +393,6 @@ function writtenPlanPeriods(input: ChargeDerivationInput): PlanPeriod[] {
         const line = lineById(input.contracts, charge.contractLineItemId);
         return line ? [{ charge, rhythm: line.billingCycle }] : [];
     });
-}
-
-/**
- * Whether a written plan charge is a whole period rather than the difference
- * a same-rhythm upgrade added: a difference always lies inside a whole period
- * the journal holds, ending with it.
- */
-function isWholePlanPeriod(
-    charge: SubscriberChargeRecord,
-    written: readonly SubscriberChargeRecord[],
-    subscriptionId: string,
-): boolean {
-    if (charge.source !== 'plan' || charge.sourceRef !== subscriptionId) return false;
-    if (!PERIOD_ORIGINS.includes(charge.origin)) return false;
-    return charge.origin !== 'planChange' || !isDifference(charge, written);
-}
-
-function isDifference(
-    charge: SubscriberChargeRecord,
-    written: readonly SubscriberChargeRecord[],
-): boolean {
-    return written.some(
-        (other) =>
-            other.source === 'plan' &&
-            other.sourceRef === charge.sourceRef &&
-            other.periodStart < charge.periodStart &&
-            sameInstant(other.periodEnd, charge.periodEnd),
-    );
 }
 
 /**
@@ -610,7 +610,7 @@ function switchesOf(
  * the line its contract marks and the booking's line in force just before it,
  * for the rest of the period the switch falls in (`SC-BUN-058`) — and nothing
  * where the new line is not dearer, since nothing is paid back
- * (`SC-PRIC-003`). A switch at the start of a period adds nothing: that period
+ * (`SC-PRIC-075`). A switch at the start of a period adds nothing: that period
  * is priced from the new line whole.
  */
 function switchDifferences(
@@ -952,43 +952,6 @@ function discountSnapshotsOf(line: ContractLineItemRecord): DiscountSnapshots | 
     };
 }
 
-/** The add-on price a retirement's switch holds, per period of its line's rhythm. */
-interface AddOnHold {
-    /** The booking that switched: the only one the price is held for. */
-    readonly subscriptionBundleId: string;
-    readonly bundleVersionId: string;
-    readonly until: Date;
-    readonly amountNet: number;
-}
-
-/**
- * The add-on price a retirement's switch holds on a generated discount line,
- * or null for any other line: the booking it is held for, the version it is
- * held on, until when, and how much per period (`SC-BUN-055`). A plan's held
- * price names a plan version instead, and is read by `priceHoldOf`.
- */
-function addOnHoldOf(line: ContractLineItemRecord): AddOnHold | null {
-    const metadata = line.metadata;
-    if (line.kind !== 'discount' || !isRecord(metadata) || metadata.generated !== true) return null;
-    const hold = metadata.priceHold;
-    if (
-        !isRecord(hold) ||
-        typeof hold.subscriptionBundleId !== 'string' ||
-        typeof hold.bundleVersionId !== 'string'
-    ) {
-        return null;
-    }
-    if (typeof hold.until !== 'string') return null;
-    const until = new Date(hold.until);
-    if (Number.isNaN(until.getTime())) return null;
-    return {
-        subscriptionBundleId: hold.subscriptionBundleId,
-        bundleVersionId: hold.bundleVersionId,
-        until,
-        amountNet: numberOr0(hold.resolvedAmountNet),
-    };
-}
-
 function priceHoldOf(value: unknown): DiscountSnapshots['priceHold'] {
     if (!isRecord(value)) return null;
     if (typeof value.planVersionId !== 'string' || typeof value.until !== 'string') return null;
@@ -1260,47 +1223,12 @@ function byEffectiveFrom(a: SubscriptionContractRecord, b: SubscriptionContractR
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function chargeOf(
-    input: ChargeDerivationInput,
-    contract: SubscriptionContractRecord,
-    line: ContractLineItemRecord,
-    charge: {
-        origin: SubscriberChargeOrigin;
-        source: NewSubscriberCharge['source'];
-        sourceRef: string;
-        period: ChargePeriod;
-        amountNet: number;
-        bookedAt: Date;
-    },
-): NewSubscriberCharge {
-    return {
-        subscriberId: input.subscriberId,
-        tenantId: input.subscription.tenantId,
-        subscriptionId: input.subscription.id,
-        contractId: contract.id,
-        contractLineItemId: line.id,
-        origin: charge.origin,
-        source: charge.source,
-        sourceRef: charge.sourceRef,
-        periodStart: charge.period.start,
-        periodEnd: charge.period.end,
-        currency: line.currency,
-        // Rounded once, here, where it is derived (`SC-PRIC-018`).
-        amountNet: toCents(charge.amountNet) / CENTS,
-        bookedAt: charge.bookedAt,
-    };
-}
-
 function windowOf(start: Date | null, end: Date | null): ChargePeriod | null {
     return start && end && start < end ? { start, end } : null;
 }
 
 function laterOf(a: Date, b: Date): Date {
     return b > a ? b : a;
-}
-
-function sameInstant(a: Date, b: Date | null): boolean {
-    return b !== null && a.getTime() === b.getTime();
 }
 
 function firstPeriodStart(periods: readonly PlanPeriod[]): Date | null {
@@ -1322,23 +1250,4 @@ function earlierOf(a: Date | null, b: Date | null): Date | null {
 
 function rhythmOf(cycle: BillingCycle): Rhythm {
     return cycle === 'YEARLY' ? 'yearly' : 'monthly';
-}
-
-function lineById(
-    contracts: readonly SubscriptionContractRecord[],
-    id: string,
-): ContractLineItemRecord | null {
-    for (const contract of contracts) {
-        const line = contract.lineItems.find((item) => item.id === id);
-        if (line) return line;
-    }
-    return null;
-}
-
-function numberOr0(value: unknown): number {
-    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
