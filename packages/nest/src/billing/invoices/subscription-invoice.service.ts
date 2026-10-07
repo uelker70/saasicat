@@ -193,8 +193,16 @@ export class SubscriptionInvoiceService {
         const { parties, origin } = await held(() =>
             this.subscribers.invoicePartyOf(first!.subscriberId),
         );
+        const issuer = invoiceIssuerOf(copy, parties.issuer, history);
+        // Decided for the party the invoice names, which is not the file's
+        // issuer where nothing recorded connects the contract's copy to it.
         const treatment = treatmentOf(
-            await held(async () => this.taxes.decide(origin, periodOf(group))),
+            await held(async () =>
+                this.taxes.decide(origin, periodOf(group), {
+                    country: issuer.country,
+                    vatId: issuer.vatId,
+                }),
+            ),
         );
         const invoicing = this.settings.invoicing!;
         const invoice = draftSubscriptionInvoice({
@@ -203,7 +211,7 @@ export class SubscriptionInvoiceService {
             tenantId: first!.tenantId,
             subscriberId: first!.subscriberId,
             subscriber: parties.subscriber,
-            issuer: invoiceIssuerOf(copy, parties.issuer, history),
+            issuer,
             treatment,
             tax: (lines) => this.taxes.invoiceTax(lines),
             issuedAt: now,
@@ -240,7 +248,6 @@ export class SubscriptionInvoiceService {
         );
         const key = `${group.contractId}|${group.bookedAt.toISOString()}|${hold.code}`;
         if (this.auditedHolds.has(key)) return;
-        this.auditedHolds.add(key);
         try {
             await this.audit?.log({
                 actor: platformJobActor(JOB),
@@ -256,6 +263,8 @@ export class SubscriptionInvoiceService {
                     params: hold.params,
                 },
             });
+            // Only once written: a write that failed is tried again by the next run.
+            this.auditedHolds.add(key);
         } catch (error) {
             // The hold stands either way; the lost record of it is said loudly.
             this.logger.error(

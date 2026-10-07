@@ -27,6 +27,7 @@ import {
     line,
 } from './helpers/invoice-run.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
+import { TEST_TAX_ADAPTER } from './helpers/tax-adapter.js';
 
 /** The first moment of April in Berlin, in summer time. */
 const APRIL = new Date('2026-04-01T00:00:00.000+02:00');
@@ -317,6 +318,39 @@ describe('the tax of an invoice', () => {
         );
     });
 
+    test('is decided for the issuer the invoice names, where that is the contract’s and not the file’s', async () => {
+        const asked = [];
+        const installation = anInvoicingInstallation({
+            adapter: invoicingAdapter({
+                decide: (request) => {
+                    asked.push(request.issuer);
+                    return request.issuer.country === 'DE'
+                        ? TEST_TAX_ADAPTER.decide(request)
+                        : { supported: false, reason: 'Only an issuer in Germany is supported.' };
+                },
+            }),
+        });
+        const subscriber = await installation.aSubscriber('t1');
+        const contract = await installation.aContract(subscriber, {
+            issuer: {
+                ...contractPartiesOf(subscriber, ISSUER).issuer,
+                legalName: 'Issuer Austria GmbH',
+                vatId: 'ATU12345678',
+                country: 'AT',
+            },
+        });
+        installation.charge(contract, 'plan');
+
+        assert.deepEqual(await installation.run(), { issued: 0, held: 1, failed: 0 });
+        assert.deepEqual(asked, [{ country: 'AT', vatId: 'ATU12345678' }]);
+        assert.deepEqual(holdsIn(installation.audits), [
+            [
+                TAX_ERROR_CODES.TAX_TREATMENT_NOT_SUPPORTED,
+                { adapter: 'test-tax', reason: 'Only an issuer in Germany is supported.' },
+            ],
+        ]);
+    });
+
     test('is decided anew for the subscriber as it stands when the invoice is issued', async () => {
         const { run, store, subscribers, subscriber } = await aChargedSubscriber(
             {},
@@ -409,6 +443,17 @@ describe('an invoice that cannot be issued yet', () => {
             source: 'job',
             context: 'subscription-invoices',
         });
+    });
+
+    test('is recorded in the audit log by the next run where the write failed', async () => {
+        const installation = await aChargedSubscriber({ failingAuditWrites: 1 }, { city: null });
+
+        await installation.run();
+        assert.equal(holdsIn(installation.audits).length, 0);
+        await installation.run();
+        await installation.run();
+
+        assert.equal(holdsIn(installation.audits).length, 1);
     });
 
     test('waits where the adapter supports no treatment for the subscriber', async () => {

@@ -121,12 +121,15 @@ export class TaxTreatments {
     /**
      * The rate and treatment for a subscriber of this origin over `period`.
      * Refuses a case the adapter does not support with `422`, rather than
-     * charging a guessed tax (`SC-PRIC-039`).
+     * charging a guessed tax (`SC-PRIC-039`). `issuer` is the party the
+     * document names where that is not the file's issuer: an invoice names the
+     * issuer of its contract (`SC-PRIC-026`), and its treatment is that
+     * party's.
      */
-    decide(origin: SubscriberTaxOrigin, period: TaxPeriod): AppliedTax {
+    decide(origin: SubscriberTaxOrigin, period: TaxPeriod, issuer?: TaxIssuer): AppliedTax {
         if (!this.bound) return rateOfTheFile(this.settings);
         const decision = this.bound.decide({
-            issuer: taxIssuerOf(this.settings),
+            issuer: issuer ?? taxIssuerOf(this.settings),
             origin,
             period,
             // Bound only with a zone: `taxBindingProblems` refuses the start without one.

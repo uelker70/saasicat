@@ -1071,6 +1071,7 @@ _Tested by:_
         - waits for the subscriber’s address, draws no number, and takes the next one once it is
           complete
         - is recorded in the audit log once, however many runs find it waiting
+        - is recorded in the audit log by the next run where the write failed
         - waits where the adapter supports no treatment for the subscriber
         - waits for what the adapter finds missing, and draws no number
         - is shown to the adapter as it would be issued
@@ -1247,6 +1248,7 @@ _Tested by:_
         - waits for the subscriber’s address, draws no number, and takes the next one once it is
           complete
         - is recorded in the audit log once, however many runs find it waiting
+        - is recorded in the audit log by the next run where the write failed
         - waits where the adapter supports no treatment for the subscriber
         - waits for what the adapter finds missing, and draws no number
         - is shown to the adapter as it would be issued
@@ -1347,6 +1349,8 @@ _Tested by:_
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - the tax of an invoice
         - is the adapter’s, computed once per rate, with the treatment and the adapter recorded
+        - is decided for the issuer the invoice names, where that is the contract’s and not the
+          file’s
         - is decided anew for the subscriber as it stands when the invoice is issued
 
 <!-- END proof -->
@@ -1427,6 +1431,8 @@ _Tested by:_
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - the tax of an invoice
         - is the adapter’s, computed once per rate, with the treatment and the adapter recorded
+        - is decided for the issuer the invoice names, where that is the contract’s and not the
+          file’s
         - is decided anew for the subscriber as it stands when the invoice is issued
 - `packages/tax-de/tests/an-invoice-carries-what-german-law-requires.test.js`
     - what an invoice of an issuer in Germany has to carry
@@ -1483,6 +1489,8 @@ _Tested by:_
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - the tax of an invoice
         - is the adapter’s, computed once per rate, with the treatment and the adapter recorded
+        - is decided for the issuer the invoice names, where that is the contract’s and not the
+          file’s
         - is decided anew for the subscriber as it stands when the invoice is issued
 
 <!-- END proof -->

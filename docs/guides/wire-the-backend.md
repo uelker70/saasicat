@@ -1018,9 +1018,9 @@ quarter of an hour, which needs `ScheduleModule` in your application. With
 - **the issuer** of the contract its charges belong to — the file's, address and all, while the file
   names the entity the contract was concluded with or a correction of it the operator declared
   (`SC-PRIC-026`); the contract's own copy otherwise;
-- **the treatment** the tax adapter decides for the subscriber now (`SC-PRIC-043`), recorded with
-  the adapter's name and version, and **the tax** by the adapter's rule, once per rate
-  (`SC-PRIC-041`);
+- **the treatment** the tax adapter decides for the subscriber now (`SC-PRIC-043`) and for the issuer
+  the invoice names, recorded with the adapter's name and version, and **the tax** by the adapter's
+  rule, once per rate (`SC-PRIC-041`);
 - **its days** in the installation's `timeZone`: the issue date, each line's period, and the due
   date, the issue date plus `paymentTermDays` (`SC-PRIC-045`, `SC-PRIC-046`);
 - **its lines** in the order of the contract's lines, each naming its charge and its contract line

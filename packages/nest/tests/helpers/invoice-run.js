@@ -56,11 +56,13 @@ export const berlin = (day) => new Date(`${day}T00:00:00.000+01:00`);
 
 /**
  * The test adapter, able to compute an invoice's tax and to check its content.
- * `gaps` is what it finds missing in every invoice it is shown.
+ * `gaps` is what it finds missing in every invoice it is shown, `decide` its
+ * decision where a test needs another one.
  */
-export function invoicingAdapter({ gaps = () => [] } = {}) {
+export function invoicingAdapter({ gaps = () => [], decide = TEST_TAX_ADAPTER.decide } = {}) {
     return {
         ...TEST_TAX_ADAPTER,
+        decide,
         invoiceTax: (lines) => taxPerRate(lines),
         invoiceContentGaps: (draft) => gaps(draft),
     };
@@ -169,12 +171,14 @@ function invoiceStore(journal) {
 /**
  * An installation that invoices. `settings` is the file, `adapter` the bound
  * tax adapter, `appliedSettings` the settings record, or `null` for an
- * installation that keeps none.
+ * installation that keeps none; the first `failingAuditWrites` writes to the
+ * audit log fail.
  */
 export function anInvoicingInstallation({
     settings = INVOICING_SETTINGS,
     adapter = invoicingAdapter(),
     appliedSettings = null,
+    failingAuditWrites = 0,
 } = {}) {
     const subscriberRepository = new FakeSubscriberRepository();
     const taxes = new TaxTreatments(settings, adapter);
@@ -183,7 +187,16 @@ export function anInvoicingInstallation({
     const journal = [];
     const store = invoiceStore(journal);
     const audits = [];
-    const audit = { log: async (entry) => audits.push(entry) };
+    let failing = failingAuditWrites;
+    const audit = {
+        log: async (entry) => {
+            if (failing > 0) {
+                failing -= 1;
+                throw new Error('the audit log is unreachable');
+            }
+            audits.push(entry);
+        },
+    };
     const service = new SubscriptionInvoiceService(
         store,
         contracts,
