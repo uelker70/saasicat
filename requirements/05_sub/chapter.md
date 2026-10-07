@@ -1481,6 +1481,9 @@ _Source:_ #357
 
 _Tested by:_
 
+- `packages/nest/tests/a-feature-withdrawal-is-offered-where-it-is-wired.test.js`
+    - a feature withdrawal, in the composed module
+        - is offered where the installation keeps withdrawals and can find everybody
 - `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
     - the preview of a withdrawal
         - refuses a feature the catalogue does not know, before anything is read
