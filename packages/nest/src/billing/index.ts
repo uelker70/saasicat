@@ -153,6 +153,23 @@ export {
 } from './invoices/subscription-invoice.service.js';
 export { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
 export { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './invoices/subscription-invoice.tokens.js';
+export {
+    INVOICE_DELIVERY_LEASE_MS,
+    INVOICE_DOCUMENT_TIMEOUT_MS,
+    InvoiceDocumentService,
+    invoiceDocumentChecksum,
+    type InvoiceDeliveryRun,
+    type InvoiceDocumentRun,
+} from './invoices/invoice-document.service.js';
+export {
+    InvoiceDocumentModule,
+    type InvoiceDocumentModuleOptions,
+} from './invoices/invoice-document.module.js';
+export {
+    INVOICE_ARCHIVE_TOKEN,
+    INVOICE_MAIL_PORT_TOKEN,
+    INVOICE_RENDERER_TOKEN,
+} from './invoices/invoice-document.tokens.js';
 export { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 export * from './trial-carryover.js';
 export * from './dto/tenant-billing.dto.js';

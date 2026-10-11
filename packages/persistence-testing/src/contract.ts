@@ -476,6 +476,14 @@ const CONTRACT_GAPS: Record<
                 seed.createSubscriber,
             ),
     },
+    invoiceArchive: {
+        reason: 'adapter provides no InvoiceArchivePort, or nothing an invoice needs before it',
+        present: (harness) =>
+            Boolean(
+                harness.adapter.invoiceArchive &&
+                CONTRACT_GAPS.subscriptionInvoices.present(harness),
+            ),
+    },
     checkoutOffers: {
         reason: 'adapter provides no CheckoutOfferRepository',
         present: ({ adapter }) => Boolean(adapter.checkoutOfferRepository),
@@ -7009,6 +7017,431 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const prefixes = await invoices.listIssuedNumberPrefixes();
             assert.equal(prefixes.length, 2);
             assert.ok(prefixes.every((prefix) => ['AB', 'EX', 'ZZ'].includes(prefix)));
+        });
+
+        // -------------------------------------------------------------
+        // An invoice's document — its checksum recorded once, archived once
+        // -------------------------------------------------------------
+
+        /** A rendering as the invoice run records it, before its file is archived. */
+        const renderingOf = (checksum: string) => ({
+            checksum,
+            mediaType: 'application/pdf',
+            fileName: 'EX-2026-000001.pdf',
+            size: 2048,
+            renderedAt: new Date('2026-02-01T05:16:00.000Z'),
+        });
+        const CHECKSUM = 'a'.repeat(64);
+        const OTHER_CHECKSUM = 'b'.repeat(64);
+
+        /** Issued invoices of one account, `count` of them, one charge each. Null without invoices. */
+        async function issuedInvoices(t: TestContext, tenantId: string, count = 1) {
+            const account = await anInvoiceAccount(t, tenantId);
+            if (!account) return null;
+            const charges = await account.record(
+                ...Array.from({ length: count }, (_, index) => monthly(index + 1)),
+            );
+            const issued = [];
+            for (const charge of charges) {
+                issued.push(await account.invoices.issue(account.invoiceOf([charge])));
+            }
+            return { ...account, issued };
+        }
+
+        // @requirement SC-AUD-019
+        test("an invoice's rendering is recorded once, and another checksum for it is refused", async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-once');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+
+            const first = await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+            const again = await invoices.recordRendering(invoice!.id, {
+                ...renderingOf(CHECKSUM),
+                renderedAt: new Date('2026-02-01T05:31:00.000Z'),
+            });
+
+            assert.deepEqual(again, first, 'a second recording of the same file changed the first');
+            await assert.rejects(
+                invoices.recordRendering(invoice!.id, renderingOf(OTHER_CHECKSUM)),
+                refusedAs(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED, {
+                    invoiceId: invoice!.id,
+                    recorded: CHECKSUM,
+                    rendered: OTHER_CHECKSUM,
+                }),
+            );
+            assert.deepEqual(await invoices.findDocument(invoice!.id), first);
+            assert.deepEqual(first, {
+                invoiceId: invoice!.id,
+                ...renderingOf(CHECKSUM),
+                archivedAt: null,
+                deliveryClaimedAt: null,
+                deliveredAt: null,
+                deliveredTo: null,
+            });
+        });
+
+        test("an invoice's rendering written on a transaction that rolls back is undone with it", async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-rollback');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM), tx);
+                    throw new Error('the run that rendered it failed');
+                }),
+                /the run that rendered it failed/,
+            );
+
+            assert.equal(await invoices.findDocument(invoice!.id), null);
+            assert.equal(
+                (await invoices.recordRendering(invoice!.id, renderingOf(OTHER_CHECKSUM))).checksum,
+                OTHER_CHECKSUM,
+            );
+        });
+
+        // @requirement SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
+        test("an invoice's rendering is replaced only in place of the one recorded, and only while nothing is archived", async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-replace');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+            const renderedAgain = new Date('2026-02-01T05:31:00.000Z');
+            await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+
+            assert.equal(
+                await invoices.replaceRendering(
+                    invoice!.id,
+                    renderingOf(OTHER_CHECKSUM),
+                    OTHER_CHECKSUM,
+                ),
+                null,
+                'a rendering was replaced in place of one not recorded',
+            );
+            const replaced = await invoices.replaceRendering(
+                invoice!.id,
+                { ...renderingOf(OTHER_CHECKSUM), size: 4096, renderedAt: renderedAgain },
+                CHECKSUM,
+            );
+            assert.deepEqual(replaced, {
+                invoiceId: invoice!.id,
+                ...renderingOf(OTHER_CHECKSUM),
+                size: 4096,
+                renderedAt: renderedAgain,
+                archivedAt: null,
+                deliveryClaimedAt: null,
+                deliveredAt: null,
+                deliveredTo: null,
+            });
+            assert.deepEqual(await invoices.findDocument(invoice!.id), replaced);
+
+            await invoices.markArchived(invoice!.id, renderedAgain, OTHER_CHECKSUM);
+            assert.equal(
+                await invoices.replaceRendering(invoice!.id, renderingOf(CHECKSUM), OTHER_CHECKSUM),
+                null,
+                'an archived rendering was replaced',
+            );
+            assert.equal((await invoices.findDocument(invoice!.id))!.checksum, OTHER_CHECKSUM);
+        });
+
+        // @requirement SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
+        test("of two runs replacing an invoice's rendering at once, one does", async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-replace-race');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+            await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+
+            const outcomes = await Promise.all(
+                ['c', 'd', 'e'].map((digit) =>
+                    invoices.replaceRendering(invoice!.id, renderingOf(digit.repeat(64)), CHECKSUM),
+                ),
+            );
+
+            const won = outcomes.filter((record) => record !== null);
+            assert.equal(won.length, 1, JSON.stringify(outcomes));
+            assert.equal((await invoices.findDocument(invoice!.id))!.checksum, won[0]!.checksum);
+        });
+
+        test('a rendering for an invoice that does not exist is refused', async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-orphan', 0);
+            if (!account) return;
+
+            await assert.rejects(
+                account.invoices.recordRendering(NO_SUCH_VERSION, renderingOf(CHECKSUM)),
+            );
+            assert.equal(await account.invoices.findDocument(NO_SUCH_VERSION), null);
+        });
+
+        /** The moments of one mailing: a claim, the lease it is held under, and its record. */
+        const CLAIMED_AT = new Date('2026-02-01T05:18:00.000Z');
+        const LEASE_START = new Date('2026-02-01T05:03:00.000Z');
+        const DELIVERY = {
+            claimedAt: CLAIMED_AT,
+            at: new Date('2026-02-01T05:18:30.000Z'),
+            to: 'billing@example.com',
+        };
+
+        /** An issued invoice, rendered and archived. Null without invoices. */
+        async function anArchivedInvoice(t: TestContext, tenantId: string) {
+            const account = await issuedInvoices(t, tenantId);
+            if (!account) return null;
+            const [invoice] = account.issued;
+            await account.invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+            await account.invoices.markArchived(
+                invoice!.id,
+                new Date('2026-02-01T05:17:00.000Z'),
+                CHECKSUM,
+            );
+            return { invoices: account.invoices, invoiceId: invoice!.id };
+        }
+
+        // @requirement SC-PRIC-033
+        // @requirement SC-PRIC-047
+        test('an invoice is archived once, and handed to the mail once, only after it is archived', async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-marks');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+            const archivedAt = new Date('2026-02-01T05:17:00.000Z');
+            await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+
+            assert.equal(
+                await invoices.claimDelivery(invoice!.id, CLAIMED_AT, LEASE_START),
+                false,
+                'an invoice not archived was claimed for the mail',
+            );
+            assert.equal(await invoices.markDelivered(invoice!.id, DELIVERY), false);
+            assert.equal(
+                await invoices.markArchived(invoice!.id, archivedAt, OTHER_CHECKSUM),
+                false,
+                'a file other than the recorded one was confirmed',
+            );
+            assert.equal(await invoices.markArchived(invoice!.id, archivedAt, CHECKSUM), true);
+            assert.equal(
+                await invoices.markArchived(
+                    invoice!.id,
+                    new Date('2026-02-02T00:00:00.000Z'),
+                    CHECKSUM,
+                ),
+                false,
+            );
+            assert.equal(await invoices.claimDelivery(invoice!.id, CLAIMED_AT, LEASE_START), true);
+            assert.equal(await invoices.markDelivered(invoice!.id, DELIVERY), true);
+            assert.equal(
+                await invoices.markDelivered(invoice!.id, { ...DELIVERY, to: 'other@example.com' }),
+                false,
+            );
+            assert.equal(
+                await invoices.claimDelivery(
+                    invoice!.id,
+                    new Date('2026-02-02T00:00:00.000Z'),
+                    archivedAt,
+                ),
+                false,
+                'a delivered invoice was claimed again',
+            );
+
+            const document = await invoices.findDocument(invoice!.id);
+            assert.deepEqual(
+                [
+                    document!.archivedAt,
+                    document!.deliveryClaimedAt,
+                    document!.deliveredAt,
+                    document!.deliveredTo,
+                ],
+                [archivedAt, CLAIMED_AT, DELIVERY.at, DELIVERY.to],
+            );
+        });
+
+        // @requirement SC-PRIC-047
+        test("an invoice's mail held by a fresh claim is not taken, and one held by a stale claim is", async (t) => {
+            const archived = await anArchivedInvoice(t, 'tenant-delivery-lease');
+            if (!archived) return;
+            const { invoices, invoiceId } = archived;
+            const later = new Date('2026-02-01T05:33:00.000Z');
+            await invoices.claimDelivery(invoiceId, CLAIMED_AT, LEASE_START);
+
+            // A claim taken exactly when the lease starts still holds; one a
+            // millisecond older is stale.
+            assert.equal(await invoices.claimDelivery(invoiceId, later, CLAIMED_AT), false);
+            assert.equal(
+                await invoices.claimDelivery(invoiceId, later, new Date(CLAIMED_AT.getTime() + 1)),
+                true,
+            );
+
+            // The run whose claim went stale can neither record the mail nor let it go.
+            assert.equal(await invoices.markDelivered(invoiceId, DELIVERY), false);
+            await invoices.releaseDelivery(invoiceId, CLAIMED_AT);
+            assert.deepEqual((await invoices.findDocument(invoiceId))!.deliveryClaimedAt, later);
+            assert.equal(
+                await invoices.markDelivered(invoiceId, { ...DELIVERY, claimedAt: later }),
+                true,
+            );
+        });
+
+        // @requirement SC-PRIC-047
+        test("an invoice's mail let go is taken by the next run at once, and a delivered one stays delivered", async (t) => {
+            const archived = await anArchivedInvoice(t, 'tenant-delivery-release');
+            if (!archived) return;
+            const { invoices, invoiceId } = archived;
+            const next = new Date('2026-02-01T05:33:00.000Z');
+            await invoices.claimDelivery(invoiceId, CLAIMED_AT, LEASE_START);
+
+            await invoices.releaseDelivery(invoiceId, CLAIMED_AT);
+            assert.equal((await invoices.findDocument(invoiceId))!.deliveryClaimedAt, null);
+            assert.equal(await invoices.claimDelivery(invoiceId, next, LEASE_START), true);
+
+            await invoices.markDelivered(invoiceId, { ...DELIVERY, claimedAt: next });
+            await invoices.releaseDelivery(invoiceId, next);
+            const document = await invoices.findDocument(invoiceId);
+            assert.deepEqual(
+                [document!.deliveryClaimedAt, document!.deliveredAt],
+                [next, DELIVERY.at],
+            );
+        });
+
+        // @requirement SC-PRIC-047
+        test("of concurrent claims on an invoice's mail exactly one holds it", async (t) => {
+            const archived = await anArchivedInvoice(t, 'tenant-delivery-race');
+            if (!archived) return;
+            const { invoices, invoiceId } = archived;
+
+            const claims = await Promise.all(
+                Array.from({ length: 5 }, (_, index) =>
+                    invoices.claimDelivery(
+                        invoiceId,
+                        new Date(CLAIMED_AT.getTime() + index),
+                        LEASE_START,
+                    ),
+                ),
+            );
+
+            assert.equal(claims.filter(Boolean).length, 1, JSON.stringify(claims));
+        });
+
+        // @requirement SC-PRIC-033
+        test('the invoices waiting for their document, and for the mail, are read page by page', async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-waiting', 4);
+            if (!account) return;
+            const { invoices, issued } = account;
+            const ids = issued.map((invoice) => invoice.id).sort();
+            const [unrendered, rendered, archived, delivered] = ids as [
+                string,
+                string,
+                string,
+                string,
+            ];
+            const at = new Date('2026-02-01T05:17:00.000Z');
+            for (const id of [rendered, archived, delivered]) {
+                await invoices.recordRendering(id, renderingOf(CHECKSUM));
+            }
+            for (const id of [archived, delivered]) await invoices.markArchived(id, at, CHECKSUM);
+            // Held by a run, and still waiting for the mail.
+            await invoices.claimDelivery(archived, at, LEASE_START);
+            await invoices.claimDelivery(delivered, at, LEASE_START);
+            await invoices.markDelivered(delivered, {
+                claimedAt: at,
+                at,
+                to: 'billing@example.com',
+            });
+
+            assert.deepEqual(await invoices.listAwaitingDocument({ limit: 10 }), [
+                unrendered,
+                rendered,
+            ]);
+            assert.deepEqual(await invoices.listAwaitingDocument({ limit: 1 }), [unrendered]);
+            assert.deepEqual(
+                await invoices.listAwaitingDocument({ limit: 10, after: unrendered }),
+                [rendered],
+            );
+            assert.deepEqual(await invoices.listAwaitingDelivery({ limit: 10 }), [archived]);
+            assert.deepEqual(
+                await invoices.listAwaitingDelivery({ limit: 10, after: archived }),
+                [],
+            );
+        });
+
+        /** An issued invoice and the archive to keep its document in. Null without an archive. */
+        async function anArchive(t: TestContext, tenantId: string) {
+            const archive = harness.adapter.invoiceArchive;
+            if (!archive || !CONTRACT_GAPS.invoiceArchive.present(harness)) {
+                missing(t, 'invoiceArchive');
+                return null;
+            }
+            const account = await issuedInvoices(t, tenantId, 2);
+            if (!account) return null;
+            // Every byte value, the zero byte among them, and more than one page of a driver's buffer.
+            const content = new Uint8Array(70_000).map((_, index) => index % 256);
+            const documentOf = (invoiceId: string, checksum = CHECKSUM, bytes = content) => ({
+                invoiceId,
+                checksum,
+                mediaType: 'application/pdf',
+                fileName: `${invoiceId}.pdf`,
+                content: bytes,
+                archivedAt: new Date('2026-02-01T05:17:00.000Z'),
+            });
+            return { ...account, archive, content, documentOf };
+        }
+
+        // @requirement SC-AUD-014
+        test('an archived document reads back byte for byte', async (t) => {
+            const account = await anArchive(t, 'tenant-archive-bytes');
+            if (!account) return;
+            const { archive, issued, documentOf } = account;
+            const [invoice] = issued;
+
+            await archive.store(documentOf(invoice!.id));
+            const read = await archive.read(invoice!.id);
+
+            assert.ok(read);
+            assert.deepEqual(read, documentOf(invoice!.id));
+            assert.ok(read.content instanceof Uint8Array);
+            assert.equal(await archive.read(issued[1]!.id), null);
+        });
+
+        // @requirement SC-AUD-019
+        test('a document stored again is the same write, and another one for the invoice is refused', async (t) => {
+            const account = await anArchive(t, 'tenant-archive-once');
+            if (!account) return;
+            const { archive, issued, documentOf } = account;
+            const [invoice] = issued;
+            await archive.store(documentOf(invoice!.id));
+
+            await archive.store(documentOf(invoice!.id));
+            await assert.rejects(
+                archive.store(documentOf(invoice!.id, OTHER_CHECKSUM, new Uint8Array([1, 2, 3]))),
+                refusedAs(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED, {
+                    invoiceId: invoice!.id,
+                    recorded: CHECKSUM,
+                    rendered: OTHER_CHECKSUM,
+                }),
+            );
+
+            assert.deepEqual(await archive.read(invoice!.id), documentOf(invoice!.id));
+        });
+
+        test('documents stored for one invoice at the same time are kept once', async (t) => {
+            const account = await anArchive(t, 'tenant-archive-race');
+            if (!account) return;
+            const { archive, issued, documentOf } = account;
+            const [invoice] = issued;
+
+            await Promise.all(
+                Array.from({ length: 4 }, () => archive.store(documentOf(invoice!.id))),
+            );
+
+            assert.deepEqual(await archive.read(invoice!.id), documentOf(invoice!.id));
+        });
+
+        test('a document for an invoice that does not exist is refused', async (t) => {
+            const account = await anArchive(t, 'tenant-archive-orphan');
+            if (!account) return;
+
+            await assert.rejects(account.archive.store(account.documentOf(NO_SUCH_VERSION)));
+            assert.equal(await account.archive.read(NO_SUCH_VERSION), null);
         });
 
         // -------------------------------------------------------------

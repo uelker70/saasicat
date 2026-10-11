@@ -3,9 +3,11 @@ import {
     TAX_ERROR_CODES,
     type BillingCycle,
     type InvoiceContentDraft,
+    type InvoiceDocument,
     type InvoiceTaxLine,
     type PlanCatalogSettings,
     type SubscriberTaxOrigin,
+    type SubscriptionInvoiceRecord,
     type TaxAdapter,
     type TaxAdapterIdentity,
     type TaxDecisionRequest,
@@ -158,6 +160,21 @@ export class TaxTreatments {
      */
     invoiceContentGaps(draft: InvoiceContentDraft): readonly string[] {
         return this.requireBound('checks no invoice content').invoiceContentGaps(draft);
+    }
+
+    /**
+     * What a rendered document lacks of the format the law the adapter names
+     * requires, or disagrees with in its invoice (`SC-PRIC-042`); empty where
+     * it is the file to issue. Only where an adapter decides.
+     */
+    invoiceDocumentGaps(
+        document: InvoiceDocument,
+        invoice: SubscriptionInvoiceRecord,
+    ): Promise<readonly string[]> {
+        return this.requireBound('checks no invoice document').invoiceDocumentGaps(
+            document,
+            invoice,
+        );
     }
 
     /**

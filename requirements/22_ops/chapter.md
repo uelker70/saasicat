@@ -256,6 +256,10 @@ _Tested by:_
           reference schema
         - and on a database that gained the columns from the migration, with the constraints after
           it
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
 
 <!-- END proof -->
 
@@ -375,6 +379,10 @@ _Tested by:_
           reference schema
         - and on a database that gained the columns from the migration, with the constraints after
           it
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

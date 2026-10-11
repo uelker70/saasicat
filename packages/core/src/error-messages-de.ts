@@ -333,6 +333,17 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Rechnung fehlt, was der Steueradapter {adapter} verlangt: {missing}. Sie wird ausgestellt, sobald es ergänzt ist.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Der Vertrag {contractId} nennt keinen bestätigten Aussteller und Abonnenten – eine Migration hat seine Parteien übernommen, oder er nennt keinen Aussteller –, deshalb werden seine Forderungen nicht in Rechnung gestellt.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
+        'Das Dokument der Rechnung {invoiceId} weicht vom festgehaltenen oder archivierten ab ({rendered} statt {recorded}); das erste bleibt, und der nächste Lauf klärt, welches die Rechnung behält.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:
+        'Der Steueradapter {adapter} weist die gerenderte Rechnung zurück: {missing}. Die Rechnung behält ihre Nummer und wartet auf ein Dokument, das die Prüfung besteht.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH:
+        'Das archivierte Dokument der Rechnung {invoiceId} passt nicht zur beim Rendern festgehaltenen Prüfsumme und wird nicht herausgegeben.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED:
+        'Das Dokument der Rechnung {invoiceId} ist noch nicht archiviert.',
+    SUBSCRIPTION_INVOICE_NOT_FOUND: "Keine Rechnung '{invoiceId}'.",
+    SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
+        'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Rechnung wird versendet, sobald eine eingetragen ist.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'Aus einem Checkout-Angebot entsteht nur ein einziger Vertrag, und das erst, wenn seine Positionen eingefroren sind.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED:

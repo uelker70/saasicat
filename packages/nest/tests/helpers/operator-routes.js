@@ -11,6 +11,8 @@ import {
     SaaSiCatModule,
     storeSecretsInPlainText,
 } from '../../dist/platform/index.js';
+import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
+import { ISSUER, invoicingAdapter } from './invoice-run.js';
 
 /** Nest's own metadata keys. */
 export const PATH = 'path';
@@ -46,6 +48,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             superAdminProvisioning: PORT,
             auditStats: PORT,
             maintenanceWindows: PORT,
+            appliedSettings: PORT,
         },
         catalog: {
             planRepository: REPO,
@@ -85,7 +88,11 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             schemaVersion: 1,
             app: { name: 'Probe', version: '0.0.1' },
             currency: 'EUR',
-            vatRate: 19,
+            // Invoices need a tax adapter, its zone, an issuer and a range.
+            tax: { adapter: 'test-tax' },
+            timeZone: 'Europe/Berlin',
+            issuer: ISSUER,
+            invoicing: { numberPrefix: 'AHP', paymentTermDays: 14 },
             tenantBilling: {
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
@@ -96,6 +103,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
         discoverySnapshotPath: null,
         persistence,
         adapters: { secretSealer: storeSecretsInPlainText() },
+        tax: { adapter: { adapterName: 'test-tax', create: () => invoicingAdapter() } },
         catalog: { featureUiRegistry: {} },
         adminResources: true,
         tenantBilling: {
@@ -108,7 +116,16 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                 subscriptionContractRepository: REPO,
                 subscriberRepository: REPO,
             },
-            chargeJournal: { ledgerRepository: REPO },
+            chargeJournal: {
+                ledgerRepository: REPO,
+                invoices: {
+                    invoiceRepository: REPO,
+                    renderer: aRenderer(),
+                    archive: anArchive(),
+                    mail: aMailbox(),
+                    includeCron: false,
+                },
+            },
             versionNotices: { port: PORT, includeCron: false },
         },
         promoCodes: true,

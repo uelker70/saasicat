@@ -433,7 +433,9 @@ describe('POST billing/version-offer/accept', () => {
             audit: { write: async (entry) => audited.push(entry) },
         };
         // Without a contract freeze and a journal: what those do after a switch
-        // is the service's part, above. This is about who is switched.
+        // is the service's part, above. This is about who is switched. Nor
+        // invoices, which need the journal.
+        const { invoicing: _, ...planCatalog } = options.planCatalog;
         const tenantBilling = {
             ...options.tenantBilling,
             contractFreeze: undefined,
@@ -452,6 +454,7 @@ describe('POST billing/version-offer/accept', () => {
             imports: [
                 SaaSiCatModule.forRoot({
                     ...options,
+                    planCatalog,
                     persistence: {
                         ...options.persistence,
                         core,

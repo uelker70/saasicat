@@ -751,6 +751,23 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-invoice-document.test.js`
+    - where an invoice’s document stands, as the Prisma adapter writes it
+        - a rendering is written conflict-free on the invoice and answered as written
+        - a rendering recorded before is answered where its checksum is this one, and refused where
+          it is another
+        - a rendering neither written nor found is said, rather than answered as nothing
+        - a rendering is replaced only in place of the checksum read, while nothing is archived
+        - the archive’s confirmation is written only for the recorded checksum, once
+        - the mail is claimed, recorded and let go each by one write on the claim it names
+        - the waiting lists are read page by page, after the id given
+        - where it stands is read by the invoice, and nothing where none is recorded
+    - the Prisma archive
+        - stores a file conflict-free, and asks for nothing more where it was written
+        - a file stored before is the same write where its checksum is this one, and refused where
+          it is another
+        - reads a file back as bytes of its own, and nothing where none is kept
+        - says what would let a kept file change, from the enabled triggers of its table
 - `packages/adapter-prisma/tests/prisma-maintenance-window.repository.test.js`
     - PrismaMaintenanceWindowRepository
         - the open window is the one that has not ended, read column by column
@@ -841,6 +858,10 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -849,6 +870,10 @@ _Tested by:_
         - there is more than one, so a broken scan cannot pass by finding none
         - ${table} declares exactly the canonical columns
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -1019,10 +1044,18 @@ _Tested by:_
         - names enough exports for this check to mean anything
         - ${name} is reachable through drizzlePersistence()
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

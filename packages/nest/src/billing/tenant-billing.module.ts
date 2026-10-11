@@ -19,6 +19,9 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionInvoiceRepository,
+    InvoiceArchivePort,
+    InvoiceMailPort,
+    InvoiceRenderer,
     SubscriptionNoticePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -78,6 +81,12 @@ import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.
 import { InvoiceNumberPrefixCheck, invoicingStartProblems } from './invoices/invoicing-start.js';
 import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
+import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
+import {
+    INVOICE_ARCHIVE_TOKEN,
+    INVOICE_MAIL_PORT_TOKEN,
+    INVOICE_RENDERER_TOKEN,
+} from './invoices/invoice-document.tokens.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './invoices/subscription-invoice.tokens.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
 import { ContractRefreshService } from './contract-refresh.service.js';
@@ -379,9 +388,20 @@ export interface TenantBillingModuleOptions {
          */
         invoices?: {
             invoiceRepository: ProviderSpec<SubscriptionInvoiceRepository>;
+            /** Renders an invoice into the file its tax adapter's law requires (`SC-PRIC-042`). */
+            renderer: ProviderSpec<InvoiceRenderer>;
+            /**
+             * Keeps each invoice's document unalterable — the bundle's
+             * `persistence.entitlement.subscriptionInvoiceArchive` keeps it in
+             * the database (`SC-AUD-014`).
+             */
+            archive: ProviderSpec<InvoiceArchivePort>;
+            /** Sends an archived invoice to the subscriber with its file attached (`SC-PRIC-047`). */
+            mail: ProviderSpec<InvoiceMailPort>;
             /**
              * `false` leaves out the quarter-hourly run — for a CLI boot, or an
-             * application that calls `SubscriptionInvoiceService.issueDue` from a
+             * application that calls `SubscriptionInvoiceService.issueDue`, then
+             * `InvoiceDocumentService.archiveDue` and `deliverDue`, from a
              * scheduler of its own. Default: included.
              */
             includeCron?: boolean;
@@ -559,17 +579,23 @@ export class TenantBillingModule {
                 asProvider(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN, invoices.invoiceRepository),
                 SubscriptionInvoiceService,
                 InvoiceNumberPrefixCheck,
+                // Each port only where it is given: the start check below names
+                // what is missing, rather than Nest an unresolved provider.
+                ...(invoices.renderer
+                    ? [asProvider(INVOICE_RENDERER_TOKEN, invoices.renderer)]
+                    : []),
+                ...(invoices.archive ? [asProvider(INVOICE_ARCHIVE_TOKEN, invoices.archive)] : []),
+                ...(invoices.mail ? [asProvider(INVOICE_MAIL_PORT_TOKEN, invoices.mail)] : []),
+                ...(invoices.renderer && invoices.archive && invoices.mail
+                    ? [InvoiceDocumentService]
+                    : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
             );
         }
         providers.push({
             provide: INVOICING_IS_WIRED,
             useFactory: (catalog: PlanCatalogSettings, taxes: TaxTreatments | null) => {
-                const problems = invoicingStartProblems(
-                    catalog,
-                    Boolean(invoices),
-                    Boolean(taxes?.adapter),
-                );
+                const problems = invoicingStartProblems(catalog, invoices, Boolean(taxes?.adapter));
                 if (problems.length > 0) {
                     throw new Error(
                         `Invoices cannot start:\n${problems.map((problem) => `- ${problem}`).join('\n')}`,
@@ -718,6 +744,9 @@ export class TenantBillingModule {
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
                 ...(invoices ? [SubscriptionInvoiceService] : []),
+                ...(invoices?.renderer && invoices.archive && invoices.mail
+                    ? [InvoiceDocumentService]
+                    : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
                 ...(hasBookings ? [BundleVersionOfferService, BundleVersionSwitchService] : []),
                 ...(versionNotices && hasBookings

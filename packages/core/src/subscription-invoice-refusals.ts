@@ -14,3 +14,21 @@ export function subscriptionInvoiceChargeInvoiced(chargeId: string): Persistence
         { chargeId },
     );
 }
+
+/**
+ * A rendering of an invoice's document whose checksum is not the one recorded
+ * or archived for it, refused: the first stays. Only the run replaces a
+ * recorded rendering, and only while nothing is archived (`SC-AUD-019`).
+ */
+export function subscriptionInvoiceDocumentChanged(
+    invoiceId: string,
+    recorded: string,
+    rendered: string,
+): PersistenceRefusal {
+    return new PersistenceRefusal(
+        INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED,
+        'moved',
+        `The document rendered for invoice '${invoiceId}' differs from the one recorded for it.`,
+        { invoiceId, recorded, rendered },
+    );
+}

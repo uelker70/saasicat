@@ -14,6 +14,7 @@
 import {
     bigint,
     boolean,
+    customType,
     date,
     integer,
     jsonb,
@@ -675,6 +676,35 @@ export const subscriptionInvoiceLines = pgTable('subscription_invoice_lines', {
 export const subscriptionInvoiceNumbers = pgTable('subscription_invoice_numbers', {
     year: integer('year').primaryKey(),
     last: integer('last').notNull(),
+});
+
+export const subscriptionInvoiceDocuments = pgTable('subscription_invoice_documents', {
+    invoiceId: text('invoiceId').primaryKey(),
+    checksum: text('checksum').notNull(),
+    mediaType: text('mediaType').notNull(),
+    fileName: text('fileName').notNull(),
+    size: integer('size').notNull(),
+    renderedAt: ts('renderedAt').notNull(),
+    archivedAt: ts('archivedAt'),
+    deliveryClaimedAt: ts('deliveryClaimedAt'),
+    deliveredAt: ts('deliveredAt'),
+    deliveredTo: text('deliveredTo'),
+});
+
+/** A `bytea` column, read and written as bytes. */
+const bytes = customType<{ data: Uint8Array; driverData: Buffer }>({
+    dataType: () => 'bytea',
+    toDriver: (value) => Buffer.from(value),
+    fromDriver: (value) => new Uint8Array(value),
+});
+
+export const subscriptionInvoiceArchive = pgTable('subscription_invoice_archive', {
+    invoiceId: text('invoiceId').primaryKey(),
+    checksum: text('checksum').notNull(),
+    mediaType: text('mediaType').notNull(),
+    fileName: text('fileName').notNull(),
+    content: bytes('content').notNull(),
+    archivedAt: ts('archivedAt').notNull(),
 });
 
 export const subscriberPaymentMethods = pgTable('subscriber_payment_methods', {

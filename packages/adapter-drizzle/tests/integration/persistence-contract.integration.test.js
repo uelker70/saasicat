@@ -16,9 +16,13 @@
 // @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
 
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, sql } from 'drizzle-orm';
+import { INVOICE_ARCHIVE_TRIGGERS } from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     DrizzleAuditAdapter,
@@ -50,6 +54,7 @@ import {
     DrizzleSubscriberPaymentMethodRepository,
     DrizzleSubscriberLedgerRepository,
     DrizzleSubscriptionInvoiceRepository,
+    DrizzleInvoiceArchive,
     DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
@@ -59,6 +64,8 @@ import { openDisposableDatabase } from './support/disposable-database.mjs';
 const { pool, db } = await openDisposableDatabase();
 
 const PLATFORM_TABLES = [
+    'subscription_invoice_archive',
+    'subscription_invoice_documents',
     'subscription_invoice_lines',
     'subscription_invoices',
     'subscription_invoice_numbers',
@@ -121,6 +128,7 @@ function createHarness() {
             subscriberPaymentMethodRepository: new DrizzleSubscriberPaymentMethodRepository(db),
             subscriberLedgerRepository: new DrizzleSubscriberLedgerRepository(db),
             subscriptionInvoiceRepository: new DrizzleSubscriptionInvoiceRepository(db),
+            invoiceArchive: new DrizzleInvoiceArchive(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
             maintenanceWindows: new DrizzleMaintenanceWindowRepository(db),
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),
@@ -242,6 +250,49 @@ persistenceAdapterContract({
     // The adapter ships no CheckoutOfferRepository: an application implements
     // that port against its own table, and wires it into its own harness.
     gaps: ['checkoutOffers'],
+});
+
+// The triggers this adds would refuse the `TRUNCATE` the tests after it start
+// with, so it drops them again when it is done.
+// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+describe('the database archive says whether it keeps what it holds', () => {
+    const archive = new DrizzleInvoiceArchive(db);
+    const migration = readFileSync(
+        join(
+            dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
+            'sql',
+            '1.0-an-invoice-document-is-archived.postgres.sql',
+        ),
+        'utf8',
+    );
+    after(async () => {
+        for (const trigger of INVOICE_ARCHIVE_TRIGGERS) {
+            await pool.query(`DROP TRIGGER IF EXISTS "${trigger}" ON subscription_invoice_archive`);
+        }
+    });
+
+    test('built from the reference schema alone, it names the triggers it lacks', async () => {
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${INVOICE_ARCHIVE_TRIGGERS.join(' and ')},`), problem);
+    });
+
+    test('with the migration applied, it keeps what it holds', async () => {
+        // Run as the file it is, over the simple protocol: its function bodies
+        // are dollar-quoted, and a split at each statement would cut them.
+        await pool.query(migration);
+
+        assert.equal(await archive.protectionProblem(), null);
+    });
+
+    test('with one of its triggers disabled, it names that one', async () => {
+        const [kept] = INVOICE_ARCHIVE_TRIGGERS;
+        await pool.query(`ALTER TABLE subscription_invoice_archive DISABLE TRIGGER "${kept}"`);
+
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${kept},`), problem);
+    });
 });
 
 describe('drizzle-specific schema interop', () => {

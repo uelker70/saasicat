@@ -17,8 +17,8 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
 /**
  * What keeps the configuration and the wiring from issuing invoices together;
  * empty where nothing does. `wired` is whether the application wires
- * `tenantBilling.chargeJournal.invoices`, `adapterBound` whether a tax adapter
- * decides.
+ * `tenantBilling.chargeJournal.invoices` and with which ports, `adapterBound`
+ * whether a tax adapter decides.
  *
  * The block and the wiring go together: invoices issued without the block
  * would have no number range and no payment term, and a block without the
@@ -27,7 +27,7 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
  */
 export function invoicingStartProblems(
     settings: Pick<PlanCatalogSettings, 'invoicing' | 'issuer'>,
-    wired: boolean,
+    wired: { renderer?: unknown; archive?: unknown; mail?: unknown } | undefined,
     adapterBound: boolean,
 ): string[] {
     if (!wired) {
@@ -53,6 +53,23 @@ export function invoicingStartProblems(
     }
     if (!settings.issuer) {
         problems.push('invoices name their issuer: name it under issuer in config/saas.yaml.');
+    }
+    // An invoice draws its number before its document is rendered: without
+    // any of these it would be numbered and then wait for its document, or its
+    // mail, indefinitely.
+    if (!wired.renderer) {
+        problems.push(
+            'invoices need a renderer for their document: pass chargeJournal.invoices.renderer.',
+        );
+    }
+    if (!wired.archive) {
+        problems.push(
+            'invoices need an archive for their document: pass chargeJournal.invoices.archive, ' +
+                'such as persistence.entitlement.subscriptionInvoiceArchive.',
+        );
+    }
+    if (!wired.mail) {
+        problems.push('invoices reach the subscriber by email: pass chargeJournal.invoices.mail.');
     }
     return problems;
 }

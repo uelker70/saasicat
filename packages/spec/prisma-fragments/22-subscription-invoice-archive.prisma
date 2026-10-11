@@ -1,0 +1,34 @@
+// =============================================================================
+// SaaSiCat platform Prisma fragment: SubscriptionInvoiceArchive
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The database archive of the invoices' documents (20-subscription-invoice.prisma):
+// one file per invoice, under its invoice, with the checksum recorded when it
+// was rendered. A row is written once and never changed: the migration
+// `1.0-an-invoice-document-is-archived.postgres.sql` installs a trigger that
+// refuses every UPDATE and DELETE, whoever asks. Keep it, with its database
+// backups, as long as the law asks — in Germany 8 years from the end of the
+// calendar year an invoice was issued in — and in the European Union.
+//
+// Optional: adopt it where the invoices' documents are kept in the database,
+// as `persistence.entitlement.subscriptionInvoiceArchive` keeps them. An
+// installation that archives elsewhere, such as object storage with a
+// retention lock, binds its own `InvoiceArchivePort` instead.
+//
+// Contract: @saasicat/core (InvoiceArchivePort).
+
+model SubscriptionInvoiceArchive {
+    invoiceId  String   @id
+    // SHA-256 of `content`, 64 lower-case hex digits.
+    checksum   String
+    mediaType  String
+    fileName   String
+    content    Bytes
+    archivedAt DateTime
+
+    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+    @@map("subscription_invoice_archive")
+}

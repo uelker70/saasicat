@@ -251,9 +251,50 @@ it again from today's data would hand out a document the subscriber never receiv
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
+- `packages/core/tests/an-invoice-document-row-becomes-a-record.test.js`
+    - the database archive
+        - with both of its triggers enabled keeps what it holds
+        - ${what} names what it lacks, and the file that adds it
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an invoice’s document downloaded later
+        - is the archived file, not a new rendering
+        - of an invoice that does not exist is answered as not found
+        - of an invoice still waiting for its document is not offered
+        - ${what} is not handed out, and shown to the operator
+    - the operator’s download
+        - is served where invoices are, answers the archived file, and the manifest announces it
+        - offers a file name that cannot end the header it stands in
+        - of a file with no name it could keep offers one
+        - without ${without}, neither the route nor the capability exists
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - not beside an archive that would let a document it keeps be changed, naming why
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
+
+<!-- END proof -->
+
 ### SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
 
-🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+🔵 _(Superseded on 2026-10-11 by `SC-AUD-019`.)_
+💰 The document is rendered from what the invoice records and
 nothing else, never the current time or today's settings, and its checksum is recorded with the
 invoice before it is archived. An archiving attempt repeated after an interruption (`SC-PRIC-033`)
 stores a file with that checksum, every download is checked against it, and a file that does not
@@ -262,14 +303,56 @@ checksum.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+### SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
+
+🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+nothing else, never the current time or today's settings, and its checksum is recorded with the
+invoice before it is archived. Once the archive holds a file for the invoice, that file is the one
+the invoice was issued as, and the record follows it. Until then nothing has been handed out, so an
+attempt repeated after an interruption (`SC-PRIC-033`) that renders other bytes — a renderer updated
+in between — records the new checksum in place of the old one and writes both to the audit log,
+rather than holding a numbered invoice that can never be sent. Every download is checked against the
+recorded checksum, and a file that does not match is not handed out but shown to the operator. The
+register's export (`SC-ADM-022`) carries each checksum.
+
+_Source:_ #424 · #332 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an issued invoice’s document
+        - is rendered from the invoice as issued, checked, its checksum recorded, and archived
+        - is archived once: the next run renders nothing again
+        - that the adapter refuses waits under its number, recorded nowhere, until the defect is
+          fixed
+        - whose hold could not be written to the audit log is written there by the next run
+        - rendered in another shape before anything was archived takes the place of the recorded
+          one, both named in the audit log
+        - rendered again is not put in place of the recorded one where the audit log cannot say so
+        - the archive already keeps is the one it was issued as: the record follows it, and nothing
+          is rendered
+        - the archive keeps in another shape than the one recorded is the one the record follows,
+          both named in the audit log
+        - the archive keeps and the adapter refuses is held, and the archived one stays
+        - the archive keeps that no longer matches its own checksum is held for the operator
+    - an invoice’s document downloaded later
+        - is the archived file, not a new rendering
+        - of an invoice that does not exist is answered as not found
+        - of an invoice still waiting for its document is not offered
+        - ${what} is not handed out, and shown to the operator
+
+<!-- END proof -->
+
 ### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
 
 🟡 _(Decided, not yet delivered.)_ 💰 It names the plan and the bundles, their prices with the tax
 treatment (`SC-PRIC-038`), the term, the notice period and the version of the operator's terms that
 applied. That version is the one `config/saas.yaml` named when the contract was concluded or changed,
 which the contract records; the confirmation takes it from the contract, so one rendered again after
-new terms are published still names the terms the subscriber agreed to (`SC-AUD-015`). It is
-rendered and archived like an invoice (`SC-AUD-015`),
+new terms are published still names the terms the subscriber agreed to (`SC-AUD-019`). It is
+rendered and archived like an invoice (`SC-AUD-019`),
 sent to the subscriber's invoice email and offered for download beside the invoices (`SC-UI-023`).
 German law asks for the terms of a contract concluded online, general terms included, to be
 retrievable and storable when it is concluded.

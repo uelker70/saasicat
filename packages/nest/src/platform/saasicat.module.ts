@@ -67,6 +67,7 @@ import {
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
+import { servesInvoiceDocuments } from './compose/invoice-documents.js';
 import { servesSubscriberAdmin } from './compose/subscriber-admin.js';
 import {
     servesBundleVersionRetirements,
@@ -216,6 +217,7 @@ export class SaaSiCatModule {
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
+            const invoiceDocuments = servesInvoiceDocuments(options);
             const subscriberStanding = servesSubscriberAdmin(composition);
             const versionRetirements = servesVersionRetirements(composition);
             const bundleVersionRetirements = servesBundleVersionRetirements(composition);
@@ -236,6 +238,7 @@ export class SaaSiCatModule {
                         promoCodesConfig,
                         {
                             subscriberAccounts,
+                            invoiceDocuments,
                             subscriberStanding,
                             // Only an adapter holds a contract back, so only then
                             // is there anything for the lists to mark.

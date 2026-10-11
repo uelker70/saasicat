@@ -1,91 +1,27 @@
 // Where an installation issues invoices: only where the application wires them
-// and `config/saas.yaml` names the range and the payment term, beside a tax
+// with a renderer, an archive and a mail for their documents, and
+// `config/saas.yaml` names the range and the payment term, beside a tax
 // adapter, an issuer and the record of the applied settings — and never under a
 // prefix other than the one the invoices already issued carry. Each mismatch
 // refuses the start, so it is met at a deploy rather than at the first invoice.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import 'reflect-metadata';
-import { Test } from '@nestjs/testing';
 
 import { AdminManifestService } from '../dist/admin/index.js';
-import { SubscriptionInvoiceCron, SubscriptionInvoiceService } from '../dist/billing/index.js';
-import { SaaSiCatModule } from '../dist/platform/index.js';
-import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
-import { ISSUER, invoicingAdapter } from './helpers/invoice-run.js';
-import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
-
-const INVOICING = { numberPrefix: 'AHP', paymentTermDays: 14 };
-
-/** The invoices already issued, as far as the start asks. */
-const invoicesUnder = (...prefixes) => ({
-    listIssuedNumberPrefixes: async () => prefixes,
-});
-
-/**
- * The full installation, with a tax adapter, an issuer and the record of the
- * applied settings, its file naming `invoicing` and its tenant billing wiring
- * `invoices` unless told otherwise.
- */
-function installation({
-    invoicing = INVOICING,
-    invoices = { invoiceRepository: invoicesUnder(), includeCron: false },
-    tax = true,
-    issuer = ISSUER,
-    record = true,
-} = {}) {
-    const options = everythingOnOptions();
-    const { vatRate: _, ...file } = options.planCatalog;
-    // Version notices check their ports when the application starts, which
-    // this fixture binds only far enough to compile; they are not the subject.
-    const { versionNotices: __, ...tenantBilling } = options.tenantBilling;
-    const planCatalog = {
-        ...file,
-        ...(tax ? { tax: { adapter: 'test-tax' }, timeZone: 'Europe/Berlin' } : { vatRate: 19 }),
-        ...(issuer ? { issuer } : {}),
-        ...(invoicing ? { invoicing } : {}),
-    };
-    const chargeJournal = {
-        ...tenantBilling.chargeJournal,
-        ...(invoices ? { invoices } : {}),
-    };
-    const composed = bootable({
-        ...options,
-        planCatalog,
-        // Nothing to discover in a fixture whose ports answer nothing.
-        catalog: { ...options.catalog, autoSyncDiscoveryAtBoot: false },
-        ...(tax
-            ? { tax: { adapter: { adapterName: 'test-tax', create: () => invoicingAdapter() } } }
-            : {}),
-        tenantBilling: { ...tenantBilling, chargeJournal },
-    });
-    // The bypass frame as an adapter without row-level security binds it: it
-    // calls through, because the start reads the issued invoices through it.
-    composed.persistence.core.rlsBypass = { runWithBypass: (fn) => fn() };
-    // A record that has kept nothing yet: the first start that names an issuer.
-    if (record) composed.persistence.core.appliedSettings = new FakeAppliedSettingsPort();
-    return composed;
-}
-
-async function started(options) {
-    const moduleRef = await Test.createTestingModule({
-        imports: [SaaSiCatModule.forRoot(options)],
-    }).compile();
-    await moduleRef.init();
-    return moduleRef;
-}
-
-/** The message a start that fails throws, compiled and initialised as an application starts. */
-async function refusal(options) {
-    try {
-        const moduleRef = await started(options);
-        await moduleRef.close();
-    } catch (error) {
-        return error.message;
-    }
-    assert.fail('the installation started');
-}
+import {
+    InvoiceDocumentService,
+    SubscriptionInvoiceCron,
+    SubscriptionInvoiceService,
+} from '../dist/billing/index.js';
+import { anArchive } from './helpers/invoice-documents.js';
+import {
+    invoicesUnder,
+    invoicingPlatform as installation,
+    refusal,
+    started,
+    wiredInvoices,
+} from './helpers/invoicing-platform.js';
 
 // @requirement SC-PRIC-046 — An invoice states the day it is due
 // @requirement SC-PRIC-027 — An invoice carries what the tax law of its issuer requires of it
@@ -94,17 +30,24 @@ describe('invoices start', () => {
         const moduleRef = await started(installation());
 
         assert.ok(moduleRef.get(SubscriptionInvoiceService, { strict: false }));
+        assert.ok(moduleRef.get(InvoiceDocumentService, { strict: false }));
         const manifest = await moduleRef.get(AdminManifestService).getManifest();
-        assert.ok(
-            manifest.audit.actions.some((action) => action.key === 'SUBSCRIPTION_INVOICE_HELD'),
-            'and the audit log names what it records for an invoice held back',
-        );
+        const recorded = manifest.audit.actions.map((action) => action.key);
+        for (const action of [
+            'SUBSCRIPTION_INVOICE_HELD',
+            'SUBSCRIPTION_INVOICE_DOCUMENT_HELD',
+            'SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH',
+            'SUBSCRIPTION_INVOICE_DELIVERY_HELD',
+            'SUBSCRIPTION_INVOICE_DELIVERY_FAILED',
+        ]) {
+            assert.ok(recorded.includes(action), `the audit log names ${action}`);
+        }
         await moduleRef.close();
     });
 
     test('with the quarter-hourly run unless the application leaves it out', async () => {
         const withRun = await started(
-            installation({ invoices: { invoiceRepository: invoicesUnder() } }),
+            installation({ invoices: wiredInvoices({ includeCron: true }) }),
         );
         const withoutRun = await started(installation());
 
@@ -127,6 +70,28 @@ describe('invoices start', () => {
         const message = await refusal(installation({ invoices: null }));
 
         assert.match(message, /names invoicing, and the application wires no invoices/);
+    });
+
+    for (const port of ['renderer', 'archive', 'mail']) {
+        test(`not without the ${port} of their documents, which the refusal names`, async () => {
+            // Each is needed once an invoice has drawn its number: without one,
+            // it would wait for its document, or its mail, for good.
+            const message = await refusal(
+                installation({ invoices: wiredInvoices({ [port]: undefined }) }),
+            );
+
+            assert.ok(message.includes(`pass chargeJournal.invoices.${port}`), message);
+            assert.equal(message.split('\n').length, 2, 'and nothing else');
+        });
+    }
+
+    // @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+    test('not beside an archive that would let a document it keeps be changed, naming why', async () => {
+        const archive = anArchive({ problem: 'the archive lets a kept file be changed' });
+
+        const message = await refusal(installation({ invoices: wiredInvoices({ archive }) }));
+
+        assert.equal(message, 'Invoices cannot start:\n- the archive lets a kept file be changed');
     });
 
     test('not without a tax adapter, nor without an issuer', async () => {
@@ -166,7 +131,7 @@ describe('the prefix of the invoice numbers', () => {
     test('is the one the issued invoices carry, and the start goes on', async () => {
         const moduleRef = await started(
             installation({
-                invoices: { invoiceRepository: invoicesUnder('AHP'), includeCron: false },
+                invoices: wiredInvoices({ invoiceRepository: invoicesUnder('AHP') }),
             }),
         );
         await moduleRef.close();
@@ -175,7 +140,7 @@ describe('the prefix of the invoice numbers', () => {
     test('refuses the start where it is another, naming the one in use', async () => {
         const message = await refusal(
             installation({
-                invoices: { invoiceRepository: invoicesUnder('OLD'), includeCron: false },
+                invoices: wiredInvoices({ invoiceRepository: invoicesUnder('OLD') }),
             }),
         );
 
@@ -185,7 +150,7 @@ describe('the prefix of the invoice numbers', () => {
     test('refuses it where invoices carry two, even if one of them is the configured one', async () => {
         const message = await refusal(
             installation({
-                invoices: { invoiceRepository: invoicesUnder('AHP', 'OLD'), includeCron: false },
+                invoices: wiredInvoices({ invoiceRepository: invoicesUnder('AHP', 'OLD') }),
             }),
         );
 
