@@ -9777,6 +9777,7 @@ _Tested by:_
           entered
         - the mail refuses is shown to the operator without the address, and tried again by the next
           run
+        - the mail refuses in words whose case changes their length still loses the address whole
         - that does not answer in time is held for its answer, and a late success is recorded
         - that fails after the timeout is let go for the next run
         - whose archived file no longer matches its checksum is not sent, and shown to the operator

@@ -455,8 +455,9 @@ export class InvoiceDocumentService implements OnModuleInit {
      * Shows the operator a mail that was not sent, and lets the claim go for
      * the next run. The address stays on the subscriber's record, and is taken
      * out of the reason the mail gave — in the audit entry and in the log
-     * alike — which a mail server often words with the recipient in it. A claim that cannot be let go is not lost — it goes
-     * stale and is taken on then — so that failure is logged, not thrown.
+     * alike — which a mail server often words with the recipient in it. A
+     * claim that cannot be let go is not lost — it goes stale and is taken on
+     * then — so that failure is logged, not thrown.
      */
     private async deliveryFailed(
         invoice: SubscriptionInvoiceRecord,
@@ -516,7 +517,10 @@ export class InvoiceDocumentService implements OnModuleInit {
         }
     }
 
-    /** The archived file of `invoiceId` where it matches `checksum`; `null` where it is missing or does not. */
+    /**
+     * The archived file of `invoiceId` where it matches `checksum`; `null`
+     * where it is missing or does not.
+     */
     private async matching(invoiceId: string, checksum: string): Promise<InvoiceDocument | null> {
         const archived = await this.archive.read(invoiceId);
         if (!archived) return null;
@@ -591,16 +595,27 @@ function errorMessageOf(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-/** `message` with every occurrence of `address` in it, whatever its case, replaced. */
+/**
+ * `message` with every occurrence of `address` in it, whatever its case,
+ * replaced. Each window of the message is compared on its own rather than the
+ * whole message lower-cased at once: a letter such as `İ` lower-cases into two
+ * code units, and the positions found in the lower-cased copy would no longer
+ * be the message's.
+ */
 function withoutAddress(message: string, address: string): string {
-    const lower = message.toLowerCase();
     const sought = address.toLowerCase();
     if (sought === '') return message;
     let kept = '';
     let from = 0;
-    for (let at = lower.indexOf(sought); at >= 0; at = lower.indexOf(sought, from)) {
+    let at = 0;
+    while (at + address.length <= message.length) {
+        if (message.slice(at, at + address.length).toLowerCase() !== sought) {
+            at += 1;
+            continue;
+        }
         kept += `${message.slice(from, at)}[invoice email]`;
-        from = at + sought.length;
+        at += address.length;
+        from = at;
     }
     return kept + message.slice(from);
 }

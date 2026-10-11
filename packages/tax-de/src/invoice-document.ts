@@ -298,7 +298,10 @@ function metadataOf(pdf: PDFDocument): string | null {
     return stream ? textOf(stream) : null;
 }
 
-/** The embedded file `name`, its text and the relationship it declares; `null` where it is not embedded. */
+/**
+ * The embedded file `name`, its text and the relationship it declares; `null`
+ * where it is not embedded.
+ */
 function embeddedFile(
     pdf: PDFDocument,
     name: string,

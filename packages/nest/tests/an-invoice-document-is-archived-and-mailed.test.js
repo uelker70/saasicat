@@ -541,6 +541,22 @@ describe('an archived invoice’s mail', () => {
         assert.equal(store.invoices.length, 1, 'the invoice stayed issued throughout');
     });
 
+    test('the mail refuses in words whose case changes their length still loses the address whole', async () => {
+        quietLog();
+        // `İ` lower-cases into two code units, before the address.
+        const refusal = `İstanbul relay: <${INVOICE_EMAIL.toUpperCase()}> rejected`;
+        const { documents, audits } = await anArchivedInvoice({
+            mail: aMailbox({ failures: 1, refusal }),
+        });
+
+        await documents.deliverDue();
+
+        const [failure] = audits.filter(
+            (entry) => entry.action === 'SUBSCRIPTION_INVOICE_DELIVERY_FAILED',
+        );
+        assert.equal(failure.changes.params.reason, 'İstanbul relay: <[invoice email]> rejected');
+    });
+
     test('that does not answer in time is held for its answer, and a late success is recorded', async () => {
         quietLog();
         let answer = () => {};
