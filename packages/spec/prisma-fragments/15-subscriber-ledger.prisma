@@ -57,6 +57,7 @@ model SubscriberLedgerEntry {
     subscriber       Subscriber           @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
     contract         SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
     contractLineItem ContractLineItem     @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
+    invoiceLine      SubscriptionInvoiceLine? // see 20-subscription-invoice.prisma
 
     @@unique([subscriptionId, source, sourceRef, periodStart, origin])
     @@index([subscriberId, bookedAt])

@@ -583,6 +583,29 @@ export const CONTRACT_ERROR_CODES = {
 
 export type ContractErrorCode = (typeof CONTRACT_ERROR_CODES)[keyof typeof CONTRACT_ERROR_CODES];
 
+/** Invoices issued from the charge journal (`SubscriptionInvoiceService`). */
+export const INVOICE_ERROR_CODES = {
+    /**
+     * A charge already stands on an invoice: a second run issuing the same
+     * charges lost the race. Nothing is written and no number is drawn.
+     */
+    SUBSCRIPTION_INVOICE_CHARGE_INVOICED: 'SUBSCRIPTION_INVOICE_CHARGE_INVOICED',
+    /**
+     * The invoice lacks content the tax adapter requires of it — `missing`
+     * names the fields, `adapter` the adapter. It draws no number and waits
+     * until what is missing is supplied (`SC-PRIC-027`).
+     */
+    SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE: 'SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE',
+    /**
+     * The contract's parties were copied by a migration and the operator has
+     * not confirmed them yet; its charges are not invoiced until then
+     * (`SC-AUD-012`).
+     */
+    SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED: 'SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED',
+} as const;
+
+export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[keyof typeof INVOICE_ERROR_CODES];
+
 /** The parties contracts are concluded with (`SubscriberService`), and their absence. */
 export const SUBSCRIBER_ERROR_CODES = {
     /**
@@ -802,6 +825,7 @@ export const PLATFORM_ERROR_CODES = {
     ...CATALOG_ERROR_CODES,
     ...BILLING_ERROR_CODES,
     ...CONTRACT_ERROR_CODES,
+    ...INVOICE_ERROR_CODES,
     ...SUBSCRIBER_ERROR_CODES,
     ...REGISTRATION_ERROR_CODES,
     ...PAYMENT_ERROR_CODES,
@@ -817,6 +841,7 @@ export type PlatformErrorCode =
     | CatalogErrorCode
     | BillingErrorCode
     | ContractErrorCode
+    | InvoiceErrorCode
     | SubscriberErrorCode
     | RegistrationErrorCode
     | PaymentErrorCode

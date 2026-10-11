@@ -26,6 +26,11 @@ const SOURCES: Record<SubscriberChargeSource, true> = {
     discount: true,
 };
 
+/** Every origin a charge may name, as a record or a line that copies one is checked against. */
+export const SUBSCRIBER_CHARGE_ORIGINS: readonly SubscriberChargeOrigin[] = keysOf(ORIGINS);
+/** Every source a charge may name. */
+export const SUBSCRIBER_CHARGE_SOURCES: readonly SubscriberChargeSource[] = keysOf(SOURCES);
+
 const TABLE = 'subscriber_ledger_entries';
 
 /** How far from a whole number of cents float arithmetic may leave a rounded amount. */
@@ -70,8 +75,8 @@ export function toSubscriberChargeRecord(
         subscriptionId: row.subscriptionId,
         contractId: row.contractId,
         contractLineItemId: row.contractLineItemId,
-        origin: oneOf(keysOf(ORIGINS), row.origin, where('origin')),
-        source: oneOf(keysOf(SOURCES), row.source, where('source')),
+        origin: oneOf(SUBSCRIBER_CHARGE_ORIGINS, row.origin, where('origin')),
+        source: oneOf(SUBSCRIBER_CHARGE_SOURCES, row.source, where('source')),
         sourceRef: row.sourceRef,
         periodStart: row.periodStart,
         periodEnd: row.periodEnd,

@@ -53,6 +53,8 @@ export interface SettingsModuleOptions {
     includeController?: boolean;
     /** Modules whose providers the guards or the port factory resolve from. */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
+    /** Register the module globally — default `false`. */
+    global?: boolean;
 }
 
 @Module({})
@@ -78,6 +80,7 @@ export class SettingsModule {
         ];
         return {
             module: SettingsModule,
+            global: options.global ?? false,
             imports: options.imports ?? [],
             controllers:
                 options.includeController === false

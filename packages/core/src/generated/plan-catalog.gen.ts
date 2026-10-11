@@ -184,6 +184,19 @@ export interface PlanCatalog {
         customerNumberPrefix?: string;
     };
     /**
+     * Invoices issued from the charge journal (SC-PRIC-022). Named exactly where the application wires `tenantBilling.chargeJournal.invoices`; the start refuses the one without the other. Needs `tax`, whose adapter decides an invoice's treatment, checks its content and computes its tax, and `issuer`, the party every invoice names.
+     */
+    invoicing?: {
+        /**
+         * Put in front of every invoice number: `AHP` gives AHP-2026-000123. The installation is one range of its issuer, numbered from 1 again each year as `timeZone` counts it (SC-PRIC-072). Once an invoice exists, the start refuses another prefix (SC-PRIC-024).
+         */
+        numberPrefix: string;
+        /**
+         * Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed.
+         */
+        paymentTermDays: number;
+    };
+    /**
      * The payment gateway accounts this installation takes payment methods through. SaaSiCat keeps the gateway's reference to a payment method and its masked details, never a card number or an IBAN. The keys and the webhook secret of each account are bound in the application's code from the environment and never written here.
      */
     payments?: {

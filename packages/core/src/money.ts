@@ -125,3 +125,49 @@ export function computeIncludedVat(gross: number, vatRate: number): number {
     const rate = exactDecimal(vatRate);
     return amountOf(cents(exactDecimal(gross), rate, sum(HUNDRED, rate)));
 }
+
+/** One tax rate's part of an invoice: the net of its lines and the tax on that net. */
+export interface TaxAtRate {
+    /** In per cent. */
+    rate: number;
+    net: number;
+    tax: number;
+}
+
+/** An invoice's tax, rate by rate, and the totals it states. */
+export interface TaxPerRate {
+    /** One entry per rate the lines carry, the lowest rate first. */
+    rates: TaxAtRate[];
+    net: number;
+    tax: number;
+    gross: number;
+}
+
+/**
+ * An invoice's tax by the rule of EN 16931: the lines' net is summed per rate,
+ * the rate is applied to each sum and rounded once, and the gross is the net
+ * plus that tax.
+ *
+ * Never the sum of the lines' own rounded taxes, which can differ by cents —
+ * ten lines of 12.34 at 19 % carry 2.34 each, 23.40 together, while 19 % of
+ * 123.40 is 23.45 — and an electronic invoice whose stated tax differs from
+ * the one its format computes is rejected.
+ */
+export function taxPerRate(lines: readonly { net: number; rate: number }[]): TaxPerRate {
+    const nets = new Map<string, { rate: number; terms: number[] }>();
+    for (const line of lines) {
+        const key = String(line.rate);
+        const entry = nets.get(key) ?? { rate: line.rate, terms: [] };
+        entry.terms.push(line.net);
+        nets.set(key, entry);
+    }
+    const rates = [...nets.values()]
+        .sort((a, b) => a.rate - b.rate)
+        .map(({ rate, terms }) => {
+            const net = sumToCents(...terms);
+            return { rate, net, tax: percentOf(net, rate) };
+        });
+    const net = sumToCents(...rates.map((entry) => entry.net));
+    const tax = sumToCents(...rates.map((entry) => entry.tax));
+    return { rates, net, tax, gross: sumToCents(net, tax) };
+}

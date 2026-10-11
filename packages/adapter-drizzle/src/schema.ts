@@ -14,6 +14,7 @@
 import {
     bigint,
     boolean,
+    date,
     integer,
     jsonb,
     numeric,
@@ -597,6 +598,60 @@ export const subscriberLedgerEntries = pgTable('subscriber_ledger_entries', {
     amountNet: numeric('amountNet', { precision: 10, scale: 2 }).notNull(),
     bookedAt: ts('bookedAt').notNull(),
     createdAt: writtenAt('createdAt'),
+});
+
+/** A calendar day, read and written as its `YYYY-MM-DD` text. */
+const day = (name: string) => date(name, { mode: 'string' });
+
+// The invoices issued from the charge journal. The DDL authority, the unique
+// keys a second issue of the same charges and a second draw of one number
+// collide with, are `subscription_invoice_lines_chargeId_key` and
+// `subscription_invoices_numberYear_numberSequence_key`.
+export const subscriptionInvoices = pgTable('subscription_invoices', {
+    id: text('id').primaryKey(),
+    number: text('number').notNull(),
+    numberPrefix: text('numberPrefix').notNull(),
+    numberYear: integer('numberYear').notNull(),
+    numberSequence: integer('numberSequence').notNull(),
+    tenantId: text('tenantId').notNull(),
+    subscriberId: text('subscriberId').notNull(),
+    subscriptionId: text('subscriptionId').notNull(),
+    contractId: text('contractId').notNull(),
+    issuedAt: ts('issuedAt').notNull(),
+    issueDate: day('issueDate').notNull(),
+    dueDate: day('dueDate').notNull(),
+    servicePeriodFrom: day('servicePeriodFrom').notNull(),
+    servicePeriodUntil: day('servicePeriodUntil').notNull(),
+    currency: text('currency').notNull(),
+    issuerParty: jsonb('issuerParty').notNull(),
+    subscriberParty: jsonb('subscriberParty').notNull(),
+    taxTreatment: jsonb('taxTreatment').notNull(),
+    taxes: jsonb('taxes').notNull(),
+    totalNet: numeric('totalNet', { precision: 12, scale: 2 }).notNull(),
+    totalTax: numeric('totalTax', { precision: 12, scale: 2 }).notNull(),
+    totalGross: numeric('totalGross', { precision: 12, scale: 2 }).notNull(),
+    createdAt: writtenAt('createdAt'),
+});
+
+export const subscriptionInvoiceLines = pgTable('subscription_invoice_lines', {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoiceId').notNull(),
+    position: integer('position').notNull(),
+    chargeId: text('chargeId').notNull(),
+    contractLineItemId: text('contractLineItemId').notNull(),
+    title: text('title').notNull(),
+    origin: text('origin').notNull(),
+    source: text('source').notNull(),
+    periodFrom: day('periodFrom').notNull(),
+    periodUntil: day('periodUntil').notNull(),
+    amountNet: numeric('amountNet', { precision: 10, scale: 2 }).notNull(),
+    taxRate: numeric('taxRate', { precision: 5, scale: 2 }).notNull(),
+});
+
+/** One row per year: the last invoice number drawn in it. */
+export const subscriptionInvoiceNumbers = pgTable('subscription_invoice_numbers', {
+    year: integer('year').primaryKey(),
+    last: integer('last').notNull(),
 });
 
 export const subscriberPaymentMethods = pgTable('subscriber_payment_methods', {

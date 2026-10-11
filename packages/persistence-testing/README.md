@@ -113,6 +113,7 @@ persistenceAdapterContract({
         'paymentEventLog',
         'subscriberPaymentMethods',
         'subscriberLedger',
+        'subscriptionInvoices',
         'checkoutOffers',
         'appliedSettings',
         'maintenanceWindows',

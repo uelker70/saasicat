@@ -12,6 +12,7 @@ import {
     catalogVersionAlreadyPublished,
     catalogVersionGone,
     formatCustomerNumber,
+    formatInvoiceNumber,
     identityCorrectionDelta,
     isVersionActiveAt,
     noActivePlanVersion,
@@ -21,6 +22,10 @@ import {
     refuseForeignPaymentMethodReference,
     scheduledChangeAfterWrite,
     subscriberChargeColumns,
+    subscriptionInvoiceChargeInvoiced,
+    subscriptionInvoiceColumns,
+    subscriptionInvoiceLineColumns,
+    toSubscriptionInvoiceRecord,
     subscriberPaymentMethodColumns,
     toSubscriberChargeRecord,
     subscriptionBundleAlreadyCancelled,
@@ -71,6 +76,9 @@ export function createMemoryHarness() {
         contracts: [],
         contractLines: [],
         ledgerEntries: [],
+        invoices: [],
+        invoiceLines: [],
+        invoiceNumbers: {},
         subscribers: [],
         subscriberCorrections: [],
         subscriberTaxOriginChanges: [],
@@ -1777,6 +1785,86 @@ export function createMemoryHarness() {
         },
     };
 
+    // The invoices. A line must name a charge that exists, the way the foreign
+    // key does, and a charge stands on one line, the way the unique index
+    // keeps it; both are checked before anything is written, so a refused
+    // invoice leaves its number undrawn.
+    const invoiceRead = (row) =>
+        toSubscriptionInvoiceRecord(
+            row,
+            state.invoiceLines.filter((line) => line.invoiceId === row.id),
+        );
+    const uninvoiced = () =>
+        state.ledgerEntries
+            .filter((entry) => !state.invoiceLines.some((line) => line.chargeId === entry.id))
+            .map(toSubscriberChargeRecord);
+    const subscriptionInvoiceRepository = {
+        async listSubscriptionsWithUninvoicedCharges({ limit, after }) {
+            const groups = Map.groupBy(uninvoiced(), (charge) =>
+                [charge.subscriptionId, charge.contractId, charge.bookedAt.toISOString()].join('|'),
+            );
+            const due = new Set();
+            for (const charges of groups.values()) {
+                if (charges.some((charge) => charge.amountNet !== 0)) {
+                    due.add(charges[0].subscriptionId);
+                }
+            }
+            return [...due]
+                .filter((subscriptionId) => after === undefined || subscriptionId > after)
+                .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+                .slice(0, limit);
+        },
+        async listUninvoicedCharges(subscriptionId) {
+            return uninvoiced()
+                .filter((charge) => charge.subscriptionId === subscriptionId)
+                .sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime());
+        },
+        async issue(invoice) {
+            for (const line of invoice.lines) {
+                if (!state.ledgerEntries.some((entry) => entry.id === line.chargeId)) {
+                    throw new Error(`charge '${line.chargeId}' does not exist`);
+                }
+            }
+            const taken = invoice.lines.find((line) =>
+                state.invoiceLines.some((written) => written.chargeId === line.chargeId),
+            );
+            if (taken) throw subscriptionInvoiceChargeInvoiced(taken.chargeId);
+            const numberSequence = (state.invoiceNumbers[invoice.numberYear] ?? 0) + 1;
+            const number = formatInvoiceNumber(
+                invoice.numberPrefix,
+                invoice.numberYear,
+                numberSequence,
+            );
+            state.invoiceNumbers[invoice.numberYear] = numberSequence;
+            const row = {
+                id: nextId('invoice'),
+                ...subscriptionInvoiceColumns(invoice, { number, numberSequence }),
+                createdAt: FIXED_NOW,
+            };
+            state.invoices.push(row);
+            for (const line of invoice.lines) {
+                state.invoiceLines.push({
+                    id: nextId('invoice-line'),
+                    ...subscriptionInvoiceLineColumns(line, row.id),
+                });
+            }
+            return invoiceRead(row);
+        },
+        async findById(id) {
+            const row = state.invoices.find((candidate) => candidate.id === id);
+            return row ? invoiceRead(row) : null;
+        },
+        async listBySubscriber(subscriberId) {
+            return state.invoices
+                .filter((row) => row.subscriberId === subscriberId)
+                .sort((a, b) => b.numberYear - a.numberYear || b.numberSequence - a.numberSequence)
+                .map(invoiceRead);
+        },
+        async listIssuedNumberPrefixes() {
+            return [...new Set(state.invoices.map((row) => row.numberPrefix))].sort().slice(0, 2);
+        },
+    };
+
     return {
         adapter: {
             capabilities: {
@@ -1791,6 +1879,7 @@ export function createMemoryHarness() {
             paymentEventLog,
             subscriberPaymentMethodRepository,
             subscriberLedgerRepository,
+            subscriptionInvoiceRepository,
             promoCodeRepository,
             promoCodeRedemptionRepository,
             promoCodeHoldRepository,

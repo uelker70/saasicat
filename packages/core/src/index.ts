@@ -16,7 +16,10 @@ export {
     prorate,
     roundToCents,
     sumToCents,
+    taxPerRate,
     toCents,
+    type TaxAtRate,
+    type TaxPerRate,
 } from './money.js';
 export * from './checkout-offer.types.js';
 export * from './marketing-settings.types.js';
@@ -59,6 +62,7 @@ export * from './retirement-reminder.js';
 export * from './maintenance-window-mapping.js';
 export * from './maintenance-window-views.js';
 export * from './zoned-instant.js';
+export * from './zoned-day.js';
 export {
     CATALOGUE_KEYS,
     canonicalJson,
@@ -106,6 +110,11 @@ export * from './issuer-identity.js';
 export * from './legal-identity.js';
 export * from './subscriber-ledger-mapping.js';
 export * from './subscriber-ledger.types.js';
+export * from './subscription-invoice.types.js';
+export * from './subscription-invoice-mapping.js';
+export * from './subscription-invoice-refusals.js';
+export * from './subscription-invoice-draft.js';
+export * from './invoice-issuer.js';
 export * from './subscriber-mapping.js';
 export * from './subscriber-payment-method-mapping.js';
 export * from './subscriber-payment-method.types.js';

@@ -6,10 +6,14 @@
 // document keeps saying why it carries its tax after the adapter is updated or
 // replaced.
 //
-// This file holds the half of the port a contract needs: the subscriber's tax
-// origin, the treatment an adapter decides from it, and the check of a VAT
-// identification number. How an invoice computes its tax, what it has to
-// contain and the format it takes join the port with invoicing.
+// A contract needs the subscriber's tax origin, the treatment an adapter decides
+// from it, and the check of a VAT identification number. An invoice needs two
+// more answers: how its tax is computed, and whether it carries everything the
+// law requires of it — asked before its number is drawn, so a refusal leaves no
+// number behind. The format its file takes joins the port with the document.
+
+import type { LegalIdentity, PartyAddress } from './legal-identity.js';
+import type { TaxPerRate } from './money.js';
 
 /** The adapter that gave an answer, recorded beside the answer. */
 export interface TaxAdapterIdentity {
@@ -174,4 +178,38 @@ export interface TaxAdapter extends TaxAdapterIdentity {
      * an answer the adapter cannot read are each a check that did not complete.
      */
     checkVatId(vatId: string, issuer: TaxIssuer): Promise<VatIdCheckOutcome>;
+    /**
+     * An invoice's tax by the rule this adapter's law names (`SC-PRIC-041`):
+     * per rate, with the totals the invoice states. The amount it states is
+     * the amount collected and the amount a payment settles.
+     */
+    invoiceTax(lines: readonly InvoiceTaxLine[]): TaxPerRate;
+    /**
+     * What an invoice lacks of the content the law requires of it
+     * (`SC-PRIC-027`), as the fields it misses — `issuer.taxIdentifier`,
+     * `subscriber.postalCode` — or none where it is complete. Asked before the
+     * number is drawn; an invoice that lacks anything is not issued.
+     */
+    invoiceContentGaps(draft: InvoiceContentDraft): readonly string[];
+}
+
+/** A line as an invoice's tax is computed from it. */
+export interface InvoiceTaxLine {
+    net: number;
+    /** In per cent. */
+    rate: number;
+}
+
+/**
+ * What an invoice says, without its number: what the adapter checks against
+ * the content the law requires before the number is drawn.
+ */
+export interface InvoiceContentDraft {
+    issuer: LegalIdentity & PartyAddress;
+    subscriber: LegalIdentity & PartyAddress;
+    treatment: TaxTreatment;
+    issueDate: string;
+    dueDate: string;
+    servicePeriod: { from: string; until: string };
+    lines: readonly { title: string; net: number; rate: number }[];
 }

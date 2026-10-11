@@ -17,6 +17,7 @@ import type {
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
+    SubscriptionInvoiceRepository,
     SubscriptionNoticePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -62,11 +63,17 @@ import {
     retirementTermsConfirmed,
 } from './version-retirement.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
+import type { TaxTreatments } from '../tax/tax-treatments.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
 import { SubscriberAccountService } from './charges/subscriber-account.service.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
+import { InvoiceNumberPrefixCheck, invoicingStartProblems } from './invoices/invoicing-start.js';
+import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
+import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
+import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './invoices/subscription-invoice.tokens.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
 import { ContractRefreshService } from './contract-refresh.service.js';
 import {
@@ -107,6 +114,12 @@ import {
  * symbol: created and read only here.
  */
 const ORDERLY_RETIREMENT_IS_WIRED = Symbol('OrderlyRetirementIsWired');
+
+/**
+ * Checks at start-up that the invoicing block of the file and the wiring of
+ * invoices go together. A plain symbol: created and read only here.
+ */
+const INVOICING_IS_WIRED = Symbol('InvoicingIsWired');
 
 // TenantBillingModule — registers the `TenantBillingController` with all
 // tenant self-service endpoints (`/billing/entitlement`, `/billing/usage`,
@@ -338,6 +351,22 @@ export interface TenantBillingModuleOptions {
      */
     chargeJournal?: {
         ledgerRepository: ProviderSpec<SubscriberLedgerRepository>;
+        /**
+         * Optional invoices issued from the journal (`SubscriptionInvoiceService`):
+         * every quarter of an hour, one invoice for the charges booked together
+         * under a contract, numbered without gaps in the range
+         * `config/saas.yaml#invoicing` names. Needs that block, a tax adapter
+         * and the issuer in the file; the start refuses one without the other.
+         */
+        invoices?: {
+            invoiceRepository: ProviderSpec<SubscriptionInvoiceRepository>;
+            /**
+             * `false` leaves out the quarter-hourly run — for a CLI boot, or an
+             * application that calls `SubscriptionInvoiceService.issueDue` from a
+             * scheduler of its own. Default: included.
+             */
+            includeCron?: boolean;
+        };
     };
 
     /**
@@ -505,6 +534,32 @@ export class TenantBillingModule {
                 SubscriberAccountService,
             );
         }
+        const invoices = options.chargeJournal?.invoices;
+        if (invoices) {
+            providers.push(
+                asProvider(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN, invoices.invoiceRepository),
+                SubscriptionInvoiceService,
+                InvoiceNumberPrefixCheck,
+                ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
+            );
+        }
+        providers.push({
+            provide: INVOICING_IS_WIRED,
+            useFactory: (catalog: PlanCatalogSettings, taxes: TaxTreatments | null) => {
+                const problems = invoicingStartProblems(
+                    catalog,
+                    Boolean(invoices),
+                    Boolean(taxes?.adapter),
+                );
+                if (problems.length > 0) {
+                    throw new Error(
+                        `Invoices cannot start:\n${problems.map((problem) => `- ${problem}`).join('\n')}`,
+                    );
+                }
+                return Boolean(invoices);
+            },
+            inject: [PLAN_CATALOG_SETTINGS_TOKEN, { token: TAX_TREATMENTS_TOKEN, optional: true }],
+        });
         const versionNotices = options.versionNotices;
         if (versionNotices) {
             providers.push(
@@ -626,6 +681,7 @@ export class TenantBillingModule {
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
+                ...(invoices ? [SubscriptionInvoiceService] : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
                 ...(hasBookings ? [BundleVersionOfferService, BundleVersionSwitchService] : []),
                 ...(versionNotices && hasBookings

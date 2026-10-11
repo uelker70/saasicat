@@ -215,10 +215,32 @@ _Tested by:_
 
 ### SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
 
-🟡 _(Decided, not yet delivered.)_ 💰 The charge already names its agreement line (`SC-AUD-010`);
+🟢 💰 The charge already names its agreement line (`SC-AUD-010`);
 the invoice line adds the step from the document to the charge.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - the lines of an invoice
+        - follow the contract’s lines, each naming its charge and its contract line, titled as the
+          contract titles it
+        - of the same contract line come in the order of their periods
+        - refuse a charge whose contract line the contract does not have
+        - refuse charges in two currencies, which no invoice states
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice is issued for the charges booked together
+        - the opening of a period is one invoice, its lines in the contract’s order
+        - a charge that arises later in the period is an invoice of its own, numbered after
+        - groups waiting from earlier are issued oldest first, so their numbers follow the charges
+        - a second run issues nothing the first one issued
+        - a charge another instance invoiced first is passed over, neither issued nor failed
+        - a failure of one invoice holds up none of the others, and the next run issues it
+
+<!-- END proof -->
 
 ### SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
 

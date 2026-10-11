@@ -297,6 +297,12 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── contract ──
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
         'Der Vertrag nennt in {field} {stated} %, der Steueradapter entscheidet {decided} %.',
+    SUBSCRIPTION_INVOICE_CHARGE_INVOICED:
+        "Die Forderung '{chargeId}' steht bereits auf einer Rechnung.",
+    SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
+        'Der Rechnung fehlt, was der Steueradapter {adapter} verlangt: {missing}. Sie wird ausgestellt, sobald es ergänzt ist.',
+    SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
+        'Der Vertrag {contractId} nennt keinen bestätigten Aussteller und Abonnenten – eine Migration hat seine Parteien übernommen, oder er nennt keinen Aussteller –, deshalb werden seine Forderungen nicht in Rechnung gestellt.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'Aus einem Checkout-Angebot entsteht nur ein einziger Vertrag, und das erst, wenn seine Positionen eingefroren sind.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED:

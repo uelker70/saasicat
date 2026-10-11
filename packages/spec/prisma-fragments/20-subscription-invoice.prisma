@@ -1,0 +1,113 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriptionInvoice
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The invoices issued from the charge journal (15-subscriber-ledger.prisma):
+// the charges a billing period opens with on one invoice, a charge that arises
+// later on an invoice of its own. An invoice copies everything it states when
+// it is issued — the issuer, the subscriber, the tax treatment the adapter
+// decided, the tax per rate — so a later change leaves it as it was. Nothing
+// updates or deletes an invoice; a correction is a cancellation invoice and its
+// replacement.
+//
+// A line invoices one charge, and a charge stands on one line: the unique
+// `chargeId` is what makes a second run issuing the same charges write
+// nothing, however many run at the same time.
+//
+// The number range is the table `subscription_invoice_numbers`, one row per
+// year holding the last number drawn. An invoice draws its number by raising
+// that row in the transaction that writes the invoice, so an invoice that
+// fails to be written leaves no gap, and two at the same time wait for each
+// other rather than drawing the same number. One installation is the range of
+// one issuer; the number is `<prefix>-<year>-<sequence>`.
+//
+// The days an invoice states — its issue date, its due date, the period its
+// charges cover — are calendar days in the installation's time zone, kept as
+// `date` columns; `issuedAt` is the instant it was issued.
+//
+// `origin` and `source` on a line are text holding the charge's closed sets,
+// checked when a row is read (`toSubscriptionInvoiceRecord` in @saasicat/core).
+//
+// Optional: adopt it, all three models together, where
+// `tenantBilling.chargeJournal.invoices` is configured, which needs the charge
+// journal.
+//
+// Contract: @saasicat/core (SubscriptionInvoiceRepository).
+
+model SubscriptionInvoice {
+    id             String @id @default(uuid())
+    number         String @unique
+    numberPrefix   String
+    numberYear     Int
+    numberSequence Int
+
+    tenantId       String
+    subscriberId   String
+    subscriptionId String
+    contractId     String
+
+    issuedAt           DateTime
+    issueDate          DateTime @db.Date
+    dueDate            DateTime @db.Date
+    servicePeriodFrom  DateTime @db.Date
+    servicePeriodUntil DateTime @db.Date
+
+    currency        String
+    // The parties as the invoice names them, copied when it was issued.
+    issuerParty     Json
+    subscriberParty Json
+    // The adapter's treatment, with its name and version, and the tax per rate.
+    taxTreatment    Json
+    taxes           Json
+    totalNet        Decimal @db.Decimal(12, 2)
+    totalTax        Decimal @db.Decimal(12, 2)
+    totalGross      Decimal @db.Decimal(12, 2)
+
+    createdAt DateTime @default(now())
+
+    subscriber Subscriber                @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    contract   SubscriptionContract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+    lines      SubscriptionInvoiceLine[]
+
+    @@unique([numberYear, numberSequence])
+    @@index([subscriberId, issuedAt])
+    @@index([subscriptionId])
+    @@map("subscription_invoices")
+}
+
+model SubscriptionInvoiceLine {
+    id                 String @id @default(uuid())
+    invoiceId          String
+    position           Int
+    chargeId           String @unique
+    contractLineItemId String
+
+    title  String
+    origin String
+    source String
+
+    periodFrom  DateTime @db.Date
+    periodUntil DateTime @db.Date
+
+    amountNet Decimal @db.Decimal(10, 2)
+    taxRate   Decimal @db.Decimal(5, 2)
+
+    invoice          SubscriptionInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    charge           SubscriberLedgerEntry @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+    contractLineItem ContractLineItem      @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
+
+    @@unique([invoiceId, position])
+    @@index([contractLineItemId])
+    @@map("subscription_invoice_lines")
+}
+
+model SubscriptionInvoiceNumber {
+    // The year the numbers count in; the range restarts at 1 each year.
+    year Int @id
+    // The last number drawn in that year.
+    last Int
+
+    @@map("subscription_invoice_numbers")
+}

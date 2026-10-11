@@ -49,6 +49,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`17-subscription-notice.prisma`](17-subscription-notice.prisma)             | `SubscriptionNotice`                                                                                          |
 | [`18-version-retirement.prisma`](18-version-retirement.prisma)               | `VersionRetirement`                                                                                           |
 | [`19-bundle-version-retirement.prisma`](19-bundle-version-retirement.prisma) | `BundleVersionRetirement`                                                                                     |
+| [`20-subscription-invoice.prisma`](20-subscription-invoice.prisma)           | `SubscriptionInvoice`, `SubscriptionInvoiceLine`, `SubscriptionInvoiceNumber`                                 |
 
 ## How the consumer uses the fragments
 

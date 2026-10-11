@@ -26,6 +26,7 @@ import type {
     SubscriberRepository,
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
+    SubscriptionInvoiceRepository,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     SubscriptionRepository,
@@ -89,6 +90,15 @@ export interface ContractAdapterInstances {
      * and `seed.createSubscriber`.
      */
     subscriberLedgerRepository?: SubscriberLedgerRepository;
+    /**
+     * Enables the invoice scenarios: numbers run from 1 each year without a
+     * gap, whether an invoice is refused, rolled back or issued beside
+     * another at the same time, a charge stands on one invoice, and an invoice
+     * reads back to the cent and the day. An invoice is built from charges, so
+     * they also need `subscriberLedgerRepository`,
+     * `subscriptionContractRepository` and `seed.createSubscriber`.
+     */
+    subscriptionInvoiceRepository?: SubscriptionInvoiceRepository;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -304,6 +314,7 @@ export type ContractGap =
     | 'paymentEventLog'
     | 'subscriberPaymentMethods'
     | 'subscriberLedger'
+    | 'subscriptionInvoices'
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'

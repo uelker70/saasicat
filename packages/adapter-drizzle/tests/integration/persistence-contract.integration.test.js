@@ -48,6 +48,7 @@ import {
     DrizzlePaymentEventLog,
     DrizzleSubscriberPaymentMethodRepository,
     DrizzleSubscriberLedgerRepository,
+    DrizzleSubscriptionInvoiceRepository,
     DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
@@ -57,6 +58,9 @@ import { openDisposableDatabase } from './support/disposable-database.mjs';
 const { pool, db } = await openDisposableDatabase();
 
 const PLATFORM_TABLES = [
+    'subscription_invoice_lines',
+    'subscription_invoices',
+    'subscription_invoice_numbers',
     'promo_code_redemptions',
     'promo_code_holds',
     'promo_code_validation_logs',
@@ -114,6 +118,7 @@ function createHarness() {
             paymentEventLog: new DrizzlePaymentEventLog(db),
             subscriberPaymentMethodRepository: new DrizzleSubscriberPaymentMethodRepository(db),
             subscriberLedgerRepository: new DrizzleSubscriberLedgerRepository(db),
+            subscriptionInvoiceRepository: new DrizzleSubscriptionInvoiceRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
             maintenanceWindows: new DrizzleMaintenanceWindowRepository(db),
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),

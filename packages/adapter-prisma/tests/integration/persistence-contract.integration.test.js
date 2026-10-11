@@ -39,6 +39,7 @@ import {
     PrismaPaymentEventLog,
     PrismaSubscriberPaymentMethodRepository,
     PrismaSubscriberLedgerRepository,
+    PrismaSubscriptionInvoiceRepository,
     PrismaSubscriberRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
@@ -59,6 +60,9 @@ const prisma = new PrismaClient();
 await rebuildFromReferenceSchema(prisma);
 
 const PLATFORM_TABLES = [
+    'subscription_invoice_lines',
+    'subscription_invoices',
+    'subscription_invoice_numbers',
     'promo_code_redemptions',
     'promo_code_holds',
     'promo_code_validation_logs',
@@ -119,6 +123,7 @@ function createHarness() {
             paymentEventLog: new PrismaPaymentEventLog(prisma),
             subscriberPaymentMethodRepository: new PrismaSubscriberPaymentMethodRepository(prisma),
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
+            subscriptionInvoiceRepository: new PrismaSubscriptionInvoiceRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
             maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),

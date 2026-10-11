@@ -24,6 +24,7 @@ import type {
 import type {
     PlanVersionRepository,
     SubscriberLedgerRepository,
+    SubscriptionInvoiceRepository,
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -149,6 +150,8 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriberRepository?: PersistenceProvider<SubscriberRepository>;
     /** The charges a subscriber's contracts give rise to (`tenantBilling.chargeJournal`). */
     subscriberLedgerRepository?: PersistenceProvider<SubscriberLedgerRepository>;
+    /** The invoices issued from those charges (`tenantBilling.chargeJournal.invoices`). */
+    subscriptionInvoiceRepository?: PersistenceProvider<SubscriptionInvoiceRepository>;
     subscriptionBundleRepository?: PersistenceProvider<SubscriptionBundleRepository>;
     bundleRepository?: PersistenceProvider<BundleRepository>;
 }

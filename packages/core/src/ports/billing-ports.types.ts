@@ -30,6 +30,10 @@ import type {
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
+import type {
+    NewSubscriptionInvoice,
+    SubscriptionInvoiceRecord,
+} from '../subscription-invoice.types.js';
 
 // -----------------------------------------------------------------------------
 // Billing repository and tenant self-service ports
@@ -503,6 +507,63 @@ export interface SubscriberLedgerRepository {
         subscriptionId: string,
         tx?: TransactionContext,
     ): Promise<SubscriberChargeRecord[]>;
+}
+
+/**
+ * The invoices issued from the charge journal, and the one number range they
+ * are numbered in (`SC-PRIC-072`).
+ *
+ * An invoice is written once and never changed. Its number is drawn when it is
+ * written, in the same transaction, so an invoice that fails to be written
+ * leaves no gap; the range restarts at 1 each year.
+ */
+export interface SubscriptionInvoiceRepository {
+    /**
+     * The subscriptions with a charge to invoice: a charge on no invoice in a
+     * group — the charges booked at the same moment under the same contract —
+     * that carries an amount (`SC-PRIC-048`). By id, at most `limit`, after
+     * `after` where it is given, so a caller reads them page by page and a
+     * subscription held back on one run never keeps the others from the next.
+     */
+    listSubscriptionsWithUninvoicedCharges(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /** The charges of one subscription on no invoice, oldest period first. */
+    listUninvoicedCharges(
+        subscriptionId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberChargeRecord[]>;
+
+    /**
+     * Draws the next number of the invoice's year and writes the invoice with
+     * its lines, in one transaction — the caller's where it passes one. Two
+     * calls at once draw two numbers one after the other, never the same one
+     * and never with a gap between them.
+     *
+     * Refuses with `SUBSCRIPTION_INVOICE_CHARGE_INVOICED` (`moved`) where a
+     * charge already stands on an invoice: nothing is written, and the number
+     * is not drawn.
+     */
+    issue(
+        invoice: NewSubscriptionInvoice,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceRecord>;
+
+    findById(id: string, tx?: TransactionContext): Promise<SubscriptionInvoiceRecord | null>;
+
+    /** Every invoice of one subscriber, the latest number first. */
+    listBySubscriber(
+        subscriberId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceRecord[]>;
+
+    /**
+     * The prefixes the issued invoices carry, at most two: one is the range,
+     * a second one says the prefix was changed under it (`SC-PRIC-024`).
+     */
+    listIssuedNumberPrefixes(tx?: TransactionContext): Promise<string[]>;
 }
 
 // -----------------------------------------------------------------------------

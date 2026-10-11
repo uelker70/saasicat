@@ -42,6 +42,7 @@ import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-looku
 import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
 import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
 import { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.repository.js';
+import { PrismaSubscriptionInvoiceRepository } from './prisma-subscription-invoice.repository.js';
 import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 import { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
@@ -75,6 +76,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriberPaymentMethod: unknown;
     subscriberPaymentMethodSetup: unknown;
     subscriberLedgerEntry: unknown;
+    subscriptionInvoice: unknown;
     subscriptionNotice: unknown;
 }
 
@@ -244,6 +246,11 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             subscriberLedgerRepository: unless(
                 'entitlement.subscriberLedgerRepository',
                 provide((prisma) => new PrismaSubscriberLedgerRepository(canonical(prisma))),
+            ),
+            // The invoices issued from those charges, and their number range.
+            subscriptionInvoiceRepository: unless(
+                'entitlement.subscriptionInvoiceRepository',
+                provide((prisma) => new PrismaSubscriptionInvoiceRepository(canonical(prisma))),
             ),
             subscriptionBundleRepository: provide(
                 (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),
