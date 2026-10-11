@@ -1470,7 +1470,10 @@ paths:
                 '404':
                     description: No withdrawal has that id (`FEATURE_WITHDRAWAL_NOT_FOUND`)
                 '409':
-                    description: Lifted already (`FEATURE_WITHDRAWAL_ALREADY_LIFTED`, with its date)
+                    description: >-
+                        Lifted already (`FEATURE_WITHDRAWAL_ALREADY_LIFTED`, with its date), or nobody
+                        it reaches told of it yet, telling them having failed just now
+                        (`FEATURE_WITHDRAWAL_NOT_TOLD_YET`)
                 '422':
                     description: A date already past (`FEATURE_WITHDRAWAL_LIFT_IN_PAST`)
 

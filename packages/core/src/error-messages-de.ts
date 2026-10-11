@@ -248,6 +248,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Abonnements, die dieser Rückzug erreicht, haben sich seit der Anzeige geändert. Sehen Sie sie erneut an, bevor Sie ihn ankündigen.',
     FEATURE_WITHDRAWAL_NOT_FOUND: 'Rückzug {withdrawalId} nicht gefunden.',
     FEATURE_WITHDRAWAL_ALREADY_LIFTED: 'Dieser Rückzug ist bereits aufgehoben, ab dem {date}.',
+    FEATURE_WITHDRAWAL_NOT_TOLD_YET:
+        'Über diesen Rückzug ist noch niemand informiert, und er wird nicht aufgehoben, bevor das geschehen ist. Versuchen Sie es gleich noch einmal.',
     FEATURE_WITHDRAWAL_LIFT_IN_PAST:
         'Ein Rückzug wird ab jetzt oder ab einem späteren Datum aufgehoben, nie ab einem vergangenen.',
     FEATURE_WITHDRAWAL_NOT_IN_EFFECT:

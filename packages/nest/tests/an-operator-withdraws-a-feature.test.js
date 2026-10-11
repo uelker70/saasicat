@@ -677,6 +677,34 @@ describe('announcing a withdrawal', () => {
         );
     });
 
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('reports what was told where a run told them before the announcement could', async () => {
+        const harness = withdrawing();
+        const create = harness.withdrawals.create;
+        harness.withdrawals.create = async (data, tx) => {
+            const created = await create(data, tx);
+            // The quarter-hourly run fires between the record and the telling.
+            await harness.service.sendUndelivered(NOW);
+            return created;
+        };
+        const { withdrawal, told } = await harness.service.announce(
+            await announcement(harness.service),
+            ACTOR,
+            NOW,
+        );
+        assert.equal(told, 1);
+        assert.ok(withdrawal.toldAt);
+        assert.deepEqual(
+            harness.audited.map((entry) => [entry.action, entry.changes.subscriptions]),
+            [['FEATURE_WITHDRAW', 1]],
+        );
+        assert.deepEqual(
+            harness.port.sent.map((notice) => notice.subscriptionId),
+            ['sub-t1'],
+            'told once',
+        );
+    });
+
     test('writes the reductions into the contract of each subscription with a line reduced', async () => {
         const written = [];
         const harness = withdrawing({
@@ -907,6 +935,53 @@ describe('lifting a withdrawal', () => {
                 ['feature-withdrawal-lifted', 'sub-t1'],
             ],
         );
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('refuses to lift a withdrawal nobody could be told of yet, and lifts nothing', async () => {
+        const harness = withdrawing({
+            withdrawals: withdrawalStore([
+                withdrawalRecord({
+                    effectiveFrom: new Date('2026-06-01T00:00:00.000Z'),
+                    toldAt: null,
+                }),
+            ]),
+        });
+        harness.notices.record = async () => {
+            throw new Error('the database went away');
+        };
+        const refusal = await refusalOf(harness.service.lift('fw-existing', null, ACTOR, NOW));
+        assert.equal(refusal.code, 'FEATURE_WITHDRAWAL_NOT_TOLD_YET');
+        assert.equal((await harness.withdrawals.findById('fw-existing')).liftedFrom, null);
+        assert.deepEqual(harness.port.sent, []);
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('tells a lift only to whom the withdrawal itself reached, and the rest after it', async () => {
+        let down = true;
+        const harness = withdrawing({
+            port: sendingPort((notice) => {
+                if (down && notice.kind === 'feature-withdrawn')
+                    throw new Error('mail server down');
+                return { recipients: ['admin@example.com'], channel: 'email' };
+            }),
+        });
+        const kinds = () => harness.port.sent.map((notice) => notice.kind);
+        const { withdrawal } = await harness.service.announce(
+            await announcement(harness.service),
+            ACTOR,
+            NOW,
+        );
+        await harness.service.lift(withdrawal.id, null, ACTOR, ms(NOW, 1000));
+        await harness.service.sendUndelivered(ms(NOW, 60 * 60_000));
+        assert.ok(
+            !kinds().includes('feature-withdrawal-lifted'),
+            'nothing of the lift while the withdrawal has not reached them',
+        );
+
+        down = false;
+        await harness.service.sendUndelivered(ms(NOW, 2 * 60 * 60_000));
+        assert.deepEqual(kinds().slice(-2), ['feature-withdrawn', 'feature-withdrawal-lifted']);
     });
 
     test('from now where no date is given; never from a date already past', async () => {

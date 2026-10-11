@@ -1507,6 +1507,7 @@ _Tested by:_
         - leaves who it reaches to the next run where recording them fails, which tells them
         - tells them once, where the run and the announcement tell them at the same moment
         - reaches nobody through a second telling that read it before the first was done
+        - reports what was told where a run told them before the announcement could
         - writes the reductions into the contract of each subscription with a line reduced
         - stands where writing a contract fails, which the journal does before it charges
         - tells a line no reduction was named for that none applies
@@ -1519,6 +1520,8 @@ _Tested by:_
     - lifting a withdrawal
         - records the date, tells every subscription it reached that still runs
         - tells a withdrawal nobody was told of yet before it tells them it is lifted
+        - refuses to lift a withdrawal nobody could be told of yet, and lifts nothing
+        - tells a lift only to whom the withdrawal itself reached, and the rest after it
         - from now where no date is given; never from a date already past
         - refuses an unknown withdrawal, and one lifted already, naming its date
         - lifted meanwhile by another operator, keeps what they recorded
@@ -1641,7 +1644,10 @@ _Tested by:_
         - leaves who it reaches to the next run where recording them fails, which tells them
         - tells them once, where the run and the announcement tell them at the same moment
         - reaches nobody through a second telling that read it before the first was done
+        - reports what was told where a run told them before the announcement could
     - lifting a withdrawal
         - tells a withdrawal nobody was told of yet before it tells them it is lifted
+        - refuses to lift a withdrawal nobody could be told of yet, and lifts nothing
+        - tells a lift only to whom the withdrawal itself reached, and the rest after it
 
 <!-- END proof -->

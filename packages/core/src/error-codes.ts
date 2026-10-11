@@ -457,6 +457,12 @@ export const BILLING_ERROR_CODES = {
     /** The withdrawal was lifted already. Carries the `date` it is lifted from. */
     FEATURE_WITHDRAWAL_ALREADY_LIFTED: 'FEATURE_WITHDRAWAL_ALREADY_LIFTED',
     /**
+     * Nobody the withdrawal reaches has been told of it yet, and telling them
+     * failed just now: a withdrawal is lifted only once they were. Nothing was
+     * lifted; the next try, or the quarter-hourly run, tells them first.
+     */
+    FEATURE_WITHDRAWAL_NOT_TOLD_YET: 'FEATURE_WITHDRAWAL_NOT_TOLD_YET',
+    /**
      * The date a withdrawal would be lifted from lies before now: what was
      * withdrawn until then was withdrawn.
      */

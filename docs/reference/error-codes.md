@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 259 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 260 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -172,6 +172,7 @@ Subscriptions, plan changes, entitlements.
 | `FEATURE_WITHDRAWAL_LIFT_IN_PAST`                    | A withdrawal is lifted from now on or from a later date, never from a date already past.                                                                                                                                        |
 | `FEATURE_WITHDRAWAL_NOT_FOUND`                       | Feature withdrawal {withdrawalId} not found.                                                                                                                                                                                    |
 | `FEATURE_WITHDRAWAL_NOT_IN_EFFECT`                   | {featureKey} is not withdrawn now, so nothing can be ended at once because of it.                                                                                                                                               |
+| `FEATURE_WITHDRAWAL_NOT_TOLD_YET`                    | Nobody has been told of this withdrawal yet, and it is not lifted before they are. Try again in a moment.                                                                                                                       |
 | `FEATURE_WITHDRAWAL_OPEN`                            | {featureKey} is withdrawn already, and that withdrawal is not lifted. Lift it before announcing another.                                                                                                                        |
 | `FEATURE_WITHDRAWAL_OVERLAPS`                        | {featureKey} is withdrawn until {date}. Another withdrawal can begin on that date at the earliest.                                                                                                                              |
 | `FEATURE_WITHDRAWAL_PREVIEW_CHANGED`                 | The subscriptions this withdrawal reaches changed since they were shown. Look at them again before announcing it.                                                                                                               |

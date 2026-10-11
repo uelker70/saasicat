@@ -298,11 +298,14 @@ export class FeatureWithdrawalService {
             for (const kind of [WITHDRAWN, LIFTED, ENDED_AT_ONCE]) {
                 const undelivered = await this.notices.listUndelivered(kind, staleBefore);
                 // An end at once is told only where it happened: an attempt
-                // that failed after recording it left a record of nothing.
+                // that failed after recording it left a record of nothing. A
+                // lift is told only to whom the withdrawal was told first.
                 const due =
                     kind === ENDED_AT_ONCE
                         ? await this.recordsOfEndsThatHappened(undelivered)
-                        : undelivered;
+                        : kind === LIFTED
+                          ? await this.toldOfTheWithdrawal(undelivered)
+                          : undelivered;
                 for (const record of due) {
                     const outcome = await this.sender.tell(
                         record.content as SubscriptionNotice,
@@ -315,6 +318,38 @@ export class FeatureWithdrawalService {
             }
             return { told, failed };
         });
+    }
+
+    /** How many subscriptions `withdrawal` reached, and how many of their notices reached somebody. */
+    private async progressOf(
+        withdrawal: FeatureWithdrawalRecord,
+    ): Promise<{ reached: number; told: number }> {
+        const records = (
+            await this.notices.listOfKindSince(WITHDRAWN, withdrawal.announcedAt)
+        ).filter((record) => record.subject === withdrawal.id);
+        return { reached: records.length, told: records.filter(reachedSomebody).length };
+    }
+
+    /**
+     * Of `records` — notices of a lift — those whose subscription was told of
+     * the withdrawal itself: a lift is never news before the withdrawal is.
+     */
+    private async toldOfTheWithdrawal(
+        records: readonly SubscriptionNoticeRecord[],
+    ): Promise<SubscriptionNoticeRecord[]> {
+        const delivered = new Map<string, Set<string>>();
+        const kept: SubscriptionNoticeRecord[] = [];
+        for (const record of records) {
+            let told = delivered.get(record.subject);
+            if (!told) {
+                told = new Set(
+                    await this.notices.listDeliveredSubscriptionIds(WITHDRAWN, record.subject),
+                );
+                delivered.set(record.subject, told);
+            }
+            if (told.has(record.subscriptionId)) kept.push(record);
+        }
+        return kept;
     }
 
     /**
@@ -455,17 +490,23 @@ export class FeatureWithdrawalService {
         // left is reported, not thrown, so the operator is not told it failed
         // when it did not.
         this.entitlements.invalidateAll();
+        const outcome = await this.tellWhoItReaches(withdrawal, now);
+        const current = (await this.withdrawals.findById(withdrawal.id)) ?? withdrawal;
+        // Told by a run that came first, where this call found it told
+        // already: the record of notices says how far that came.
+        const elsewhere =
+            !outcome && current.toldAt !== null ? await this.progressOf(withdrawal) : null;
         await this.record(actor, 'FEATURE_WITHDRAW', withdrawal, {
             featureKey: withdrawal.featureKey,
             effectiveFrom: withdrawal.effectiveFrom.toISOString(),
             reductions: withdrawal.reductions,
-            subscriptions: preview.reached.length,
+            // Who it reaches as read once it was recorded; null where nobody
+            // was told yet, which the next run does.
+            subscriptions: outcome?.reached ?? elsewhere?.reached ?? null,
         });
-        const outcome = await this.tellWhoItReaches(withdrawal, now);
-        const current = outcome ? await this.withdrawals.findById(withdrawal.id) : null;
         return {
-            withdrawal: featureWithdrawalRowOf(current ?? withdrawal),
-            told: outcome?.told ?? 0,
+            withdrawal: featureWithdrawalRowOf(current),
+            told: outcome?.told ?? elsewhere?.told ?? 0,
             failed: outcome?.failed ?? 0,
         };
     }
@@ -483,7 +524,7 @@ export class FeatureWithdrawalService {
     private async tellWhoItReaches(
         withdrawal: FeatureWithdrawalRecord,
         now: Date,
-    ): Promise<{ told: number; failed: number } | null> {
+    ): Promise<{ reached: number; told: number; failed: number } | null> {
         const catalog = await this.catalogs.current();
         const { reached } = await this.reachOf(
             withdrawal.featureKey,
@@ -525,7 +566,7 @@ export class FeatureWithdrawalService {
             if (outcome === 'told') told += 1;
             if (outcome === 'failed') failed += 1;
         }
-        return { told, failed };
+        return { reached: notices.length, told, failed };
     }
 
     /**
@@ -742,8 +783,11 @@ export class FeatureWithdrawalService {
         if (!found) throw withdrawalNotFound(id);
         if (found.liftedFrom) throw alreadyLifted(found.liftedFrom);
         // Told of the withdrawal before of its end, where its announcement
-        // stopped before telling anybody.
-        if (found.toldAt === null) await this.tellWhoItReaches(found, now);
+        // stopped before telling anybody — and not lifted while they cannot be.
+        if (found.toldAt === null) {
+            await this.tellWhoItReaches(found, now);
+            if ((await this.withdrawals.findById(id))?.toldAt === null) throw notToldYet();
+        }
         const liftedFrom = requestedFrom ?? now;
         if (liftedFrom < now) {
             throw new UnprocessableEntityException({
@@ -807,7 +851,9 @@ export class FeatureWithdrawalService {
         });
         let told = 0;
         let failed = 0;
-        for (const record of toTell) {
+        // Sent now only to whom the withdrawal itself reached; the run sends
+        // the rest once it has.
+        for (const record of toTell.filter((one) => one.deliveredAt !== null)) {
             const outcome = await this.sender.tell(
                 noticeOf(record),
                 id,
@@ -979,6 +1025,16 @@ function keyOf(notice: FeatureWithdrawnNotice) {
         kind: notice.kind,
         subject: notice.withdrawalId,
     };
+}
+
+function notToldYet(): ConflictException {
+    return new ConflictException({
+        code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_NOT_TOLD_YET,
+        message:
+            'Nobody has been told of this withdrawal yet, and it is not lifted before they are. ' +
+            'Try again in a moment.',
+        params: {},
+    });
 }
 
 function openWithdrawal(featureKey: string): ConflictException {

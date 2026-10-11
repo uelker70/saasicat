@@ -6450,6 +6450,7 @@ _Tested by:_
         - leaves who it reaches to the next run where recording them fails, which tells them
         - tells them once, where the run and the announcement tell them at the same moment
         - reaches nobody through a second telling that read it before the first was done
+        - reports what was told where a run told them before the announcement could
         - writes the reductions into the contract of each subscription with a line reduced
         - stands where writing a contract fails, which the journal does before it charges
         - tells a line no reduction was named for that none applies
@@ -6462,6 +6463,8 @@ _Tested by:_
     - lifting a withdrawal
         - records the date, tells every subscription it reached that still runs
         - tells a withdrawal nobody was told of yet before it tells them it is lifted
+        - refuses to lift a withdrawal nobody could be told of yet, and lifts nothing
+        - tells a lift only to whom the withdrawal itself reached, and the rest after it
         - from now where no date is given; never from a date already past
         - refuses an unknown withdrawal, and one lifted already, naming its date
         - lifted meanwhile by another operator, keeps what they recorded
@@ -6567,8 +6570,10 @@ add-on is (`SC-CAT-017`). Only then are the subscriptions it reaches read, and t
 recorded together with the mark that they were told. A change, a booking or a sign-up concluded
 while the withdrawal was being announced is therefore reached. Where recording them fails, or the
 announcement stops between the two steps, the quarter-hourly run tells them, reading the reach as it
-then stands; each subscription is told once, however many tell it at the same moment. A withdrawal
-nobody was told of yet is told before its lifting is.
+then stands: a subscription that left the feature in between is not reached, and one concluded in
+between — with the withdrawal shown — is. Each subscription is told once, however many tell it at
+the same moment. A withdrawal is lifted only once the subscriptions it reaches were told of it, and
+nobody is told of a lift before the withdrawal itself reached them.
 
 _Source:_ #357
 
@@ -6582,8 +6587,11 @@ _Tested by:_
         - leaves who it reaches to the next run where recording them fails, which tells them
         - tells them once, where the run and the announcement tell them at the same moment
         - reaches nobody through a second telling that read it before the first was done
+        - reports what was told where a run told them before the announcement could
     - lifting a withdrawal
         - tells a withdrawal nobody was told of yet before it tells them it is lifted
+        - refuses to lift a withdrawal nobody could be told of yet, and lifts nothing
+        - tells a lift only to whom the withdrawal itself reached, and the rest after it
 
 <!-- END proof -->
 
