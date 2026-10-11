@@ -204,9 +204,15 @@ function invoiceStore(journal) {
             }
             return structuredClone(documents.get(invoiceId));
         },
-        async markArchived(invoiceId, at) {
+        async replaceRendering(invoiceId, rendering, replaced) {
             const state = documents.get(invoiceId);
-            if (!state || state.archivedAt) return false;
+            if (!state || state.checksum !== replaced || state.archivedAt) return null;
+            Object.assign(state, rendering);
+            return structuredClone(state);
+        },
+        async markArchived(invoiceId, at, checksum) {
+            const state = documents.get(invoiceId);
+            if (!state || state.checksum !== checksum || state.archivedAt) return false;
             state.archivedAt = at;
             return true;
         },
@@ -315,6 +321,8 @@ export function anInvoicingInstallation({
         contracts,
         subscribers,
         audits,
+        /** The audit log both services write to. */
+        auditLog: audit,
         service,
         renderer,
         archive,

@@ -334,7 +334,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Der Vertrag {contractId} nennt keinen bestätigten Aussteller und Abonnenten – eine Migration hat seine Parteien übernommen, oder er nennt keinen Aussteller –, deshalb werden seine Forderungen nicht in Rechnung gestellt.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
-        'Das für Rechnung {invoiceId} gerenderte Dokument weicht vom festgehaltenen ab ({rendered} statt {recorded}); der Renderer muss dieselbe Rechnung zu derselben Datei rendern.',
+        'Das Dokument der Rechnung {invoiceId} weicht vom festgehaltenen oder archivierten ab ({rendered} statt {recorded}); das erste bleibt, und der nächste Lauf klärt, welches die Rechnung behält.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:
         'Der Steueradapter {adapter} weist die gerenderte Rechnung zurück: {missing}. Die Rechnung behält ihre Nummer und wartet auf ein Dokument, das die Prüfung besteht.',
     SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH:

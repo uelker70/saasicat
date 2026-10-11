@@ -330,7 +330,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
-        'The document rendered for invoice {invoiceId} differs from the one recorded for it ({rendered} instead of {recorded}); the renderer must render the same invoice into the same file.',
+        'The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:
         'The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.',
     SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH:

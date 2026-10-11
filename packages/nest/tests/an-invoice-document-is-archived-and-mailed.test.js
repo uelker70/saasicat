@@ -59,6 +59,15 @@ async function anArchivedInvoice(options = {}, details = {}) {
     return installation;
 }
 
+/** A file the archive holds for `invoice`, written before the test looks, its bytes `text`. */
+const keptFile = (invoice, text) => ({
+    ...documentOf(invoice),
+    content: Buffer.from(text),
+    invoiceId: invoice.id,
+    checksum: sha256(Buffer.from(text)),
+    archivedAt: AT,
+});
+
 /** The audit entries of `action`, as code and params. */
 const entriesOf = (audits, action) =>
     audits
@@ -79,7 +88,7 @@ function quietLog() {
 }
 
 // @requirement SC-PRIC-042 — An invoice is issued in the format its tax adapter requires
-// @requirement SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
+// @requirement SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
 describe('an issued invoice’s document', () => {
     test('is rendered from the invoice as issued, checked, its checksum recorded, and archived', async () => {
         const shown = [];
@@ -177,7 +186,7 @@ describe('an issued invoice’s document', () => {
         assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD').length, 1);
     });
 
-    test('rendered in another shape than the one recorded is held, and the recorded one stays', async () => {
+    test('rendered in another shape before anything was archived takes the place of the recorded one, both named in the audit log', async () => {
         quietLog();
         let version = 'first';
         const renderer = aRenderer({
@@ -190,40 +199,118 @@ describe('an issued invoice’s document', () => {
             archive,
         });
         await documents.archiveDue(AT);
-        const recorded = store.documents.get(invoice.id).checksum;
+        const first = store.documents.get(invoice.id).checksum;
 
         version = 'second';
-        assert.deepEqual(await documents.archiveDue(LATER), { archived: 0, held: 1, failed: 0 });
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 1, held: 0, failed: 0 });
 
-        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD'), [
-            [
-                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED,
-                { invoiceId: invoice.id, recorded, rendered: sha256(Buffer.from('second')) },
-            ],
+        const second = sha256(Buffer.from('second'));
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_RERENDERED'), [
+            [undefined, { recorded: first, rendered: second }],
         ]);
-        assert.equal(store.documents.get(invoice.id).checksum, recorded);
-        assert.equal(archive.files.size, 0);
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD'), []);
+        assert.equal(store.documents.get(invoice.id).checksum, second);
+        assert.equal(store.documents.get(invoice.id).renderedAt, LATER);
+        assert.equal(archive.files.get(invoice.id).checksum, second);
+        assert.equal(store.invoices.length, 1, 'under the same number');
     });
 
-    test('that the archive already keeps in another shape is held, and the archived one stays', async () => {
+    test('rendered again is not put in place of the recorded one where the audit log cannot say so', async () => {
+        quietLog();
+        let version = 'first';
+        const renderer = aRenderer({
+            render: (invoice) => ({ ...documentOf(invoice), content: Buffer.from(version) }),
+        });
+        const archive = anArchive();
+        archive.failingStores.push(new Error('the archive is unreachable'));
+        const installation = await anIssuedInvoice({ renderer, archive });
+        const { documents, store, invoice } = installation;
+        await documents.archiveDue(AT);
+        const first = store.documents.get(invoice.id).checksum;
+        version = 'second';
+        const log = installation.auditLog.log;
+        installation.auditLog.log = async () => {
+            installation.auditLog.log = log;
+            throw new Error('the audit log is unreachable');
+        };
+
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 0, held: 0, failed: 1 });
+        assert.equal(store.documents.get(invoice.id).checksum, first);
+        assert.equal(archive.files.size, 0);
+
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 1, held: 0, failed: 0 });
+        assert.equal(store.documents.get(invoice.id).checksum, sha256(Buffer.from('second')));
+    });
+
+    test('the archive already keeps is the one it was issued as: the record follows it, and nothing is rendered', async () => {
+        const archive = anArchive();
+        const { documents, store, renderer, invoice } = await anIssuedInvoice({ archive });
+        archive.files.set(invoice.id, keptFile(invoice, 'kept'));
+
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 1, held: 0, failed: 0 });
+
+        const state = store.documents.get(invoice.id);
+        assert.deepEqual(
+            [state.checksum, state.size, state.renderedAt, state.archivedAt],
+            [sha256(Buffer.from('kept')), 4, AT, LATER],
+        );
+        assert.deepEqual(renderer.rendered, []);
+    });
+
+    test('the archive keeps in another shape than the one recorded is the one the record follows, both named in the audit log', async () => {
+        quietLog();
+        const archive = anArchive();
+        archive.failingStores.push(new Error('the archive is unreachable'));
+        const { documents, store, audits, invoice } = await anIssuedInvoice({ archive });
+        await documents.archiveDue(AT);
+        const recorded = store.documents.get(invoice.id).checksum;
+        // Another run, rendering with the renderer before an update, stored its file meanwhile.
+        archive.files.set(invoice.id, keptFile(invoice, 'kept'));
+
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 1, held: 0, failed: 0 });
+
+        const kept = sha256(Buffer.from('kept'));
+        assert.equal(store.documents.get(invoice.id).checksum, kept);
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_RERENDERED'), [
+            [undefined, { recorded, rendered: kept }],
+        ]);
+    });
+
+    test('the archive keeps and the adapter refuses is held, and the archived one stays', async () => {
+        quietLog();
+        const archive = anArchive();
+        const { documents, store, audits, invoice } = await anIssuedInvoice({
+            archive,
+            adapter: invoicingAdapter({
+                documentGaps: (document) =>
+                    document.fileName === 'kept.pdf' ? ['format.pdfa3'] : [],
+            }),
+        });
+        archive.files.set(invoice.id, { ...keptFile(invoice, 'kept'), fileName: 'kept.pdf' });
+
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 0, held: 1, failed: 0 });
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD'), [
+            [
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED,
+                { adapter: 'test-tax', missing: ['format.pdfa3'] },
+            ],
+        ]);
+        assert.equal(store.documents.size, 0);
+    });
+
+    test('the archive keeps that no longer matches its own checksum is held for the operator', async () => {
         quietLog();
         const archive = anArchive();
         const { documents, audits, invoice } = await anIssuedInvoice({ archive });
-        const kept = {
-            ...documentOf(invoice),
-            content: Buffer.from('kept'),
-            invoiceId: invoice.id,
-            checksum: sha256(Buffer.from('kept')),
-            archivedAt: AT,
-        };
-        archive.files.set(invoice.id, kept);
+        archive.files.set(invoice.id, {
+            ...keptFile(invoice, 'kept'),
+            content: Buffer.from('changed'),
+        });
 
-        assert.deepEqual(await documents.archiveDue(AT), { archived: 0, held: 1, failed: 0 });
-        assert.deepEqual(
-            entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD').map(([code]) => code),
-            [INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED],
-        );
-        assert.equal(archive.files.get(invoice.id).checksum, kept.checksum);
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 0, held: 1, failed: 0 });
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD'), [
+            [INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH, { invoiceId: invoice.id }],
+        ]);
     });
 });
 
@@ -487,7 +574,7 @@ describe('an archived invoice’s mail', () => {
 });
 
 // @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
-// @requirement SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
+// @requirement SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
 describe('an invoice’s document downloaded later', () => {
     test('is the archived file, not a new rendering', async () => {
         const { documents, archive, renderer, invoice } = await anArchivedInvoice();

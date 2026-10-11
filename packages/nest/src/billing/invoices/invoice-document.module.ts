@@ -49,7 +49,7 @@ function buildInvoiceDocumentController(guards: Array<Type<CanActivate>>): Type 
         /**
          * The invoice's archived document, the file it was issued as and
          * nothing rendered again (`SC-AUD-014`), checked against the checksum
-         * recorded when it was rendered (`SC-AUD-015`).
+         * recorded when it was rendered (`SC-AUD-019`).
          */
         @Get('invoices/:id/document')
         async documentOf(@Param('id') id: string): Promise<StreamableFile> {

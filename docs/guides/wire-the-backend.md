@@ -1070,10 +1070,14 @@ after tries it again:
    `SUBSCRIPTION_INVOICE_DOCUMENT_HELD` with `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED` and what the
    adapter found missing.
 3. **Recorded**: the file's SHA-256 is written with the invoice before the file is archived
-   (`SC-AUD-015`). A renderer that renders other bytes on a later attempt is held with
-   `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`, and the first checksum stays.
+   (`SC-AUD-019`).
 4. **Archived** by the `InvoiceArchivePort`. Until the archive confirms, the invoice is neither mailed
-   nor offered for download, and the next run repeats the attempt as the same write (`SC-PRIC-033`).
+   nor offered for download, and the next run repeats the attempt under the same number
+   (`SC-PRIC-033`). A file the archive already holds for the invoice is the one it was issued as,
+   and the record follows it. Where the archive holds none, nothing has been handed out, so a
+   rendering that differs from the recorded one — your renderer was updated in between — takes its
+   place, and the audit log records `SUBSCRIPTION_INVOICE_DOCUMENT_RERENDERED` with both checksums
+   before it does.
 5. **Mailed** by your `InvoiceMailPort` to the invoice email on the subscriber's record, with the
    archived file attached (`SC-PRIC-047`). Your application words the message — in the subscriber's
    language, with a link to the tenant's sign-in rather than to the file — and sends it. A run claims

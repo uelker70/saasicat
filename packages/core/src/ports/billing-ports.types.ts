@@ -595,10 +595,11 @@ export interface SubscriptionInvoiceRepository {
 
     /**
      * Records the rendering of an invoice's document before its file is
-     * archived (`SC-AUD-015`), once. A rendering recorded again with the same
+     * archived (`SC-AUD-019`), once. A rendering recorded again with the same
      * checksum is the same write and answers the record as it stands; another
      * checksum is refused with `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`
-     * (`moved`), and the first stays.
+     * (`moved`), and the first stays: `replaceRendering` is the one write that
+     * puts another in its place.
      */
     recordRendering(
         invoiceId: string,
@@ -606,8 +607,31 @@ export interface SubscriptionInvoiceRepository {
         tx?: TransactionContext,
     ): Promise<SubscriptionInvoiceDocumentRecord>;
 
-    /** Records that the archive confirmed the document; `false` where it was already recorded. */
-    markArchived(invoiceId: string, at: Date, tx?: TransactionContext): Promise<boolean>;
+    /**
+     * Records a rendering in place of the one recorded with `replaced` as its
+     * checksum, while the invoice is not archived (`SC-AUD-019`): until the
+     * archive holds a file, nothing has been handed out. Answers the record as
+     * it stands now, or `null` where the recorded checksum is another by now or
+     * the invoice is archived — a run that read it before another one changed it.
+     */
+    replaceRendering(
+        invoiceId: string,
+        rendering: NewInvoiceRendering,
+        replaced: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord | null>;
+
+    /**
+     * Records that the archive confirmed the document whose checksum is
+     * `checksum`; `false` where it was already recorded, or the recorded
+     * checksum is another.
+     */
+    markArchived(
+        invoiceId: string,
+        at: Date,
+        checksum: string,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
 
     /**
      * Claims an archived invoice's mail for the run calling it at `at`: where

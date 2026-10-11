@@ -1987,11 +1987,19 @@ export function createMemoryHarness() {
             }
             return structuredClone(row);
         },
-        async markArchived(invoiceId, at) {
+        async replaceRendering(invoiceId, rendering, replaced) {
             const row = state.invoiceDocuments.find(
                 (candidate) => candidate.invoiceId === invoiceId,
             );
-            if (!row || row.archivedAt !== null) return false;
+            if (!row || row.checksum !== replaced || row.archivedAt !== null) return null;
+            Object.assign(row, rendering);
+            return structuredClone(row);
+        },
+        async markArchived(invoiceId, at, checksum) {
+            const row = state.invoiceDocuments.find(
+                (candidate) => candidate.invoiceId === invoiceId,
+            );
+            if (!row || row.checksum !== checksum || row.archivedAt !== null) return false;
             row.archivedAt = at;
             return true;
         },

@@ -10,16 +10,19 @@
 
 An invoice's document is archived, mailed and downloaded as it was issued
 
-The quarter-hourly run now renders each issued invoice into the file its tax
-law requires, has the tax adapter check that file, records the file's SHA-256
-with the invoice, archives it, and mails it to the invoice email on the
-subscriber's record with the file attached (`SC-PRIC-042`, `SC-AUD-015`,
-`SC-PRIC-047`). Until the archive confirms, an invoice is neither mailed nor
-offered, and an interrupted attempt is repeated as the same write
-(`SC-PRIC-033`). A run claims an invoice's mail before it sends it, so of
-several instances one does. The operator downloads the archived file at
-`GET admin/invoices/:id/document`, announced as `invoices.read`, checked
-against the recorded checksum and never rendered again (`SC-AUD-014`).
+The quarter-hourly run now renders each issued invoice into the file its tax law
+requires, has the tax adapter check that file, records the file's SHA-256 with
+the invoice, archives it, and mails it to the invoice email on the subscriber's
+record with the file attached (`SC-PRIC-042`, `SC-AUD-019`, `SC-PRIC-047`).
+Until the archive confirms, an invoice is neither mailed nor offered, and an
+interrupted attempt is repeated under the same number (`SC-PRIC-033`): a file
+the archive already holds is the one it was issued as, and where it holds none,
+a rendering from a renderer updated in between takes the place of the recorded
+one, with both checksums in the audit log (`SC-AUD-019`, which supersedes
+`SC-AUD-015`). A run claims an invoice's mail before it sends it, so of several
+instances one does. The operator downloads the archived file at
+`GET admin/invoices/:id/document`, announced as `invoices.read`, checked against
+the recorded checksum and never rendered again (`SC-AUD-014`).
 
 `tenantBilling.chargeJournal.invoices` now requires `renderer` (an
 `InvoiceRenderer` of the application's), `archive` (such as

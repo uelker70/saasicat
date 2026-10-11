@@ -7048,7 +7048,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             return { ...account, issued };
         }
 
-        // @requirement SC-AUD-015
+        // @requirement SC-AUD-019
         test("an invoice's rendering is recorded once, and another checksum for it is refused", async (t) => {
             const account = await issuedInvoices(t, 'tenant-document-once');
             if (!account) return;
@@ -7102,6 +7102,69 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
+        test("an invoice's rendering is replaced only in place of the one recorded, and only while nothing is archived", async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-replace');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+            const renderedAgain = new Date('2026-02-01T05:31:00.000Z');
+            await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+
+            assert.equal(
+                await invoices.replaceRendering(
+                    invoice!.id,
+                    renderingOf(OTHER_CHECKSUM),
+                    OTHER_CHECKSUM,
+                ),
+                null,
+                'a rendering was replaced in place of one not recorded',
+            );
+            const replaced = await invoices.replaceRendering(
+                invoice!.id,
+                { ...renderingOf(OTHER_CHECKSUM), size: 4096, renderedAt: renderedAgain },
+                CHECKSUM,
+            );
+            assert.deepEqual(replaced, {
+                invoiceId: invoice!.id,
+                ...renderingOf(OTHER_CHECKSUM),
+                size: 4096,
+                renderedAt: renderedAgain,
+                archivedAt: null,
+                deliveryClaimedAt: null,
+                deliveredAt: null,
+                deliveredTo: null,
+            });
+            assert.deepEqual(await invoices.findDocument(invoice!.id), replaced);
+
+            await invoices.markArchived(invoice!.id, renderedAgain, OTHER_CHECKSUM);
+            assert.equal(
+                await invoices.replaceRendering(invoice!.id, renderingOf(CHECKSUM), OTHER_CHECKSUM),
+                null,
+                'an archived rendering was replaced',
+            );
+            assert.equal((await invoices.findDocument(invoice!.id))!.checksum, OTHER_CHECKSUM);
+        });
+
+        // @requirement SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
+        test("of two runs replacing an invoice's rendering at once, one does", async (t) => {
+            const account = await issuedInvoices(t, 'tenant-document-replace-race');
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [invoice] = issued;
+            await invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
+
+            const outcomes = await Promise.all(
+                ['c', 'd', 'e'].map((digit) =>
+                    invoices.replaceRendering(invoice!.id, renderingOf(digit.repeat(64)), CHECKSUM),
+                ),
+            );
+
+            const won = outcomes.filter((record) => record !== null);
+            assert.equal(won.length, 1, JSON.stringify(outcomes));
+            assert.equal((await invoices.findDocument(invoice!.id))!.checksum, won[0]!.checksum);
+        });
+
         test('a rendering for an invoice that does not exist is refused', async (t) => {
             const account = await issuedInvoices(t, 'tenant-document-orphan', 0);
             if (!account) return;
@@ -7127,7 +7190,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             if (!account) return null;
             const [invoice] = account.issued;
             await account.invoices.recordRendering(invoice!.id, renderingOf(CHECKSUM));
-            await account.invoices.markArchived(invoice!.id, new Date('2026-02-01T05:17:00.000Z'));
+            await account.invoices.markArchived(
+                invoice!.id,
+                new Date('2026-02-01T05:17:00.000Z'),
+                CHECKSUM,
+            );
             return { invoices: account.invoices, invoiceId: invoice!.id };
         }
 
@@ -7147,9 +7214,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'an invoice not archived was claimed for the mail',
             );
             assert.equal(await invoices.markDelivered(invoice!.id, DELIVERY), false);
-            assert.equal(await invoices.markArchived(invoice!.id, archivedAt), true);
             assert.equal(
-                await invoices.markArchived(invoice!.id, new Date('2026-02-02T00:00:00.000Z')),
+                await invoices.markArchived(invoice!.id, archivedAt, OTHER_CHECKSUM),
+                false,
+                'a file other than the recorded one was confirmed',
+            );
+            assert.equal(await invoices.markArchived(invoice!.id, archivedAt, CHECKSUM), true);
+            assert.equal(
+                await invoices.markArchived(
+                    invoice!.id,
+                    new Date('2026-02-02T00:00:00.000Z'),
+                    CHECKSUM,
+                ),
                 false,
             );
             assert.equal(await invoices.claimDelivery(invoice!.id, CLAIMED_AT, LEASE_START), true);
@@ -7262,7 +7338,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             for (const id of [rendered, archived, delivered]) {
                 await invoices.recordRendering(id, renderingOf(CHECKSUM));
             }
-            for (const id of [archived, delivered]) await invoices.markArchived(id, at);
+            for (const id of [archived, delivered]) await invoices.markArchived(id, at, CHECKSUM);
             // Held by a run, and still waiting for the mail.
             await invoices.claimDelivery(archived, at, LEASE_START);
             await invoices.claimDelivery(delivered, at, LEASE_START);
@@ -7326,7 +7402,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await archive.read(issued[1]!.id), null);
         });
 
-        // @requirement SC-AUD-015
+        // @requirement SC-AUD-019
         test('a document stored again is the same write, and another one for the invoice is refused', async (t) => {
             const account = await anArchive(t, 'tenant-archive-once');
             if (!account) return;

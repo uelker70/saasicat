@@ -17,8 +17,8 @@ export function subscriptionInvoiceChargeInvoiced(chargeId: string): Persistence
 
 /**
  * A rendering of an invoice's document whose checksum is not the one recorded
- * for it, refused where it is recorded or archived: the first stays, so the
- * file the invoice was issued with is the only one it has (`SC-AUD-015`).
+ * or archived for it, refused: the first stays. Only the run replaces a
+ * recorded rendering, and only while nothing is archived (`SC-AUD-019`).
  */
 export function subscriptionInvoiceDocumentChanged(
     invoiceId: string,

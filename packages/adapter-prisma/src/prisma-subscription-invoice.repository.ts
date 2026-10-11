@@ -228,9 +228,30 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         return toSubscriptionInvoiceDocumentRecord(row);
     }
 
-    async markArchived(invoiceId: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+    async replaceRendering(
+        invoiceId: string,
+        rendering: NewInvoiceRendering,
+        replaced: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord | null> {
+        const db = this.db(tx);
+        const { count } = await db.subscriptionInvoiceDocument.updateMany({
+            where: { invoiceId, checksum: replaced, archivedAt: null },
+            data: { ...rendering },
+        });
+        if (count !== 1) return null;
+        const row = await db.subscriptionInvoiceDocument.findUnique({ where: { invoiceId } });
+        return row ? toSubscriptionInvoiceDocumentRecord(row) : null;
+    }
+
+    async markArchived(
+        invoiceId: string,
+        at: Date,
+        checksum: string,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
         const { count } = await this.db(tx).subscriptionInvoiceDocument.updateMany({
-            where: { invoiceId, archivedAt: null },
+            where: { invoiceId, checksum, archivedAt: null },
             data: { archivedAt: at },
         });
         return count === 1;

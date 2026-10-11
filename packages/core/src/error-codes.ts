@@ -678,10 +678,12 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED: 'SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED',
     /**
-     * A rendering of the invoice's document has another checksum than the one
-     * recorded for it (`invoiceId`, `recorded`, `rendered`): the renderer gave
-     * different bytes for the same invoice. Nothing is archived; the invoice
-     * waits for its document (`SC-AUD-015`).
+     * A file of the invoice's document has another checksum than the one
+     * recorded or archived for it (`invoiceId`, `recorded`, `rendered`), and
+     * the first stays. The run takes the archived file as the one issued, or —
+     * where nothing is archived — records the new rendering in place of the
+     * old (`SC-AUD-019`); the invoice waits only where another run changed the
+     * record or the archive in between, and the next run settles it.
      */
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED: 'SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED',
     /**
@@ -692,7 +694,7 @@ export const INVOICE_ERROR_CODES = {
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED: 'SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED',
     /**
      * The archived document does not match the checksum recorded when it was
-     * rendered (`invoiceId`). It is not handed out (`SC-AUD-015`).
+     * rendered (`invoiceId`). It is not handed out (`SC-AUD-019`).
      */
     SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH: 'SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH',
     /** The invoice's document is not archived yet (`invoiceId`); nothing is offered until it is (`SC-AUD-014`). */

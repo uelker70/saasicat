@@ -5,19 +5,22 @@
 // this service then renders its document from what the invoice records, has
 // the tax adapter check the file against the format its law requires
 // (`SC-PRIC-042`), records the file's checksum with the invoice, archives the
-// file and records the archive's confirmation (`SC-AUD-015`). Until then the
+// file and records the archive's confirmation (`SC-AUD-019`). Until then the
 // invoice waits for its document — neither sent nor offered — and the next run
-// tries again; the repeated attempt is the same write, never a second number
-// (`SC-PRIC-033`). An archived invoice is then mailed to the subscriber's
+// tries again, never under a second number (`SC-PRIC-033`). A file the archive
+// already holds is the one the invoice was issued as, and the record follows
+// it; where it holds none, nothing has been handed out, so a rendering that
+// differs from the recorded one — a renderer updated in between — takes its
+// place, with both checksums in the audit log. An archived invoice is then
+// mailed to the subscriber's
 // invoice email with the file attached (`SC-PRIC-047`) — claimed first, so of
 // several instances one sends it — and every later download returns the
 // archived file after checking it against the recorded checksum (`SC-AUD-014`).
 //
 // What cannot go on yet is held rather than guessed at: a file the adapter
-// refuses, a renderer that rendered other bytes than it did the first time, a
-// subscriber without an invoice email, an archived file that no longer matches
-// its checksum. Each is logged on every run and written to the audit log once
-// per process. Platform-wide, so inside `RlsBypassPort`.
+// refuses, a subscriber without an invoice email, an archived file that no
+// longer matches its checksum. Each is logged on every run and written to the
+// audit log once per process. Platform-wide, so inside `RlsBypassPort`.
 
 import { createHash } from 'node:crypto';
 import {
@@ -32,11 +35,14 @@ import {
 import {
     INVOICE_ERROR_CODES,
     isPersistenceRefusal,
+    type ArchivedInvoiceDocument,
     type InvoiceArchivePort,
     type InvoiceDocument,
     type InvoiceMailPort,
     type InvoiceRenderer,
+    type NewInvoiceRendering,
     type RlsBypassPort,
+    type SubscriptionInvoiceDocumentRecord,
     type SubscriptionInvoiceRecord,
     type SubscriptionInvoiceRepository,
 } from '@saasicat/core';
@@ -109,6 +115,17 @@ export interface InvoiceDeliveryRun {
     held: number;
     /** Invoices the mail port did not take; each is tried again by the next run. */
     failed: number;
+}
+
+/** What is recorded of a file before it is archived. */
+function renderingOf(document: InvoiceDocument, renderedAt: Date): NewInvoiceRendering {
+    return {
+        checksum: invoiceDocumentChecksum(document.content),
+        mediaType: document.mediaType,
+        fileName: document.fileName,
+        size: document.content.byteLength,
+        renderedAt,
+    };
 }
 
 /** SHA-256 of a file, lower-case hex, as the invoice records it. */
@@ -237,41 +254,110 @@ export class InvoiceDocumentService implements OnModuleInit {
         const invoice = await this.invoices.findById(invoiceId);
         if (!invoice) return this.failed(invoiceId, new Error('the invoice was not found'));
         try {
-            // An attempt interrupted after the archive took the file: the file
-            // kept is the recorded one, so it is confirmed rather than rendered
-            // again by a renderer that may have changed since.
             const recorded = await this.invoices.findDocument(invoiceId);
-            if (recorded && (await this.matching(invoiceId, recorded.checksum))) {
-                await this.invoices.markArchived(invoiceId, now);
-                return 'archived';
-            }
+            const kept = await this.archive.read(invoiceId);
+            if (kept) return await this.confirmKept(invoice, recorded, kept, now);
             const document = await withTimeout(() => this.renderer.render(invoice), this.timeoutMs);
-            const missing = await this.taxes.invoiceDocumentGaps(document, invoice);
-            if (missing.length > 0) {
-                throw new Held({
-                    code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED,
-                    params: { adapter: invoice.taxTreatment.adapter.name, missing: [...missing] },
-                });
+            await this.checkFormat(invoice, document);
+            const rendering = renderingOf(document, now);
+            if (!recorded) {
+                await refusalHeld(() => this.invoices.recordRendering(invoiceId, rendering));
+            } else if (recorded.checksum !== rendering.checksum) {
+                await this.replaceRendering(invoice, rendering, recorded.checksum);
             }
-            const checksum = invoiceDocumentChecksum(document.content);
             await refusalHeld(() =>
-                this.invoices.recordRendering(invoiceId, {
-                    checksum,
-                    mediaType: document.mediaType,
-                    fileName: document.fileName,
-                    size: document.content.byteLength,
-                    renderedAt: now,
+                this.archive.store({
+                    ...document,
+                    invoiceId,
+                    checksum: rendering.checksum,
+                    archivedAt: now,
                 }),
             );
-            await refusalHeld(() =>
-                this.archive.store({ ...document, invoiceId, checksum, archivedAt: now }),
-            );
-            await this.invoices.markArchived(invoiceId, now);
+            await this.invoices.markArchived(invoiceId, now, rendering.checksum);
             return 'archived';
         } catch (error) {
             if (!(error instanceof Held)) return this.failed(invoiceId, error);
             await this.recordHold(invoice, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD', error.hold);
             return 'held';
+        }
+    }
+
+    /**
+     * Confirms the file the archive already holds for the invoice — an attempt
+     * interrupted after the archive took it, or one another run made — as the
+     * one the invoice was issued as. The archive keeps what it was given, so
+     * the record follows it rather than the renderer, which may have changed
+     * since. A file that does not match its own checksum is held for the
+     * operator; one the record names otherwise is checked against the format
+     * first, since it was not the rendering this run saw pass.
+     */
+    private async confirmKept(
+        invoice: SubscriptionInvoiceRecord,
+        recorded: SubscriptionInvoiceDocumentRecord | null,
+        kept: ArchivedInvoiceDocument,
+        now: Date,
+    ): Promise<keyof InvoiceDocumentRun> {
+        if (invoiceDocumentChecksum(kept.content) !== kept.checksum) {
+            throw new Held({
+                code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH,
+                params: { invoiceId: invoice.id },
+            });
+        }
+        if (recorded?.checksum !== kept.checksum) {
+            await this.checkFormat(invoice, kept);
+            const rendering = renderingOf(kept, kept.archivedAt);
+            if (!recorded) {
+                await refusalHeld(() => this.invoices.recordRendering(invoice.id, rendering));
+            } else {
+                await this.replaceRendering(invoice, rendering, recorded.checksum);
+            }
+        }
+        await this.invoices.markArchived(invoice.id, now, kept.checksum);
+        return 'archived';
+    }
+
+    /** Holds an invoice whose file the tax adapter refuses (`SC-PRIC-042`). */
+    private async checkFormat(
+        invoice: SubscriptionInvoiceRecord,
+        document: InvoiceDocument,
+    ): Promise<void> {
+        const missing = await this.taxes.invoiceDocumentGaps(document, invoice);
+        if (missing.length === 0) return;
+        throw new Held({
+            code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED,
+            params: { adapter: invoice.taxTreatment.adapter.name, missing: [...missing] },
+        });
+    }
+
+    /**
+     * Records `rendering` in place of the one recorded with `replaced`, while
+     * nothing is archived (`SC-AUD-019`). The audit entry naming both is
+     * written first: a replacement nobody could read of afterwards is the one
+     * thing this must not make, so where the entry cannot be written the run
+     * fails and the next one tries again. Another run that replaced the
+     * rendering in between leaves this one to try again too.
+     */
+    private async replaceRendering(
+        invoice: SubscriptionInvoiceRecord,
+        rendering: NewInvoiceRendering,
+        replaced: string,
+    ): Promise<void> {
+        await this.audit?.log({
+            actor: platformJobActor(JOB),
+            entity: 'SubscriptionInvoice',
+            entityId: invoice.id,
+            action: 'SUBSCRIPTION_INVOICE_DOCUMENT_RERENDERED',
+            changes: {
+                tenantId: invoice.tenantId,
+                subscriberId: invoice.subscriberId,
+                number: invoice.number,
+                params: { recorded: replaced, rendered: rendering.checksum },
+            },
+        });
+        if (!(await this.invoices.replaceRendering(invoice.id, rendering, replaced))) {
+            throw new Error(
+                `The rendering recorded for invoice ${invoice.number} changed while it was replaced.`,
+            );
         }
     }
 

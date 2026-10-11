@@ -234,13 +234,39 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
         return toSubscriptionInvoiceDocumentRecord(row);
     }
 
-    async markArchived(invoiceId: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+    async replaceRendering(
+        invoiceId: string,
+        rendering: NewInvoiceRendering,
+        replaced: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord | null> {
+        const [row] = await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceDocuments)
+            .set({ ...rendering })
+            .where(
+                and(
+                    eq(subscriptionInvoiceDocuments.invoiceId, invoiceId),
+                    eq(subscriptionInvoiceDocuments.checksum, replaced),
+                    isNull(subscriptionInvoiceDocuments.archivedAt),
+                ),
+            )
+            .returning();
+        return row ? toSubscriptionInvoiceDocumentRecord(row) : null;
+    }
+
+    async markArchived(
+        invoiceId: string,
+        at: Date,
+        checksum: string,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
         const rows = await resolveDb(this.db, tx)
             .update(subscriptionInvoiceDocuments)
             .set({ archivedAt: at })
             .where(
                 and(
                     eq(subscriptionInvoiceDocuments.invoiceId, invoiceId),
+                    eq(subscriptionInvoiceDocuments.checksum, checksum),
                     isNull(subscriptionInvoiceDocuments.archivedAt),
                 ),
             )

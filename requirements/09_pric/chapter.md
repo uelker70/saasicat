@@ -1508,8 +1508,15 @@ _Tested by:_
         - that the adapter refuses waits under its number, recorded nowhere, until the defect is
           fixed
         - whose hold could not be written to the audit log is written there by the next run
-        - rendered in another shape than the one recorded is held, and the recorded one stays
-        - that the archive already keeps in another shape is held, and the archived one stays
+        - rendered in another shape before anything was archived takes the place of the recorded
+          one, both named in the audit log
+        - rendered again is not put in place of the recorded one where the audit log cannot say so
+        - the archive already keeps is the one it was issued as: the record follows it, and nothing
+          is rendered
+        - the archive keeps in another shape than the one recorded is the one the record follows,
+          both named in the audit log
+        - the archive keeps and the adapter refuses is held, and the archived one stays
+        - the archive keeps that no longer matches its own checksum is held for the operator
 - `packages/tax-de/tests/an-invoice-document-is-the-file-german-law-asks-for.test.js`
     - a rendered invoice
         - that is ZUGFeRD EN 16931 and says what the invoice records passes

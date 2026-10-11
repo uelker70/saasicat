@@ -6,10 +6,12 @@
 // requires (`SC-PRIC-042`). The file's checksum is recorded with the invoice
 // before the file is archived, the archive keeps it under the invoice, and
 // every later download returns that file, checked against the checksum
-// (`SC-AUD-014`, `SC-AUD-015`). Until the archive confirms, the invoice is
-// neither sent nor offered, and an interrupted attempt is repeated as the
-// same write (`SC-PRIC-033`). Once archived, it is mailed to the subscriber's
-// invoice email with the file attached (`SC-PRIC-047`).
+// (`SC-AUD-014`, `SC-AUD-019`). Until the archive confirms, the invoice is
+// neither sent nor offered, and an interrupted attempt is repeated
+// (`SC-PRIC-033`): as the same write, or — where the renderer has changed
+// meanwhile and nothing was archived — with the new file in place of the one
+// recorded. Once archived, it is mailed to the subscriber's invoice email with
+// the file attached (`SC-PRIC-047`).
 
 import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
 
@@ -32,11 +34,12 @@ export interface InvoiceDocument {
  * Renders an invoice into the file the tax adapter's law requires — the
  * application's own renderer, or the default one SaaSiCat ships.
  *
- * Given the invoice as it was issued, it renders the same bytes every time: a
- * repeated attempt archives the file whose checksum was recorded, and one
- * whose bytes differ is refused with `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`.
- * Whatever it would take from the clock, such as a PDF's creation date, it
- * takes from the invoice's `issuedAt`.
+ * Given the invoice as it was issued, it renders the same bytes every time, so
+ * a repeated attempt archives the file whose checksum was recorded. Whatever
+ * it would take from the clock, such as a PDF's creation date, it takes from
+ * the invoice's `issuedAt`. A renderer updated between two attempts renders
+ * other bytes; while nothing is archived, those take the place of the ones
+ * recorded, and the audit log says so (`SC-AUD-019`).
  */
 export interface InvoiceRenderer {
     render(invoice: SubscriptionInvoiceRecord): Promise<InvoiceDocument>;

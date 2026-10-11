@@ -742,7 +742,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 replacement invoices included, and an invoice still awaiting its document (`SC-PRIC-033`) is listed
 as such, so no number in the range stands without an explanation. Its export is machine-readable:
 each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
-invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-015`).
+invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-019`).
 Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
 in it carries the moment it was recorded. The same period as of the same moment gives the same rows
 every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later

@@ -127,13 +127,13 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 18      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 19      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 626 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪ 0 drafts,
-🔵 23 superseded, 🔴 3 withdrawn.
+Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪ 0 drafts,
+🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -191,7 +191,7 @@ Of 626 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-014](#sc-aud-014--an-invoice-downloaded-later-is-the-document-that-was-issued-not-a-new-rendering),
-[SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
+[SC-AUD-019](#sc-aud-019--an-archived-invoice-is-checked-against-the-checksum-of-the-file-it-was-issued-as),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
 🔵 **Superseded** — [SC-BUN-009](#sc-bun-009--an-add-on-can-be-cancelled-at-any-time-and-ends-with-the-period-it-is-in),
@@ -216,13 +216,14 @@ Of 626 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
-[SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
+[SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
+[SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
 
 🔴 **Withdrawn** — [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 626 requirements. Do not edit by hand:
+Generated from `requirements/` — 627 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9599,8 +9600,15 @@ _Tested by:_
         - that the adapter refuses waits under its number, recorded nowhere, until the defect is
           fixed
         - whose hold could not be written to the audit log is written there by the next run
-        - rendered in another shape than the one recorded is held, and the recorded one stays
-        - that the archive already keeps in another shape is held, and the archived one stays
+        - rendered in another shape before anything was archived takes the place of the recorded
+          one, both named in the audit log
+        - rendered again is not put in place of the recorded one where the audit log cannot say so
+        - the archive already keeps is the one it was issued as: the record follows it, and nothing
+          is rendered
+        - the archive keeps in another shape than the one recorded is the one the record follows,
+          both named in the audit log
+        - the archive keeps and the adapter refuses is held, and the archived one stays
+        - the archive keeps that no longer matches its own checksum is held for the operator
 - `packages/tax-de/tests/an-invoice-document-is-the-file-german-law-asks-for.test.js`
     - a rendered invoice
         - that is ZUGFeRD EN 16931 and says what the invoice records passes
@@ -14131,7 +14139,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 replacement invoices included, and an invoice still awaiting its document (`SC-PRIC-033`) is listed
 as such, so no number in the range stands without an explanation. Its export is machine-readable:
 each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
-invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-015`).
+invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-019`).
 Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
 in it carries the moment it was recorded. The same period as of the same moment gives the same rows
 every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later
@@ -19542,7 +19550,8 @@ _Tested by:_
 
 ### SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
 
-🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+🔵 _(Superseded on 2026-10-11 by `SC-AUD-019`.)_
+💰 The document is rendered from what the invoice records and
 nothing else, never the current time or today's settings, and its checksum is recorded with the
 invoice before it is archived. An archiving attempt repeated after an interruption (`SC-PRIC-033`)
 stores a file with that checksum, every download is checked against it, and a file that does not
@@ -19550,6 +19559,20 @@ match is not handed out but shown to the operator. The register's export (`SC-AD
 checksum.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-019 — An archived invoice is checked against the checksum of the file it was issued as
+
+🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+nothing else, never the current time or today's settings, and its checksum is recorded with the
+invoice before it is archived. Once the archive holds a file for the invoice, that file is the one
+the invoice was issued as, and the record follows it. Until then nothing has been handed out, so an
+attempt repeated after an interruption (`SC-PRIC-033`) that renders other bytes — a renderer updated
+in between — records the new checksum in place of the old one and writes both to the audit log,
+rather than holding a numbered invoice that can never be sent. Every download is checked against the
+recorded checksum, and a file that does not match is not handed out but shown to the operator. The
+register's export (`SC-ADM-022`) carries each checksum.
+
+_Source:_ #424 · #332 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 <!-- BEGIN proof -->
 
@@ -19562,8 +19585,15 @@ _Tested by:_
         - that the adapter refuses waits under its number, recorded nowhere, until the defect is
           fixed
         - whose hold could not be written to the audit log is written there by the next run
-        - rendered in another shape than the one recorded is held, and the recorded one stays
-        - that the archive already keeps in another shape is held, and the archived one stays
+        - rendered in another shape before anything was archived takes the place of the recorded
+          one, both named in the audit log
+        - rendered again is not put in place of the recorded one where the audit log cannot say so
+        - the archive already keeps is the one it was issued as: the record follows it, and nothing
+          is rendered
+        - the archive keeps in another shape than the one recorded is the one the record follows,
+          both named in the audit log
+        - the archive keeps and the adapter refuses is held, and the archived one stays
+        - the archive keeps that no longer matches its own checksum is held for the operator
     - an invoice’s document downloaded later
         - is the archived file, not a new rendering
         - of an invoice that does not exist is answered as not found
@@ -19578,8 +19608,8 @@ _Tested by:_
 treatment (`SC-PRIC-038`), the term, the notice period and the version of the operator's terms that
 applied. That version is the one `config/saas.yaml` named when the contract was concluded or changed,
 which the contract records; the confirmation takes it from the contract, so one rendered again after
-new terms are published still names the terms the subscriber agreed to (`SC-AUD-015`). It is
-rendered and archived like an invoice (`SC-AUD-015`),
+new terms are published still names the terms the subscriber agreed to (`SC-AUD-019`). It is
+rendered and archived like an invoice (`SC-AUD-019`),
 sent to the subscriber's invoice email and offered for download beside the invoices (`SC-UI-023`).
 German law asks for the terms of a contract concluded online, general terms included, to be
 retrievable and storable when it is concluded.

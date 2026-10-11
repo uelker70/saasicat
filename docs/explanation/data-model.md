@@ -297,8 +297,12 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     `SubscriptionInvoiceRepository.recordRendering` writes the checksum
     conflict-free on the invoice: a second rendering with the same checksum is
     the same write, another one is refused with
-    `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`. `InvoiceArchivePort.store` holds a
-    file to that rule as well, and the triggers of
+    `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`. Only `replaceRendering` puts
+    another in its place, conditional on the checksum the caller read and on
+    nothing being archived, so of two runs replacing it one does; and
+    `markArchived` confirms only the checksum recorded, so the record and the
+    archive name the same file. `InvoiceArchivePort.store` holds a file to the
+    first-write rule as well, and the triggers of
     `1.0-an-invoice-document-is-archived.postgres.sql` refuse every update,
     delete and truncate of `subscription_invoice_archive`, whoever asks; the
     start refuses invoices where they are missing or disabled. The mail is

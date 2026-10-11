@@ -196,8 +196,13 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD',
-                label: 'Invoice waits for its document: the rendered file was refused or changed',
+                label: 'Invoice waits for its document: the rendered or archived file was refused',
                 severity: 'high',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_DOCUMENT_RERENDERED',
+                label: 'Invoice document rendered again before it was archived, in place of the one recorded',
+                severity: 'medium',
             },
             {
                 key: 'SUBSCRIPTION_INVOICE_DELIVERY_HELD',
