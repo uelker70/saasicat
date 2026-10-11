@@ -1292,7 +1292,8 @@ _Tested by:_
     - an invoice interrupted in archiving
         - before the archive took the file is neither offered nor mailed, and the next run archives
           the same file
-        - after the archive took the file is recorded as archived by the next run
+        - after the archive took the file is confirmed by the next run as kept, whatever the
+          renderer makes since
         - holds up no other invoice, and a renderer that does not answer counts as interrupted
         - is archived by a run however many pages of invoices wait before it
     - the quarter-hourly run
@@ -1515,6 +1516,8 @@ _Tested by:_
         - that is not a PDF at all is refused as such, and nothing further is read
     - the container
         - ${what} is refused
+    - a container written with the wrong types
+        - ${what} is refused for it
     - the embedded XML
         - ${what} is refused
         - stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so
