@@ -10359,6 +10359,8 @@ _Tested by:_
         - are written into a successor of the contract in force, which keeps everything else
         - are written once
         - reduce a line no further than its price
+        - keep the amount named for the periods to come, though the line takes off no more than its
+          price
         - reduce only the lines the subscription was told of, as it was told of them
         - reduce the line a change scheduled before the announcement brings, once its contract is
           written

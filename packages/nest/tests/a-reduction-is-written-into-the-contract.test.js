@@ -218,6 +218,22 @@ describe('the reductions of a withdrawal', () => {
         ]);
     });
 
+    test('keep the amount named for the periods to come, though the line takes off no more than its price', async () => {
+        const { contracts, service } = await aContractInForce({
+            told: toldOf({ plan: 60, addOn: null }),
+        });
+        await service.recordReductions('t1', NOW);
+        const [reduction] = (await contracts.findActiveByTenantId('t1', NOW)).lineItems.filter(
+            (item) => item.kind === 'discount',
+        );
+        assert.equal(reduction.priceNet, -49);
+        assert.equal(
+            reduction.metadata.reduction.amountNet,
+            60,
+            'a version that costs more later is reduced by all of it',
+        );
+    });
+
     test('reduce only the lines the subscription was told of, as it was told of them', async () => {
         // The plan was reached in the monthly rhythm; the contract now bills it yearly.
         const { contracts, service } = await aContractInForce({

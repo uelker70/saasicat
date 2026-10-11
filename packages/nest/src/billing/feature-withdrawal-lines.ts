@@ -154,10 +154,13 @@ function lineReduced(
 }
 
 /**
- * The discount line for one reduced line, in that line's rhythm. It takes off
- * at most the line's own price: a price is reduced to nothing at most, and a
- * version published since the announcement may cost less than the one the
- * operator measured the reduction against.
+ * The discount line for one reduced line, in that line's rhythm. The line
+ * takes off at most its own line's price: a price is reduced to nothing at
+ * most, and a version published since the announcement may cost less than the
+ * one the operator measured the reduction against. Its mark keeps the amount
+ * the operator named, which is what the account reduces each period by — the
+ * account takes off no more than a period costs, and a version that costs more
+ * later is reduced by all of it.
  */
 function reductionLine(
     notice: FeatureWithdrawnNotice,
@@ -165,13 +168,14 @@ function reductionLine(
     reduced: ContractLine,
     sourceKey: string,
 ): PricedContractLineItem {
-    const amountNet = Math.min(reached.reductionNet ?? 0, Math.max(0, reduced.priceNet));
+    const named = reached.reductionNet ?? 0;
+    const amountNet = Math.min(named, Math.max(0, reduced.priceNet));
     const mark: WithdrawalReductionMark = {
         withdrawalId: notice.withdrawalId,
         line: reached.line,
         key: reached.key,
         subscriptionBundleId: reached.subscriptionBundleId,
-        amountNet,
+        amountNet: named,
     };
     return {
         kind: 'discount',
