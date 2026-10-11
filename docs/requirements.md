@@ -9386,6 +9386,7 @@ _Tested by:_
           the same file
         - after the archive took the file is confirmed by the next run as kept, whatever the
           renderer makes since
+        - confirmed by another run in between is not counted as archived by this one
         - holds up no other invoice, and a renderer that does not answer counts as interrupted
         - is archived by a run however many pages of invoices wait before it
     - the quarter-hourly run

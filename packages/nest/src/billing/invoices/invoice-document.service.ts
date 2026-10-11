@@ -273,8 +273,7 @@ export class InvoiceDocumentService implements OnModuleInit {
                     archivedAt: now,
                 }),
             );
-            await this.invoices.markArchived(invoiceId, now, rendering.checksum);
-            return 'archived';
+            return await this.confirmArchived(invoice, now, rendering.checksum);
         } catch (error) {
             if (!(error instanceof Held)) return this.failed(invoiceId, error);
             await this.recordHold(invoice, 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD', error.hold);
@@ -312,8 +311,26 @@ export class InvoiceDocumentService implements OnModuleInit {
                 await this.replaceRendering(invoice, rendering, recorded.checksum);
             }
         }
-        await this.invoices.markArchived(invoice.id, now, kept.checksum);
-        return 'archived';
+        return this.confirmArchived(invoice, now, kept.checksum);
+    }
+
+    /**
+     * Records the archive's confirmation of the file `checksum` names. A run
+     * counts an invoice as archived only where this write is its own: where
+     * another run confirmed it first, or changed the record in between, this
+     * one says so and leaves the next run to find where it stands.
+     */
+    private async confirmArchived(
+        invoice: SubscriptionInvoiceRecord,
+        now: Date,
+        checksum: string,
+    ): Promise<keyof InvoiceDocumentRun> {
+        if (await this.invoices.markArchived(invoice.id, now, checksum)) return 'archived';
+        this.logger.warn(
+            `Invoice ${invoice.number} was not confirmed as archived by this run: another run ` +
+                'confirmed it or changed its record meanwhile. The next run finds where it stands.',
+        );
+        return 'failed';
     }
 
     /** Holds an invoice whose file the tax adapter refuses (`SC-PRIC-042`). */
@@ -437,8 +454,8 @@ export class InvoiceDocumentService implements OnModuleInit {
     /**
      * Shows the operator a mail that was not sent, and lets the claim go for
      * the next run. The address stays on the subscriber's record, and is taken
-     * out of the reason the mail gave, which a mail server often words with
-     * the recipient in it. A claim that cannot be let go is not lost — it goes
+     * out of the reason the mail gave — in the audit entry and in the log
+     * alike — which a mail server often words with the recipient in it. A claim that cannot be let go is not lost — it goes
      * stale and is taken on then — so that failure is logged, not thrown.
      */
     private async deliveryFailed(
@@ -449,7 +466,10 @@ export class InvoiceDocumentService implements OnModuleInit {
     ): Promise<void> {
         this.logger.error(
             `Invoice ${invoice.number} was not mailed; the next run tries again.`,
-            error instanceof Error ? error.stack : String(error),
+            withoutAddress(
+                error instanceof Error ? (error.stack ?? error.message) : String(error),
+                to,
+            ),
         );
         await this.recordHold(invoice, 'SUBSCRIPTION_INVOICE_DELIVERY_FAILED', {
             params: { reason: withoutAddress(errorMessageOf(error), to) },

@@ -367,6 +367,22 @@ describe('an invoice interrupted in archiving', () => {
         assert.equal(renderer.rendered.length, 1, 'not rendered again');
     });
 
+    test('confirmed by another run in between is not counted as archived by this one', async () => {
+        quietLog();
+        const { documents, store, invoice } = await anIssuedInvoice();
+        const markArchived = store.markArchived;
+        store.markArchived = async (...args) => {
+            store.markArchived = markArchived;
+            // Another run confirms the same file first.
+            await markArchived(...args);
+            return false;
+        };
+
+        assert.deepEqual(await documents.archiveDue(AT), { archived: 0, held: 0, failed: 1 });
+        assert.equal(store.documents.get(invoice.id).archivedAt, AT);
+        assert.deepEqual(await documents.archiveDue(LATER), { archived: 0, held: 0, failed: 0 });
+    });
+
     test('holds up no other invoice, and a renderer that does not answer counts as interrupted', async () => {
         quietLog();
         const stalled = new Set();
@@ -492,7 +508,11 @@ describe('an archived invoice’s mail', () => {
     });
 
     test('the mail refuses is shown to the operator without the address, and tried again by the next run', async () => {
-        quietLog();
+        // What the log takes, too: an application's log is read by more people than its audit log.
+        const logged = [];
+        for (const level of ['error', 'warn']) {
+            mock.method(Logger.prototype, level, (...args) => logged.push(args.join(' ')));
+        }
         // A mail server words its refusal with the recipient in it, in its own case.
         const refusal = `550 5.1.1 <${INVOICE_EMAIL.toUpperCase()}>: recipient rejected`;
         const { documents, store, mail, audits, invoice } = await anArchivedInvoice({
@@ -509,6 +529,12 @@ describe('an archived invoice’s mail', () => {
             reason: '550 5.1.1 <[invoice email]>: recipient rejected',
         });
         assert.equal(store.documents.get(invoice.id).deliveryClaimedAt, null, 'let go');
+        assert.ok(logged.length > 0, 'the failure was not logged');
+        assert.deepEqual(
+            logged.filter((line) => line.toLowerCase().includes(INVOICE_EMAIL)),
+            [],
+            'the log names the recipient',
+        );
 
         assert.deepEqual(await documents.deliverDue(), { delivered: 1, held: 0, failed: 0 });
         assert.equal(mail.sent.length, 1);
