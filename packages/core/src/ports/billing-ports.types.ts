@@ -34,6 +34,10 @@ import type {
     NewSubscriptionInvoice,
     SubscriptionInvoiceRecord,
 } from '../subscription-invoice.types.js';
+import type {
+    NewInvoiceRendering,
+    SubscriptionInvoiceDocumentRecord,
+} from '../invoice-document.types.js';
 
 // -----------------------------------------------------------------------------
 // Billing repository and tenant self-service ports
@@ -588,6 +592,78 @@ export interface SubscriptionInvoiceRepository {
      * a second one says the prefix was changed under it (`SC-PRIC-024`).
      */
     listIssuedNumberPrefixes(tx?: TransactionContext): Promise<string[]>;
+
+    /**
+     * Records the rendering of an invoice's document before its file is
+     * archived (`SC-AUD-015`), once. A rendering recorded again with the same
+     * checksum is the same write and answers the record as it stands; another
+     * checksum is refused with `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`
+     * (`moved`), and the first stays.
+     */
+    recordRendering(
+        invoiceId: string,
+        rendering: NewInvoiceRendering,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord>;
+
+    /** Records that the archive confirmed the document; `false` where it was already recorded. */
+    markArchived(invoiceId: string, at: Date, tx?: TransactionContext): Promise<boolean>;
+
+    /**
+     * Claims an archived invoice's mail for the run calling it at `at`: where
+     * it is not delivered and no run holds it, or the run that holds it took it
+     * on before `staleBefore`. `true` where this run holds it now — of two
+     * concurrent calls exactly one does — so that an invoice is mailed once
+     * however many instances run (`SC-PRIC-047`).
+     */
+    claimDelivery(
+        invoiceId: string,
+        at: Date,
+        staleBefore: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Records that the invoice was handed to the mail, provided it is still
+     * held by the claim taken at `claimedAt` and not delivered. `false` where it
+     * is not: the claim went stale and another run took the invoice on.
+     */
+    markDelivered(
+        invoiceId: string,
+        delivery: { claimedAt: Date; at: Date; to: string },
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Lets go of the claim taken at `claimedAt`, so the next run tries again.
+     * Does nothing where the invoice is delivered or held by another claim.
+     */
+    releaseDelivery(invoiceId: string, claimedAt: Date, tx?: TransactionContext): Promise<void>;
+
+    /** Where the invoice's document stands, or `null` before it was rendered. */
+    findDocument(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord | null>;
+
+    /**
+     * The invoices whose document the archive has not confirmed yet —
+     * not rendered, or rendered and not archived (`SC-PRIC-033`). By id, at
+     * most `limit`, after `after` where it is given.
+     */
+    listAwaitingDocument(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * The invoices archived and not yet handed to the mail, page by page as
+     * above — whether or not a run holds them, which `claimDelivery` decides.
+     */
+    listAwaitingDelivery(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
 }
 
 // -----------------------------------------------------------------------------

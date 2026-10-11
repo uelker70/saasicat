@@ -24,6 +24,7 @@
 --   prisma-fragments/19-bundle-version-retirement.prisma
 --   prisma-fragments/20-subscription-invoice.prisma
 --   prisma-fragments/21-feature-withdrawal.prisma
+--   prisma-fragments/22-subscription-invoice-archive.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -854,6 +855,22 @@ CREATE TABLE "subscription_invoice_lines" (
 );
 
 -- CreateTable
+CREATE TABLE "subscription_invoice_documents" (
+    "invoiceId" TEXT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "mediaType" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "size" INTEGER NOT NULL,
+    "renderedAt" TIMESTAMP(3) NOT NULL,
+    "archivedAt" TIMESTAMP(3),
+    "deliveryClaimedAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "deliveredTo" TEXT,
+
+    CONSTRAINT "subscription_invoice_documents_pkey" PRIMARY KEY ("invoiceId")
+);
+
+-- CreateTable
 CREATE TABLE "subscription_invoice_numbers" (
     "year" INTEGER NOT NULL,
     "last" INTEGER NOT NULL,
@@ -876,6 +893,18 @@ CREATE TABLE "feature_withdrawals" (
     "toldAt" TIMESTAMP(3),
 
     CONSTRAINT "feature_withdrawals_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscription_invoice_archive" (
+    "invoiceId" TEXT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "mediaType" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "content" BYTEA NOT NULL,
+    "archivedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscription_invoice_archive_pkey" PRIMARY KEY ("invoiceId")
 );
 
 -- CreateIndex
@@ -1164,6 +1193,9 @@ CREATE INDEX "subscription_invoice_lines_contractLineItemId_idx" ON "subscriptio
 CREATE UNIQUE INDEX "subscription_invoice_lines_invoiceId_position_key" ON "subscription_invoice_lines"("invoiceId", "position");
 
 -- CreateIndex
+CREATE INDEX "subscription_invoice_documents_archivedAt_idx" ON "subscription_invoice_documents"("archivedAt");
+
+-- CreateIndex
 CREATE INDEX "feature_withdrawals_featureKey_idx" ON "feature_withdrawals"("featureKey");
 
 -- AddForeignKey
@@ -1249,6 +1281,12 @@ ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_li
 
 -- AddForeignKey
 ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_documents" ADD CONSTRAINT "subscription_invoice_documents_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_archive" ADD CONSTRAINT "subscription_invoice_archive_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.

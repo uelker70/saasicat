@@ -12,8 +12,10 @@
 // law requires of it — asked before its number is drawn, so a refusal leaves no
 // number behind. The format its file takes joins the port with the document.
 
+import type { InvoiceDocument } from './invoice-document.types.js';
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 import type { TaxPerRate } from './money.js';
+import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
 
 /** The adapter that gave an answer, recorded beside the answer. */
 export interface TaxAdapterIdentity {
@@ -191,6 +193,17 @@ export interface TaxAdapter extends TaxAdapterIdentity {
      * number is drawn; an invoice that lacks anything is not issued.
      */
     invoiceContentGaps(draft: InvoiceContentDraft): readonly string[];
+    /**
+     * What a rendered document lacks of the format the law requires
+     * (`SC-PRIC-042`), or disagrees with in the invoice it was rendered from —
+     * `format.embeddedXml`, `xml.totalGross` — or none where it is the file to
+     * issue. A document with anything here is not archived, sent or offered;
+     * the invoice keeps its number and waits for a document that passes.
+     */
+    invoiceDocumentGaps(
+        document: InvoiceDocument,
+        invoice: SubscriptionInvoiceRecord,
+    ): Promise<readonly string[]>;
 }
 
 /** A line as an invoice's tax is computed from it. */

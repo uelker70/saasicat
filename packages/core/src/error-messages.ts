@@ -329,6 +329,17 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
+        'The document rendered for invoice {invoiceId} differs from the one recorded for it ({rendered} instead of {recorded}); the renderer must render the same invoice into the same file.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:
+        'The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH:
+        'The archived document of invoice {invoiceId} does not match the checksum recorded when it was rendered, and is not handed out.',
+    SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED:
+        'The document of invoice {invoiceId} is not archived yet.',
+    SUBSCRIPTION_INVOICE_NOT_FOUND: "No invoice '{invoiceId}'.",
+    SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
+        'Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'A checkout offer can yield only one contract, and only once its line items are frozen.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED: 'A checkout offer requires a frozen plan line item.',

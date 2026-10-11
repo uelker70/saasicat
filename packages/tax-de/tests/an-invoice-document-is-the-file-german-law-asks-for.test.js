@@ -1,0 +1,173 @@
+// Whether a rendered invoice is ZUGFeRD in the EN 16931 profile, and says what
+// the invoice records. Each case changes one thing about a file that passes,
+// and the check names exactly what changed: a renderer is refused for the
+// reason it gets wrong, not for a pile of follow-on gaps.
+
+// @requirement SC-PRIC-042 — An invoice is issued in the format its tax adapter requires
+
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { AFRelationship } from 'pdf-lib';
+
+import { GermanTaxAdapter } from '../dist/index.js';
+import { INVOICE, ciiOf, facturXOf, xmpOf } from './support/factur-x.js';
+
+const adapter = new GermanTaxAdapter();
+const gapsOf = async (fileOptions, invoice = INVOICE) =>
+    adapter.invoiceDocumentGaps(await facturXOf(fileOptions), invoice);
+
+describe('a rendered invoice', () => {
+    test('that is ZUGFeRD EN 16931 and says what the invoice records passes', async () => {
+        assert.deepEqual(await gapsOf(), []);
+    });
+
+    test('that is not a PDF at all is refused as such, and nothing further is read', async () => {
+        const notPdf = {
+            content: new TextEncoder().encode('<html/>'),
+            mediaType: 'application/pdf',
+            fileName: 'x.pdf',
+        };
+
+        assert.deepEqual(await adapter.invoiceDocumentGaps(notPdf, INVOICE), ['format.pdf']);
+        assert.deepEqual(
+            await adapter.invoiceDocumentGaps(
+                { ...(await facturXOf()), mediaType: 'text/html' },
+                INVOICE,
+            ),
+            ['format.mediaType'],
+        );
+    });
+});
+
+describe('the container', () => {
+    for (const [what, options, gaps] of [
+        ['without PDF/A-3 in its metadata', { xmp: xmpOf({ part: '1' }) }, ['format.pdfa3']],
+        [
+            'without the Factur-X profile in its metadata',
+            { xmp: xmpOf({ level: 'BASIC' }) },
+            ['format.facturX'],
+        ],
+        [
+            'naming another embedded file in its metadata',
+            { xmp: xmpOf({ fileName: 'zugferd-invoice.xml' }) },
+            ['format.facturX'],
+        ],
+        ['without any metadata', { xmp: null }, ['format.pdfa3', 'format.facturX']],
+        ['without the embedded XML', { xml: null }, ['format.embeddedXml']],
+        ['with the XML under another name', { attachedAs: 'invoice.xml' }, ['format.embeddedXml']],
+        [
+            'with the XML as mere data rather than the alternative',
+            { relationship: AFRelationship.Data },
+            ['format.relationship'],
+        ],
+        [
+            'with the XML attached under no relationship',
+            { relationship: null },
+            ['format.relationship'],
+        ],
+        [
+            'with XML that is not well-formed',
+            { xml: '<rsm:CrossIndustryInvoice><unclosed>' },
+            ['xml.wellFormed'],
+        ],
+    ]) {
+        test(`${what} is refused`, async () => {
+            assert.deepEqual(await gapsOf(options), gaps);
+        });
+    }
+});
+
+describe('the embedded XML', () => {
+    const differing = (overrides) => ({ xml: ciiOf(INVOICE, overrides) });
+
+    for (const [what, overrides, gap] of [
+        ['in another profile', { profile: 'urn:factur-x.eu:1p0:basic' }, 'xml.profile'],
+        ['as a credit note', { typeCode: '381' }, 'xml.typeCode'],
+        ['under another number', { number: 'AHP-2026-000124' }, 'xml.number'],
+        ['on another issue date', { issueDate: '20260202' }, 'xml.issueDate'],
+        ['due on another day', { dueDate: '20260301' }, 'xml.dueDate'],
+        ['for another period', { periodUntil: '20260301' }, 'xml.servicePeriod'],
+        ['in another currency', { currency: 'CHF' }, 'xml.currency'],
+        ['naming another seller', { sellerName: 'AutohausPro GmbH' }, 'xml.seller.name'],
+        ["with another seller's VAT id", { sellerVatId: 'DE999999999' }, 'xml.seller.vatId'],
+        [
+            "with another seller's tax number",
+            { sellerTaxNumber: '99/999/99999' },
+            'xml.seller.taxNumber',
+        ],
+        ['naming another buyer', { buyerName: 'Autohaus Meier GmbH' }, 'xml.buyer.name'],
+        ['with another tax at the rate', { taxes: [{ rate: 19, net: 49, tax: 9.3 }] }, 'xml.taxes'],
+        ['at another rate', { taxes: [{ rate: 7, net: 49, tax: 9.31 }] }, 'xml.taxes'],
+        ['with a line too few', { lines: [53.9] }, 'xml.lines'],
+        ['with a line of another amount', { lines: [53.9, -4.8] }, 'xml.lines'],
+    ]) {
+        test(`${what} is refused`, async () => {
+            assert.deepEqual(await gapsOf(differing(overrides)), [gap]);
+        });
+    }
+
+    test('stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so', async () => {
+        for (const overrides of [
+            { totalGross: 58.3 },
+            { duePayable: 58.3 },
+            { totalTax: 9.3 },
+            { totalNet: 48.99 },
+        ]) {
+            assert.deepEqual(
+                await gapsOf(differing(overrides)),
+                ['xml.totals'],
+                JSON.stringify(overrides),
+            );
+        }
+    });
+
+    test('stating a total as nothing, or as no number, is refused', async () => {
+        for (const totalGross of ['', 'n/a']) {
+            assert.deepEqual(await gapsOf(differing({ totalGross })), ['xml.totals'], totalGross);
+        }
+    });
+
+    test('stating a day in another format than 102 is refused', async () => {
+        for (const issueDate of ['2026-02-01', '2026020X']) {
+            assert.deepEqual(await gapsOf(differing({ issueDate })), ['xml.issueDate'], issueDate);
+        }
+    });
+
+    test('that holds nothing but its root names everything the invoice records as missing', async () => {
+        const xml =
+            '<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"/>';
+
+        assert.deepEqual(await gapsOf({ xml }), [
+            'xml.profile',
+            'xml.typeCode',
+            'xml.number',
+            'xml.issueDate',
+            'xml.dueDate',
+            'xml.servicePeriod',
+            'xml.currency',
+            'xml.seller.name',
+            'xml.seller.vatId',
+            'xml.seller.taxNumber',
+            'xml.buyer.name',
+            'xml.taxes',
+            'xml.totals',
+            'xml.lines',
+        ]);
+    });
+
+    test('filed in a kid of the name tree, its name a literal string, is found and passes', async () => {
+        assert.deepEqual(await gapsOf({ underAKid: true }), []);
+    });
+
+    test('of an issuer without a tax number may leave the registration out', async () => {
+        const invoice = { ...INVOICE, issuer: { ...INVOICE.issuer, taxNumber: null } };
+
+        assert.deepEqual(await gapsOf({ xml: ciiOf(invoice) }, invoice), []);
+    });
+
+    test('of an issuer with a tax number must carry it', async () => {
+        const without = { ...INVOICE, issuer: { ...INVOICE.issuer, taxNumber: null } };
+
+        assert.deepEqual(await gapsOf({ xml: ciiOf(without) }, INVOICE), ['xml.seller.taxNumber']);
+    });
+});

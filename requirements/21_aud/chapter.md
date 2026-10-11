@@ -251,6 +251,46 @@ it again from today's data would hand out a document the subscriber never receiv
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
+- `packages/core/tests/an-invoice-document-row-becomes-a-record.test.js`
+    - the database archive
+        - with both of its triggers enabled keeps what it holds
+        - ${what} names what it lacks, and the file that adds it
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an invoice’s document downloaded later
+        - is the archived file, not a new rendering
+        - of an invoice that does not exist is answered as not found
+        - of an invoice still waiting for its document is not offered
+        - ${what} is not handed out, and shown to the operator
+    - the operator’s download
+        - is served where invoices are, answers the archived file, and the manifest announces it
+        - offers a file name that cannot end the header it stands in
+        - of a file with no name it could keep offers one
+        - without ${without}, neither the route nor the capability exists
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - not beside an archive that would let a document it keeps be changed, naming why
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
+
+<!-- END proof -->
+
 ### SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
 
 🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
@@ -261,6 +301,27 @@ match is not handed out but shown to the operator. The register's export (`SC-AD
 checksum.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an issued invoice’s document
+        - is rendered from the invoice as issued, checked, its checksum recorded, and archived
+        - is archived once: the next run renders nothing again
+        - that the adapter refuses waits under its number, recorded nowhere, until the defect is
+          fixed
+        - whose hold could not be written to the audit log is written there by the next run
+        - rendered in another shape than the one recorded is held, and the recorded one stays
+        - that the archive already keeps in another shape is held, and the archived one stays
+    - an invoice’s document downloaded later
+        - is the archived file, not a new rendering
+        - of an invoice that does not exist is answered as not found
+        - of an invoice still waiting for its document is not offered
+        - ${what} is not handed out, and shown to the operator
+
+<!-- END proof -->
 
 ### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
 

@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type {
+    NewInvoiceRendering,
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
+    SubscriptionInvoiceDocumentRecord,
     SubscriptionInvoiceRecord,
     SubscriptionInvoiceRepository,
     TransactionContext,
@@ -11,6 +13,8 @@ import type {
 import {
     formatInvoiceNumber,
     subscriptionInvoiceChargeInvoiced,
+    subscriptionInvoiceDocumentChanged,
+    toSubscriptionInvoiceDocumentRecord,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
     toSubscriberChargeRecord,
@@ -19,6 +23,7 @@ import {
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import {
     subscriberLedgerEntries,
+    subscriptionInvoiceDocuments,
     subscriptionInvoiceLines,
     subscriptionInvoiceNumbers,
     subscriptionInvoices,
@@ -197,6 +202,171 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
             .orderBy(asc(subscriptionInvoices.numberPrefix))
             .limit(2);
         return rows.map((row) => row.numberPrefix);
+    }
+
+    async recordRendering(
+        invoiceId: string,
+        rendering: NewInvoiceRendering,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord> {
+        const db = resolveDb(this.db, tx);
+        // `ON CONFLICT DO NOTHING` on the invoice: a rendering recorded before
+        // stays, and the one asked for now is compared with it.
+        const [written] = await db
+            .insert(subscriptionInvoiceDocuments)
+            .values({ invoiceId, ...rendering })
+            .onConflictDoNothing({ target: subscriptionInvoiceDocuments.invoiceId })
+            .returning();
+        const row =
+            written ??
+            (
+                await db
+                    .select()
+                    .from(subscriptionInvoiceDocuments)
+                    .where(eq(subscriptionInvoiceDocuments.invoiceId, invoiceId))
+                    .limit(1)
+            )[0];
+        if (!row)
+            throw new Error(`The rendering of invoice ${invoiceId} was neither written nor found.`);
+        if (row.checksum !== rendering.checksum) {
+            throw subscriptionInvoiceDocumentChanged(invoiceId, row.checksum, rendering.checksum);
+        }
+        return toSubscriptionInvoiceDocumentRecord(row);
+    }
+
+    async markArchived(invoiceId: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const rows = await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceDocuments)
+            .set({ archivedAt: at })
+            .where(
+                and(
+                    eq(subscriptionInvoiceDocuments.invoiceId, invoiceId),
+                    isNull(subscriptionInvoiceDocuments.archivedAt),
+                ),
+            )
+            .returning({ invoiceId: subscriptionInvoiceDocuments.invoiceId });
+        return rows.length === 1;
+    }
+
+    async claimDelivery(
+        invoiceId: string,
+        at: Date,
+        staleBefore: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        // One conditional UPDATE: a second one waiting on the row's lock reads
+        // the claim the first wrote, and takes nothing.
+        const rows = await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceDocuments)
+            .set({ deliveryClaimedAt: at })
+            .where(
+                and(
+                    eq(subscriptionInvoiceDocuments.invoiceId, invoiceId),
+                    isNotNull(subscriptionInvoiceDocuments.archivedAt),
+                    isNull(subscriptionInvoiceDocuments.deliveredAt),
+                    or(
+                        isNull(subscriptionInvoiceDocuments.deliveryClaimedAt),
+                        lt(subscriptionInvoiceDocuments.deliveryClaimedAt, staleBefore),
+                    ),
+                ),
+            )
+            .returning({ invoiceId: subscriptionInvoiceDocuments.invoiceId });
+        return rows.length === 1;
+    }
+
+    async markDelivered(
+        invoiceId: string,
+        delivery: { claimedAt: Date; at: Date; to: string },
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        const rows = await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceDocuments)
+            .set({ deliveredAt: delivery.at, deliveredTo: delivery.to })
+            .where(
+                and(
+                    eq(subscriptionInvoiceDocuments.invoiceId, invoiceId),
+                    isNotNull(subscriptionInvoiceDocuments.archivedAt),
+                    isNull(subscriptionInvoiceDocuments.deliveredAt),
+                    eq(subscriptionInvoiceDocuments.deliveryClaimedAt, delivery.claimedAt),
+                ),
+            )
+            .returning({ invoiceId: subscriptionInvoiceDocuments.invoiceId });
+        return rows.length === 1;
+    }
+
+    async releaseDelivery(
+        invoiceId: string,
+        claimedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<void> {
+        await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceDocuments)
+            .set({ deliveryClaimedAt: null })
+            .where(
+                and(
+                    eq(subscriptionInvoiceDocuments.invoiceId, invoiceId),
+                    isNull(subscriptionInvoiceDocuments.deliveredAt),
+                    eq(subscriptionInvoiceDocuments.deliveryClaimedAt, claimedAt),
+                ),
+            );
+    }
+
+    async findDocument(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord | null> {
+        const [row] = await resolveDb(this.db, tx)
+            .select()
+            .from(subscriptionInvoiceDocuments)
+            .where(eq(subscriptionInvoiceDocuments.invoiceId, invoiceId))
+            .limit(1);
+        return row ? toSubscriptionInvoiceDocumentRecord(row) : null;
+    }
+
+    async listAwaitingDocument(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        const rows = await resolveDb(this.db, tx)
+            .select({ id: subscriptionInvoices.id })
+            .from(subscriptionInvoices)
+            .leftJoin(
+                subscriptionInvoiceDocuments,
+                eq(subscriptionInvoiceDocuments.invoiceId, subscriptionInvoices.id),
+            )
+            .where(
+                and(
+                    page.after === undefined ? undefined : gt(subscriptionInvoices.id, page.after),
+                    or(
+                        isNull(subscriptionInvoiceDocuments.invoiceId),
+                        isNull(subscriptionInvoiceDocuments.archivedAt),
+                    ),
+                ),
+            )
+            .orderBy(asc(subscriptionInvoices.id))
+            .limit(page.limit);
+        return rows.map((row) => row.id);
+    }
+
+    async listAwaitingDelivery(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        const rows = await resolveDb(this.db, tx)
+            .select({ invoiceId: subscriptionInvoiceDocuments.invoiceId })
+            .from(subscriptionInvoiceDocuments)
+            .where(
+                and(
+                    page.after === undefined
+                        ? undefined
+                        : gt(subscriptionInvoiceDocuments.invoiceId, page.after),
+                    isNotNull(subscriptionInvoiceDocuments.archivedAt),
+                    isNull(subscriptionInvoiceDocuments.deliveredAt),
+                ),
+            )
+            .orderBy(asc(subscriptionInvoiceDocuments.invoiceId))
+            .limit(page.limit);
+        return rows.map((row) => row.invoiceId);
     }
 }
 

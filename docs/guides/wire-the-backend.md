@@ -977,16 +977,18 @@ The charges of the journal, issued as invoices: one invoice for the charges book
 contract — the charges a billing period opens with, or one that arises later in the period — numbered
 without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. **Switch it on for
 real customers only from the release that brings the cancellation invoice** (`1.0.0-rc.28`): an
-issued invoice is never edited (`SC-PRIC-025`), so until then a wrong one cannot be corrected. This
-release issues the invoice as a record; its document, the archive and the mail follow.
+issued invoice is never edited (`SC-PRIC-025`), so until then a wrong one cannot be corrected. Each
+invoice is issued, rendered into the file its tax law requires, archived and mailed; your application
+brings the renderer that writes the file.
 
 It needs the charge journal above, a tax adapter, the issuer in `config/saas.yaml`, and the record
 of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only against the record
 does a start refuse another legal entity named as the issuer, which would otherwise number on in
 the range of the one before, and the record keeps the corrections of the issuer an invoice
-follows. Adopt `prisma-fragments/20-subscription-invoice.prisma`, run
-`sql/1.0-an-invoice-is-issued.postgres.sql` once, name the range and the payment term, and wire the
-repository beside the journal:
+follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
+`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql` once and
+`sql/1.0-an-invoice-document-is-archived.postgres.sql` after `db push`, name the range and the
+payment term, and wire the repository, the renderer, the archive and the mail beside the journal:
 
 ```yaml
 # config/saas.yaml
@@ -1002,6 +1004,9 @@ tenantBilling: {
         ledgerRepository: persistence.entitlement!.subscriberLedgerRepository!,
         invoices: {
             invoiceRepository: persistence.entitlement!.subscriptionInvoiceRepository!,
+            renderer: new YourInvoiceRenderer(), // InvoiceRenderer
+            archive: persistence.entitlement!.subscriptionInvoiceArchive!,
+            mail: new YourInvoiceMail(), // InvoiceMailPort
         },
     },
 },
@@ -1009,7 +1014,8 @@ tenantBilling: {
 
 The start refuses the wiring without the `invoicing` block, the block without the wiring where tenant
 billing is configured, either without a tax adapter, an issuer or the record of the applied
-settings, and a `numberPrefix` other than the one the invoices already issued carry
+settings, the wiring without a renderer, an archive or a mail, an archive that would let a document
+it keeps be changed, and a `numberPrefix` other than the one the invoices already issued carry
 (`SC-PRIC-024`). The prefix is letters and digits; the number puts the year and the sequence behind
 it, each after a hyphen.
 
@@ -1019,10 +1025,12 @@ the record, and adds `IssuerIdentityInspector` and `IssuerIdentityCheck` from
 `@saasicat/nest/platform` beside it: the record keeps the issuer, and only that check refuses a start
 whose file names another legal entity, which would otherwise number on in this range.
 
-`SubscriptionInvoiceService.issueDue(now)` issues what is owed, and the platform runs it every
-quarter of an hour, which needs `ScheduleModule` in your application. With
-`invoices.includeCron: false` the platform leaves the run to your own scheduler, which calls
-`issueDue`. Each invoice is put together from what holds on its issue date:
+`SubscriptionInvoiceService.issueDue(now)` issues what is owed, `InvoiceDocumentService.archiveDue(now)`
+renders and archives the documents of the invoices issued, and `InvoiceDocumentService.deliverDue()`
+mails the ones archived. The platform runs the three in that order every quarter of an hour, which
+needs `ScheduleModule` in your application. With `invoices.includeCron: false` the platform leaves
+them to your own scheduler, which calls all three: an invoice is mailed only once its document is
+archived. Each invoice is put together from what holds on its issue date:
 
 - **the subscriber** as its record stands, with its customer number;
 - **the issuer** of the contract its charges belong to — the file's, address and all, while the file
@@ -1048,7 +1056,65 @@ logs it, and the audit log records it once per process as `SUBSCRIPTION_INVOICE_
 `job:platform:subscription-invoices`, with the refusal's code and what it names. Once what held it is
 put right, the next run issues it under the next number.
 
-The run reads and writes across tenants inside `RlsBypassPort`. If the invoice tables, the journal,
+### Its document, the archive and the mail
+
+Once issued, an invoice goes through five steps. One that cannot go on yet waits, and every run
+after tries it again:
+
+1. **Rendered** by your `InvoiceRenderer` from what the invoice records and nothing else: the same
+   invoice renders the same bytes every time, and whatever a renderer would take from the clock, such
+   as a PDF's creation date, it takes from `issuedAt`.
+2. **Checked** by the tax adapter against the format its law requires (`SC-PRIC-042`) — for
+   `@saasicat/tax-de`, ZUGFeRD in the EN 16931 profile, whose XML states what the invoice records. A
+   file it refuses is not archived: the invoice keeps its number and waits, and the audit log records
+   `SUBSCRIPTION_INVOICE_DOCUMENT_HELD` with `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED` and what the
+   adapter found missing.
+3. **Recorded**: the file's SHA-256 is written with the invoice before the file is archived
+   (`SC-AUD-015`). A renderer that renders other bytes on a later attempt is held with
+   `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`, and the first checksum stays.
+4. **Archived** by the `InvoiceArchivePort`. Until the archive confirms, the invoice is neither mailed
+   nor offered for download, and the next run repeats the attempt as the same write (`SC-PRIC-033`).
+5. **Mailed** by your `InvoiceMailPort` to the invoice email on the subscriber's record, with the
+   archived file attached (`SC-PRIC-047`). Your application words the message — in the subscriber's
+   language, with a link to the tenant's sign-in rather than to the file — and sends it. A run claims
+   an invoice before it hands it over, so of several instances one sends it. A subscriber without an
+   invoice email
+   waits, recorded as `SUBSCRIPTION_INVOICE_DELIVERY_HELD` with
+   `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`; a message your port rejects is recorded as
+   `SUBSCRIPTION_INVOICE_DELIVERY_FAILED` with its reason, and the next run tries again. The invoice
+   stays issued either way.
+
+Each of these is logged on every run and recorded in the audit log once per process, by the actor
+`job:platform:subscription-invoices`. A renderer that has not answered within a minute counts as
+failed; a mail that has not keeps its invoice claimed until the answer comes, and records it then.
+Neither holds up the other invoices.
+
+**The archive** the persistence bundle binds is the database:
+`persistence.entitlement.subscriptionInvoiceArchive` keeps each file in
+`subscription_invoice_archive`, whose triggers refuse every update, delete and truncate
+(`SC-AUD-014`). `db push` cannot create triggers, which is why the migration runs after it; the start
+refuses invoices beside an archive whose triggers are missing or disabled, and names them. An archive
+of your own — object storage with a retention lock, say — implements `InvoiceArchivePort`, whose
+`protectionProblem()` says what would let it change a document it keeps.
+
+**Keeping the documents is the operator's duty.** In Germany an invoice is kept for 8 years from the
+end of the calendar year it was issued in (§ 14b UStG, § 147 AO), unaltered and readable throughout,
+in Germany or, electronically, in another member state of the European Union, and the operator
+documents how in its procedure documentation (GoBD). The database archive keeps what it is given for
+as long as the database does: include `subscription_invoice_archive` in every backup, and restore it
+whole.
+
+**The operator downloads** an invoice's archived file at `GET admin/invoices/:id/document`, behind
+the administration's guards, and the manifest announces it as `invoices.read`. The route answers the
+archived file, checked against the recorded checksum, never a new rendering. A file that no longer
+matches is not handed out: it is answered `409` with `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH` and
+recorded in the audit log under that action; an invoice still waiting for its document is answered
+`409` with `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED`. An application that wires
+`TenantBillingModule` itself mounts the route with
+`InvoiceDocumentModule.forRoot({ guards, imports })` from `@saasicat/nest/billing`, importing the
+tenant billing module it built.
+
+The runs read and write across tenants inside `RlsBypassPort`. If the invoice tables, the journal,
 your contracts or subscribers carry a row-level policy, your implementation of that port has to lift
 it there.
 

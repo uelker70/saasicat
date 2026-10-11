@@ -677,6 +677,34 @@ export const INVOICE_ERROR_CODES = {
      * (`SC-AUD-012`).
      */
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED: 'SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED',
+    /**
+     * A rendering of the invoice's document has another checksum than the one
+     * recorded for it (`invoiceId`, `recorded`, `rendered`): the renderer gave
+     * different bytes for the same invoice. Nothing is archived; the invoice
+     * waits for its document (`SC-AUD-015`).
+     */
+    SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED: 'SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED',
+    /**
+     * The tax adapter refuses the rendered document — `missing` names what it
+     * lacks or disagrees with, `adapter` the adapter. The invoice keeps its
+     * number and waits for a document that passes (`SC-PRIC-042`).
+     */
+    SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED: 'SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED',
+    /**
+     * The archived document does not match the checksum recorded when it was
+     * rendered (`invoiceId`). It is not handed out (`SC-AUD-015`).
+     */
+    SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH: 'SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH',
+    /** The invoice's document is not archived yet (`invoiceId`); nothing is offered until it is (`SC-AUD-014`). */
+    SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED: 'SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED',
+    /** No invoice with this id (`invoiceId`). */
+    SUBSCRIPTION_INVOICE_NOT_FOUND: 'SUBSCRIPTION_INVOICE_NOT_FOUND',
+    /**
+     * The subscriber's record holds no invoice email (`subscriberId`), so the
+     * archived invoice cannot be sent (`SC-PRIC-047`); it is sent once one is
+     * entered.
+     */
+    SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL: 'SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL',
 } as const;
 
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[keyof typeof INVOICE_ERROR_CODES];

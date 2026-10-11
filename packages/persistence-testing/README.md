@@ -114,6 +114,7 @@ persistenceAdapterContract({
         'subscriberPaymentMethods',
         'subscriberLedger',
         'subscriptionInvoices',
+        'invoiceArchive',
         'checkoutOffers',
         'appliedSettings',
         'maintenanceWindows',

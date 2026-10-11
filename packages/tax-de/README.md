@@ -60,6 +60,29 @@ not taxable, as any issuer does.
 wording German law asks for; the exact texts are in `src/notes.ts`. Where a
 subscriber abroad reads it, it carries English beside the German.
 
+### What it asks of an invoice
+
+**Its tax** by the rule of EN 16931, which ZUGFeRD computes by: once per rate,
+over the lines' net amounts (`taxPerRate` in `@saasicat/core`).
+
+**Its content**, checked before the platform draws its number (`SC-PRIC-027`):
+both parties' full addresses, the issuer's tax number or VAT identification
+number (§ 14 (4) UStG), both VAT identification numbers under the reverse
+charge (§ 14a (1) UStG), the note its treatment carries, and a title on every
+line. An invoice the adapter finds a gap in waits, without a number, until the
+gap is filled.
+
+**Its file**, checked once it is rendered and before it is archived
+(`SC-PRIC-042`): ZUGFeRD in the EN 16931 profile — a PDF/A-3 a person reads,
+declared Factur-X `EN 16931` in its metadata, carrying `factur-x.xml` as its
+alternative, in the profile `urn:cen.eu:en16931:2017` — whose XML states what
+the invoice records: its number, its dates and period, its currency, the
+issuer's name and tax numbers, the subscriber's name, the tax per rate, the
+totals and the lines. A file that lacks any of it, or states another figure, is
+refused, and the invoice waits under its number for a renderer that gets it
+right. The check reads the file itself; it does not validate the full
+Schematron rules of EN 16931.
+
 ### How a VAT identification number is checked
 
 Through VIES, the European Commission's service, with the number split into its
@@ -122,8 +145,8 @@ code can give goes to the factory, `germanTaxAdapterFactory({ fetch, viesTimeout
   and nine digits are also a French VAT number's — is taken for that state's,
   and the case is refused rather than decided as not taxable. No format can tell
   the two apart.
-- **Not the invoice.** How an invoice computes its tax, what it has to contain
-  and the format it takes join the port with invoicing.
+- **Not a renderer.** It checks the file an invoice is issued as; it does not
+  write one.
 - **Not a store.** The adapter decides and checks; the platform records the
   treatment with the contract and every check with the subscriber.
 

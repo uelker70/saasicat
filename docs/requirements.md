@@ -9186,6 +9186,8 @@ _Tested by:_
         - with the quarter-hourly run unless the application leaves it out
         - not where the application wires them and the file names no range or term
         - not where the file names them and the application wires none
+        - not without the ${port} of their documents, which the refusal names
+        - not beside an archive that would let a document it keeps be changed, naming why
         - not without a tax adapter, nor without an issuer
         - and no wiring nor block at all is no invoicing, and starts
 - `packages/tax-de/tests/an-invoice-carries-what-german-law-requires.test.js`
@@ -9372,6 +9374,23 @@ attempt that fails is retried; it never draws a new number for the same charges 
 `SC-PRIC-072`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an invoice interrupted in archiving
+        - before the archive took the file is neither offered nor mailed, and the next run archives
+          the same file
+        - after the archive took the file is recorded as archived by the next run
+        - holds up no other invoice, and a renderer that does not answer counts as interrupted
+        - is archived by a run however many pages of invoices wait before it
+    - the quarter-hourly run
+        - issues an invoice, archives it and mails it in one run
+        - whose archiving fails still mails, and the next run archives again
+
+<!-- END proof -->
 
 ### SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 
@@ -9568,6 +9587,37 @@ fixed, and the operator is shown the refusal.
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an issued invoice’s document
+        - is rendered from the invoice as issued, checked, its checksum recorded, and archived
+        - is archived once: the next run renders nothing again
+        - that the adapter refuses waits under its number, recorded nowhere, until the defect is
+          fixed
+        - whose hold could not be written to the audit log is written there by the next run
+        - rendered in another shape than the one recorded is held, and the recorded one stays
+        - that the archive already keeps in another shape is held, and the archived one stays
+- `packages/tax-de/tests/an-invoice-document-is-the-file-german-law-asks-for.test.js`
+    - a rendered invoice
+        - that is ZUGFeRD EN 16931 and says what the invoice records passes
+        - that is not a PDF at all is refused as such, and nothing further is read
+    - the container
+        - ${what} is refused
+    - the embedded XML
+        - ${what} is refused
+        - stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so
+        - stating a total as nothing, or as no number, is refused
+        - stating a day in another format than 102 is refused
+        - that holds nothing but its root names everything the invoice records as missing
+        - filed in a kid of the name tree, its name a literal string, is found and passes
+        - of an issuer without a tax number may leave the registration out
+        - of an issuer with a tax number must carry it
+
+<!-- END proof -->
+
 ### SC-PRIC-043 — A change to a subscriber's tax origin applies from its next invoice
 
 🟡 _(Decided, not yet delivered.)_ 💰 The change is recorded with its date, and a new tax identifier
@@ -9680,6 +9730,8 @@ _Tested by:_
         - with the quarter-hourly run unless the application leaves it out
         - not where the application wires them and the file names no range or term
         - not where the file names them and the application wires none
+        - not without the ${port} of their documents, which the refusal names
+        - not beside an archive that would let a document it keeps be changed, naming why
         - not without a tax adapter, nor without an issuer
         - and no wiring nor block at all is no invoicing, and starts
 
@@ -9698,6 +9750,29 @@ rather than written back onto the subscriber's record. A message that cannot be 
 to the operator, and the invoice stays issued: delivery is not what makes it an invoice.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an archived invoice’s mail
+        - goes to the invoice email on the subscriber’s record, with the archived file attached
+        - is sent once: the next run sends nothing again
+        - held by another run is left to it
+        - of two runs at the same moment goes out once
+        - to a subscriber without an invoice email waits, recorded once, and goes out once one is
+          entered
+        - the mail refuses is shown to the operator without the address, and tried again by the next
+          run
+        - that does not answer in time is held for its answer, and a late success is recorded
+        - that fails after the timeout is let go for the next run
+        - whose archived file no longer matches its checksum is not sent, and shown to the operator
+    - the quarter-hourly run
+        - issues an invoice, archives it and mails it in one run
+        - whose archiving fails still mails, and the next run archives again
+
+<!-- END proof -->
 
 ### SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
 
@@ -19422,6 +19497,46 @@ it again from today's data would hand out a document the subscriber never receiv
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
+- `packages/core/tests/an-invoice-document-row-becomes-a-record.test.js`
+    - the database archive
+        - with both of its triggers enabled keeps what it holds
+        - ${what} names what it lacks, and the file that adds it
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an invoice’s document downloaded later
+        - is the archived file, not a new rendering
+        - of an invoice that does not exist is answered as not found
+        - of an invoice still waiting for its document is not offered
+        - ${what} is not handed out, and shown to the operator
+    - the operator’s download
+        - is served where invoices are, answers the archived file, and the manifest announces it
+        - offers a file name that cannot end the header it stands in
+        - of a file with no name it could keep offers one
+        - without ${without}, neither the route nor the capability exists
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - not beside an archive that would let a document it keeps be changed, naming why
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
+
+<!-- END proof -->
+
 ### SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
 
 🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
@@ -19432,6 +19547,27 @@ match is not handed out but shown to the operator. The register's export (`SC-AD
 checksum.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
+    - an issued invoice’s document
+        - is rendered from the invoice as issued, checked, its checksum recorded, and archived
+        - is archived once: the next run renders nothing again
+        - that the adapter refuses waits under its number, recorded nowhere, until the defect is
+          fixed
+        - whose hold could not be written to the audit log is written there by the next run
+        - rendered in another shape than the one recorded is held, and the recorded one stays
+        - that the archive already keeps in another shape is held, and the archived one stays
+    - an invoice’s document downloaded later
+        - is the archived file, not a new rendering
+        - of an invoice that does not exist is answered as not found
+        - of an invoice still waiting for its document is not offered
+        - ${what} is not handed out, and shown to the operator
+
+<!-- END proof -->
 
 ### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
 
@@ -19722,6 +19858,10 @@ _Tested by:_
           reference schema
         - and on a database that gained the columns from the migration, with the constraints after
           it
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
 
 <!-- END proof -->
 
@@ -19841,6 +19981,10 @@ _Tested by:_
           reference schema
         - and on a database that gained the columns from the migration, with the constraints after
           it
+    - an archived invoice document is kept as it was issued
+        - refuses ${what}, and the file stays
+        - still refuses after the migration ran a second time
+        - takes a file for another invoice, and none for the same one again
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -21025,6 +21169,10 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -21033,6 +21181,10 @@ _Tested by:_
         - there is more than one, so a broken scan cannot pass by finding none
         - ${table} declares exactly the canonical columns
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -21203,10 +21355,18 @@ _Tested by:_
         - names enough exports for this check to mean anything
         - ${name} is reachable through drizzlePersistence()
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

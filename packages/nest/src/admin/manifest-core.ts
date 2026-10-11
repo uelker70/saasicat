@@ -194,6 +194,26 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Invoice held back until what it lacks is supplied',
                 severity: 'high',
             },
+            {
+                key: 'SUBSCRIPTION_INVOICE_DOCUMENT_HELD',
+                label: 'Invoice waits for its document: the rendered file was refused or changed',
+                severity: 'high',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_DELIVERY_HELD',
+                label: 'Invoice not sent: the subscriber has no invoice email',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_DELIVERY_FAILED',
+                label: 'Invoice could not be handed to the mail; tried again',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH',
+                label: 'Archived invoice document does not match its checksum and is not handed out',
+                severity: 'high',
+            },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'FEATURE_WITHDRAW', label: 'Feature withdrawn', severity: 'high' },
             {

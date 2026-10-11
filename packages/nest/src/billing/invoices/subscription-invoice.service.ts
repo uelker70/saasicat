@@ -57,6 +57,7 @@ import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contr
 import { TAX_TREATMENTS_TOKEN } from '../../tax/tax.tokens.js';
 import type { TaxPeriod, TaxTreatments } from '../../tax/tax-treatments.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
+import { AuditedOnce } from './audited-once.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 /** The name the run writes its audit entries under: `job:platform:subscription-invoices`. */
@@ -92,12 +93,8 @@ class Held extends Error {
 @Injectable()
 export class SubscriptionInvoiceService implements OnModuleInit {
     private readonly logger = new Logger(SubscriptionInvoiceService.name);
-    /**
-     * The holds already written to the audit log by this process, so a group
-     * held on every run is recorded once rather than every quarter of an hour.
-     * A restart records it once more.
-     */
-    private readonly auditedHolds = new Set<string>();
+    /** The holds this process wrote to the audit log; see `AuditedOnce`. */
+    private readonly auditedHolds = new AuditedOnce();
 
     constructor(
         @Inject(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN)
@@ -271,34 +268,32 @@ export class SubscriptionInvoiceService implements OnModuleInit {
                 `${JSON.stringify(hold.params)}. The next run tries again.`,
         );
         const key = `${group.contractId}|${group.bookedAt.toISOString()}|${hold.code}`;
-        if (this.auditedHolds.has(key)) return;
-        // Reserved before the write, so a run overlapping this one writes no
-        // second entry, and released where the write fails, so the next run
-        // tries it again.
-        this.auditedHolds.add(key);
-        try {
-            await this.audit?.log({
-                actor: platformJobActor(JOB),
-                entity: 'SubscriptionContract',
-                entityId: group.contractId,
-                action: 'SUBSCRIPTION_INVOICE_HELD',
-                changes: {
-                    tenantId: first!.tenantId,
-                    subscriberId: first!.subscriberId,
-                    subscriptionId: first!.subscriptionId,
-                    bookedAt: group.bookedAt.toISOString(),
-                    code: hold.code,
-                    params: hold.params,
-                },
-            });
-        } catch (error) {
-            this.auditedHolds.delete(key);
-            // The hold stands either way; the lost record of it is said loudly.
-            this.logger.error(
-                `Writing the audit entry SUBSCRIPTION_INVOICE_HELD for contract ${group.contractId} failed.`,
-                error instanceof Error ? error.stack : String(error),
-            );
-        }
+        await this.auditedHolds.record(key, async () => {
+            try {
+                await this.audit?.log({
+                    actor: platformJobActor(JOB),
+                    entity: 'SubscriptionContract',
+                    entityId: group.contractId,
+                    action: 'SUBSCRIPTION_INVOICE_HELD',
+                    changes: {
+                        tenantId: first!.tenantId,
+                        subscriberId: first!.subscriberId,
+                        subscriptionId: first!.subscriptionId,
+                        bookedAt: group.bookedAt.toISOString(),
+                        code: hold.code,
+                        params: hold.params,
+                    },
+                });
+                return true;
+            } catch (error) {
+                // The hold stands either way; the lost record of it is said loudly.
+                this.logger.error(
+                    `Writing the audit entry SUBSCRIPTION_INVOICE_HELD for contract ${group.contractId} failed.`,
+                    error instanceof Error ? error.stack : String(error),
+                );
+                return false;
+            }
+        });
     }
 }
 

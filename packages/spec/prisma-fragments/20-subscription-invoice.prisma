@@ -30,7 +30,7 @@
 // `origin` and `source` on a line are text holding the charge's closed sets,
 // checked when a row is read (`toSubscriptionInvoiceRecord` in @saasicat/core).
 //
-// Optional: adopt it, all three models together, where
+// Optional: adopt it, all four models together, where
 // `tenantBilling.chargeJournal.invoices` is configured, which needs the charge
 // journal.
 //
@@ -67,9 +67,11 @@ model SubscriptionInvoice {
 
     createdAt DateTime @default(now())
 
-    subscriber Subscriber                @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
-    contract   SubscriptionContract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+    subscriber Subscriber                   @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    contract   SubscriptionContract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
     lines      SubscriptionInvoiceLine[]
+    document   SubscriptionInvoiceDocument?
+    archive    SubscriptionInvoiceArchive?
 
     @@unique([numberYear, numberSequence])
     @@index([subscriberId, issuedAt])
@@ -101,6 +103,34 @@ model SubscriptionInvoiceLine {
     @@unique([invoiceId, position])
     @@index([contractLineItemId])
     @@map("subscription_invoice_lines")
+}
+
+// Where an invoice's document stands. The checksum is recorded once, before
+// the file is archived, and every later download is checked against it; the
+// archive's confirmation and the delivery are set once each. A rendering with
+// another checksum is refused rather than recorded over the first. A run claims
+// the mail before it sends it, so of several instances one does.
+model SubscriptionInvoiceDocument {
+    invoiceId         String    @id
+    // SHA-256 of the rendered file, 64 lower-case hex digits.
+    checksum          String
+    mediaType         String
+    fileName          String
+    // In bytes.
+    size              Int
+    renderedAt        DateTime
+    // Null while the invoice waits for its document.
+    archivedAt        DateTime?
+    // When the run mailing it took it on; null while no run holds it.
+    deliveryClaimedAt DateTime?
+    // Null until the invoice is handed to the mail.
+    deliveredAt       DateTime?
+    deliveredTo       String?
+
+    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+    @@index([archivedAt])
+    @@map("subscription_invoice_documents")
 }
 
 model SubscriptionInvoiceNumber {

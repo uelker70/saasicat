@@ -387,6 +387,45 @@ paths:
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
+    /invoices/{id}/document:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              description: The invoice's id
+              schema: { type: string }
+        get:
+            tags: [subscriptions]
+            summary: The document an invoice was issued as
+            description: >-
+                Served where the platform keeps invoices
+                (`tenantBilling.chargeJournal.invoices`) and shows tenants
+                (`adminResources`); the manifest announces it as
+                `invoices.read`. Answers the file archived for the invoice,
+                checked against the checksum recorded when it was rendered —
+                never a new rendering. Its media type is the one the renderer
+                gave, a PDF for a ZUGFeRD invoice.
+            responses:
+                '200':
+                    description: The archived file, as an attachment
+                    headers:
+                        Content-Disposition:
+                            description: >-
+                                `attachment; filename="…"`, the renderer's file
+                                name kept to letters, digits, `.`, `_` and `-`
+                            schema: { type: string }
+                    content:
+                        application/pdf:
+                            schema: { type: string, format: binary }
+                '404':
+                    description: No invoice with this id (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+                '409':
+                    description: >-
+                        The invoice still waits for its document
+                        (`SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED`), or its
+                        archived file does not match the recorded checksum and
+                        is not handed out (`SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`)
+
     /tenants/{slug}/subscriber:
         parameters:
             - $ref: '#/components/parameters/TenantSlug'

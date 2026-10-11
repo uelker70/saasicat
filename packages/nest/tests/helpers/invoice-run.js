@@ -10,10 +10,15 @@ import {
     contractPartiesOf,
     formatInvoiceNumber,
     subscriptionInvoiceChargeInvoiced,
+    subscriptionInvoiceDocumentChanged,
     taxPerRate,
 } from '@saasicat/core';
 
-import { SubscriptionInvoiceService, TaxTreatments } from '../../dist/billing/index.js';
+import {
+    InvoiceDocumentService,
+    SubscriptionInvoiceService,
+    TaxTreatments,
+} from '../../dist/billing/index.js';
 import { SubscriberService } from '../../dist/subscriber/index.js';
 import {
     FakeSubscriberRepository,
@@ -21,6 +26,7 @@ import {
 } from '../../dist/testing/index.js';
 import { TEST_TAX_ADAPTER } from './tax-adapter.js';
 import { auditLogFailing } from './audit-log.js';
+import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 
 /** The issuer `config/saas.yaml` names. */
 export const ISSUER = {
@@ -56,16 +62,22 @@ export const ADDRESS = {
 export const berlin = (day) => new Date(`${day}T00:00:00.000+01:00`);
 
 /**
- * The test adapter, able to compute an invoice's tax and to check its content.
- * `gaps` is what it finds missing in every invoice it is shown, `decide` its
- * decision where a test needs another one.
+ * The test adapter, able to compute an invoice's tax and to check its content
+ * and its file. `gaps` is what it finds missing in every invoice it is shown,
+ * `documentGaps` what it finds missing in every file, `decide` its decision
+ * where a test needs another one.
  */
-export function invoicingAdapter({ gaps = () => [], decide = TEST_TAX_ADAPTER.decide } = {}) {
+export function invoicingAdapter({
+    gaps = () => [],
+    documentGaps = () => [],
+    decide = TEST_TAX_ADAPTER.decide,
+} = {}) {
     return {
         ...TEST_TAX_ADAPTER,
         decide,
         invoiceTax: (lines) => taxPerRate(lines),
         invoiceContentGaps: (draft) => gaps(draft),
+        invoiceDocumentGaps: async (document, invoice) => documentGaps(document, invoice),
     };
 }
 
@@ -95,6 +107,7 @@ export function line(kind, sourceKey, priceNet, title = sourceKey) {
 /** Invoices in memory, as the persistence contract holds an adapter to keep them. */
 function invoiceStore(journal) {
     const invoices = [];
+    const documents = new Map();
     const lastOfYear = new Map();
     const onInvoice = () => new Set(invoices.flatMap((inv) => inv.lines.map((l) => l.chargeId)));
     const uninvoiced = () => {
@@ -165,21 +178,106 @@ function invoiceStore(journal) {
         async listIssuedNumberPrefixes() {
             return [...new Set(invoices.map((inv) => inv.numberPrefix))].sort().slice(0, 2);
         },
+        /** Where each invoice's document stands, by invoice id. */
+        documents,
+        async recordRendering(invoiceId, rendering) {
+            if (!invoices.some((inv) => inv.id === invoiceId)) {
+                throw new Error(`no invoice ${invoiceId}`);
+            }
+            const recorded = documents.get(invoiceId);
+            if (recorded && recorded.checksum !== rendering.checksum) {
+                throw subscriptionInvoiceDocumentChanged(
+                    invoiceId,
+                    recorded.checksum,
+                    rendering.checksum,
+                );
+            }
+            if (!recorded) {
+                documents.set(invoiceId, {
+                    invoiceId,
+                    ...rendering,
+                    archivedAt: null,
+                    deliveryClaimedAt: null,
+                    deliveredAt: null,
+                    deliveredTo: null,
+                });
+            }
+            return structuredClone(documents.get(invoiceId));
+        },
+        async markArchived(invoiceId, at) {
+            const state = documents.get(invoiceId);
+            if (!state || state.archivedAt) return false;
+            state.archivedAt = at;
+            return true;
+        },
+        async claimDelivery(invoiceId, at, staleBefore) {
+            const state = documents.get(invoiceId);
+            if (!state?.archivedAt || state.deliveredAt) return false;
+            if (state.deliveryClaimedAt && state.deliveryClaimedAt >= staleBefore) return false;
+            state.deliveryClaimedAt = at;
+            return true;
+        },
+        async markDelivered(invoiceId, { claimedAt, at, to }) {
+            const state = documents.get(invoiceId);
+            if (!state?.archivedAt || state.deliveredAt) return false;
+            if (state.deliveryClaimedAt?.getTime() !== claimedAt.getTime()) return false;
+            Object.assign(state, { deliveredAt: at, deliveredTo: to });
+            return true;
+        },
+        async releaseDelivery(invoiceId, claimedAt) {
+            const state = documents.get(invoiceId);
+            if (
+                state &&
+                !state.deliveredAt &&
+                state.deliveryClaimedAt?.getTime() === claimedAt.getTime()
+            ) {
+                state.deliveryClaimedAt = null;
+            }
+        },
+        async findDocument(invoiceId) {
+            return structuredClone(documents.get(invoiceId) ?? null);
+        },
+        async listAwaitingDocument({ limit, after }) {
+            return pageOf(
+                invoices.map((inv) => inv.id).filter((id) => !documents.get(id)?.archivedAt),
+                { limit, after },
+            );
+        },
+        async listAwaitingDelivery({ limit, after }) {
+            const waiting = [...documents.values()].filter(
+                (state) => state.archivedAt && !state.deliveredAt,
+            );
+            return pageOf(
+                waiting.map((state) => state.invoiceId),
+                { limit, after },
+            );
+        },
     };
     return store;
 }
+
+/** One page of ids, in the order a database sorts them. */
+const pageOf = (ids, { limit, after }) =>
+    ids
+        .filter((id) => after === undefined || id > after)
+        .sort()
+        .slice(0, limit);
 
 /**
  * An installation that invoices. `settings` is the file, `adapter` the bound
  * tax adapter, `appliedSettings` the settings record, or `null` for an
  * installation that keeps none; the first `failingAuditWrites` writes to the
- * audit log fail.
+ * audit log fail. `renderer`, `archive` and `mail` are what the application
+ * wires for the invoices' documents.
  */
 export function anInvoicingInstallation({
     settings = INVOICING_SETTINGS,
     adapter = invoicingAdapter(),
     appliedSettings = null,
     failingAuditWrites = 0,
+    renderer = aRenderer(),
+    archive = anArchive(),
+    mail = aMailbox(),
 } = {}) {
     const subscriberRepository = new FakeSubscriberRepository();
     const taxes = new TaxTreatments(settings, adapter);
@@ -199,6 +297,16 @@ export function anInvoicingInstallation({
         null,
         audit,
     );
+    const documents = new InvoiceDocumentService(
+        store,
+        renderer,
+        archive,
+        mail,
+        subscribers,
+        taxes,
+        null,
+        audit,
+    );
     let charges = 0;
     return {
         settings,
@@ -208,6 +316,10 @@ export function anInvoicingInstallation({
         subscribers,
         audits,
         service,
+        renderer,
+        archive,
+        mail,
+        documents,
         /** A subscriber of `tenantId`, in Germany with a complete address unless `details` says otherwise. */
         aSubscriber(tenantId, details = {}) {
             return subscribers.createForTenant(tenantId, {

@@ -13,6 +13,7 @@
 // one transaction is undefined behavior.
 
 import type { MfaPort, SuperAdminProvisioningPort, TransactionRunner } from './core-ports.types.js';
+import type { InvoiceArchivePort } from '../invoice-document.types.js';
 import type { PaymentEventLog, SubscriberPaymentMethodRepository } from './payment-ports.types.js';
 import type {
     AdminResourcesPort,
@@ -153,6 +154,8 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriberLedgerRepository?: PersistenceProvider<SubscriberLedgerRepository>;
     /** The invoices issued from those charges (`tenantBilling.chargeJournal.invoices`). */
     subscriptionInvoiceRepository?: PersistenceProvider<SubscriptionInvoiceRepository>;
+    /** The invoices' documents, kept in the database (`chargeJournal.invoices.archive`). */
+    subscriptionInvoiceArchive?: PersistenceProvider<InvoiceArchivePort>;
     subscriptionBundleRepository?: PersistenceProvider<SubscriptionBundleRepository>;
     bundleRepository?: PersistenceProvider<BundleRepository>;
 }

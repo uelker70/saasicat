@@ -914,7 +914,8 @@ describe('every contract names the subscriber it is concluded with', () => {
         // Payment methods, the charge journal, the tax origin and the invoices
         // came later still, and point at the subscribers.
         await client.query(
-            'DROP TABLE "subscription_invoice_lines", "subscription_invoices", ' +
+            'DROP TABLE "subscription_invoice_archive", "subscription_invoice_documents", ' +
+                '"subscription_invoice_lines", "subscription_invoices", ' +
                 '"subscription_invoice_numbers", ' +
                 '"subscriber_ledger_entries", "subscriber_payment_method_setups", ' +
                 '"subscriber_payment_methods", "subscriber_tax_origin_changes", ' +
@@ -2177,5 +2178,95 @@ describe("a booking's scheduled switch holds its version and its moment together
         await apply(CONSTRAINTS);
         await catalogue();
         await holdsThePair();
+    });
+});
+
+// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+describe('an archived invoice document is kept as it was issued', () => {
+    // The triggers are the database's own guard, so they are asked directly:
+    // no adapter, whatever it does, can change or remove an archived file.
+    const MIGRATION = '1.0-an-invoice-document-is-archived.postgres.sql';
+    const DOCUMENT = Buffer.from('%PDF-1.7 the invoice as it was issued');
+
+    /** Archives `content` under `invoiceId`, the invoice itself not asked for. */
+    async function archived(invoiceId, content = DOCUMENT) {
+        // An invoice needs a subscriber, a contract and a charge before it, and
+        // which invoice the file belongs to is not what is asked here: the
+        // foreign key is not checked for this insert, and stays in place for a
+        // TRUNCATE to cascade along.
+        await client.query("SET session_replication_role = 'replica'");
+        try {
+            await client.query(
+                `INSERT INTO "subscription_invoice_archive"
+                     ("invoiceId", "checksum", "mediaType", "fileName", "content", "archivedAt")
+                 VALUES ($1, $2, 'application/pdf', $3, $4, now())`,
+                [invoiceId, 'a'.repeat(64), `${invoiceId}.pdf`, content],
+            );
+        } finally {
+            await client.query("SET session_replication_role = 'origin'");
+        }
+    }
+
+    /** The reference schema with the archive's triggers, run `runs` times, and one archived file. */
+    async function anArchive({ runs = 1 } = {}) {
+        await freshGround();
+        for (let run = 0; run < runs; run += 1) await apply(MIGRATION);
+        await archived('invoice-1');
+    }
+
+    /** The error a statement raises, or a failure where it raises none. */
+    async function refusalOf(statement) {
+        try {
+            await client.query(statement);
+        } catch (error) {
+            return error;
+        }
+        assert.fail(`${statement} was not refused`);
+    }
+
+    const stored = async () =>
+        (await client.query('SELECT "content" FROM "subscription_invoice_archive"')).rows;
+
+    for (const [what, statement] of [
+        ['an update of the file', `UPDATE "subscription_invoice_archive" SET "content" = '\\x00'`],
+        ['an update of its checksum', `UPDATE "subscription_invoice_archive" SET "checksum" = 'b'`],
+        ['a delete', 'DELETE FROM "subscription_invoice_archive"'],
+        ['a truncate', 'TRUNCATE "subscription_invoice_archive"'],
+        ['a truncate cascading from the invoices', 'TRUNCATE "subscription_invoices" CASCADE'],
+    ]) {
+        test(`refuses ${what}, and the file stays`, async () => {
+            await anArchive();
+
+            const error = await refusalOf(statement);
+
+            assert.equal(error.code, '23001');
+            assert.match(error.message, /An archived invoice document is kept as it was issued/);
+            assert.deepEqual(
+                (await stored()).map((row) => Buffer.from(row.content).toString()),
+                [DOCUMENT.toString()],
+            );
+        });
+    }
+
+    test('still refuses after the migration ran a second time', async () => {
+        await anArchive({ runs: 2 });
+
+        const error = await refusalOf('DELETE FROM "subscription_invoice_archive"');
+
+        assert.equal(error.code, '23001');
+    });
+
+    test('takes a file for another invoice, and none for the same one again', async () => {
+        await anArchive();
+
+        await archived('invoice-2');
+        const error = await refusalOf(
+            `INSERT INTO "subscription_invoice_archive"
+                 ("invoiceId", "checksum", "mediaType", "fileName", "content", "archivedAt")
+             VALUES ('invoice-1', '${'d'.repeat(64)}', 'application/pdf', 'other.pdf', '\\x00', now())`,
+        );
+
+        assert.equal(error.code, '23505');
+        assert.equal((await stored()).length, 2);
     });
 });

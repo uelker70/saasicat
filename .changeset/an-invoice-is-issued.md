@@ -27,9 +27,8 @@ and the audit log records why once per process as `SUBSCRIPTION_INVOICE_HELD`.
 
 Invoicing ships switched off. Do not switch it on for real customers before
 `1.0.0-rc.28`: an issued invoice is never edited, and the cancellation invoice
-that corrects one arrives there. The document, the archive and the mail come in
-a later release. One installation is the range of exactly one issuer; a second
-application issuing for the same issuer is not supported.
+that corrects one arrives there. One installation is the range of exactly one
+issuer; a second application issuing for the same issuer is not supported.
 
 To adopt it, see "An invoice is issued from the charge journal" in
 `docs/guides/upgrade-to-1.0.md`: the optional fragment

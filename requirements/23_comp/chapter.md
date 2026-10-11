@@ -841,6 +841,10 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -849,6 +853,10 @@ _Tested by:_
         - there is more than one, so a broken scan cannot pass by finding none
         - ${table} declares exactly the canonical columns
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -1019,10 +1027,18 @@ _Tested by:_
         - names enough exports for this check to mean anything
         - ${name} is reachable through drizzlePersistence()
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the database archive says whether it keeps what it holds
+        - built from the reference schema alone, it names the triggers it lacks
+        - with the migration applied, it keeps what it holds
+        - with one of its triggers disabled, it names that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

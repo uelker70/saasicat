@@ -45,6 +45,7 @@
         "@saasicat/persistence-testing": "workspace:^",
         "@saasicat/spec": "workspace:^",
         "@types/node": "^25.6.0",
+        "pg": "^8.22.0",
         "prisma": "^6.19.0",
         "@prisma/client": "^6.19.0",
         "tsup": "^8.0.0",

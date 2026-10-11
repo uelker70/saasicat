@@ -23,9 +23,11 @@ import {
     scheduledChangeAfterWrite,
     subscriberChargeColumns,
     subscriptionInvoiceChargeInvoiced,
+    subscriptionInvoiceDocumentChanged,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
     toSubscriptionInvoiceRecord,
+    toArchivedInvoiceDocument,
     subscriberPaymentMethodColumns,
     toSubscriberChargeRecord,
     subscriptionBundleAlreadyCancelled,
@@ -79,6 +81,8 @@ export function createMemoryHarness() {
         invoices: [],
         invoiceLines: [],
         invoiceNumbers: {},
+        invoiceDocuments: [],
+        invoiceArchive: [],
         subscribers: [],
         subscriberCorrections: [],
         subscriberTaxOriginChanges: [],
@@ -1958,6 +1962,122 @@ export function createMemoryHarness() {
         async listIssuedNumberPrefixes() {
             return [...new Set(state.invoices.map((row) => row.numberPrefix))].sort().slice(0, 2);
         },
+        async recordRendering(invoiceId, rendering) {
+            if (!state.invoices.some((row) => row.id === invoiceId)) {
+                throw new Error(`invoice '${invoiceId}' does not exist`);
+            }
+            let row = state.invoiceDocuments.find((candidate) => candidate.invoiceId === invoiceId);
+            if (!row) {
+                row = {
+                    invoiceId,
+                    ...rendering,
+                    archivedAt: null,
+                    deliveryClaimedAt: null,
+                    deliveredAt: null,
+                    deliveredTo: null,
+                };
+                state.invoiceDocuments.push(row);
+            }
+            if (row.checksum !== rendering.checksum) {
+                throw subscriptionInvoiceDocumentChanged(
+                    invoiceId,
+                    row.checksum,
+                    rendering.checksum,
+                );
+            }
+            return structuredClone(row);
+        },
+        async markArchived(invoiceId, at) {
+            const row = state.invoiceDocuments.find(
+                (candidate) => candidate.invoiceId === invoiceId,
+            );
+            if (!row || row.archivedAt !== null) return false;
+            row.archivedAt = at;
+            return true;
+        },
+        async claimDelivery(invoiceId, at, staleBefore) {
+            const row = state.invoiceDocuments.find(
+                (candidate) => candidate.invoiceId === invoiceId,
+            );
+            if (!row || row.archivedAt === null || row.deliveredAt !== null) return false;
+            if (row.deliveryClaimedAt !== null && row.deliveryClaimedAt >= staleBefore) {
+                return false;
+            }
+            row.deliveryClaimedAt = at;
+            return true;
+        },
+        async markDelivered(invoiceId, { claimedAt, at, to }) {
+            const row = state.invoiceDocuments.find(
+                (candidate) => candidate.invoiceId === invoiceId,
+            );
+            if (!row || row.archivedAt === null || row.deliveredAt !== null) return false;
+            if (row.deliveryClaimedAt?.getTime() !== claimedAt.getTime()) return false;
+            Object.assign(row, { deliveredAt: at, deliveredTo: to });
+            return true;
+        },
+        async releaseDelivery(invoiceId, claimedAt) {
+            const row = state.invoiceDocuments.find(
+                (candidate) => candidate.invoiceId === invoiceId,
+            );
+            if (!row || row.deliveredAt !== null) return;
+            if (row.deliveryClaimedAt?.getTime() === claimedAt.getTime()) {
+                row.deliveryClaimedAt = null;
+            }
+        },
+        async findDocument(invoiceId) {
+            const row = state.invoiceDocuments.find(
+                (candidate) => candidate.invoiceId === invoiceId,
+            );
+            return row ? structuredClone(row) : null;
+        },
+        async listAwaitingDocument({ limit, after }) {
+            return state.invoices
+                .map((row) => row.id)
+                .filter((id) => after === undefined || id > after)
+                .filter((id) => {
+                    const document = state.invoiceDocuments.find((row) => row.invoiceId === id);
+                    return !document || document.archivedAt === null;
+                })
+                .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+                .slice(0, limit);
+        },
+        async listAwaitingDelivery({ limit, after }) {
+            return state.invoiceDocuments
+                .filter((row) => row.archivedAt !== null && row.deliveredAt === null)
+                .map((row) => row.invoiceId)
+                .filter((id) => after === undefined || id > after)
+                .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+                .slice(0, limit);
+        },
+    };
+
+    // The archive: a file per invoice, written once, as the table's triggers keep it.
+    const invoiceArchive = {
+        async store(document) {
+            if (!state.invoices.some((row) => row.id === document.invoiceId)) {
+                throw new Error(`invoice '${document.invoiceId}' does not exist`);
+            }
+            const stored = state.invoiceArchive.find((row) => row.invoiceId === document.invoiceId);
+            if (!stored) {
+                state.invoiceArchive.push(structuredClone(document));
+                return;
+            }
+            if (stored.checksum !== document.checksum) {
+                throw subscriptionInvoiceDocumentChanged(
+                    document.invoiceId,
+                    stored.checksum,
+                    document.checksum,
+                );
+            }
+        },
+        async read(invoiceId) {
+            const row = state.invoiceArchive.find((candidate) => candidate.invoiceId === invoiceId);
+            return row ? toArchivedInvoiceDocument(structuredClone(row)) : null;
+        },
+        // Nothing in memory changes a file it keeps.
+        async protectionProblem() {
+            return null;
+        },
     };
 
     return {
@@ -1975,6 +2095,7 @@ export function createMemoryHarness() {
             subscriberPaymentMethodRepository,
             subscriberLedgerRepository,
             subscriptionInvoiceRepository,
+            invoiceArchive,
             promoCodeRepository,
             promoCodeRedemptionRepository,
             promoCodeHoldRepository,

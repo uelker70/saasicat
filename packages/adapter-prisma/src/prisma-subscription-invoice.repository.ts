@@ -2,10 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
     CanonicalSubscriberChargeRow,
+    CanonicalSubscriptionInvoiceDocumentRow,
     CanonicalSubscriptionInvoiceLineRow,
     CanonicalSubscriptionInvoiceRow,
+    NewInvoiceRendering,
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
+    SubscriptionInvoiceDocumentRecord,
     SubscriptionInvoiceRecord,
     SubscriptionInvoiceRepository,
     TransactionContext,
@@ -13,6 +16,8 @@ import type {
 import {
     formatInvoiceNumber,
     subscriptionInvoiceChargeInvoiced,
+    subscriptionInvoiceDocumentChanged,
+    toSubscriptionInvoiceDocumentRecord,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
     toSubscriberChargeRecord,
@@ -30,6 +35,7 @@ interface InvoicePrisma {
     subscriptionInvoice: PrismaModelDelegateLike<InvoiceRow>;
     subscriptionInvoiceLine: PrismaModelDelegateLike<CanonicalSubscriptionInvoiceLineRow>;
     subscriberLedgerEntry: PrismaModelDelegateLike<CanonicalSubscriberChargeRow>;
+    subscriptionInvoiceDocument: PrismaModelDelegateLike<CanonicalSubscriptionInvoiceDocumentRow>;
     $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
     $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number>;
 }
@@ -198,6 +204,127 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
             take: 2,
         });
         return rows.map((row) => row.numberPrefix);
+    }
+
+    async recordRendering(
+        invoiceId: string,
+        rendering: NewInvoiceRendering,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord> {
+        const db = this.db(tx);
+        // `ON CONFLICT DO NOTHING` on the invoice: a rendering recorded before
+        // stays, and the one asked for now is compared with it.
+        const [written] = await db.subscriptionInvoiceDocument.createManyAndReturn({
+            data: [{ invoiceId, ...rendering }],
+            skipDuplicates: true,
+        });
+        const row =
+            written ?? (await db.subscriptionInvoiceDocument.findUnique({ where: { invoiceId } }));
+        if (!row)
+            throw new Error(`The rendering of invoice ${invoiceId} was neither written nor found.`);
+        if (row.checksum !== rendering.checksum) {
+            throw subscriptionInvoiceDocumentChanged(invoiceId, row.checksum, rendering.checksum);
+        }
+        return toSubscriptionInvoiceDocumentRecord(row);
+    }
+
+    async markArchived(invoiceId: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const { count } = await this.db(tx).subscriptionInvoiceDocument.updateMany({
+            where: { invoiceId, archivedAt: null },
+            data: { archivedAt: at },
+        });
+        return count === 1;
+    }
+
+    async claimDelivery(
+        invoiceId: string,
+        at: Date,
+        staleBefore: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        // One conditional UPDATE: a second one waiting on the row's lock reads
+        // the claim the first wrote, and takes nothing.
+        const { count } = await this.db(tx).subscriptionInvoiceDocument.updateMany({
+            where: {
+                invoiceId,
+                archivedAt: { not: null },
+                deliveredAt: null,
+                OR: [{ deliveryClaimedAt: null }, { deliveryClaimedAt: { lt: staleBefore } }],
+            },
+            data: { deliveryClaimedAt: at },
+        });
+        return count === 1;
+    }
+
+    async markDelivered(
+        invoiceId: string,
+        delivery: { claimedAt: Date; at: Date; to: string },
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        const { count } = await this.db(tx).subscriptionInvoiceDocument.updateMany({
+            where: {
+                invoiceId,
+                archivedAt: { not: null },
+                deliveredAt: null,
+                deliveryClaimedAt: delivery.claimedAt,
+            },
+            data: { deliveredAt: delivery.at, deliveredTo: delivery.to },
+        });
+        return count === 1;
+    }
+
+    async releaseDelivery(
+        invoiceId: string,
+        claimedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<void> {
+        await this.db(tx).subscriptionInvoiceDocument.updateMany({
+            where: { invoiceId, deliveredAt: null, deliveryClaimedAt: claimedAt },
+            data: { deliveryClaimedAt: null },
+        });
+    }
+
+    async findDocument(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceDocumentRecord | null> {
+        const row = await this.db(tx).subscriptionInvoiceDocument.findUnique({
+            where: { invoiceId },
+        });
+        return row ? toSubscriptionInvoiceDocumentRecord(row) : null;
+    }
+
+    async listAwaitingDocument(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        const rows = await this.db(tx).subscriptionInvoice.findMany({
+            where: {
+                ...(page.after === undefined ? {} : { id: { gt: page.after } }),
+                OR: [{ document: { is: null } }, { document: { is: { archivedAt: null } } }],
+            },
+            select: { id: true },
+            orderBy: { id: 'asc' },
+            take: page.limit,
+        });
+        return rows.map((row) => row.id);
+    }
+
+    async listAwaitingDelivery(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        const rows = await this.db(tx).subscriptionInvoiceDocument.findMany({
+            where: {
+                ...(page.after === undefined ? {} : { invoiceId: { gt: page.after } }),
+                archivedAt: { not: null },
+                deliveredAt: null,
+            },
+            select: { invoiceId: true },
+            orderBy: { invoiceId: 'asc' },
+            take: page.limit,
+        });
+        return rows.map((row) => row.invoiceId);
     }
 }
 

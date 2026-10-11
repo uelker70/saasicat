@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import {
     taxPerRate,
     type InvoiceContentDraft,
+    type InvoiceDocument,
+    type SubscriptionInvoiceRecord,
     type InvoiceTaxLine,
     type TaxAdapter,
     type TaxAdapterFactory,
@@ -12,6 +14,7 @@ import {
     type VatIdCheckOutcome,
 } from '@saasicat/core';
 import { germanInvoiceContentGaps } from './invoice-content.js';
+import { germanInvoiceDocumentGaps } from './invoice-document.js';
 import { decideGermanTax } from './rules.js';
 import { checkVatIdWithVies } from './vies.js';
 
@@ -103,6 +106,13 @@ export class GermanTaxAdapter implements TaxAdapter {
 
     invoiceContentGaps(draft: InvoiceContentDraft): readonly string[] {
         return germanInvoiceContentGaps(draft);
+    }
+
+    invoiceDocumentGaps(
+        document: InvoiceDocument,
+        invoice: SubscriptionInvoiceRecord,
+    ): Promise<readonly string[]> {
+        return germanInvoiceDocumentGaps(document, invoice);
     }
 }
 

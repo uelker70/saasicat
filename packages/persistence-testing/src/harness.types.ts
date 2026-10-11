@@ -27,6 +27,7 @@ import type {
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
     SubscriptionInvoiceRepository,
+    InvoiceArchivePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     SubscriptionRepository,
@@ -100,6 +101,13 @@ export interface ContractAdapterInstances {
      * `subscriptionContractRepository` and `seed.createSubscriber`.
      */
     subscriptionInvoiceRepository?: SubscriptionInvoiceRepository;
+    /**
+     * Enables the archive scenarios: an invoice's document is stored once,
+     * read back byte for byte, and a second document for the same invoice is
+     * refused. A document belongs to an issued invoice, so they also need
+     * everything the invoice scenarios need.
+     */
+    invoiceArchive?: InvoiceArchivePort;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -325,6 +333,7 @@ export type ContractGap =
     | 'subscriberPaymentMethods'
     | 'subscriberLedger'
     | 'subscriptionInvoices'
+    | 'invoiceArchive'
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'

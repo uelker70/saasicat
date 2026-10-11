@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 260 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 266 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -267,11 +267,17 @@ Checkout offers and subscription contracts.
 
 Invoices issued from the charge journal.
 
-| Code                                       | Shipped English text                                                                                                                                      |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`     | Charge '{chargeId}' already stands on an invoice.                                                                                                         |
-| `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`  | The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.                                           |
-| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED` | Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced. |
+| Code                                         | Shipped English text                                                                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`       | Charge '{chargeId}' already stands on an invoice.                                                                                                                                    |
+| `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`    | The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.                                                                      |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`      | The document rendered for invoice {invoiceId} differs from the one recorded for it ({rendered} instead of {recorded}); the renderer must render the same invoice into the same file. |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`     | The archived document of invoice {invoiceId} does not match the checksum recorded when it was rendered, and is not handed out.                                                       |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED` | The document of invoice {invoiceId} is not archived yet.                                                                                                                             |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED`      | The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.                                                |
+| `SUBSCRIPTION_INVOICE_NOT_FOUND`             | No invoice '{invoiceId}'.                                                                                                                                                            |
+| `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`      | Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.                                                                       |
+| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`   | Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.                            |
 
 ## Subscribers
 

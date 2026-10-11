@@ -15,9 +15,17 @@
 // @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
 // @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
 
-import { describe, test, after } from 'node:test';
+import { describe, test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATALOG_ERROR_CODES, isPersistenceRefusal } from '@saasicat/core';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import pg from 'pg';
+import {
+    CATALOG_ERROR_CODES,
+    INVOICE_ARCHIVE_TRIGGERS,
+    isPersistenceRefusal,
+} from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     PrismaAuditAdapter,
@@ -40,6 +48,7 @@ import {
     PrismaSubscriberPaymentMethodRepository,
     PrismaSubscriberLedgerRepository,
     PrismaSubscriptionInvoiceRepository,
+    PrismaInvoiceArchive,
     PrismaSubscriberRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
@@ -61,6 +70,8 @@ const prisma = new PrismaClient();
 await rebuildFromReferenceSchema(prisma);
 
 const PLATFORM_TABLES = [
+    'subscription_invoice_archive',
+    'subscription_invoice_documents',
     'subscription_invoice_lines',
     'subscription_invoices',
     'subscription_invoice_numbers',
@@ -126,6 +137,7 @@ function createHarness() {
             subscriberPaymentMethodRepository: new PrismaSubscriberPaymentMethodRepository(prisma),
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
             subscriptionInvoiceRepository: new PrismaSubscriptionInvoiceRepository(prisma),
+            invoiceArchive: new PrismaInvoiceArchive(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
             maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),
@@ -234,6 +246,56 @@ persistenceAdapterContract({
     // The adapter ships no CheckoutOfferRepository: an application implements
     // that port against its own table, and wires it into its own harness.
     gaps: ['checkoutOffers'],
+});
+
+// The triggers this adds would refuse the `TRUNCATE` the tests after it start
+// with, so it drops them again when it is done.
+// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+describe('the database archive says whether it keeps what it holds', () => {
+    const archive = new PrismaInvoiceArchive(prisma);
+    const migration = readFileSync(
+        join(
+            dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
+            'sql',
+            '1.0-an-invoice-document-is-archived.postgres.sql',
+        ),
+        'utf8',
+    );
+    // The migration's function bodies are dollar-quoted: run as the file it is,
+    // over the simple protocol, rather than split into statements.
+    const database = new pg.Client({ connectionString: testDatabaseUrl() });
+    before(() => database.connect());
+    after(async () => {
+        for (const trigger of INVOICE_ARCHIVE_TRIGGERS) {
+            await database.query(
+                `DROP TRIGGER IF EXISTS "${trigger}" ON subscription_invoice_archive`,
+            );
+        }
+        await database.end();
+    });
+
+    test('built from the reference schema alone, it names the triggers it lacks', async () => {
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${INVOICE_ARCHIVE_TRIGGERS.join(' and ')},`), problem);
+    });
+
+    test('with the migration applied, it keeps what it holds', async () => {
+        await database.query(migration);
+
+        assert.equal(await archive.protectionProblem(), null);
+    });
+
+    test('with one of its triggers disabled, it names that one', async () => {
+        const [, notEmptied] = INVOICE_ARCHIVE_TRIGGERS;
+        await database.query(
+            `ALTER TABLE subscription_invoice_archive DISABLE TRIGGER "${notEmptied}"`,
+        );
+
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${notEmptied},`), problem);
+    });
 });
 
 // @requirement SC-OPS-016 — A request that loses a race reads what the check says, not a server error

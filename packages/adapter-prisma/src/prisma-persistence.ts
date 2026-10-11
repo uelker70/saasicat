@@ -44,6 +44,7 @@ import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle
 import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
 import { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.repository.js';
 import { PrismaSubscriptionInvoiceRepository } from './prisma-subscription-invoice.repository.js';
+import { PrismaInvoiceArchive } from './prisma-invoice-archive.js';
 import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 import { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
@@ -252,6 +253,11 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             subscriptionInvoiceRepository: unless(
                 'entitlement.subscriptionInvoiceRepository',
                 provide((prisma) => new PrismaSubscriptionInvoiceRepository(canonical(prisma))),
+            ),
+            // Their documents, kept in the database and never changed.
+            subscriptionInvoiceArchive: unless(
+                'entitlement.subscriptionInvoiceArchive',
+                provide((prisma) => new PrismaInvoiceArchive(canonical(prisma))),
             ),
             subscriptionBundleRepository: provide(
                 (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),
