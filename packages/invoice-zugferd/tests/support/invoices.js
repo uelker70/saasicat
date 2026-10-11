@@ -171,9 +171,33 @@ export const SAMPLES = [
         subscriber: {
             ...SUBSCRIBER,
             legalName: '株式会社 Müller & Söhne <GmbH>',
+            // A form feed, pasted with the address: XML cannot hold it at all.
+            addressLine1: 'Ringstraße 1\f',
             addressLine2: 'z. Hd. Γιώργος Παπαδόπουλος / Ольга Иванова',
         },
         lines: [line(1, 'Paket „Premium“ – 50 % auf <alles> & mehr 🚗', 49, 19)],
+    }),
+    invoice('long-names', {
+        treatment: { kind: 'standard', rate: 19, note: null },
+        issuer: {
+            ...ISSUER,
+            legalName: 'SaaSiCat Software Entwicklungs- und Vertriebsgesellschaft mbH & Co. KG',
+            addressLine1: 'Gewerbepark an der Alten Ziegelei, Halle 7, Aufgang C, 3. Obergeschoss',
+            addressLine2:
+                'c/o Huber & Partner Steuerberatungsgesellschaft mbB, Zweigniederlassung Oberland',
+            city: 'Garmisch-Partenkirchen',
+        },
+        subscriber: {
+            ...SUBSCRIBER,
+            legalName: 'Müller & Söhne Gebäudereinigung und Hausmeisterservice GmbH & Co. KG',
+            vatId: 'DE111111111',
+            // Up to the 200 characters the billing details accept, in each line.
+            addressLine1:
+                'Industriestraße 12–14, Gebäude B, Eingang über den Hof hinter der Tankstelle, zweite Tür links, Anlieferung nur werktags zwischen 7 und 15 Uhr, bitte vorher beim Pförtner melden und den Ausweis zeigen',
+            addressLine2:
+                'Donaudampfschifffahrtsgesellschaftskapitänswitwenrentenversicherungsanstalt, Abteilung Gebäudemanagement, Referat Liegenschaften Nord, Sachgebiet Reinigung und Instandhaltung, Zimmer 4.117',
+        },
+        lines: [line(1, 'Standard, monatlich', 49, 19)],
     }),
     invoice('widest-footer', {
         treatment: { kind: 'standard', rate: 19, note: null },

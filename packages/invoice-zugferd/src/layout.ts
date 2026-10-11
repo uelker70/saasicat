@@ -19,6 +19,8 @@ const LEFT = 25 * MM;
 const RIGHT = PAGE.width - 20 * MM;
 /** Where the issuer's block and the invoice's facts begin. */
 const SIDE = 125 * MM;
+/** The right edge of the address field of DIN 5008, form B: 20 mm in, 85 mm wide. */
+const ADDRESS_RIGHT = 105 * MM;
 /** The least height kept free at the foot of a page, for its footer lines and number. */
 const FOOT = 32 * MM;
 /** The lowest a footer line's baseline goes. */
@@ -82,6 +84,29 @@ class Pen {
         const settable = this.settable(text, font);
         const left = alignRight ? x - font.widthOfTextAtSize(settable, size) : x;
         page.drawText(settable, { x: left, y, size, font, color: grey ? GREY : BLACK });
+    }
+
+    /**
+     * `text` broken to `width` and written from `y` down, `leading` apart.
+     * Answers the baseline of its last line, for what follows it.
+     */
+    writeWrapped(
+        page: PDFPage,
+        text: string,
+        {
+            x,
+            y,
+            size,
+            width,
+            leading,
+        }: { x: number; y: number; size: number; width: number; leading: number },
+        options: { bold?: boolean; grey?: boolean } = {},
+    ): number {
+        const lines = this.wrap(text, width, size, options.bold);
+        lines.forEach((line, index) =>
+            this.write(page, line, x, y - index * leading, size, options),
+        );
+        return y - (lines.length - 1) * leading;
     }
 
     /** `text` broken into lines no wider than `width`, a word longer than that broken where it must. */
@@ -172,49 +197,73 @@ function calibrateGray(pdf: PDFDocument, page: PDFPage): void {
     );
 }
 
-/** The letterhead, the address field, the facts and the title; answers where the table begins. */
+/**
+ * The letterhead, the address field, the facts and the title; answers where
+ * the table begins. A name or an address line wider than its column — and the
+ * subscriber writes its own — goes on in the next line, and what follows moves
+ * down with it.
+ */
 function firstPage(page: PDFPage, pen: Pen, invoice: SubscriptionInvoiceRecord): number {
     const { issuer, subscriber } = invoice;
     const top = PAGE.height;
 
-    let y = top - 20 * MM;
-    pen.write(page, issuer.legalName, SIDE, y, 10, { bold: true });
+    const side = { x: SIDE, width: RIGHT - SIDE };
+    let y = pen.writeWrapped(
+        page,
+        issuer.legalName,
+        { ...side, y: top - 20 * MM, size: 10, leading: 12 },
+        { bold: true },
+    );
     for (const text of addressLines(issuer)) {
-        y -= 12;
-        pen.write(page, text, SIDE, y, 9);
+        y = pen.writeWrapped(page, text, { ...side, y: y - 12, size: 9, leading: 11 });
     }
     if (issuer.vatId) {
-        y -= 12;
-        pen.write(page, `${bilingual(LABELS.vatId)}: ${issuer.vatId}`, SIDE, y, 8, { grey: true });
+        y = pen.writeWrapped(
+            page,
+            `${bilingual(LABELS.vatId)}: ${issuer.vatId}`,
+            { ...side, y: y - 12, size: 8, leading: 10 },
+            { grey: true },
+        );
     }
     if (issuer.taxNumber) {
-        y -= 11;
-        pen.write(page, `${bilingual(LABELS.taxNumber)}: ${issuer.taxNumber}`, SIDE, y, 8, {
-            grey: true,
-        });
+        y = pen.writeWrapped(
+            page,
+            `${bilingual(LABELS.taxNumber)}: ${issuer.taxNumber}`,
+            { ...side, y: y - 11, size: 8, leading: 10 },
+            { grey: true },
+        );
     }
 
-    // DIN 5008, form B: the return address in the first line of the field.
+    // DIN 5008, form B: the return address in the first line of the field. A
+    // longer one rises into the zone above it rather than into the address.
     const field = top - 50 * MM;
-    pen.write(page, [issuer.legalName, ...addressLines(issuer)].join(' · '), LEFT, field, 7, {
-        grey: true,
-    });
-    let x = field - 16;
-    pen.write(page, subscriber.legalName, LEFT, x, 10, { bold: true });
+    const fieldWidth = ADDRESS_RIGHT - LEFT;
+    const sender = pen.wrap([issuer.legalName, ...addressLines(issuer)].join(' · '), fieldWidth, 7);
+    sender.forEach((text, index) =>
+        pen.write(page, text, LEFT, field + (sender.length - 1 - index) * 8, 7, { grey: true }),
+    );
+    const address = { x: LEFT, width: fieldWidth };
+    let below = pen.writeWrapped(
+        page,
+        subscriber.legalName,
+        { ...address, y: field - 16, size: 10, leading: 12 },
+        { bold: true },
+    );
     for (const text of addressLines(subscriber)) {
-        x -= 13;
-        pen.write(page, text, LEFT, x, 10);
+        below = pen.writeWrapped(page, text, { ...address, y: below - 13, size: 10, leading: 12 });
     }
     // Both parties' VAT ids stand on an invoice under the reverse charge
     // (§ 14a (1) UStG); the subscriber's is named wherever its record holds one.
     if (subscriber.vatId) {
-        x -= 14;
-        pen.write(page, `${bilingual(LABELS.vatId)}: ${subscriber.vatId}`, LEFT, x, 8, {
-            grey: true,
-        });
+        below = pen.writeWrapped(
+            page,
+            `${bilingual(LABELS.vatId)}: ${subscriber.vatId}`,
+            { ...address, y: below - 14, size: 8, leading: 10 },
+            { grey: true },
+        );
     }
 
-    let facts = top - 55 * MM;
+    let facts = Math.min(top - 55 * MM, y - 8 * MM);
     for (const [label, value] of [
         [LABELS.number, invoice.number],
         [LABELS.issueDate, pageDay(invoice.issueDate)],
@@ -229,8 +278,9 @@ function firstPage(page: PDFPage, pen: Pen, invoice: SubscriptionInvoiceRecord):
         pen.write(page, value, SIDE, facts - 10, 9.5, { bold: true });
         facts -= 23;
     }
+    const lastFact = facts + 23 - 10;
 
-    const title = top - 110 * MM;
+    const title = Math.min(top - 110 * MM, Math.min(below, lastFact) - 15 * MM);
     pen.write(page, `${bilingual(LABELS.title)} ${invoice.number}`, LEFT, title, 15, {
         bold: true,
     });

@@ -1,6 +1,7 @@
 // How the document writes a figure for a person and for a program. Pure, and
-// independent of the locale data of the Node build that runs it: the same
-// invoice renders into the same bytes everywhere (`SC-AUD-019`).
+// independent of the locale data of the Node build that runs it, so a figure
+// is written the same by every build (`SC-AUD-019`). The country names on the
+// page are the one thing taken from that data (`layout.ts`).
 
 import type { CalendarDay } from '@saasicat/core';
 
@@ -55,9 +56,21 @@ export function pageDay(day: CalendarDay): string {
     return `${date}.${month}.${year}`;
 }
 
-/** Text as it may stand in XML content or an attribute. */
+/**
+ * Every character XML 1.0 cannot hold, not even as a reference: the control
+ * characters other than tab, line feed and carriage return, U+FFFE, U+FFFF and
+ * a lone surrogate. One class, no quantifier.
+ */
+const NOT_XML = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu;
+
+/**
+ * Text as it may stand in XML content or an attribute. A character XML cannot
+ * hold — a form feed pasted into an address — becomes `?`, as the page shows
+ * it; the file would otherwise not be XML at all.
+ */
 export function xmlText(text: string): string {
     return text
+        .replace(NOT_XML, '?')
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')

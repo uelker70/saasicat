@@ -34,8 +34,11 @@ the table.
 `@saasicat/tax-de` now compares the subscriber's VAT identification number and
 each line's rate as well: a VAT identification number the XML names for the
 subscriber is the one the invoice records, and under the reverse charge it has
-to name it; every line states the rate the invoice records. Outside the scope of
-VAT the XML names neither party's VAT identification number and states no rate,
-in the breakdown or on a line, as EN 16931 asks. A renderer of an application's
-own that wrote otherwise has its file refused, and the invoice waits under its
-number.
+to name it; every line states, in its one VAT breakdown, the rate the invoice
+records; and neither party names more than one. Outside the scope of VAT the XML
+names neither party's VAT identification number and states no rate, in the
+breakdown or on a line, as EN 16931 asks. A renderer of an application's own
+that wrote otherwise has its file refused, and the invoice waits under its
+number. It also refuses embedded XML that holds a character XML 1.0 forbids,
+such as a control character, which its parser had read past, and reads an
+element the format gives once but the XML states twice as missing.

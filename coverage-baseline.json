@@ -61,12 +61,12 @@
     },
     "tax-de": {
         "line": 99.69,
-        "branch": 96.59,
-        "funcs": 98.46
+        "branch": 96.69,
+        "funcs": 98.53
     },
     "invoice-zugferd": {
-        "line": 99.52,
-        "branch": 96.93,
+        "line": 99.55,
+        "branch": 96.99,
         "funcs": 100
     }
 }

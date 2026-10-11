@@ -53,6 +53,16 @@ describe('the container', () => {
             ['format.facturX'],
         ],
         ['without any metadata', { xmp: null }, ['format.pdfa3', 'format.facturX']],
+        [
+            'declaring its PDF/A part twice, once as 3',
+            {
+                xmp: xmpOf().replace(
+                    '<pdfaid:part>3</pdfaid:part>',
+                    '<pdfaid:part>3</pdfaid:part><pdfaid:part>1</pdfaid:part>',
+                ),
+            },
+            ['format.pdfa3'],
+        ],
         ['without the embedded XML', { xml: null }, ['format.embeddedXml']],
         ['with the XML under another name', { attachedAs: 'invoice.xml' }, ['format.embeddedXml']],
         [
@@ -68,6 +78,11 @@ describe('the container', () => {
         [
             'with XML that is not well-formed',
             { xml: '<rsm:CrossIndustryInvoice><unclosed>' },
+            ['xml.wellFormed'],
+        ],
+        [
+            'with XML holding a character XML forbids, a form feed in a name',
+            { xml: ciiOf(INVOICE, { buyerName: `${INVOICE.subscriber.legalName}\f` }) },
             ['xml.wellFormed'],
         ],
     ]) {
@@ -170,11 +185,39 @@ describe('the embedded XML', () => {
         ['with a line of another amount', { lines: [53.9, -4.8] }, 'xml.lines'],
         ['with a line at another rate', { lineRates: [19, 7] }, 'xml.lines'],
         ['with a line that states no rate', { lineRates: [19, null] }, 'xml.lines'],
+        ['with a line of two VAT breakdowns', { lineRates: [[19, 7], 19] }, 'xml.lines'],
+        ['with a line of no VAT breakdown', { lineRates: [[], 19] }, 'xml.lines'],
+        [
+            'naming a second VAT id for the seller',
+            { sellerVatId: ['DE123456789', 'DE999999999'] },
+            'xml.seller.vatId',
+        ],
     ]) {
         test(`${what} is refused`, async () => {
             assert.deepEqual(await gapsOf(differing(overrides)), [gap]);
         });
     }
+
+    test('stating what the format gives once twice, once as the invoice records it, is refused', async () => {
+        const xml = ciiOf(INVOICE);
+        const twice = (once, again) => xml.replace(once, `${once}${again}`);
+
+        assert.deepEqual(
+            await gapsOf({
+                xml: twice('<ram:TypeCode>380</ram:TypeCode>', '<ram:TypeCode>381</ram:TypeCode>'),
+            }),
+            ['xml.typeCode'],
+        );
+        assert.deepEqual(
+            await gapsOf({
+                xml: twice(
+                    '</ram:SellerTradeParty>',
+                    '<ram:SellerTradeParty><ram:Name>AutohausPro GmbH</ram:Name></ram:SellerTradeParty>',
+                ),
+            }),
+            ['xml.seller.name', 'xml.seller.vatId', 'xml.seller.taxNumber'],
+        );
+    });
 
     test('stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so', async () => {
         for (const overrides of [
@@ -261,8 +304,8 @@ describe('the embedded XML', () => {
             assert.deepEqual(await gapsOf({ xml: ciiOf(reverseCharge) }, reverseCharge), []);
         });
 
-        test('under the reverse charge, left out or another one is refused', async () => {
-            for (const buyerVatId of [null, 'ATU99999999']) {
+        test('under the reverse charge, left out, another one, or a second one is refused', async () => {
+            for (const buyerVatId of [null, 'ATU99999999', ['ATU12345678', 'ATU99999999']]) {
                 assert.deepEqual(
                     await gapsOf({ xml: ciiOf(reverseCharge, { buyerVatId }) }, reverseCharge),
                     ['xml.buyer.vatId'],
@@ -319,6 +362,12 @@ describe('the embedded XML', () => {
 
         test('stating a rate on a line is refused (BR-O-05)', async () => {
             const xml = outside({ lineRates: [0, null] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
+        });
+
+        test('stating a rate on a line in a second VAT breakdown is refused (BR-O-05)', async () => {
+            const xml = outside({ lineRates: [[null, 0], null] });
 
             assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
         });

@@ -77,6 +77,8 @@ describe('an issued invoice rendered by the default renderer', () => {
 });
 
 describe('what the page says', () => {
+    const unspaced = (text) => text.replaceAll(' ', '');
+
     test('the parties, the invoice’s facts, its lines and its total, labelled in German and English', async () => {
         const [page] = await pageTexts((await render('standard')).content);
 
@@ -132,7 +134,6 @@ describe('what the page says', () => {
     test('a footer line wider than the page, broken onto the next line, on every page', async () => {
         const invoice = sample('widest-footer');
         const pages = await pageTexts((await render('widest-footer')).content);
-        const unspaced = (text) => text.replaceAll(' ', '');
 
         assert.ok(pages.length > 1, 'the table did not run on, so no page break was tried');
         pages.forEach((page, index) => {
@@ -142,6 +143,23 @@ describe('what the page says', () => {
                 assert.ok(!page.includes(text), `page ${index + 1} set it on one line`);
             }
         });
+    });
+
+    test('a name or an address line wider than its column, all of it, line after line', async () => {
+        const { issuer, subscriber } = sample('long-names');
+        const [page] = await pageTexts((await render('long-names')).content);
+        const said = unspaced(page.join(''));
+
+        for (const text of [
+            issuer.legalName,
+            issuer.addressLine1,
+            subscriber.legalName,
+            subscriber.addressLine1,
+            subscriber.addressLine2,
+        ]) {
+            assert.ok(said.includes(unspaced(text)), text);
+            assert.ok(!page.includes(text), `set on one line: ${text}`);
+        }
     });
 
     test('no footer where the invoice carries none', async () => {
@@ -163,6 +181,9 @@ describe('what the page says', () => {
             JSON.stringify(page),
         );
         assert.ok(page.includes('???? Müller & Söhne <GmbH>'), JSON.stringify(page));
+        assert.ok(page.includes('Ringstraße 1?'), 'a form feed shown as ?');
+        assert.ok(xml.includes('<ram:LineOne>Ringstraße 1?</ram:LineOne>'), 'and written as ?');
+        assert.ok(!xml.includes('\f'));
         assert.ok(page.includes('Paket „Premium“ – 50 % auf <alles> & mehr ?'));
         assert.ok(xml.includes('<ram:Name>株式会社 Müller &amp; Söhne &lt;GmbH&gt;</ram:Name>'));
     });

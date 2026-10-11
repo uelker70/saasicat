@@ -248,8 +248,10 @@ jobs:
     # invoice per treatment the German adapter decides, the samples the
     # renderer's tests render. Its report judges the PDF and the XML apart, and
     # its exit code and closing verdict follow the XML only: a file that fails
-    # PDF/A still ends in `valid`. So every verdict in the report is read. The
-    # jar is pinned by version and checksum.
+    # PDF/A still ends in `valid`. So every verdict in the report is read, and a
+    # report passes with exactly three — the PDF's, the XML's and the closing
+    # one — each of them `valid`; a verdict gone missing or written another way
+    # fails it as well. The jar is pinned by version and checksum.
     invoice-format:
         runs-on: ubuntu-latest
         env:
@@ -289,8 +291,8 @@ jobs:
                   for file in samples/*.pdf; do
                       report="$file.report.xml"
                       if java -jar mustang.jar --action validate --no-notices --source "$file" > "$report" \
-                          && grep -q '<summary status="valid"/>' "$report" \
-                          && ! grep -q '<summary status="invalid"/>' "$report"; then
+                          && [ "$(grep -o '<summary ' "$report" | wc -l)" -eq 3 ] \
+                          && [ "$(grep -o '<summary status="valid"/>' "$report" | wc -l)" -eq 3 ]; then
                           echo "valid: $file"
                       else
                           echo "::error file=$file::not valid ZUGFeRD EN 16931 / PDF/A-3 — see $report"

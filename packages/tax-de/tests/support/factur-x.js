@@ -94,12 +94,30 @@ const SAVE = { useObjectStreams: false, updateFieldAppearances: false };
 /** An amount as CII writes it; a text an override gives is written as it is. */
 const amount = (value) => (typeof value === 'number' ? value.toFixed(2) : value);
 
+/** A party's VAT ids: none for `null`, one for a text, each of a list. */
+const vatIds = (ids) =>
+    [ids ?? []]
+        .flat()
+        .map(
+            (id) =>
+                `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${id}</ram:ID></ram:SpecifiedTaxRegistration>`,
+        )
+        .join('');
+
+/** A line's VAT breakdowns: one stating `rate`, one stating none for `null`, one each of a list. */
+const lineTaxes = (rates) =>
+    (Array.isArray(rates) ? rates : [rates])
+        .map(
+            (rate) =>
+                `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode>${rate === null ? '' : `<ram:RateApplicablePercent>${amount(rate)}</ram:RateApplicablePercent>`}</ram:ApplicableTradeTax>`,
+        )
+        .join('');
+
 /** The CII XML of `invoice`, each field as `overrides` says where it says one. */
 export function ciiOf(invoice = INVOICE, overrides = {}) {
     const field = (name, value) => (name in overrides ? overrides[name] : value);
     const registrations = [
-        field('sellerVatId', invoice.issuer.vatId) &&
-            `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${field('sellerVatId', invoice.issuer.vatId)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+        vatIds(field('sellerVatId', invoice.issuer.vatId)),
         invoice.issuer.taxNumber &&
             `<ram:SpecifiedTaxRegistration><ram:ID schemeID="FC">${field('sellerTaxNumber', invoice.issuer.taxNumber)}</ram:ID></ram:SpecifiedTaxRegistration>`,
     ]
@@ -117,13 +135,12 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
             (net, index) => `<ram:IncludedSupplyChainTradeLineItem>
             <ram:AssociatedDocumentLineDocument><ram:LineID>${index + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
             <ram:SpecifiedLineTradeSettlement>
-                <ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode>${lineRates[index] === null ? '' : `<ram:RateApplicablePercent>${amount(lineRates[index])}</ram:RateApplicablePercent>`}</ram:ApplicableTradeTax>
+                ${lineTaxes(lineRates[index])}
                 <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>${amount(net)}</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
             </ram:SpecifiedLineTradeSettlement>
         </ram:IncludedSupplyChainTradeLineItem>`,
         )
         .join('');
-    const buyerVatId = field('buyerVatId', invoice.subscriber.vatId);
     const taxes = field('taxes', invoice.taxes)
         .map(
             (tax) => `<ram:ApplicableTradeTax>
@@ -151,7 +168,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     ${lines}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:SellerTradeParty><ram:Name>${field('sellerName', invoice.issuer.legalName)}</ram:Name>${registrations}</ram:SellerTradeParty>
-      <ram:BuyerTradeParty><ram:Name>${field('buyerName', invoice.subscriber.legalName)}</ram:Name>${buyerVatId ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${buyerVatId}</ram:ID></ram:SpecifiedTaxRegistration>` : ''}</ram:BuyerTradeParty>
+      <ram:BuyerTradeParty><ram:Name>${field('buyerName', invoice.subscriber.legalName)}</ram:Name>${vatIds(field('buyerVatId', invoice.subscriber.vatId))}</ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
     <ram:ApplicableHeaderTradeDelivery/>
     <ram:ApplicableHeaderTradeSettlement>

@@ -9644,6 +9644,7 @@ _Tested by:_
         - the subscriber’s VAT id and its country by name, under the reverse charge
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
+        - a name or an address line wider than its column, all of it, line after line
         - no footer where the invoice carries none
         - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
           XML as it was written
@@ -9687,6 +9688,7 @@ _Tested by:_
         - ${what} is refused for it
     - the embedded XML
         - ${what} is refused
+        - stating what the format gives once twice, once as the invoice records it, is refused
         - stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so
         - stating a total as nothing, or as no number, is refused
         - stating a day in another format than 102 is refused
@@ -9694,13 +9696,16 @@ _Tested by:_
         - filed in a kid of the name tree, its name a literal string, is found and passes
         - the buyer's VAT id › the invoice records one: stated as recorded, or left out, passes
         - the buyer's VAT id › under the reverse charge, stated as recorded passes
-        - the buyer's VAT id › under the reverse charge, left out or another one is refused
+        - the buyer's VAT id › under the reverse charge, left out, another one, or a second one is
+          refused
         - outside the scope of VAT › names no VAT id and states no rate, as EN 16931 asks, and
           passes
         - outside the scope of VAT › naming the seller’s VAT id is refused (BR-O-02)
         - outside the scope of VAT › naming the buyer’s VAT id is refused (BR-O-02)
         - outside the scope of VAT › stating a rate is refused (BR-O-05)
         - outside the scope of VAT › stating a rate on a line is refused (BR-O-05)
+        - outside the scope of VAT › stating a rate on a line in a second VAT breakdown is refused
+          (BR-O-05)
         - of an issuer without a tax number may leave the registration out
         - of an issuer with a tax number must carry it
 
@@ -9712,7 +9717,8 @@ _Tested by:_
 so an installation invoices without writing one: a PDF/A-3 with embedded fonts that a person reads,
 labelled in German with English beside it, carrying the CII XML a program reads (`SC-PRIC-042`). Its
 fonts set Latin, Greek and Cyrillic script; a character they have no glyph for is shown on the page
-as `?` and kept in the XML as written. An application whose subscribers write in another script
+as `?` and kept in the XML as written, unless XML cannot hold it at all, as a control character,
+which is `?` there too. An application whose subscribers write in another script
 passes a font of its own, or uses a renderer of its own instead. The shipped renderer's
 output is checked in CI by validators independent of SaaSiCat — PDF/A by veraPDF, the XML against
 the EN 16931 and Factur-X schematron — for each treatment the German adapter decides, so a change
@@ -9746,6 +9752,7 @@ _Tested by:_
         - the subscriber’s VAT id and its country by name, under the reverse charge
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
+        - a name or an address line wider than its column, all of it, line after line
         - no footer where the invoice carries none
         - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
           XML as it was written

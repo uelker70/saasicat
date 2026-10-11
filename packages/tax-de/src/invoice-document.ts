@@ -35,6 +35,15 @@ const EN_16931_LEVEL = 'EN 16931';
 /** UNTDID 1001: a commercial invoice. */
 const COMMERCIAL_INVOICE = '380';
 
+/**
+ * What the check reads where the XML says one thing twice: a second VAT id of
+ * a party, or a second VAT breakdown of a line. EN 16931 allows one of each,
+ * and a second could say what the first leaves out, so no recorded value
+ * equals this. An element the format gives once, stated twice, is read as
+ * missing for the same reason (`single`).
+ */
+const STATED_TWICE = 'stated more than once';
+
 /** The elements that repeat, read as lists whether one is there or many. */
 const REPEATED = new Set([
     'ApplicableTradeTax',
@@ -162,8 +171,11 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
         sameAmounts(
             list(transaction, 'IncludedSupplyChainTradeLineItem').map((item) => {
                 const line = path(item, 'SpecifiedLineTradeSettlement');
+                // One VAT breakdown per line (EN 16931, BG-30).
+                const [tax, ...more] = list(line, 'ApplicableTradeTax');
+                if (more.length > 0) return STATED_TWICE;
                 return keyOf(
-                    centsOf(text(path(line, 'ApplicableTradeTax'), 'RateApplicablePercent')),
+                    centsOf(text(tax, 'RateApplicablePercent')),
                     centsOf(
                         text(
                             path(line, 'SpecifiedTradeSettlementLineMonetarySummation'),
@@ -231,15 +243,18 @@ function sameAmounts<T>(stated: readonly T[], recorded: readonly T[]): boolean {
     return left.every((value, index) => value === right[index]);
 }
 
-/** The id registered under `scheme` (`VA` for a VAT id, `FC` for a tax number), or `null`. */
+/**
+ * The id registered under `scheme` (`VA` for a VAT id, `FC` for a tax number),
+ * `null` where there is none, and `STATED_TWICE` where there are several.
+ */
 function registered(registrations: Element[], scheme: string): string | null {
-    for (const registration of registrations) {
-        const id = registration.ID;
-        if (id && typeof id === 'object' && (id as Element)['@_schemeID'] === scheme) {
-            return text(registration, 'ID');
-        }
-    }
-    return null;
+    const ids = registrations
+        .filter((registration) => {
+            const id = registration.ID;
+            return id && typeof id === 'object' && (id as Element)['@_schemeID'] === scheme;
+        })
+        .map((registration) => text(registration, 'ID'));
+    return ids.length > 1 ? STATED_TWICE : (ids[0] ?? null);
 }
 
 /** A `udt:DateTimeString` of format 102 (`YYYYMMDD`) as a calendar day, or `null`. */
@@ -265,11 +280,16 @@ function centsOf(value: string | null): number | null {
 function path(element: Element | undefined, ...names: string[]): Element | undefined {
     let current = element;
     for (const name of names) {
-        const next = current && child(current, name);
-        current = Array.isArray(next) ? (next[0] as Element | undefined) : (next as Element);
+        current = single(current && child(current, name)) as Element | undefined;
         if (!current || typeof current !== 'object') return undefined;
     }
     return current;
+}
+
+/** The one element `value` holds; none where the XML states it more than once. */
+function single(value: unknown): unknown {
+    if (!Array.isArray(value)) return value;
+    return value.length === 1 ? value[0] : undefined;
 }
 
 function child(element: Element, name: string): unknown {
@@ -284,8 +304,7 @@ function list(element: Element | undefined, name: string): Element[] {
 
 /** The text of the child `name`, with or without attributes; `null` where there is none. */
 function text(element: Element | undefined, name: string): string | null {
-    const value = element && child(element, name);
-    const node = Array.isArray(value) ? value[0] : value;
+    const node = single(element && child(element, name));
     if (typeof node === 'string') return node.trim();
     if (node && typeof node === 'object' && typeof (node as Element)['#text'] === 'string') {
         return ((node as Element)['#text'] as string).trim();
@@ -314,9 +333,16 @@ function anyValue(tree: unknown, name: string): string[] {
     return found;
 }
 
+/**
+ * A character XML 1.0 cannot hold, not even as a reference: a control
+ * character other than tab, line feed and carriage return, U+FFFE, U+FFFF, a
+ * lone surrogate. The parser reads past one; a recipient's parser does not.
+ */
+const NOT_XML = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
+
 /** XML text parsed, or `null` where it is not well-formed. */
 function parse(xml: string | null): Element | null {
-    if (xml === null) return null;
+    if (xml === null || NOT_XML.test(xml)) return null;
     try {
         return parser.parse(xml, true) as Element;
     } catch {
