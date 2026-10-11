@@ -6,6 +6,7 @@ import {
     type CancelSubscriptionBundleData,
     type CanonicalSubscriptionBundleRow,
     type CreateSubscriptionBundleData,
+    type EndNowInput,
     type SubscriptionBundleRecord,
     type SubscriptionBundleRepository,
     type TransactionContext,
@@ -107,6 +108,25 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
             orderBy: [{ pendingVersionEffectiveAt: 'asc' }, { id: 'asc' }],
         });
         return rows.map(toSubscriptionBundleRecord);
+    }
+
+    /**
+     * One guarded `UPDATE`: the effective date the caller read is in the
+     * `WHERE`, so a cancellation moved or reinstated between the read and the
+     * write leaves the count at zero instead of being overwritten.
+     */
+    async endNow(
+        subscriptionBundleId: string,
+        input: EndNowInput,
+    ): Promise<SubscriptionBundleRecord | null> {
+        const { count } = await this.db().subscriptionBundle.updateMany({
+            where: {
+                id: subscriptionBundleId,
+                canceledEffectiveAt: input.expectedCanceledEffectiveAt,
+            },
+            data: { canceledAt: input.at, canceledEffectiveAt: input.at },
+        });
+        return count === 0 ? null : this.findById(subscriptionBundleId);
     }
 
     async findById(subscriptionBundleId: string): Promise<SubscriptionBundleRecord | null> {

@@ -151,7 +151,7 @@
 import { computed, ref } from 'vue';
 import type { MaintenanceWindowStatus, MaintenanceWindowView } from '@saasicat/core';
 
-import { formatMessage } from '../client/i18n/format.js';
+import { formatMessage, formatMoment } from '../client/i18n/format.js';
 import type { maintenanceResource } from '../client/resources/maintenance.resource.js';
 import MaintenanceWindowDialog from '../internal/maintenance/MaintenanceWindowDialog.vue';
 import { useSuperAdminConfirm } from '../quasar/confirm.js';
@@ -250,15 +250,7 @@ const recentColumns = computed(() => [
 
 /** A moment in the operator's own zone and language; a dash for none. */
 function at(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString(intlLocale.value, {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short',
-    });
+    return formatMoment(iso, intlLocale.value);
 }
 </script>
 

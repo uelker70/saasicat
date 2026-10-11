@@ -6,7 +6,7 @@
 // the generated output diverge.
 
 /**
- * What made the charge arise. activation: the first period of a subscription. renewal: a later period. planChange: what an immediate plan change adds. bundleBooking: the first, short period of an add-on. bundleChange: what an add-on's switch to a dearer version adds for the rest of its period. credit: a decision that reduces what is owed. correction: a counter-entry reversing an earlier charge, which is how the append-only journal answers a mistake.
+ * What made the charge arise. activation: the first period of a subscription. renewal: a later period. planChange: what an immediate plan change adds. bundleBooking: the first, short period of an add-on. bundleChange: what an add-on's switch to a dearer version adds for the rest of its period. credit: a decision that reduces what is owed. correction: a counter-entry reversing an earlier charge, which is how the append-only journal answers a mistake. reductionTakenBack: a reduction granted in advance, taken back for the days it no longer covers — the feature it was granted for came back, or what it reduced ended at once.
  */
 export type SubscriberChargeOrigin =
     | 'activation'
@@ -15,7 +15,8 @@ export type SubscriberChargeOrigin =
     | 'bundleBooking'
     | 'bundleChange'
     | 'credit'
-    | 'correction';
+    | 'correction'
+    | 'reductionTakenBack';
 /**
  * Which kind of contract line the charge realises.
  */

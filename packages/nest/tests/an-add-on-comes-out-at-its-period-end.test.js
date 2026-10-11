@@ -69,7 +69,7 @@ const book = async (key, billingCycle) => {
 
 const iso = (d) => d?.toISOString().slice(0, 10) ?? null;
 
-// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
 // @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
 describe('a monthly add-on beside a yearly plan', () => {
     test('commits to nothing and runs to the plan’s billing day', async () => {
@@ -108,7 +108,7 @@ describe('a monthly add-on beside a yearly plan', () => {
     });
 });
 
-// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-063 — An add-on can be cancelled at any time and ends with the period it is in
 describe('a yearly add-on beside a yearly plan', () => {
     test('commits to nothing and ends with the plan period that pays for it', async () => {
         const row = await book('YEARLY_ADDON', 'YEARLY');

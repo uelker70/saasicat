@@ -139,6 +139,7 @@
                         <ul>
                             <li v-for="f in preview.featuresGained" :key="f">
                                 {{ featureLabel(f) }}
+                                <WithdrawnFeatureMark :feature-key="f" />
                             </li>
                         </ul>
                     </div>
@@ -151,6 +152,7 @@
                         <ul>
                             <li v-for="f in preview.featuresLost" :key="f">
                                 {{ featureLabel(f) }}
+                                <WithdrawnFeatureMark :feature-key="f" />
                             </li>
                         </ul>
                     </div>
@@ -240,6 +242,7 @@
                     <ul v-if="acknowledgement === 'downgrade'" class="sp-wizard__deferred-list">
                         <li v-for="key in preview.featuresLost" :key="key">
                             {{ featureLabel(key) }}
+                            <WithdrawnFeatureMark :feature-key="key" />
                         </li>
                     </ul>
 
@@ -314,6 +317,7 @@ import PlanCycleToggle from './plan/PlanCycleToggle.vue';
 import PlanGrid from './plan/PlanGrid.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
+import WithdrawnFeatureMark from './WithdrawnFeatureMark.vue';
 import './ui/tenant-ui.css';
 import { resolveErrorMessage } from '@saasicat/core';
 import { defaultQuotaValue } from './plan/quota-value.js';

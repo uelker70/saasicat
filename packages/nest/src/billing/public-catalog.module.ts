@@ -9,11 +9,13 @@ import type {
     BundleRepository,
     CatalogEntryRepository,
     FeatureUiRegistry,
+    FeatureWithdrawalRepository,
     MarketingProjectionRepository,
 } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { PublicCatalogController } from './public-catalog.controller.js';
 import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
+import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from './tenant-billing.tokens.js';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
@@ -43,6 +45,12 @@ export interface PublicCatalogModuleOptions {
      * registry.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
+    /**
+     * Optional. When set, `/billing/feature-registry` marks each feature
+     * withdrawn now or from a date ahead, so a page showing what a plan or an
+     * add-on includes says so before anybody concludes.
+     */
+    featureWithdrawals?: ProviderSpec<FeatureWithdrawalRepository>;
     /**
      * Modules whose providers must be visible in the DI scope — typically
      * `PrismaModule`/`PlatformAdaptersModule` for the repositories.
@@ -77,6 +85,11 @@ export class PublicCatalogModule {
                     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
                     options.catalogEntryRepository,
                 ),
+            );
+        }
+        if (options.featureWithdrawals) {
+            providers.push(
+                asProvider(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN, options.featureWithdrawals),
             );
         }
         return {

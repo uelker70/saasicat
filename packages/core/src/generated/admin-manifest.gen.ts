@@ -89,6 +89,7 @@ export interface AdminManifest {
             platformEmailHistory?: StandardPageDef;
             settings?: StandardPageDef;
             maintenance?: StandardPageDef;
+            featureWithdrawals?: StandardPageDef;
         };
         projectPages?: ProjectPageDef[];
     };

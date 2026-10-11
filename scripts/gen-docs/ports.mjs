@@ -21,6 +21,7 @@ const AREA = {
     'catalog-ports.types.ts': 'Catalogue',
     'checkout-ports.types.ts': 'Checkout',
     'core-ports.types.ts': 'Core',
+    'feature-withdrawal-ports.types.ts': 'Feature withdrawals',
     'maintenance-ports.types.ts': 'Maintenance',
     'payment-ports.types.ts': 'Payments',
     'persistence-ports.types.ts': 'Persistence bundles',

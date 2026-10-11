@@ -72,6 +72,7 @@ export const tenantsMessages = defineMessages(
                 bundleChange: 'Zusatzwechsel',
                 credit: 'Gutschrift',
                 correction: 'Korrektur',
+                reductionTakenBack: 'Minderung zurückgenommen',
             },
         },
         subscriber: {
@@ -234,6 +235,7 @@ export const tenantsMessages = defineMessages(
                 bundleChange: 'Add-on change',
                 credit: 'Credit',
                 correction: 'Correction',
+                reductionTakenBack: 'Reduction taken back',
             },
         },
         subscriber: {

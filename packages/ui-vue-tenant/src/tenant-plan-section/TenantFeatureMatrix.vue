@@ -37,7 +37,8 @@
                              than the word `directions_car`. -->
                         <slot name="feature-icon" :feature="f"></slot>
                         {{ f.label }}
-                        <span v-if="!f.active" class="sp-badge sp-badge--neutral">
+                        <WithdrawnFeatureMark v-if="f.withdrawn" :feature-key="f.key" />
+                        <span v-else-if="!f.active" class="sp-badge sp-badge--neutral">
                             {{ i18n.featuresLocked }}
                         </span>
                     </div>
@@ -55,6 +56,8 @@ import { computed } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
 import type { FeatureRow } from './feature-row.js';
 import TenantCardSection from '../ui/TenantCardSection.vue';
+import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
+import { useWithdrawnFeatures } from '../withdrawn-features.js';
 import '../ui/tenant-ui.css';
 import type { FeatureUiRegistry } from '@saasicat/core';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
@@ -75,6 +78,7 @@ const props = defineProps<{
 }>();
 
 const { intlLocale } = useSuperAdminI18n();
+const withdrawn = useWithdrawnFeatures();
 
 const features = computed<FeatureRow[]>(() => {
     const registry = props.featureRegistry ?? {};
@@ -90,6 +94,7 @@ const features = computed<FeatureRow[]>(() => {
             label: meta?.label ?? props.featureLabel(key),
             description: meta?.description ?? null,
             icon: meta?.icon ?? null,
+            withdrawn: withdrawn.of(key).length > 0,
         };
     });
     // Included first, then alphabetically by label.

@@ -52,6 +52,7 @@ import {
     assertTaxRatePercent,
 } from '../subscription-contract/contract-refusals.js';
 import { contractTaxPeriod, rateOfTheFile } from '../tax/tax-treatments.js';
+import { FeatureWithdrawalContractService } from './feature-withdrawal-contract.service.js';
 
 // SubscriptionContractFreezeService (#18) — on a plan change, freezes the
 // agreed service as a `SubscriptionContract` with `entitlementSnapshot`.
@@ -85,6 +86,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         @Optional()
         @Inject(PromoCodesService)
         private readonly promoCodes: PromoCodesService | null = null,
+        // Present where features are withdrawn: a contract written for any
+        // reason carries the reductions no contract of the tenant records yet.
+        @Optional()
+        @Inject(FeatureWithdrawalContractService)
+        private readonly withdrawalReductions: FeatureWithdrawalContractService | null = null,
     ) {
         // Said once, at start. A write that does not bind is wrong for every
         // tenant at once, and each freeze would refuse on its own — caught and
@@ -251,6 +257,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // the rate and each line's share of the tax are the installation's, so
         // the place that knows them writes them once rather than each source
         // carrying its own copy.
+        const reductions =
+            (await this.withdrawalReductions?.linesFor(tenantId, [
+                planLineItem,
+                ...bundles.lineItems,
+            ])) ?? [];
         const held = retirement?.priceHold
             ? retirement.addOn
                 ? addOnPriceHoldLine(
@@ -269,6 +280,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 ),
                 ...(redeemed ? [redeemed.line] : []),
                 ...(held ? [held] : []),
+                ...reductions,
             ],
             { currency: catalog.currency, taxRate: vatRate },
         );

@@ -31,6 +31,7 @@ import type {
     SubscriptionUsagePort,
     SubscriptionRepository,
     TenantSubscriptionWritePort,
+    FeatureWithdrawalRepository,
     TransactionRunner,
     VersionRetirementRepository,
     BundleVersionRetirementRepository,
@@ -182,6 +183,15 @@ export interface ContractAdapterInstances {
      */
     bundleVersionRetirements?: BundleVersionRetirementRepository;
     /**
+     * Enables the feature withdrawal scenarios: a withdrawal kept with its
+     * reductions, a feature held to one withdrawal not lifted however many
+     * operators announce at once, a lift recorded once, and the withdrawal
+     * written in one transaction with the notices that say what it means for
+     * each subscription. Two open withdrawals of one feature would reduce every
+     * subscription twice.
+     */
+    featureWithdrawals?: FeatureWithdrawalRepository;
+    /**
      * Enables the scenarios that list the subscriptions bound to exactly one
      * plan version, in every tenant — the subscriptions a retirement reaches —
      * and that read subscriptions by id, which an add-on retirement asks for
@@ -325,7 +335,10 @@ export type ContractGap =
     | 'bookingsOfVersion'
     | 'bookingsMoved'
     | 'bookingsScheduled'
-    | 'subscriptionsById';
+    | 'subscriptionsById'
+    | 'featureWithdrawals'
+    | 'bookingsEndedNow'
+    | 'subscriptionsEndedNow';
 
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */

@@ -15,6 +15,8 @@ import {
 import type {
     BundleRepository,
     DiscoverySnapshot,
+    FeatureWithdrawalRecord,
+    FeatureWithdrawalRepository,
     PlanCatalog,
     PlanVersionRepository,
     SubscriptionBundleRepository,
@@ -25,11 +27,12 @@ import type {
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/core';
-import { BILLING_ERROR_CODES } from '@saasicat/core';
+import { BILLING_ERROR_CODES, featuresWithdrawnAt, nextWithdrawalChange } from '@saasicat/core';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
 import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
+import { FEATURE_WITHDRAWAL_REPOSITORY_TOKEN } from '../billing/tenant-billing.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { codedError } from '../errors/coded-error.js';
@@ -73,6 +76,8 @@ interface LimitsAnswer {
     nextBookingEnd: Date | null;
     /** The add-ons left out of `limits` because their cancellation is declared. */
     leftOutBundleVersionIds: string[];
+    /** The first moment still to come at which a withdrawal takes effect or ends, or null. */
+    nextWithdrawalChange: Date | null;
 }
 
 /** What a contract frozen at a moment records as its entitlements. */
@@ -93,6 +98,8 @@ interface AnswerOptions {
      * a successor is measured without the agreement it replaces.
      */
     freezing?: boolean;
+    /** The feature withdrawals on record, read once for the answer. */
+    withdrawals?: readonly FeatureWithdrawalRecord[];
 }
 
 export interface EnforceLimitInput<T> {
@@ -129,6 +136,13 @@ export class EntitlementService {
     // through mutations, not through time (a pending plan's effective date
     // is day-granular).
     private readonly cache = new Map<string, CacheEntry>();
+    // Invalidations so far, all tenants' and each tenant's. An answer is
+    // written to the cache only where neither moved while it was computed: a
+    // computation that read before a mutation and finishes after its
+    // invalidation would otherwise put back the answer the invalidation
+    // removed, for up to the TTL.
+    private generation = 0;
+    private readonly tenantGenerations = new Map<string, number>();
 
     // #39 — replaces alias index, built lazily from the boot-static snapshot;
     // throws on replaces cycles (a clear error instead of an infinite loop).
@@ -163,6 +177,11 @@ export class EntitlementService {
         @Optional()
         @Inject(DISCOVERY_SNAPSHOT_TOKEN)
         private readonly discoverySnapshot: DiscoverySnapshot | null = null,
+        // Where features are withdrawn for a reason outside the platform.
+        // Optional: an installation that does not offer it withdraws nothing.
+        @Optional()
+        @Inject(FEATURE_WITHDRAWAL_REPOSITORY_TOKEN)
+        private readonly featureWithdrawals: FeatureWithdrawalRepository | null = null,
     ) {}
 
     // ---------------------------------------------------------------------
@@ -187,21 +206,33 @@ export class EntitlementService {
             if (cached) return cached;
         }
 
+        const startedAt = this.generationOf(tenantId);
         const sub = await this.requireSubscription(tenantId);
-        if (catalog) return (await this.answerFor(sub, now, catalog)).limits;
-        const answer = await this.answerFor(sub, now, await this.catalogs.current());
+        const withdrawals = await this.withdrawalsOnRecord();
+        if (catalog)
+            return (await this.answerFor(sub, now, catalog, undefined, { withdrawals })).limits;
+        const answer = await this.answerFor(sub, now, await this.catalogs.current(), undefined, {
+            withdrawals,
+        });
         // A cached answer may not outlive the cancellation it was computed
-        // before — the subscription's or an add-on's. Every other thing that
-        // changes these limits is a mutation, and every mutation invalidates
-        // the entry; a date arriving is not a mutation, so nothing would have
-        // cleared it and the old features would be granted for up to a further
-        // minute past the end.
-        this.writeCache(
-            tenantId,
-            answer.limits,
-            now.getTime(),
-            firstAfter(now, [cancellationLandsAt(sub), answer.nextBookingEnd]),
-        );
+        // before — the subscription's or an add-on's — nor the moment a
+        // withdrawal takes effect or is lifted. Every other thing that changes
+        // these limits is a mutation, and every mutation invalidates the entry;
+        // a date arriving is not a mutation, so nothing would have cleared it
+        // and the old features would be granted for up to a further minute past
+        // the end.
+        if (this.generationOf(tenantId) === startedAt) {
+            this.writeCache(
+                tenantId,
+                answer.limits,
+                now.getTime(),
+                firstAfter(now, [
+                    cancellationLandsAt(sub),
+                    answer.nextBookingEnd,
+                    answer.nextWithdrawalChange,
+                ]),
+            );
+        }
         return answer.limits;
     }
 
@@ -223,6 +254,9 @@ export class EntitlementService {
         catalog: PlanCatalog,
     ): Promise<ContractLimits> {
         const sub = await this.requireSubscription(tenantId);
+        // No withdrawals are handed in: a contract records what was agreed, and
+        // a withdrawal takes a feature away at the moment of asking and gives it
+        // back when it is lifted, without anybody writing a contract.
         const { limits, leftOutBundleVersionIds } = await this.answerFor(
             sub,
             now,
@@ -289,12 +323,22 @@ export class EntitlementService {
      * 60s.
      */
     invalidateTenant(tenantId: string): void {
+        this.tenantGenerations.set(tenantId, (this.tenantGenerations.get(tenantId) ?? 0) + 1);
         this.cache.delete(tenantId);
     }
 
-    /** Clears the entire cache. Only for tests / bootstrap. */
+    /**
+     * Clears the entire cache — for a change that reaches every tenant at
+     * once, such as a feature withdrawn or a withdrawal lifted.
+     */
     invalidateAll(): void {
+        this.generation += 1;
         this.cache.clear();
+    }
+
+    /** What a computation for `tenantId` started now compares against before it writes. */
+    private generationOf(tenantId: string): string {
+        return `${this.generation}:${this.tenantGenerations.get(tenantId) ?? 0}`;
     }
 
     /**
@@ -306,7 +350,9 @@ export class EntitlementService {
         now: Date,
         tx?: TransactionContext,
     ): Promise<EffectiveLimits> {
-        return (await this.answerFor(sub, now, await this.catalogs.current(), tx)).limits;
+        const withdrawals = await this.withdrawalsOnRecord();
+        return (await this.answerFor(sub, now, await this.catalogs.current(), tx, { withdrawals }))
+            .limits;
     }
 
     private async requireSubscription(tenantId: string): Promise<SubscriptionRecord> {
@@ -321,7 +367,13 @@ export class EntitlementService {
      * `deriveLimits` against a catalogue already read. The catalogue decides
      * which features are `plannedOnly`, and it is read outside any transaction
      * a caller holds, so that checking a limit does not wait for a second
-     * connection while the subscription row is locked.
+     * connection while the subscription row is locked — and so are the
+     * withdrawals, for the same reason.
+     *
+     * A feature the withdrawals handed in take away at `now` is taken out
+     * after everything else, whichever plan, add-on, contract, special terms or
+     * floor granted it (`SC-ENTL-025`). Here rather than in each branch, so that
+     * no branch can grant it, as `asGrantable` is for `plannedOnly`.
      */
     private async answerFor(
         sub: SubscriptionRecord,
@@ -330,6 +382,29 @@ export class EntitlementService {
         tx?: TransactionContext,
         options: AnswerOptions = {},
     ): Promise<LimitsAnswer> {
+        const granted = await this.grantedFor(sub, now, catalog, tx, options);
+        const withdrawals = options.withdrawals ?? [];
+        const withdrawn = featuresWithdrawnAt(withdrawals, now);
+        return {
+            ...granted,
+            limits: {
+                ...granted.limits,
+                features: new Set(
+                    [...granted.limits.features].filter((feature) => !withdrawn.has(feature)),
+                ),
+            },
+            nextWithdrawalChange: nextWithdrawalChange(withdrawals, now),
+        };
+    }
+
+    /** What the tenant is granted at `now`, before any withdrawal is taken out. */
+    private async grantedFor(
+        sub: SubscriptionRecord,
+        now: Date,
+        catalog: PlanCatalog,
+        tx?: TransactionContext,
+        options: AnswerOptions = {},
+    ): Promise<Omit<LimitsAnswer, 'nextWithdrawalChange'>> {
         // A cancellation that has taken effect ends everything below it, and
         // this is the only place that can say so: no repository filters a
         // cancelled subscription out, and the renewal decision stops the
@@ -468,6 +543,11 @@ export class EntitlementService {
         };
     }
 
+    /** Every feature withdrawal on record; none where the installation does not withdraw features. */
+    private async withdrawalsOnRecord(): Promise<FeatureWithdrawalRecord[]> {
+        return this.featureWithdrawals ? this.featureWithdrawals.list() : [];
+    }
+
     private async findActiveContract(
         tenantId: string,
         now: Date,
@@ -529,13 +609,14 @@ export class EntitlementService {
         const delta = input.delta ?? 1;
 
         const catalog = await this.catalogs.current();
+        const withdrawals = await this.withdrawalsOnRecord();
         return this.tx.run(async (tx) => {
             const sub = await this.subscriptions.findByTenantIdLocked(input.tenantId, tx);
             if (!sub) {
                 throw subscriptionNotFound(input.tenantId);
             }
 
-            const { limits } = await this.answerFor(sub, now, catalog, tx);
+            const { limits } = await this.answerFor(sub, now, catalog, tx, { withdrawals });
             const max = limits.quotas[input.dimension];
             if (max === undefined) {
                 // Misconfiguration, not user input: the call site names a

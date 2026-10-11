@@ -27,3 +27,19 @@ export function formatDay(day: string, intlLocale: string): string {
         timeZone: 'UTC',
     });
 }
+
+/**
+ * A moment in the reader's own zone and language, with the zone named — what
+ * a person typed into a time field and reads back. A dash for none.
+ */
+export function formatMoment(iso: string | null, intlLocale: string): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString(intlLocale, {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+    });
+}

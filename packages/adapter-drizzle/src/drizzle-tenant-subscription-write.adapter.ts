@@ -5,6 +5,8 @@ import type {
     CancelSubscriptionInput,
     CancelSubscriptionResult,
     ApplyOnboardingSelectionResult,
+    EndNowInput,
+    EndSubscriptionNowResult,
     ImmediatePlanChangeInput,
     PromoCodeRedemptionRecord,
     RedeemPromoInTransactionCallback,
@@ -198,6 +200,37 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
             canceledEffectiveAt: current.canceledEffectiveAt ?? null,
             status: current.status,
             alreadyCanceled: claimed.length === 0,
+        };
+    }
+
+    /**
+     * The same conditional claim as `cancelSubscription`, on the effective date
+     * the caller read rather than on its absence: a cancellation moved, ended
+     * or written between the read and the write claims nothing, and the caller
+     * reads back what is stored instead of overwriting it.
+     */
+    async endNow(tenantId: string, input: EndNowInput): Promise<EndSubscriptionNowResult> {
+        const claimed = await this.db
+            .update(subscriptions)
+            .set({
+                canceledAt: input.at,
+                canceledEffectiveAt: input.at,
+                status: 'CANCELED',
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(subscriptions.tenantId, tenantId),
+                    eq(subscriptions.canceledEffectiveAt, input.expectedCanceledEffectiveAt),
+                ),
+            )
+            .returning({ id: subscriptions.id });
+        const current = await this.requireSubscription(this.db, tenantId);
+        return {
+            ended: claimed.length === 1,
+            canceledAt: current.canceledAt ?? null,
+            canceledEffectiveAt: current.canceledEffectiveAt ?? null,
+            status: current.status,
         };
     }
 

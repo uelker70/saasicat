@@ -142,7 +142,8 @@
                         "platformEmail": { "$ref": "#/$defs/StandardPageDef" },
                         "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" },
                         "settings": { "$ref": "#/$defs/StandardPageDef" },
-                        "maintenance": { "$ref": "#/$defs/StandardPageDef" }
+                        "maintenance": { "$ref": "#/$defs/StandardPageDef" },
+                        "featureWithdrawals": { "$ref": "#/$defs/StandardPageDef" }
                     }
                 },
                 "projectPages": {

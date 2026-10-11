@@ -37,6 +37,7 @@ export * from './settings-view.js';
 export * from './maintenance-times.js';
 export * from './promo-days.js';
 export * from './maintenance-refusal.js';
+export * from './feature-withdrawal.js';
 export * from './action-registry.js';
 export * from './batch-column-fetcher.js';
 export * from './admin-resource-client.js';

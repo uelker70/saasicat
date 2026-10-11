@@ -85,7 +85,13 @@ export function usageRecord(overrides = {}) {
 
 /** An entitlement service over one subscription, with the catalog above. */
 export function entitlementServiceFor(EntitlementService, subscription, options = {}) {
-    const { config = null, contract = null, bundles = null } = options;
+    const {
+        config = null,
+        contract = null,
+        bundles = null,
+        versions = null,
+        withdrawals = null,
+    } = options;
     return new EntitlementService(
         givenPlanCatalogSource(CATALOG),
         { findByTenantId: async () => subscription },
@@ -98,8 +104,11 @@ export function entitlementServiceFor(EntitlementService, subscription, options 
         { run: async (fn) => fn(undefined) },
         config,
         bundles ? { listActiveBySubscription: async () => bundles } : null,
-        bundles ? { findVersionById: async () => null } : null,
+        bundles ? { findVersionById: async (id) => versions?.[id] ?? null } : null,
         contract ? { findActiveByTenantId: async () => contract } : null,
+        null,
+        // A list of withdrawals, or a repository of the test's own.
+        Array.isArray(withdrawals) ? { list: async () => withdrawals } : withdrawals,
     );
 }
 

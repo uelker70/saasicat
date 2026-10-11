@@ -109,7 +109,8 @@
                 </h3>
                 <ul>
                     <li v-for="hint in addPreview.redundantFeatures" :key="hint.featureKey">
-                        {{ featureLabel(hint.featureKey) }} —
+                        {{ featureLabel(hint.featureKey) }}
+                        <WithdrawnFeatureMark :feature-key="hint.featureKey" /> —
                         {{
                             hint.coveredBy === 'PLAN'
                                 ? i18n.bundlePreviewRedundantCoveredByPlan
@@ -177,6 +178,7 @@ import { resolveErrorMessage } from '@saasicat/core';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantDialog from '../ui/TenantDialog.vue';
+import WithdrawnFeatureMark from '../WithdrawnFeatureMark.vue';
 import '../ui/tenant-ui.css';
 import type {
     BundleAddPreviewShape,

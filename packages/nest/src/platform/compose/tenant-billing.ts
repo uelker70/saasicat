@@ -15,6 +15,7 @@ import { normalizeTenantAuthGuards, quotaUsageSnapshotProvider } from './tenant-
 
 import { resolveBundleRepository } from './bundle-repository-source.js';
 import { optionsOf, type CompositionContext } from './context.js';
+import { featureWithdrawalsOf } from './feature-withdrawal.js';
 import { versionRetirementsOf } from './version-retirement.js';
 
 /**
@@ -88,6 +89,7 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             notices: (versionNotices.notices ??
                 tenantSlice?.subscriptionNotices) as ProviderSpec<SubscriptionNoticeRepository>,
             retirements: versionRetirementsOf(ctx),
+            featureWithdrawals: featureWithdrawalsOf(ctx),
         },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],

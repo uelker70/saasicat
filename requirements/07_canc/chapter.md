@@ -533,3 +533,67 @@ _Tested by:_
         - is none for a subscription told only of an offer
 
 <!-- END proof -->
+
+### SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
+
+🟢 💰 Without notice, at the moment the tenant's administrator declares it, for as long as the feature
+is missing — also where the subscription is already cancelled for a later date, provided the
+application's subscription store can end it early; where it cannot, the refusal says so and the
+cancellation stands. Before confirming, the tenant reads what ends and what is credited
+(`SC-PRIC-075`). Every add-on ends with the subscription. Nobody else in the tenant may end it, and
+a subscription the withdrawal did not reach, or one that has ended, is refused with its code. Nobody
+is reminded: doing nothing costs the subscriber nothing, because the reduction applies by itself
+(`SC-PRIC-073`).
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - what the tenant sees of a withdrawal
+        - says what is reduced, and what may end at once
+        - opens nothing before the date, and is gone once the withdrawal is lifted
+        - ends the reduction with a change of plan or rhythm, and the right with the feature
+        - says when a line a scheduled change brings begins, and reduces it once it runs
+        - reduces the line held until the change, and the line it brings from then
+        - says when the scheduled move of a booking brings the version that grants the feature
+        - shows nothing to a subscription it did not reach
+    - ending a subscription at once
+        - ends it now, records it first, ends the contract and credits the unused rest
+        - brings forward a cancellation declared for the end of the term
+        - is refused, and nothing recorded, where the store cannot bring a declared end forward
+        - is refused as one that cannot be brought forward where only the declaration date names the
+          end
+        - is refused for a withdrawal it was not told of, or one not in effect now
+        - is refused once it has ended, and where the plan no longer grants the feature
+        - is open to a subscription reached through its special terms alone
+        - a second attempt after a failure ends at its own moment, not the failed one
+        - is refused where the cancellation moved meanwhile
+        - shows what it would credit first, refused as the end would be
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - an end at once, sent by the run
+        - is told where the subscription or the booking ended at its moment, and never where the end
+          failed
+- `packages/ui-vue/tests/a-tenant-is-told-of-a-withdrawn-feature.test.js`
+    - ending at once
+        - asks what the subscription would credit, and ends it, under the prefix given
+        - ends one booking by its own path
+        - a refused end is thrown to the card, and nothing is read again
+    - reading the withdrawals again when one changes
+        - reads them again once the withdrawal takes effect, and offers what opens then
+        - reads them again once the withdrawal is lifted, and offers nothing more
+        - reads them again once a scheduled change brings the line, and offers what opens then
+        - asks again soon where the server has not reached the moment yet
+        - reads nothing more once the page is gone
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - ending at once while a feature is withdrawn
+        - names what ends and what is credited before the click, and ends it on confirmation
+        - ends one add-on by name, and says when nothing is credited
+        - keeps each plan line its own when the list is read again after an end
+        - a refused question says why and offers no confirmation
+    - the page of the tenant’s add-ons
+        - tells of the withdrawal too, and reads the bookings again once one ended at once
+
+<!-- END proof -->
