@@ -377,6 +377,25 @@ describe('a switch the run cannot make', () => {
         assert.equal(world.audited[0].changes.reason, 'no-party');
     });
 
+    test('is recorded once between two runs at the same moment', async () => {
+        const world = scheduled({ noParty: ['t1'] });
+
+        await Promise.all([world.run.switchDue(ON_TIME), world.run.switchDue(ON_TIME)]);
+
+        assert.deepEqual(actionsOf(world), ['BUNDLE_VERSION_SWITCH_FAILED']);
+    });
+
+    test('is recorded by the next run where the first write to the audit log failed', async () => {
+        const world = scheduled({ noParty: ['t1'], auditFailures: 1 });
+
+        await world.run.switchDue(ON_TIME);
+        assert.deepEqual(actionsOf(world), []);
+        await world.run.switchDue(new Date('2026-11-01T00:25:00.000Z'));
+        await world.run.switchDue(new Date('2026-11-01T00:40:00.000Z'));
+
+        assert.deepEqual(actionsOf(world), ['BUNDLE_VERSION_SWITCH_FAILED']);
+    });
+
     test('for a subscriber whose invoice address is incomplete is left as it is, and the failure names the empty fields', async () => {
         const error = await incompleteAddressRefusal(['addressLine1']);
         const world = scheduled({ partyRefusal: { tenants: ['t1'], error } });

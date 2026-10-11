@@ -23,6 +23,7 @@ import {
 } from './helpers/add-on-retirement-fixtures.js';
 import { incompleteAddressRefusal, unsupportedTaxCase } from './helpers/tax-adapter.js';
 import { sendingPort } from './helpers/version-notices.js';
+import { auditLogFailing } from './helpers/audit-log.js';
 
 /** Both bookings, monthly to 1 November and told at `NOW`, move on 1 February 2027. */
 const THE_DATE = new Date('2027-02-01T00:00:00.000Z');
@@ -38,11 +39,18 @@ async function announced(options = {}) {
 /**
  * The run over `world`, with what it freezes, invalidates and audits recorded.
  * `noParty` names tenants whose party is missing; `freezeFails` makes every
- * contract fail.
+ * contract fail; the first `auditFailures` writes to the audit log fail.
  */
 function mover(
     world,
-    { noParty = [], untreated = [], incomplete = null, freezeFails = false, charges = null } = {},
+    {
+        noParty = [],
+        untreated = [],
+        incomplete = null,
+        freezeFails = false,
+        charges = null,
+        auditFailures = 0,
+    } = {},
 ) {
     const frozen = [];
     const invalidated = [];
@@ -70,10 +78,16 @@ function mover(
         null,
         contractFreeze,
         charges,
-        { log: async (entry) => audited.push(entry) },
+        auditLogFailing(audited, auditFailures),
     );
     return { service, frozen, invalidated, audited, asked };
 }
+
+/** The failed moves the audit log records, as booking and reason. */
+const failuresIn = (audited) =>
+    audited
+        .filter((entry) => entry.action === 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED')
+        .map((entry) => [entry.entityId, entry.changes.reason]);
 
 const versionOf = (world, id) =>
     world.bookingRepository.rows.find((row) => row.id === id)?.bundleVersionId;
@@ -570,6 +584,27 @@ describe('a move that cannot be made', () => {
                 .map((entry) => [entry.entityId, entry.changes.reason]),
             [['sb-t1', 'no-party']],
         );
+    });
+
+    test('is audited once between two runs at the same moment', async () => {
+        const world = await announced();
+        const { service, audited } = mover(world, { noParty: ['t1'] });
+
+        await Promise.all([service.moveDue(AT_THE_DATE), service.moveDue(AT_THE_DATE)]);
+
+        assert.deepEqual(failuresIn(audited), [['sb-t1', 'no-party']]);
+    });
+
+    test('is audited by the next run where the first write to the audit log failed', async () => {
+        const world = await announced();
+        const { service, audited } = mover(world, { noParty: ['t1'], auditFailures: 1 });
+
+        await service.moveDue(AT_THE_DATE);
+        assert.deepEqual(failuresIn(audited), []);
+        await service.moveDue(new Date('2027-02-01T00:30:00.000Z'));
+        await service.moveDue(new Date('2027-02-01T00:45:00.000Z'));
+
+        assert.deepEqual(failuresIn(audited), [['sb-t1', 'no-party']]);
     });
 
     test('asks the party about the contract each move then writes', async () => {

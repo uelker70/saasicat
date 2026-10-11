@@ -300,18 +300,26 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
                 `switched to version ${due.to}: ${reason}. ${next}`,
         );
         const key = `${due.subscriptionBundleId}:${due.to}:${reason}`;
+        // Reserved before the write, so a run overlapping this one writes no
+        // second entry, and released where the write fails, so the next run
+        // tries it again.
         if (!this.auditedFailures.has(key)) {
             this.auditedFailures.add(key);
-            await this.record(due, 'BUNDLE_VERSION_SWITCH_FAILED', { reason, ...extra });
+            const written = await this.record(due, 'BUNDLE_VERSION_SWITCH_FAILED', {
+                reason,
+                ...extra,
+            });
+            if (!written) this.auditedFailures.delete(key);
         }
         return 'failed';
     }
 
+    /** Writes the audit entry; whether it was written, or there is no audit log to write it to. */
     private async record(
         due: DueSwitch,
         action: string,
         extra: Record<string, unknown> = {},
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             await this.audit?.log({
                 actor: platformJobActor(JOB),
@@ -327,12 +335,14 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
                     ...extra,
                 },
             });
+            return true;
         } catch (error) {
             // The switch stands either way; the lost record of it is said loudly.
             this.logger.error(
                 `Writing the audit entry ${action} for booking ${due.subscriptionBundleId} failed.`,
                 error instanceof Error ? error.stack : String(error),
             );
+            return false;
         }
     }
 }

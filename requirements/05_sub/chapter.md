@@ -914,6 +914,8 @@ _Tested by:_
         - moves a trial without a contract or a charge: both come when it converts
         - a subscription that changed between the read and the write is left to the next run
         - a replacement the write refuses is a failure, recorded once however often it is tried
+        - a failure two runs at the same moment find is recorded once between them
+        - a failure the audit log could not take is recorded by the next run
         - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
         - the party is asked about the contract the move then writes

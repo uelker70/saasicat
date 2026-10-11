@@ -29,6 +29,7 @@ import {
     usageOver,
 } from './helpers/retirement-fixtures.js';
 import { incompleteAddressRefusal, unsupportedTaxCase } from './helpers/tax-adapter.js';
+import { auditLogFailing } from './helpers/audit-log.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const BEFORE = new Date('2026-03-20T10:00:00.000Z');
@@ -72,7 +73,7 @@ function writesOver(subs, claims = () => true, ended = []) {
 }
 
 /** The parts a move and a switch write through, each recording what it was asked. */
-function sideEffects({ party = async () => {}, freeze = async () => {} } = {}) {
+function sideEffects({ party = async () => {}, freeze = async () => {}, auditFailures = 0 } = {}) {
     const frozen = [];
     const recorded = [];
     const invalidated = [];
@@ -96,7 +97,7 @@ function sideEffects({ party = async () => {}, freeze = async () => {} } = {}) {
             },
         },
         entitlements: { invalidateTenant: (tenantId) => invalidated.push(tenantId) },
-        audit: { log: async (entry) => audited.push(entry) },
+        audit: auditLogFailing(audited, auditFailures),
     };
 }
 
@@ -110,8 +111,9 @@ async function aRun({
     bypass = null,
     ended,
     delivered = true,
+    auditFailures = 0,
 } = {}) {
-    const effects = sideEffects({ party, freeze });
+    const effects = sideEffects({ party, freeze, auditFailures });
     const writes = writesOver(subs, claims, ended);
     const service = new RetirementMoveService(
         usageOver(subs),
@@ -296,6 +298,31 @@ describe('the move at the date', () => {
 
         assert.equal(first.failed, 1);
         assert.equal(second.failed, 1);
+        assert.deepEqual(
+            audited.map((entry) => [entry.action, entry.changes.reason]),
+            [['PLAN_VERSION_RETIREMENT_MOVE_FAILED', 'replacement-not-bookable']],
+        );
+    });
+
+    test('a failure two runs at the same moment find is recorded once between them', async () => {
+        const { service, audited } = await aRun({ claims: () => false });
+
+        await Promise.all([service.moveDue(DATE), service.moveDue(DATE)]);
+
+        assert.deepEqual(
+            audited.map((entry) => entry.action),
+            ['PLAN_VERSION_RETIREMENT_MOVE_FAILED'],
+        );
+    });
+
+    test('a failure the audit log could not take is recorded by the next run', async () => {
+        const { service, audited } = await aRun({ claims: () => false, auditFailures: 1 });
+
+        await service.moveDue(DATE);
+        assert.deepEqual(audited, []);
+        await service.moveDue(new Date(DATE.getTime() + 15 * 60 * 1000));
+        await service.moveDue(new Date(DATE.getTime() + 30 * 60 * 1000));
+
         assert.deepEqual(
             audited.map((entry) => [entry.action, entry.changes.reason]),
             [['PLAN_VERSION_RETIREMENT_MOVE_FAILED', 'replacement-not-bookable']],
