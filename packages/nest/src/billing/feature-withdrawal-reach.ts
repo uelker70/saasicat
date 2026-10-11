@@ -69,10 +69,12 @@ export function withdrawalReachOf(
     const { subscription, contract } = candidate;
     const plan = planLineOf(candidate, inputs);
     const scheduled = scheduledPlanLineOf(subscription, inputs);
-    const plans = [
-        ...(plan ? [plan] : []),
-        ...(scheduled && !(plan && sameLine(plan, scheduled)) ? [scheduled] : []),
-    ];
+    // One line where the change keeps plan and rhythm, at the lower of its two
+    // prices: what a reduction may not exceed once the change has landed.
+    const plans =
+        plan && scheduled && sameLine(plan, scheduled)
+            ? [{ ...plan, priceNet: lowerOf(plan.priceNet, scheduled.priceNet) }]
+            : [...(plan ? [plan] : []), ...(scheduled ? [scheduled] : [])];
     const bookings = candidate.bookings.flatMap((booking) => {
         const line = bookingLineOf(booking, candidate, plan?.key ?? subscription.plan, inputs);
         return line ? [line] : [];
@@ -233,35 +235,41 @@ function bookingLineOf(
     planKey: string,
     inputs: WithdrawalReachInputs,
 ): PricedLine | null {
-    const version = bookingVersionGranting(booking, inputs);
+    const versions = bookingVersionsGranting(booking, inputs);
+    const [version] = versions;
     if (!version) return null;
     if (bookingOverBy(booking, cancellationLandsAt(subscription), inputs.effectiveFrom)) {
         return null;
     }
     const billingCycle = (booking.billingCycle ?? subscription.billingCycle) as BillingCycle;
-    const recorded = contract?.lineItems.find(
-        (item) => item.kind === 'bundle' && item.sourceVersionId === version.id,
-    );
+    const priceOf = (one: BundleVersionRow) =>
+        contract?.lineItems.find(
+            (item) => item.kind === 'bundle' && item.sourceVersionId === one.id,
+        )?.priceNet ?? resolveBundlePriceNet(one, planKey, billingCycle);
     return {
         line: 'bundle',
         key: version.bundleKey,
         label: version.label,
         subscriptionBundleId: booking.id,
         billingCycle,
-        priceNet: recorded?.priceNet ?? resolveBundlePriceNet(version, planKey, billingCycle),
+        // Where the version it moves to grants the feature too, the lower of
+        // the two: what a reduction may not exceed once the move has landed.
+        priceNet: versions.map(priceOf).reduce<number | null>(lowerOf, null),
     };
 }
 
-/** The version of a booking that grants the feature: the one it is on, else the one it moves to. */
-export function bookingVersionGranting(
+/**
+ * The versions of a booking that grant the feature: the one it is on and the
+ * one a scheduled move brings it to, in that order, each where it grants it.
+ */
+export function bookingVersionsGranting(
     booking: Pick<SubscriptionBundleRecord, 'bundleVersionId' | 'pendingBundleVersionId'>,
     inputs: Pick<WithdrawalReachInputs, 'bundleVersions' | 'grants'>,
-): BundleVersionRow | null {
-    for (const id of [booking.bundleVersionId, booking.pendingBundleVersionId]) {
+): BundleVersionRow[] {
+    return [booking.bundleVersionId, booking.pendingBundleVersionId].flatMap((id) => {
         const version = id ? inputs.bundleVersions.get(id) : undefined;
-        if (version && inputs.grants(version.features)) return version;
-    }
-    return null;
+        return version && inputs.grants(version.features) ? [version] : [];
+    });
 }
 
 function cycleOf(line: Pick<ContractLineItemRecord, 'billingCycle'>): BillingCycle {

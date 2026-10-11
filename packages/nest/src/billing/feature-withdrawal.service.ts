@@ -64,7 +64,7 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js'
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { ownersOf } from './bundle-bookings-of-version.js';
 import {
-    bookingVersionGranting,
+    bookingVersionsGranting,
     scheduledVersionOf,
     targetKeyOf,
     withdrawalReachOf,
@@ -699,8 +699,8 @@ export class FeatureWithdrawalService {
             }
         }
         for (const versionId of bundleVersions.keys()) {
-            const booked = (await this.bookings!.listOfVersion!(versionId)).filter((booking) =>
-                bookingVersionGranting(booking, inputs),
+            const booked = (await this.bookings!.listOfVersion!(versionId)).filter(
+                (booking) => bookingVersionsGranting(booking, inputs).length > 0,
             );
             const owners = await ownersOf(this.subscriptions, booked);
             for (const booking of booked) {

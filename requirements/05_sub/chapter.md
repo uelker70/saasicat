@@ -1616,6 +1616,8 @@ _Tested by:_
         - reaches the plan in the rhythm the change brings it to, beside the one it holds
         - still tells a subscription the change takes away from the feature, with the line it holds
         - takes the newest version of another plan where the change names none
+        - takes the lower price where a version change keeps plan and rhythm
+        - takes the lower price of a booking whose move keeps the feature
         - reaches a booking the move brings onto an add-on version that grants the feature
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
     - a withdrawn feature, beside the plan

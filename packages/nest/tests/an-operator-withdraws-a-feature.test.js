@@ -430,6 +430,54 @@ describe('the preview of a withdrawal, where a change is scheduled', () => {
         );
     });
 
+    test('takes the lower price where a version change keeps plan and rhythm', async () => {
+        const scheduled = subscriptionOf('t1', {
+            pendingPlan: 'PRO',
+            pendingBillingCycle: 'MONTHLY',
+            pendingEffectiveAt: DATE,
+            pendingChangeVersionId: 'pv-pro-2',
+        });
+        const { service } = withdrawing({
+            subscriptions: [scheduled],
+            planVersions: [
+                ...VERSIONS,
+                planVersion('pv-pro-2', { version: 2, monthlyNet: '39.00' }),
+            ],
+        });
+        const preview = await service.preview('EXPORT', DATE, NOW);
+        assert.deepEqual(
+            preview.reached.map((row) => row.lines),
+            [[proLine('MONTHLY', 39)]],
+        );
+        assert.equal(
+            preview.targets.find((target) => target.key === 'PRO').lowestPriceNet,
+            39,
+            'and no reduction above what the line will cost',
+        );
+    });
+
+    test('takes the lower price of a booking whose move keeps the feature', async () => {
+        const { service } = withdrawing({
+            subscriptions: [subscriptionOf('t1', BASIC)],
+            planVersions: VERSIONS,
+            addOnVersions: [
+                addOnVersion('bv-export-1'),
+                addOnVersion('bv-export-2', { version: 2, monthlyNet: '6.00' }),
+            ],
+            bookings: [
+                bookingOf('t1', {
+                    pendingBundleVersionId: 'bv-export-2',
+                    pendingVersionEffectiveAt: DATE,
+                }),
+            ],
+        });
+        const preview = await service.preview('EXPORT', DATE, NOW);
+        assert.deepEqual(
+            preview.reached.map((row) => row.lines.map((line) => line.priceNet)),
+            [[6]],
+        );
+    });
+
     test('reaches a booking the move brings onto an add-on version that grants the feature', async () => {
         const { service } = withdrawing({
             subscriptions: [subscriptionOf('t1', BASIC)],
