@@ -1,0 +1,56 @@
+{
+    "name": "@saasicat/invoice-zugferd",
+    "version": "1.0.0-rc.25",
+    "description": "The default invoice renderer for SaaSiCat: renders an issued invoice into ZUGFeRD in the EN 16931 profile — a PDF/A-3 a person reads, labelled in German with English beside it, carrying the CII XML a program reads. Implements the InvoiceRenderer port from @saasicat/core.",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist",
+        "fonts"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-and-prune.mjs tsup",
+        "pretest": "pnpm run build",
+        "test": "node --test 'tests/*.test.js'"
+    },
+    "dependencies": {
+        "@pdf-lib/fontkit": "^1.1.1",
+        "@saasicat/core": "workspace:^",
+        "pdf-lib": "^1.17.1"
+    },
+    "devDependencies": {
+        "@saasicat/tax-de": "workspace:^",
+        "@types/node": "^25.6.0",
+        "tsup": "^8.0.0",
+        "typescript": "^6.0.0"
+    },
+    "license": "PolyForm-Shield-1.0.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/invoice-zugferd"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

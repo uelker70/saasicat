@@ -249,6 +249,89 @@ describe('the parties an invoice names', () => {
     });
 });
 
+/** What a GmbH states on every business letter, as `invoicing.footer` names it. */
+const FOOTER = [
+    'Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster',
+    'IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001',
+];
+
+/** The file, naming `footer` under `invoicing`. */
+const namingFooter = (footer) => ({
+    ...INVOICING_SETTINGS,
+    invoicing: { ...INVOICING_SETTINGS.invoicing, footer },
+});
+
+// @requirement SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
+describe('the footer of an invoice', () => {
+    test('is the lines the file names on the issue date, and stays when the file changes after', async () => {
+        const settings = namingFooter([...FOOTER]);
+        const installation = await aChargedSubscriber({ settings });
+        await installation.run();
+
+        settings.invoicing.footer = ['Amtsgericht Berlin HRB 999999'];
+        installation.charge(installation.contract, 'plan', {
+            periodStart: berlin('2026-03-01'),
+            periodEnd: berlin('2026-04-01'),
+        });
+        await installation.run(new Date('2026-03-01T05:15:00.000Z'));
+
+        assert.deepEqual(
+            installation.store.invoices.map((invoice) => invoice.footer),
+            [FOOTER, ['Amtsgericht Berlin HRB 999999']],
+        );
+    });
+
+    test('is none where the file names none', async () => {
+        const { run, store } = await aChargedSubscriber();
+
+        await run();
+
+        assert.deepEqual(store.invoices[0].footer, []);
+    });
+
+    test('is none where the invoice names the contract’s copy of another entity', async () => {
+        const installation = anInvoicingInstallation({
+            settings: namingFooter(FOOTER),
+            appliedSettings: new FakeAppliedSettingsPort(),
+        });
+        const subscriber = await installation.aSubscriber('t1');
+        const contract = await installation.aContract(subscriber, {
+            issuer: {
+                ...ISSUER,
+                legalName: 'Predecessor GmbH',
+                vatId: 'DE111111111',
+                taxNumber: null,
+                addressLine2: null,
+            },
+        });
+        installation.charge(contract, 'plan');
+
+        await installation.run();
+
+        assert.equal(installation.store.invoices[0].issuer.legalName, 'Predecessor GmbH');
+        assert.deepEqual(installation.store.invoices[0].footer, []);
+    });
+
+    test('is the file’s where the invoice names the issuer’s corrected identity', async () => {
+        const corrected = { ...ISSUER, legalName: 'Issuer Software GmbH' };
+        const appliedSettings = new FakeAppliedSettingsPort();
+        appliedSettings.changes = [recordedCorrection('2026-01-15', ISSUER, corrected, 'Renamed')];
+        const installation = anInvoicingInstallation({
+            settings: { ...namingFooter(FOOTER), issuer: corrected },
+            appliedSettings,
+        });
+        const subscriber = await installation.aSubscriber('t1');
+        const contract = await installation.aContract(subscriber, {
+            issuer: contractPartiesOf(subscriber, ISSUER).issuer,
+        });
+        installation.charge(contract, 'plan');
+
+        await installation.run();
+
+        assert.deepEqual(installation.store.invoices[0].footer, FOOTER);
+    });
+});
+
 // @requirement SC-PRIC-045 — Invoice dates and tax periods count in the installation's time zone
 // @requirement SC-PRIC-046 — An invoice states the day it is due
 // @requirement SC-PRIC-072 — Invoice numbers run without gaps in one range per issuer, restarting each year

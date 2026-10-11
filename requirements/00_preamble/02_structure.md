@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 76      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 78      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪ 0 drafts,
+Of 629 entries: 🟢 542 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
 🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -116,6 +116,7 @@ Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
 [SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
 [SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
+[SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-028](#sc-pric-028--a-direct-debit-is-announced-before-it-is-collected),
 [SC-PRIC-029](#sc-pric-029--a-payment-is-recorded-against-its-invoice-once-the-gateway-has-confirmed-it),
@@ -130,6 +131,7 @@ Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-PRIC-039](#sc-pric-039--a-subscriber-the-tax-adapter-cannot-treat-is-refused-before-a-contract-exists),
 [SC-PRIC-040](#sc-pric-040--a-tax-identifier-is-validated-before-a-tax-treatment-depends-on-it),
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
+[SC-PRIC-078](#sc-pric-078--the-shipped-renderer-issues-an-invoice-the-formats-own-validators-accept),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
 [SC-PRIC-045](#sc-pric-045--invoice-dates-and-tax-periods-count-in-the-installations-time-zone),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),

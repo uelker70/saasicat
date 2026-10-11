@@ -14,7 +14,9 @@
 --
 --   `subscription_invoices` — created with its indexes, among them the unique
 --   number and the unique (numberYear, numberSequence), and its foreign keys to
---   `subscribers` and `subscription_contracts`.
+--   `subscribers` and `subscription_contracts`; or, where an earlier run of
+--   this file created it, given the `footer` column, empty for the invoices it
+--   already holds.
 --
 --   `subscription_invoice_lines` — created with its indexes, among them the
 --   unique `chargeId` that puts a charge on one invoice only, and its foreign
@@ -28,8 +30,8 @@
 -- missing. Nothing is backfilled: no invoice is issued for a charge before
 -- invoicing is switched on, and the range starts at 1.
 --
--- Safe to run again: every table and index is created only where it is
--- missing, and each foreign key only where its name is not taken. On a
+-- Safe to run again: every table, column and index is created only where it
+-- is missing, and each foreign key only where its name is not taken. On a
 -- database created from `reference-schema.postgres.sql` the whole file does
 -- nothing at all.
 
@@ -63,6 +65,7 @@ BEGIN
         "currency" TEXT NOT NULL,
         "issuerParty" JSONB NOT NULL,
         "subscriberParty" JSONB NOT NULL,
+        "footer" JSONB NOT NULL DEFAULT '[]',
         "taxTreatment" JSONB NOT NULL,
         "taxes" JSONB NOT NULL,
         "totalNet" DECIMAL(12,2) NOT NULL,
@@ -71,6 +74,10 @@ BEGIN
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "subscription_invoices_pkey" PRIMARY KEY ("id")
     );
+    -- A table an earlier run of this file created before invoices carried
+    -- their footer gains it here, empty for the invoices it holds.
+    ALTER TABLE "subscription_invoices"
+        ADD COLUMN IF NOT EXISTS "footer" JSONB NOT NULL DEFAULT '[]';
     CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoices_number_key"
         ON "subscription_invoices"("number");
     CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoices_numberYear_numberSequence_key"

@@ -27,6 +27,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 
 import {
     dependencyTree,
@@ -296,4 +297,34 @@ describe('what @saasicat/ui-vue copies out of a development dependency', () => {
             );
         });
     });
+});
+
+// A font a package carries in the repository itself, rather than copies out of
+// a dependency: the renderer's Roboto, embedded in every invoice it writes.
+// Read off the files git tracks, so a font added anywhere is held to it.
+describe('a font a package ships from the repository', () => {
+    const FONT = /\.(ttf|otf|woff2?)$/;
+    const fonts = execFileSync('git', ['ls-files', 'packages'], { cwd: ROOT, encoding: 'utf8' })
+        .split('\n')
+        .filter((path) => FONT.test(path));
+
+    test('there is one to check', () => {
+        assert.ok(fonts.length > 0, 'no font is tracked, so nothing below checked one');
+    });
+
+    for (const font of fonts) {
+        test(`${font} has a licence of its own beside it, and a permissive one`, () => {
+            // The nearest licence files are the font's: the package's own
+            // licence, further up, is SaaSiCat's and says nothing of the font.
+            const own = licenceFilesOf(join(ROOT, font)).filter(
+                (each) => each.nearest && !isNotice(each) && !each.packageRoot,
+            );
+            const refused = own
+                .filter((each) => !isPermissive(licenceOfText(readFileSync(each.path, 'utf8'))))
+                .map((each) => each.path);
+
+            assert.ok(own.length > 0, 'no licence file beside it, below the package root');
+            assert.deepEqual(refused, [], 'a licence text that is not one of the permissive ones');
+        });
+    }
 });

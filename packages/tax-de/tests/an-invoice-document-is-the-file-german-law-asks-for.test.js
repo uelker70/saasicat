@@ -222,6 +222,43 @@ describe('the embedded XML', () => {
         assert.deepEqual(await gapsOf({ reshape: fileUnderAKid }), []);
     });
 
+    describe('outside the scope of VAT', () => {
+        const notTaxable = {
+            ...INVOICE,
+            taxTreatment: {
+                ...INVOICE.taxTreatment,
+                kind: 'not-taxable',
+                rate: 0,
+                note: 'Nicht im Inland steuerbare Leistung / Service not taxable in Germany',
+            },
+            taxes: [{ rate: 0, net: 49, tax: 0 }],
+            totalTax: 0,
+            totalGross: 49,
+        };
+        const outside = (overrides = {}) =>
+            ciiOf(notTaxable, {
+                sellerVatId: null,
+                taxes: [{ rate: null, net: 49, tax: 0 }],
+                ...overrides,
+            });
+
+        test('names no VAT id and states no rate, as EN 16931 asks, and passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: outside() }, notTaxable), []);
+        });
+
+        test('naming the seller’s VAT id is refused (BR-O-02)', async () => {
+            const xml = outside({ sellerVatId: notTaxable.issuer.vatId });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.seller.vatId']);
+        });
+
+        test('stating a rate is refused (BR-O-05)', async () => {
+            const xml = outside({ taxes: [{ rate: 0, net: 49, tax: 0 }] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.taxes']);
+        });
+    });
+
     test('of an issuer without a tax number may leave the registration out', async () => {
         const invoice = { ...INVOICE, issuer: { ...INVOICE.issuer, taxNumber: null } };
 

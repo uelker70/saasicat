@@ -391,6 +391,9 @@ _Tested by:_
         - ${copy.what} is governed only by permissive licence texts
         - a copy whose font is under terms of its own, in a package under MIT › is refused for the
           font’s licence, whatever the file holding it is called
+    - a font a package ships from the repository
+        - there is one to check
+        - ${font} has a licence of its own beside it, and a permissive one
 
 <!-- END proof -->
 

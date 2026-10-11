@@ -63,5 +63,10 @@
         "line": 99.17,
         "branch": 94.05,
         "funcs": 95.65
+    },
+    "invoice-zugferd": {
+        "line": 99.06,
+        "branch": 95.65,
+        "funcs": 100
     }
 }

@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 76      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 78      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪ 0 drafts,
+Of 629 entries: 🟢 542 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
 🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -148,6 +148,7 @@ Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
 [SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
 [SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
+[SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-028](#sc-pric-028--a-direct-debit-is-announced-before-it-is-collected),
 [SC-PRIC-029](#sc-pric-029--a-payment-is-recorded-against-its-invoice-once-the-gateway-has-confirmed-it),
@@ -162,6 +163,7 @@ Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-PRIC-039](#sc-pric-039--a-subscriber-the-tax-adapter-cannot-treat-is-refused-before-a-contract-exists),
 [SC-PRIC-040](#sc-pric-040--a-tax-identifier-is-validated-before-a-tax-treatment-depends-on-it),
 [SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
+[SC-PRIC-078](#sc-pric-078--the-shipped-renderer-issues-an-invoice-the-formats-own-validators-accept),
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
 [SC-PRIC-045](#sc-pric-045--invoice-dates-and-tax-periods-count-in-the-installations-time-zone),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
@@ -223,7 +225,7 @@ Of 627 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 627 requirements. Do not edit by hand:
+Generated from `requirements/` — 629 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9083,6 +9085,11 @@ _Tested by:_
         - is the contract’s copy where the file names no issuer
         - reads the copy and the file the way the start does, so a stray space is the same entity
         - reads a recorded block it cannot use as no identity rather than as a wrong one
+    - the footer an invoice carries
+        - is the file’s where the invoice names the entity the file names
+        - is none where the invoice names the contract’s copy of another entity
+        - is none where the file names no issuer
+        - is a copy the file’s lines cannot change afterwards
 - `packages/core/tests/an-issuer-is-the-same-entity-or-another-one.test.js`
     - the identity of an issuer
         - is the three fields a contract names it by, and nothing about how it is reached
@@ -9150,6 +9157,38 @@ _Tested by:_
         - and nothing is counted where no repository answers
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - the issuer names an entity, or the file does not load
+
+<!-- END proof -->
+
+### SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
+
+🟡 _(Decided, not yet delivered.)_ 💰 What a business letter of the issuer has to state beyond the
+invoice's own content, such as the register court and number and the managing directors of a GmbH,
+or the bank account to pay into, is named in `config/saas.yaml` as lines of text, so that it fits any
+legal form. An invoice copies those lines on its issue date, as it does the issuer's address
+(`SC-PRIC-026`), and its document shows them; a later change leaves the invoices issued before as
+they were, and a cancellation or replacement invoice keeps the lines of the invoice it corrects
+(`SC-PRIC-025`). The lines are those of the entity the file names, so an invoice that names the
+contract's copy of another entity carries none rather than another company's register or account.
+
+_Source:_ #332 · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-names-the-issuer-of-its-contract.test.js`
+    - the footer an invoice carries
+        - is the file’s where the invoice names the entity the file names
+        - is none where the invoice names the contract’s copy of another entity
+        - is none where the file names no issuer
+        - is a copy the file’s lines cannot change afterwards
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the footer of an invoice
+        - is the lines the file names on the issue date, and stays when the file changes after
+        - is none where the file names none
+        - is none where the invoice names the contract’s copy of another entity
+        - is the file’s where the invoice names the issuer’s corrected identity
 
 <!-- END proof -->
 
@@ -9594,6 +9633,30 @@ _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
 _Tested by:_
 
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice rendered by the default renderer
+        - (${name}) is the file the German adapter asks for, named by its number
+        - is the same bytes every time, whatever was rendered in between
+        - is dated from the moment the invoice was issued, not the clock
+        - of another invoice is another file, under another identifier
+    - what the page says
+        - the parties, the invoice’s facts, its lines and its total, labelled in German and English
+        - the subscriber’s VAT id and its country by name, under the reverse charge
+        - the footer lines and the page’s number on every page of an invoice that runs on
+        - no footer where the invoice carries none
+        - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
+          XML as it was written
+    - a figure
+        - of ${amount} reads ${page} on the page and ${xml} in the XML
+        - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01
+    - the XML it carries
+        - takes a line off as one unit taken back at a price that is not negative
+        - names the categories and reasons EN 16931 asks for each treatment
+        - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
+        - of a small business with a tax number only, identifies the seller by it
+        - under the reverse charge, names both VAT ids
+    - a font the application passes
+        - is the one the page is set in
 - `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
     - an issued invoice’s document
         - is rendered from the invoice as issued, checked, its checksum recorded, and archived
@@ -9625,8 +9688,68 @@ _Tested by:_
         - stating a day in another format than 102 is refused
         - that holds nothing but its root names everything the invoice records as missing
         - filed in a kid of the name tree, its name a literal string, is found and passes
+        - outside the scope of VAT › names no VAT id and states no rate, as EN 16931 asks, and
+          passes
+        - outside the scope of VAT › naming the seller’s VAT id is refused (BR-O-02)
+        - outside the scope of VAT › stating a rate is refused (BR-O-05)
         - of an issuer without a tax number may leave the registration out
         - of an issuer with a tax number must carry it
+
+<!-- END proof -->
+
+### SC-PRIC-078 — The shipped renderer issues an invoice the format's own validators accept
+
+🟡 _(Decided, not yet delivered.)_ 💰 SaaSiCat ships a renderer for ZUGFeRD in the EN 16931 profile,
+so an installation invoices without writing one: a PDF/A-3 with embedded fonts that a person reads,
+labelled in German with English beside it, carrying the CII XML a program reads (`SC-PRIC-042`). Its
+fonts set Latin, Greek and Cyrillic script; a character they have no glyph for is shown on the page
+as `?` and kept in the XML as written. An application whose subscribers write in another script
+passes a font of its own, or uses a renderer of its own instead. The shipped renderer's
+output is checked in CI by validators independent of SaaSiCat — PDF/A by veraPDF, the XML against
+the EN 16931 and Factur-X schematron — for each treatment the German adapter decides, so a change
+that breaks the standard fails the build rather than reaching a subscriber's bookkeeping.
+
+_Source:_ #332 · #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/invoice-zugferd/tests/every-glyph-on-the-page-is-drawn.test.js`
+    - a rendered page
+        - (${name}) draws every character it shows
+        - set in a font of the application whose glyph data has odd lengths, draws every character
+          it shows
+    - a font whose glyph data has odd lengths, padded
+        - has every glyph at an even offset, its outline and its advance as they were
+        - keeps the checksum a font carries over its whole file
+        - leaves the bytes it was handed as they were
+        - padded again is the same font
+        - without TrueType outlines is left as it came
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice rendered by the default renderer
+        - (${name}) is the file the German adapter asks for, named by its number
+        - is the same bytes every time, whatever was rendered in between
+        - is dated from the moment the invoice was issued, not the clock
+        - of another invoice is another file, under another identifier
+    - what the page says
+        - the parties, the invoice’s facts, its lines and its total, labelled in German and English
+        - the subscriber’s VAT id and its country by name, under the reverse charge
+        - the footer lines and the page’s number on every page of an invoice that runs on
+        - no footer where the invoice carries none
+        - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
+          XML as it was written
+    - a figure
+        - of ${amount} reads ${page} on the page and ${xml} in the XML
+        - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01
+    - the XML it carries
+        - takes a line off as one unit taken back at a price that is not negative
+        - names the categories and reasons EN 16931 asks for each treatment
+        - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
+        - of a small business with a tax number only, identifies the seller by it
+        - under the reverse charge, names both VAT ids
+    - a font the application passes
+        - is the one the page is set in
 
 <!-- END proof -->
 
@@ -18890,6 +19013,9 @@ _Tested by:_
         - ${copy.what} is governed only by permissive licence texts
         - a copy whose font is under terms of its own, in a package under MIT › is refused for the
           font’s licence, whatever the file holding it is called
+    - a font a package ships from the repository
+        - there is one to check
+        - ${font} has a licence of its own beside it, and a permissive one
 
 <!-- END proof -->
 

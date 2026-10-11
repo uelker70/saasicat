@@ -1884,15 +1884,19 @@ then a wrong one cannot be corrected. To adopt it ([wire the backend](wire-the-b
 
 3. Name the range and the payment term in `config/saas.yaml` under `invoicing` — `numberPrefix`,
    letters and digits, and `paymentTermDays`, both required. The block needs `tax` and `issuer`.
+   Name what a business letter of yours states beyond the invoice's own content — register court
+   and number, managing directors, bank account — as up to six lines under `footer`; an invoice
+   copies them on its issue date.
 4. Configure `tenantBilling.chargeJournal.invoices` with
    `persistence.entitlement.subscriptionInvoiceRepository` and
-   `persistence.entitlement.subscriptionInvoiceArchive` from either shipped adapter, your
-   `InvoiceRenderer` as `renderer` and your `InvoiceMailPort` as `mail`. The start refuses the wiring
-   without the block and, where tenant billing is configured, the block without the wiring; either
-   without a tax adapter, an issuer or the record of the applied settings (`AppliedSettings` and
-   `SettingsChange`, which hold the issuer to one legal entity); the wiring without a renderer, an
-   archive or a mail; an archive whose triggers are missing or disabled; and a prefix other than
-   the one the issued invoices carry.
+   `persistence.entitlement.subscriptionInvoiceArchive` from either shipped adapter,
+   `zugferdInvoiceRenderer()` from the new package `@saasicat/invoice-zugferd` — or an
+   `InvoiceRenderer` of your own — as `renderer`, and your `InvoiceMailPort` as `mail`. The start
+   refuses the wiring without the block and, where tenant billing is configured, the block without
+   the wiring; either without a tax adapter, an issuer or the record of the applied settings
+   (`AppliedSettings` and `SettingsChange`, which hold the issuer to one legal entity); the wiring
+   without a renderer, an archive or a mail; an archive whose triggers are missing or disabled; and
+   a prefix other than the one the issued invoices carry.
 5. The platform issues, archives and mails every quarter of an hour, which needs `ScheduleModule`;
    with `includeCron: false` your own scheduler calls `SubscriptionInvoiceService.issueDue(now)`,
    then `InvoiceDocumentService.archiveDue(now)` and `deliverDue()`.

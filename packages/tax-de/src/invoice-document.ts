@@ -130,13 +130,19 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
     );
     check('xml.currency', text(settlement, 'InvoiceCurrencyCode') === invoice.currency);
     check('xml.seller.name', text(seller, 'Name') === invoice.issuer.legalName);
-    check('xml.seller.vatId', registered(registrations, 'VA') === invoice.issuer.vatId);
+    // Outside the scope of VAT, EN 16931 forbids the VAT ids (BR-O-02) and the
+    // rate (BR-O-05) that every other treatment states.
+    const outsideVat = invoice.taxTreatment.kind === 'not-taxable';
+    check(
+        'xml.seller.vatId',
+        registered(registrations, 'VA') === (outsideVat ? null : invoice.issuer.vatId),
+    );
     check('xml.seller.taxNumber', registered(registrations, 'FC') === invoice.issuer.taxNumber);
     check(
         'xml.buyer.name',
         text(path(agreement, 'BuyerTradeParty'), 'Name') === invoice.subscriber.legalName,
     );
-    check('xml.taxes', sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice));
+    check('xml.taxes', sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice, outsideVat));
     check(
         'xml.totals',
         centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(invoice.totalNet) &&
@@ -166,7 +172,11 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
 }
 
 /** The tax the XML states per rate, against the invoice's, rate by rate. */
-function sameTaxes(stated: Element[], invoice: SubscriptionInvoiceRecord): boolean {
+function sameTaxes(
+    stated: Element[],
+    invoice: SubscriptionInvoiceRecord,
+    outsideVat: boolean,
+): boolean {
     const key = (rate: number | null, net: number | null, tax: number | null) =>
         `${rate}|${net}|${tax}`;
     return sameAmounts(
@@ -177,7 +187,9 @@ function sameTaxes(stated: Element[], invoice: SubscriptionInvoiceRecord): boole
                 centsOf(text(entry, 'CalculatedAmount')),
             ),
         ),
-        invoice.taxes.map((entry) => key(cents(entry.rate), cents(entry.net), cents(entry.tax))),
+        invoice.taxes.map((entry) =>
+            key(outsideVat ? null : cents(entry.rate), cents(entry.net), cents(entry.tax)),
+        ),
     );
 }
 

@@ -57,6 +57,22 @@ export function invoiceIssuerOf(
     return sameLegalIdentity(reached, target) ? { ...configured } : { ...copy };
 }
 
+/**
+ * The footer lines an invoice carries (`SC-PRIC-077`): those `config/saas.yaml`
+ * names, where the invoice names the issuer the file names; none where it names
+ * the contract's copy of another entity, whose register and account the lines
+ * are not.
+ */
+export function invoiceFooterOf(
+    issuer: SubscriptionInvoiceIssuer,
+    configured: ContractIssuerParty | null,
+    footer: readonly string[],
+): string[] {
+    const named = identityOf(issuer);
+    const target = configured && identityOf(configured);
+    return named && target && sameLegalIdentity(named, target) ? [...footer] : [];
+}
+
 /** A party's identity, settled the way the start settles the file's and the record's. */
 function identityOf(party: ContractIssuerParty): LegalIdentity | null {
     return recordedIssuerIdentity({ issuer: party });

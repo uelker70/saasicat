@@ -46,6 +46,7 @@ const INVOICE = {
     currency: 'EUR',
     issuer: { ...PARTY, legalName: 'Issuer GmbH', vatId: 'DE123456789' },
     subscriber: { ...PARTY, customerNumber: 'K-10001' },
+    footer: ['Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster'],
     taxTreatment: {
         kind: 'standard',
         rate: 19,
@@ -200,6 +201,16 @@ describe('an invoice row becomes a record', () => {
             'a party field that is not text',
             { subscriberParty: { ...PARTY, customerNumber: 'K-1', city: 42 } },
             /subscriberParty.city of invoice-1 is not text/,
+        ],
+        [
+            'a footer that is not a list',
+            { footer: 'Amtsgericht München' },
+            /footer of invoice-1 is not a list of lines/,
+        ],
+        [
+            'a footer line that is not text',
+            { footer: ['Amtsgericht München', 42] },
+            /footer of invoice-1 is not a list of lines/,
         ],
         [
             'a treatment that is not one',

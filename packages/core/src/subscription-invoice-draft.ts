@@ -66,6 +66,8 @@ export interface InvoiceDraftInput {
     subscriberId: string;
     subscriber: SubscriptionInvoiceSubscriber;
     issuer: SubscriptionInvoiceIssuer;
+    /** The footer lines `config/saas.yaml` names now (`SC-PRIC-077`). */
+    footer: readonly string[];
     /** The treatment the tax adapter decides for the subscriber now (`SC-PRIC-043`). */
     treatment: TaxTreatment;
     /** The adapter's rule for the tax of an invoice (`SC-PRIC-041`). */
@@ -111,6 +113,7 @@ export function draftSubscriptionInvoice(input: InvoiceDraftInput): NewSubscript
         currency: currencyOf(group),
         issuer: input.issuer,
         subscriber: input.subscriber,
+        footer: [...input.footer],
         taxTreatment: treatment,
         taxes: tax.rates,
         totalNet: tax.net,

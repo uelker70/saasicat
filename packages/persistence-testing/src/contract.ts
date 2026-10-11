@@ -6602,6 +6602,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     currency: 'EUR',
                     issuer: parties.issuer!,
                     subscriber: parties.subscriber,
+                    footer: [],
                     taxTreatment: treatment,
                     taxes: tax.rates,
                     totalNet: tax.net,
@@ -6903,7 +6904,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         // @requirement SC-AUD-013
         // @requirement SC-PRIC-026
-        test('an invoice reads back as it was written: its days, its cents, its parties and its treatment', async (t) => {
+        // @requirement SC-PRIC-077
+        test('an invoice reads back as it was written: its days, its cents, its parties, its footer and its treatment', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-exact');
             if (!account) return;
             const { invoices, record, invoiceOf, subscriberId, discountLineId } = account;
@@ -6926,6 +6928,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     servicePeriodFrom: '2026-12-01',
                     servicePeriodUntil: '2026-12-31',
                     numberYear: 2027,
+                    footer: [
+                        'Amtsgericht München HRB 123456 · Geschäftsführer: Erika „Muster“',
+                        'IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001',
+                    ],
                     subscriber: {
                         customerNumber: 'K-10002',
                         legalName: 'Müller & Söhne GmbH',

@@ -98,7 +98,7 @@ const amount = (value) => (typeof value === 'number' ? value.toFixed(2) : value)
 export function ciiOf(invoice = INVOICE, overrides = {}) {
     const field = (name, value) => (name in overrides ? overrides[name] : value);
     const registrations = [
-        invoice.issuer.vatId &&
+        field('sellerVatId', invoice.issuer.vatId) &&
             `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${field('sellerVatId', invoice.issuer.vatId)}</ram:ID></ram:SpecifiedTaxRegistration>`,
         invoice.issuer.taxNumber &&
             `<ram:SpecifiedTaxRegistration><ram:ID schemeID="FC">${field('sellerTaxNumber', invoice.issuer.taxNumber)}</ram:ID></ram:SpecifiedTaxRegistration>`,
@@ -125,7 +125,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
             <ram:TypeCode>VAT</ram:TypeCode>
             <ram:BasisAmount>${amount(tax.net)}</ram:BasisAmount>
             <ram:CategoryCode>S</ram:CategoryCode>
-            <ram:RateApplicablePercent>${amount(tax.rate)}</ram:RateApplicablePercent>
+            ${tax.rate === null ? '' : `<ram:RateApplicablePercent>${amount(tax.rate)}</ram:RateApplicablePercent>`}
         </ram:ApplicableTradeTax>`,
         )
         .join('');

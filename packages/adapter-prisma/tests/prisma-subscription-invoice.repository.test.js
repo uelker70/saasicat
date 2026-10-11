@@ -57,6 +57,7 @@ const INVOICE = {
     currency: 'EUR',
     issuer: { ...PARTY, legalName: 'Issuer GmbH' },
     subscriber: { ...PARTY, customerNumber: 'K-10001' },
+    footer: [],
     taxTreatment: {
         kind: 'standard',
         rate: 19,
