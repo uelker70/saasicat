@@ -5,8 +5,9 @@
 // has to say, and asks what ending at once would credit before it ends
 // anything.
 
-import { describe, test } from 'node:test';
+import { afterEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { effectScope } from 'vue';
 
 import { useTenantFeatureWithdrawals } from '../dist/index.js';
 import { scriptedHttp } from './helpers/scripted-http.js';
@@ -136,6 +137,90 @@ describe('ending at once', () => {
         const state = useTenantFeatureWithdrawals({ http: client, autoLoad: false });
 
         await assert.rejects(() => state.end('fw-1', null));
+
+        assert.equal(calls.length, 1);
+    });
+});
+
+// @requirement SC-CANC-024 — While a feature it holds is withdrawn, a subscription may end at once
+describe('reading the withdrawals again when one changes', () => {
+    // Stopped here, as in the maintenance watch: a case that fails never
+    // reaches its own stop, and a live timer would keep the run alive.
+    const scopes = [];
+    afterEach(() => {
+        for (const scope of scopes.splice(0)) scope.stop();
+        mock.timers.reset();
+    });
+    const settled = () => new Promise((resolve) => setImmediate(resolve));
+    const AHEAD = {
+        ...WITHDRAWAL,
+        inEffect: false,
+        endable: { subscription: false, subscriptionBundleIds: [] },
+    };
+
+    function reading(...answers) {
+        mock.timers.enable({
+            apis: ['setTimeout', 'Date'],
+            now: Date.parse('2026-06-30T12:00:00.000Z'),
+        });
+        const http = scriptedHttp(...answers);
+        const scope = effectScope();
+        scopes.push(scope);
+        const state = scope.run(() =>
+            useTenantFeatureWithdrawals({ http: http.client, autoLoad: false }),
+        );
+        return { state, scope, calls: http.calls };
+    }
+
+    test('reads them again once the withdrawal takes effect, and offers what opens then', async () => {
+        const { state, calls } = reading([200, [AHEAD]], [200, [WITHDRAWAL]]);
+        await state.reload();
+        assert.equal(state.withdrawals.value[0].endable.subscription, false);
+
+        mock.timers.tick(12 * 60 * 60_000 + 1_000);
+        await settled();
+
+        assert.equal(calls.length, 2);
+        assert.equal(state.withdrawals.value[0].endable.subscription, true);
+    });
+
+    test('reads them again once the withdrawal is lifted, and offers nothing more', async () => {
+        const lifting = {
+            ...WITHDRAWAL,
+            effectiveFrom: '2026-06-01T00:00:00.000Z',
+            liftedFrom: '2026-07-01T00:00:00.000Z',
+        };
+        const { state, calls } = reading([200, [lifting]], [200, []]);
+        await state.reload();
+
+        mock.timers.tick(12 * 60 * 60_000 + 1_000);
+        await settled();
+
+        assert.equal(calls.length, 2);
+        assert.deepEqual(state.withdrawals.value, []);
+    });
+
+    test('asks again soon where the server has not reached the moment yet', async () => {
+        const { state, calls } = reading([200, [AHEAD]], [200, [AHEAD]], [200, [WITHDRAWAL]]);
+        await state.reload();
+        mock.timers.tick(12 * 60 * 60_000 + 1_000);
+        await settled();
+        assert.equal(calls.length, 2, 'the moment came by the browser, not yet by the server');
+
+        mock.timers.tick(5_000);
+        await settled();
+
+        assert.equal(calls.length, 3);
+        assert.equal(state.withdrawals.value[0].inEffect, true);
+    });
+
+    test('reads nothing more once the page is gone', async () => {
+        const { state, scope, calls } = reading([200, [AHEAD]]);
+        await state.reload();
+        scope.stop();
+
+        mock.timers.tick(12 * 60 * 60_000 + 1_000);
+        await settled();
 
         assert.equal(calls.length, 1);
     });

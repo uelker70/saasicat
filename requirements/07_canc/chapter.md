@@ -581,6 +581,11 @@ _Tested by:_
         - asks what the subscription would credit, and ends it, under the prefix given
         - ends one booking by its own path
         - a refused end is thrown to the card, and nothing is read again
+    - reading the withdrawals again when one changes
+        - reads them again once the withdrawal takes effect, and offers what opens then
+        - reads them again once the withdrawal is lifted, and offers nothing more
+        - asks again soon where the server has not reached the moment yet
+        - reads nothing more once the page is gone
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
     - ending at once while a feature is withdrawn
         - names what ends and what is credited before the click, and ends it on confirmation
