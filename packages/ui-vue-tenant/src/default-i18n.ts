@@ -82,6 +82,8 @@ export interface TenantPlanSectionI18n {
     featureWithdrawnNoReduction: string;
     /** `{line}`'s reduction ended with a change of plan or rhythm the subscriber made. */
     featureWithdrawnReductionEnded: string;
+    /** `{line}` is reduced by `{amount}` per `{unit}` from `{date}`, when a scheduled change brings it. */
+    featureWithdrawnReductionFromChange: string;
     featureWithdrawnSpecialTerms: string;
     featureWithdrawnEndRight: string;
     featureWithdrawnEndSubscription: string;
@@ -476,6 +478,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     featureWithdrawnReduction: '{line}: Sie zahlen {amount} {unit} weniger, solange es fehlt.',
     featureWithdrawnNoReduction: '{line}: Der Preis bleibt unverändert.',
     featureWithdrawnReductionEnded: '{line}: Die Minderung endete mit Ihrem Wechsel.',
+    featureWithdrawnReductionFromChange:
+        '{line}: Ab Ihrem Wechsel am {date} zahlen Sie {amount} {unit} weniger, solange es fehlt.',
     featureWithdrawnSpecialTerms:
         'Sie haben dieses Feature über Sonderkonditionen. Eine Minderung vereinbart Ihr Anbieter direkt mit Ihnen.',
     featureWithdrawnEndRight:
@@ -828,6 +832,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     featureWithdrawnReduction: '{line}: you pay {amount} {unit} less for as long as it is missing.',
     featureWithdrawnNoReduction: '{line}: the price stays as it is.',
     featureWithdrawnReductionEnded: '{line}: the reduction ended with your change.',
+    featureWithdrawnReductionFromChange:
+        '{line}: from your change on {date}, you pay {amount} {unit} less for as long as it is missing.',
     featureWithdrawnSpecialTerms:
         'You hold this feature through special terms. Your provider agrees any reduction with you directly.',
     featureWithdrawnEndRight:

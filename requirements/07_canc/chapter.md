@@ -556,6 +556,9 @@ _Tested by:_
         - says what is reduced, and what may end at once
         - opens nothing before the date, and is gone once the withdrawal is lifted
         - ends the reduction with a change of plan or rhythm, and the right with the feature
+        - says when a line a scheduled change brings begins, and reduces it once it runs
+        - reduces the line held until the change, and the line it brings from then
+        - says when the scheduled move of a booking brings the version that grants the feature
         - shows nothing to a subscription it did not reach
     - ending a subscription at once
         - ends it now, records it first, ends the contract and credits the unused rest
@@ -582,6 +585,7 @@ _Tested by:_
     - ending at once while a feature is withdrawn
         - names what ends and what is credited before the click, and ends it on confirmation
         - ends one add-on by name, and says when nothing is credited
+        - keeps each plan line its own when the list is read again after an end
         - a refused question says why and offers no confirmation
     - the page of the tenant’s add-ons
         - tells of the withdrawal too, and reads the bookings again once one ended at once

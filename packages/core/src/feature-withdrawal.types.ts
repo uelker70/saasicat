@@ -322,6 +322,12 @@ export interface TenantFeatureWithdrawalLine extends FeatureWithdrawalNoticeLine
      * A change of plan or rhythm the subscriber made ends it.
      */
     readonly reduced: boolean;
+    /**
+     * Where a change scheduled before the announcement brings the line and has
+     * not landed yet: when it lands, ISO 8601, from which the reduction
+     * applies. Null otherwise.
+     */
+    readonly fromChange: string | null;
 }
 
 /** A withdrawal reaching the tenant's subscription, beside its plan and its add-ons. */

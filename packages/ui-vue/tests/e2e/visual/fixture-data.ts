@@ -1196,6 +1196,7 @@ const TENANT_WITHDRAWN = {
                     billingCycle: 'MONTHLY',
                     reductionNet: 5,
                     reduced: true,
+                    fromChange: null,
                 },
                 {
                     line: 'bundle',
@@ -1205,6 +1206,7 @@ const TENANT_WITHDRAWN = {
                     billingCycle: 'MONTHLY',
                     reductionNet: null,
                     reduced: true,
+                    fromChange: null,
                 },
             ],
             specialTerms: false,

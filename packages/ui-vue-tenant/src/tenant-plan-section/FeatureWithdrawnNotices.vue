@@ -20,7 +20,7 @@
                     }}
                 </p>
                 <ul v-if="withdrawal.lines.length > 0" class="sp-feature-withdrawn__lines">
-                    <li v-for="line in withdrawal.lines" :key="line.subscriptionBundleId ?? 'plan'">
+                    <li v-for="line in withdrawal.lines" :key="lineKeyOf(line)">
                         {{ lineText(line) }}
                     </li>
                 </ul>
@@ -161,15 +161,26 @@ function lineText(line: TenantFeatureWithdrawalLine): string {
     if (line.reductionNet === null) {
         return messageText(i18n.value.featureWithdrawnNoReduction, { line: name });
     }
-    if (!line.reduced) {
-        return messageText(i18n.value.featureWithdrawnReductionEnded, { line: name });
-    }
-    return messageText(i18n.value.featureWithdrawnReduction, {
+    const reduction = {
         line: name,
         amount: props.formatCurrency(line.reductionNet),
         unit: yearly ? i18n.value.wizardPriceUnitYearly : i18n.value.wizardPriceUnitMonthly,
-    });
+    };
+    if (line.fromChange) {
+        return messageText(i18n.value.featureWithdrawnReductionFromChange, {
+            ...reduction,
+            date: props.formatDate(line.fromChange),
+        });
+    }
+    if (!line.reduced) {
+        return messageText(i18n.value.featureWithdrawnReductionEnded, { line: name });
+    }
+    return messageText(i18n.value.featureWithdrawnReduction, reduction);
 }
+
+/** A booking by its id; the plan by plan and rhythm, since a scheduled change can bring a second. */
+const lineKeyOf = (line: TenantFeatureWithdrawalLine): string =>
+    line.subscriptionBundleId ?? `plan:${line.key}:${line.billingCycle}`;
 
 const isEndable = (withdrawal: TenantFeatureWithdrawal): boolean =>
     withdrawal.endable.subscription || withdrawal.endable.subscriptionBundleIds.length > 0;

@@ -49,6 +49,7 @@ import { FeatureWithdrawalService } from './feature-withdrawal.service.js';
 import { freezeContractAfter } from './freeze-contract-after.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
+import { rhythmTheChangeLandsIn } from './scheduled-change.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     FEATURE_WITHDRAWAL_REPOSITORY_TOKEN,
@@ -450,16 +451,31 @@ function viewOf(
                 subscription.plan === line.key &&
                 subscription.billingCycle === line.billingCycle &&
                 situation.subscriptionGrants(withdrawal.featureKey);
-            return { ...line, reduced };
+            // A line the scheduled change brings: not ended, not begun.
+            const scheduled =
+                !reduced &&
+                running &&
+                subscription.pendingPlan === line.key &&
+                rhythmTheChangeLandsIn(subscription) === line.billingCycle;
+            return {
+                ...line,
+                reduced,
+                fromChange: ahead(scheduled, subscription.pendingEffectiveAt, now),
+            };
         }
         const booking = situation.bookings.find((one) => one.id === line.subscriptionBundleId);
+        const runs = running && booking !== undefined && !bookingEnded(booking, now);
         const reduced =
-            running &&
-            booking !== undefined &&
-            !bookingEnded(booking, now) &&
+            runs &&
             (booking.billingCycle ?? subscription.billingCycle) === line.billingCycle &&
             situation.bookingGrants(booking, withdrawal.featureKey);
-        return { ...line, reduced };
+        // Reached through the version a scheduled move brings it to.
+        const moving = !reduced && runs && booking.pendingBundleVersionId !== null;
+        return {
+            ...line,
+            reduced,
+            fromChange: ahead(moving, booking?.pendingVersionEffectiveAt ?? null, now),
+        };
     });
     const endableBookings = notice.lines.flatMap((line) => {
         const booking = situation.bookings.find((one) => one.id === line.subscriptionBundleId);
@@ -487,6 +503,11 @@ function viewOf(
             subscriptionBundleIds: endableBookings,
         },
     };
+}
+
+/** `at` as ISO 8601 where `applies` and it lies ahead of `now`; null otherwise. */
+function ahead(applies: boolean, at: Date | null, now: Date): string | null {
+    return applies && at !== null && at > now ? at.toISOString() : null;
 }
 
 /**

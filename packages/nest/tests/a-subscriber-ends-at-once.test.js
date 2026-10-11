@@ -78,6 +78,8 @@ function booking(fields = {}) {
         currentPeriodEnd: new Date('2026-07-01T00:00:00.000Z'),
         canceledAt: null,
         canceledEffectiveAt: null,
+        pendingBundleVersionId: null,
+        pendingVersionEffectiveAt: null,
         ...fields,
     };
 }
@@ -227,8 +229,8 @@ describe('what the tenant sees of a withdrawal', () => {
                 liftedFrom: null,
                 inEffect: true,
                 lines: [
-                    { ...told().lines[0], reduced: true },
-                    { ...told().lines[1], reduced: true },
+                    { ...told().lines[0], reduced: true, fromChange: null },
+                    { ...told().lines[1], reduced: true, fromChange: null },
                 ],
                 specialTerms: false,
                 endable: { subscription: true, subscriptionBundleIds: ['sb-t1'] },
@@ -257,6 +259,75 @@ describe('what the tenant sees of a withdrawal', () => {
         const without = await ending({ planGrants: [] });
         const [other] = await without.service.withdrawalsOf('t1', NOW);
         assert.equal(other.endable.subscription, false, 'a plan without it has nothing missing');
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('says when a line a scheduled change brings begins, and reduces it once it runs', async () => {
+        const JULY = new Date('2026-07-01T00:00:00.000Z');
+        const yearly = { ...told().lines[0], billingCycle: 'YEARLY', reductionNet: 40 };
+        // On Basic, without the feature, and moving to Pro yearly on 1 July.
+        const before = await ending({
+            subscription: {
+                plan: 'BASIC',
+                pendingPlan: 'PRO',
+                pendingBillingCycle: 'YEARLY',
+                pendingEffectiveAt: JULY,
+            },
+            notice: told({ lines: [yearly] }),
+            bookings: [],
+            planGrants: [],
+        });
+        const [ahead] = await before.service.withdrawalsOf('t1', NOW);
+        assert.deepEqual(ahead.lines, [
+            { ...yearly, reduced: false, fromChange: JULY.toISOString() },
+        ]);
+
+        const after = await ending({
+            subscription: { billingCycle: 'YEARLY' },
+            notice: told({ lines: [yearly] }),
+            bookings: [],
+        });
+        const [running] = await after.service.withdrawalsOf('t1', later(30 * 86_400_000));
+        assert.deepEqual(running.lines, [{ ...yearly, reduced: true, fromChange: null }]);
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('reduces the line held until the change, and the line it brings from then', async () => {
+        const JULY = new Date('2026-07-01T00:00:00.000Z');
+        const [monthly] = told().lines;
+        const yearly = { ...monthly, billingCycle: 'YEARLY', reductionNet: 40 };
+        const { service } = await ending({
+            subscription: {
+                pendingPlan: 'PRO',
+                pendingBillingCycle: 'YEARLY',
+                pendingEffectiveAt: JULY,
+            },
+            notice: told({ lines: [monthly, yearly] }),
+            bookings: [],
+        });
+        const [view] = await service.withdrawalsOf('t1', NOW);
+        assert.deepEqual(view.lines, [
+            { ...monthly, reduced: true, fromChange: null },
+            { ...yearly, reduced: false, fromChange: JULY.toISOString() },
+        ]);
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('says when the scheduled move of a booking brings the version that grants the feature', async () => {
+        const JULY = new Date('2026-07-01T00:00:00.000Z');
+        const { service } = await ending({
+            bookings: [
+                booking({ pendingBundleVersionId: 'bv-export-2', pendingVersionEffectiveAt: JULY }),
+            ],
+            versionGrants: { 'bv-export-1': [], 'bv-export-2': ['EXPORT'] },
+        });
+        const [view] = await service.withdrawalsOf('t1', NOW);
+        assert.deepEqual(view.lines[1], {
+            ...told().lines[1],
+            reduced: false,
+            fromChange: JULY.toISOString(),
+        });
+        assert.deepEqual(view.endable.subscriptionBundleIds, [], 'nothing missing yet to end');
     });
 
     test('shows nothing to a subscription it did not reach', async () => {

@@ -1567,6 +1567,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
     - a withdrawn feature, beside the plan
         - says why, from when, and what each line is reduced by
+        - says from when a line a scheduled change brings is reduced, beside the line held
         - is not shown where the installation does not withdraw features
         - says it could not read them where the route answers something else, and keeps the page
         - is not shown where nothing is withdrawn
@@ -1595,6 +1596,11 @@ _Tested by:_
     - the reductions of a withdrawal
         - reduce the line a change scheduled before the announcement brings, once its contract is
           written
+- `packages/nest/tests/a-subscriber-ends-at-once.test.js`
+    - what the tenant sees of a withdrawal
+        - says when a line a scheduled change brings begins, and reduces it once it runs
+        - reduces the line held until the change, and the line it brings from then
+        - says when the scheduled move of a booking brings the version that grants the feature
 - `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
     - the preview of a withdrawal, where a change is scheduled
         - reaches a subscription the change brings onto a version that grants the feature, with that
@@ -1603,6 +1609,11 @@ _Tested by:_
         - still tells a subscription the change takes away from the feature, with the line it holds
         - takes the newest version of another plan where the change names none
         - reaches a booking the move brings onto an add-on version that grants the feature
+- `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
+    - a withdrawn feature, beside the plan
+        - says from when a line a scheduled change brings is reduced, beside the line held
+    - ending at once while a feature is withdrawn
+        - keeps each plan line its own when the list is read again after an end
 
 <!-- END proof -->
 

@@ -5,7 +5,7 @@
 // Wherever the section names the feature as part of what a plan includes, it
 // marks it as not available for the time being rather than as not included.
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
 import type { HttpClient } from '@saasicat/ui-vue';
@@ -36,6 +36,7 @@ const WITHDRAWAL = {
             billingCycle: 'MONTHLY',
             reductionNet: 5,
             reduced: true,
+            fromChange: null,
         },
         {
             line: 'bundle',
@@ -45,6 +46,7 @@ const WITHDRAWAL = {
             billingCycle: 'YEARLY',
             reductionNet: null,
             reduced: true,
+            fromChange: null,
         },
     ],
     specialTerms: false,
@@ -167,6 +169,10 @@ async function aSection(server: Server) {
 }
 
 const card = () => document.body.querySelector<HTMLElement>('.sp-feature-withdrawn');
+const linesShown = () =>
+    [...document.body.querySelectorAll('.sp-feature-withdrawn__lines li')].map((item) =>
+        (item.textContent ?? '').trim(),
+    );
 const dialogText = () => document.body.querySelector('.sp-dialog__panel')?.textContent ?? '';
 const buttonNamed = (wrapper: VueWrapper, label: string) =>
     wrapper.findAll('button').find((button) => button.text() === label);
@@ -188,6 +194,24 @@ describe('a withdrawn feature, beside the plan', () => {
         );
         expect(text).toContain('Export plus (Jährlich): Der Preis bleibt unverändert.');
         expect(text).toContain(i18n.featureWithdrawnEndRight);
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('says from when a line a scheduled change brings is reduced, beside the line held', async () => {
+        const [monthly] = WITHDRAWAL.lines;
+        const yearly = {
+            ...monthly,
+            billingCycle: 'YEARLY',
+            reductionNet: 40,
+            reduced: false,
+            fromChange: '2026-08-01T00:00:00.000Z',
+        };
+        await aSection(aServer({ withdrawals: [{ ...WITHDRAWAL, lines: [monthly, yearly] }] }));
+
+        expect(linesShown()).toEqual([
+            'Standard (Monatlich): Sie zahlen € 5.00 netto/Monat weniger, solange es fehlt.',
+            'Standard (Jährlich): Ab Ihrem Wechsel am 2026-08-01 zahlen Sie € 40.00 netto/Jahr weniger, solange es fehlt.',
+        ]);
     });
 
     test('is not shown where the installation does not withdraw features', async () => {
@@ -301,6 +325,31 @@ describe('ending at once while a feature is withdrawn', () => {
             'POST /billing/feature-withdrawals/fw-1/bookings/sb-1/end',
         );
         expect(document.body.textContent).toContain('Export plus ist beendet.');
+    });
+
+    // @requirement SC-SUB-043 — A withdrawal reaches the line a change scheduled before it brings a subscription to
+    test('keeps each plan line its own when the list is read again after an end', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const [monthly, addOn] = WITHDRAWAL.lines;
+        const yearly = { ...monthly, billingCycle: 'YEARLY', reductionNet: 40, reduced: false };
+        const withdrawal = { ...WITHDRAWAL, lines: [monthly, yearly, addOn] };
+        const wrapper = await aSection(aServer({ withdrawals: [withdrawal] }));
+        // Read again after the add-on ends, the lines come the other way round:
+        // telling the two plan lines apart is what lets each keep its own place.
+        withdrawal.lines = [{ ...addOn, reduced: false }, yearly, monthly];
+
+        await buttonNamed(wrapper, 'Export plus sofort beenden')!.trigger('click');
+        await flushPromises();
+        dialogButtonNamed(i18n.endAtOnceConfirm)!.click();
+        await flushPromises();
+
+        expect(linesShown()).toEqual([
+            'Export plus (Jährlich): Der Preis bleibt unverändert.',
+            'Standard (Jährlich): Die Minderung endete mit Ihrem Wechsel.',
+            'Standard (Monatlich): Sie zahlen € 5.00 netto/Monat weniger, solange es fehlt.',
+        ]);
+        expect(warn.mock.calls.flat().join(' ')).not.toContain('Duplicate keys');
+        warn.mockRestore();
     });
 
     test('a refused question says why and offers no confirmation', async () => {
