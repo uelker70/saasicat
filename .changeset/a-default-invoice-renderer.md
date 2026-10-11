@@ -46,7 +46,10 @@ twice as missing. A name the invoice records with such a character is compared
 as the XML has to write it, with `?` in its place.
 
 `@saasicat/core` exports what the renderer, the adapter and the API read alike:
-`vatCategoryOf(kind)`, and `holdsOnlyXmlCharacters` and `withXmlCharactersOnly`
-for the characters XML 1.0 can hold. `@saasicat/nest` refuses a subscriber's
-detail that holds one it cannot, such as a control character pasted with a name,
-with `SUBSCRIBER_DETAIL_INVALID` naming the field.
+`vatCategoryOf(kind)`; `holdsOnlyXmlCharacters`, for the characters XML 1.0 can
+hold; and `asXmlReadsIt`, a text as an e-invoice's XML states it and any parser
+reads it back, with `?` for a character XML cannot hold and a carriage return as
+a line feed. `@saasicat/nest` refuses a subscriber's detail that holds a
+character XML cannot hold, such as a control character pasted with a name, or a
+tab or a line break inside it, with `SUBSCRIBER_DETAIL_INVALID` naming the
+field; one at either end is trimmed as before.

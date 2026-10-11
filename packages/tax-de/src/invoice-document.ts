@@ -21,7 +21,7 @@ import {
     PDFHexString,
     decodePDFRawStream,
 } from 'pdf-lib';
-import { holdsOnlyXmlCharacters, vatCategoryOf, withXmlCharactersOnly } from '@saasicat/core';
+import { asXmlReadsIt, holdsOnlyXmlCharacters, vatCategoryOf } from '@saasicat/core';
 import type { InvoiceDocument, SubscriptionInvoiceRecord } from '@saasicat/core';
 
 /** The name the Factur-X standard gives the embedded XML. */
@@ -225,11 +225,12 @@ function keyOf(...values: (string | number | null)[]): string {
 }
 
 /**
- * A text the invoice records as its XML has to state it: with `?` for a
- * character XML cannot hold, as SC-PRIC-078 has every renderer write it.
+ * A text the invoice records as its XML states it and any parser reads it
+ * back: with `?` for a character XML cannot hold, as SC-PRIC-078 has every
+ * renderer write it, and a carriage return as a line feed.
  */
 function written<T extends string | null>(text: T): T {
-    return (text === null ? null : withXmlCharactersOnly(text)) as T;
+    return (text === null ? null : asXmlReadsIt(text)) as T;
 }
 
 /** The tax the XML states per rate, with its category, against the invoice's, rate by rate. */

@@ -35,10 +35,16 @@ export function holdsOnlyXmlCharacters(text: string): boolean {
     return text.search(NOT_XML) === -1;
 }
 
+/** A carriage return, alone or before a line feed. One optional character after a fixed one. */
+const CARRIAGE_RETURN = /\r\n?/g;
+
 /**
- * `text` as an e-invoice writes it: a character XML cannot hold becomes `?`,
- * as the page shows a character its font has no glyph for (`SC-PRIC-078`).
+ * `text` as an e-invoice's XML states it, which is what every XML parser reads
+ * back from it: a character XML cannot hold becomes `?`, as the page shows a
+ * character its font has no glyph for (`SC-PRIC-078`), and a carriage return
+ * is the line feed XML 1.0 hands over in its place (§ 2.11). The renderer
+ * writes this, and the adapter's check compares the record through it.
  */
-export function withXmlCharactersOnly(text: string): string {
-    return text.replace(NOT_XML, '?');
+export function asXmlReadsIt(text: string): string {
+    return text.replace(NOT_XML, '?').replace(CARRIAGE_RETURN, '\n');
 }

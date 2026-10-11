@@ -13,7 +13,7 @@ import {
     TAX_TREATMENT_KINDS,
     holdsOnlyXmlCharacters,
     vatCategoryOf,
-    withXmlCharactersOnly,
+    asXmlReadsIt,
 } from '../dist/index.js';
 
 describe('the VAT category of a treatment', () => {
@@ -36,7 +36,6 @@ describe('a character in an e-invoice', () => {
     for (const [what, character] of [
         ['a tab', '\t'],
         ['a line feed', '\n'],
-        ['a carriage return', '\r'],
         ['a space, where the printable range begins', ' '],
         ['the last before the surrogates', '\uD7FF'],
         ['the first after them', '\uE000'],
@@ -46,7 +45,7 @@ describe('a character in an e-invoice', () => {
     ]) {
         test(`stands as it is: ${what}`, () => {
             assert.equal(holdsOnlyXmlCharacters(`a${character}b`), true);
-            assert.equal(withXmlCharactersOnly(`a${character}b`), `a${character}b`);
+            assert.equal(asXmlReadsIt(`a${character}b`), `a${character}b`);
         });
     }
 
@@ -64,16 +63,28 @@ describe('a character in an e-invoice', () => {
     ]) {
         test(`cannot stand, and is written as ?: ${what}`, () => {
             assert.equal(holdsOnlyXmlCharacters(`a${character}b`), false);
-            assert.equal(withXmlCharactersOnly(`a${character}b`), 'a?b');
+            assert.equal(asXmlReadsIt(`a${character}b`), 'a?b');
         });
     }
+
+    test('a carriage return, alone or before a line feed, is the line feed any XML parser reads', () => {
+        assert.equal(holdsOnlyXmlCharacters('a\rb'), true);
+        for (const [text, read] of [
+            ['a\rb', 'a\nb'],
+            ['a\r\nb', 'a\nb'],
+            ['a\n\rb', 'a\n\nb'],
+            ['a\r\r\nb', 'a\n\nb'],
+        ]) {
+            assert.equal(asXmlReadsIt(text), read, JSON.stringify(text));
+        }
+    });
 
     test('is judged the same however often it is asked, each one replaced', () => {
         const pasted = 'Acme\u000BGmbH\u000C';
 
         assert.equal(holdsOnlyXmlCharacters(pasted), false);
         assert.equal(holdsOnlyXmlCharacters(pasted), false);
-        assert.equal(withXmlCharactersOnly(pasted), 'Acme?GmbH?');
-        assert.equal(withXmlCharactersOnly(pasted), 'Acme?GmbH?');
+        assert.equal(asXmlReadsIt(pasted), 'Acme?GmbH?');
+        assert.equal(asXmlReadsIt(pasted), 'Acme?GmbH?');
     });
 });

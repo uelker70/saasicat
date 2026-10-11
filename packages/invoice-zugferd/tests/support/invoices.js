@@ -168,6 +168,8 @@ export const SAMPLES = [
     }),
     invoice('unusual-characters', {
         treatment: { kind: 'standard', rate: 19, note: null },
+        // A line break in the issuer's name, which XML reads back as a line feed.
+        issuer: { ...ISSUER, legalName: 'AutohausPro Software\r\nGmbH' },
         subscriber: {
             ...SUBSCRIBER,
             // A vertical tab and a form feed, pasted with the name and the

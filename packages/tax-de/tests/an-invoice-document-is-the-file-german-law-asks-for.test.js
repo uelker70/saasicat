@@ -224,6 +224,21 @@ describe('the embedded XML', () => {
         );
     });
 
+    test('naming a party whose recorded name holds a carriage return passes as the line feed every parser reads', async () => {
+        const named = {
+            ...INVOICE,
+            subscriber: { ...INVOICE.subscriber, legalName: 'Autohaus\r\nMüller GmbH' },
+        };
+
+        for (const buyerName of ['Autohaus\r\nMüller GmbH', 'Autohaus\nMüller GmbH']) {
+            assert.deepEqual(
+                await gapsOf({ xml: ciiOf(named, { buyerName }) }, named),
+                [],
+                JSON.stringify(buyerName),
+            );
+        }
+    });
+
     test('stating what the format gives once twice, once as the invoice records it, is refused', async () => {
         const xml = ciiOf(INVOICE);
         const twice = (once, again) => xml.replace(once, `${once}${again}`);

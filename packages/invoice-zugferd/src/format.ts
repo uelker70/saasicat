@@ -3,7 +3,7 @@
 // is written the same by every build (`SC-AUD-019`). The country names on the
 // page are the one thing taken from that data (`layout.ts`).
 
-import { withXmlCharactersOnly } from '@saasicat/core';
+import { asXmlReadsIt } from '@saasicat/core';
 import type { CalendarDay } from '@saasicat/core';
 
 /** An amount in whole cents: the unit every figure is compared and written in. */
@@ -58,12 +58,13 @@ export function pageDay(day: CalendarDay): string {
 }
 
 /**
- * Text as it may stand in XML content or an attribute. A character XML cannot
- * hold — a form feed pasted into an address — becomes `?`, as the page shows
- * it; the file would otherwise not be XML at all.
+ * Text as it may stand in XML content or an attribute, and as any parser reads
+ * it back. A character XML cannot hold — a form feed pasted into an address —
+ * becomes `?`, as the page shows it; the file would otherwise not be XML at
+ * all.
  */
 export function xmlText(text: string): string {
-    return withXmlCharactersOnly(text)
+    return asXmlReadsIt(text)
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')

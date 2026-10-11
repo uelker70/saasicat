@@ -44,7 +44,8 @@ An A4 letter laid out after DIN 5008:
 A name or an address line wider than its column goes on in the next line, and
 what follows moves down with it. A character the font has no glyph for is shown
 as `?`; the XML keeps it as it was written, unless XML cannot hold it at all, as
-a control character pasted into an address, which is `?` there too.
+a control character pasted into an address, which is `?` there too. A carriage
+return is written as the line feed every XML parser reads it as.
 
 ### What the XML says
 

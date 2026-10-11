@@ -1596,6 +1596,8 @@ _Tested by:_
         - ${what} is refused
         - naming a party whose recorded name holds a character XML cannot hold passes with ? in its
           place, and not otherwise
+        - naming a party whose recorded name holds a carriage return passes as the line feed every
+          parser reads
         - stating what the format gives once twice, once as the invoice records it, is refused
         - stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so
         - stating a total as nothing, or as no number, is refused
@@ -1629,7 +1631,8 @@ so an installation invoices without writing one: a PDF/A-3 with embedded fonts t
 labelled in German with English beside it, carrying the CII XML a program reads (`SC-PRIC-042`). Its
 fonts set Latin, Greek and Cyrillic script; a character they have no glyph for is shown on the page
 as `?` and kept in the XML as written, unless XML cannot hold it at all, as a control character,
-which is `?` there too. An application whose subscribers write in another script
+which is `?` there too, and a carriage return is written as the line feed every XML parser reads
+it as. An application whose subscribers write in another script
 passes a font of its own, or uses a renderer of its own instead. The shipped renderer's
 output is checked in CI by validators independent of SaaSiCat — PDF/A by veraPDF, the XML against
 the EN 16931 and Factur-X schematron — for each treatment the German adapter decides, so a change
@@ -1647,6 +1650,7 @@ _Tested by:_
     - a character in an e-invoice
         - stands as it is: ${what}
         - cannot stand, and is written as ?: ${what}
+        - a carriage return, alone or before a line feed, is the line feed any XML parser reads
         - is judged the same however often it is asked, each one replaced
 - `packages/invoice-zugferd/tests/every-glyph-on-the-page-is-drawn.test.js`
     - a rendered page
