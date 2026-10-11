@@ -1880,8 +1880,9 @@ release. To adopt it ([wire the backend](wire-the-backend.md#invoices)):
 4. Configure `tenantBilling.chargeJournal.invoices` with
    `persistence.entitlement.subscriptionInvoiceRepository` from either shipped adapter. The start
    refuses the wiring without the block and, where tenant billing is configured, the block without
-   the wiring; either without a tax adapter or an issuer; and a prefix other than the one the issued
-   invoices carry.
+   the wiring; either without a tax adapter, an issuer or the record of the applied settings
+   (`AppliedSettings` and `SettingsChange`, which hold the issuer to one legal entity); and a prefix
+   other than the one the issued invoices carry.
 5. The platform issues every quarter of an hour, which needs `ScheduleModule`; with
    `includeCron: false` your own scheduler calls `SubscriptionInvoiceService.issueDue(now)`.
 6. The run works across tenants inside `RlsBypassPort`: where the invoice tables, the journal, the

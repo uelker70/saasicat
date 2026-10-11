@@ -38,8 +38,10 @@ To adopt it, see "An invoice is issued from the charge journal" in
 `config/saas.yaml` with `numberPrefix` and `paymentTermDays`, and
 `tenantBilling.chargeJournal.invoices`. The start refuses the wiring without the
 block and, where tenant billing is configured, the block without the wiring;
-either without a tax adapter or an issuer; and a prefix other than the one the
-issued invoices carry.
+either without a tax adapter, an issuer or the record of the applied settings,
+which holds the issuer to one legal entity; and a prefix other than the one the
+issued invoices carry. `SaaSiCatModule` now registers `SettingsModule`
+globally, as it does `AdminModule`, so tenant billing reaches the record.
 
 Breaking for a tax adapter of your own: `TaxAdapter` gains `invoiceTax` and
 `invoiceContentGaps`, which `@saasicat/tax-de` implements. A persistence

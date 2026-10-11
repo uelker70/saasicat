@@ -184,6 +184,11 @@ export function composeBaseModules(
             controller: { guards: operatorGuards(options) },
             includeController: options.includeSettingsController,
             imports: options.imports,
+            // Global like AdminModule above: the invoice run in tenant billing
+            // follows the issuer's declared corrections through the record
+            // (`SC-PRIC-026`) and refuses to start without it, and tenant
+            // billing does not import this module.
+            global: true,
         }),
     ];
 }

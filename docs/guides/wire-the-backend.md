@@ -980,8 +980,11 @@ real customers only from the release that brings the cancellation invoice** (`1.
 issued invoice is never edited (`SC-PRIC-025`), so until then a wrong one cannot be corrected. This
 release issues the invoice as a record; its document, the archive and the mail follow.
 
-It needs the charge journal above, a tax adapter, and the issuer in `config/saas.yaml`. Adopt
-`prisma-fragments/20-subscription-invoice.prisma`, run
+It needs the charge journal above, a tax adapter, the issuer in `config/saas.yaml`, and the record
+of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only against the record
+does a start refuse another legal entity named as the issuer, which would otherwise number on in
+the range of the one before, and the record keeps the corrections of the issuer an invoice
+follows. Adopt `prisma-fragments/20-subscription-invoice.prisma`, run
 `sql/1.0-an-invoice-is-issued.postgres.sql` once, name the range and the payment term, and wire the
 repository beside the journal:
 
@@ -1005,8 +1008,9 @@ tenantBilling: {
 ```
 
 The start refuses the wiring without the `invoicing` block, the block without the wiring where tenant
-billing is configured, either without a tax adapter or an issuer, and a `numberPrefix` other than
-the one the invoices already issued carry (`SC-PRIC-024`). The prefix is letters and digits; the
+billing is configured, either without a tax adapter, an issuer or the record of the applied
+settings, and a `numberPrefix` other than the one the invoices already issued carry
+(`SC-PRIC-024`). The prefix is letters and digits; the
 number puts the year and the sequence behind it, each after a hyphen.
 
 `SubscriptionInvoiceService.issueDue(now)` issues what is owed, and the platform runs it every

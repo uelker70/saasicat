@@ -9954,6 +9954,10 @@ _Tested by:_
           new year’s first
         - fall due the payment term the file names after the issue date
         - carry the prefix the file names
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the range of one issuer
+        - needs the record of the applied settings, without which another legal entity could take it
+          over
 
 <!-- END proof -->
 

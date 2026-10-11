@@ -1,8 +1,8 @@
 // Where an installation issues invoices: only where the application wires them
 // and `config/saas.yaml` names the range and the payment term, beside a tax
-// adapter and an issuer — and never under a prefix other than the one the
-// invoices already issued carry. Each mismatch refuses the start, so it is met
-// at a deploy rather than at the first invoice.
+// adapter, an issuer and the record of the applied settings — and never under a
+// prefix other than the one the invoices already issued carry. Each mismatch
+// refuses the start, so it is met at a deploy rather than at the first invoice.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,6 +12,7 @@ import { Test } from '@nestjs/testing';
 import { AdminManifestService } from '../dist/admin/index.js';
 import { SubscriptionInvoiceCron, SubscriptionInvoiceService } from '../dist/billing/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
+import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 import { ISSUER, invoicingAdapter } from './helpers/invoice-run.js';
 import { bootable, everythingOnOptions } from './helpers/operator-routes.js';
 
@@ -23,14 +24,16 @@ const invoicesUnder = (...prefixes) => ({
 });
 
 /**
- * The full installation, with a tax adapter and an issuer, its file naming
- * `invoicing` and its tenant billing wiring `invoices` unless told otherwise.
+ * The full installation, with a tax adapter, an issuer and the record of the
+ * applied settings, its file naming `invoicing` and its tenant billing wiring
+ * `invoices` unless told otherwise.
  */
 function installation({
     invoicing = INVOICING,
     invoices = { invoiceRepository: invoicesUnder(), includeCron: false },
     tax = true,
     issuer = ISSUER,
+    record = true,
 } = {}) {
     const options = everythingOnOptions();
     const { vatRate: _, ...file } = options.planCatalog;
@@ -60,6 +63,8 @@ function installation({
     // The bypass frame as an adapter without row-level security binds it: it
     // calls through, because the start reads the issued invoices through it.
     composed.persistence.core.rlsBypass = { runWithBypass: (fn) => fn() };
+    // A record that has kept nothing yet: the first start that names an issuer.
+    if (record) composed.persistence.core.appliedSettings = new FakeAppliedSettingsPort();
     return composed;
 }
 
@@ -136,6 +141,18 @@ describe('invoices start', () => {
 
         assert.throws(() => moduleRef.get(SubscriptionInvoiceService, { strict: false }));
         await moduleRef.close();
+    });
+});
+
+// @requirement SC-PRIC-072 — Invoice numbers run without gaps in one range per issuer, restarting each year
+describe('the range of one issuer', () => {
+    test('needs the record of the applied settings, without which another legal entity could take it over', async () => {
+        // Only against the record does a start refuse an undeclared change of
+        // the issuer's legal entity; without it, the next entity named in the
+        // file would number on in this range.
+        const message = await refusal(installation({ record: false }));
+
+        assert.match(message, /invoices need the record of the applied settings/);
     });
 });
 

@@ -69,7 +69,7 @@ const WIRING = new Map([
     ],
     [
         'billing/invoices/subscription-invoice.service.ts',
-        'reads the recorded corrections of the issuer identity to name the corrected issuer on an invoice',
+        'reads the recorded corrections of the issuer identity to name the corrected issuer on an invoice, and refuses to issue any without the record',
     ],
 ]);
 

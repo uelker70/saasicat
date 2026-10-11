@@ -22,7 +22,14 @@
 // Platform-wide, so inside `RlsBypassPort`. Several instances may run it at
 // once: a charge another one invoiced first is passed over.
 
-import { HttpException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+    HttpException,
+    Inject,
+    Injectable,
+    Logger,
+    type OnModuleInit,
+    Optional,
+} from '@nestjs/common';
 import {
     INVOICE_ERROR_CODES,
     draftSubscriptionInvoice,
@@ -83,7 +90,7 @@ class Held extends Error {
 }
 
 @Injectable()
-export class SubscriptionInvoiceService {
+export class SubscriptionInvoiceService implements OnModuleInit {
     private readonly logger = new Logger(SubscriptionInvoiceService.name);
     /**
      * The holds already written to the audit log by this process, so a group
@@ -103,9 +110,8 @@ export class SubscriptionInvoiceService {
         private readonly taxes: TaxTreatments,
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
         private readonly settings: PlanCatalogSettings,
-        // Optional — without the settings record no declared correction of the
-        // issuer can be followed, and a contract whose copy names the issuer
-        // otherwise than the file does is invoiced under its copy.
+        // Required to start, and optional here only so that the start can say
+        // why rather than fail on a missing provider: see `onModuleInit`.
         @Optional()
         @Inject(APPLIED_SETTINGS_PORT_TOKEN)
         private readonly appliedSettings: AppliedSettingsPort | null = null,
@@ -117,6 +123,24 @@ export class SubscriptionInvoiceService {
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
     ) {}
+
+    /**
+     * Refuses to start without the record of the applied settings. The range
+     * belongs to one issuer (`SC-PRIC-072`), and only against the record does a
+     * start refuse a change of the issuer's legal identity nobody declared a
+     * correction of: without it, another legal entity named in
+     * `config/saas.yaml` would number on in the range of the one before. The
+     * record also keeps the corrections an invoice follows (`SC-PRIC-026`).
+     */
+    onModuleInit(): void {
+        if (this.appliedSettings) return;
+        throw new Error(
+            'Invoices cannot start:\n- invoices need the record of the applied settings, which holds ' +
+                'the issuer to one legal entity and keeps its declared corrections: adopt ' +
+                '`AppliedSettings` and `SettingsChange` (12-applied-settings.prisma), which the ' +
+                'persistence bundle then binds, or bind your own in `adapters.appliedSettings`.',
+        );
+    }
 
     /** Issues every invoice the charge journal is owed at `now`. */
     async issueDue(now: Date): Promise<SubscriptionInvoiceRun> {
