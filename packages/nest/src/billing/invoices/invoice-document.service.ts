@@ -237,6 +237,14 @@ export class InvoiceDocumentService implements OnModuleInit {
         const invoice = await this.invoices.findById(invoiceId);
         if (!invoice) return this.failed(invoiceId, new Error('the invoice was not found'));
         try {
+            // An attempt interrupted after the archive took the file: the file
+            // kept is the recorded one, so it is confirmed rather than rendered
+            // again by a renderer that may have changed since.
+            const recorded = await this.invoices.findDocument(invoiceId);
+            if (recorded && (await this.matching(invoiceId, recorded.checksum))) {
+                await this.invoices.markArchived(invoiceId, now);
+                return 'archived';
+            }
             const document = await withTimeout(() => this.renderer.render(invoice), this.timeoutMs);
             const missing = await this.taxes.invoiceDocumentGaps(document, invoice);
             if (missing.length > 0) {
@@ -309,7 +317,7 @@ export class InvoiceDocumentService implements OnModuleInit {
             if (error instanceof TimeoutError) {
                 this.settleLate(sending, invoice, claimedAt, to);
             } else {
-                await this.deliveryFailed(invoice, claimedAt, error);
+                await this.deliveryFailed(invoice, claimedAt, to, error);
             }
             return 'failed';
         }
@@ -336,19 +344,21 @@ export class InvoiceDocumentService implements OnModuleInit {
         );
         void sending.then(
             () => this.recordDelivered(invoice, claimedAt, to),
-            (error: unknown) => this.deliveryFailed(invoice, claimedAt, error),
+            (error: unknown) => this.deliveryFailed(invoice, claimedAt, to, error),
         );
     }
 
     /**
      * Shows the operator a mail that was not sent, and lets the claim go for
-     * the next run. The address stays on the subscriber's record; the entry
-     * says why. A claim that cannot be let go is not lost — it goes stale and
-     * is taken on then — so that failure is logged, not thrown.
+     * the next run. The address stays on the subscriber's record, and is taken
+     * out of the reason the mail gave, which a mail server often words with
+     * the recipient in it. A claim that cannot be let go is not lost — it goes
+     * stale and is taken on then — so that failure is logged, not thrown.
      */
     private async deliveryFailed(
         invoice: SubscriptionInvoiceRecord,
         claimedAt: Date,
+        to: string,
         error: unknown,
     ): Promise<void> {
         this.logger.error(
@@ -356,7 +366,7 @@ export class InvoiceDocumentService implements OnModuleInit {
             error instanceof Error ? error.stack : String(error),
         );
         await this.recordHold(invoice, 'SUBSCRIPTION_INVOICE_DELIVERY_FAILED', {
-            params: { reason: error instanceof Error ? error.message : String(error) },
+            params: { reason: withoutAddress(errorMessageOf(error), to) },
         });
         try {
             await this.invoices.releaseDelivery(invoice.id, claimedAt);
@@ -469,6 +479,24 @@ export class InvoiceDocumentService implements OnModuleInit {
             }
         });
     }
+}
+
+function errorMessageOf(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+/** `message` with every occurrence of `address` in it, whatever its case, replaced. */
+function withoutAddress(message: string, address: string): string {
+    const lower = message.toLowerCase();
+    const sought = address.toLowerCase();
+    if (sought === '') return message;
+    let kept = '';
+    let from = 0;
+    for (let at = lower.indexOf(sought); at >= 0; at = lower.indexOf(sought, from)) {
+        kept += `${message.slice(from, at)}[invoice email]`;
+        from = at + sought.length;
+    }
+    return kept + message.slice(from);
 }
 
 /** Runs `write`, turning the refusal of a file other than the recorded one into a hold. */

@@ -282,9 +282,19 @@ function parse(xml: string | null): Element | null {
     }
 }
 
-/** The XMP metadata of the document, as text; `null` where it has none. */
+// Each key is read as the type the format gives it, and a key that holds
+// another type is read as missing rather than thrown on: a renderer that
+// writes `/AFRelationship` as a string is refused for its relationship, not
+// counted as a run that failed.
+
+const dictOf = (value: unknown): PDFDict | null => (value instanceof PDFDict ? value : null);
+const arrayOf = (value: unknown): PDFArray | null => (value instanceof PDFArray ? value : null);
+const streamOf = (value: unknown): PDFRawStream | null =>
+    value instanceof PDFRawStream ? value : null;
+
+/** The XMP metadata of the document, as text; `null` where it has none it can read. */
 function metadataOf(pdf: PDFDocument): string | null {
-    const stream = pdf.catalog.lookupMaybe(PDFName.of('Metadata'), PDFRawStream);
+    const stream = streamOf(pdf.catalog.lookup(PDFName.of('Metadata')));
     return stream ? textOf(stream) : null;
 }
 
@@ -292,36 +302,49 @@ function metadataOf(pdf: PDFDocument): string | null {
 function embeddedFile(
     pdf: PDFDocument,
     name: string,
-): { text: string; relationship: string | null } | null {
-    const names = pdf.catalog.lookupMaybe(PDFName.of('Names'), PDFDict);
-    const tree = names?.lookupMaybe(PDFName.of('EmbeddedFiles'), PDFDict);
-    const spec = tree ? findInNameTree(tree, name) : null;
-    const stream = spec
-        ?.lookupMaybe(PDFName.of('EF'), PDFDict)
-        ?.lookupMaybe(PDFName.of('F'), PDFRawStream);
+): { text: string | null; relationship: string | null } | null {
+    const names = dictOf(pdf.catalog.lookup(PDFName.of('Names')));
+    const tree = dictOf(names?.lookup(PDFName.of('EmbeddedFiles')));
+    const spec = tree ? findInNameTree(tree, name, new Set()) : null;
+    const files = dictOf(spec?.lookup(PDFName.of('EF')));
+    const stream = streamOf(files?.lookup(PDFName.of('F')));
     if (!spec || !stream) return null;
-    const relationship = spec.lookupMaybe(PDFName.of('AFRelationship'), PDFName);
-    return { text: textOf(stream), relationship: relationship?.decodeText() ?? null };
+    const relationship = spec.lookup(PDFName.of('AFRelationship'));
+    return {
+        text: textOf(stream),
+        relationship: relationship instanceof PDFName ? relationship.decodeText() : null,
+    };
 }
 
-/** The file specification filed under `name` in a name tree, through its kids. */
-function findInNameTree(node: PDFDict, name: string): PDFDict | null {
-    const entries = node.lookupMaybe(PDFName.of('Names'), PDFArray);
+/**
+ * The file specification filed under `name` in a name tree, through its kids.
+ * `visited` holds the nodes already read, so kids that lead back up end the
+ * search instead of recursing until the stack overflows.
+ */
+function findInNameTree(node: PDFDict, name: string, visited: Set<PDFDict>): PDFDict | null {
+    if (visited.has(node)) return null;
+    visited.add(node);
+    const entries = arrayOf(node.lookup(PDFName.of('Names')));
     for (let index = 0; entries && index + 1 < entries.size(); index += 2) {
         const key = entries.lookup(index);
         const label =
             key instanceof PDFString || key instanceof PDFHexString ? key.decodeText() : null;
-        if (label === name) return entries.lookupMaybe(index + 1, PDFDict) ?? null;
+        if (label === name) return dictOf(entries.lookup(index + 1));
     }
-    const kids = node.lookupMaybe(PDFName.of('Kids'), PDFArray);
+    const kids = arrayOf(node.lookup(PDFName.of('Kids')));
     for (let index = 0; kids && index < kids.size(); index += 1) {
-        const kid = kids.lookupMaybe(index, PDFDict);
-        const found = kid ? findInNameTree(kid, name) : null;
+        const kid = dictOf(kids.lookup(index));
+        const found = kid ? findInNameTree(kid, name, visited) : null;
         if (found) return found;
     }
     return null;
 }
 
-function textOf(stream: PDFRawStream): string {
-    return new TextDecoder().decode(decodePDFRawStream(stream).decode());
+/** A stream's content as text; `null` where it is encoded by a filter pdf-lib cannot undo. */
+function textOf(stream: PDFRawStream): string | null {
+    try {
+        return new TextDecoder().decode(decodePDFRawStream(stream).decode());
+    } catch {
+        return null;
+    }
 }

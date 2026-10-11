@@ -186,7 +186,7 @@ export function xmpOf({ part = '3', level = 'EN 16931', fileName = 'factur-x.xml
  * Moves the entries of the embedded files' name tree into a kid of it, their
  * names as literal strings — the shape a writer with many attachments uses.
  */
-function fileUnderAKid(pdf) {
+export function fileUnderAKid(pdf) {
     const names = pdf.catalog.lookup(PDFName.of('Names'), PDFDict);
     const tree = names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
     const entries = tree.lookup(PDFName.of('Names'), PDFArray);
@@ -203,15 +203,15 @@ function fileUnderAKid(pdf) {
 /**
  * The file, as the renderer hands it over. `xml` is the embedded XML or
  * `null` for none, `xmp` the metadata or `null` for none, `relationship` the
- * one the XML is attached under or `null` for none declared, and `underAKid`
- * files it in a kid of the name tree.
+ * one the XML is attached under or `null` for none declared, and `reshape`
+ * changes the file as written, read back, before it is handed over.
  */
 export async function facturXOf({
     xml = ciiOf(),
     xmp = xmpOf(),
     attachedAs = 'factur-x.xml',
     relationship = AFRelationship.Alternative,
-    underAKid = false,
+    reshape = null,
 } = {}) {
     const pdf = await PDFDocument.create();
     pdf.setCreationDate(new Date('2026-02-01T05:15:00.000Z'));
@@ -233,10 +233,10 @@ export async function facturXOf({
         mediaType: 'application/pdf',
         fileName: `${INVOICE.number}.pdf`,
     });
-    // The name tree is written when the file is saved, so it is moved in a copy read back.
+    // The name tree is written when the file is saved, so it is reshaped in a copy read back.
     const content = await pdf.save(SAVE);
-    if (!underAKid) return file(content);
+    if (!reshape) return file(content);
     const reread = await PDFDocument.load(content);
-    fileUnderAKid(reread);
+    reshape(reread);
     return file(await reread.save(SAVE));
 }

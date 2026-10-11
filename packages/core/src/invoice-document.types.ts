@@ -94,8 +94,9 @@ export interface InvoiceMail {
  * The application words the message — in the subscriber's language, with a
  * link to the tenant's sign-in rather than to the file itself — and sends it
  * with its own mail infrastructure. It rejects where the message could not be
- * handed on; the platform then shows the failure to the operator and tries
- * again on the next run. The invoice stays issued either way: delivery is not
+ * handed on; the platform then shows the failure to the operator, with the
+ * rejection's message as the reason and the recipient's address taken out of
+ * it, and tries again on the next run. The invoice stays issued either way: delivery is not
  * what makes it an invoice.
  *
  * A run claims the invoice before it calls this, so of several instances one

@@ -257,10 +257,13 @@ describe('an invoice interrupted in archiving', () => {
         );
     });
 
-    test('after the archive took the file is recorded as archived by the next run', async () => {
+    test('after the archive took the file is confirmed by the next run as kept, whatever the renderer makes since', async () => {
         quietLog();
-        const installation = await anIssuedInvoice();
-        const { documents, store, archive, invoice } = installation;
+        let version = 'first';
+        const renderer = aRenderer({
+            render: (invoice) => ({ ...documentOf(invoice), content: Buffer.from(version) }),
+        });
+        const { documents, store, archive, invoice } = await anIssuedInvoice({ renderer });
         const markArchived = store.markArchived;
         store.markArchived = async () => {
             store.markArchived = markArchived;
@@ -270,8 +273,11 @@ describe('an invoice interrupted in archiving', () => {
         assert.deepEqual(await documents.archiveDue(AT), { archived: 0, held: 0, failed: 1 });
         assert.ok(archive.files.has(invoice.id));
 
+        version = 'second';
         assert.deepEqual(await documents.archiveDue(LATER), { archived: 1, held: 0, failed: 0 });
         assert.equal(store.documents.get(invoice.id).archivedAt, LATER);
+        assert.equal(archive.files.get(invoice.id).checksum, sha256(Buffer.from('first')));
+        assert.equal(renderer.rendered.length, 1, 'not rendered again');
     });
 
     test('holds up no other invoice, and a renderer that does not answer counts as interrupted', async () => {
@@ -400,8 +406,10 @@ describe('an archived invoice’s mail', () => {
 
     test('the mail refuses is shown to the operator without the address, and tried again by the next run', async () => {
         quietLog();
+        // A mail server words its refusal with the recipient in it, in its own case.
+        const refusal = `550 5.1.1 <${INVOICE_EMAIL.toUpperCase()}>: recipient rejected`;
         const { documents, store, mail, audits, invoice } = await anArchivedInvoice({
-            mail: aMailbox({ failures: 2 }),
+            mail: aMailbox({ failures: 2, refusal }),
         });
 
         assert.deepEqual(await documents.deliverDue(), { delivered: 0, held: 0, failed: 1 });
@@ -411,9 +419,8 @@ describe('an archived invoice’s mail', () => {
         );
         assert.equal(failures.length, 1, 'recorded once, however many runs fail');
         assert.deepEqual(failures[0].changes.params, {
-            reason: 'the mail server refused the message',
+            reason: '550 5.1.1 <[invoice email]>: recipient rejected',
         });
-        assert.ok(!JSON.stringify(failures[0]).includes(INVOICE_EMAIL));
         assert.equal(store.documents.get(invoice.id).deliveryClaimedAt, null, 'let go');
 
         assert.deepEqual(await documents.deliverDue(), { delivered: 1, held: 0, failed: 0 });

@@ -4,11 +4,16 @@
 --
 -- Where each invoice's document stands, and the database archive that keeps
 -- the documents (#276 step 6). Needed where `tenantBilling.chargeJournal.invoices`
--- is configured. Run it BEFORE `db push`, and after
+-- is configured. Run it AFTER `db push`, and after
 -- `1.0-an-invoice-is-issued.postgres.sql`, whose `subscription_invoices` table
 -- both point at:
 --
 --   psql "$DATABASE_URL" -f 1.0-an-invoice-document-is-archived.postgres.sql
+--
+-- After, because `db push` cannot create triggers, and on a database whose
+-- invoices it has only just created, a run before it finds nothing to protect.
+-- A run before it as well, as an entrypoint applying every shipped file makes,
+-- does no harm; the start refuses invoices until the triggers are in place.
 --
 -- What it touches, in one transaction:
 --

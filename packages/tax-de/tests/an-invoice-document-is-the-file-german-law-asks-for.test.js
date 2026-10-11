@@ -7,10 +7,10 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AFRelationship } from 'pdf-lib';
+import { AFRelationship, PDFArray, PDFDict, PDFName, PDFString } from 'pdf-lib';
 
 import { GermanTaxAdapter } from '../dist/index.js';
-import { INVOICE, ciiOf, facturXOf, xmpOf } from './support/factur-x.js';
+import { INVOICE, ciiOf, facturXOf, fileUnderAKid, xmpOf } from './support/factur-x.js';
 
 const adapter = new GermanTaxAdapter();
 const gapsOf = async (fileOptions, invoice = INVOICE) =>
@@ -73,6 +73,69 @@ describe('the container', () => {
     ]) {
         test(`${what} is refused`, async () => {
             assert.deepEqual(await gapsOf(options), gaps);
+        });
+    }
+});
+
+/** The embedded files' name tree of `pdf`, and the specification of the one file in it. */
+function embeddedFilesOf(pdf) {
+    const names = pdf.catalog.lookup(PDFName.of('Names'), PDFDict);
+    const tree = names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+    const spec = tree.lookup(PDFName.of('Names'), PDFArray).lookup(1, PDFDict);
+    return { tree, spec };
+}
+
+// A writer that puts another type where the format expects one is refused for
+// that part, held and recorded — never a check that throws and counts as a run
+// that failed.
+describe('a container written with the wrong types', () => {
+    for (const [what, reshape, gaps] of [
+        [
+            'naming its relationship as a string rather than a name',
+            (pdf) =>
+                embeddedFilesOf(pdf).spec.set(
+                    PDFName.of('AFRelationship'),
+                    PDFString.of('Alternative'),
+                ),
+            ['format.relationship'],
+        ],
+        [
+            'whose embedded file is no stream',
+            (pdf) =>
+                embeddedFilesOf(pdf)
+                    .spec.lookup(PDFName.of('EF'), PDFDict)
+                    .set(PDFName.of('F'), pdf.context.obj({ Type: 'EmbeddedFile' })),
+            ['format.embeddedXml'],
+        ],
+        [
+            'whose metadata is no stream',
+            (pdf) => pdf.catalog.set(PDFName.of('Metadata'), pdf.context.obj({ Type: 'Metadata' })),
+            ['format.pdfa3', 'format.facturX'],
+        ],
+        [
+            'whose metadata is encoded by a filter that cannot be undone',
+            (pdf) =>
+                pdf.catalog
+                    .lookup(PDFName.of('Metadata'))
+                    .dict.set(PDFName.of('Filter'), PDFName.of('JBIG2Decode')),
+            ['format.pdfa3', 'format.facturX'],
+        ],
+        [
+            'whose name tree leads back to itself',
+            (pdf) => {
+                const names = pdf.catalog.lookup(PDFName.of('Names'), PDFDict);
+                const { tree } = embeddedFilesOf(pdf);
+                // Filed by reference, so a kid can refer to it.
+                const self = pdf.context.register(tree);
+                names.set(PDFName.of('EmbeddedFiles'), self);
+                tree.delete(PDFName.of('Names'));
+                tree.set(PDFName.of('Kids'), pdf.context.obj([self]));
+            },
+            ['format.embeddedXml'],
+        ],
+    ]) {
+        test(`${what} is refused for it`, async () => {
+            assert.deepEqual(await gapsOf({ reshape }), gaps);
         });
     }
 });
@@ -156,7 +219,7 @@ describe('the embedded XML', () => {
     });
 
     test('filed in a kid of the name tree, its name a literal string, is found and passes', async () => {
-        assert.deepEqual(await gapsOf({ underAKid: true }), []);
+        assert.deepEqual(await gapsOf({ reshape: fileUnderAKid }), []);
     });
 
     test('of an issuer without a tax number may leave the registration out', async () => {

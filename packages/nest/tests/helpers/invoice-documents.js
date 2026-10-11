@@ -55,8 +55,11 @@ export function anArchive({ problem = null } = {}) {
     return archive;
 }
 
-/** The application's mail: every message it took, after failing the first `failures`. */
-export function aMailbox({ failures = 0 } = {}) {
+/**
+ * The application's mail: every message it took, after failing the first
+ * `failures` with `refusal`.
+ */
+export function aMailbox({ failures = 0, refusal = 'the mail server refused the message' } = {}) {
     let left = failures;
     const sent = [];
     return {
@@ -64,7 +67,7 @@ export function aMailbox({ failures = 0 } = {}) {
         deliver: async (mail) => {
             if (left > 0) {
                 left -= 1;
-                throw new Error('the mail server refused the message');
+                throw new Error(refusal);
             }
             sent.push(structuredClone(mail));
         },
