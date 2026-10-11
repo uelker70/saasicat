@@ -751,6 +751,23 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-invoice-document.test.js`
+    - where an invoice’s document stands, as the Prisma adapter writes it
+        - a rendering is written conflict-free on the invoice and answered as written
+        - a rendering recorded before is answered where its checksum is this one, and refused where
+          it is another
+        - a rendering neither written nor found is said, rather than answered as nothing
+        - a rendering is replaced only in place of the checksum read, while nothing is archived
+        - the archive’s confirmation is written only for the recorded checksum, once
+        - the mail is claimed, recorded and let go each by one write on the claim it names
+        - the waiting lists are read page by page, after the id given
+        - where it stands is read by the invoice, and nothing where none is recorded
+    - the Prisma archive
+        - stores a file conflict-free, and asks for nothing more where it was written
+        - a file stored before is the same write where its checksum is this one, and refused where
+          it is another
+        - reads a file back as bytes of its own, and nothing where none is kept
+        - says what would let a kept file change, from the enabled triggers of its table
 - `packages/adapter-prisma/tests/prisma-maintenance-window.repository.test.js`
     - PrismaMaintenanceWindowRepository
         - the open window is the one that has not ended, read column by column
