@@ -492,6 +492,7 @@ export const featureWithdrawals = pgTable('feature_withdrawals', {
     announcedBy: text('announcedBy').notNull(),
     liftedAt: ts('liftedAt'),
     liftedBy: text('liftedBy'),
+    toldAt: ts('toldAt'),
 });
 
 // ---------------------------------------------------------------------------

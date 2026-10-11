@@ -1404,6 +1404,7 @@ model FeatureWithdrawal {
     announcedBy String
     liftedAt    DateTime?
     liftedBy    String?
+    toldAt      DateTime?
 
     @@index([featureKey])
     @@map("feature_withdrawals")

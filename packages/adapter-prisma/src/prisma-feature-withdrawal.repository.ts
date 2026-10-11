@@ -28,6 +28,7 @@ const COLUMNS = {
     announcedBy: true,
     liftedAt: true,
     liftedBy: true,
+    toldAt: true,
 } as const;
 
 /** `FeatureWithdrawalRepository` against the canonical `feature_withdrawals` table. */
@@ -63,6 +64,7 @@ export class PrismaFeatureWithdrawalRepository implements FeatureWithdrawalRepos
                     announcedBy: data.announcedBy,
                     liftedAt: null,
                     liftedBy: null,
+                    toldAt: null,
                 },
             ],
             skipDuplicates: true,
@@ -108,5 +110,14 @@ export class PrismaFeatureWithdrawalRepository implements FeatureWithdrawalRepos
         if (count !== 1) return null;
         const row = await db.featureWithdrawal.findFirst({ where: { id }, select: COLUMNS });
         return row ? toFeatureWithdrawalRecord(row) : null;
+    }
+
+    /** One guarded `UPDATE`, as `lift` is: of two at once, the second counts nothing. */
+    async markTold(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const { count } = await this.client(tx).featureWithdrawal.updateMany({
+            where: { id, toldAt: null },
+            data: { toldAt: at },
+        });
+        return count === 1;
     }
 }

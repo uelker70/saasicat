@@ -499,7 +499,7 @@ describe('where withdrawing a feature is offered', () => {
 
 // @requirement SC-SUB-042 — The operator withdraws a feature from everybody who holds it, and tells them at once
 describe('announcing a withdrawal', () => {
-    test('records it with a notice for each subscription in one transaction, then tells each', async () => {
+    test('records it, then a notice for each subscription with the mark that they were told, then tells each', async () => {
         const harness = withdrawing({
             subscriptions: [subscriptionOf('t1'), subscriptionOf('t2')],
             bookings: [bookingOf('t2')],
@@ -521,12 +521,14 @@ describe('announcing a withdrawal', () => {
             'dated as the response carries it',
         );
         assert.equal(withdrawal.announcedBy, 'web:ops@example.com:admin');
-        assert.deepEqual(harness.withdrawals.createdIn, [harness.tx]);
+        assert.deepEqual(harness.withdrawals.createdIn, [undefined], 'recorded on its own');
+        assert.deepEqual(harness.withdrawals.markedIn, [harness.tx]);
         assert.deepEqual(
             harness.notices.recordedIn,
             [harness.tx],
-            'notices on the same transaction',
+            'notices on the transaction that marks them told',
         );
+        assert.equal(withdrawal.toldAt, NOW.toISOString());
         assert.deepEqual([told, failed], [2, 0]);
         assert.equal(harness.invalidations, 1, 'every cached grant is read again');
         const sent = harness.port.sent.find((notice) => notice.subscriptionId === 'sub-t2');
@@ -566,6 +568,112 @@ describe('announcing a withdrawal', () => {
                 entry.changes.subscriptions,
             ]),
             [['FEATURE_WITHDRAW', withdrawal.id, 2]],
+        );
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('reaches a subscription that changed onto the feature while it was being announced', async () => {
+        const subscriptions = [
+            subscriptionOf('t1'),
+            subscriptionOf('t2', {
+                plan: 'BASIC',
+                planVersion: { id: 'pv-basic-1', planId: 'BASIC', version: 1 },
+            }),
+        ];
+        const harness = withdrawing({
+            subscriptions,
+            planVersions: [
+                planVersion('pv-pro-1'),
+                planVersion('pv-basic-1', { planId: 'BASIC', features: ['REPORTS'] }),
+            ],
+        });
+        const shown = await announcement(harness.service);
+        assert.deepEqual(shown.subscriptionIds, ['sub-t1']);
+        // t2 moves onto Pro in the moment between the check and the record.
+        const create = harness.withdrawals.create;
+        harness.withdrawals.create = async (data, tx) => {
+            subscriptions[1] = subscriptionOf('t2');
+            return create(data, tx);
+        };
+
+        await harness.service.announce(shown, ACTOR, NOW);
+
+        assert.deepEqual(harness.port.sent.map((notice) => notice.subscriptionId).sort(), [
+            'sub-t1',
+            'sub-t2',
+        ]);
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('leaves who it reaches to the next run where recording them fails, which tells them', async () => {
+        const harness = withdrawing();
+        const record = harness.notices.record;
+        harness.notices.record = async () => {
+            throw new Error('the database went away');
+        };
+        const { withdrawal, told } = await harness.service.announce(
+            await announcement(harness.service),
+            ACTOR,
+            NOW,
+        );
+        assert.equal(withdrawal.toldAt, null, 'announced, nobody told yet');
+        assert.equal(told, 0);
+        assert.deepEqual(harness.port.sent, []);
+        harness.notices.record = record;
+
+        const run = await harness.service.sendUndelivered(ms(NOW, 60_000));
+
+        assert.equal(run.told, 1);
+        assert.deepEqual(
+            harness.port.sent.map((notice) => [notice.kind, notice.subscriptionId]),
+            [['feature-withdrawn', 'sub-t1']],
+        );
+        assert.ok((await harness.withdrawals.findById(withdrawal.id)).toldAt);
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('tells them once, where the run and the announcement tell them at the same moment', async () => {
+        const harness = withdrawing({
+            withdrawals: withdrawalStore([withdrawalRecord({ toldAt: null })]),
+        });
+        await Promise.all([
+            harness.service.sendUndelivered(NOW),
+            harness.service.sendUndelivered(NOW),
+        ]);
+        assert.deepEqual(
+            harness.port.sent.map((notice) => [notice.kind, notice.subscriptionId]),
+            [['feature-withdrawn', 'sub-t1']],
+        );
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('reaches nobody through a second telling that read it before the first was done', async () => {
+        const subscriptions = [
+            subscriptionOf('t1'),
+            subscriptionOf('t2', {
+                plan: 'BASIC',
+                planVersion: { id: 'pv-basic-1', planId: 'BASIC', version: 1 },
+            }),
+        ];
+        const harness = withdrawing({
+            subscriptions,
+            planVersions: [
+                planVersion('pv-pro-1'),
+                planVersion('pv-basic-1', { planId: 'BASIC', features: ['REPORTS'] }),
+            ],
+            withdrawals: withdrawalStore([withdrawalRecord({ toldAt: null })]),
+        });
+        await harness.service.sendUndelivered(NOW);
+        // t2 moves onto Pro once its tenant could see the withdrawal, and a
+        // second run that read the withdrawal before the first had told
+        // anybody tells it again.
+        subscriptions[1] = subscriptionOf('t2');
+        harness.withdrawals.list = async () => [withdrawalRecord({ toldAt: null })];
+        await harness.service.sendUndelivered(ms(NOW, 1000));
+
+        assert.deepEqual(
+            harness.port.sent.map((notice) => notice.subscriptionId),
+            ['sub-t1'],
         );
     });
 
@@ -779,6 +887,26 @@ describe('lifting a withdrawal', () => {
             ['FEATURE_WITHDRAWAL_LIFT'],
         );
         assert.equal(harness.invalidations, 2);
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('tells a withdrawal nobody was told of yet before it tells them it is lifted', async () => {
+        const harness = withdrawing({
+            withdrawals: withdrawalStore([
+                withdrawalRecord({
+                    effectiveFrom: new Date('2026-06-01T00:00:00.000Z'),
+                    toldAt: null,
+                }),
+            ]),
+        });
+        await harness.service.lift('fw-existing', null, ACTOR, NOW);
+        assert.deepEqual(
+            harness.port.sent.map((notice) => [notice.kind, notice.subscriptionId]),
+            [
+                ['feature-withdrawn', 'sub-t1'],
+                ['feature-withdrawal-lifted', 'sub-t1'],
+            ],
+        );
     });
 
     test('from now where no date is given; never from a date already past', async () => {

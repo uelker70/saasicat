@@ -1710,6 +1710,7 @@ export function createMemoryHarness() {
                 liftedFrom: null,
                 liftedAt: null,
                 liftedBy: null,
+                toldAt: null,
             };
             state.featureWithdrawals.push(row);
             return structuredClone(row);
@@ -1730,6 +1731,12 @@ export function createMemoryHarness() {
             if (!row || row.liftedFrom !== null) return null;
             Object.assign(row, structuredClone(lift));
             return structuredClone(row);
+        },
+        async markTold(id, at) {
+            const row = state.featureWithdrawals.find((candidate) => candidate.id === id);
+            if (!row || row.toldAt !== null) return false;
+            row.toldAt = new Date(at);
+            return true;
         },
     };
 

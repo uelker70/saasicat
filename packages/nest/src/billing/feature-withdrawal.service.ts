@@ -206,9 +206,11 @@ export class FeatureWithdrawalService {
     /**
      * Announces the withdrawal, provided it reaches exactly the subscriptions
      * the operator was shown, and every reduction names a plan or an add-on in
-     * a rhythm it reaches at no more than the lowest price it reduces. Every
-     * notice is recorded before any is sent; one that cannot be sent now is
-     * sent by the next run.
+     * a rhythm it reaches at no more than the lowest price it reduces. The
+     * withdrawal is recorded first; who it reaches is read once it is, so a
+     * change concluded while it was being announced is reached, and every
+     * notice is recorded before any is sent. What cannot be told now is told
+     * by the next run.
      */
     announce(
         announcement: FeatureWithdrawalAnnouncement,
@@ -276,14 +278,22 @@ export class FeatureWithdrawalService {
     }
 
     /**
-     * Sends every notice of a withdrawal — announced, lifted, ended at once —
-     * that is recorded and has gone out to nobody yet. Each says what happened
-     * when it happened, and is sent as it was recorded.
+     * Tells every withdrawal recorded but not told yet — its announcement
+     * stopped between its two steps — and sends every notice of a withdrawal
+     * (announced, lifted, ended at once) that is recorded and has gone out to
+     * nobody yet. Each says what happened when it happened, and is sent as it
+     * was recorded.
      */
     async sendUndelivered(now: Date): Promise<FeatureWithdrawalNoticeRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
             let told = 0;
             let failed = 0;
+            for (const withdrawal of await this.withdrawals.list()) {
+                if (withdrawal.toldAt !== null || !this.available) continue;
+                const outcome = await this.tellWhoItReaches(withdrawal, now);
+                told += outcome?.told ?? 0;
+                failed += outcome?.failed ?? 0;
+            }
             const staleBefore = new Date(now.getTime() - NOTICE_CLAIM_LEASE_MS);
             for (const kind of [WITHDRAWN, LIFTED, ENDED_AT_ONCE]) {
                 const undelivered = await this.notices.listUndelivered(kind, staleBefore);
@@ -430,33 +440,17 @@ export class FeatureWithdrawalService {
             });
         }
 
-        const reductions = announcement.reductions.map((reduction) => ({ ...reduction }));
-        const withdrawal = await this.transactions.run(async (tx) => {
-            const created = await this.withdrawals.create(
-                {
-                    featureKey: announcement.featureKey,
-                    reason: announcement.reason,
-                    effectiveFrom: new Date(preview.effectiveFrom),
-                    reductions,
-                    announcedAt: now,
-                    announcedBy: actorTagOf(actor),
-                },
-                tx,
-            );
-            // The database holds a feature to one withdrawal not lifted: one
-            // announced beside this one, after the blockers were read, landed
-            // first. Nothing of this one is kept.
-            if (!created) throw openWithdrawal(announcement.featureKey);
-            await this.notices.record(
-                preview.reached.map((row) => {
-                    const notice = withdrawnNoticeOf(created, preview, row);
-                    return { ...keyOf(notice), content: notice };
-                }),
-                now,
-                tx,
-            );
-            return created;
+        const withdrawal = await this.withdrawals.create({
+            featureKey: announcement.featureKey,
+            reason: announcement.reason,
+            effectiveFrom: new Date(preview.effectiveFrom),
+            reductions: announcement.reductions.map((reduction) => ({ ...reduction })),
+            announcedAt: now,
+            announcedBy: actorTagOf(actor),
         });
+        // The database holds a feature to one withdrawal not lifted: one
+        // announced beside this one, after the blockers were read, landed first.
+        if (!withdrawal) throw openWithdrawal(announcement.featureKey);
         // From here on the withdrawal is announced, whatever fails: what is
         // left is reported, not thrown, so the operator is not told it failed
         // when it did not.
@@ -467,11 +461,62 @@ export class FeatureWithdrawalService {
             reductions: withdrawal.reductions,
             subscriptions: preview.reached.length,
         });
-        await this.recordReductions(withdrawal, preview, now);
+        const outcome = await this.tellWhoItReaches(withdrawal, now);
+        const current = outcome ? await this.withdrawals.findById(withdrawal.id) : null;
+        return {
+            withdrawal: featureWithdrawalRowOf(current ?? withdrawal),
+            told: outcome?.told ?? 0,
+            failed: outcome?.failed ?? 0,
+        };
+    }
+
+    /**
+     * Reads who `withdrawal` reaches now that it is recorded, and records a
+     * notice for each together with the mark that they were told, in one
+     * transaction; then writes the reductions into their contracts and sends
+     * the notices. Read after the withdrawal is recorded rather than before, so
+     * that a change concluded while it was being announced — before it was
+     * shown to anybody — is reached; what is concluded once it is recorded is
+     * concluded with it shown. Null where another call told them first, or
+     * where recording failed, which the next run tries again.
+     */
+    private async tellWhoItReaches(
+        withdrawal: FeatureWithdrawalRecord,
+        now: Date,
+    ): Promise<{ told: number; failed: number } | null> {
+        const catalog = await this.catalogs.current();
+        const { reached } = await this.reachOf(
+            withdrawal.featureKey,
+            withdrawal.effectiveFrom,
+            catalog,
+            now,
+        );
+        const label = featureLabelOf(catalog, withdrawal.featureKey);
+        const notices = reached.map((row) => withdrawnNoticeOf(withdrawal, label, row));
+        let marked: boolean;
+        try {
+            marked = await this.transactions.run(async (tx) => {
+                if (!(await this.withdrawals.markTold(withdrawal.id, now, tx))) return false;
+                await this.notices.record(
+                    notices.map((notice) => ({ ...keyOf(notice), content: notice })),
+                    now,
+                    tx,
+                );
+                return true;
+            });
+        } catch (error) {
+            this.logger.error(
+                `Feature withdrawal ${withdrawal.id} is recorded, but recording who it reaches ` +
+                    'failed; the next run tells them.',
+                error instanceof Error ? error.stack : String(error),
+            );
+            return null;
+        }
+        if (!marked) return null;
+        await this.recordReductions(withdrawal, reached, now);
         let told = 0;
         let failed = 0;
-        for (const row of preview.reached) {
-            const notice = withdrawnNoticeOf(withdrawal, preview, row);
+        for (const notice of notices) {
             const outcome = await this.sender.tell(
                 notice,
                 withdrawal.id,
@@ -480,7 +525,7 @@ export class FeatureWithdrawalService {
             if (outcome === 'told') told += 1;
             if (outcome === 'failed') failed += 1;
         }
-        return { withdrawal: featureWithdrawalRowOf(withdrawal), told, failed };
+        return { told, failed };
     }
 
     /**
@@ -491,7 +536,7 @@ export class FeatureWithdrawalService {
      */
     private async recordReductions(
         withdrawal: FeatureWithdrawalRecord,
-        preview: FeatureWithdrawalPreview,
+        reached: FeatureWithdrawalPreview['reached'],
         now: Date,
     ): Promise<void> {
         if (!this.contractReductions) return;
@@ -500,7 +545,7 @@ export class FeatureWithdrawalService {
                 targetKeyOf(reduction.kind, reduction.key, reduction.billingCycle),
             ),
         );
-        for (const row of preview.reached) {
+        for (const row of reached) {
             const reducesALine = row.lines.some((line) =>
                 reduced.has(targetKeyOf(line.line, line.key, line.billingCycle)),
             );
@@ -696,6 +741,9 @@ export class FeatureWithdrawalService {
         const found = await this.withdrawals.findById(id);
         if (!found) throw withdrawalNotFound(id);
         if (found.liftedFrom) throw alreadyLifted(found.liftedFrom);
+        // Told of the withdrawal before of its end, where its announcement
+        // stopped before telling anybody.
+        if (found.toldAt === null) await this.tellWhoItReaches(found, now);
         const liftedFrom = requestedFrom ?? now;
         if (liftedFrom < now) {
             throw new UnprocessableEntityException({
@@ -897,7 +945,7 @@ function assertReductionsFit(
 /** What the subscription of `row` is told: each line reached, with what it is reduced by. */
 function withdrawnNoticeOf(
     withdrawal: FeatureWithdrawalRecord,
-    preview: FeatureWithdrawalPreview,
+    featureLabel: string,
     row: FeatureWithdrawalPreview['reached'][number],
 ): FeatureWithdrawnNotice {
     const amounts = new Map(
@@ -912,7 +960,7 @@ function withdrawnNoticeOf(
         subscriptionId: row.subscriptionId,
         withdrawalId: withdrawal.id,
         featureKey: withdrawal.featureKey,
-        featureLabel: preview.feature.label,
+        featureLabel,
         reason: withdrawal.reason,
         effectiveFrom: withdrawal.effectiveFrom.toISOString(),
         lines: row.lines.map(({ priceNet: _price, ...line }) => ({

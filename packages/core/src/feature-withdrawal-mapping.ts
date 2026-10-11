@@ -31,6 +31,7 @@ export interface CanonicalFeatureWithdrawalRow {
     announcedBy: string;
     liftedAt: Date | null;
     liftedBy: string | null;
+    toldAt: Date | null;
 }
 
 /**
@@ -53,6 +54,7 @@ export function toFeatureWithdrawalRecord(
         announcedBy: row.announcedBy,
         liftedAt: row.liftedAt,
         liftedBy: row.liftedBy,
+        toldAt: row.toldAt,
     };
 }
 

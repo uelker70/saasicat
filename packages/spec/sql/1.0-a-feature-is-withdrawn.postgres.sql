@@ -4,10 +4,10 @@
 --
 -- One table, additive: `feature_withdrawals` keeps every feature an operator
 -- withdraws because an external service stopped or a law changed — which
--- feature, why, from when, the reductions named, and when it was lifted. What
--- it means for each subscription is a `subscription_notices` row of kind
--- `feature-withdrawn`, which `1.0-a-subscriber-is-told-once.postgres.sql`
--- creates.
+-- feature, why, from when, the reductions named, when it was lifted, and when
+-- the subscriptions it reaches were told. What it means for each subscription
+-- is a `subscription_notices` row of kind `feature-withdrawn`, which
+-- `1.0-a-subscriber-is-told-once.postgres.sql` creates.
 --
 -- Run it the same way as the other files in this directory, before `db push`
 -- where you use one:
@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS "feature_withdrawals" (
     "announcedBy" TEXT NOT NULL,
     "liftedAt" TIMESTAMP(3),
     "liftedBy" TEXT,
+    "toldAt" TIMESTAMP(3),
 
     CONSTRAINT "feature_withdrawals_pkey" PRIMARY KEY ("id")
 );

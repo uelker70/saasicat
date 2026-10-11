@@ -40,6 +40,7 @@ export class DrizzleFeatureWithdrawalRepository implements FeatureWithdrawalRepo
                 announcedBy: data.announcedBy,
                 liftedAt: null,
                 liftedBy: null,
+                toldAt: null,
             })
             .onConflictDoNothing()
             .returning();
@@ -78,5 +79,15 @@ export class DrizzleFeatureWithdrawalRepository implements FeatureWithdrawalRepo
             .where(and(eq(featureWithdrawals.id, id), isNull(featureWithdrawals.liftedFrom)))
             .returning();
         return row ? toFeatureWithdrawalRecord(row) : null;
+    }
+
+    /** One guarded `UPDATE`, as `lift` is: of two at once, the second gets no row back. */
+    async markTold(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const rows = await resolveDb(this.db, tx)
+            .update(featureWithdrawals)
+            .set({ toldAt: at })
+            .where(and(eq(featureWithdrawals.id, id), isNull(featureWithdrawals.toldAt)))
+            .returning({ id: featureWithdrawals.id });
+        return rows.length === 1;
     }
 }

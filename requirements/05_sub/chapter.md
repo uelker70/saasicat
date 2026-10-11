@@ -1501,7 +1501,12 @@ _Tested by:_
         - only where everybody a withdrawal reaches can be found
         - and is refused by the routes elsewhere, before anything is read
     - announcing a withdrawal
-        - records it with a notice for each subscription in one transaction, then tells each
+        - records it, then a notice for each subscription with the mark that they were told, then
+          tells each
+        - reaches a subscription that changed onto the feature while it was being announced
+        - leaves who it reaches to the next run where recording them fails, which tells them
+        - tells them once, where the run and the announcement tell them at the same moment
+        - reaches nobody through a second telling that read it before the first was done
         - writes the reductions into the contract of each subscription with a line reduced
         - stands where writing a contract fails, which the journal does before it charges
         - tells a line no reduction was named for that none applies
@@ -1513,6 +1518,7 @@ _Tested by:_
         - leaves a notice it could not send for the next run
     - lifting a withdrawal
         - records the date, tells every subscription it reached that still runs
+        - tells a withdrawal nobody was told of yet before it tells them it is lifted
         - from now where no date is given; never from a date already past
         - refuses an unknown withdrawal, and one lifted already, naming its date
         - lifted meanwhile by another operator, keeps what they recorded
@@ -1597,5 +1603,34 @@ _Tested by:_
         - still tells a subscription the change takes away from the feature, with the line it holds
         - takes the newest version of another plan where the change names none
         - reaches a booking the move brings onto an add-on version that grants the feature
+
+<!-- END proof -->
+
+### SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+
+🟢 💰 Announcing a withdrawal records it first, and from then on it is shown wherever a plan or an
+add-on is (`SC-CAT-017`). Only then are the subscriptions it reaches read, and their notices are
+recorded together with the mark that they were told. A change, a booking or a sign-up concluded
+while the withdrawal was being announced is therefore reached. Where recording them fails, or the
+announcement stops between the two steps, the quarter-hourly run tells them, reading the reach as it
+then stands: a subscription that left the feature in between is not reached, and one concluded in
+between — with the withdrawal shown — is. Each subscription is told once, however many tell it at
+the same moment. A withdrawal is lifted only once the subscriptions it reaches were told of it, and
+nobody is told of a lift before the withdrawal itself reached them.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - announcing a withdrawal
+        - reaches a subscription that changed onto the feature while it was being announced
+        - leaves who it reaches to the next run where recording them fails, which tells them
+        - tells them once, where the run and the announcement tell them at the same moment
+        - reaches nobody through a second telling that read it before the first was done
+    - lifting a withdrawal
+        - tells a withdrawal nobody was told of yet before it tells them it is lifted
 
 <!-- END proof -->

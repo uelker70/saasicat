@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 43      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 625 entries: 🟢 541 stand today, 🟡 58 decided but not yet delivered, ⚪ 0 drafts,
+Of 626 entries: 🟢 542 stand today, 🟡 58 decided but not yet delivered, ⚪ 0 drafts,
 🔵 23 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -222,7 +222,7 @@ Of 625 entries: 🟢 541 stand today, 🟡 58 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 625 requirements. Do not edit by hand:
+Generated from `requirements/` — 626 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -6444,7 +6444,12 @@ _Tested by:_
         - only where everybody a withdrawal reaches can be found
         - and is refused by the routes elsewhere, before anything is read
     - announcing a withdrawal
-        - records it with a notice for each subscription in one transaction, then tells each
+        - records it, then a notice for each subscription with the mark that they were told, then
+          tells each
+        - reaches a subscription that changed onto the feature while it was being announced
+        - leaves who it reaches to the next run where recording them fails, which tells them
+        - tells them once, where the run and the announcement tell them at the same moment
+        - reaches nobody through a second telling that read it before the first was done
         - writes the reductions into the contract of each subscription with a line reduced
         - stands where writing a contract fails, which the journal does before it charges
         - tells a line no reduction was named for that none applies
@@ -6456,6 +6461,7 @@ _Tested by:_
         - leaves a notice it could not send for the next run
     - lifting a withdrawal
         - records the date, tells every subscription it reached that still runs
+        - tells a withdrawal nobody was told of yet before it tells them it is lifted
         - from now where no date is given; never from a date already past
         - refuses an unknown withdrawal, and one lifted already, naming its date
         - lifted meanwhile by another operator, keeps what they recorded
@@ -6540,6 +6546,33 @@ _Tested by:_
         - still tells a subscription the change takes away from the feature, with the line it holds
         - takes the newest version of another plan where the change names none
         - reaches a booking the move brings onto an add-on version that grants the feature
+
+<!-- END proof -->
+
+### SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+
+🟢 💰 Announcing a withdrawal records it first, and from then on it is shown wherever a plan or an
+add-on is (`SC-CAT-017`). Only then are the subscriptions it reaches read, and their notices are
+recorded together with the mark that they were told. A change, a booking or a sign-up concluded
+while the withdrawal was being announced is therefore reached. Where recording them fails, or the
+announcement stops between the two steps, the quarter-hourly run tells them, reading the reach as it
+then stands; each subscription is told once, however many tell it at the same moment. A withdrawal
+nobody was told of yet is told before its lifting is.
+
+_Source:_ #357
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-withdraws-a-feature.test.js`
+    - announcing a withdrawal
+        - reaches a subscription that changed onto the feature while it was being announced
+        - leaves who it reaches to the next run where recording them fails, which tells them
+        - tells them once, where the run and the announcement tell them at the same moment
+        - reaches nobody through a second telling that read it before the first was done
+    - lifting a withdrawal
+        - tells a withdrawal nobody was told of yet before it tells them it is lifted
 
 <!-- END proof -->
 

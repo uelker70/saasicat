@@ -137,6 +137,7 @@ export function withdrawalStore(initial = []) {
             return rows;
         },
         createdIn: [],
+        markedIn: [],
         async create(data, tx) {
             store.createdIn.push(tx);
             if (rows.some((row) => row.featureKey === data.featureKey && row.liftedFrom === null)) {
@@ -148,6 +149,7 @@ export function withdrawalStore(initial = []) {
                 liftedFrom: null,
                 liftedAt: null,
                 liftedBy: null,
+                toldAt: null,
             };
             rows = [...rows, row];
             return structuredClone(row);
@@ -164,6 +166,13 @@ export function withdrawalStore(initial = []) {
             if (!row || row.liftedFrom !== null) return null;
             Object.assign(row, structuredClone(lift));
             return structuredClone(row);
+        },
+        async markTold(id, at, tx) {
+            store.markedIn.push(tx);
+            const row = rows.find((candidate) => candidate.id === id);
+            if (!row || row.toldAt !== null) return false;
+            row.toldAt = at;
+            return true;
         },
         snapshot: () => structuredClone(rows),
         restore: (saved) => {
@@ -186,6 +195,7 @@ export function withdrawalRecord(fields = {}) {
         announcedBy: 'super-admin:ops@example.com',
         liftedAt: null,
         liftedBy: null,
+        toldAt: new Date('2026-05-30T00:00:00.000Z'),
         ...fields,
     };
 }

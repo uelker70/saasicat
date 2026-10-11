@@ -2545,6 +2545,7 @@ components:
                     announcedBy,
                     liftedAt,
                     liftedBy,
+                    toldAt,
                 ]
             properties:
                 id: { type: string }
@@ -2560,6 +2561,12 @@ components:
                     { type: string, description: 'An actor tag, as the audit log writes it' }
                 liftedAt: { type: [string, 'null'], format: date-time }
                 liftedBy: { type: [string, 'null'] }
+                toldAt:
+                    type: [string, 'null']
+                    format: date-time
+                    description: >-
+                        When the subscriptions it reaches were told; null until then — the
+                        quarter-hourly run tells a withdrawal still null.
 
         FeatureWithdrawal:
             allOf:

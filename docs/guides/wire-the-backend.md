@@ -1489,8 +1489,9 @@ not lifted at a time. "Lift" names the date from which the feature is granted ag
 `GET /admin/feature-withdrawals/preview`, `POST` and `GET /admin/feature-withdrawals`, and
 `POST /admin/feature-withdrawals/:id/lift`.
 
-**What your port is handed.** One `feature-withdrawn` notice per subscription, recorded with the
-withdrawal in one transaction and then sent through the same `SubscriptionNoticePort`: the feature,
+**What your port is handed.** One `feature-withdrawn` notice per subscription, recorded once the
+withdrawal is and then sent through the same `SubscriptionNoticePort` — read after the withdrawal is
+recorded, so a change concluded while it was being announced is reached: the feature,
 the reason, `effectiveFrom`, each line it reached with its `reductionNet` (`null` where none was
 named), and `specialTerms` where the subscription holds the feature only through them — then no
 reduction applies by itself, which is yours to agree in the special contract. Lifting sends one

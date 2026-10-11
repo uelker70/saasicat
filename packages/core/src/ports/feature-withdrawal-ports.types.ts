@@ -9,14 +9,15 @@ import type { TransactionContext } from './core-ports.types.js';
 
 /**
  * Keeps every feature withdrawal: which feature, why, from when, the
- * reductions the operator named, and when it was lifted. What it means for
- * each subscription it reaches is kept beside it as a notice of kind
- * `feature-withdrawn`, written in the same transaction.
+ * reductions the operator named, when it was lifted, and when the
+ * subscriptions it reaches were told. What it means for each of them is kept
+ * beside it as a notice of kind `feature-withdrawn`, written in the
+ * transaction that marks it told.
  *
  * An adapter translates. It does not decide whether a feature may be
  * withdrawn; it holds a feature to one withdrawal not yet lifted, so that two
- * operators announcing at once cannot both succeed, and makes lifting
- * conditional on the withdrawal not having been lifted.
+ * operators announcing at once cannot both succeed, and makes lifting and
+ * marking it told conditional on neither having happened yet.
  */
 export interface FeatureWithdrawalRepository {
     /**
@@ -43,4 +44,11 @@ export interface FeatureWithdrawalRepository {
         lift: FeatureWithdrawalLift,
         tx?: TransactionContext,
     ): Promise<FeatureWithdrawalRecord | null>;
+    /**
+     * Records that the subscriptions the withdrawal `id` reaches were told at
+     * `at`, provided nobody recorded it yet, in the caller's transaction where
+     * one is given. Returns whether this call recorded it: of an announcement
+     * and a run telling the same withdrawal at once, exactly one does.
+     */
+    markTold(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
 }

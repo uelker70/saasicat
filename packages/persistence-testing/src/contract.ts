@@ -8227,6 +8227,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.equal(withdrawal.liftedFrom, null, 'not lifted');
                 assert.equal(withdrawal.liftedAt, null);
                 assert.equal(withdrawal.liftedBy, null);
+                assert.equal(withdrawal.toldAt, null, 'nobody told yet');
                 assert.deepEqual(await withdrawals.findById(withdrawal.id), withdrawal);
                 assert.equal(await withdrawals.findById('no-such-withdrawal'), null);
             });
@@ -8311,33 +8312,67 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
 
             scenario(
-                'is written with its notices in one transaction, or not at all',
+                'is marked told with its notices in one transaction, or not at all',
                 async (withdrawals, notices) => {
+                    const withdrawal = await created(withdrawals);
+                    const TOLD_AT = new Date('2026-05-04T08:15:01.250Z');
                     await assert.rejects(
                         harness.adapter.transactionRunner.run(async (tx) => {
-                            const withdrawal = await created(withdrawals, WITHDRAWAL, tx);
-                            await notices.record([noticeOf(withdrawal.id)], ANNOUNCED_AT, tx);
+                            assert.ok(await withdrawals.markTold(withdrawal.id, TOLD_AT, tx));
+                            await notices.record([noticeOf(withdrawal.id)], TOLD_AT, tx);
                             throw new Error('rolled back');
                         }),
                         /rolled back/,
                     );
-                    assert.deepEqual(await withdrawals.list(), [], 'no withdrawal');
+                    assert.equal(
+                        (await withdrawals.findById(withdrawal.id))?.toldAt,
+                        null,
+                        'not marked told',
+                    );
                     assert.deepEqual(
                         await notices.listForSubscription('sub-withdrawn'),
                         [],
                         'and no notice',
                     );
 
-                    const kept = await harness.adapter.transactionRunner.run(async (tx) => {
-                        const withdrawal = await created(withdrawals, WITHDRAWAL, tx);
-                        await notices.record([noticeOf(withdrawal.id)], ANNOUNCED_AT, tx);
-                        return withdrawal;
+                    await harness.adapter.transactionRunner.run(async (tx) => {
+                        assert.ok(await withdrawals.markTold(withdrawal.id, TOLD_AT, tx));
+                        await notices.record([noticeOf(withdrawal.id)], TOLD_AT, tx);
                     });
+                    assert.equal(
+                        (await withdrawals.findById(withdrawal.id))?.toldAt?.toISOString(),
+                        TOLD_AT.toISOString(),
+                    );
                     const [notice] = await notices.listForSubscription('sub-withdrawn');
                     assert.equal(notice?.kind, 'feature-withdrawn');
-                    assert.deepEqual(notice?.content, { withdrawalId: kept.id });
+                    assert.deepEqual(notice?.content, { withdrawalId: withdrawal.id });
                 },
             );
+
+            scenario('is marked told once, however many mark it at once', async (withdrawals) => {
+                const withdrawal = await created(withdrawals);
+                const marks = await Promise.all([
+                    withdrawals.markTold(withdrawal.id, new Date('2026-05-04T08:16:00.000Z')),
+                    withdrawals.markTold(withdrawal.id, new Date('2026-05-04T08:17:00.000Z')),
+                ]);
+                assert.deepEqual(
+                    marks.filter(Boolean).length,
+                    1,
+                    'of two marking it at the same moment, one does',
+                );
+                const told = (await withdrawals.findById(withdrawal.id))?.toldAt;
+                assert.ok(told, 'marked told');
+                assert.equal(
+                    await withdrawals.markTold(withdrawal.id, new Date('2026-05-05T00:00:00.000Z')),
+                    false,
+                    'and a later mark does not move it',
+                );
+                assert.equal(
+                    (await withdrawals.findById(withdrawal.id))?.toldAt?.toISOString(),
+                    told.toISOString(),
+                );
+                assert.equal(await withdrawals.markTold('no-such-withdrawal', new Date()), false);
+            });
 
             scenario(
                 'is lifted in the transaction it is given, or not at all',

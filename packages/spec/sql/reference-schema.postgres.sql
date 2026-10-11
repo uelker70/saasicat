@@ -873,6 +873,7 @@ CREATE TABLE "feature_withdrawals" (
     "announcedBy" TEXT NOT NULL,
     "liftedAt" TIMESTAMP(3),
     "liftedBy" TEXT,
+    "toldAt" TIMESTAMP(3),
 
     CONSTRAINT "feature_withdrawals_pkey" PRIMARY KEY ("id")
 );

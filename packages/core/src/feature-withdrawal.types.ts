@@ -48,6 +48,14 @@ export interface FeatureWithdrawalRecord {
     readonly announcedBy: string;
     readonly liftedAt: Date | null;
     readonly liftedBy: string | null;
+    /**
+     * When the subscriptions it reaches were read and their notices recorded;
+     * null until then. Announcing records the withdrawal first and reads who it
+     * reaches once it is recorded, so that a change concluded while it was
+     * being announced is not missed — the quarter-hourly run tells the ones
+     * still null.
+     */
+    readonly toldAt: Date | null;
 }
 
 export type NewFeatureWithdrawal = Pick<
@@ -258,6 +266,8 @@ export interface FeatureWithdrawalRow {
     readonly announcedBy: string;
     readonly liftedAt: string | null;
     readonly liftedBy: string | null;
+    /** When the subscriptions it reaches were told; null until then. */
+    readonly toldAt: string | null;
 }
 
 /** The row the administration reads for `record`. */
@@ -273,6 +283,7 @@ export function featureWithdrawalRowOf(record: FeatureWithdrawalRecord): Feature
         announcedBy: record.announcedBy,
         liftedAt: record.liftedAt?.toISOString() ?? null,
         liftedBy: record.liftedBy,
+        toldAt: record.toldAt?.toISOString() ?? null,
     };
 }
 

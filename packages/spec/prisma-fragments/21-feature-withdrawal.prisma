@@ -11,8 +11,11 @@
 // announced, why, when and by whom, and of the reductions the operator named.
 //
 // What it means for each subscription it reaches — which lines, what each is
-// reduced by — is a `subscription_notices` row of kind feature-withdrawn,
-// written in the same transaction: its subject is this row's id.
+// reduced by — is a `subscription_notices` row of kind feature-withdrawn whose
+// subject is this row's id. Those are written once this row is: who it reaches
+// is read after it is recorded, so a change concluded while it was being
+// announced is reached, and `toldAt` is set in the transaction that writes
+// them. A row whose `toldAt` is still null is told by the next run.
 //
 // `reductions` is a JSON list of `{ kind, key, billingCycle, amountNet }`: the
 // net amount a plan or an add-on, by its key, is reduced by for one whole
@@ -45,6 +48,8 @@ model FeatureWithdrawal {
     announcedBy String
     liftedAt    DateTime?
     liftedBy    String?
+    // When the subscriptions it reaches were told; null until then.
+    toldAt      DateTime?
 
     @@index([featureKey])
     @@map("feature_withdrawals")
