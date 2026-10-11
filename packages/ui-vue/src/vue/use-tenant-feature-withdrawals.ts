@@ -91,10 +91,10 @@ export function useTenantFeatureWithdrawals(
     const loading = ref(false);
     const error = ref<Error | null>(null);
 
-    // The list is read again at the next moment a withdrawal takes effect or
-    // is lifted: what the card offers — ending at once — opens and closes
-    // then, and a page left open would otherwise keep offering what is gone or
-    // withhold what is due.
+    // The list is read again at the next moment a withdrawal takes effect, is
+    // lifted, or a scheduled change brings a line it reached: what the card
+    // offers — ending at once — opens and closes then, and a page left open
+    // would otherwise keep offering what is gone or withhold what is due.
     let nextRead: ReturnType<typeof setTimeout> | null = null;
     function stopReading(): void {
         if (nextRead !== null) clearTimeout(nextRead);
@@ -107,6 +107,9 @@ export function useTenantFeatureWithdrawals(
             const moments = [
                 ...(withdrawal.inEffect ? [] : [withdrawal.effectiveFrom]),
                 ...(withdrawal.liftedFrom ? [withdrawal.liftedFrom] : []),
+                // A scheduled change or move brings a line, and with it the
+                // right to end at once, when it lands.
+                ...withdrawal.lines.flatMap((line) => (line.fromChange ? [line.fromChange] : [])),
             ];
             return moments.map((moment) => {
                 const at = Date.parse(moment);

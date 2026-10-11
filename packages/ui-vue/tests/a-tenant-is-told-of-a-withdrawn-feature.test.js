@@ -200,6 +200,33 @@ describe('reading the withdrawals again when one changes', () => {
         assert.deepEqual(state.withdrawals.value, []);
     });
 
+    test('reads them again once a scheduled change brings the line, and offers what opens then', async () => {
+        const line = {
+            line: 'plan',
+            key: 'PRO',
+            label: 'Pro',
+            subscriptionBundleId: null,
+            billingCycle: 'YEARLY',
+            reductionNet: 40,
+            reduced: false,
+            fromChange: '2026-07-01T00:00:00.000Z',
+        };
+        const waiting = {
+            ...WITHDRAWAL,
+            lines: [line],
+            endable: { subscription: false, subscriptionBundleIds: [] },
+        };
+        const landed = { ...WITHDRAWAL, lines: [{ ...line, reduced: true, fromChange: null }] };
+        const { state, calls } = reading([200, [waiting]], [200, [landed]]);
+        await state.reload();
+
+        mock.timers.tick(12 * 60 * 60_000 + 1_000);
+        await settled();
+
+        assert.equal(calls.length, 2);
+        assert.equal(state.withdrawals.value[0].endable.subscription, true);
+    });
+
     test('asks again soon where the server has not reached the moment yet', async () => {
         const { state, calls } = reading([200, [AHEAD]], [200, [AHEAD]], [200, [WITHDRAWAL]]);
         await state.reload();

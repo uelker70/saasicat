@@ -584,6 +584,7 @@ _Tested by:_
     - reading the withdrawals again when one changes
         - reads them again once the withdrawal takes effect, and offers what opens then
         - reads them again once the withdrawal is lifted, and offers nothing more
+        - reads them again once a scheduled change brings the line, and offers what opens then
         - asks again soon where the server has not reached the moment yet
         - reads nothing more once the page is gone
 - `packages/ui-vue-tenant/tests/component/a-withdrawn-feature-is-told-beside-the-plan.test.ts`
