@@ -31,5 +31,11 @@ gains `footer`, stored in a new column of `subscription_invoices`, which
 `1.0-an-invoice-is-issued.postgres.sql` adds where an earlier run of it created
 the table.
 
-`@saasicat/tax-de` checks a file outside the scope of VAT as EN 16931 asks: it
-names no VAT identification number and states no rate.
+`@saasicat/tax-de` now compares the subscriber's VAT identification number and
+each line's rate as well: a VAT identification number the XML names for the
+subscriber is the one the invoice records, and under the reverse charge it has
+to name it; every line states the rate the invoice records. Outside the scope of
+VAT the XML names neither party's VAT identification number and states no rate,
+in the breakdown or on a line, as EN 16931 asks. A renderer of an application's
+own that wrote otherwise has its file refused, and the invoice waits under its
+number.

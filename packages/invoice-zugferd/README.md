@@ -38,7 +38,8 @@ An A4 letter laid out after DIN 5008:
 - the tax per rate and the total;
 - the note its treatment carries, such as the reverse charge;
 - the footer lines `config/saas.yaml` named under `invoicing.footer` on the
-  issue date, on every page, with the page's number (`SC-PRIC-077`).
+  issue date, on every page, with the page's number (`SC-PRIC-077`); a line
+  wider than the page goes on in the next, and the foot grows to hold it.
 
 A character the font has no glyph for is shown as `?`; the XML keeps it as it
 was written.

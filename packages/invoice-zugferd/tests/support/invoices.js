@@ -33,6 +33,17 @@ const FOOTER = [
     'Bankverbindung: IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001',
 ];
 
+/**
+ * The widest footer the configuration accepts: six lines of 120 characters,
+ * each in letters wide enough to run past the page's edge.
+ */
+const WIDEST_FOOTER = [
+    'W'.repeat(120),
+    ...Array.from({ length: 5 }, (_, index) =>
+        `${index + 2}. ${'WMW '.repeat(30)}`.slice(0, 120).trimEnd(),
+    ),
+];
+
 const ADAPTER = { name: '@saasicat/tax-de', version: '1.0.0-rc.26' };
 
 /** A line as the store reads it back. */
@@ -163,6 +174,13 @@ export const SAMPLES = [
             addressLine2: 'z. Hd. Γιώργος Παπαδόπουλος / Ольга Иванова',
         },
         lines: [line(1, 'Paket „Premium“ – 50 % auf <alles> & mehr 🚗', 49, 19)],
+    }),
+    invoice('widest-footer', {
+        treatment: { kind: 'standard', rate: 19, note: null },
+        footer: WIDEST_FOOTER,
+        lines: Array.from({ length: 30 }, (_, index) =>
+            line(index + 1, `Zusatzmodul ${index + 1}`, 9.95, 19),
+        ),
     }),
     invoice('many-lines', {
         treatment: { kind: 'standard', rate: 19, note: null },

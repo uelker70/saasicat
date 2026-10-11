@@ -17,7 +17,7 @@ import { GermanTaxAdapter } from '@saasicat/tax-de';
 
 import { ZugferdInvoiceRenderer, zugferdInvoiceRenderer } from '../dist/index.js';
 import { SAMPLES } from './support/invoices.js';
-import { pageTexts } from './support/page-text.js';
+import { pageRuns, pageTexts } from './support/page-text.js';
 
 const renderer = zugferdInvoiceRenderer();
 const adapter = new GermanTaxAdapter();
@@ -129,6 +129,21 @@ describe('what the page says', () => {
         assert.ok(pages[1].includes('435,00'), 'the total after the last line');
     });
 
+    test('a footer line wider than the page, broken onto the next line, on every page', async () => {
+        const invoice = sample('widest-footer');
+        const pages = await pageTexts((await render('widest-footer')).content);
+        const unspaced = (text) => text.replaceAll(' ', '');
+
+        assert.ok(pages.length > 1, 'the table did not run on, so no page break was tried');
+        pages.forEach((page, index) => {
+            const said = unspaced(page.join(''));
+            for (const text of invoice.footer) {
+                assert.ok(said.includes(unspaced(text)), `page ${index + 1}: ${text}`);
+                assert.ok(!page.includes(text), `page ${index + 1} set it on one line`);
+            }
+        });
+    });
+
     test('no footer where the invoice carries none', async () => {
         const [page] = await pageTexts(
             (await renderer.render({ ...sample('standard'), footer: [] })).content,
@@ -151,6 +166,66 @@ describe('what the page says', () => {
         assert.ok(page.includes('Paket „Premium“ – 50 % auf <alles> & mehr ?'));
         assert.ok(xml.includes('<ram:Name>株式会社 Müller &amp; Söhne &lt;GmbH&gt;</ram:Name>'));
     });
+});
+
+describe('where the page sets its text', () => {
+    const MM = 72 / 25.4;
+    const A4_WIDTH = 595.28;
+    const A4_HEIGHT = 841.89;
+    /** DIN 5008: 25 mm from the left edge, 20 mm from the right; the rounding of a right-aligned figure. */
+    const MARGIN = { left: 25 * MM, right: A4_WIDTH - 20 * MM, slack: 0.01 };
+
+    /** The box a run of text covers: its advance across, a quarter below its baseline and three above. */
+    const boxOf = ({ x, y, size, width }) => ({
+        left: x,
+        right: x + width,
+        bottom: y - size / 4,
+        top: y + (size * 3) / 4,
+    });
+    const overlap = (a, b) =>
+        a.left < b.right && b.left < a.right && a.bottom < b.top && b.bottom < a.top;
+
+    for (const { name } of SAMPLES) {
+        test(`(${name}) keeps every run of text between the margins, clear of every other`, async () => {
+            const pages = await pageRuns((await render(name)).content);
+
+            pages.forEach((runs, index) => {
+                const outside = runs
+                    .filter(
+                        (run) =>
+                            run.x < MARGIN.left - MARGIN.slack ||
+                            run.x + run.width > MARGIN.right + MARGIN.slack ||
+                            run.y - run.size / 4 < 0,
+                    )
+                    .map((run) => run.text);
+                assert.deepEqual(outside, [], `page ${index + 1}`);
+
+                const boxes = runs.map((run) => ({ text: run.text, ...boxOf(run) }));
+                const crowded = boxes.flatMap((box, at) =>
+                    boxes
+                        .slice(at + 1)
+                        .filter((other) => overlap(box, other))
+                        .map((other) => `${box.text} | ${other.text}`),
+                );
+                assert.deepEqual(crowded, [], `page ${index + 1}`);
+            });
+        });
+
+        test(`(${name}) leaves 5 mm at least between the foot and the text above it`, async () => {
+            const pages = await pageRuns((await render(name)).content);
+
+            pages.forEach((runs, index) => {
+                // The foot: the page number and the footer lines, set at 7 points in the lower half.
+                const inFoot = (run) => run.size === 7 && run.y < A4_HEIGHT / 2;
+                const footTop = Math.max(...runs.filter(inFoot).map((run) => boxOf(run).top));
+                const above = Math.min(
+                    ...runs.filter((run) => !inFoot(run)).map((run) => boxOf(run).bottom),
+                );
+
+                assert.ok(above - footTop >= 5 * MM, `page ${index + 1}: ${above - footTop} pt`);
+            });
+        });
+    }
 });
 
 describe('a figure', () => {

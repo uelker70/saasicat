@@ -19,8 +19,12 @@ const LEFT = 25 * MM;
 const RIGHT = PAGE.width - 20 * MM;
 /** Where the issuer's block and the invoice's facts begin. */
 const SIDE = 125 * MM;
-/** The foot of a page, kept free for its footer lines and number. */
+/** The least height kept free at the foot of a page, for its footer lines and number. */
 const FOOT = 32 * MM;
+/** The lowest a footer line's baseline goes. */
+const BOTTOM = 8 * MM;
+const FOOTER_SIZE = 7;
+const FOOTER_LEADING = 9;
 const BLACK = grayscale(0);
 const GREY = grayscale(0.35);
 
@@ -115,13 +119,14 @@ export function layOut(pdf: PDFDocument, invoice: SubscriptionInvoiceRecord, fon
         return page;
     };
 
+    const foot = footOf(pen, invoice);
     let page = newPage();
     let y = firstPage(page, pen, invoice);
     y = tableHeader(page, pen, invoice, y);
     for (const entry of invoice.lines) {
         const description = pen.wrap(entry.title, DESCRIPTION_WIDTH, 9);
         const height = description.length * 11 + 4;
-        if (y - height < FOOT + 10 * MM) {
+        if (y - height < foot.top + 10 * MM) {
             page = newPage();
             y = followingPage(page, pen, invoice);
             y = tableHeader(page, pen, invoice, y);
@@ -142,13 +147,13 @@ export function layOut(pdf: PDFDocument, invoice: SubscriptionInvoiceRecord, fon
     }
 
     const closing = closingLines(pen, invoice);
-    if (y - closing.height < FOOT + 5 * MM) {
+    if (y - closing.height < foot.top + 5 * MM) {
         page = newPage();
         y = followingPage(page, pen, invoice);
     }
     closing.draw(page, y);
 
-    pages.forEach((each, index) => foot(each, pen, invoice, index + 1, pages.length));
+    pages.forEach((each, index) => drawFoot(each, pen, foot, index + 1, pages.length));
     for (const each of pages) calibrateGray(pdf, each);
 }
 
@@ -317,26 +322,40 @@ function closingLines(
     };
 }
 
-/** The footer lines the invoice carries, and the page's number, at the foot of the page. */
-function foot(
-    page: PDFPage,
-    pen: Pen,
-    invoice: SubscriptionInvoiceRecord,
-    number: number,
-    count: number,
-): void {
-    let y = FOOT - 8 * MM;
-    for (const text of invoice.footer) {
-        pen.write(page, text, LEFT, y, 7, { grey: true });
-        y -= 9;
+/** The footer lines of every page, and how high the foot they need reaches. */
+interface Foot {
+    /** The invoice's footer lines, each broken where it is wider than the page. */
+    lines: string[];
+    /** The height above the page's lower edge that the table keeps clear of. */
+    top: number;
+}
+
+/**
+ * The footer lines as the page sets them. A line the configuration accepts can
+ * still be wider than the page, in wide letters or a wide font of the
+ * application's, and it is the issuer's legal details: it is broken onto the
+ * next line rather than cut off, and the foot grows upwards to hold it.
+ */
+function footOf(pen: Pen, invoice: SubscriptionInvoiceRecord): Foot {
+    const lines = invoice.footer.flatMap((line) => pen.wrap(line, RIGHT - LEFT, FOOTER_SIZE));
+    const first = Math.max(FOOT - 8 * MM, BOTTOM + (lines.length - 1) * FOOTER_LEADING);
+    return { lines, top: first + 8 * MM };
+}
+
+/** The footer lines and the page's number at the foot of the page. */
+function drawFoot(page: PDFPage, pen: Pen, foot: Foot, number: number, count: number): void {
+    let y = foot.top - 8 * MM;
+    for (const text of foot.lines) {
+        pen.write(page, text, LEFT, y, FOOTER_SIZE, { grey: true });
+        y -= FOOTER_LEADING;
     }
     pen.write(
         page,
         `${LABELS.page.de} ${number} ${LABELS.of.de} ${count} / ${LABELS.page.en} ${number} ${LABELS.of.en} ${count}`,
         RIGHT,
         // Above the footer lines, which may run the width of the page.
-        FOOT - 3 * MM,
-        7,
+        foot.top - 3 * MM,
+        FOOTER_SIZE,
         { grey: true, alignRight: true },
     );
 }

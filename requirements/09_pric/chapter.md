@@ -1549,9 +1549,13 @@ _Tested by:_
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
         - the footer lines and the page’s number on every page of an invoice that runs on
+        - a footer line wider than the page, broken onto the next line, on every page
         - no footer where the invoice carries none
         - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
           XML as it was written
+    - where the page sets its text
+        - (${name}) keeps every run of text between the margins, clear of every other
+        - (${name}) leaves 5 mm at least between the foot and the text above it
     - a figure
         - of ${amount} reads ${page} on the page and ${xml} in the XML
         - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01
@@ -1594,10 +1598,15 @@ _Tested by:_
         - stating a day in another format than 102 is refused
         - that holds nothing but its root names everything the invoice records as missing
         - filed in a kid of the name tree, its name a literal string, is found and passes
+        - the buyer's VAT id › the invoice records one: stated as recorded, or left out, passes
+        - the buyer's VAT id › under the reverse charge, stated as recorded passes
+        - the buyer's VAT id › under the reverse charge, left out or another one is refused
         - outside the scope of VAT › names no VAT id and states no rate, as EN 16931 asks, and
           passes
         - outside the scope of VAT › naming the seller’s VAT id is refused (BR-O-02)
+        - outside the scope of VAT › naming the buyer’s VAT id is refused (BR-O-02)
         - outside the scope of VAT › stating a rate is refused (BR-O-05)
+        - outside the scope of VAT › stating a rate on a line is refused (BR-O-05)
         - of an issuer without a tax number may leave the registration out
         - of an issuer with a tax number must carry it
 
@@ -1642,9 +1651,13 @@ _Tested by:_
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
         - the footer lines and the page’s number on every page of an invoice that runs on
+        - a footer line wider than the page, broken onto the next line, on every page
         - no footer where the invoice carries none
         - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
           XML as it was written
+    - where the page sets its text
+        - (${name}) keeps every run of text between the margins, clear of every other
+        - (${name}) leaves 5 mm at least between the foot and the text above it
     - a figure
         - of ${amount} reads ${page} on the page and ${xml} in the XML
         - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01

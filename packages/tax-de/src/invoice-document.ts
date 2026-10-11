@@ -130,17 +130,24 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
     );
     check('xml.currency', text(settlement, 'InvoiceCurrencyCode') === invoice.currency);
     check('xml.seller.name', text(seller, 'Name') === invoice.issuer.legalName);
-    // Outside the scope of VAT, EN 16931 forbids the VAT ids (BR-O-02) and the
-    // rate (BR-O-05) that every other treatment states.
+    // Outside the scope of VAT, EN 16931 forbids the VAT ids of both parties
+    // (BR-O-02) and any rate, in the breakdown or on a line (BR-O-05), that
+    // every other treatment states.
     const outsideVat = invoice.taxTreatment.kind === 'not-taxable';
     check(
         'xml.seller.vatId',
         registered(registrations, 'VA') === (outsideVat ? null : invoice.issuer.vatId),
     );
     check('xml.seller.taxNumber', registered(registrations, 'FC') === invoice.issuer.taxNumber);
+    const buyer = path(agreement, 'BuyerTradeParty');
+    check('xml.buyer.name', text(buyer, 'Name') === invoice.subscriber.legalName);
     check(
-        'xml.buyer.name',
-        text(path(agreement, 'BuyerTradeParty'), 'Name') === invoice.subscriber.legalName,
+        'xml.buyer.vatId',
+        buyerVatIdHolds(
+            registered(list(buyer, 'SpecifiedTaxRegistration'), 'VA'),
+            invoice,
+            outsideVat,
+        ),
     );
     check('xml.taxes', sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice, outsideVat));
     check(
@@ -153,22 +160,47 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
     check(
         'xml.lines',
         sameAmounts(
-            list(transaction, 'IncludedSupplyChainTradeLineItem').map((item) =>
-                centsOf(
-                    text(
-                        path(
-                            item,
-                            'SpecifiedLineTradeSettlement',
-                            'SpecifiedTradeSettlementLineMonetarySummation',
+            list(transaction, 'IncludedSupplyChainTradeLineItem').map((item) => {
+                const line = path(item, 'SpecifiedLineTradeSettlement');
+                return keyOf(
+                    centsOf(text(path(line, 'ApplicableTradeTax'), 'RateApplicablePercent')),
+                    centsOf(
+                        text(
+                            path(line, 'SpecifiedTradeSettlementLineMonetarySummation'),
+                            'LineTotalAmount',
                         ),
-                        'LineTotalAmount',
                     ),
-                ),
+                );
+            }),
+            invoice.lines.map((line) =>
+                keyOf(outsideVat ? null : cents(line.taxRate), cents(line.amountNet)),
             ),
-            invoice.lines.map((line) => cents(line.amountNet)),
         ),
     );
     return gaps;
+}
+
+/**
+ * Whether the buyer's VAT id the XML states is the subscriber's the invoice
+ * records: required under the reverse charge, where the buyer owes the tax
+ * (§ 14a UStG, BR-AE-02), forbidden outside the scope of VAT (BR-O-02), and
+ * otherwise the subscriber's wherever it is stated.
+ */
+function buyerVatIdHolds(
+    stated: string | null,
+    invoice: SubscriptionInvoiceRecord,
+    outsideVat: boolean,
+): boolean {
+    if (outsideVat) return stated === null;
+    if (invoice.taxTreatment.kind === 'reverse-charge') {
+        return stated === invoice.subscriber.vatId;
+    }
+    return stated === null || stated === invoice.subscriber.vatId;
+}
+
+/** Figures that belong together, as one value to compare: `null` stays apart from `0`. */
+function keyOf(...figures: (number | null)[]): string {
+    return figures.map(String).join('|');
 }
 
 /** The tax the XML states per rate, against the invoice's, rate by rate. */
@@ -177,18 +209,16 @@ function sameTaxes(
     invoice: SubscriptionInvoiceRecord,
     outsideVat: boolean,
 ): boolean {
-    const key = (rate: number | null, net: number | null, tax: number | null) =>
-        `${rate}|${net}|${tax}`;
     return sameAmounts(
         stated.map((entry) =>
-            key(
+            keyOf(
                 centsOf(text(entry, 'RateApplicablePercent')),
                 centsOf(text(entry, 'BasisAmount')),
                 centsOf(text(entry, 'CalculatedAmount')),
             ),
         ),
         invoice.taxes.map((entry) =>
-            key(outsideVat ? null : cents(entry.rate), cents(entry.net), cents(entry.tax)),
+            keyOf(outsideVat ? null : cents(entry.rate), cents(entry.net), cents(entry.tax)),
         ),
     );
 }

@@ -159,10 +159,17 @@ describe('the embedded XML', () => {
             'xml.seller.taxNumber',
         ],
         ['naming another buyer', { buyerName: 'Autohaus Meier GmbH' }, 'xml.buyer.name'],
+        [
+            "with a buyer's VAT id the invoice does not record",
+            { buyerVatId: 'DE999999999' },
+            'xml.buyer.vatId',
+        ],
         ['with another tax at the rate', { taxes: [{ rate: 19, net: 49, tax: 9.3 }] }, 'xml.taxes'],
         ['at another rate', { taxes: [{ rate: 7, net: 49, tax: 9.31 }] }, 'xml.taxes'],
         ['with a line too few', { lines: [53.9] }, 'xml.lines'],
         ['with a line of another amount', { lines: [53.9, -4.8] }, 'xml.lines'],
+        ['with a line at another rate', { lineRates: [19, 7] }, 'xml.lines'],
+        ['with a line that states no rate', { lineRates: [19, null] }, 'xml.lines'],
     ]) {
         test(`${what} is refused`, async () => {
             assert.deepEqual(await gapsOf(differing(overrides)), [gap]);
@@ -222,9 +229,53 @@ describe('the embedded XML', () => {
         assert.deepEqual(await gapsOf({ reshape: fileUnderAKid }), []);
     });
 
+    describe("the buyer's VAT id", () => {
+        const recorded = {
+            ...INVOICE,
+            subscriber: { ...INVOICE.subscriber, vatId: 'DE111111111' },
+        };
+        const reverseCharge = {
+            ...recorded,
+            subscriber: { ...recorded.subscriber, vatId: 'ATU12345678', country: 'AT' },
+            taxTreatment: {
+                ...INVOICE.taxTreatment,
+                kind: 'reverse-charge',
+                rate: 0,
+                note: 'Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG) / Reverse charge',
+            },
+            taxes: [{ rate: 0, net: 49, tax: 0 }],
+            totalTax: 0,
+            totalGross: 49,
+            lines: INVOICE.lines.map((line) => ({ ...line, taxRate: 0 })),
+        };
+
+        test('the invoice records one: stated as recorded, or left out, passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: ciiOf(recorded) }, recorded), []);
+            assert.deepEqual(
+                await gapsOf({ xml: ciiOf(recorded, { buyerVatId: null }) }, recorded),
+                [],
+            );
+        });
+
+        test('under the reverse charge, stated as recorded passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: ciiOf(reverseCharge) }, reverseCharge), []);
+        });
+
+        test('under the reverse charge, left out or another one is refused', async () => {
+            for (const buyerVatId of [null, 'ATU99999999']) {
+                assert.deepEqual(
+                    await gapsOf({ xml: ciiOf(reverseCharge, { buyerVatId }) }, reverseCharge),
+                    ['xml.buyer.vatId'],
+                    String(buyerVatId),
+                );
+            }
+        });
+    });
+
     describe('outside the scope of VAT', () => {
         const notTaxable = {
             ...INVOICE,
+            subscriber: { ...INVOICE.subscriber, vatId: 'CHE-123.456.789', country: 'CH' },
             taxTreatment: {
                 ...INVOICE.taxTreatment,
                 kind: 'not-taxable',
@@ -238,7 +289,9 @@ describe('the embedded XML', () => {
         const outside = (overrides = {}) =>
             ciiOf(notTaxable, {
                 sellerVatId: null,
+                buyerVatId: null,
                 taxes: [{ rate: null, net: 49, tax: 0 }],
+                lineRates: [null, null],
                 ...overrides,
             });
 
@@ -252,10 +305,22 @@ describe('the embedded XML', () => {
             assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.seller.vatId']);
         });
 
+        test('naming the buyer’s VAT id is refused (BR-O-02)', async () => {
+            const xml = outside({ buyerVatId: notTaxable.subscriber.vatId });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.buyer.vatId']);
+        });
+
         test('stating a rate is refused (BR-O-05)', async () => {
             const xml = outside({ taxes: [{ rate: 0, net: 49, tax: 0 }] });
 
             assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.taxes']);
+        });
+
+        test('stating a rate on a line is refused (BR-O-05)', async () => {
+            const xml = outside({ lineRates: [0, null] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
         });
     });
 

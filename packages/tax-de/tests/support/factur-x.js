@@ -105,6 +105,10 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     ]
         .filter(Boolean)
         .join('');
+    const lineRates = field(
+        'lineRates',
+        invoice.lines.map((line) => line.taxRate),
+    );
     const lines = field(
         'lines',
         invoice.lines.map((line) => line.amountNet),
@@ -112,12 +116,14 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
         .map(
             (net, index) => `<ram:IncludedSupplyChainTradeLineItem>
             <ram:AssociatedDocumentLineDocument><ram:LineID>${index + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
-            <ram:SpecifiedLineTradeSettlement><ram:SpecifiedTradeSettlementLineMonetarySummation>
-                <ram:LineTotalAmount>${amount(net)}</ram:LineTotalAmount>
-            </ram:SpecifiedTradeSettlementLineMonetarySummation></ram:SpecifiedLineTradeSettlement>
+            <ram:SpecifiedLineTradeSettlement>
+                <ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode>${lineRates[index] === null ? '' : `<ram:RateApplicablePercent>${amount(lineRates[index])}</ram:RateApplicablePercent>`}</ram:ApplicableTradeTax>
+                <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>${amount(net)}</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
+            </ram:SpecifiedLineTradeSettlement>
         </ram:IncludedSupplyChainTradeLineItem>`,
         )
         .join('');
+    const buyerVatId = field('buyerVatId', invoice.subscriber.vatId);
     const taxes = field('taxes', invoice.taxes)
         .map(
             (tax) => `<ram:ApplicableTradeTax>
@@ -145,7 +151,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     ${lines}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:SellerTradeParty><ram:Name>${field('sellerName', invoice.issuer.legalName)}</ram:Name>${registrations}</ram:SellerTradeParty>
-      <ram:BuyerTradeParty><ram:Name>${field('buyerName', invoice.subscriber.legalName)}</ram:Name></ram:BuyerTradeParty>
+      <ram:BuyerTradeParty><ram:Name>${field('buyerName', invoice.subscriber.legalName)}</ram:Name>${buyerVatId ? `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${buyerVatId}</ram:ID></ram:SpecifiedTaxRegistration>` : ''}</ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
     <ram:ApplicableHeaderTradeDelivery/>
     <ram:ApplicableHeaderTradeSettlement>
