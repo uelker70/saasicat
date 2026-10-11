@@ -288,8 +288,7 @@ export class FeatureWithdrawalService {
         return readAcrossTenants(this.rlsBypass, async () => {
             let told = 0;
             let failed = 0;
-            for (const withdrawal of await this.withdrawals.list()) {
-                if (withdrawal.toldAt !== null || !this.available) continue;
+            for (const withdrawal of await this.untoldWithdrawals()) {
                 const outcome = await this.tellWhoItReaches(withdrawal, now);
                 told += outcome?.told ?? 0;
                 failed += outcome?.failed ?? 0;
@@ -318,6 +317,53 @@ export class FeatureWithdrawalService {
             }
             return { told, failed };
         });
+    }
+
+    /**
+     * The withdrawal as it stands once telling it was tried, and — where a run
+     * told it first — how far that came, from the record of notices. Best
+     * effort: a read that fails here leaves the answer as the record had it,
+     * because the withdrawal is announced and its audit entry still has to be
+     * written.
+     */
+    private async readBack(
+        withdrawal: FeatureWithdrawalRecord,
+        outcome: { reached: number } | null,
+    ): Promise<{
+        current: FeatureWithdrawalRecord;
+        elsewhere: { reached: number; told: number } | null;
+    }> {
+        try {
+            const current = (await this.withdrawals.findById(withdrawal.id)) ?? withdrawal;
+            const elsewhere =
+                !outcome && current.toldAt !== null ? await this.progressOf(withdrawal) : null;
+            return { current, elsewhere };
+        } catch (error) {
+            this.logger.error(
+                `Feature withdrawal ${withdrawal.id} is announced, but reading it back failed.`,
+                error instanceof Error ? error.stack : String(error),
+            );
+            return { current: withdrawal, elsewhere: null };
+        }
+    }
+
+    /**
+     * The withdrawals not told yet, for the run to tell; none where they cannot
+     * be read, so that the rest of the run still sends what is recorded.
+     */
+    private async untoldWithdrawals(): Promise<FeatureWithdrawalRecord[]> {
+        if (!this.available) return [];
+        try {
+            return (await this.withdrawals.list()).filter(
+                (withdrawal) => withdrawal.toldAt === null,
+            );
+        } catch (error) {
+            this.logger.error(
+                'Reading the feature withdrawals failed; the next run tells any not told yet.',
+                error instanceof Error ? error.stack : String(error),
+            );
+            return [];
+        }
     }
 
     /** How many subscriptions `withdrawal` reached, and how many of their notices reached somebody. */
@@ -491,11 +537,7 @@ export class FeatureWithdrawalService {
         // when it did not.
         this.entitlements.invalidateAll();
         const outcome = await this.tellWhoItReaches(withdrawal, now);
-        const current = (await this.withdrawals.findById(withdrawal.id)) ?? withdrawal;
-        // Told by a run that came first, where this call found it told
-        // already: the record of notices says how far that came.
-        const elsewhere =
-            !outcome && current.toldAt !== null ? await this.progressOf(withdrawal) : null;
+        const { current, elsewhere } = await this.readBack(withdrawal, outcome);
         await this.record(actor, 'FEATURE_WITHDRAW', withdrawal, {
             featureKey: withdrawal.featureKey,
             effectiveFrom: withdrawal.effectiveFrom.toISOString(),
@@ -525,17 +567,19 @@ export class FeatureWithdrawalService {
         withdrawal: FeatureWithdrawalRecord,
         now: Date,
     ): Promise<{ reached: number; told: number; failed: number } | null> {
-        const catalog = await this.catalogs.current();
-        const { reached } = await this.reachOf(
-            withdrawal.featureKey,
-            withdrawal.effectiveFrom,
-            catalog,
-            now,
-        );
-        const label = featureLabelOf(catalog, withdrawal.featureKey);
-        const notices = reached.map((row) => withdrawnNoticeOf(withdrawal, label, row));
+        let reached: FeatureWithdrawalPreview['reached'];
+        let notices: FeatureWithdrawnNotice[];
         let marked: boolean;
+        // Whatever fails here — a read as much as the write — leaves the
+        // withdrawal untold for the run, and never fails what called it: the
+        // withdrawal is recorded either way.
         try {
+            const catalog = await this.catalogs.current();
+            reached = (
+                await this.reachOf(withdrawal.featureKey, withdrawal.effectiveFrom, catalog, now)
+            ).reached;
+            const label = featureLabelOf(catalog, withdrawal.featureKey);
+            notices = reached.map((row) => withdrawnNoticeOf(withdrawal, label, row));
             marked = await this.transactions.run(async (tx) => {
                 if (!(await this.withdrawals.markTold(withdrawal.id, now, tx))) return false;
                 await this.notices.record(

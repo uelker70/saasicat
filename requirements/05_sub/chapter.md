@@ -1508,6 +1508,11 @@ _Tested by:_
         - tells them once, where the run and the announcement tell them at the same moment
         - reaches nobody through a second telling that read it before the first was done
         - reports what was told where a run told them before the announcement could
+        - stands, audited, where reading who it reaches fails once it is recorded, and the run tells
+          them
+        - leaves the run sending what is recorded where telling a withdrawal fails
+        - stands, audited, where reading it back after telling fails
+        - leaves the run sending what is recorded where the withdrawals cannot be read
         - writes the reductions into the contract of each subscription with a line reduced
         - stands where writing a contract fails, which the journal does before it charges
         - tells a line no reduction was named for that none applies
@@ -1645,6 +1650,11 @@ _Tested by:_
         - tells them once, where the run and the announcement tell them at the same moment
         - reaches nobody through a second telling that read it before the first was done
         - reports what was told where a run told them before the announcement could
+        - stands, audited, where reading who it reaches fails once it is recorded, and the run tells
+          them
+        - leaves the run sending what is recorded where telling a withdrawal fails
+        - stands, audited, where reading it back after telling fails
+        - leaves the run sending what is recorded where the withdrawals cannot be read
     - lifting a withdrawal
         - tells a withdrawal nobody was told of yet before it tells them it is lifted
         - refuses to lift a withdrawal nobody could be told of yet, and lifts nothing

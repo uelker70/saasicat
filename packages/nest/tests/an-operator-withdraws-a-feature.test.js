@@ -705,6 +705,120 @@ describe('announcing a withdrawal', () => {
         );
     });
 
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('stands, audited, where reading who it reaches fails once it is recorded, and the run tells them', async () => {
+        const subscriptions = [subscriptionOf('t1')];
+        let reading = true;
+        const harness = withdrawing({
+            subscriptions,
+            usage: {
+                async listBoundToVersion(versionId) {
+                    if (!reading) throw new Error('the database went away');
+                    return subscriptions.filter(
+                        (row) => row.subscription.planVersion.id === versionId,
+                    );
+                },
+            },
+        });
+        const create = harness.withdrawals.create;
+        harness.withdrawals.create = async (data, tx) => {
+            const created = await create(data, tx);
+            reading = false;
+            return created;
+        };
+
+        const { withdrawal, told } = await harness.service.announce(
+            await announcement(harness.service),
+            ACTOR,
+            NOW,
+        );
+
+        assert.equal(withdrawal.toldAt, null, 'announced, nobody told yet');
+        assert.equal(told, 0);
+        assert.deepEqual(
+            harness.audited.map((entry) => [entry.action, entry.changes.subscriptions]),
+            [['FEATURE_WITHDRAW', null]],
+            'and audited all the same',
+        );
+        reading = true;
+        assert.equal((await harness.service.sendUndelivered(ms(NOW, 60_000))).told, 1);
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('leaves the run sending what is recorded where telling a withdrawal fails', async () => {
+        const told = withdrawalRecord({ id: 'fw-told', featureKey: 'REPORTS' });
+        const harness = withdrawing({
+            withdrawals: withdrawalStore([withdrawalRecord({ toldAt: null }), told]),
+            usage: {
+                async listBoundToVersion() {
+                    throw new Error('the database went away');
+                },
+            },
+        });
+        await harness.notices.record(
+            [
+                {
+                    tenantId: 't1',
+                    subscriptionId: 'sub-t1',
+                    kind: 'feature-withdrawal-lifted',
+                    subject: 'fw-told',
+                    content: { kind: 'feature-withdrawal-lifted', subscriptionId: 'sub-t1' },
+                },
+                {
+                    tenantId: 't1',
+                    subscriptionId: 'sub-t1',
+                    kind: 'feature-withdrawn',
+                    subject: 'fw-told',
+                    content: { kind: 'feature-withdrawn', subscriptionId: 'sub-t1' },
+                },
+            ],
+            NOW,
+        );
+
+        const run = await harness.service.sendUndelivered(ms(NOW, 60 * 60_000));
+
+        assert.equal(run.told, 2, 'the withdrawal told elsewhere, and its lift after it');
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('stands, audited, where reading it back after telling fails', async () => {
+        const harness = withdrawing();
+        harness.withdrawals.findById = async () => {
+            throw new Error('the database went away');
+        };
+        const { told } = await harness.service.announce(
+            await announcement(harness.service),
+            ACTOR,
+            NOW,
+        );
+        assert.equal(told, 1);
+        assert.deepEqual(
+            harness.audited.map((entry) => [entry.action, entry.changes.subscriptions]),
+            [['FEATURE_WITHDRAW', 1]],
+        );
+    });
+
+    // @requirement SC-SUB-044 — Who a withdrawal reaches is read once it is recorded
+    test('leaves the run sending what is recorded where the withdrawals cannot be read', async () => {
+        const harness = withdrawing();
+        await harness.notices.record(
+            [
+                {
+                    tenantId: 't1',
+                    subscriptionId: 'sub-t1',
+                    kind: 'feature-withdrawn',
+                    subject: 'fw-existing',
+                    content: { kind: 'feature-withdrawn', subscriptionId: 'sub-t1' },
+                },
+            ],
+            NOW,
+        );
+        harness.withdrawals.list = async () => {
+            throw new Error('the database went away');
+        };
+        assert.equal((await harness.service.sendUndelivered(ms(NOW, 60 * 60_000))).told, 1);
+    });
+
     test('writes the reductions into the contract of each subscription with a line reduced', async () => {
         const written = [];
         const harness = withdrawing({
