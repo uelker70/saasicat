@@ -304,21 +304,26 @@ export class BundleRetirementMoveService {
                 `${notice.replacement.bundleKey}: ${reason}. ${next}`,
         );
         const key = `${notice.subscriptionBundleId}:${notice.retirementId}:${reason}`;
-        if (!this.auditedFailures.has(key)) {
-            this.auditedFailures.add(key);
-            await this.auditMove(notice, 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED', {
+        // Marked only once written: a write that failed is tried again by the
+        // next run.
+        if (
+            !this.auditedFailures.has(key) &&
+            (await this.auditMove(notice, 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED', {
                 reason,
                 ...extra,
-            });
+            }))
+        ) {
+            this.auditedFailures.add(key);
         }
         return 'failed';
     }
 
+    /** Writes the audit entry; whether it was written, or there is no audit log to write it to. */
     private async auditMove(
         notice: BundleVersionRetiredNotice,
         action: string,
         extra: Record<string, unknown> = {},
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             await this.audit?.log({
                 actor: platformJobActor(JOB),
@@ -335,12 +340,14 @@ export class BundleRetirementMoveService {
                     ...extra,
                 },
             });
+            return true;
         } catch (error) {
             // The move stands either way; the lost record of it is said loudly.
             this.logger.error(
                 `Writing the audit entry ${action} for booking ${notice.subscriptionBundleId} failed.`,
                 error instanceof Error ? error.stack : String(error),
             );
+            return false;
         }
     }
 }

@@ -19,6 +19,7 @@ import {
     catalogueOf,
     subscriptionOf,
 } from './add-on-retirement-fixtures.js';
+import { auditLogFailing } from './audit-log.js';
 
 export { NOW };
 
@@ -128,7 +129,8 @@ export function usageOf(subscriptions) {
  * subscription is set to move to, `told` the add-on retirements it was told
  * of; `withRun: false` leaves the run out, as an installation without the
  * quarter-hourly steps has none; `journalFailures` is how many times the
- * journal fails to record before it records again.
+ * journal fails to record before it records again, `auditFailures` how many
+ * times the audit log fails to write.
  */
 export function offering({
     versions = [BOOKED, IMPROVEMENT],
@@ -144,6 +146,7 @@ export function offering({
     partyRefusal = null,
     freezeFails = false,
     journalFailures = 0,
+    auditFailures = 0,
 } = {}) {
     const catalogue = catalogueOf(versions, { deleted });
     const usage = usageOf(subscriptions);
@@ -153,6 +156,7 @@ export function offering({
     const asked = [];
     const askedWhileOn = [];
     const audited = [];
+    const audit = auditLogFailing(audited, auditFailures);
     const contractFreeze = {
         async assertPartyFor(tenantId, intended) {
             asked.push({ tenantId, intended });
@@ -187,7 +191,7 @@ export function offering({
               null,
               contractFreeze,
               charges,
-              { log: async (entry) => audited.push(entry) },
+              audit,
           )
         : null;
     const offers = new BundleVersionOfferService(

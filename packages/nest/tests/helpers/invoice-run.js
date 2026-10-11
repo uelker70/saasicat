@@ -20,6 +20,7 @@ import {
     FakeSubscriptionContractRepository,
 } from '../../dist/testing/index.js';
 import { TEST_TAX_ADAPTER } from './tax-adapter.js';
+import { auditLogFailing } from './audit-log.js';
 
 /** The issuer `config/saas.yaml` names. */
 export const ISSUER = {
@@ -187,16 +188,7 @@ export function anInvoicingInstallation({
     const journal = [];
     const store = invoiceStore(journal);
     const audits = [];
-    let failing = failingAuditWrites;
-    const audit = {
-        log: async (entry) => {
-            if (failing > 0) {
-                failing -= 1;
-                throw new Error('the audit log is unreachable');
-            }
-            audits.push(entry);
-        },
-    };
+    const audit = auditLogFailing(audits, failingAuditWrites);
     const service = new SubscriptionInvoiceService(
         store,
         contracts,
