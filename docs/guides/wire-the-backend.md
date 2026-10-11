@@ -1010,8 +1010,14 @@ tenantBilling: {
 The start refuses the wiring without the `invoicing` block, the block without the wiring where tenant
 billing is configured, either without a tax adapter, an issuer or the record of the applied
 settings, and a `numberPrefix` other than the one the invoices already issued carry
-(`SC-PRIC-024`). The prefix is letters and digits; the
-number puts the year and the sequence behind it, each after a hyphen.
+(`SC-PRIC-024`). The prefix is letters and digits; the number puts the year and the sequence behind
+it, each after a hyphen.
+
+`SaaSiCatModule` composes all of that. An application that wires `TenantBillingModule` itself
+registers `SettingsModule` from `@saasicat/nest` with `global: true`, so that the invoice run reaches
+the record, and adds `IssuerIdentityInspector` and `IssuerIdentityCheck` from
+`@saasicat/nest/platform` beside it: the record keeps the issuer, and only that check refuses a start
+whose file names another legal entity, which would otherwise number on in this range.
 
 `SubscriptionInvoiceService.issueDue(now)` issues what is owed, and the platform runs it every
 quarter of an hour, which needs `ScheduleModule` in your application. With
