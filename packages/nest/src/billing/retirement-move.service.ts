@@ -238,16 +238,16 @@ export class RetirementMoveService {
                 `${reason}. The next run tries again while it is on the version retired.`,
         );
         const key = `${notice.subscriptionId}:${notice.retirementId}:${reason}`;
-        // Marked only once written: a write that failed is tried again by the
-        // next run.
-        if (
-            !this.auditedFailures.has(key) &&
-            (await this.auditMove(notice, 'PLAN_VERSION_RETIREMENT_MOVE_FAILED', {
+        // Reserved before the write, so a run overlapping this one writes no
+        // second entry, and released where the write fails, so the next run
+        // tries it again.
+        if (!this.auditedFailures.has(key)) {
+            this.auditedFailures.add(key);
+            const written = await this.auditMove(notice, 'PLAN_VERSION_RETIREMENT_MOVE_FAILED', {
                 reason,
                 ...extra,
-            }))
-        ) {
-            this.auditedFailures.add(key);
+            });
+            if (!written) this.auditedFailures.delete(key);
         }
         return 'failed';
     }

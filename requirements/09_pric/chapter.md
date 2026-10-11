@@ -1071,6 +1071,7 @@ _Tested by:_
         - waits for the subscriber’s address, draws no number, and takes the next one once it is
           complete
         - is recorded in the audit log once, however many runs find it waiting
+        - is recorded in the audit log once between two runs at the same moment
         - is recorded in the audit log by the next run where the write failed
         - waits where the adapter supports no treatment for the subscriber
         - waits for what the adapter finds missing, and draws no number
@@ -1248,6 +1249,7 @@ _Tested by:_
         - waits for the subscriber’s address, draws no number, and takes the next one once it is
           complete
         - is recorded in the audit log once, however many runs find it waiting
+        - is recorded in the audit log once between two runs at the same moment
         - is recorded in the audit log by the next run where the write failed
         - waits where the adapter supports no treatment for the subscriber
         - waits for what the adapter finds missing, and draws no number

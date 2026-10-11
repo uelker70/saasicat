@@ -304,16 +304,16 @@ export class BundleRetirementMoveService {
                 `${notice.replacement.bundleKey}: ${reason}. ${next}`,
         );
         const key = `${notice.subscriptionBundleId}:${notice.retirementId}:${reason}`;
-        // Marked only once written: a write that failed is tried again by the
-        // next run.
-        if (
-            !this.auditedFailures.has(key) &&
-            (await this.auditMove(notice, 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED', {
+        // Reserved before the write, so a run overlapping this one writes no
+        // second entry, and released where the write fails, so the next run
+        // tries it again.
+        if (!this.auditedFailures.has(key)) {
+            this.auditedFailures.add(key);
+            const written = await this.auditMove(notice, 'BUNDLE_VERSION_RETIREMENT_MOVE_FAILED', {
                 reason,
                 ...extra,
-            }))
-        ) {
-            this.auditedFailures.add(key);
+            });
+            if (!written) this.auditedFailures.delete(key);
         }
         return 'failed';
     }

@@ -586,6 +586,15 @@ describe('a move that cannot be made', () => {
         );
     });
 
+    test('is audited once between two runs at the same moment', async () => {
+        const world = await announced();
+        const { service, audited } = mover(world, { noParty: ['t1'] });
+
+        await Promise.all([service.moveDue(AT_THE_DATE), service.moveDue(AT_THE_DATE)]);
+
+        assert.deepEqual(failuresIn(audited), [['sb-t1', 'no-party']]);
+    });
+
     test('is audited by the next run where the first write to the audit log failed', async () => {
         const world = await announced();
         const { service, audited } = mover(world, { noParty: ['t1'], auditFailures: 1 });

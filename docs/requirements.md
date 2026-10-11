@@ -4254,6 +4254,7 @@ _Tested by:_
         - a trial converted since gets the contract the move writes
     - a move that cannot be made
         - fails without a party to the contract, audited once though every run fails
+        - is audited once between two runs at the same moment
         - is audited by the next run where the first write to the audit log failed
         - asks the party about the contract each move then writes
         - fails for a subscriber the tax adapter supports no treatment for, and says so
@@ -4741,6 +4742,7 @@ _Tested by:_
         - is cleared, and nothing asked, where the tenant is on another subscription now
     - a switch the run cannot make
         - for want of a party is left as it is, recorded once, and tried again by the next run
+        - is recorded once between two runs at the same moment
         - is recorded by the next run where the first write to the audit log failed
         - for a subscriber whose invoice address is incomplete is left as it is, and the failure
           names the empty fields
@@ -5755,6 +5757,7 @@ _Tested by:_
         - moves a trial without a contract or a charge: both come when it converts
         - a subscription that changed between the read and the write is left to the next run
         - a replacement the write refuses is a failure, recorded once however often it is tried
+        - a failure two runs at the same moment find is recorded once between them
         - a failure the audit log could not take is recorded by the next run
         - moves nothing whose notice has reached nobody, however late it is
         - a tenant without a subscriber to name is not moved at all
@@ -8787,6 +8790,7 @@ _Tested by:_
         - waits for the subscriber’s address, draws no number, and takes the next one once it is
           complete
         - is recorded in the audit log once, however many runs find it waiting
+        - is recorded in the audit log once between two runs at the same moment
         - is recorded in the audit log by the next run where the write failed
         - waits where the adapter supports no treatment for the subscriber
         - waits for what the adapter finds missing, and draws no number
@@ -8964,6 +8968,7 @@ _Tested by:_
         - waits for the subscriber’s address, draws no number, and takes the next one once it is
           complete
         - is recorded in the audit log once, however many runs find it waiting
+        - is recorded in the audit log once between two runs at the same moment
         - is recorded in the audit log by the next run where the write failed
         - waits where the adapter supports no treatment for the subscriber
         - waits for what the adapter finds missing, and draws no number

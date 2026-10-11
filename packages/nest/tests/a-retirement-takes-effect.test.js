@@ -304,6 +304,17 @@ describe('the move at the date', () => {
         );
     });
 
+    test('a failure two runs at the same moment find is recorded once between them', async () => {
+        const { service, audited } = await aRun({ claims: () => false });
+
+        await Promise.all([service.moveDue(DATE), service.moveDue(DATE)]);
+
+        assert.deepEqual(
+            audited.map((entry) => entry.action),
+            ['PLAN_VERSION_RETIREMENT_MOVE_FAILED'],
+        );
+    });
+
     test('a failure the audit log could not take is recorded by the next run', async () => {
         const { service, audited } = await aRun({ claims: () => false, auditFailures: 1 });
 

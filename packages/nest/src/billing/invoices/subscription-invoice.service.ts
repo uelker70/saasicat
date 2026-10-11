@@ -272,6 +272,10 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         );
         const key = `${group.contractId}|${group.bookedAt.toISOString()}|${hold.code}`;
         if (this.auditedHolds.has(key)) return;
+        // Reserved before the write, so a run overlapping this one writes no
+        // second entry, and released where the write fails, so the next run
+        // tries it again.
+        this.auditedHolds.add(key);
         try {
             await this.audit?.log({
                 actor: platformJobActor(JOB),
@@ -287,9 +291,8 @@ export class SubscriptionInvoiceService implements OnModuleInit {
                     params: hold.params,
                 },
             });
-            // Only once written: a write that failed is tried again by the next run.
-            this.auditedHolds.add(key);
         } catch (error) {
+            this.auditedHolds.delete(key);
             // The hold stands either way; the lost record of it is said loudly.
             this.logger.error(
                 `Writing the audit entry SUBSCRIPTION_INVOICE_HELD for contract ${group.contractId} failed.`,

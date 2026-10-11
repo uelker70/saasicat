@@ -445,6 +445,14 @@ describe('an invoice that cannot be issued yet', () => {
         });
     });
 
+    test('is recorded in the audit log once between two runs at the same moment', async () => {
+        const installation = await aChargedSubscriber({}, { city: null });
+
+        await Promise.all([installation.run(), installation.run()]);
+
+        assert.equal(holdsIn(installation.audits).length, 1);
+    });
+
     test('is recorded in the audit log by the next run where the write failed', async () => {
         const installation = await aChargedSubscriber({ failingAuditWrites: 1 }, { city: null });
 
