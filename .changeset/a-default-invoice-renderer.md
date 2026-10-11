@@ -31,14 +31,22 @@ gains `footer`, stored in a new column of `subscription_invoices`, which
 `1.0-an-invoice-is-issued.postgres.sql` adds where an earlier run of it created
 the table.
 
-`@saasicat/tax-de` now compares the subscriber's VAT identification number and
-each line's rate as well: a VAT identification number the XML names for the
-subscriber is the one the invoice records, and under the reverse charge it has
-to name it; every line states, in its one VAT breakdown, the rate the invoice
-records; and neither party names more than one. Outside the scope of VAT the XML
-names neither party's VAT identification number and states no rate, in the
-breakdown or on a line, as EN 16931 asks. A renderer of an application's own
-that wrote otherwise has its file refused, and the invoice waits under its
-number. It also refuses embedded XML that holds a character XML 1.0 forbids,
-such as a control character, which its parser had read past, and reads an
-element the format gives once but the XML states twice as missing.
+`@saasicat/tax-de` now compares the subscriber's VAT identification number, each
+line's rate and every VAT category as well: a VAT identification number the XML
+names for the subscriber is the one the invoice records, and under the reverse
+charge it has to name it; every line states, in exactly one VAT breakdown, the
+rate the invoice records; every breakdown names the category EN 16931 gives the
+treatment; and neither party names more than one VAT identification number.
+Outside the scope of VAT the XML names neither party's and states no rate, in
+the breakdown or on a line. A renderer of an application's own that wrote
+otherwise has its file refused, and the invoice waits under its number. It also
+refuses embedded XML that holds a character XML 1.0 forbids, which its parser
+had read past, and reads an element the format gives once but the XML states
+twice as missing. A name the invoice records with such a character is compared
+as the XML has to write it, with `?` in its place.
+
+`@saasicat/core` exports what the renderer, the adapter and the API read alike:
+`vatCategoryOf(kind)`, and `holdsOnlyXmlCharacters` and `withXmlCharactersOnly`
+for the characters XML 1.0 can hold. `@saasicat/nest` refuses a subscriber's
+detail that holds one it cannot, such as a control character pasted with a name,
+with `SUBSCRIBER_DETAIL_INVALID` naming the field.

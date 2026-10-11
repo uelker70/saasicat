@@ -170,8 +170,9 @@ export const SAMPLES = [
         treatment: { kind: 'standard', rate: 19, note: null },
         subscriber: {
             ...SUBSCRIBER,
-            legalName: '株式会社 Müller & Söhne <GmbH>',
-            // A form feed, pasted with the address: XML cannot hold it at all.
+            // A vertical tab and a form feed, pasted with the name and the
+            // address: XML cannot hold either at all.
+            legalName: '株式会社 Müller &\vSöhne <GmbH>',
             addressLine1: 'Ringstraße 1\f',
             addressLine2: 'z. Hd. Γιώργος Παπαδόπουλος / Ольга Иванова',
         },

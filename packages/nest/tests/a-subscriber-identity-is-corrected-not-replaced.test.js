@@ -98,6 +98,10 @@ describe('a new subscriber', () => {
         ['invoiceEmail', 'anna@meier.'],
         ['legalName', 42],
         ['vatId', { value: 'DE1' }],
+        // Characters an e-invoice's XML cannot hold (SC-PRIC-078).
+        ['legalName', 'Meier\vGmbH'],
+        ['addressLine1', 'Hauptstraße 1\f'],
+        ['city', 'Berlin\u0001'],
     ]) {
         test(`with ${field} ${JSON.stringify(value)} is refused, naming the field`, async () => {
             const { service } = await subscribersFor();

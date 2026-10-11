@@ -1,19 +1,9 @@
-// The VAT category EN 16931 names for each treatment an adapter decides, and
-// what the XML has to say beside it.
+// What the XML says of a treatment's tax: the VAT category EN 16931 names for
+// it (`vatCategoryOf` in `@saasicat/core`, which the adapter's check reads
+// too), and what has to stand beside it.
 
-import type { TaxTreatment, TaxTreatmentKind } from '@saasicat/core';
-
-/** UNTDID 5305, as EN 16931 uses it. */
-export type VatCategory = 'S' | 'E' | 'AE' | 'O';
-
-const CATEGORY: Readonly<Record<TaxTreatmentKind, VatCategory>> = {
-    standard: 'S',
-    reduced: 'S',
-    exempt: 'E',
-    'small-business': 'E',
-    'reverse-charge': 'AE',
-    'not-taxable': 'O',
-};
+import { vatCategoryOf } from '@saasicat/core';
+import type { TaxTreatment, VatCategory } from '@saasicat/core';
 
 /**
  * The sentence the XML gives as the reason no tax is charged, where the
@@ -26,7 +16,7 @@ const FALLBACK_REASON: Readonly<Partial<Record<VatCategory, string>>> = {
     O: 'Not subject to VAT',
 };
 
-export interface VatCategoryOf {
+export interface TaxStatement {
     category: VatCategory;
     /** Why no tax is charged; `null` for a category that charges it. */
     exemptionReason: string | null;
@@ -39,8 +29,8 @@ export interface VatCategoryOf {
     statesRate: boolean;
 }
 
-export function vatCategoryOf(treatment: TaxTreatment): VatCategoryOf {
-    const category = CATEGORY[treatment.kind];
+export function taxStatementOf(treatment: TaxTreatment): TaxStatement {
+    const category = vatCategoryOf(treatment.kind);
     const charges = category === 'S';
     return {
         category,

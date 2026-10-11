@@ -186,6 +186,12 @@ describe('the embedded XML', () => {
         ['with a line at another rate', { lineRates: [19, 7] }, 'xml.lines'],
         ['with a line that states no rate', { lineRates: [19, null] }, 'xml.lines'],
         ['with a line of two VAT breakdowns', { lineRates: [[19, 7], 19] }, 'xml.lines'],
+        [
+            'with its breakdown in another VAT category',
+            { category: 'E', lineCategory: 'S' },
+            'xml.taxes',
+        ],
+        ['with a line in another VAT category', { lineCategory: 'E' }, 'xml.lines'],
         ['with a line of no VAT breakdown', { lineRates: [[], 19] }, 'xml.lines'],
         [
             'naming a second VAT id for the seller',
@@ -197,6 +203,26 @@ describe('the embedded XML', () => {
             assert.deepEqual(await gapsOf(differing(overrides)), [gap]);
         });
     }
+
+    test('naming a party whose recorded name holds a character XML cannot hold passes with ? in its place, and not otherwise', async () => {
+        const named = {
+            ...INVOICE,
+            issuer: { ...INVOICE.issuer, legalName: 'AutohausPro.de\vGbR' },
+            subscriber: { ...INVOICE.subscriber, legalName: 'Autohaus\fMüller GmbH' },
+        };
+        const xmlNaming = (sellerName, buyerName) => ({
+            xml: ciiOf(named, { sellerName, buyerName }),
+        });
+
+        assert.deepEqual(
+            await gapsOf(xmlNaming('AutohausPro.de?GbR', 'Autohaus?Müller GmbH'), named),
+            [],
+        );
+        assert.deepEqual(
+            await gapsOf(xmlNaming('AutohausPro.deGbR', 'AutohausMüller GmbH'), named),
+            ['xml.seller.name', 'xml.buyer.name'],
+        );
+    });
 
     test('stating what the format gives once twice, once as the invoice records it, is refused', async () => {
         const xml = ciiOf(INVOICE);
@@ -292,6 +318,8 @@ describe('the embedded XML', () => {
             lines: INVOICE.lines.map((line) => ({ ...line, taxRate: 0 })),
         };
 
+        const reverse = (overrides = {}) => ciiOf(reverseCharge, { category: 'AE', ...overrides });
+
         test('the invoice records one: stated as recorded, or left out, passes', async () => {
             assert.deepEqual(await gapsOf({ xml: ciiOf(recorded) }, recorded), []);
             assert.deepEqual(
@@ -301,13 +329,13 @@ describe('the embedded XML', () => {
         });
 
         test('under the reverse charge, stated as recorded passes', async () => {
-            assert.deepEqual(await gapsOf({ xml: ciiOf(reverseCharge) }, reverseCharge), []);
+            assert.deepEqual(await gapsOf({ xml: reverse() }, reverseCharge), []);
         });
 
         test('under the reverse charge, left out, another one, or a second one is refused', async () => {
             for (const buyerVatId of [null, 'ATU99999999', ['ATU12345678', 'ATU99999999']]) {
                 assert.deepEqual(
-                    await gapsOf({ xml: ciiOf(reverseCharge, { buyerVatId }) }, reverseCharge),
+                    await gapsOf({ xml: reverse({ buyerVatId }) }, reverseCharge),
                     ['xml.buyer.vatId'],
                     String(buyerVatId),
                 );
@@ -331,6 +359,7 @@ describe('the embedded XML', () => {
         };
         const outside = (overrides = {}) =>
             ciiOf(notTaxable, {
+                category: 'O',
                 sellerVatId: null,
                 buyerVatId: null,
                 taxes: [{ rate: null, net: 49, tax: 0 }],
@@ -364,6 +393,18 @@ describe('the embedded XML', () => {
             const xml = outside({ lineRates: [0, null] });
 
             assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
+        });
+
+        test('a line without any VAT breakdown is refused (BR-CO-04)', async () => {
+            const xml = outside({ lineRates: [[], null] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
+        });
+
+        test('categorised S rather than O is refused, in the breakdown and on the lines', async () => {
+            const xml = outside({ category: 'S' });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.taxes', 'xml.lines']);
         });
 
         test('stating a rate on a line in a second VAT breakdown is refused (BR-O-05)', async () => {

@@ -104,12 +104,12 @@ const vatIds = (ids) =>
         )
         .join('');
 
-/** A line's VAT breakdowns: one stating `rate`, one stating none for `null`, one each of a list. */
-const lineTaxes = (rates) =>
+/** A line's VAT breakdowns in `category`: one stating `rate`, one stating none for `null`, one each of a list. */
+const lineTaxes = (rates, category) =>
     (Array.isArray(rates) ? rates : [rates])
         .map(
             (rate) =>
-                `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode>${rate === null ? '' : `<ram:RateApplicablePercent>${amount(rate)}</ram:RateApplicablePercent>`}</ram:ApplicableTradeTax>`,
+                `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>${category}</ram:CategoryCode>${rate === null ? '' : `<ram:RateApplicablePercent>${amount(rate)}</ram:RateApplicablePercent>`}</ram:ApplicableTradeTax>`,
         )
         .join('');
 
@@ -123,6 +123,8 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     ]
         .filter(Boolean)
         .join('');
+    // The category the invoice's treatment takes, `S` unless a test names another.
+    const category = field('category', 'S');
     const lineRates = field(
         'lineRates',
         invoice.lines.map((line) => line.taxRate),
@@ -135,7 +137,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
             (net, index) => `<ram:IncludedSupplyChainTradeLineItem>
             <ram:AssociatedDocumentLineDocument><ram:LineID>${index + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
             <ram:SpecifiedLineTradeSettlement>
-                ${lineTaxes(lineRates[index])}
+                ${lineTaxes(lineRates[index], field('lineCategory', category))}
                 <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>${amount(net)}</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
             </ram:SpecifiedLineTradeSettlement>
         </ram:IncludedSupplyChainTradeLineItem>`,
@@ -147,7 +149,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
             <ram:CalculatedAmount>${amount(tax.tax)}</ram:CalculatedAmount>
             <ram:TypeCode>VAT</ram:TypeCode>
             <ram:BasisAmount>${amount(tax.net)}</ram:BasisAmount>
-            <ram:CategoryCode>S</ram:CategoryCode>
+            <ram:CategoryCode>${category}</ram:CategoryCode>
             ${tax.rate === null ? '' : `<ram:RateApplicablePercent>${amount(tax.rate)}</ram:RateApplicablePercent>`}
         </ram:ApplicableTradeTax>`,
         )

@@ -7,7 +7,7 @@
 import { PDFName, grayscale, type PDFDocument, type PDFFont, type PDFPage } from 'pdf-lib';
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
 
-import { vatCategoryOf } from './categories.js';
+import { taxStatementOf } from './categories.js';
 import { pageAmount, pageDay, pageRate } from './format.js';
 import { LABELS, bilingual, type Label } from './labels.js';
 
@@ -321,7 +321,7 @@ function closingLines(
     pen: Pen,
     invoice: SubscriptionInvoiceRecord,
 ): { height: number; draw: (page: PDFPage, y: number) => void } {
-    const tax = vatCategoryOf(invoice.taxTreatment);
+    const tax = taxStatementOf(invoice.taxTreatment);
     const rows: Array<{ label: string; amount: number; bold?: boolean }> = [
         { label: bilingual(LABELS.netTotal), amount: invoice.totalNet },
     ];

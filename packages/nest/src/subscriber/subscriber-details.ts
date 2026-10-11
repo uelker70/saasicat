@@ -19,6 +19,7 @@ import type {
 } from '@saasicat/core';
 import {
     canonicalVatId,
+    holdsOnlyXmlCharacters,
     LEGAL_IDENTITY_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
@@ -153,11 +154,14 @@ function settleContactValue(field: keyof SubscriberContact, value: unknown): str
 
 /**
  * Trimmed text, or `null` for nothing. Anything but a string is refused: a
- * number where a name belongs is not a name.
+ * number where a name belongs is not a name. So is a character an e-invoice's
+ * XML cannot hold, such as a control character pasted with a name: refused
+ * here, where the subscriber can still correct it, rather than standing as `?`
+ * on every invoice (`SC-PRIC-078`).
  */
 function settleText(field: keyof SubscriberDetails, value: unknown): string | null {
     if (value === undefined || value === null) return null;
-    if (typeof value !== 'string') throw invalid(field);
+    if (typeof value !== 'string' || !holdsOnlyXmlCharacters(value)) throw invalid(field);
     const trimmed = value.trim();
     return trimmed === '' ? null : trimmed;
 }

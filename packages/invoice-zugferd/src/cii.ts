@@ -12,7 +12,7 @@ import type {
     SubscriptionInvoiceSubscriber,
 } from '@saasicat/core';
 
-import { vatCategoryOf, type VatCategoryOf } from './categories.js';
+import { taxStatementOf, type TaxStatement } from './categories.js';
 import { xmlAmount, xmlDay, xmlRate, xmlText } from './format.js';
 
 /** The guideline id of the EN 16931 profile. */
@@ -61,7 +61,7 @@ function registration(scheme: 'VA' | 'FC', id: string | null): string {
     return `<ram:SpecifiedTaxRegistration>${element('ram:ID', id, ` schemeID="${scheme}"`)}</ram:SpecifiedTaxRegistration>`;
 }
 
-function seller(issuer: SubscriptionInvoiceIssuer, tax: VatCategoryOf): string {
+function seller(issuer: SubscriptionInvoiceIssuer, tax: TaxStatement): string {
     const vatId = tax.namesVatIds ? issuer.vatId : null;
     // EN 16931 asks for an identifier of the seller (BR-CO-26), which a tax
     // number is not. Where no VAT id stands as one — outside the scope of VAT
@@ -79,7 +79,7 @@ function seller(issuer: SubscriptionInvoiceIssuer, tax: VatCategoryOf): string {
     );
 }
 
-function buyer(subscriber: SubscriptionInvoiceSubscriber, tax: VatCategoryOf): string {
+function buyer(subscriber: SubscriptionInvoiceSubscriber, tax: TaxStatement): string {
     return (
         '<ram:BuyerTradeParty>' +
         element('ram:ID', subscriber.customerNumber) +
@@ -90,7 +90,7 @@ function buyer(subscriber: SubscriptionInvoiceSubscriber, tax: VatCategoryOf): s
     );
 }
 
-function lineTax(tax: VatCategoryOf, rate: number): string {
+function lineTax(tax: TaxStatement, rate: number): string {
     return (
         '<ram:ApplicableTradeTax>' +
         '<ram:TypeCode>VAT</ram:TypeCode>' +
@@ -100,7 +100,7 @@ function lineTax(tax: VatCategoryOf, rate: number): string {
     );
 }
 
-function line(entry: SubscriptionInvoiceLineRecord, tax: VatCategoryOf): string {
+function line(entry: SubscriptionInvoiceLineRecord, tax: TaxStatement): string {
     // A price is never negative (BR-27): a line that takes something off, such
     // as a discount, is one unit taken back at its price.
     const quantity = entry.amountNet < 0 ? '-1' : '1';
@@ -123,7 +123,7 @@ function line(entry: SubscriptionInvoiceLineRecord, tax: VatCategoryOf): string 
     );
 }
 
-function headerTaxes(invoice: SubscriptionInvoiceRecord, tax: VatCategoryOf): string {
+function headerTaxes(invoice: SubscriptionInvoiceRecord, tax: TaxStatement): string {
     return invoice.taxes
         .map(
             (entry) =>
@@ -145,7 +145,7 @@ function sum(values: readonly number[]): number {
 
 /** The CII XML of `invoice`, in the EN 16931 profile. */
 export function ciiOf(invoice: SubscriptionInvoiceRecord): string {
-    const tax = vatCategoryOf(invoice.taxTreatment);
+    const tax = taxStatementOf(invoice.taxTreatment);
     const lineTotal = sum(invoice.lines.map((entry) => entry.amountNet));
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n' +

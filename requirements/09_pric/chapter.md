@@ -1553,7 +1553,7 @@ _Tested by:_
         - a name or an address line wider than its column, all of it, line after line
         - no footer where the invoice carries none
         - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
-          XML as it was written
+          XML as written but for what XML cannot hold
     - where the page sets its text
         - (${name}) keeps every run of text between the margins, clear of every other
         - (${name}) leaves 5 mm at least between the foot and the text above it
@@ -1594,6 +1594,8 @@ _Tested by:_
         - ${what} is refused for it
     - the embedded XML
         - ${what} is refused
+        - naming a party whose recorded name holds a character XML cannot hold passes with ? in its
+          place, and not otherwise
         - stating what the format gives once twice, once as the invoice records it, is refused
         - stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so
         - stating a total as nothing, or as no number, is refused
@@ -1610,6 +1612,9 @@ _Tested by:_
         - outside the scope of VAT › naming the buyer’s VAT id is refused (BR-O-02)
         - outside the scope of VAT › stating a rate is refused (BR-O-05)
         - outside the scope of VAT › stating a rate on a line is refused (BR-O-05)
+        - outside the scope of VAT › a line without any VAT breakdown is refused (BR-CO-04)
+        - outside the scope of VAT › categorised S rather than O is refused, in the breakdown and on
+          the lines
         - outside the scope of VAT › stating a rate on a line in a second VAT breakdown is refused
           (BR-O-05)
         - of an issuer without a tax number may leave the registration out
@@ -1636,6 +1641,13 @@ _Source:_ #332 · #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
 _Tested by:_
 
+- `packages/core/tests/an-e-invoice-says-only-what-its-xml-can-hold.test.js`
+    - the VAT category of a treatment
+        - is the one EN 16931 names, for every treatment an adapter can decide
+    - a character in an e-invoice
+        - stands as it is: ${what}
+        - cannot stand, and is written as ?: ${what}
+        - is judged the same however often it is asked, each one replaced
 - `packages/invoice-zugferd/tests/every-glyph-on-the-page-is-drawn.test.js`
     - a rendered page
         - (${name}) draws every character it shows
@@ -1661,7 +1673,7 @@ _Tested by:_
         - a name or an address line wider than its column, all of it, line after line
         - no footer where the invoice carries none
         - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
-          XML as it was written
+          XML as written but for what XML cannot hold
     - where the page sets its text
         - (${name}) keeps every run of text between the margins, clear of every other
         - (${name}) leaves 5 mm at least between the foot and the text above it

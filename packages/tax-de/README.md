@@ -78,14 +78,17 @@ declared Factur-X `EN 16931` in its metadata, carrying `factur-x.xml` as its
 alternative, in the profile `urn:cen.eu:en16931:2017` — whose XML states what
 the invoice records: its number, its dates and period, its currency, the
 issuer's name and tax numbers, the subscriber's name, the tax per rate, the
-totals, and each line's amount and, in its one VAT breakdown, its rate. A VAT
-identification number it names for the subscriber is the one the invoice
-records, and under the reverse charge it has to name it; neither party names
-more than one, and outside the scope of VAT neither names one and no rate is
-stated, as EN 16931 asks (BR-O-02, BR-O-05). A file that lacks any of it, states
-another figure, or states once more what the format gives once, is refused, and
-the invoice waits under its number for a renderer that gets it right. The check
-reads the file itself; it does not run EN 16931's full Schematron rules.
+totals, and each line's amount and, in its one VAT breakdown, its rate, every
+breakdown in the VAT category EN 16931 gives the treatment. A VAT identification
+number it names for the subscriber is the one the invoice records, and under the
+reverse charge it has to name it; neither party names more than one, and outside
+the scope of VAT neither names one and no rate is stated, as EN 16931 asks
+(BR-O-02, BR-O-05). A recorded name holding a character XML cannot hold is
+compared with `?` in its place, as the XML has to write it. A file that lacks
+any of it, states another figure, or states once more what the format gives
+once, is refused, and the invoice waits under its number for a renderer that
+gets it right. The check reads the file itself; it does not run EN 16931's full
+Schematron rules.
 
 ### How a VAT identification number is checked
 

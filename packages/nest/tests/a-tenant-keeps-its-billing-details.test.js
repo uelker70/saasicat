@@ -207,6 +207,7 @@ describe('the tenant changes how it is reached', () => {
     for (const [field, value] of [
         ['country', 'D1'],
         ['invoiceEmail', 'no address'],
+        ['addressLine1', 'Ringstraße 1\f'],
     ]) {
         test(`a ${field} not in its form is refused by name`, async () => {
             const { details } = await billingArea();

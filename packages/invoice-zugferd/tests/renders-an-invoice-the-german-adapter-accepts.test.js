@@ -171,7 +171,7 @@ describe('what the page says', () => {
         assert.ok(page.includes('Seite 1 von 1 / Page 1 of 1'));
     });
 
-    test('Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the XML as it was written', async () => {
+    test('Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the XML as written but for what XML cannot hold', async () => {
         const { content } = await render('unusual-characters');
         const [page] = await pageTexts(content);
         const xml = await embeddedXml(content);
@@ -180,12 +180,12 @@ describe('what the page says', () => {
             page.includes('z. Hd. Γιώργος Παπαδόπουλος / Ольга Иванова'),
             JSON.stringify(page),
         );
-        assert.ok(page.includes('???? Müller & Söhne <GmbH>'), JSON.stringify(page));
+        assert.ok(page.includes('???? Müller &?Söhne <GmbH>'), JSON.stringify(page));
         assert.ok(page.includes('Ringstraße 1?'), 'a form feed shown as ?');
         assert.ok(xml.includes('<ram:LineOne>Ringstraße 1?</ram:LineOne>'), 'and written as ?');
-        assert.ok(!xml.includes('\f'));
+        assert.ok(!xml.includes('\f') && !xml.includes('\v'));
         assert.ok(page.includes('Paket „Premium“ – 50 % auf <alles> & mehr ?'));
-        assert.ok(xml.includes('<ram:Name>株式会社 Müller &amp; Söhne &lt;GmbH&gt;</ram:Name>'));
+        assert.ok(xml.includes('<ram:Name>株式会社 Müller &amp;?Söhne &lt;GmbH&gt;</ram:Name>'));
     });
 });
 
