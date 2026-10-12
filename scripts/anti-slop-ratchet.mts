@@ -11,19 +11,23 @@
 // Exact rather than a ceiling with slack: a limit above the current value
 // would admit new findings until it is reached. Whoever removes findings
 // lowers the number with `--update` and freezes the gain; raising it is a
-// hand edit, visible in the diff. A removal only fails when this branch did it
-// in its own files. If two branches each lower the same number by one, git
-// merges their identical edits and `main` ends up one below; the next branch
-// only gets a warning for that. This opens no gap: a new finding needs a
-// changed file, and the ratchet compares that with the merge base.
+// hand edit, visible in the diff. The price of exactness: if two branches each
+// lower the same number by one, git merges their identical edits and `main`
+// ends up one below. The next run then asks for `--update`, even in a branch
+// that has nothing to do with it — whoever runs it records the removal. A
+// warning instead of a failure would let through, unseen, whatever lowers the
+// number outside changed files: a rule switched off, a file deleted, a disable
+// directive removed.
 //
 // The total alone would let a swap through: one finding fixed, a new one
 // added, the number unchanged. So there are two checks against the point where
 // the branch left the default branch: no changed file may have more findings
 // per rule than it had there, and every finding on a new or changed line fails
 // — whoever touches a line fixes it. A new disable directive on a changed line
-// is only allowed as far as its number was raised by hand in the same diff. In
-// CI the merge base must be reachable (full history), otherwise the run aborts.
+// is only allowed as far as its number was raised by hand in the same diff or
+// one goes away in the same branch — a moved or swapped directive stands in the
+// diff with its reason without moving the number. In CI the merge base must be
+// reachable (full history), otherwise the run aborts.
 //
 // Which rules are counted is stated in `oxlint.config.mts`, and which files
 // are excluded is stated there too (`ignorePatterns`) — this script keeps no
@@ -49,6 +53,7 @@ import {
     mkdirSync,
     mkdtempSync,
     readFileSync,
+    realpathSync,
     rmSync,
     writeFileSync,
 } from 'node:fs';
@@ -157,9 +162,20 @@ async function readConfig(): Promise<Config> {
     if (!isObject(config) || !('rules' in config) || !isObject(config.rules)) {
         throw new Error(`${OXLINT_CONFIG} exports no configuration with \`rules\`.`);
     }
-    const rules = Object.keys(config.rules)
-        .filter((rule) => rule.startsWith(RULE_PREFIX))
-        .map((rule) => rule.slice(RULE_PREFIX.length));
+    const entries = Object.entries(config.rules).filter(([rule]) => rule.startsWith(RULE_PREFIX));
+    // Only what reports is counted. A rule at `off` or `warn` would look
+    // counted and count nothing, or count differently.
+    const notError = entries.filter(([, value]) => {
+        const level = Array.isArray(value) ? value[0] : value;
+        return level !== 'error';
+    });
+    if (notError.length > 0) {
+        throw new Error(
+            `${OXLINT_CONFIG}: ${notError.map(([rule]) => rule).join(', ')} is not at 'error'. ` +
+                'A rule that should no longer apply is removed.',
+        );
+    }
+    const rules = entries.map(([rule]) => rule.slice(RULE_PREFIX.length));
     if (rules.length === 0) {
         throw new Error(`${OXLINT_CONFIG} names no rule with ${RULE_PREFIX}.`);
     }
@@ -168,6 +184,13 @@ async function readConfig(): Promise<Config> {
             ? config.ignorePatterns.filter((entry) => typeof entry === 'string')
             : [];
     return { rules, excluded: globSync(patterns) };
+}
+
+function isSourceFile(path: string): boolean {
+    return (
+        SOURCE_FILES.some((pattern) => path.endsWith(pattern.slice(1))) &&
+        !DECLARATIONS.some((ending) => path.endsWith(ending))
+    );
 }
 
 function sourceFiles(): string[] {
@@ -312,12 +335,23 @@ function perFile(
  * of each file is written to a throwaway directory and linted there. A file
  * that did not exist there had zero findings.
  */
-function countsAtMergeBase(base: string, files: readonly string[]): CountsPerFile {
-    const store = mkdtempSync(join(tmpdir(), 'anti-slop-'));
+interface StateAtMergeBase {
+    readonly findings: CountsPerFile;
+    readonly directives: ReadonlyMap<string, number>;
+}
+
+function countsAtMergeBase(
+    base: string,
+    files: readonly string[],
+    origins: ReadonlyMap<string, string>,
+): StateAtMergeBase {
+    // The real path, because oxlint reports it that way (on macOS `/var` is a symlink).
+    const store = realpathSync(mkdtempSync(join(tmpdir(), 'anti-slop-')));
     try {
         const copies: string[] = [];
+        const directives = new Map<string, number>();
         for (const file of files) {
-            const old = spawnSync('git', ['show', `${base}:${file}`], {
+            const old = spawnSync('git', ['show', `${base}:${origins.get(file) ?? file}`], {
                 maxBuffer: 256 * 1024 * 1024,
             });
             if (old.status !== 0) continue;
@@ -325,9 +359,13 @@ function countsAtMergeBase(base: string, files: readonly string[]): CountsPerFil
             mkdirSync(dirname(target), { recursive: true });
             writeFileSync(target, old.stdout);
             copies.push(target);
+            directives.set(file, disableDirectivesIn(target).length);
         }
-        if (copies.length === 0) return new Map();
-        return perFile(lint(copies).findings, (reported) => relative(store, resolve(reported)));
+        if (copies.length === 0) return { findings: new Map(), directives };
+        const findings = perFile(lint(copies).findings, (reported) =>
+            relative(store, resolve(reported)),
+        );
+        return { findings, directives };
     } finally {
         rmSync(store, { recursive: true, force: true });
     }
@@ -391,6 +429,8 @@ function disableDirectivesIn(file: string): Finding[] {
             .split(/\s+/)
             .join(' ')
             .trim();
+        // A block comment counts as touched over all its lines: whoever turns
+        // only a middle one into `eslint-disable …` adds a new directive.
         if (disablesAntiSlop(content)) {
             const line = lineOf(text, i);
             findings.push({
@@ -398,7 +438,7 @@ function disableDirectivesIn(file: string): Finding[] {
                 file,
                 line,
                 fromLine: line,
-                toLine: line,
+                toLine: lineOf(text, end < 0 ? text.length : end),
                 message: `/* ${content} */`,
             });
         }
@@ -432,6 +472,13 @@ function mergeBase(): string | undefined {
     return undefined;
 }
 
+function pathFrom(line: string, marker: string): string | undefined {
+    // With a space in the name, git appends a tab.
+    let path = line.slice(marker.length);
+    while (path.endsWith('\t')) path = path.slice(0, -1);
+    return path === '/dev/null' ? undefined : path;
+}
+
 /**
  * Reads `git diff -U0` against the merge base: `+++ <path>` names the file,
  * `@@ -a,b +c,d @@` the lines c to c+d-1 (without `,d` exactly one). `d = 0`
@@ -439,28 +486,50 @@ function mergeBase(): string | undefined {
  * whoever deletes the `// SAFETY:` line above an assertion creates the finding
  * exactly there.
  */
-function changesSince(base: string): Changes {
+function changesSince(base: string): {
+    changes: Changes;
+    // New path → path at the merge base, for renamed files.
+    origins: Map<string, string>;
+} {
     const changes: Changes = new Map();
+    const origins = new Map<string, string>();
+    // `--find-renames` explicitly: otherwise whether `git diff` detects renames
+    // depends on `diff.renames` in the machine's configuration.
     const diff = git(
         '-c',
         'core.quotePath=false',
         'diff',
         '-U0',
+        '--find-renames',
         '--no-color',
         '--no-ext-diff',
         '--no-prefix',
         base,
     );
     let file: string | undefined;
+    let old: string | undefined;
+    // `---`/`+++` are paths only in the header of a file section; in the body
+    // they would be a removed or added line starting with `-- `/`++ `.
+    let inHeader = false;
     for (const line of diff.split('\n')) {
-        if (line.startsWith('+++ ')) {
-            // With a space in the name, git appends a tab.
-            let path = line.slice('+++ '.length);
-            while (path.endsWith('\t')) path = path.slice(0, -1);
-            file = path === '/dev/null' ? undefined : path;
+        if (line.startsWith('diff --git ')) {
+            inHeader = true;
+            file = undefined;
+            old = undefined;
             continue;
         }
-        if (file === undefined || !line.startsWith('@@ ')) continue;
+        if (inHeader && line.startsWith('--- ')) {
+            old = pathFrom(line, '--- ');
+            continue;
+        }
+        if (inHeader && line.startsWith('+++ ')) {
+            file = pathFrom(line, '+++ ');
+            if (file !== undefined && old !== undefined && old !== file) origins.set(file, old);
+            continue;
+        }
+        if (!line.startsWith('@@ ')) continue;
+        inHeader = false;
+        if (file === undefined) continue;
         const newRange = line.split(' ')[2] ?? '';
         const [start = '0', count = '1'] = newRange.slice(1).split(',');
         const before = changes.get(file);
@@ -472,7 +541,7 @@ function changesSince(base: string): Changes {
     for (const untracked of git('ls-files', '-z', '--others', '--exclude-standard').split('\0')) {
         if (untracked !== '') changes.set(untracked, WHOLE_FILE);
     }
-    return changes;
+    return { changes, origins };
 }
 
 function onChangedLine(finding: Finding, changes: Changes): boolean {
@@ -522,7 +591,8 @@ async function main(): Promise<void> {
     const { rules: configuredRules, excluded } = await readConfig();
     const rules = [...configuredRules, DISABLE_DIRECTIVE];
     const measurement = measure(new Set(excluded));
-    const changes = base === undefined ? undefined : changesSince(base);
+    const diff = base === undefined ? undefined : changesSince(base);
+    const changes = diff?.changes;
     const onNewLines = measurement.findings.filter(
         (finding) =>
             finding.rule !== DISABLE_DIRECTIVE &&
@@ -531,9 +601,13 @@ async function main(): Promise<void> {
     );
     const excludedFiles = new Set(excluded);
     const changedFiles = [...(changes?.keys() ?? [])].filter(
-        (file) => existsSync(file) && !excludedFiles.has(file),
+        (file) => isSourceFile(file) && existsSync(file) && !excludedFiles.has(file),
     );
-    const before = base === undefined ? new Map() : countsAtMergeBase(base, changedFiles);
+    const state: StateAtMergeBase =
+        base === undefined || diff === undefined
+            ? { findings: new Map(), directives: new Map() }
+            : countsAtMergeBase(base, changedFiles, diff.origins);
+    const before = state.findings;
     const after = perFile(measurement.findings, (reported) => reported);
     const moreThanBefore = changedFiles.flatMap((file) =>
         [...(after.get(file) ?? new Map<string, number>())].flatMap(([rule, now]) => {
@@ -554,10 +628,20 @@ async function main(): Promise<void> {
     const directivesThen = base === undefined ? undefined : directivesAtMergeBase(base);
     // Without the number at the merge base, this branch introduces the ratchet;
     // then the recorded number alone counts.
-    const allowedDirectives = Math.max(
-        0,
-        expectedCount(DISABLE_DIRECTIVE) - (directivesThen ?? expectedCount(DISABLE_DIRECTIVE)),
-    );
+    // Directives that went away in a changed file: counted at the merge base,
+    // minus those that stand on unchanged lines today.
+    const goneAway = changedFiles.reduce((sum, file) => {
+        const today = measurement.findings.filter(
+            (finding) => finding.rule === DISABLE_DIRECTIVE && finding.file === file,
+        ).length;
+        const newHere = newDirectives.filter((finding) => finding.file === file).length;
+        return sum + Math.max(0, (state.directives.get(file) ?? 0) - (today - newHere));
+    }, 0);
+    const allowedDirectives =
+        Math.max(
+            0,
+            expectedCount(DISABLE_DIRECTIVE) - (directivesThen ?? expectedCount(DISABLE_DIRECTIVE)),
+        ) + goneAway;
     const tooManyDirectives = newDirectives.length > allowedDirectives;
 
     const rose = rules.filter(
@@ -594,7 +678,8 @@ async function main(): Promise<void> {
     }
     if (tooManyDirectives) {
         console.error(
-            `New disable directives: ${newDirectives.length}, raised by hand: ${allowedDirectives}.`,
+            `New disable directives: ${newDirectives.length}, allowed (raised by hand or gone ` +
+                `elsewhere): ${allowedDirectives}.`,
         );
         for (const { file, line, message } of newDirectives) {
             console.error(`  ${file}:${line} ${message}`);
@@ -624,20 +709,8 @@ async function main(): Promise<void> {
         return;
     }
 
-    const removedInBranch = (rule: string): boolean =>
-        changedFiles.some(
-            (file) => (after.get(file)?.get(rule) ?? 0) < (before.get(file)?.get(rule) ?? 0),
-        );
-    const fellHere = fell.filter(removedInBranch);
-    for (const rule of fell.filter((rule) => !removedInBranch(rule))) {
-        console.warn(
-            `  ${rule}: ${actualCount(rule)} instead of ${expectedCount(rule)} — removed before ` +
-                'this branch; record it with `--update` if you like.',
-        );
-    }
-
-    if (fellHere.length > 0 || unrecorded.length > 0 || orphaned.length > 0) {
-        for (const rule of fellHere) {
+    if (fell.length > 0 || unrecorded.length > 0 || orphaned.length > 0) {
+        for (const rule of fell) {
             console.error(
                 `  ${rule}: ${actualCount(rule)} instead of ${expectedCount(rule)} — removed`,
             );
