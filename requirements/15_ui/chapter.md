@@ -1912,3 +1912,27 @@ _Tested by:_
         - a 503 that is not the lock’s — a proxy’s, say — is not taken for maintenance
 
 <!-- END proof -->
+
+### SC-UI-027 — The administration's framework stylesheet is the one of the framework it runs
+
+🟢 The stylesheet the integrator imports from the administration is the one of the Quasar release
+its components run on, whatever release the integrator's installer picks. A copy taken when the
+package was built would stay at that release while the framework's code moved on to a newer one —
+and a newer release changes its markup and its stylesheet together. The import the integrator
+writes is the same as before.
+
+_Source:_ ADR 0014 · #425
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/e2e/consumer-quasar-stylesheet.spec.ts`
+    - carries Quasar's own rule for a button
+- `packages/ui-vue/tests/quasar-stylesheet-is-the-installed-quasars.test.js`
+    - the Quasar stylesheet the administration hands out
+        - is what the package exports as ./quasar.css
+        - imports Quasar's stylesheet and holds nothing of its own
+        - names a stylesheet Quasar publishes beside its JavaScript
+
+<!-- END proof -->

@@ -186,8 +186,21 @@ const COLLECT = (): Reading => {
         // floor. Matched on the class rather than on the font family, because
         // the fixture does not load the icon webfont: with it, the family says
         // "Material Icons"; without it, the ligature name renders as literal
-        // words in the body font and the family says nothing.
+        // words in the body font and the family says nothing. The ligature name
+        // itself too: Quasar sets it as the icon's first child, a `span` with
+        // `aria-hidden="true"` and nothing else on it. Slot content follows it,
+        // a span from a scoped component's template carries its scope attribute
+        // and a styled one its class, so a badge or a label in an icon is still
+        // judged.
         if (el.classList.contains('q-icon')) continue;
+        if (
+            el.tagName === 'SPAN' &&
+            el.attributes.length === 1 &&
+            el.getAttribute('aria-hidden') === 'true' &&
+            el.parentElement?.firstElementChild === el &&
+            el.parentElement.classList.contains('q-icon')
+        )
+            continue;
 
         // A gradient cannot be reduced to ONE background colour — but it can be
         // reduced to the handful of colours it is made of, and text has to be
