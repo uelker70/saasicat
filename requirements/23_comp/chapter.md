@@ -1353,6 +1353,8 @@ _Tested by:_
     - a client Prisma generates from the shipped fragments
         - there are adapters to wire
         - is taken by every shipped adapter, and by both client shapes, without a cast
+        - compares every adapter with it, except the ones named for taking anything
+        - accepts in a JSON column whatever the generated client accepts there
         - the check sees an enum member the generated client does not have
 
 <!-- END proof -->

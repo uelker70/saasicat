@@ -2547,6 +2547,17 @@ change saves every field it names (`SC-PROMO-027`).
 - **Code of your own that redeems a code it looked up** checks `deletedAt`, as the platform's
   callers do: `findByCode` no longer hides a deleted one.
 
+### A deleted promo code is changed and deleted no further
+
+Changing a promo code the operator deleted, or deleting it again, answers `404 PROMO_CODE_NOT_FOUND`,
+as reading it already did, and so does a code that never existed (`SC-PROMO-032`) — also where the
+code is deleted between the platform's read and its write, which two operators can bring about.
+
+- **A `PromoCodeRepository` of your own** changes and marks a code only while it is not deleted, in
+  the write itself: `update` answers `null` where no code under the id is live, and `softDelete`
+  answers whether it marked one. A `softDelete` that answers nothing no longer compiles. Both shipped
+  adapters do this, and the persistence contract checks it.
+
 ### A store refuses by code where a request loses a race
 
 The platform checks before it writes, and where two requests pass that check together — two

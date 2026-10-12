@@ -17,6 +17,7 @@ import {
     type PrismaTxLike,
     type PromoCodeRowLike,
 } from './prisma-client-token.js';
+import { isRecordNotFound } from './prisma-record-not-found.js';
 import { resolveClient } from './tx.js';
 import { literalInLike } from './like-pattern.js';
 
@@ -100,33 +101,38 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
         return toRecord(row);
     }
 
-    async update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord> {
-        const row = await this.prisma.promoCode.update({
-            where: { id },
-            data: {
-                status: data.status,
-                valueType: data.valueType,
-                value: data.value === undefined ? undefined : toDecimalString(data.value),
-                durationType: data.durationType,
-                durationValue: data.durationValue,
-                validFrom: data.validFrom,
-                description: data.description,
-                validUntil: data.validUntil,
-                maxRedemptions: data.maxRedemptions,
-                appliesToPlans: data.appliesToPlans,
-                appliesToBilling: data.appliesToBilling,
-                firstTimeCustomersOnly: data.firstTimeCustomersOnly,
-                minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross),
-                allowZeroInvoice: data.allowZeroInvoice,
-                campaignTag: data.campaignTag,
-                revenueDeductionAccount: data.revenueDeductionAccount,
-            },
-        });
-        return toRecord(row);
+    async update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord | null> {
+        const row = await this.prisma.promoCode
+            .update({
+                where: { id, deletedAt: null },
+                data: {
+                    status: data.status,
+                    valueType: data.valueType,
+                    value: data.value === undefined ? undefined : toDecimalString(data.value),
+                    durationType: data.durationType,
+                    durationValue: data.durationValue,
+                    validFrom: data.validFrom,
+                    description: data.description,
+                    validUntil: data.validUntil,
+                    maxRedemptions: data.maxRedemptions,
+                    appliesToPlans: data.appliesToPlans,
+                    appliesToBilling: data.appliesToBilling,
+                    firstTimeCustomersOnly: data.firstTimeCustomersOnly,
+                    minimumPlanAmountGross: nullableDecimal(data.minimumPlanAmountGross),
+                    allowZeroInvoice: data.allowZeroInvoice,
+                    campaignTag: data.campaignTag,
+                    revenueDeductionAccount: data.revenueDeductionAccount,
+                },
+            })
+            .catch(noLiveCode);
+        return row ? toRecord(row) : null;
     }
 
-    async softDelete(id: string): Promise<void> {
-        await this.prisma.promoCode.update({ where: { id }, data: { deletedAt: new Date() } });
+    async softDelete(id: string): Promise<boolean> {
+        const row = await this.prisma.promoCode
+            .update({ where: { id, deletedAt: null }, data: { deletedAt: new Date() } })
+            .catch(noLiveCode);
+        return row !== null;
     }
 
     async claimSlot(id: string, tx?: TransactionContext): Promise<boolean> {
@@ -213,4 +219,10 @@ function toRecord(row: PromoCodeRowLike): PromoCodeRecord {
 /** An amount to write: absent stays absent, cleared stays cleared. */
 function nullableDecimal(value: number | null | undefined): string | null | undefined {
     return value == null ? value : toDecimalString(value);
+}
+
+/** No code under the id that is not deleted: the write matched no row. */
+function noLiveCode(error: unknown): null {
+    if (isRecordNotFound(error)) return null;
+    throw error;
 }

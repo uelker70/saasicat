@@ -873,6 +873,7 @@ _Tested by:_
     - a deleted code stays as it was deleted
         - a change to it is refused as a code that does not exist, and changes nothing
         - deleting it again is refused the same way, and keeps the day it was deleted
+        - ${action} that meets a code deleted since it was read is refused the same way
         - ${action} of a code that never existed is refused the same way
 
 <!-- END proof -->

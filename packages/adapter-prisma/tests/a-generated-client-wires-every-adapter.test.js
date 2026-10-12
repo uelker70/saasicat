@@ -56,8 +56,25 @@ function wiring(clientDirectory, extra = '') {
     ].join('\n');
 }
 
-/** Each diagnostic with the line it stands on, so a failure names the adapter. */
-function diagnosticsOf(directory, source) {
+/**
+ * The adapters that take `unknown` and cast it inside, so this test compares
+ * nothing for them — and `PrismaRlsBypass`, which takes a setting, not a
+ * client. Named, so that an adapter joining them fails here rather than
+ * passing unchecked; the list only shrinks, as one of them gets a shape.
+ */
+const COMPARED_WITH_NOTHING = [
+    'PrismaBundleVersionRetirementRepository',
+    'PrismaFeatureWithdrawalRepository',
+    'PrismaInvoiceArchive',
+    'PrismaMaintenanceWindowRepository',
+    'PrismaPaymentEventLog',
+    'PrismaRlsBypass',
+    'PrismaSubscriptionNoticeRepository',
+    'PrismaVersionRetirementRepository',
+];
+
+/** The wiring compiled against the shipped declarations. */
+function compiled(directory, source) {
     const file = join(directory, 'wiring.ts');
     writeFileSync(file, source);
     const program = ts.createProgram([file], {
@@ -69,6 +86,28 @@ function diagnosticsOf(directory, source) {
         moduleResolution: ts.ModuleResolutionKind.NodeNext,
         experimentalDecorators: true,
     });
+    return { program, source: program.getSourceFile(file) };
+}
+
+/** The adapters whose first constructor argument the wiring resolves to `unknown`. */
+function takingAnything(directory, source) {
+    const { program, source: file } = compiled(directory, source);
+    const checker = program.getTypeChecker();
+    return file.statements
+        .filter(ts.isVariableStatement)
+        .flatMap((statement) => statement.declarationList.declarations)
+        .filter((declaration) => ADAPTERS.includes(declaration.name.getText(file)))
+        .filter(
+            (declaration) =>
+                checker.getTypeAtLocation(declaration.name).flags & ts.TypeFlags.Unknown,
+        )
+        .map((declaration) => declaration.name.getText(file))
+        .sort();
+}
+
+/** Each diagnostic with the line it stands on, so a failure names the adapter. */
+function diagnosticsOf(directory, source) {
+    const { program } = compiled(directory, source);
     return ts.getPreEmitDiagnostics(program).map((d) => {
         const where = d.file
             ? d.file.text.split('\n')[d.file.getLineAndCharacterOfPosition(d.start ?? 0).line]
@@ -88,6 +127,27 @@ describe('a client Prisma generates from the shipped fragments', () => {
 
     test('is taken by every shipped adapter, and by both client shapes, without a cast', () => {
         assert.deepEqual(diagnosticsOf(workDirectory, wiring(clientDirectory)), []);
+    });
+
+    test('compares every adapter with it, except the ones named for taking anything', () => {
+        assert.deepEqual(
+            takingAnything(workDirectory, wiring(clientDirectory)),
+            COMPARED_WITH_NOTHING,
+        );
+    });
+
+    test('accepts in a JSON column whatever the generated client accepts there', () => {
+        // The assignments above run one way: a client wider than a shape fits
+        // it. Here the other way: every JSON input Prisma takes — a member left
+        // undefined, a value with `toJSON()` — has to be one the shapes take.
+        const json = [
+            `import type { Prisma } from ${JSON.stringify(join(clientDirectory, 'index.js'))};`,
+            `import type { PrismaLike } from ${JSON.stringify(DIST)};`,
+            "type ShapeJson = Parameters<PrismaLike['auditLog']['create']>[0]['data']['changes'];",
+            'declare const theirs: Prisma.InputJsonValue;',
+            'export const asTheShapeTakesIt: ShapeJson = theirs;',
+        ].join('\n');
+        assert.deepEqual(diagnosticsOf(workDirectory, json), []);
     });
 
     test('the check sees an enum member the generated client does not have', () => {

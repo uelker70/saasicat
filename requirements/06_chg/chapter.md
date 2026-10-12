@@ -581,6 +581,7 @@ _Tested by:_
         - a schema with no plans table is matched by key alone
         - the version stood for is the one on sale by its dates, as the platform reads them
         - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
 
 <!-- END proof -->

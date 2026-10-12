@@ -64,6 +64,7 @@ class FakePromoRepo {
     }
     async update(id, data) {
         const cur = this.byId.get(id);
+        if (!cur || cur.deletedAt) return null;
         const next = { ...cur, ...data };
         this.byId.set(id, next);
         this.byCode.set(next.code, next);
@@ -71,7 +72,9 @@ class FakePromoRepo {
     }
     async softDelete(id) {
         const cur = this.byId.get(id);
+        if (!cur || cur.deletedAt) return false;
         cur.deletedAt = new Date();
+        return true;
     }
     async claimSlot() {
         return true;
@@ -698,6 +701,33 @@ describe('a deleted code stays as it was deleted', () => {
         await assert.rejects(() => svc.softDelete(id), refusedAsNotFound(id));
         assert.equal((await promoRepo.findById(id)).deletedAt, deleted.deletedAt);
     });
+
+    /** A store in which the code is deleted after the platform read it, before it writes. */
+    class DeletedInBetween extends FakePromoRepo {
+        async findById(id) {
+            const row = await super.findById(id);
+            return row && { ...row, deletedAt: null };
+        }
+    }
+
+    for (const [action, call] of [
+        ['a change', (svc, id) => svc.update(id, { value: 50 })],
+        ['a delete', (svc, id) => svc.softDelete(id)],
+    ]) {
+        // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+        test(`${action} that meets a code deleted since it was read is refused the same way`, async () => {
+            const promoRepo = new DeletedInBetween();
+            const svc = buildSvc({ promoRepo });
+            const created = await svc.create(BASE_INPUT);
+            const deletedAt = new Date('2026-10-01T00:00:00.000Z');
+            promoRepo.byId.get(created.id).deletedAt = deletedAt;
+
+            await assert.rejects(() => call(svc, created.id), refusedAsNotFound(created.id));
+            const row = promoRepo.byId.get(created.id);
+            assert.equal(row.deletedAt, deletedAt);
+            assert.equal(row.value, '25');
+        });
+    }
 
     for (const [action, call] of [
         ['a change', (svc) => svc.update('never-created', { value: 50 })],

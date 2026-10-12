@@ -389,16 +389,21 @@ export function createMemoryHarness() {
             return expired;
         },
         async update(id, data) {
+            const row = promoCode(id);
+            if (!row || row.deletedAt) return null;
             const amounts = {};
             if ('value' in data) amounts.value = toCents(data.value);
             if ('minimumPlanAmountGross' in data) {
                 amounts.minimumPlanAmountGross = toCents(data.minimumPlanAmountGross);
             }
-            Object.assign(promoCode(id), data, amounts);
-            return { ...promoCode(id) };
+            Object.assign(row, data, amounts);
+            return { ...row };
         },
         async softDelete(id) {
-            promoCode(id).deletedAt = FIXED_NOW;
+            const row = promoCode(id);
+            if (!row || row.deletedAt) return false;
+            row.deletedAt = FIXED_NOW;
+            return true;
         },
         async claimSlot(id) {
             const row = promoCode(id);

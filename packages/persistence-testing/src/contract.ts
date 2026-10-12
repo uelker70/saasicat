@@ -3195,6 +3195,52 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             refusedAs(PROMO_ERROR_CODES.PROMO_CODE_ALREADY_EXISTS)(lost?.reason);
         });
 
+        test('a change or a delete reaches a code only while it is not deleted', async (t) => {
+            const promoCodes = harness.adapter.promoCodeRepository;
+            if (!promoCodes) {
+                missing(t, 'promoCodes');
+                return;
+            }
+            const code = await promoCodes.create({
+                code: 'DELETED-ONCE',
+                valueType: 'PERCENT',
+                value: 10,
+                durationType: 'ONCE',
+                createdById: 'operator-1',
+            });
+
+            assert.equal(await promoCodes.softDelete(code.id), true, 'the first delete marks it');
+            const deleted = await promoCodes.findById(code.id);
+            assert.ok(deleted?.deletedAt, 'and it is deleted');
+
+            // The platform reads a code before it changes it, and the code can
+            // be deleted in between: the write itself has to leave it alone.
+            assert.equal(
+                await promoCodes.softDelete(code.id),
+                false,
+                'a second delete finds no code to mark',
+            );
+            assert.equal(
+                await promoCodes.update(code.id, { value: 50 }),
+                null,
+                'a change finds no code to change',
+            );
+            const after = await promoCodes.findById(code.id);
+            // An adapter may hand the moment over as a `Date` or as text; the
+            // moment is what has to stay.
+            const moment = (value: string | Date | null | undefined) =>
+                value == null ? null : new Date(value).getTime();
+            assert.equal(
+                moment(after?.deletedAt),
+                moment(deleted?.deletedAt),
+                'the day it was deleted stays',
+            );
+            assert.equal(Number(after?.value), 10, 'its terms stay');
+
+            assert.equal(await promoCodes.update('no-such-code', { value: 50 }), null);
+            assert.equal(await promoCodes.softDelete('no-such-code'), false);
+        });
+
         test('the expiry leaves a deleted code as it was', async (t) => {
             const promoCodes = harness.adapter.promoCodeRepository;
             if (!promoCodes) {

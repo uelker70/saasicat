@@ -7197,6 +7197,7 @@ _Tested by:_
         - a schema with no plans table is matched by key alone
         - the version stood for is the one on sale by its dates, as the platform reads them
         - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
 
 <!-- END proof -->
@@ -12272,6 +12273,7 @@ _Tested by:_
     - a deleted code stays as it was deleted
         - a change to it is refused as a code that does not exist, and changes nothing
         - deleting it again is refused the same way, and keeps the day it was deleted
+        - ${action} that meets a code deleted since it was read is refused the same way
         - ${action} of a code that never existed is refused the same way
 
 <!-- END proof -->
@@ -20087,6 +20089,7 @@ _Tested by:_
         - a schema with no plans table is matched by key alone
         - the version stood for is the one on sale by its dates, as the platform reads them
         - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
@@ -20212,6 +20215,7 @@ _Tested by:_
         - a schema with no plans table is matched by key alone
         - the version stood for is the one on sale by its dates, as the platform reads them
         - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
@@ -21934,6 +21938,8 @@ _Tested by:_
     - a client Prisma generates from the shipped fragments
         - there are adapters to wire
         - is taken by every shipped adapter, and by both client shapes, without a cast
+        - compares every adapter with it, except the ones named for taking anything
+        - accepts in a JSON column whatever the generated client accepts there
         - the check sees an enum member the generated client does not have
 
 <!-- END proof -->

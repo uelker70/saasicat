@@ -103,7 +103,7 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
         return toRecord(row);
     }
 
-    async update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord> {
+    async update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord | null> {
         const rows = await this.db
             .update(promoCodes)
             .set({
@@ -125,20 +125,19 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
                 revenueDeductionAccount: data.revenueDeductionAccount,
                 updatedAt: new Date(),
             })
-            .where(eq(promoCodes.id, id))
+            .where(and(eq(promoCodes.id, id), isNull(promoCodes.deletedAt)))
             .returning();
         const row = rows[0] as PromoCodeRow | undefined;
-        if (!row) {
-            throw new Error(`PromoCode ${id} not found.`);
-        }
-        return toRecord(row);
+        return row ? toRecord(row) : null;
     }
 
-    async softDelete(id: string): Promise<void> {
-        await this.db
+    async softDelete(id: string): Promise<boolean> {
+        const rows = await this.db
             .update(promoCodes)
             .set({ deletedAt: new Date(), updatedAt: new Date() })
-            .where(eq(promoCodes.id, id));
+            .where(and(eq(promoCodes.id, id), isNull(promoCodes.deletedAt)))
+            .returning({ id: promoCodes.id });
+        return rows.length > 0;
     }
 
     async claimSlot(id: string, tx?: TransactionContext): Promise<boolean> {

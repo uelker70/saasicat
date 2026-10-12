@@ -27,16 +27,22 @@ export const PRISMA_CLIENT_TOKEN = Symbol.for('saasicat/adapter-prisma/PrismaCli
 export type DecimalLike = { toString(): string } | string | number;
 
 /**
- * A value Prisma writes into a `Json` column as it is — what its
- * `InputJsonValue` admits. A delegate shape that took `unknown` there would
- * not accept a client Prisma generated, which asks for exactly this.
+ * A value Prisma writes into a `Json` column as it is — the shape of its
+ * `InputJsonValue`: an object's members may be missing or `undefined`, an
+ * array may be read-only, and anything with `toJSON()` is written as that
+ * renders it. A delegate shape that took `unknown` there would not accept a
+ * client Prisma generated, and a narrower one would refuse what it accepts.
  */
 export type JsonInputLike =
     | string
     | number
     | boolean
-    | { readonly [key: string]: JsonInputLike | null }
-    | readonly (JsonInputLike | null)[];
+    | JsonInputObjectLike
+    | readonly (JsonInputLike | null)[]
+    | { toJSON(): unknown };
+
+/** An object member of {@link JsonInputLike}. */
+export type JsonInputObjectLike = { readonly [Key in string]?: JsonInputLike | null };
 
 // -----------------------------------------------------------------------------
 // Row shapes — structural minimum of the canonical tables
@@ -340,7 +346,7 @@ export interface PromoCodeDelegateLike {
         skipDuplicates: boolean;
     }): Promise<PromoCodeRowLike[]>;
     update(args: {
-        where: { id: string };
+        where: { id: string; deletedAt?: null };
         data: {
             status?: PromoCodeStatus;
             valueType?: PromoCodeValueType;

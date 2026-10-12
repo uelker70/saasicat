@@ -25,6 +25,7 @@ import {
     type DecimalLike,
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
+import { isRecordNotFound } from './prisma-record-not-found.js';
 
 /**
  * What this repository reads from `contract_line_items`.
@@ -281,13 +282,4 @@ function toLineItemCreate(item: NewContractLineItemData) {
         quotaEffectsSnapshot: item.quotaEffectsSnapshot,
         ...(item.metadata != null ? { metadata: item.metadata } : {}),
     };
-}
-
-/** Prisma's answer to an update whose `where` matched no row. */
-function isRecordNotFound(error: unknown): boolean {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        (error as { code?: unknown }).code === 'P2025'
-    );
 }

@@ -1837,6 +1837,37 @@ describe('a scheduled change learns the version it was quoted at', () => {
         });
     }
 
+    test('a schema from before the version dates chooses as the platform does without them', async () => {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+        await client.query(
+            'ALTER TABLE "plan_versions" DROP COLUMN "validUntil", DROP COLUMN "validFrom", DROP COLUMN "endsAt"',
+        );
+        const undated = (id, planId, number, superseded = null) =>
+            client.query(
+                'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
+                    '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "updatedAt") ' +
+                    "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', '2026-01-01', $4, NOW())",
+                [id, planId, number, superseded],
+            );
+        await undated('starter-1', 'STARTER', 1);
+        // Without a last day, a superseded version is not on sale.
+        await undated('replaced-1', 'REPLACED', 1);
+        await undated('replaced-2', 'REPLACED', 2, '2026-03-01');
+        await subscription('to-a-plan-whose-newer-version-was-superseded', 'REPLACED');
+        // Without a start, the higher number is the later one.
+        await undated('numbered-1', 'NUMBERED', 1);
+        await undated('numbered-3', 'NUMBERED', 3);
+        await subscription('to-a-plan-with-two-versions-on-sale', 'NUMBERED');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), {
+            'to-a-plan-whose-newer-version-was-superseded': 'replaced-1',
+            'to-a-plan-with-two-versions-on-sale': 'numbered-3',
+        });
+    });
+
     test('a second run pins nothing published since the first', async () => {
         await beforeTheColumn();
         await apply(MIGRATION);
