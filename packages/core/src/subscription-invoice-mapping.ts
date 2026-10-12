@@ -54,6 +54,7 @@ export interface CanonicalSubscriptionInvoiceRow {
     currency: string;
     issuerParty: unknown;
     subscriberParty: unknown;
+    footer: unknown;
     taxTreatment: unknown;
     taxes: unknown;
     totalNet: unknown;
@@ -106,6 +107,7 @@ export function toSubscriptionInvoiceRecord(
         currency: row.currency,
         issuer: issuerOf(row.issuerParty, where('issuerParty')),
         subscriber: subscriberOf(row.subscriberParty, where('subscriberParty')),
+        footer: footerOf(row.footer, where('footer')),
         taxTreatment: treatment,
         taxes: taxesOf(row.taxes, where('taxes')),
         totalNet: amountOf(row.totalNet, where('totalNet')),
@@ -160,6 +162,7 @@ export interface SubscriptionInvoiceColumns {
     currency: string;
     issuerParty: SubscriptionInvoiceIssuer;
     subscriberParty: SubscriptionInvoiceSubscriber;
+    footer: string[];
     taxTreatment: Record<string, unknown>;
     taxes: TaxAtRate[];
     totalNet: string;
@@ -204,6 +207,7 @@ export function subscriptionInvoiceColumns(
         currency: invoice.currency,
         issuerParty: { ...invoice.issuer },
         subscriberParty: { ...invoice.subscriber },
+        footer: [...invoice.footer],
         taxTreatment: taxTreatmentToJson(invoice.taxTreatment),
         taxes: invoice.taxes.map((entry) => ({ rate: entry.rate, net: entry.net, tax: entry.tax })),
         totalNet: centsText(invoice.totalNet, 'totalNet'),
@@ -253,6 +257,13 @@ function dayOf(value: unknown, where: Where): CalendarDay {
         return value;
     }
     throw new Error(`${where.table}.${where.column} of ${where.id} is not a day.`);
+}
+
+function footerOf(value: unknown, where: Where): string[] {
+    if (!Array.isArray(value) || !value.every((line) => typeof line === 'string')) {
+        throw new Error(`${where.table}.${where.column} of ${where.id} is not a list of lines.`);
+    }
+    return [...value];
 }
 
 function amountOf(value: unknown, where: Where): number {

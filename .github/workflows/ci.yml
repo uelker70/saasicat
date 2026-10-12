@@ -242,6 +242,71 @@ jobs:
                   node scripts/coverage-ratchet.mjs
                   --only=adapter-prisma,adapter-drizzle
 
+    # The default invoice renderer's output, judged by the format's own
+    # validators rather than by SaaSiCat's checks (SC-PRIC-078): Mustang runs
+    # veraPDF for PDF/A-3b and the EN 16931 and Factur-X schematron over one
+    # invoice per treatment the German adapter decides, the samples the
+    # renderer's tests render. Its report judges the PDF and the XML apart, and
+    # its exit code and closing verdict follow the XML only: a file that fails
+    # PDF/A still ends in `valid`. So every verdict in the report is read, and a
+    # report passes with exactly three — the PDF's, the XML's and the closing
+    # one — each of them `valid`; a verdict gone missing or written another way
+    # fails it as well. The jar is pinned by version and checksum.
+    invoice-format:
+        runs-on: ubuntu-latest
+        env:
+            MUSTANG_VERSION: 2.26.0
+            MUSTANG_SHA1: 8755fc333032f802ad7dcf3930201edfe64014e2
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+            # pnpm from its own action, not from `corepack enable` — see the
+            # duplication job for why.
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v6
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - name: Setup Java
+              uses: actions/setup-java@v6
+              with:
+                  distribution: temurin
+                  java-version: 21
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Build the renderer and its workspace dependencies
+              run: pnpm --filter "@saasicat/invoice-zugferd..." build
+            - name: Download Mustang
+              run: |
+                  curl -sfL -o mustang.jar \
+                      "https://repo1.maven.org/maven2/org/mustangproject/Mustang-CLI/${MUSTANG_VERSION}/Mustang-CLI-${MUSTANG_VERSION}.jar"
+                  echo "${MUSTANG_SHA1}  mustang.jar" | sha1sum -c -
+            - name: Render the sample invoices
+              run: node packages/invoice-zugferd/scripts/write-samples.mjs samples
+            - name: Validate them
+              run: |
+                  status=0
+                  for file in samples/*.pdf; do
+                      report="$file.report.xml"
+                      if java -jar mustang.jar --action validate --no-notices --source "$file" > "$report" \
+                          && [ "$(grep -o '<summary ' "$report" | wc -l)" -eq 3 ] \
+                          && [ "$(grep -o '<summary status="valid"/>' "$report" | wc -l)" -eq 3 ]; then
+                          echo "valid: $file"
+                      else
+                          echo "::error file=$file::not valid ZUGFeRD EN 16931 / PDF/A-3 — see $report"
+                          status=1
+                      fi
+                  done
+                  exit "$status"
+            - name: Upload the reports
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: invoice-format-reports
+                  path: samples/
+
     e2e:
         runs-on: ubuntu-latest
         steps:

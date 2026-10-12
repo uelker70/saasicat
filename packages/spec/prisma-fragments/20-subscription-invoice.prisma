@@ -58,6 +58,8 @@ model SubscriptionInvoice {
     // The parties as the invoice names them, copied when it was issued.
     issuerParty     Json
     subscriberParty Json
+    // The footer lines config/saas.yaml named on the issue date (SC-PRIC-077).
+    footer          Json    @default("[]")
     // The adapter's treatment, with its name and version, and the tax per rate.
     taxTreatment    Json
     taxes           Json

@@ -76,6 +76,12 @@ export interface SubscriptionInvoiceRecord {
     currency: string;
     issuer: SubscriptionInvoiceIssuer;
     subscriber: SubscriptionInvoiceSubscriber;
+    /**
+     * The lines `config/saas.yaml` named under `invoicing.footer` on the issue
+     * date — what a business letter of the issuer states beyond the invoice's
+     * own content (`SC-PRIC-077`); none where it named none.
+     */
+    footer: string[];
     /** The treatment the tax adapter decided when it was issued, with its name and version. */
     taxTreatment: TaxTreatment;
     /** The tax, rate by rate, computed once per rate (`SC-PRIC-041`). */

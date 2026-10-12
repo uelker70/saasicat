@@ -94,17 +94,41 @@ const SAVE = { useObjectStreams: false, updateFieldAppearances: false };
 /** An amount as CII writes it; a text an override gives is written as it is. */
 const amount = (value) => (typeof value === 'number' ? value.toFixed(2) : value);
 
+/** A party's VAT ids: none for `null`, one for a text, each of a list. */
+const vatIds = (ids) =>
+    [ids ?? []]
+        .flat()
+        .map(
+            (id) =>
+                `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${id}</ram:ID></ram:SpecifiedTaxRegistration>`,
+        )
+        .join('');
+
+/** A line's VAT breakdowns in `category`: one stating `rate`, one stating none for `null`, one each of a list. */
+const lineTaxes = (rates, category) =>
+    (Array.isArray(rates) ? rates : [rates])
+        .map(
+            (rate) =>
+                `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>${category}</ram:CategoryCode>${rate === null ? '' : `<ram:RateApplicablePercent>${amount(rate)}</ram:RateApplicablePercent>`}</ram:ApplicableTradeTax>`,
+        )
+        .join('');
+
 /** The CII XML of `invoice`, each field as `overrides` says where it says one. */
 export function ciiOf(invoice = INVOICE, overrides = {}) {
     const field = (name, value) => (name in overrides ? overrides[name] : value);
     const registrations = [
-        invoice.issuer.vatId &&
-            `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${field('sellerVatId', invoice.issuer.vatId)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+        vatIds(field('sellerVatId', invoice.issuer.vatId)),
         invoice.issuer.taxNumber &&
             `<ram:SpecifiedTaxRegistration><ram:ID schemeID="FC">${field('sellerTaxNumber', invoice.issuer.taxNumber)}</ram:ID></ram:SpecifiedTaxRegistration>`,
     ]
         .filter(Boolean)
         .join('');
+    // The category the invoice's treatment takes, `S` unless a test names another.
+    const category = field('category', 'S');
+    const lineRates = field(
+        'lineRates',
+        invoice.lines.map((line) => line.taxRate),
+    );
     const lines = field(
         'lines',
         invoice.lines.map((line) => line.amountNet),
@@ -112,9 +136,10 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
         .map(
             (net, index) => `<ram:IncludedSupplyChainTradeLineItem>
             <ram:AssociatedDocumentLineDocument><ram:LineID>${index + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>
-            <ram:SpecifiedLineTradeSettlement><ram:SpecifiedTradeSettlementLineMonetarySummation>
-                <ram:LineTotalAmount>${amount(net)}</ram:LineTotalAmount>
-            </ram:SpecifiedTradeSettlementLineMonetarySummation></ram:SpecifiedLineTradeSettlement>
+            <ram:SpecifiedLineTradeSettlement>
+                ${lineTaxes(lineRates[index], field('lineCategory', category))}
+                <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>${amount(net)}</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
+            </ram:SpecifiedLineTradeSettlement>
         </ram:IncludedSupplyChainTradeLineItem>`,
         )
         .join('');
@@ -124,8 +149,8 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
             <ram:CalculatedAmount>${amount(tax.tax)}</ram:CalculatedAmount>
             <ram:TypeCode>VAT</ram:TypeCode>
             <ram:BasisAmount>${amount(tax.net)}</ram:BasisAmount>
-            <ram:CategoryCode>S</ram:CategoryCode>
-            <ram:RateApplicablePercent>${amount(tax.rate)}</ram:RateApplicablePercent>
+            <ram:CategoryCode>${category}</ram:CategoryCode>
+            ${tax.rate === null ? '' : `<ram:RateApplicablePercent>${amount(tax.rate)}</ram:RateApplicablePercent>`}
         </ram:ApplicableTradeTax>`,
         )
         .join('');
@@ -145,7 +170,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     ${lines}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:SellerTradeParty><ram:Name>${field('sellerName', invoice.issuer.legalName)}</ram:Name>${registrations}</ram:SellerTradeParty>
-      <ram:BuyerTradeParty><ram:Name>${field('buyerName', invoice.subscriber.legalName)}</ram:Name></ram:BuyerTradeParty>
+      <ram:BuyerTradeParty><ram:Name>${field('buyerName', invoice.subscriber.legalName)}</ram:Name>${vatIds(field('buyerVatId', invoice.subscriber.vatId))}</ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
     <ram:ApplicableHeaderTradeDelivery/>
     <ram:ApplicableHeaderTradeSettlement>

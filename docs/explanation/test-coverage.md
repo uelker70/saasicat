@@ -13,21 +13,22 @@ run of the unit suites, not a second one.
 
 ## What the numbers say
 
-| Package                         | Lines               | Also covered by                       |
-| ------------------------------- | ------------------- | ------------------------------------- |
-| `@saasicat/ui-vue`              | 94.23%              | component suite, Playwright           |
-| `@saasicat/spec`                | 94.90%              | —                                     |
-| `@saasicat/nest`                | 87.72%              | —                                     |
-| `create-saasicat-admin`         | 84.10%              | —                                     |
-| `@saasicat/cli`                 | 83.76%              | end-to-end command runs               |
-| `@saasicat/core`                | 80.41%              | codegen drift test                    |
-| `@saasicat/adapter-prisma`      | 65.23% → **67.11%** | persistence contract, real PostgreSQL |
-| `@saasicat/adapter-drizzle`     | 60.33% → **75.42%** | persistence contract, real PostgreSQL |
-| `@saasicat/persistence-testing` | 74.30%              | it _is_ the contract                  |
-| `@saasicat/payment-stripe`      | see the baseline    | a local server standing in for Stripe |
-| `@saasicat/tax-de`              | see the baseline    | a local server standing in for VIES   |
-| `@saasicat/ui-vue-tenant`       | no line figure      | component suite, shipped-source check |
-| `saasicat`                      | no code             | —                                     |
+| Package                         | Lines               | Also covered by                           |
+| ------------------------------- | ------------------- | ----------------------------------------- |
+| `@saasicat/ui-vue`              | 94.23%              | component suite, Playwright               |
+| `@saasicat/spec`                | 94.90%              | —                                         |
+| `@saasicat/nest`                | 87.72%              | —                                         |
+| `create-saasicat-admin`         | 84.10%              | —                                         |
+| `@saasicat/cli`                 | 83.76%              | end-to-end command runs                   |
+| `@saasicat/core`                | 80.41%              | codegen drift test                        |
+| `@saasicat/adapter-prisma`      | 65.23% → **67.11%** | persistence contract, real PostgreSQL     |
+| `@saasicat/adapter-drizzle`     | 60.33% → **75.42%** | persistence contract, real PostgreSQL     |
+| `@saasicat/persistence-testing` | 74.30%              | it _is_ the contract                      |
+| `@saasicat/payment-stripe`      | see the baseline    | a local server standing in for Stripe     |
+| `@saasicat/tax-de`              | see the baseline    | a local server standing in for VIES       |
+| `@saasicat/invoice-zugferd`     | see the baseline    | veraPDF and the EN 16931 schematron in CI |
+| `@saasicat/ui-vue-tenant`       | no line figure      | component suite, shipped-source check     |
+| `saasicat`                      | no code             | —                                         |
 
 Four of these need reading twice.
 

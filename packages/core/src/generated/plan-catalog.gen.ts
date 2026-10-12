@@ -195,6 +195,19 @@ export interface PlanCatalog {
          * Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed.
          */
         paymentTermDays: number;
+        /**
+         * Lines a business letter of the issuer has to state beyond the invoice's own content, printed at the foot of every page of its document: the register court and number and the managing directors of a GmbH (§ 35a GmbHG), a bank account to pay into, and the like — e.g. ["Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster", "IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001"]. An invoice copies them on its issue date, so a later change leaves the invoices issued before as they were (SC-PRIC-077). At most six lines of 120 characters, which is what fits the foot of a page.
+         *
+         * @maxItems 6
+         */
+        footer?:
+            | []
+            | [string]
+            | [string, string]
+            | [string, string, string]
+            | [string, string, string, string]
+            | [string, string, string, string, string]
+            | [string, string, string, string, string, string];
     };
     /**
      * The payment gateway accounts this installation takes payment methods through. SaaSiCat keeps the gateway's reference to a payment method and its masked details, never a card number or an IBAN. The keys and the webhook secret of each account are bound in the application's code from the environment and never written here.

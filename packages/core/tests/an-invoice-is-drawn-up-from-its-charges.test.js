@@ -79,6 +79,7 @@ function draft(charges, overrides = {}) {
         subscriberId: 'subscriber-1',
         subscriber: { ...PARTY, customerNumber: 'K-10001' },
         issuer: { ...PARTY, legalName: 'Issuer GmbH', vatId: 'DE123456789' },
+        footer: [],
         treatment: TREATMENT,
         tax: taxPerRate,
         issuedAt: berlin('2026-02-01'),

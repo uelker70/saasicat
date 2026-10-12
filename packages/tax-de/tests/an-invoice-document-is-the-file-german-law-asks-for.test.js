@@ -53,6 +53,16 @@ describe('the container', () => {
             ['format.facturX'],
         ],
         ['without any metadata', { xmp: null }, ['format.pdfa3', 'format.facturX']],
+        [
+            'declaring its PDF/A part twice, once as 3',
+            {
+                xmp: xmpOf().replace(
+                    '<pdfaid:part>3</pdfaid:part>',
+                    '<pdfaid:part>3</pdfaid:part><pdfaid:part>1</pdfaid:part>',
+                ),
+            },
+            ['format.pdfa3'],
+        ],
         ['without the embedded XML', { xml: null }, ['format.embeddedXml']],
         ['with the XML under another name', { attachedAs: 'invoice.xml' }, ['format.embeddedXml']],
         [
@@ -68,6 +78,11 @@ describe('the container', () => {
         [
             'with XML that is not well-formed',
             { xml: '<rsm:CrossIndustryInvoice><unclosed>' },
+            ['xml.wellFormed'],
+        ],
+        [
+            'with XML holding a character XML forbids, a form feed in a name',
+            { xml: ciiOf(INVOICE, { buyerName: `${INVOICE.subscriber.legalName}\f` }) },
             ['xml.wellFormed'],
         ],
     ]) {
@@ -159,15 +174,91 @@ describe('the embedded XML', () => {
             'xml.seller.taxNumber',
         ],
         ['naming another buyer', { buyerName: 'Autohaus Meier GmbH' }, 'xml.buyer.name'],
+        [
+            "with a buyer's VAT id the invoice does not record",
+            { buyerVatId: 'DE999999999' },
+            'xml.buyer.vatId',
+        ],
         ['with another tax at the rate', { taxes: [{ rate: 19, net: 49, tax: 9.3 }] }, 'xml.taxes'],
         ['at another rate', { taxes: [{ rate: 7, net: 49, tax: 9.31 }] }, 'xml.taxes'],
         ['with a line too few', { lines: [53.9] }, 'xml.lines'],
         ['with a line of another amount', { lines: [53.9, -4.8] }, 'xml.lines'],
+        ['with a line at another rate', { lineRates: [19, 7] }, 'xml.lines'],
+        ['with a line that states no rate', { lineRates: [19, null] }, 'xml.lines'],
+        ['with a line of two VAT breakdowns', { lineRates: [[19, 7], 19] }, 'xml.lines'],
+        [
+            'with its breakdown in another VAT category',
+            { category: 'E', lineCategory: 'S' },
+            'xml.taxes',
+        ],
+        ['with a line in another VAT category', { lineCategory: 'E' }, 'xml.lines'],
+        ['with a line of no VAT breakdown', { lineRates: [[], 19] }, 'xml.lines'],
+        [
+            'naming a second VAT id for the seller',
+            { sellerVatId: ['DE123456789', 'DE999999999'] },
+            'xml.seller.vatId',
+        ],
     ]) {
         test(`${what} is refused`, async () => {
             assert.deepEqual(await gapsOf(differing(overrides)), [gap]);
         });
     }
+
+    test('naming a party whose recorded name holds a character XML cannot hold passes with ? in its place, and not otherwise', async () => {
+        const named = {
+            ...INVOICE,
+            issuer: { ...INVOICE.issuer, legalName: 'AutohausPro.de\vGbR' },
+            subscriber: { ...INVOICE.subscriber, legalName: 'Autohaus\fMüller GmbH' },
+        };
+        const xmlNaming = (sellerName, buyerName) => ({
+            xml: ciiOf(named, { sellerName, buyerName }),
+        });
+
+        assert.deepEqual(
+            await gapsOf(xmlNaming('AutohausPro.de?GbR', 'Autohaus?Müller GmbH'), named),
+            [],
+        );
+        assert.deepEqual(
+            await gapsOf(xmlNaming('AutohausPro.deGbR', 'AutohausMüller GmbH'), named),
+            ['xml.seller.name', 'xml.buyer.name'],
+        );
+    });
+
+    test('naming a party whose recorded name holds a carriage return passes as the line feed every parser reads', async () => {
+        const named = {
+            ...INVOICE,
+            subscriber: { ...INVOICE.subscriber, legalName: 'Autohaus\r\nMüller GmbH' },
+        };
+
+        for (const buyerName of ['Autohaus\r\nMüller GmbH', 'Autohaus\nMüller GmbH']) {
+            assert.deepEqual(
+                await gapsOf({ xml: ciiOf(named, { buyerName }) }, named),
+                [],
+                JSON.stringify(buyerName),
+            );
+        }
+    });
+
+    test('stating what the format gives once twice, once as the invoice records it, is refused', async () => {
+        const xml = ciiOf(INVOICE);
+        const twice = (once, again) => xml.replace(once, `${once}${again}`);
+
+        assert.deepEqual(
+            await gapsOf({
+                xml: twice('<ram:TypeCode>380</ram:TypeCode>', '<ram:TypeCode>381</ram:TypeCode>'),
+            }),
+            ['xml.typeCode'],
+        );
+        assert.deepEqual(
+            await gapsOf({
+                xml: twice(
+                    '</ram:SellerTradeParty>',
+                    '<ram:SellerTradeParty><ram:Name>AutohausPro GmbH</ram:Name></ram:SellerTradeParty>',
+                ),
+            }),
+            ['xml.seller.name', 'xml.seller.vatId', 'xml.seller.taxNumber'],
+        );
+    });
 
     test('stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so', async () => {
         for (const overrides of [
@@ -220,6 +311,122 @@ describe('the embedded XML', () => {
 
     test('filed in a kid of the name tree, its name a literal string, is found and passes', async () => {
         assert.deepEqual(await gapsOf({ reshape: fileUnderAKid }), []);
+    });
+
+    describe("the buyer's VAT id", () => {
+        const recorded = {
+            ...INVOICE,
+            subscriber: { ...INVOICE.subscriber, vatId: 'DE111111111' },
+        };
+        const reverseCharge = {
+            ...recorded,
+            subscriber: { ...recorded.subscriber, vatId: 'ATU12345678', country: 'AT' },
+            taxTreatment: {
+                ...INVOICE.taxTreatment,
+                kind: 'reverse-charge',
+                rate: 0,
+                note: 'Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG) / Reverse charge',
+            },
+            taxes: [{ rate: 0, net: 49, tax: 0 }],
+            totalTax: 0,
+            totalGross: 49,
+            lines: INVOICE.lines.map((line) => ({ ...line, taxRate: 0 })),
+        };
+
+        const reverse = (overrides = {}) => ciiOf(reverseCharge, { category: 'AE', ...overrides });
+
+        test('the invoice records one: stated as recorded, or left out, passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: ciiOf(recorded) }, recorded), []);
+            assert.deepEqual(
+                await gapsOf({ xml: ciiOf(recorded, { buyerVatId: null }) }, recorded),
+                [],
+            );
+        });
+
+        test('under the reverse charge, stated as recorded passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: reverse() }, reverseCharge), []);
+        });
+
+        test('under the reverse charge, left out, another one, or a second one is refused', async () => {
+            for (const buyerVatId of [null, 'ATU99999999', ['ATU12345678', 'ATU99999999']]) {
+                assert.deepEqual(
+                    await gapsOf({ xml: reverse({ buyerVatId }) }, reverseCharge),
+                    ['xml.buyer.vatId'],
+                    String(buyerVatId),
+                );
+            }
+        });
+    });
+
+    describe('outside the scope of VAT', () => {
+        const notTaxable = {
+            ...INVOICE,
+            subscriber: { ...INVOICE.subscriber, vatId: 'CHE-123.456.789', country: 'CH' },
+            taxTreatment: {
+                ...INVOICE.taxTreatment,
+                kind: 'not-taxable',
+                rate: 0,
+                note: 'Nicht im Inland steuerbare Leistung / Service not taxable in Germany',
+            },
+            taxes: [{ rate: 0, net: 49, tax: 0 }],
+            totalTax: 0,
+            totalGross: 49,
+        };
+        const outside = (overrides = {}) =>
+            ciiOf(notTaxable, {
+                category: 'O',
+                sellerVatId: null,
+                buyerVatId: null,
+                taxes: [{ rate: null, net: 49, tax: 0 }],
+                lineRates: [null, null],
+                ...overrides,
+            });
+
+        test('names no VAT id and states no rate, as EN 16931 asks, and passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: outside() }, notTaxable), []);
+        });
+
+        test('naming the seller’s VAT id is refused (BR-O-02)', async () => {
+            const xml = outside({ sellerVatId: notTaxable.issuer.vatId });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.seller.vatId']);
+        });
+
+        test('naming the buyer’s VAT id is refused (BR-O-02)', async () => {
+            const xml = outside({ buyerVatId: notTaxable.subscriber.vatId });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.buyer.vatId']);
+        });
+
+        test('stating a rate is refused (BR-O-05)', async () => {
+            const xml = outside({ taxes: [{ rate: 0, net: 49, tax: 0 }] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.taxes']);
+        });
+
+        test('stating a rate on a line is refused (BR-O-05)', async () => {
+            const xml = outside({ lineRates: [0, null] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
+        });
+
+        test('a line without any VAT breakdown is refused (BR-CO-04)', async () => {
+            const xml = outside({ lineRates: [[], null] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
+        });
+
+        test('categorised S rather than O is refused, in the breakdown and on the lines', async () => {
+            const xml = outside({ category: 'S' });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.taxes', 'xml.lines']);
+        });
+
+        test('stating a rate on a line in a second VAT breakdown is refused (BR-O-05)', async () => {
+            const xml = outside({ lineRates: [[null, 0], null] });
+
+            assert.deepEqual(await gapsOf({ xml }, notTaxable), ['xml.lines']);
+        });
     });
 
     test('of an issuer without a tax number may leave the registration out', async () => {

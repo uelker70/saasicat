@@ -991,6 +991,11 @@ _Tested by:_
         - is the contract’s copy where the file names no issuer
         - reads the copy and the file the way the start does, so a stray space is the same entity
         - reads a recorded block it cannot use as no identity rather than as a wrong one
+    - the footer an invoice carries
+        - is the file’s where the invoice names the entity the file names
+        - is none where the invoice names the contract’s copy of another entity
+        - is none where the file names no issuer
+        - is a copy the file’s lines cannot change afterwards
 - `packages/core/tests/an-issuer-is-the-same-entity-or-another-one.test.js`
     - the identity of an issuer
         - is the three fields a contract names it by, and nothing about how it is reached
@@ -1058,6 +1063,38 @@ _Tested by:_
         - and nothing is counted where no repository answers
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - the issuer names an entity, or the file does not load
+
+<!-- END proof -->
+
+### SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
+
+🟡 _(Decided, not yet delivered.)_ 💰 What a business letter of the issuer has to state beyond the
+invoice's own content, such as the register court and number and the managing directors of a GmbH,
+or the bank account to pay into, is named in `config/saas.yaml` as lines of text, so that it fits any
+legal form. An invoice copies those lines on its issue date, as it does the issuer's address
+(`SC-PRIC-026`), and its document shows them; a later change leaves the invoices issued before as
+they were, and a cancellation or replacement invoice keeps the lines of the invoice it corrects
+(`SC-PRIC-025`). The lines are those of the entity the file names, so an invoice that names the
+contract's copy of another entity carries none rather than another company's register or account.
+
+_Source:_ #332 · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-names-the-issuer-of-its-contract.test.js`
+    - the footer an invoice carries
+        - is the file’s where the invoice names the entity the file names
+        - is none where the invoice names the contract’s copy of another entity
+        - is none where the file names no issuer
+        - is a copy the file’s lines cannot change afterwards
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - the footer of an invoice
+        - is the lines the file names on the issue date, and stays when the file changes after
+        - is none where the file names none
+        - is none where the invoice names the contract’s copy of another entity
+        - is the file’s where the invoice names the issuer’s corrected identity
 
 <!-- END proof -->
 
@@ -1502,6 +1539,35 @@ _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
 _Tested by:_
 
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice rendered by the default renderer
+        - (${name}) is the file the German adapter asks for, named by its number
+        - is the same bytes every time, whatever was rendered in between
+        - is dated from the moment the invoice was issued, not the clock
+        - of another invoice is another file, under another identifier
+    - what the page says
+        - the parties, the invoice’s facts, its lines and its total, labelled in German and English
+        - the subscriber’s VAT id and its country by name, under the reverse charge
+        - the footer lines and the page’s number on every page of an invoice that runs on
+        - a footer line wider than the page, broken onto the next line, on every page
+        - a name or an address line wider than its column, all of it, line after line
+        - no footer where the invoice carries none
+        - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
+          XML as written but for what XML cannot hold
+    - where the page sets its text
+        - (${name}) keeps every run of text between the margins, clear of every other
+        - (${name}) leaves 5 mm at least between the foot and the text above it
+    - a figure
+        - of ${amount} reads ${page} on the page and ${xml} in the XML
+        - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01
+    - the XML it carries
+        - takes a line off as one unit taken back at a price that is not negative
+        - names the categories and reasons EN 16931 asks for each treatment
+        - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
+        - of a small business with a tax number only, identifies the seller by it
+        - under the reverse charge, names both VAT ids
+    - a font the application passes
+        - is the one the page is set in
 - `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
     - an issued invoice’s document
         - is rendered from the invoice as issued, checked, its checksum recorded, and archived
@@ -1528,13 +1594,104 @@ _Tested by:_
         - ${what} is refused for it
     - the embedded XML
         - ${what} is refused
+        - naming a party whose recorded name holds a character XML cannot hold passes with ? in its
+          place, and not otherwise
+        - naming a party whose recorded name holds a carriage return passes as the line feed every
+          parser reads
+        - stating what the format gives once twice, once as the invoice records it, is refused
         - stating 58.30 where the invoice is 58.31 is refused, wherever in the totals it says so
         - stating a total as nothing, or as no number, is refused
         - stating a day in another format than 102 is refused
         - that holds nothing but its root names everything the invoice records as missing
         - filed in a kid of the name tree, its name a literal string, is found and passes
+        - the buyer's VAT id › the invoice records one: stated as recorded, or left out, passes
+        - the buyer's VAT id › under the reverse charge, stated as recorded passes
+        - the buyer's VAT id › under the reverse charge, left out, another one, or a second one is
+          refused
+        - outside the scope of VAT › names no VAT id and states no rate, as EN 16931 asks, and
+          passes
+        - outside the scope of VAT › naming the seller’s VAT id is refused (BR-O-02)
+        - outside the scope of VAT › naming the buyer’s VAT id is refused (BR-O-02)
+        - outside the scope of VAT › stating a rate is refused (BR-O-05)
+        - outside the scope of VAT › stating a rate on a line is refused (BR-O-05)
+        - outside the scope of VAT › a line without any VAT breakdown is refused (BR-CO-04)
+        - outside the scope of VAT › categorised S rather than O is refused, in the breakdown and on
+          the lines
+        - outside the scope of VAT › stating a rate on a line in a second VAT breakdown is refused
+          (BR-O-05)
         - of an issuer without a tax number may leave the registration out
         - of an issuer with a tax number must carry it
+
+<!-- END proof -->
+
+### SC-PRIC-078 — The shipped renderer issues an invoice the format's own validators accept
+
+🟡 _(Decided, not yet delivered.)_ 💰 SaaSiCat ships a renderer for ZUGFeRD in the EN 16931 profile,
+so an installation invoices without writing one: a PDF/A-3 with embedded fonts that a person reads,
+labelled in German with English beside it, carrying the CII XML a program reads (`SC-PRIC-042`). Its
+fonts set Latin, Greek and Cyrillic script; a character they have no glyph for is shown on the page
+as `?` and kept in the XML as written, unless XML cannot hold it at all, as a control character,
+which is `?` there too, and a carriage return is written as the line feed every XML parser reads
+it as. An application whose subscribers write in another script
+passes a font of its own, or uses a renderer of its own instead. The shipped renderer's
+output is checked in CI by validators independent of SaaSiCat — PDF/A by veraPDF, the XML against
+the EN 16931 and Factur-X schematron — for each treatment the German adapter decides, so a change
+that breaks the standard fails the build rather than reaching a subscriber's bookkeeping.
+
+_Source:_ #332 · #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-e-invoice-says-only-what-its-xml-can-hold.test.js`
+    - the VAT category of a treatment
+        - is the one EN 16931 names, for every treatment an adapter can decide
+    - a character in an e-invoice
+        - stands as it is: ${what}
+        - cannot stand, and is written as ?: ${what}
+        - a carriage return, alone or before a line feed, is the line feed any XML parser reads
+        - is judged the same however often it is asked, each one replaced
+- `packages/invoice-zugferd/tests/every-glyph-on-the-page-is-drawn.test.js`
+    - a rendered page
+        - (${name}) draws every character it shows
+        - set in a font of the application whose glyph data has odd lengths, draws every character
+          it shows
+    - a font whose glyph data has odd lengths, padded
+        - has every glyph at an even offset, its outline and its advance as they were
+        - keeps the checksum a font carries over its whole file
+        - leaves the bytes it was handed as they were
+        - padded again is the same font
+        - without TrueType outlines is left as it came
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice rendered by the default renderer
+        - (${name}) is the file the German adapter asks for, named by its number
+        - is the same bytes every time, whatever was rendered in between
+        - is dated from the moment the invoice was issued, not the clock
+        - of another invoice is another file, under another identifier
+    - what the page says
+        - the parties, the invoice’s facts, its lines and its total, labelled in German and English
+        - the subscriber’s VAT id and its country by name, under the reverse charge
+        - the footer lines and the page’s number on every page of an invoice that runs on
+        - a footer line wider than the page, broken onto the next line, on every page
+        - a name or an address line wider than its column, all of it, line after line
+        - no footer where the invoice carries none
+        - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
+          XML as written but for what XML cannot hold
+    - where the page sets its text
+        - (${name}) keeps every run of text between the margins, clear of every other
+        - (${name}) leaves 5 mm at least between the foot and the text above it
+    - a figure
+        - of ${amount} reads ${page} on the page and ${xml} in the XML
+        - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01
+    - the XML it carries
+        - takes a line off as one unit taken back at a price that is not negative
+        - names the categories and reasons EN 16931 asks for each treatment
+        - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
+        - of a small business with a tax number only, identifies the seller by it
+        - under the reverse charge, names both VAT ids
+    - a font the application passes
+        - is the one the page is set in
 
 <!-- END proof -->
 

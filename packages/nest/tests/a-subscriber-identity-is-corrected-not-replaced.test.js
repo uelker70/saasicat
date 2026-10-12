@@ -28,7 +28,7 @@ describe('a new subscriber', () => {
             legalName: '  Meier Autohaus GmbH  ',
             addressLine1: 'Hauptstraße 1 ',
             addressLine2: '   ',
-            city: 'Berlin',
+            city: 'Berlin\r\n',
             country: 'de',
             vatId: '',
             invoiceEmail: ' rechnung@meier.example ',
@@ -36,6 +36,7 @@ describe('a new subscriber', () => {
 
         assert.equal(subscriber.legalName, 'Meier Autohaus GmbH');
         assert.equal(subscriber.addressLine1, 'Hauptstraße 1');
+        assert.equal(subscriber.city, 'Berlin', 'a line break at the end is trimmed');
         assert.equal(subscriber.addressLine2, null);
         assert.equal(subscriber.postalCode, null, 'a detail left out is unknown');
         assert.equal(subscriber.country, 'DE');
@@ -98,6 +99,13 @@ describe('a new subscriber', () => {
         ['invoiceEmail', 'anna@meier.'],
         ['legalName', 42],
         ['vatId', { value: 'DE1' }],
+        // Characters an e-invoice's XML cannot hold (SC-PRIC-078).
+        ['legalName', 'Meier\vGmbH'],
+        ['addressLine1', 'Hauptstraße 1\f'],
+        ['city', 'Berlin\u0001'],
+        // A tab or a line break: each detail is one line.
+        ['legalName', 'Meier\r\nGmbH'],
+        ['addressLine2', 'Hinterhaus\tlinks'],
     ]) {
         test(`with ${field} ${JSON.stringify(value)} is refused, naming the field`, async () => {
             const { service } = await subscribersFor();

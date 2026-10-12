@@ -21,6 +21,7 @@ import {
     PDFHexString,
     decodePDFRawStream,
 } from 'pdf-lib';
+import { asXmlReadsIt, holdsOnlyXmlCharacters, vatCategoryOf } from '@saasicat/core';
 import type { InvoiceDocument, SubscriptionInvoiceRecord } from '@saasicat/core';
 
 /** The name the Factur-X standard gives the embedded XML. */
@@ -34,6 +35,15 @@ const EN_16931_LEVEL = 'EN 16931';
 
 /** UNTDID 1001: a commercial invoice. */
 const COMMERCIAL_INVOICE = '380';
+
+/**
+ * What the check reads where the XML does not say a thing exactly once that
+ * EN 16931 has it say once: a second VAT id of a party, or a line with no VAT
+ * breakdown or a second one. A second could say what the first leaves out, so
+ * no recorded value equals this. An element the format gives once, stated
+ * twice, is read as missing for the same reason (`single`).
+ */
+const NOT_ONCE = 'not stated exactly once';
 
 /** The elements that repeat, read as lists whether one is there or many. */
 const REPEATED = new Set([
@@ -114,7 +124,7 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
         ) === EN_16931_PROFILE,
     );
     check('xml.typeCode', text(header, 'TypeCode') === COMMERCIAL_INVOICE);
-    check('xml.number', text(header, 'ID') === invoice.number);
+    check('xml.number', text(header, 'ID') === written(invoice.number));
     check('xml.issueDate', dayOf(path(header, 'IssueDateTime')) === invoice.issueDate);
     check(
         'xml.dueDate',
@@ -129,14 +139,34 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
                 invoice.servicePeriodUntil,
     );
     check('xml.currency', text(settlement, 'InvoiceCurrencyCode') === invoice.currency);
-    check('xml.seller.name', text(seller, 'Name') === invoice.issuer.legalName);
-    check('xml.seller.vatId', registered(registrations, 'VA') === invoice.issuer.vatId);
-    check('xml.seller.taxNumber', registered(registrations, 'FC') === invoice.issuer.taxNumber);
+    check('xml.seller.name', text(seller, 'Name') === written(invoice.issuer.legalName));
+    // Outside the scope of VAT, EN 16931 forbids the VAT ids of both parties
+    // (BR-O-02) and any rate, in the breakdown or on a line (BR-O-05), that
+    // every other treatment states.
+    const outsideVat = invoice.taxTreatment.kind === 'not-taxable';
+    const category = vatCategoryOf(invoice.taxTreatment.kind);
     check(
-        'xml.buyer.name',
-        text(path(agreement, 'BuyerTradeParty'), 'Name') === invoice.subscriber.legalName,
+        'xml.seller.vatId',
+        registered(registrations, 'VA') === (outsideVat ? null : written(invoice.issuer.vatId)),
     );
-    check('xml.taxes', sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice));
+    check(
+        'xml.seller.taxNumber',
+        registered(registrations, 'FC') === written(invoice.issuer.taxNumber),
+    );
+    const buyer = path(agreement, 'BuyerTradeParty');
+    check('xml.buyer.name', text(buyer, 'Name') === written(invoice.subscriber.legalName));
+    check(
+        'xml.buyer.vatId',
+        buyerVatIdHolds(
+            registered(list(buyer, 'SpecifiedTaxRegistration'), 'VA'),
+            invoice,
+            outsideVat,
+        ),
+    );
+    check(
+        'xml.taxes',
+        sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice, category, outsideVat),
+    );
     check(
         'xml.totals',
         centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(invoice.totalNet) &&
@@ -147,37 +177,86 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
     check(
         'xml.lines',
         sameAmounts(
-            list(transaction, 'IncludedSupplyChainTradeLineItem').map((item) =>
-                centsOf(
-                    text(
-                        path(
-                            item,
-                            'SpecifiedLineTradeSettlement',
-                            'SpecifiedTradeSettlementLineMonetarySummation',
+            list(transaction, 'IncludedSupplyChainTradeLineItem').map((item) => {
+                const line = path(item, 'SpecifiedLineTradeSettlement');
+                // One VAT breakdown per line, with its category (EN 16931,
+                // BG-30, BR-CO-04).
+                const taxes = list(line, 'ApplicableTradeTax');
+                if (taxes.length !== 1) return NOT_ONCE;
+                return keyOf(
+                    text(taxes[0], 'CategoryCode'),
+                    centsOf(text(taxes[0], 'RateApplicablePercent')),
+                    centsOf(
+                        text(
+                            path(line, 'SpecifiedTradeSettlementLineMonetarySummation'),
+                            'LineTotalAmount',
                         ),
-                        'LineTotalAmount',
                     ),
-                ),
+                );
+            }),
+            invoice.lines.map((line) =>
+                keyOf(category, outsideVat ? null : cents(line.taxRate), cents(line.amountNet)),
             ),
-            invoice.lines.map((line) => cents(line.amountNet)),
         ),
     );
     return gaps;
 }
 
-/** The tax the XML states per rate, against the invoice's, rate by rate. */
-function sameTaxes(stated: Element[], invoice: SubscriptionInvoiceRecord): boolean {
-    const key = (rate: number | null, net: number | null, tax: number | null) =>
-        `${rate}|${net}|${tax}`;
+/**
+ * Whether the buyer's VAT id the XML states is the subscriber's the invoice
+ * records: required under the reverse charge, where the buyer owes the tax
+ * (§ 14a UStG, BR-AE-02), forbidden outside the scope of VAT (BR-O-02), and
+ * otherwise the subscriber's wherever it is stated.
+ */
+function buyerVatIdHolds(
+    stated: string | null,
+    invoice: SubscriptionInvoiceRecord,
+    outsideVat: boolean,
+): boolean {
+    const recorded = written(invoice.subscriber.vatId);
+    if (outsideVat) return stated === null;
+    if (invoice.taxTreatment.kind === 'reverse-charge') return stated === recorded;
+    return stated === null || stated === recorded;
+}
+
+/** Values that belong together, as one value to compare: `null` stays apart from `0`. */
+function keyOf(...values: (string | number | null)[]): string {
+    return values.map(String).join('|');
+}
+
+/**
+ * A text the invoice records as its XML states it and any parser reads it
+ * back: with `?` for a character XML cannot hold, as SC-PRIC-078 has every
+ * renderer write it, and a carriage return as a line feed.
+ */
+function written<T extends string | null>(text: T): T {
+    return (text === null ? null : asXmlReadsIt(text)) as T;
+}
+
+/** The tax the XML states per rate, with its category, against the invoice's, rate by rate. */
+function sameTaxes(
+    stated: Element[],
+    invoice: SubscriptionInvoiceRecord,
+    category: string,
+    outsideVat: boolean,
+): boolean {
     return sameAmounts(
         stated.map((entry) =>
-            key(
+            keyOf(
+                text(entry, 'CategoryCode'),
                 centsOf(text(entry, 'RateApplicablePercent')),
                 centsOf(text(entry, 'BasisAmount')),
                 centsOf(text(entry, 'CalculatedAmount')),
             ),
         ),
-        invoice.taxes.map((entry) => key(cents(entry.rate), cents(entry.net), cents(entry.tax))),
+        invoice.taxes.map((entry) =>
+            keyOf(
+                category,
+                outsideVat ? null : cents(entry.rate),
+                cents(entry.net),
+                cents(entry.tax),
+            ),
+        ),
     );
 }
 
@@ -189,15 +268,18 @@ function sameAmounts<T>(stated: readonly T[], recorded: readonly T[]): boolean {
     return left.every((value, index) => value === right[index]);
 }
 
-/** The id registered under `scheme` (`VA` for a VAT id, `FC` for a tax number), or `null`. */
+/**
+ * The id registered under `scheme` (`VA` for a VAT id, `FC` for a tax number),
+ * `null` where there is none, and `NOT_ONCE` where there are several.
+ */
 function registered(registrations: Element[], scheme: string): string | null {
-    for (const registration of registrations) {
-        const id = registration.ID;
-        if (id && typeof id === 'object' && (id as Element)['@_schemeID'] === scheme) {
-            return text(registration, 'ID');
-        }
-    }
-    return null;
+    const ids = registrations
+        .filter((registration) => {
+            const id = registration.ID;
+            return id && typeof id === 'object' && (id as Element)['@_schemeID'] === scheme;
+        })
+        .map((registration) => text(registration, 'ID'));
+    return ids.length > 1 ? NOT_ONCE : (ids[0] ?? null);
 }
 
 /** A `udt:DateTimeString` of format 102 (`YYYYMMDD`) as a calendar day, or `null`. */
@@ -223,11 +305,16 @@ function centsOf(value: string | null): number | null {
 function path(element: Element | undefined, ...names: string[]): Element | undefined {
     let current = element;
     for (const name of names) {
-        const next = current && child(current, name);
-        current = Array.isArray(next) ? (next[0] as Element | undefined) : (next as Element);
+        current = single(current && child(current, name)) as Element | undefined;
         if (!current || typeof current !== 'object') return undefined;
     }
     return current;
+}
+
+/** The one element `value` holds; none where the XML states it more than once. */
+function single(value: unknown): unknown {
+    if (!Array.isArray(value)) return value;
+    return value.length === 1 ? value[0] : undefined;
 }
 
 function child(element: Element, name: string): unknown {
@@ -242,8 +329,7 @@ function list(element: Element | undefined, name: string): Element[] {
 
 /** The text of the child `name`, with or without attributes; `null` where there is none. */
 function text(element: Element | undefined, name: string): string | null {
-    const value = element && child(element, name);
-    const node = Array.isArray(value) ? value[0] : value;
+    const node = single(element && child(element, name));
     if (typeof node === 'string') return node.trim();
     if (node && typeof node === 'object' && typeof (node as Element)['#text'] === 'string') {
         return ((node as Element)['#text'] as string).trim();
@@ -274,7 +360,9 @@ function anyValue(tree: unknown, name: string): string[] {
 
 /** XML text parsed, or `null` where it is not well-formed. */
 function parse(xml: string | null): Element | null {
-    if (xml === null) return null;
+    // The parser reads past a character XML 1.0 cannot hold; a recipient's
+    // parser does not.
+    if (xml === null || !holdsOnlyXmlCharacters(xml)) return null;
     try {
         return parser.parse(xml, true) as Element;
     } catch {

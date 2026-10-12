@@ -5,9 +5,9 @@
         "funcs": 100
     },
     "core": {
-        "line": 83.67,
-        "branch": 92.42,
-        "funcs": 70.19
+        "line": 90.05,
+        "branch": 94.86,
+        "funcs": 84.77
     },
     "nest": {
         "line": 92.31,
@@ -60,8 +60,13 @@
         "funcs": 100
     },
     "tax-de": {
-        "line": 99.17,
-        "branch": 94.05,
-        "funcs": 95.65
+        "line": 99.7,
+        "branch": 96.73,
+        "funcs": 98.55
+    },
+    "invoice-zugferd": {
+        "line": 99.55,
+        "branch": 96.99,
+        "funcs": 100
     }
 }

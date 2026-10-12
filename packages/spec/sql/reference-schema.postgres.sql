@@ -826,6 +826,7 @@ CREATE TABLE "subscription_invoices" (
     "currency" TEXT NOT NULL,
     "issuerParty" JSONB NOT NULL,
     "subscriberParty" JSONB NOT NULL,
+    "footer" JSONB NOT NULL DEFAULT '[]',
     "taxTreatment" JSONB NOT NULL,
     "taxes" JSONB NOT NULL,
     "totalNet" DECIMAL(12,2) NOT NULL,

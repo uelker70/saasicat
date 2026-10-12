@@ -13,7 +13,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { invoiceIssuerOf } from '../dist/index.js';
+import { invoiceFooterOf, invoiceIssuerOf } from '../dist/index.js';
 
 /** The issuer as a contract concluded in 2025 copied it. */
 const COPY = {
@@ -134,5 +134,32 @@ describe('the issuer an invoice names', () => {
         const history = [{ previous: { issuer: 'not a block' }, current: { issuer: [CORRECTED] } }];
 
         assert.deepEqual(invoiceIssuerOf(COPY, CORRECTED, history), COPY);
+    });
+});
+
+// @requirement SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
+describe('the footer an invoice carries', () => {
+    const FOOTER = ['Amtsgericht München HRB 123456', 'IBAN DE02 1203 0000 0000 2020 51'];
+
+    test('is the file’s where the invoice names the entity the file names', () => {
+        assert.deepEqual(invoiceFooterOf(CORRECTED, CORRECTED, FOOTER), FOOTER);
+    });
+
+    test('is none where the invoice names the contract’s copy of another entity', () => {
+        const other = { ...CORRECTED, legalName: 'Successor AG', vatId: 'DE111111111' };
+
+        assert.deepEqual(invoiceFooterOf(COPY, other, FOOTER), []);
+    });
+
+    test('is none where the file names no issuer', () => {
+        assert.deepEqual(invoiceFooterOf(COPY, null, FOOTER), []);
+    });
+
+    test('is a copy the file’s lines cannot change afterwards', () => {
+        const lines = [...FOOTER];
+        const footer = invoiceFooterOf(CORRECTED, CORRECTED, lines);
+        lines.push('changed');
+
+        assert.deepEqual(footer, FOOTER);
     });
 });

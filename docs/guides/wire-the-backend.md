@@ -978,8 +978,8 @@ contract — the charges a billing period opens with, or one that arises later i
 without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. **Switch it on for
 real customers only from the release that brings the cancellation invoice** (`1.0.0-rc.28`): an
 issued invoice is never edited (`SC-PRIC-025`), so until then a wrong one cannot be corrected. Each
-invoice is issued, rendered into the file its tax law requires, archived and mailed; your application
-brings the renderer that writes the file.
+invoice is issued, rendered into the file its tax law requires — by `@saasicat/invoice-zugferd`, or
+a renderer of your own — archived and mailed.
 
 It needs the charge journal above, a tax adapter, the issuer in `config/saas.yaml`, and the record
 of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only against the record
@@ -995,16 +995,21 @@ payment term, and wire the repository, the renderer, the archive and the mail be
 invoicing:
     numberPrefix: AHP # AHP-2026-000123
     paymentTermDays: 14 # due 14 days after the issue date
+    footer: # optional: what a business letter of yours states, on every page
+        - 'Amtsgericht München HRB 123456 · Geschäftsführerin: Erika Muster'
+        - 'IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001'
 ```
 
 ```ts
+import { zugferdInvoiceRenderer } from '@saasicat/invoice-zugferd';
+
 tenantBilling: {
     // … contractFreeze as above
     chargeJournal: {
         ledgerRepository: persistence.entitlement!.subscriberLedgerRepository!,
         invoices: {
             invoiceRepository: persistence.entitlement!.subscriptionInvoiceRepository!,
-            renderer: new YourInvoiceRenderer(), // InvoiceRenderer
+            renderer: zugferdInvoiceRenderer(),
             archive: persistence.entitlement!.subscriptionInvoiceArchive!,
             mail: new YourInvoiceMail(), // InvoiceMailPort
         },
@@ -1036,6 +1041,8 @@ archived. Each invoice is put together from what holds on its issue date:
 - **the issuer** of the contract its charges belong to — the file's, address and all, while the file
   names the entity the contract was concluded with or a correction of it the operator declared
   (`SC-PRIC-026`); the contract's own copy otherwise;
+- **the footer** `invoicing.footer` names, copied as it stands — where the invoice names the file's
+  issuer; an invoice naming the contract's copy of another entity carries none (`SC-PRIC-077`);
 - **the treatment** the tax adapter decides for the subscriber now (`SC-PRIC-043`) and for the issuer
   the invoice names, recorded with the adapter's name and version, and **the tax** by the adapter's
   rule, once per rate (`SC-PRIC-041`);
@@ -1061,9 +1068,12 @@ put right, the next run issues it under the next number.
 Once issued, an invoice goes through five steps. One that cannot go on yet waits, and every run
 after tries it again:
 
-1. **Rendered** by your `InvoiceRenderer` from what the invoice records and nothing else: the same
-   invoice renders the same bytes every time, and whatever a renderer would take from the clock, such
-   as a PDF's creation date, it takes from `issuedAt`.
+1. **Rendered** by the `InvoiceRenderer` you pass from what the invoice records and nothing else: the
+   same invoice renders the same bytes every time, and whatever a renderer would take from the clock,
+   such as a PDF's creation date, it takes from `issuedAt`. `zugferdInvoiceRenderer()` from
+   `@saasicat/invoice-zugferd` writes ZUGFeRD in the EN 16931 profile, labelled in German with
+   English beside it, and CI checks its output with the format's own validators (`SC-PRIC-078`); it
+   takes a font of yours as `fonts: { regular, bold }`.
 2. **Checked** by the tax adapter against the format its law requires (`SC-PRIC-042`) — for
    `@saasicat/tax-de`, ZUGFeRD in the EN 16931 profile, whose XML states what the invoice records. A
    file it refuses is not archived: the invoice keeps its number and waits, and the audit log records

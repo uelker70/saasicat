@@ -120,6 +120,7 @@ export * from './subscription-invoice-draft.js';
 export * from './invoice-issuer.js';
 export * from './invoice-document.types.js';
 export * from './invoice-document-mapping.js';
+export * from './e-invoice-format.js';
 export * from './subscriber-mapping.js';
 export * from './subscriber-payment-method-mapping.js';
 export * from './subscriber-payment-method.types.js';

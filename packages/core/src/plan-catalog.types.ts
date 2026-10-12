@@ -188,6 +188,11 @@ export interface PlanCatalogInvoicing {
     numberPrefix: string;
     /** Days from an invoice's issue date to the day it is due (`SC-PRIC-046`). */
     paymentTermDays: number;
+    /**
+     * What a business letter of the issuer states beyond the invoice's own
+     * content, line by line — copied onto every invoice issued (`SC-PRIC-077`).
+     */
+    footer?: string[];
 }
 
 /** One account at a payment gateway, by the name `PlanCatalogPayments.accounts` gives it. */
