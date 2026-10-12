@@ -14,11 +14,12 @@
 // hand edit, visible in the diff.
 //
 // The total alone would let a swap through: one finding fixed, a new one
-// added, the number unchanged. So, in addition, every finding on a line that
-// is new or changed since the branch left the default branch fails — whoever
-// touches a line fixes it. Disable directives are exempt: for them the number
-// holds, which a justified exception raises visibly. In CI the merge base must
-// be reachable (full history), otherwise the run aborts.
+// added, the number unchanged. So there are two checks against the point where
+// the branch left the default branch: no changed file may have more findings
+// per rule than it had there, and every finding on a new or changed line fails
+// — whoever touches a line fixes it. A new disable directive on a changed line
+// is only allowed as far as its number was raised by hand in the same diff. In
+// CI the merge base must be reachable (full history), otherwise the run aborts.
 //
 // Which rules are counted is stated in `oxlint.config.mts`, and which files
 // are excluded is stated there too (`ignorePatterns`) — this script keeps no
@@ -38,8 +39,17 @@
 //        node scripts/anti-slop-ratchet.mts --update   record numbers that went down
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import {
+    existsSync,
+    globSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const OXLINT_CONFIG = 'oxlint.config.mts';
@@ -71,13 +81,19 @@ const LINE_COMMENT = '//';
 const BLOCK_COMMENT = ['/*', '*/'] as const;
 const DISABLE_KEYWORDS = ['oxlint-disable', 'eslint-disable'] as const;
 const PLUGIN_RULE = 'anti-slop/';
+// Its justification may sit above the assertion, separated by further comments;
+// a finding of this rule therefore reaches up over them.
+const SAFETY_RULE = 'require-safety-comment-for-type-assertion';
+const COMMENT_LINES = ['//', '/*', '*'] as const;
+const NEWLINE = 0x0a;
 
 interface Finding {
     readonly rule: string;
     readonly file: string;
     readonly line: number;
-    // The last line of the reported expression; a finding across several lines
-    // counts as changed as soon as one of them is changed.
+    // The line range that counts as "touched": from the reported expression
+    // (for the SAFETY rule including the comments above it) to its end.
+    readonly fromLine: number;
     readonly toLine: number;
     readonly message: string;
 }
@@ -196,32 +212,70 @@ function ruleOf(code: string): string {
     return code.slice(start.length, -1);
 }
 
-function measure(excluded: ReadonlySet<string>): Measurement {
-    const files = sourceFiles();
+/**
+ * oxlint counts `offset` and `length` in UTF-8 bytes, not characters — an
+ * umlaut before it would otherwise shift the end. So the line breaks within the
+ * finding's bytes are counted.
+ */
+function rangeOf(
+    rule: string,
+    text: string,
+    bytes: Buffer,
+    span: OxlintDiagnostic['labels'][number]['span'],
+): { fromLine: number; toLine: number } {
+    const breaks = bytes
+        .subarray(span.offset, span.offset + span.length)
+        .filter((byte) => byte === NEWLINE).length;
+    let fromLine = span.line;
+    if (rule === SAFETY_RULE) {
+        const lines = text.split('\n');
+        while (fromLine > 1) {
+            const before = (lines[fromLine - 2] ?? '').trim();
+            if (before !== '' && !COMMENT_LINES.some((start) => before.startsWith(start))) break;
+            fromLine -= 1;
+        }
+    }
+    return { fromLine, toLine: span.line + breaks };
+}
+
+/** Lints the paths in batches; `file` is the path as oxlint reports it. */
+function lint(paths: readonly string[]): { findings: Finding[]; linted: number } {
     const findings: Finding[] = [];
-    const texts = new Map<string, string>();
-    const textOf = (file: string): string => {
-        const text = texts.get(file) ?? readFileSync(file, 'utf8');
-        texts.set(file, text);
-        return text;
+    const contents = new Map<string, { text: string; bytes: Buffer }>();
+    const contentOf = (file: string): { text: string; bytes: Buffer } => {
+        const known = contents.get(file);
+        if (known !== undefined) return known;
+        const bytes = readFileSync(file);
+        const content = { text: bytes.toString('utf8'), bytes };
+        contents.set(file, content);
+        return content;
     };
     let linted = 0;
-    for (let i = 0; i < files.length; i += FILES_PER_RUN) {
-        const output = oxlint(files.slice(i, i + FILES_PER_RUN));
+    for (let i = 0; i < paths.length; i += FILES_PER_RUN) {
+        const output = oxlint(paths.slice(i, i + FILES_PER_RUN));
         linted += output.number_of_files;
         for (const diagnostic of output.diagnostics) {
+            const rule = ruleOf(diagnostic.code);
             const span = diagnostic.labels[0]?.span;
             const line = span?.line ?? 0;
-            const end = span === undefined ? undefined : span.offset + span.length;
+            const { text, bytes } = contentOf(diagnostic.filename);
             findings.push({
-                rule: ruleOf(diagnostic.code),
+                rule,
                 file: diagnostic.filename,
                 line,
-                toLine: end === undefined ? line : lineOf(textOf(diagnostic.filename), end),
+                ...(span === undefined
+                    ? { fromLine: line, toLine: line }
+                    : rangeOf(rule, text, bytes, span)),
                 message: diagnostic.message,
             });
         }
     }
+    return { findings, linted };
+}
+
+function measure(excluded: ReadonlySet<string>): Measurement {
+    const files = sourceFiles();
+    const { findings, linted } = lint(files);
     // A run over zero files would report zero findings — and pass.
     if (linted === 0) {
         throw new Error('oxlint checked no file.');
@@ -230,6 +284,57 @@ function measure(excluded: ReadonlySet<string>): Measurement {
     // comment switches nothing off that would be counted.
     const directives = files.filter((file) => !excluded.has(file)).flatMap(disableDirectivesIn);
     return { findings: [...findings, ...directives], files: linted };
+}
+
+type CountsPerFile = Map<string, Map<string, number>>;
+
+function perFile(
+    findings: readonly Finding[],
+    fileOf: (reported: string) => string,
+): CountsPerFile {
+    const counts: CountsPerFile = new Map();
+    for (const finding of findings) {
+        if (finding.rule === DISABLE_DIRECTIVE) continue;
+        const key = fileOf(finding.file);
+        const perRule = counts.get(key) ?? new Map<string, number>();
+        perRule.set(finding.rule, (perRule.get(finding.rule) ?? 0) + 1);
+        counts.set(key, perRule);
+    }
+    return counts;
+}
+
+/**
+ * Findings per file and rule as they were at the merge base: the old version
+ * of each file is written to a throwaway directory and linted there. A file
+ * that did not exist there had zero findings.
+ */
+function countsAtMergeBase(base: string, files: readonly string[]): CountsPerFile {
+    const store = mkdtempSync(join(tmpdir(), 'anti-slop-'));
+    try {
+        const copies: string[] = [];
+        for (const file of files) {
+            const old = spawnSync('git', ['show', `${base}:${file}`], {
+                maxBuffer: 256 * 1024 * 1024,
+            });
+            if (old.status !== 0) continue;
+            const target = join(store, file);
+            mkdirSync(dirname(target), { recursive: true });
+            writeFileSync(target, old.stdout);
+            copies.push(target);
+        }
+        if (copies.length === 0) return new Map();
+        return perFile(lint(copies).findings, (reported) => relative(store, resolve(reported)));
+    } finally {
+        rmSync(store, { recursive: true, force: true });
+    }
+}
+
+/** The recorded number of disable directives at the merge base, if there was one. */
+function directivesAtMergeBase(base: string): number | undefined {
+    const old = spawnSync('git', ['show', `${base}:${RATCHET}`], { encoding: 'utf8' });
+    if (old.status !== 0) return undefined;
+    const read: unknown = JSON.parse(old.stdout);
+    return isCountTable(read) ? read[DISABLE_DIRECTIVE] : undefined;
 }
 
 /**
@@ -264,6 +369,7 @@ function disableDirectivesIn(file: string): Finding[] {
                     rule: DISABLE_DIRECTIVE,
                     file,
                     line: index + 1,
+                    fromLine: index + 1,
                     toLine: index + 1,
                     message: line.trim(),
                 });
@@ -287,6 +393,7 @@ function disableDirectivesIn(file: string): Finding[] {
                 rule: DISABLE_DIRECTIVE,
                 file,
                 line,
+                fromLine: line,
                 toLine: line,
                 message: `/* ${content} */`,
             });
@@ -343,7 +450,9 @@ function changesSince(base: string): Changes {
     let file: string | undefined;
     for (const line of diff.split('\n')) {
         if (line.startsWith('+++ ')) {
-            const path = line.slice('+++ '.length);
+            // With a space in the name, git appends a tab.
+            let path = line.slice('+++ '.length);
+            while (path.endsWith('\t')) path = path.slice(0, -1);
             file = path === '/dev/null' ? undefined : path;
             continue;
         }
@@ -366,7 +475,7 @@ function onChangedLine(finding: Finding, changes: Changes): boolean {
     const lines = changes.get(finding.file);
     if (lines === WHOLE_FILE) return true;
     if (lines === undefined) return false;
-    for (let n = finding.line; n <= finding.toLine; n += 1) {
+    for (let n = finding.fromLine; n <= finding.toLine; n += 1) {
         if (lines.has(n)) return true;
     }
     return false;
@@ -416,10 +525,36 @@ async function main(): Promise<void> {
             changes !== undefined &&
             onChangedLine(finding, changes),
     );
+    const excludedFiles = new Set(excluded);
+    const changedFiles = [...(changes?.keys() ?? [])].filter(
+        (file) => existsSync(file) && !excludedFiles.has(file),
+    );
+    const before = base === undefined ? new Map() : countsAtMergeBase(base, changedFiles);
+    const after = perFile(measurement.findings, (reported) => reported);
+    const moreThanBefore = changedFiles.flatMap((file) =>
+        [...(after.get(file) ?? new Map<string, number>())].flatMap(([rule, now]) => {
+            const then = before.get(file)?.get(rule) ?? 0;
+            return now > then ? [{ file, rule, then, now }] : [];
+        }),
+    );
+    const newDirectives = measurement.findings.filter(
+        (finding) =>
+            finding.rule === DISABLE_DIRECTIVE &&
+            changes !== undefined &&
+            onChangedLine(finding, changes),
+    );
     const actual = counted(measurement.findings, rules);
     const expected = recorded(updating);
     const actualCount = (rule: string): number => actual.get(rule) ?? 0;
     const expectedCount = (rule: string): number => expected.get(rule) ?? 0;
+    const directivesThen = base === undefined ? undefined : directivesAtMergeBase(base);
+    // Without the number at the merge base, this branch introduces the ratchet;
+    // then the recorded number alone counts.
+    const allowedDirectives = Math.max(
+        0,
+        expectedCount(DISABLE_DIRECTIVE) - (directivesThen ?? expectedCount(DISABLE_DIRECTIVE)),
+    );
+    const tooManyDirectives = newDirectives.length > allowedDirectives;
 
     const rose = rules.filter(
         (rule) => expected.has(rule) && actualCount(rule) > expectedCount(rule),
@@ -446,7 +581,30 @@ async function main(): Promise<void> {
         }
         console.error('Fix the new findings — the number is not raised.');
     }
-    if (onNewLines.length > 0 || rose.length > 0) {
+    if (moreThanBefore.length > 0) {
+        console.error('More findings than at the merge base:');
+        for (const { file, rule, then, now } of moreThanBefore) {
+            console.error(`  ${file}: ${rule} ${then} → ${now}`);
+        }
+        console.error('A changed file may not have more findings per rule than before.');
+    }
+    if (tooManyDirectives) {
+        console.error(
+            `New disable directives: ${newDirectives.length}, raised by hand: ${allowedDirectives}.`,
+        );
+        for (const { file, line, message } of newDirectives) {
+            console.error(`  ${file}:${line} ${message}`);
+        }
+        console.error(
+            `A justified exception raises \`${DISABLE_DIRECTIVE}\` in ${RATCHET} in the same diff.`,
+        );
+    }
+    if (
+        onNewLines.length > 0 ||
+        rose.length > 0 ||
+        moreThanBefore.length > 0 ||
+        tooManyDirectives
+    ) {
         process.exit(1);
     }
 
