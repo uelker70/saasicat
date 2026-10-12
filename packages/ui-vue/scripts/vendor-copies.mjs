@@ -16,7 +16,6 @@ import { basename, dirname, extname, join, relative } from 'node:path';
  *   `WANTED` matches, rather than the one file.
  */
 export const VENDOR_COPIES = [
-    { what: "Quasar's stylesheet", from: 'quasar/dist/quasar.css', to: 'quasar.css' },
     {
         what: 'the Material Icons font',
         from: '@quasar/extras/material-icons/material-icons.css',
@@ -24,6 +23,28 @@ export const VENDOR_COPIES = [
         directory: true,
     },
 ];
+
+/**
+ * What this package hands out by reference rather than by copy: a stylesheet in
+ * `dist/assets` that only imports another package's, so the application's
+ * bundler resolves it from the same installation as that package's JavaScript.
+ *
+ * Quasar's is one. Its JavaScript resolves in the application under this
+ * package's `^` range, at whatever minor is newest, while a copy is fixed at the
+ * release this package was built with — and Quasar's minors change markup and
+ * stylesheet together. Nothing is copied, so there are no terms to carry.
+ *
+ * - `from` — the stylesheet, as the application resolves it from here.
+ * - `to` — the file that imports it, relative to `dist/assets`.
+ */
+export const VENDOR_IMPORTS = [
+    { what: "Quasar's stylesheet", from: 'quasar/dist/quasar.css', to: 'quasar.css' },
+];
+
+/** The content of a stylesheet that hands `from` out by reference. */
+export function importOf({ what, from }) {
+    return `/* ${what}, from the installation the application resolves it from. */\n@import '${from}';\n`;
+}
 
 /** The files a directory copy keeps: the stylesheet and the fonts it names. */
 export const WANTED = /\.(css|woff2?|ttf|eot)$/;

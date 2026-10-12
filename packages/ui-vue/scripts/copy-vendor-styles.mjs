@@ -8,20 +8,31 @@
 // the consumer writes one line for; the only change is that the line names THIS
 // package rather than one they had to install.
 //
-// The icon font goes with it. The admin renders `q-icon` with Material names
-// since the hand-drawn glyphs were removed, so without the font every icon is a
-// ligature name rendered as words.
+// Quasar's stylesheet is handed out by reference: `dist/assets/quasar.css`
+// imports `quasar/dist/quasar.css`, which the application's bundler resolves
+// from this package's own Quasar — the installation its JavaScript comes from.
+// A copy was fixed at the release this package was built with, while the
+// JavaScript followed the `^` range to the newest minor. `exports` cannot point
+// into `node_modules`, which is why it is an import in a file of our own.
 //
-// Copied rather than re-exported: `exports` cannot point into `node_modules`,
-// and a consumer resolving `quasar/dist/quasar.css` themselves is exactly the
-// dependency this removes.
+// The icon font is copied. The admin renders `q-icon` with Material names since
+// the hand-drawn glyphs were removed, so without the font every icon is a
+// ligature name rendered as words; a font file is fetched by URL, which an
+// import in a stylesheet would leave to the application's server to answer.
 
-import { cpSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { VENDOR_COPIES, WANTED, licenceTarget, licencesOfCopy } from './vendor-copies.mjs';
+import {
+    VENDOR_COPIES,
+    VENDOR_IMPORTS,
+    WANTED,
+    importOf,
+    licenceTarget,
+    licencesOfCopy,
+} from './vendor-copies.mjs';
 
 const PACKAGE = fileURLToPath(new URL('..', import.meta.url));
 const ASSETS = join(PACKAGE, 'dist', 'assets');
@@ -66,6 +77,16 @@ for (const copy of VENDOR_COPIES) {
     }
 }
 
+for (const reference of VENDOR_IMPORTS) {
+    // Resolved here only to stop the build where the application could not
+    // resolve it either: a stylesheet importing nothing would load as empty.
+    require.resolve(reference.from);
+    const target = join(ASSETS, reference.to);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, importOf(reference));
+}
+
 console.log(
-    `copy-vendor-styles: ${VENDOR_COPIES.map((copy) => copy.to).join(' + ')}, with their licences`,
+    `copy-vendor-styles: ${VENDOR_COPIES.map((copy) => copy.to).join(' + ')}, with their licences; ` +
+        `${VENDOR_IMPORTS.map((reference) => reference.to).join(' + ')} by reference`,
 );

@@ -529,7 +529,7 @@ _Tested by:_
 ### SC-SEC-017 — What a package ships of somebody else's files carries their licence
 
 🟢 Where a package copies files out of another package into what it publishes — `@saasicat/ui-vue`
-copies Quasar's stylesheet and the Material Icons font — the licence and notice files that govern
+copies the Material Icons font — the licence and notice files that govern
 them are published beside them, as their package states them: those in every directory the copied
 files come from and in every one above it up to the package's root, since a directory may carry
 terms of its own inside a package under others.
@@ -545,7 +545,7 @@ _Tested by:_
         - there is something to check
         - ${copy.what} ships with every licence that governs it, as its package states them
         - each copy carries the terms of the package it comes from, not only the nearest
-        - dist/assets holds the own stylesheet and the declared copies, and nothing else
+        - dist/assets holds the own stylesheet, the declared copies and references, and nothing else
 - `packages/ui-vue/tests/vendor-copies-find-every-licence.test.js`
     - the licences that govern a copy
         - a directory copy carries its own, its package root’s and each copied subdirectory’s

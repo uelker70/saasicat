@@ -1,8 +1,9 @@
 // What this package ships of somebody else's files carries their licence.
 //
-// The build copies Quasar's stylesheet and the Material Icons font into
-// `dist/assets`, so the published tarball distributes them, and both licences
-// ask for their terms to go with every copy. The expectation is read off the
+// The build copies the Material Icons font into `dist/assets`, so the published
+// tarball distributes it, and its licences ask for their terms to go with every
+// copy. Quasar's stylesheet is handed out by reference instead, a file of ours
+// that imports it, so nothing of Quasar's is distributed. The expectation is read off the
 // packages the files come from, not written down here: a licence that changes
 // upstream is shipped as it now reads, and a copy declared without one fails.
 //
@@ -19,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
     VENDOR_COPIES,
+    VENDOR_IMPORTS,
     WANTED,
     licenceFilesOf,
     licenceTarget,
@@ -88,8 +90,12 @@ describe("what this package ships of somebody else's", () => {
         assert.deepEqual(withoutPackageTerms, []);
     });
 
-    test('dist/assets holds the own stylesheet and the declared copies, and nothing else', () => {
-        const expected = new Set([OWN_STYLESHEET, ...VENDOR_COPIES.flatMap(filesOfCopy)]);
+    test('dist/assets holds the own stylesheet, the declared copies and references, and nothing else', () => {
+        const expected = new Set([
+            OWN_STYLESHEET,
+            ...VENDOR_COPIES.flatMap(filesOfCopy),
+            ...VENDOR_IMPORTS.map((reference) => join(ASSETS, reference.to)),
+        ]);
         const unaccounted = filesUnder(ASSETS)
             .filter((file) => !expected.has(file))
             .map((file) => relative(PACKAGE, file));

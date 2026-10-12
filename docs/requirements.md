@@ -121,7 +121,7 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 32      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 26      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 629 entries: 🟢 542 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
+Of 630 entries: 🟢 543 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
 🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -225,7 +225,7 @@ Of 629 entries: 🟢 542 stand today, 🟡 60 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 629 requirements. Do not edit by hand:
+Generated from `requirements/` — 630 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -16479,6 +16479,28 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-UI-027 — The administration's framework stylesheet is the one of the framework it runs
+
+🟢 The stylesheet the integrator imports from the administration is the one of the Quasar release
+its components run on, whatever release the integrator's installer picks. A copy taken when the
+package was built would stay at that release while the framework's code moved on to a newer one —
+and a newer release changes its markup and its stylesheet together. The import the integrator
+writes is the same as before.
+
+_Source:_ ADR 0014 · #425
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/quasar-stylesheet-is-the-installed-quasars.test.js`
+    - the Quasar stylesheet the administration hands out
+        - is what the package exports as ./quasar.css
+        - imports Quasar's stylesheet and holds nothing of its own
+        - resolves from the same Quasar installation as the JavaScript
+
+<!-- END proof -->
+
 ## 16. Configuring and running an installation
 
 Where a setting lives, what happens when it is missing, and what an operator can see about the
@@ -19187,7 +19209,7 @@ _Tested by:_
 ### SC-SEC-017 — What a package ships of somebody else's files carries their licence
 
 🟢 Where a package copies files out of another package into what it publishes — `@saasicat/ui-vue`
-copies Quasar's stylesheet and the Material Icons font — the licence and notice files that govern
+copies the Material Icons font — the licence and notice files that govern
 them are published beside them, as their package states them: those in every directory the copied
 files come from and in every one above it up to the package's root, since a directory may carry
 terms of its own inside a package under others.
@@ -19203,7 +19225,7 @@ _Tested by:_
         - there is something to check
         - ${copy.what} ships with every licence that governs it, as its package states them
         - each copy carries the terms of the package it comes from, not only the nearest
-        - dist/assets holds the own stylesheet and the declared copies, and nothing else
+        - dist/assets holds the own stylesheet, the declared copies and references, and nothing else
 - `packages/ui-vue/tests/vendor-copies-find-every-licence.test.js`
     - the licences that govern a copy
         - a directory copy carries its own, its package root’s and each copied subdirectory’s
