@@ -31,6 +31,7 @@ import {
     FakeUserLookup,
     baseInput,
 } from './helpers/registration.js';
+import { subscribersFor } from './helpers/subscribers.js';
 
 /**
  * Step 4 is not the subject here: `a-sign-up-activates-on-a-confirmed-payment-method.test.js`
@@ -779,4 +780,105 @@ test('audit: failure in AuditLogger does not crash the auth flow', async () => {
     assert.deepEqual(result, { neutral: true });
     const stored = await ctx.repo.findByEmail('max@example.com');
     assert.ok(stored);
+});
+
+// ─── The tenant name, which step 4 makes the legal name ─────────────────────
+
+const refusedAsTenantName = (err) => {
+    assert.equal(err.getStatus(), 422);
+    const { code, params } = err.getResponse();
+    assert.equal(code, 'SUBSCRIBER_DETAIL_INVALID');
+    assert.deepEqual(params, { field: 'tenantName' });
+    return true;
+};
+
+/** Names that cannot stand as a legal name; each fails the start without a trace. */
+const UNFIT_TENANT_NAMES = [
+    ['nothing but spaces', '   '],
+    ['nothing but tabs', '\t\t'],
+    ['a tab inside it', 'Mein\tVerein'],
+    ['a line break inside it', 'Mein\r\nVerein'],
+    [
+        'a control character at its end, which trimming leaves',
+        `Mein Verein${String.fromCharCode(7)}`,
+    ],
+    [
+        'a vertical tab at its end, which trimming would remove',
+        `Mein Verein${String.fromCharCode(0x0b)}`,
+    ],
+    ['U+FFFE, which XML cannot hold', `Mein${String.fromCharCode(0xfffe)}Verein`],
+];
+
+for (const [what, tenantName] of UNFIT_TENANT_NAMES) {
+    // @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+    test(`start() refuses a tenant name with ${what}, keeping and sending nothing`, async () => {
+        const ctx = makeService();
+
+        await assert.rejects(
+            () => ctx.service.start(baseInput({ tenantName })),
+            refusedAsTenantName,
+        );
+        assert.equal(await ctx.repo.findByEmail('max@example.com'), null);
+        assert.equal(ctx.delivery.sent.length, 0);
+    });
+}
+
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+test('start() trims whitespace around the tenant name, a tab and a line feed included', async () => {
+    const ctx = makeService();
+
+    await ctx.service.start(baseInput({ tenantName: '\t Mein Verein \n' }));
+
+    assert.equal((await ctx.repo.findByEmail('max@example.com')).tenantName, 'Mein Verein');
+});
+
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+test('start() refuses an unfit tenant name before it renews the code of a registration under way', async () => {
+    const ctx = makeService();
+    const future = new Date(Date.now() + 3600_000);
+    await ctx.repo.create({
+        tenantName: 'Bestand',
+        tenantSlug: 'bestand',
+        salutation: null,
+        firstName: 'Be',
+        lastName: 'Stand',
+        email: 'max@example.com',
+        passwordHash: 'hashed:secret',
+        locale: 'de',
+        otpHash: 'oldhash',
+        otpExpiresAt: future,
+        expiresAt: future,
+    });
+
+    await assert.rejects(
+        () => ctx.service.start(baseInput({ tenantName: 'Mein\tVerein' })),
+        refusedAsTenantName,
+    );
+    assert.equal((await ctx.repo.findByEmail('max@example.com')).otpHash, 'oldhash');
+    assert.equal(ctx.delivery.sent.length, 0);
+});
+
+// What step 1 takes, step 4 takes as the legal name, and what step 1 refuses
+// step 4 would refuse: a door that held another rule would leave a sign-up
+// stuck at a field its form does not show.
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+test('start() takes a tenant name exactly when a subscriber can take it as its legal name', async () => {
+    const names = ['Mein Verein', '  Mein Verein\t', ...UNFIT_TENANT_NAMES.map(([, name]) => name)];
+    for (const tenantName of names) {
+        const ctx = makeService();
+        const email = 'max@example.com';
+        const takenAtStart = await ctx.service.start(baseInput({ tenantName, email })).then(
+            () => true,
+            () => false,
+        );
+        const { service: subscribers } = await subscribersFor();
+        const takenAsLegalName = await subscribers
+            .createForTenant('tenant-1', { legalName: tenantName })
+            .then(
+                () => true,
+                () => false,
+            );
+
+        assert.equal(takenAtStart, takenAsLegalName, JSON.stringify(tenantName));
+    }
 });

@@ -279,22 +279,41 @@ from the branch that adds the package; the publish has happened either way, and
 what is left is a working tree carrying the temporary version. Put it back by
 hand there.
 
-One consequence of `--tag rc`: the package then has no `latest` at all until a
-later release gives it one, so `npm install @saasicat/<package>` answers
-`ETARGET No matching version found`. That is the safe direction — the alternative
-is a release candidate sitting on `latest` — and it is the opposite of the case
-the paragraph further down describes, where Changesets puts a never-regularly-
-released package on `latest` and leaves `@rc` behind.
+Whether the registry also points `latest` at that first version is not something
+to rely on — `@saasicat/invoice-zugferd`, published this way at `1.0.0-rc.26`,
+came out with both. Read `dist-tags` off the registry afterwards and add the one
+that is missing (`npm dist-tag add @saasicat/<package>@<version> <tag>`): until
+its first stable release, a package that never had a regular release sits at
+`latest` and `rc` on the newest candidate, which is where Changesets puts it on
+every release (the paragraph further down). Without `latest`,
+`npm install @saasicat/<package>` answers `ETARGET No matching version found`.
 
 The build line is not decoration: no package here has `prepublishOnly`, `prepack`
 or `prepare`, so publishing from a fresh clone packs whatever `dist/` holds —
 nothing — and puts out a version that exports nothing. Unrecallable in the same
 way, from the same block.
 
-Then on npmjs.com → the package → Settings → Trusted Publisher: this repository,
-workflow `release.yml`. From then on the workflow publishes it like the others.
-Changesets treats the already-published version as done, so a failed run is
-repaired by re-running the workflow after the manual publish.
+**Set the trusted publisher for the release that will use it**: on npmjs.com →
+the package → Settings → Trusted Publisher, this repository and workflow
+`release.yml`. Under "Allowed actions", allow `npm publish` as well: the
+workflow publishes directly, and a configuration made since 2026-09-03 always
+allows `npm stage publish` but leaves direct publishing to your choice. npm
+expires a new configuration that has not completed a publish within two days
+([trusted publishers](https://docs.npmjs.com/trusted-publishers/)), and a
+hand-published version validates nothing — the release that carries it skips the
+package as already published. So the release to set it up for is the first one
+that publishes the package itself, the one after the release that carries the
+hand-published version: create the configuration, or delete and recreate one
+that has lapsed, within the two days before merging that release's version PR,
+and read its run's log for the package. Without a valid configuration the
+package's publish fails after every other package is published — at
+`1.0.0-rc.26` the registry answered `E404` on `@saasicat/tax-de`'s `PUT`, and
+npm names `ENEEDAUTH` for a configuration whose repository or workflow does not
+match. Changesets treats an already-published version as done, so the repair is
+to publish the version the run wanted by hand as above and re-run the failed
+job — and, since that publish validates nothing either, to set the
+configuration up again within the two days before the next release that
+publishes the package itself.
 
 **`pnpm publish`, never `npm publish`.** Every package here depends on its
 siblings through `workspace:^`, which is a protocol only the workspace
