@@ -186,9 +186,11 @@ const COLLECT = (): Reading => {
         // floor. Matched on the class rather than on the font family, because
         // the fixture does not load the icon webfont: with it, the family says
         // "Material Icons"; without it, the ligature name renders as literal
-        // words in the body font and the family says nothing. Everything inside
-        // the icon too: Quasar sets the ligature name in a `span` of its own.
-        if (el.closest('.q-icon')) continue;
+        // words in the body font and the family says nothing. The ligature name
+        // itself too, which Quasar sets in a bare `span` of its own; anything
+        // else in an icon's slot, such as a badge, is still judged.
+        if (el.classList.contains('q-icon')) continue;
+        if (el.tagName === 'SPAN' && el.parentElement?.classList.contains('q-icon')) continue;
 
         // A gradient cannot be reduced to ONE background colour — but it can be
         // reduced to the handful of colours it is made of, and text has to be
