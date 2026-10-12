@@ -1941,6 +1941,24 @@ invoice)`, what a rendered file lacks of the format that law requires, or states
   `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED`, `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED`,
   `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH` and `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`.
 
+### A subscriber's details are single lines an invoice can carry
+
+Whether you invoice or not: the subscriber API — a new subscriber, a contact change, a correction of
+the legal identity — refuses a detail that holds a character XML 1.0 cannot hold, such as a control
+character pasted with a name, or a tab or a line break inside it, with
+`422 SUBSCRIBER_DETAIL_INVALID` naming the field (`SC-PRIC-078`). One at either end is trimmed as
+before. An e-invoice carries the subscriber's name and address in its XML, where such a character
+cannot stand and a line break reads back as something else.
+
+- **Check the text where your users type it.** A form or DTO of yours that hands text to these paths
+  refuses the same before it writes anything of its own — `holdsOnlyXmlCharacters` from
+  `@saasicat/core` is the platform's rule for the characters, and a tab or a line break inside the
+  trimmed text is refused besides. An application that stores its own copy first, a company
+  profile for instance, and only then passes the details on would otherwise keep what the platform
+  refused, and fail every later save of the same field.
+- **An application that words refusals itself** already has `SUBSCRIBER_DETAIL_INVALID`; its
+  `field` names the platform's field (`addressLine1`), not your form's label.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application
