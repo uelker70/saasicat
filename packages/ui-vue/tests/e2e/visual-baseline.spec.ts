@@ -358,6 +358,12 @@ test.describe('no page overflows its viewport', () => {
                         // job — a wide table inside `overflow-x: auto` is the
                         // fix, not the defect.
                         if (style.overflowX === 'auto' || style.overflowX === 'scroll') continue;
+                        // An icon's ligature name: the fixture loads no icon
+                        // webfont, so `chevron_right` is set as a word in the
+                        // body font where the page shows one glyph. Quasar sets
+                        // it in a `span` inside the icon, whose box is then the
+                        // width of the word; the icon itself keeps its 1em.
+                        if (el.parentElement?.closest('.q-icon')) continue;
                         const box = el.getBoundingClientRect();
                         if (box.width === 0 || box.height === 0) continue;
                         if (box.right <= limit + slack) continue;
