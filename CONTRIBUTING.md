@@ -301,14 +301,19 @@ allows `npm stage publish` but leaves direct publishing to your choice. npm
 expires a new configuration that has not completed a publish within two days
 ([trusted publishers](https://docs.npmjs.com/trusted-publishers/)), and a
 hand-published version validates nothing — the release that carries it skips the
-package as already published. So create the configuration, or delete and
-recreate one that has lapsed, within the two days before merging the next
-version PR, and read that run's log for the package. Without a valid
-configuration the run fails with `E404` on the package's `PUT`, after publishing
-every other package; `@saasicat/tax-de` hit this at `1.0.0-rc.26`. Changesets
-treats an already-published version as done, so the repair is to publish the
-version the run wanted by hand as above and re-run the failed job — and to set
-the configuration up again before the release after it.
+package as already published. So the release to set it up for is the first one
+that publishes the package itself, the one after the release that carries the
+hand-published version: create the configuration, or delete and recreate one
+that has lapsed, within the two days before merging that release's version PR,
+and read its run's log for the package. Without a valid configuration the
+package's publish fails after every other package is published — at
+`1.0.0-rc.26` the registry answered `E404` on `@saasicat/tax-de`'s `PUT`, and
+npm names `ENEEDAUTH` for a configuration whose repository or workflow does not
+match. Changesets treats an already-published version as done, so the repair is
+to publish the version the run wanted by hand as above and re-run the failed
+job — and, since that publish validates nothing either, to set the
+configuration up again within the two days before the next release that
+publishes the package itself.
 
 **`pnpm publish`, never `npm publish`.** Every package here depends on its
 siblings through `workspace:^`, which is a protocol only the workspace
