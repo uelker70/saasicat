@@ -437,14 +437,23 @@ function directiveKey(text: string, form: string): string | undefined {
     const rules = allRules.filter((rule) => rule.startsWith(PLUGIN_RULE)).sort();
     if (allRules.length > 0 && rules.length === 0) return undefined;
     // `oxlint-` and `eslint-` act the same; blanket is `*`.
-    return `${form}${variant}|${rules.length === 0 ? '*' : rules.join(',')}`;
+    return `${form}:${variant}|${rules.length === 0 ? '*' : rules.join(',')}`;
 }
 
 /** How far a directive reaches, as a number to compare: larger means wider. */
+/**
+ * Whether a directive affects one line only; without `-line`/`-next-line` it
+ * reaches to the end of the file.
+ */
+function oneLineOnly(form: string): boolean {
+    const variant = form.slice(form.indexOf(':') + 1);
+    return variant === '-line' || variant === '-next-line';
+}
+
 function width(key: string): number {
     const [form = '', rules = ''] = key.split('|');
     // Reach weighs before the number of rules; no directive names a thousand rules.
-    const toEndOfFile = form.endsWith('line') ? 0 : 1;
+    const toEndOfFile = oneLineOnly(form) ? 0 : 1;
     const ruleCount = rules === '*' ? 1000 : rules.split(',').length;
     return toEndOfFile * 10_000 + ruleCount;
 }
@@ -453,9 +462,7 @@ function width(key: string): number {
 function covers(wide: string, narrow: string): boolean {
     const [wideForm = '', wideRules = ''] = wide.split('|');
     const [narrowForm = '', narrowRules = ''] = narrow.split('|');
-    // Without `-line`/`-next-line` a directive reaches to the end of the file.
-    const toEndOfFile = (form: string): boolean => !form.endsWith('line');
-    if (toEndOfFile(narrowForm) && !toEndOfFile(wideForm)) return false;
+    if (!oneLineOnly(narrowForm) && oneLineOnly(wideForm)) return false;
     if (wideRules === '*') return true;
     if (narrowRules === '*') return false;
     const allowed = wideRules.split(',');
