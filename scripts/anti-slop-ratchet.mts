@@ -25,8 +25,8 @@
 // per rule than it had there, and every finding on a new or changed line fails
 // — whoever touches a line fixes it. A new disable directive on a changed line
 // is only allowed as far as its number was raised by hand in the same diff or
-// one goes away in the same branch — a moved or swapped directive stands in the
-// diff with its reason without moving the number. In CI the merge base must be
+// an identical one goes away in the same branch: the same form and the same
+// rules. So moving needs no raise, widening does. In CI the merge base must be
 // reachable (full history), otherwise the run aborts.
 //
 // Which rules are counted is stated in `oxlint.config.mts`, and which files
@@ -105,6 +105,8 @@ interface Finding {
     readonly fromLine: number;
     readonly toLine: number;
     readonly message: string;
+    // Only for disable directives: form and rules, normalised.
+    readonly key?: string;
 }
 
 interface Measurement {
@@ -330,26 +332,34 @@ function perFile(
     return counts;
 }
 
+interface StateAtMergeBase {
+    readonly findings: CountsPerFile;
+    // Per file the keys of its disable directives, deleted files included.
+    readonly directives: ReadonlyMap<string, readonly string[]>;
+}
+
 /**
  * Findings per file and rule as they were at the merge base: the old version
  * of each file is written to a throwaway directory and linted there. A file
- * that did not exist there had zero findings.
+ * that did not exist there had zero findings. Deleted files are not linted —
+ * their removal shows in the total — but their disable directives count as
+ * gone.
  */
-interface StateAtMergeBase {
-    readonly findings: CountsPerFile;
-    readonly directives: ReadonlyMap<string, number>;
-}
-
 function countsAtMergeBase(
     base: string,
     files: readonly string[],
     origins: ReadonlyMap<string, string>,
+    deleted: readonly string[],
 ): StateAtMergeBase {
     // The real path, because oxlint reports it that way (on macOS `/var` is a symlink).
     const store = realpathSync(mkdtempSync(join(tmpdir(), 'anti-slop-')));
     try {
         const copies: string[] = [];
-        const directives = new Map<string, number>();
+        const directives = new Map<string, readonly string[]>();
+        const keysIn = (path: string): string[] =>
+            disableDirectivesIn(path).flatMap((finding) =>
+                finding.key === undefined ? [] : [finding.key],
+            );
         for (const file of files) {
             const old = spawnSync('git', ['show', `${base}:${origins.get(file) ?? file}`], {
                 maxBuffer: 256 * 1024 * 1024,
@@ -359,7 +369,17 @@ function countsAtMergeBase(
             mkdirSync(dirname(target), { recursive: true });
             writeFileSync(target, old.stdout);
             copies.push(target);
-            directives.set(file, disableDirectivesIn(target).length);
+            directives.set(file, keysIn(target));
+        }
+        for (const file of deleted) {
+            const old = spawnSync('git', ['show', `${base}:${file}`], {
+                maxBuffer: 256 * 1024 * 1024,
+            });
+            if (old.status !== 0) continue;
+            const target = join(store, 'deleted', file);
+            mkdirSync(dirname(target), { recursive: true });
+            writeFileSync(target, old.stdout);
+            directives.set(file, keysIn(target));
         }
         if (copies.length === 0) return { findings: new Map(), directives };
         const findings = perFile(lint(copies).findings, (reported) =>
@@ -383,18 +403,25 @@ function directivesAtMergeBase(base: string): number | undefined {
  * Whether the comment starting at `text` switches an anti-slop rule off: a
  * keyword, then up to `--` or `*\/` the rule list — empty means blanket.
  */
-function disablesAntiSlop(text: string): boolean {
+function directiveKey(text: string, form: string): string | undefined {
     const keyword = DISABLE_KEYWORDS.find((candidate) => text.startsWith(candidate));
-    if (keyword === undefined) return false;
+    if (keyword === undefined) return undefined;
     const afterKeyword = text.slice(keyword.length);
     // `-next-line`, `-line` or nothing; the rule list starts after the whitespace.
     const separator = afterKeyword.search(/\s/);
-    if (separator < 0) return true;
+    const variant = separator < 0 ? afterKeyword : afterKeyword.slice(0, separator);
     const ruleList = [' --', '*/'].reduce(
         (sofar, end) => (sofar.includes(end) ? sofar.slice(0, sofar.indexOf(end)) : sofar),
-        afterKeyword.slice(separator),
+        separator < 0 ? '' : afterKeyword.slice(separator),
     );
-    return ruleList.trim() === '' || ruleList.includes(PLUGIN_RULE);
+    const rules = ruleList
+        .split(',')
+        .map((rule) => rule.trim())
+        .filter((rule) => rule !== '')
+        .sort();
+    if (rules.length > 0 && !rules.some((rule) => rule.startsWith(PLUGIN_RULE))) return undefined;
+    // `oxlint-` and `eslint-` act the same; blanket is `*`.
+    return `${form}${variant}|${rules.length === 0 ? '*' : rules.join(',')}`;
 }
 
 function lineOf(text: string, index: number): number {
@@ -406,7 +433,8 @@ function disableDirectivesIn(file: string): Finding[] {
     const findings: Finding[] = [];
     text.split('\n').forEach((line, index) => {
         for (let i = line.indexOf(LINE_COMMENT); i >= 0; i = line.indexOf(LINE_COMMENT, i + 1)) {
-            if (disablesAntiSlop(line.slice(i + LINE_COMMENT.length).trimStart())) {
+            const key = directiveKey(line.slice(i + LINE_COMMENT.length).trimStart(), 'line');
+            if (key !== undefined) {
                 findings.push({
                     rule: DISABLE_DIRECTIVE,
                     file,
@@ -414,6 +442,7 @@ function disableDirectivesIn(file: string): Finding[] {
                     fromLine: index + 1,
                     toLine: index + 1,
                     message: line.trim(),
+                    key,
                 });
                 break;
             }
@@ -431,7 +460,8 @@ function disableDirectivesIn(file: string): Finding[] {
             .trim();
         // A block comment counts as touched over all its lines: whoever turns
         // only a middle one into `eslint-disable …` adds a new directive.
-        if (disablesAntiSlop(content)) {
+        const key = directiveKey(content, 'block');
+        if (key !== undefined) {
             const line = lineOf(text, i);
             findings.push({
                 rule: DISABLE_DIRECTIVE,
@@ -440,6 +470,7 @@ function disableDirectivesIn(file: string): Finding[] {
                 fromLine: line,
                 toLine: lineOf(text, end < 0 ? text.length : end),
                 message: `/* ${content} */`,
+                key,
             });
         }
     }
@@ -490,9 +521,11 @@ function changesSince(base: string): {
     changes: Changes;
     // New path → path at the merge base, for renamed files.
     origins: Map<string, string>;
+    deleted: string[];
 } {
     const changes: Changes = new Map();
     const origins = new Map<string, string>();
+    const deleted: string[] = [];
     // `--find-renames` explicitly: otherwise whether `git diff` detects renames
     // depends on `diff.renames` in the machine's configuration.
     const diff = git(
@@ -525,6 +558,7 @@ function changesSince(base: string): {
         if (inHeader && line.startsWith('+++ ')) {
             file = pathFrom(line, '+++ ');
             if (file !== undefined && old !== undefined && old !== file) origins.set(file, old);
+            if (file === undefined && old !== undefined) deleted.push(old);
             continue;
         }
         if (!line.startsWith('@@ ')) continue;
@@ -541,7 +575,7 @@ function changesSince(base: string): {
     for (const untracked of git('ls-files', '-z', '--others', '--exclude-standard').split('\0')) {
         if (untracked !== '') changes.set(untracked, WHOLE_FILE);
     }
-    return { changes, origins };
+    return { changes, origins, deleted };
 }
 
 function onChangedLine(finding: Finding, changes: Changes): boolean {
@@ -606,7 +640,12 @@ async function main(): Promise<void> {
     const state: StateAtMergeBase =
         base === undefined || diff === undefined
             ? { findings: new Map(), directives: new Map() }
-            : countsAtMergeBase(base, changedFiles, diff.origins);
+            : countsAtMergeBase(
+                  base,
+                  changedFiles,
+                  diff.origins,
+                  diff.deleted.filter(isSourceFile),
+              );
     const before = state.findings;
     const after = perFile(measurement.findings, (reported) => reported);
     const moreThanBefore = changedFiles.flatMap((file) =>
@@ -626,23 +665,34 @@ async function main(): Promise<void> {
     const actualCount = (rule: string): number => actual.get(rule) ?? 0;
     const expectedCount = (rule: string): number => expected.get(rule) ?? 0;
     const directivesThen = base === undefined ? undefined : directivesAtMergeBase(base);
+    // Directives that went away, as keys: per file those at the merge base,
+    // minus those still standing there on unchanged lines.
+    const goneAway = new Map<string, number>();
+    for (const [file, then] of state.directives) {
+        const rest = [...then];
+        for (const finding of measurement.findings) {
+            if (finding.rule !== DISABLE_DIRECTIVE || finding.file !== file) continue;
+            if (newDirectives.includes(finding)) continue;
+            const at = rest.indexOf(finding.key ?? '');
+            if (at >= 0) rest.splice(at, 1);
+        }
+        for (const key of rest) goneAway.set(key, (goneAway.get(key) ?? 0) + 1);
+    }
+    // A new directive offsets an identical one that went away; whatever is
+    // left needs the number raised by hand.
+    const unmatched = newDirectives.filter((finding) => {
+        const free = goneAway.get(finding.key ?? '') ?? 0;
+        if (free === 0) return true;
+        goneAway.set(finding.key ?? '', free - 1);
+        return false;
+    });
     // Without the number at the merge base, this branch introduces the ratchet;
     // then the recorded number alone counts.
-    // Directives that went away in a changed file: counted at the merge base,
-    // minus those that stand on unchanged lines today.
-    const goneAway = changedFiles.reduce((sum, file) => {
-        const today = measurement.findings.filter(
-            (finding) => finding.rule === DISABLE_DIRECTIVE && finding.file === file,
-        ).length;
-        const newHere = newDirectives.filter((finding) => finding.file === file).length;
-        return sum + Math.max(0, (state.directives.get(file) ?? 0) - (today - newHere));
-    }, 0);
-    const allowedDirectives =
-        Math.max(
-            0,
-            expectedCount(DISABLE_DIRECTIVE) - (directivesThen ?? expectedCount(DISABLE_DIRECTIVE)),
-        ) + goneAway;
-    const tooManyDirectives = newDirectives.length > allowedDirectives;
+    const allowedDirectives = Math.max(
+        0,
+        expectedCount(DISABLE_DIRECTIVE) - (directivesThen ?? expectedCount(DISABLE_DIRECTIVE)),
+    );
+    const tooManyDirectives = unmatched.length > allowedDirectives;
 
     const rose = rules.filter(
         (rule) => expected.has(rule) && actualCount(rule) > expectedCount(rule),
@@ -678,10 +728,10 @@ async function main(): Promise<void> {
     }
     if (tooManyDirectives) {
         console.error(
-            `New disable directives: ${newDirectives.length}, allowed (raised by hand or gone ` +
-                `elsewhere): ${allowedDirectives}.`,
+            `New disable directives without an identical one gone: ${unmatched.length}, ` +
+                `raised by hand: ${allowedDirectives}.`,
         );
-        for (const { file, line, message } of newDirectives) {
+        for (const { file, line, message } of unmatched) {
             console.error(`  ${file}:${line} ${message}`);
         }
         console.error(
