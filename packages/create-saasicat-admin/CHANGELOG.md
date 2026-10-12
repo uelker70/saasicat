@@ -1,5 +1,13 @@
 # create-saasicat-admin
 
+## 1.0.0-rc.26
+
+### Patch Changes
+
+- 54f48fd: A scaffolded admin asks for axios `^1.20.0`. Every 1.x release before it is
+  named by at least one axios security advisory, and a first install could
+  otherwise resolve one of them.
+
 ## 1.0.0-rc.25
 
 ## 1.0.0-rc.24
