@@ -387,8 +387,9 @@ export class PendingRegistrationService implements OnModuleInit {
         context?: RegistrationAuditContext,
     ): Promise<StartRegistrationResult> {
         // The tenant name becomes the subscriber's legal name at step 4, whose
-        // form does not show it: what step 4 would refuse is refused here.
-        if (!holdsAsSubscriberDetail(input.tenantName)) {
+        // form does not show it: what step 4 would refuse is refused here — a
+        // name that cannot stand as a detail, and one that trims to nothing.
+        if (!holdsAsSubscriberDetail(input.tenantName) || input.tenantName.trim() === '') {
             throw new UnprocessableEntityException(
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, {
                     field: 'tenantName',

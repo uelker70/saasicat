@@ -794,6 +794,8 @@ const refusedAsTenantName = (err) => {
 
 /** Names that cannot stand as a legal name; each fails the start without a trace. */
 const UNFIT_TENANT_NAMES = [
+    ['nothing but spaces', '   '],
+    ['nothing but tabs', '\t\t'],
     ['a tab inside it', 'Mein\tVerein'],
     ['a line break inside it', 'Mein\r\nVerein'],
     [
