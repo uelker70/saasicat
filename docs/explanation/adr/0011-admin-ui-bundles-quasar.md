@@ -1,6 +1,7 @@
 # ADR 0011 — The admin package bundles its framework, not its stylesheet
 
-**Status:** accepted · **Date:** 2026-08-24
+**Status:** accepted, superseded in part by
+[ADR 0014](0014-quasar-stylesheet-by-reference.md) · **Date:** 2026-08-24
 
 Supersedes the runtime half of
 [ADR 0005](0005-ship-sfc-source-not-dist.md). That record still stands for
@@ -34,7 +35,10 @@ instances break `provide`/`inject` silently.
 
 **Quasar's stylesheet is not bundled.** It is copied into `dist/` and exported
 as `./quasar.css`, one import the consumer writes — beside the `./theme.css`
-they already write. That is not a compromise; it is what the build does anyway.
+they already write. (The copy is superseded by
+[ADR 0014](0014-quasar-stylesheet-by-reference.md): `./quasar.css` now imports
+the stylesheet of the Quasar the application installs. The import the consumer
+writes is unchanged.) That is not a compromise; it is what the build does anyway.
 Importing Quasar's components pulls in none of its CSS, measured: a library
 build of the SFC surface emitted 11.4 KB of scoped styles and not one line of
 Quasar's 251 KB reset.

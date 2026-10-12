@@ -59,7 +59,7 @@ layers never import upward, and ESLint enforces it — the reasoning is in
 | `./ui/*.vue`          | `src/ui/`       | everything                    | The `Admin*` primitives, when you build a page of your own.                                                                                                                          |
 | `./theme.css`         | `src/ui/theme/` | —                             | The design tokens. Import it once; without it the pages render unstyled.                                                                                                             |
 | `./style.css`         | built           | —                             | The components' own styles, extracted into one file. Import it once, beside the theme.                                                                                               |
-| `./quasar.css`        | built           | —                             | Quasar's stylesheet, shipped so you do not install Quasar to get it. It restyles `html`, `body` and typography — which is why it stays an import you write rather than one we hide.  |
+| `./quasar.css`        | built           | —                             | Quasar's stylesheet, from the Quasar this package runs on: no Quasar install of yours. It restyles `html`, `body` and typography — which is why it stays an import you write.        |
 | `./icons.css`         | built           | —                             | The Material icon font the components render through `q-icon`. Without it every icon renders as its ligature name.                                                                   |
 | `./theme/*`           | `src/ui/theme/` | —                             | The individual token layers, for a consumer that overrides roles.                                                                                                                    |
 | `./theme/breakpoints` | `src/ui/theme/` | —                             | The five breakpoint values, for a build that needs them in JavaScript.                                                                                                               |
@@ -211,9 +211,12 @@ pnpm --filter @saasicat/ui-vue build
 Two builders. tsup (`tsup.config.ts`) produces
 `dist/{index,client/index,vue/index,quasar/index}.{js,cjs,d.ts}`; Vite
 (`vite.build.config.ts`) compiles the components, one entry each, and copies
-Quasar's stylesheet and the icon font beside them. `vue`, `vue-router` and
-`pinia` stay external in both; `quasar` is external too and travels as a
-dependency of this package.
+the icon font beside them. `dist/assets/quasar.css` imports
+`quasar/dist/quasar.css` instead of copying it, so your bundler takes the
+stylesheet from the same Quasar as the JavaScript
+([ADR 0014](../../docs/explanation/adr/0014-quasar-stylesheet-by-reference.md)).
+`vue`, `vue-router` and `pinia` stay external in both; `quasar` is external too
+and travels as a dependency of this package.
 
 ## Next
 

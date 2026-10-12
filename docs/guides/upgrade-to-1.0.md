@@ -186,6 +186,13 @@ deliberate: measured against a page that styles itself, it changes 76 computed p
 element — the body font, `h1` from 40px to 96px, `box-sizing` globally. You accept that today by
 importing it; bundling it would mean you could no longer decline.
 
+The file you import holds no rules of its own: it imports `quasar/dist/quasar.css`, and your
+bundler resolves that from the Quasar `@saasicat/ui-vue` installed — the one its components run on,
+so stylesheet and markup are always one release
+([ADR 0014](../explanation/adr/0014-quasar-stylesheet-by-reference.md)). Vite and webpack's
+`css-loader` follow such an import into `node_modules` as they are; a pipeline that does not leaves
+the page without Quasar's rules.
+
 ### The tenant components dropped their UI framework (phase 7)
 
 `@saasicat/ui-vue-tenant` no longer lists `quasar` as a peer dependency, and its components render
