@@ -27,18 +27,18 @@ grants the feature again and takes back what was reduced for days it was there
 (`SC-PRIC-074`). Wherever a plan or an add-on is shown with what it includes, a
 withdrawn feature is marked with its reason and date (`SC-CAT-017`).
 
-To adopt it, run `sql/1.0-a-feature-is-withdrawn.postgres.sql`, adopt
+It comes with version notices. Where they are on, run
+`sql/1.0-a-feature-is-withdrawn.postgres.sql`, adopt
 `prisma-fragments/21-feature-withdrawal.prisma`, and handle the notice kinds
 `feature-withdrawn`, `feature-withdrawal-lifted` and `ended-at-once` in your
-`SubscriptionNoticePort`. The action is offered only where every subscription it
+`SubscriptionNoticePort`; where they are off, declare `FeatureWithdrawal` in
+`notAdopted`. The action is offered only where every subscription it
 reaches can be found: a `SubscriptionUsagePort` of your own needs
 `listBoundToVersion` and `listByIds`, a `SubscriptionBundleRepository` of your
-own `listOfVersion`, and the plan repository `listVersions`. AutohausPro and
-VereinsFux keep their own usage port without the first two and get the action
-once they add them. Ending at once what is already cancelled for a later date
-needs the new optional `endNow` on a `TenantSubscriptionWritePort` and a
-`SubscriptionBundleRepository` of your own; without it that end is refused with
-`FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED`.
+own `listOfVersion`, and the plan repository `listVersions`. Ending at once
+what is already cancelled for a later date needs the new optional `endNow` on a
+`TenantSubscriptionWritePort` and a `SubscriptionBundleRepository` of your own;
+without it that end is refused with `FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED`.
 
 The journal gains the origin `reductionTakenBack`, and credits now arise from
 an end at once: `SC-PRIC-076` supersedes `SC-PRIC-003`, `SC-ENTL-026`
