@@ -39,10 +39,11 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const OXLINT_CONFIG = 'oxlint.config.mts';
+const OXLINT = join('node_modules', '.bin', 'oxlint');
 const RATCHET = 'anti-slop-ratchet.json';
 const RULE_PREFIX = 'anti-slop/';
 // JavaScript too: the type-assertion rules have nothing to find there, but
@@ -75,6 +76,9 @@ interface Finding {
     readonly rule: string;
     readonly file: string;
     readonly line: number;
+    // The last line of the reported expression; a finding across several lines
+    // counts as changed as soon as one of them is changed.
+    readonly toLine: number;
     readonly message: string;
 }
 
@@ -92,7 +96,9 @@ interface OxlintDiagnostic {
     readonly code: string;
     readonly filename: string;
     readonly message: string;
-    readonly labels: readonly { readonly span: { readonly line: number } }[];
+    readonly labels: readonly {
+        readonly span: { readonly line: number; readonly offset: number; readonly length: number };
+    }[];
 }
 
 interface OxlintOutput {
@@ -159,19 +165,12 @@ function sourceFiles(): string[] {
 
 function oxlint(files: readonly string[]): OxlintOutput {
     const run = spawnSync(
-        'pnpm',
+        // Directly, not through `pnpm exec`: depending on the situation, pnpm
+        // writes a line of its own before the JSON.
+        OXLINT,
         // A batch whose files are all excluded is not an error — without the
         // flag, oxlint answers with plain text instead of JSON.
-        [
-            'exec',
-            'oxlint',
-            '-c',
-            OXLINT_CONFIG,
-            '-f',
-            'json',
-            '--no-error-on-unmatched-pattern',
-            ...files,
-        ],
+        ['-c', OXLINT_CONFIG, '-f', 'json', '--no-error-on-unmatched-pattern', ...files],
         { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
     );
     // oxlint exits with 1 as soon as there are findings; that is the normal case here.
@@ -200,15 +199,25 @@ function ruleOf(code: string): string {
 function measure(excluded: ReadonlySet<string>): Measurement {
     const files = sourceFiles();
     const findings: Finding[] = [];
+    const texts = new Map<string, string>();
+    const textOf = (file: string): string => {
+        const text = texts.get(file) ?? readFileSync(file, 'utf8');
+        texts.set(file, text);
+        return text;
+    };
     let linted = 0;
     for (let i = 0; i < files.length; i += FILES_PER_RUN) {
         const output = oxlint(files.slice(i, i + FILES_PER_RUN));
         linted += output.number_of_files;
         for (const diagnostic of output.diagnostics) {
+            const span = diagnostic.labels[0]?.span;
+            const line = span?.line ?? 0;
+            const end = span === undefined ? undefined : span.offset + span.length;
             findings.push({
                 rule: ruleOf(diagnostic.code),
                 file: diagnostic.filename,
-                line: diagnostic.labels[0]?.span.line ?? 0,
+                line,
+                toLine: end === undefined ? line : lineOf(textOf(diagnostic.filename), end),
                 message: diagnostic.message,
             });
         }
@@ -255,6 +264,7 @@ function disableDirectivesIn(file: string): Finding[] {
                     rule: DISABLE_DIRECTIVE,
                     file,
                     line: index + 1,
+                    toLine: index + 1,
                     message: line.trim(),
                 });
                 break;
@@ -272,10 +282,12 @@ function disableDirectivesIn(file: string): Finding[] {
             .join(' ')
             .trim();
         if (disablesAntiSlop(content)) {
+            const line = lineOf(text, i);
             findings.push({
                 rule: DISABLE_DIRECTIVE,
                 file,
-                line: lineOf(text, i),
+                line,
+                toLine: line,
                 message: `/* ${content} */`,
             });
         }
@@ -311,8 +323,10 @@ function mergeBase(): string | undefined {
 
 /**
  * Reads `git diff -U0` against the merge base: `+++ <path>` names the file,
- * `@@ -a,b +c,d @@` the lines c to c+d-1 (without `,d` exactly one, `d = 0`
- * means deleted only).
+ * `@@ -a,b +c,d @@` the lines c to c+d-1 (without `,d` exactly one). `d = 0`
+ * means deleted only; then the line after it, c+1, counts as changed —
+ * whoever deletes the `// SAFETY:` line above an assertion creates the finding
+ * exactly there.
  */
 function changesSince(base: string): Changes {
     const changes: Changes = new Map();
@@ -338,6 +352,7 @@ function changesSince(base: string): Changes {
         const [start = '0', count = '1'] = newRange.slice(1).split(',');
         const before = changes.get(file);
         const lines = new Set<number>(before === WHOLE_FILE || before === undefined ? [] : before);
+        if (Number(count) === 0) lines.add(Number(start) + 1);
         for (let n = Number(start); n < Number(start) + Number(count); n += 1) lines.add(n);
         changes.set(file, lines);
     }
@@ -349,7 +364,12 @@ function changesSince(base: string): Changes {
 
 function onChangedLine(finding: Finding, changes: Changes): boolean {
     const lines = changes.get(finding.file);
-    return lines === WHOLE_FILE || lines?.has(finding.line) === true;
+    if (lines === WHOLE_FILE) return true;
+    if (lines === undefined) return false;
+    for (let n = finding.line; n <= finding.toLine; n += 1) {
+        if (lines.has(n)) return true;
+    }
+    return false;
 }
 
 function showLocations(
