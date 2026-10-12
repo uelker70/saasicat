@@ -11,7 +11,11 @@
 // Exact rather than a ceiling with slack: a limit above the current value
 // would admit new findings until it is reached. Whoever removes findings
 // lowers the number with `--update` and freezes the gain; raising it is a
-// hand edit, visible in the diff.
+// hand edit, visible in the diff. A removal only fails when this branch did it
+// in its own files. If two branches each lower the same number by one, git
+// merges their identical edits and `main` ends up one below; the next branch
+// only gets a warning for that. This opens no gap: a new finding needs a
+// changed file, and the ratchet compares that with the merge base.
 //
 // The total alone would let a swap through: one finding fixed, a new one
 // added, the number unchanged. So there are two checks against the point where
@@ -620,8 +624,20 @@ async function main(): Promise<void> {
         return;
     }
 
-    if (fell.length > 0 || unrecorded.length > 0 || orphaned.length > 0) {
-        for (const rule of fell) {
+    const removedInBranch = (rule: string): boolean =>
+        changedFiles.some(
+            (file) => (after.get(file)?.get(rule) ?? 0) < (before.get(file)?.get(rule) ?? 0),
+        );
+    const fellHere = fell.filter(removedInBranch);
+    for (const rule of fell.filter((rule) => !removedInBranch(rule))) {
+        console.warn(
+            `  ${rule}: ${actualCount(rule)} instead of ${expectedCount(rule)} — removed before ` +
+                'this branch; record it with `--update` if you like.',
+        );
+    }
+
+    if (fellHere.length > 0 || unrecorded.length > 0 || orphaned.length > 0) {
+        for (const rule of fellHere) {
             console.error(
                 `  ${rule}: ${actualCount(rule)} instead of ${expectedCount(rule)} — removed`,
             );

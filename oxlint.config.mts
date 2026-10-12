@@ -2,8 +2,8 @@ import { defineConfig } from 'oxlint';
 
 // oxlint runs here only for the anti-slop rules from `tools/oxlint/anti-slop/`
 // (provenance in `UPSTREAM.md` next to it). The built-in categories are off:
-// the typechecker and ESLint cover them, and a second linter with its own
-// opinion on the same lines would only produce contradictions.
+// this configuration counts exactly the rules below; ESLint stays this
+// repository's general linter.
 //
 // `scripts/anti-slop-ratchet.mts` counts every rule here against
 // `anti-slop-ratchet.json`. "error" therefore means "counted", not "fails on
