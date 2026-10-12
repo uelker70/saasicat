@@ -25,9 +25,18 @@
 // per rule than it had there, and every finding on a new or changed line fails
 // — whoever touches a line fixes it. A new disable directive on a changed line
 // is only allowed as far as its number was raised by hand in the same diff or
-// an identical one goes away in the same branch: the same form and the same
-// rules. So moving needs no raise, widening does. In CI the merge base must be
+// one goes away in the same branch that switched off at least as much: the same
+// rules or more, over one line or to the end of the file. So moving and
+// narrowing need no raise; widening and changing the rule do — that takes two
+// steps: first remove the old directive and record it with `--update`, then
+// add the new one with the number raised. In CI the merge base must be
 // reachable (full history), otherwise the run aborts.
+//
+// A limit: how far a directive reaches is read from its form, not from the
+// file. A blanket directive that moves into another file switches off
+// everything there to the end of the file, and a removed `eslint-enable`
+// extends a range without touching a directive line. The diff shows both; the
+// ratchet does not.
 //
 // Which rules are counted is stated in `oxlint.config.mts`, and which files
 // are excluded is stated there too (`ignorePatterns`) — this script keeps no
@@ -58,7 +67,7 @@ import {
     writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, matchesGlob, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const OXLINT_CONFIG = 'oxlint.config.mts';
@@ -117,6 +126,8 @@ interface Measurement {
 interface Config {
     readonly rules: readonly string[];
     readonly excluded: readonly string[];
+    // The patterns themselves: `globSync` only knows files that still exist.
+    readonly patterns: readonly string[];
 }
 
 interface OxlintDiagnostic {
@@ -185,7 +196,7 @@ async function readConfig(): Promise<Config> {
         'ignorePatterns' in config && Array.isArray(config.ignorePatterns)
             ? config.ignorePatterns.filter((entry) => typeof entry === 'string')
             : [];
-    return { rules, excluded: globSync(patterns) };
+    return { rules, excluded: globSync(patterns), patterns };
 }
 
 function isSourceFile(path: string): boolean {
@@ -424,6 +435,19 @@ function directiveKey(text: string, form: string): string | undefined {
     return `${form}${variant}|${rules.length === 0 ? '*' : rules.join(',')}`;
 }
 
+/** Whether a directive with key `wide` switches off at least what `narrow` does. */
+function covers(wide: string, narrow: string): boolean {
+    const [wideForm = '', wideRules = ''] = wide.split('|');
+    const [narrowForm = '', narrowRules = ''] = narrow.split('|');
+    // Without `-line`/`-next-line` a directive reaches to the end of the file.
+    const toEndOfFile = (form: string): boolean => !form.endsWith('line');
+    if (toEndOfFile(narrowForm) && !toEndOfFile(wideForm)) return false;
+    if (wideRules === '*') return true;
+    if (narrowRules === '*') return false;
+    const allowed = wideRules.split(',');
+    return narrowRules.split(',').every((rule) => allowed.includes(rule));
+}
+
 function lineOf(text: string, index: number): number {
     return text.slice(0, index).split('\n').length;
 }
@@ -622,7 +646,7 @@ async function main(): Promise<void> {
     if (base === undefined) {
         console.warn('No merge base with the default branch — changed lines are not checked.');
     }
-    const { rules: configuredRules, excluded } = await readConfig();
+    const { rules: configuredRules, excluded, patterns } = await readConfig();
     const rules = [...configuredRules, DISABLE_DIRECTIVE];
     const measurement = measure(new Set(excluded));
     const diff = base === undefined ? undefined : changesSince(base);
@@ -644,7 +668,11 @@ async function main(): Promise<void> {
                   base,
                   changedFiles,
                   diff.origins,
-                  diff.deleted.filter(isSourceFile),
+                  diff.deleted.filter(
+                      (file) =>
+                          isSourceFile(file) &&
+                          !patterns.some((pattern) => matchesGlob(file, pattern)),
+                  ),
               );
     const before = state.findings;
     const after = perFile(measurement.findings, (reported) => reported);
@@ -678,12 +706,15 @@ async function main(): Promise<void> {
         }
         for (const key of rest) goneAway.set(key, (goneAway.get(key) ?? 0) + 1);
     }
-    // A new directive offsets an identical one that went away; whatever is
-    // left needs the number raised by hand.
+    // A new directive is offset by a gone one that covers it — an identical
+    // one first, otherwise a wider one; whatever is left needs the number
+    // raised by hand.
     const unmatched = newDirectives.filter((finding) => {
-        const free = goneAway.get(finding.key ?? '') ?? 0;
-        if (free === 0) return true;
-        goneAway.set(finding.key ?? '', free - 1);
+        const added = finding.key ?? '';
+        const candidates = [...goneAway].filter(([gone, free]) => free > 0 && covers(gone, added));
+        const chosen = candidates.find(([gone]) => gone === added) ?? candidates[0];
+        if (chosen === undefined) return true;
+        goneAway.set(chosen[0], chosen[1] - 1);
         return false;
     });
     // Without the number at the merge base, this branch introduces the ratchet;
@@ -728,14 +759,16 @@ async function main(): Promise<void> {
     }
     if (tooManyDirectives) {
         console.error(
-            `New disable directives without an identical one gone: ${unmatched.length}, ` +
+            `New disable directives without a gone one that covers them: ${unmatched.length}, ` +
                 `raised by hand: ${allowedDirectives}.`,
         );
         for (const { file, line, message } of unmatched) {
             console.error(`  ${file}:${line} ${message}`);
         }
         console.error(
-            `A justified exception raises \`${DISABLE_DIRECTIVE}\` in ${RATCHET} in the same diff.`,
+            `A justified exception raises \`${DISABLE_DIRECTIVE}\` in ${RATCHET} in the same diff. ` +
+                'To change the rule, first remove the old directive and record that with ' +
+                '`--update`, then add the new one.',
         );
     }
     if (
