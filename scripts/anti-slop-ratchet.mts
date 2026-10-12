@@ -27,9 +27,11 @@
 // is only allowed as far as its number was raised by hand in the same diff or
 // one goes away in the same branch that switched off at least as much: the same
 // rules or more, over one line or to the end of the file. So moving and
-// narrowing need no raise; widening and changing the rule do — that takes two
-// steps: first remove the old directive and record it with `--update`, then
-// add the new one with the number raised. In CI the merge base must be
+// narrowing need no raise; widening and changing the rule do. A rule change
+// takes two pull requests, because the number at the merge base counts: the
+// first removes the old directive together with the code it switched off and
+// records that with `--update`; the second follows after the first is merged,
+// with the new code, the new directive and the number raised by hand. In CI the merge base must be
 // reachable (full history), otherwise the run aborts.
 //
 // A limit: how far a directive reaches is read from its form, not from the
@@ -425,14 +427,24 @@ function directiveKey(text: string, form: string): string | undefined {
         (sofar, end) => (sofar.includes(end) ? sofar.slice(0, sofar.indexOf(end)) : sofar),
         separator < 0 ? '' : afterKeyword.slice(separator),
     );
-    const rules = ruleList
+    const allRules = ruleList
         .split(',')
         .map((rule) => rule.trim())
-        .filter((rule) => rule !== '')
-        .sort();
-    if (rules.length > 0 && !rules.some((rule) => rule.startsWith(PLUGIN_RULE))) return undefined;
+        .filter((rule) => rule !== '');
+    // Only this plugin's rules: appending a foreign one changes nothing here.
+    const rules = allRules.filter((rule) => rule.startsWith(PLUGIN_RULE)).sort();
+    if (allRules.length > 0 && rules.length === 0) return undefined;
     // `oxlint-` and `eslint-` act the same; blanket is `*`.
     return `${form}${variant}|${rules.length === 0 ? '*' : rules.join(',')}`;
+}
+
+/** How far a directive reaches, as a number to compare: larger means wider. */
+function width(key: string): number {
+    const [form = '', rules = ''] = key.split('|');
+    // Reach weighs before the number of rules; no directive names a thousand rules.
+    const toEndOfFile = form.endsWith('line') ? 0 : 1;
+    const ruleCount = rules === '*' ? 1000 : rules.split(',').length;
+    return toEndOfFile * 10_000 + ruleCount;
 }
 
 /** Whether a directive with key `wide` switches off at least what `narrow` does. */
@@ -712,7 +724,10 @@ async function main(): Promise<void> {
     const unmatched = newDirectives.filter((finding) => {
         const added = finding.key ?? '';
         const candidates = [...goneAway].filter(([gone, free]) => free > 0 && covers(gone, added));
-        const chosen = candidates.find(([gone]) => gone === added) ?? candidates[0];
+        // The narrowest first, so a wide one stays for a later directive only it covers.
+        const chosen =
+            candidates.find(([gone]) => gone === added) ??
+            [...candidates].sort(([a], [b]) => width(a) - width(b))[0];
         if (chosen === undefined) return true;
         goneAway.set(chosen[0], chosen[1] - 1);
         return false;
@@ -767,8 +782,8 @@ async function main(): Promise<void> {
         }
         console.error(
             `A justified exception raises \`${DISABLE_DIRECTIVE}\` in ${RATCHET} in the same diff. ` +
-                'To change the rule, first remove the old directive and record that with ' +
-                '`--update`, then add the new one.',
+                'A rule change takes two pull requests: first remove the old directive with its ' +
+                'code and record that with `--update`, then add the new one after the merge.',
         );
     }
     if (
