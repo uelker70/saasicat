@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { AuditActor, AuditPort } from '@saasicat/core';
-import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type JsonInputLike, type PrismaLike } from './prisma-client-token.js';
 
 /** `'web:<email>:<sessionId>'` / `'cli:<email>:<host>'` — audit-event.schema.json ActorTagPattern. */
 export function buildActorTag(actor: AuditActor): string {
@@ -35,7 +35,11 @@ export class PrismaAuditAdapter implements AuditPort {
                 entity: input.entity,
                 entityId: input.entityId,
                 action: input.action,
-                changes: input.changes ?? {},
+                // The port hands `changes` over as plain data, and Prisma writes a
+                // `Json` column as `JSON.stringify` renders it; the assertion names
+                // that for a generated client, which `Record<string, unknown>`
+                // cannot prove to it.
+                changes: (input.changes ?? {}) as JsonInputLike,
                 actorTag: buildActorTag(input.actor),
             },
         });

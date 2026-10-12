@@ -1334,3 +1334,25 @@ _Tested by:_
         - is refused inside the bypass rather than guessed at
 
 <!-- END proof -->
+
+### SC-COMP-020 — Every shipped adapter takes the client Prisma generates from the shipped fragments
+
+🟢 The fragments declare enum columns and `Json` columns, and a client Prisma generates from them
+asks for that enum's members and for its own JSON input there. Every shipped adapter that takes a
+client takes such a client as it is, so an integrator who wires one by hand needs no cast — a cast
+would switch off the type check exactly where a renamed column or a new enum member should be
+caught.
+
+_Source:_ #351 · uelker70/autohauspro#541
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-generated-client-wires-every-adapter.test.js`
+    - a client Prisma generates from the shipped fragments
+        - there are adapters to wire
+        - is taken by every shipped adapter, and by both client shapes, without a cast
+        - the check sees an enum member the generated client does not have
+
+<!-- END proof -->

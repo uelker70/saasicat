@@ -12,10 +12,31 @@
 // ];
 // ```
 
+import type {
+    BillingCycle,
+    PromoCodeDurationType,
+    PromoCodeRedemptionStatus,
+    PromoCodeStatus,
+    PromoCodeValueType,
+    SubscriptionStatus,
+} from '@saasicat/core';
+
 export const PRISMA_CLIENT_TOKEN = Symbol.for('saasicat/adapter-prisma/PrismaClient');
 
 /** Prisma `Decimal` values arrive as objects with `toString()`; tests may use plain values. */
 export type DecimalLike = { toString(): string } | string | number;
+
+/**
+ * A value Prisma writes into a `Json` column as it is — what its
+ * `InputJsonValue` admits. A delegate shape that took `unknown` there would
+ * not accept a client Prisma generated, which asks for exactly this.
+ */
+export type JsonInputLike =
+    | string
+    | number
+    | boolean
+    | { readonly [key: string]: JsonInputLike | null }
+    | readonly (JsonInputLike | null)[];
 
 // -----------------------------------------------------------------------------
 // Row shapes — structural minimum of the canonical tables
@@ -136,7 +157,7 @@ export interface PromoCodeRowLike {
     description: string | null;
     campaignTag: string | null;
     revenueDeductionAccount: string | null;
-    createdById: string;
+    createdById: string | null;
     createdAt: Date;
     updatedAt: Date;
     deletedAt: Date | null;
@@ -198,7 +219,9 @@ export interface SubscriptionDelegateLike {
     findUnique(args: {
         where: { id?: string; tenantId?: string };
     }): Promise<SubscriptionRowLike | null>;
-    findMany(args?: { where?: { status?: { in: string[] } } }): Promise<SubscriptionRowLike[]>;
+    findMany(args?: {
+        where?: { status?: { in: SubscriptionStatus[] } };
+    }): Promise<SubscriptionRowLike[]>;
     count(args?: {
         where?: { OR?: Array<{ planVersionId?: string; pendingChangeVersionId?: string }> };
     }): Promise<number>;
@@ -226,8 +249,8 @@ export interface PlanVersionDelegateLike {
         data: {
             planId: string;
             version: number;
-            features: unknown;
-            quotas: unknown;
+            features: JsonInputLike;
+            quotas: JsonInputLike;
             monthlyNet: string;
             yearlyNet: string;
             marketed: boolean;
@@ -287,7 +310,7 @@ export interface PromoCodeDelegateLike {
     findMany(args?: {
         where?: {
             deletedAt?: null;
-            status?: string;
+            status?: PromoCodeStatus;
             campaignTag?: string;
             code?: { contains: string };
         };
@@ -297,15 +320,15 @@ export interface PromoCodeDelegateLike {
     createManyAndReturn(args: {
         data: Array<{
             code: string;
-            valueType: string;
+            valueType: PromoCodeValueType;
             value: string;
-            durationType: string;
+            durationType: PromoCodeDurationType;
             durationValue: number | null;
             validFrom: Date | null;
             validUntil: Date | null;
             maxRedemptions: number | null;
             appliesToPlans: string[];
-            appliesToBilling: string | null;
+            appliesToBilling: BillingCycle | null;
             firstTimeCustomersOnly: boolean;
             minimumPlanAmountGross: string | null;
             allowZeroInvoice: boolean;
@@ -319,17 +342,17 @@ export interface PromoCodeDelegateLike {
     update(args: {
         where: { id: string };
         data: {
-            status?: string;
-            valueType?: string;
+            status?: PromoCodeStatus;
+            valueType?: PromoCodeValueType;
             value?: string;
-            durationType?: string;
+            durationType?: PromoCodeDurationType;
             durationValue?: number | null;
             validFrom?: Date | null;
             description?: string | null;
             validUntil?: Date | null;
             maxRedemptions?: number | null;
             appliesToPlans?: string[];
-            appliesToBilling?: string | null;
+            appliesToBilling?: BillingCycle | null;
             firstTimeCustomersOnly?: boolean;
             minimumPlanAmountGross?: string | null;
             allowZeroInvoice?: boolean;
@@ -339,8 +362,8 @@ export interface PromoCodeDelegateLike {
         };
     }): Promise<PromoCodeRowLike>;
     updateMany(args: {
-        where: { status?: { in: string[] }; validUntil?: { lt: Date }; deletedAt?: null };
-        data: { status?: string };
+        where: { status?: { in: PromoCodeStatus[] }; validUntil?: { lt: Date }; deletedAt?: null };
+        data: { status?: PromoCodeStatus };
     }): Promise<{ count: number }>;
 }
 
@@ -357,18 +380,24 @@ export interface PromoCodeRedemptionDelegateLike {
             promoCodeId: string;
             subscriptionId: string;
             tenantId: string;
-            appliedValueType: string;
+            appliedValueType: PromoCodeValueType;
             appliedValue: string;
-            appliedDurationType: string;
+            appliedDurationType: PromoCodeDurationType;
             appliedDurationValue: number | null;
             startsAt: Date;
             endsAt: Date | null;
         };
     }): Promise<PromoCodeRedemptionRowLike>;
-    count(args?: { where?: { promoCodeId?: string; status?: string } }): Promise<number>;
+    count(args?: {
+        where?: { promoCodeId?: string; status?: PromoCodeRedemptionStatus };
+    }): Promise<number>;
     updateMany(args: {
-        where: { id?: string; status?: string | { not: string }; endsAt?: { lt: Date } };
-        data: { status?: string; reversedAt?: Date | null };
+        where: {
+            id?: string;
+            status?: PromoCodeRedemptionStatus | { not: PromoCodeRedemptionStatus };
+            endsAt?: { lt: Date };
+        };
+        data: { status?: PromoCodeRedemptionStatus; reversedAt?: Date | null };
     }): Promise<{ count: number }>;
 }
 
@@ -393,7 +422,7 @@ export interface AuditLogDelegateLike {
             entity: string;
             entityId: string;
             action: string;
-            changes: unknown;
+            changes: JsonInputLike;
             actorTag: string | null;
         };
     }): Promise<unknown>;
