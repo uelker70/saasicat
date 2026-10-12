@@ -156,18 +156,27 @@ function settleContactValue(field: keyof SubscriberContact, value: unknown): str
 const TAB_OR_LINE_BREAK = /[\t\n\r]/;
 
 /**
+ * Whether `text` can stand as a subscriber's detail: no character an
+ * e-invoice's XML cannot hold, such as a control character pasted with a name,
+ * wherever it stands, and no tab, line feed or carriage return inside it once
+ * whitespace at either end is trimmed — XML reads those back otherwise than
+ * written (`SC-PRIC-078`). What becomes a detail later, as a sign-up's tenant
+ * name becomes the legal name, is held to it where it is typed.
+ */
+export function holdsAsSubscriberDetail(text: string): boolean {
+    return holdsOnlyXmlCharacters(text) && !TAB_OR_LINE_BREAK.test(text.trim());
+}
+
+/**
  * Trimmed text, or `null` for nothing. Anything but a string is refused: a
- * number where a name belongs is not a name. So is a character an e-invoice's
- * XML cannot hold, such as a control character pasted with a name, and a tab
- * or a line break inside the text, which XML reads back otherwise than written:
- * refused here, where the subscriber can still correct it, rather than standing
- * otherwise on every invoice (`SC-PRIC-078`). One at either end is trimmed.
+ * number where a name belongs is not a name. So is text that cannot stand as a
+ * detail (`holdsAsSubscriberDetail`): refused here, where the subscriber can
+ * still correct it, rather than standing otherwise on every invoice.
  */
 function settleText(field: keyof SubscriberDetails, value: unknown): string | null {
     if (value === undefined || value === null) return null;
-    if (typeof value !== 'string' || !holdsOnlyXmlCharacters(value)) throw invalid(field);
+    if (typeof value !== 'string' || !holdsAsSubscriberDetail(value)) throw invalid(field);
     const trimmed = value.trim();
-    if (TAB_OR_LINE_BREAK.test(trimmed)) throw invalid(field);
     return trimmed === '' ? null : trimmed;
 }
 

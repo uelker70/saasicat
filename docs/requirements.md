@@ -18872,6 +18872,11 @@ _Tested by:_
     - UpdateBundleVersionDraftDto
         - accepts an empty patch and the same shapes as create
         - refuses what create refuses, field for field
+- `packages/nest/tests/registration-service.test.js`
+    - start() refuses a tenant name with ${what}, keeping and sending nothing
+    - start() trims whitespace around the tenant name, a tab and a line feed included
+    - start() refuses an unfit tenant name before it renews the code of a registration under way
+    - start() takes a tenant name exactly when a subscriber can take it as its legal name
 - `packages/spec/tests/schemas.test.js`
     - adminManifestSchema compiles
     - planCatalogSchema compiles

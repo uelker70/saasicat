@@ -1958,8 +1958,9 @@ and a line break reads back as something else.
   that stores its own copy first, a company profile for instance, and only then passes the details
   on would otherwise keep what the platform refused, and fail every later save of the same field.
 - **An application that words refusals itself** already has `SUBSCRIBER_DETAIL_INVALID`; its
-  `field` names the platform's field (`addressLine1`), not your form's label. In sign-up step 4,
-  `legalName` is the tenant name of step 1 and `invoiceEmail` the sign-up's e-mail address.
+  `field` names the platform's field (`addressLine1`), not your form's label. Sign-up step 1 refuses
+  a tenant name by the same rule, with `field: 'tenantName'`, since step 4 makes it the legal name;
+  `invoiceEmail` there is the sign-up's e-mail address.
 
 ### The plan catalogue is read when it is asked for
 

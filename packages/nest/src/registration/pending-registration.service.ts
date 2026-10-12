@@ -6,6 +6,7 @@ import {
     NotFoundException,
     type OnModuleInit,
     Optional,
+    UnprocessableEntityException,
 } from '@nestjs/common';
 import type {
     CleanupResult,
@@ -38,7 +39,11 @@ import type {
     UserAccountLookup,
     VerifyRegistrationOtpResult,
 } from '@saasicat/core';
-import { REGISTRATION_ERROR_CODES, REGISTRATION_RESUME_TTL_MINUTES } from '@saasicat/core';
+import {
+    REGISTRATION_ERROR_CODES,
+    REGISTRATION_RESUME_TTL_MINUTES,
+    SUBSCRIBER_ERROR_CODES,
+} from '@saasicat/core';
 import {
     OTP_RATE_LIMIT_MAX_SENDS,
     OTP_RATE_LIMIT_WINDOW_MINUTES,
@@ -51,6 +56,7 @@ import {
 import { CheckoutOfferService } from '../checkout-offer/checkout-offer.service.js';
 import { codedError } from '../errors/coded-error.js';
 import { generateOtpCode, hashOtpCode, slugify, verifyOtpCode } from './helpers.js';
+import { holdsAsSubscriberDetail } from '../subscriber/subscriber-details.js';
 import { computeBreakdown } from './pricing.js';
 import {
     checkoutExpiresAt,
@@ -380,6 +386,15 @@ export class PendingRegistrationService implements OnModuleInit {
         input: StartRegistrationInput,
         context?: RegistrationAuditContext,
     ): Promise<StartRegistrationResult> {
+        // The tenant name becomes the subscriber's legal name at step 4, whose
+        // form does not show it: what step 4 would refuse is refused here.
+        if (!holdsAsSubscriberDetail(input.tenantName)) {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, {
+                    field: 'tenantName',
+                }),
+            );
+        }
         const email = normalizeEmail(input.email);
 
         if (await this.userLookup.hasActiveUser(email)) {
