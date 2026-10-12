@@ -13,11 +13,14 @@
 --   psql "$DATABASE_URL" -f 1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql
 --
 -- What happens to a change scheduled before this file. The version it was
--- shown was never recorded, so the one live and in effect now stands for it:
--- the newest published, not superseded, not ended, and — on a schema with
--- validity windows — already begun. A version published ahead of its date is
+-- shown was never recorded, so the one on sale now stands for it, read as the
+-- platform reads it (`buildActivePlanVersionWhere` in `@saasicat/core`):
+-- published, begun, its last day not past, not ended, and — if superseded —
+-- only while a last day it was given still runs; of several, the one begun
+-- latest, then the highest number. A version published ahead of its date is
 -- left out; the change then binds the version in effect when it comes due, as
--- it did before this file. A change that stays on its plan is left empty: it keeps the
+-- it did before this file. Each date is read as the UTC Prisma stores in a
+-- `TIMESTAMP(3)` column, whatever time zone the session runs in. A change that stays on its plan is left empty: it keeps the
 -- version bound, whatever that is by the day it comes due. A plan with no live
 -- version is left empty too, and binds the version in effect when it comes due.
 --
@@ -54,11 +57,11 @@ BEGIN
     ) THEN
         ALTER TABLE "subscriptions" ADD COLUMN "pendingChangeVersionId" TEXT;
 
-        -- Live and in effect: published, not superseded, and — where the
-        -- schema has the columns — not ended and already begun. An ended
-        -- version takes no new bookings, and one published ahead of its date
-        -- is not the one in effect. Each clause is added only where its column
-        -- exists; a schema from before it ends and delays nothing.
+        -- On sale: published, and — where the schema has the columns — begun,
+        -- its last day not past, not ended, and superseded only with a last
+        -- day still to run. Each clause is added only where its column exists;
+        -- a schema from before it ends and delays nothing. `NOW() AT TIME ZONE
+        -- 'UTC'` is the moment as the columns hold it.
         EXECUTE format(
             $backfill$
             UPDATE "subscriptions" AS s
@@ -67,10 +70,11 @@ BEGIN
                 FROM "plan_versions" AS v
                 WHERE (v."planId" = s."pendingPlan" %s)
                   AND v."publishedAt" IS NOT NULL
-                  AND v."supersededAt" IS NULL
+                  AND (v."supersededAt" IS NULL %s)
                   %s
                   %s
-                ORDER BY v."version" DESC
+                  %s
+                ORDER BY %s v."version" DESC
                 LIMIT 1
             )
             WHERE s."pendingPlan" IS NOT NULL
@@ -93,9 +97,31 @@ BEGIN
                     FROM information_schema.columns
                     WHERE table_schema = current_schema()
                       AND table_name = 'plan_versions'
+                      AND column_name = 'validUntil'
+                )
+                THEN 'OR v."validUntil" IS NOT NULL'
+                ELSE ''
+            END,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'plan_versions'
+                      AND column_name = 'validUntil'
+                )
+                THEN 'AND (v."validUntil" IS NULL OR v."validUntil" >= date_trunc(''day'', NOW() AT TIME ZONE ''UTC''))'
+                ELSE ''
+            END,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'plan_versions'
                       AND column_name = 'endsAt'
                 )
-                THEN 'AND (v."endsAt" IS NULL OR v."endsAt" > NOW())'
+                THEN 'AND (v."endsAt" IS NULL OR v."endsAt" > NOW() AT TIME ZONE ''UTC'')'
                 ELSE ''
             END,
             CASE
@@ -106,7 +132,18 @@ BEGIN
                       AND table_name = 'plan_versions'
                       AND column_name = 'validFrom'
                 )
-                THEN 'AND (v."validFrom" IS NULL OR v."validFrom" <= NOW())'
+                THEN 'AND (v."validFrom" IS NULL OR v."validFrom" <= NOW() AT TIME ZONE ''UTC'')'
+                ELSE ''
+            END,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'plan_versions'
+                      AND column_name = 'validFrom'
+                )
+                THEN 'v."validFrom" DESC NULLS LAST,'
                 ELSE ''
             END
         );

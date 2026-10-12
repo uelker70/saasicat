@@ -7195,6 +7195,8 @@ _Tested by:_
         - a plan stored by its row id is found through its key, as the Prisma adapter's
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
+        - the version stood for is the one on sale by its dates, as the platform reads them
+        - a session in ${zone} reads ${what} as the UTC it is stored in
         - a second run pins nothing published since the first
 
 <!-- END proof -->
@@ -20062,6 +20064,8 @@ _Tested by:_
         - a plan stored by its row id is found through its key, as the Prisma adapter's
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
+        - the version stood for is the one on sale by its dates, as the platform reads them
+        - a session in ${zone} reads ${what} as the UTC it is stored in
         - a second run pins nothing published since the first
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
@@ -20185,6 +20189,8 @@ _Tested by:_
         - a plan stored by its row id is found through its key, as the Prisma adapter's
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
+        - the version stood for is the one on sale by its dates, as the platform reads them
+        - a session in ${zone} reads ${what} as the UTC it is stored in
         - a second run pins nothing published since the first
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them

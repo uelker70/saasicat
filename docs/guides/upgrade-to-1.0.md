@@ -2405,11 +2405,16 @@ between reaches the customer as an offer, never through a change they confirmed 
    `PlanVersion`, from `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma`;
    `saasicat schema check` names what is missing.
 2. Run the migration once, before `db push` where you use one. A change already scheduled to another
-   plan is given the version live when the file runs:
+   plan is given the version on sale when the file runs, chosen as the platform chooses it — begun,
+   its last day not past, not ended, superseded only while a last day it was given runs, the latest
+   begun first — with every date read as UTC:
 
     ```bash
     psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql
     ```
+
+    The file chooses only in the run that adds the column, so a database that ran a copy from
+    `1.0.0-rc.26` or earlier keeps what that run chose.
 
 - **A `PendingPlanQueryPort` of your own** returns `pendingChangeVersionId` on each
   `DuePendingPlanChange`. It is required, so your build stops until it does: a query that left it
