@@ -72,13 +72,20 @@ export const COLLECT = ({ properties }: { properties: readonly string[] }) => {
         // meaningful computed geometry and would only add churn.
         const style = window.getComputedStyle(el);
         if (style.display === 'none') continue;
-        // An icon's ligature name, which Quasar sets in a bare `span` of its own.
-        // The fixture loads no icon webfont, so that span is as wide as the word
-        // in whatever fallback font the machine has — a width that differs
-        // between two machines and says nothing about the page. The icon itself
-        // is recorded, size and colour included, and so is anything else in its
-        // slot.
-        if (el.tagName === 'SPAN' && el.parentElement?.classList.contains('q-icon')) continue;
+        // An icon's ligature name, which Quasar sets as the icon's first child: a
+        // `span` with only `aria-hidden="true"` on it. The fixture loads no icon
+        // webfont, so that span is as wide as the word in whatever fallback font
+        // the machine has — a width that differs between two machines and says
+        // nothing about the page. The icon itself is recorded, size and colour
+        // included, and so is anything else in its slot.
+        if (
+            el.tagName === 'SPAN' &&
+            el.attributes.length === 1 &&
+            el.getAttribute('aria-hidden') === 'true' &&
+            el.parentElement?.firstElementChild === el &&
+            el.parentElement.classList.contains('q-icon')
+        )
+            continue;
 
         const values = properties
             .map((prop) => `${prop}=${style.getPropertyValue(prop).trim()}`)
