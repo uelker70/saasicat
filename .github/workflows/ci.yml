@@ -170,6 +170,11 @@ jobs:
               run: pnpm run format:check
             - name: Typecheck
               run: pnpm -r typecheck
+            # Counts the rules in oxlint.config.mts, and the comments that switch
+            # them off, against anti-slop-ratchet.json — exact, only downwards.
+            # scripts/ belongs to no workspace, hence its own typecheck first.
+            - name: Anti-slop ratchet
+              run: pnpm run lint:anti-slop
             # The example is the schema consumers copy from, so it must not fall
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)
