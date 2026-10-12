@@ -38,7 +38,9 @@
 // file. A blanket directive that moves into another file switches off
 // everything there to the end of the file, and a removed `eslint-enable`
 // extends a range without touching a directive line. The diff shows both; the
-// ratchet does not.
+// ratchet does not. And the offset matches greedily: if `a,b` and `a,c` go
+// away and `a` and `b` are added, it may fail although a matching exists —
+// writing the new directives identical to the old ones avoids that.
 //
 // Which rules are counted is stated in `oxlint.config.mts`, and which files
 // are excluded is stated there too (`ignorePatterns`) — this script keeps no
@@ -724,7 +726,8 @@ async function main(): Promise<void> {
     const unmatched = newDirectives.filter((finding) => {
         const added = finding.key ?? '';
         const candidates = [...goneAway].filter(([gone, free]) => free > 0 && covers(gone, added));
-        // The narrowest first, so a wide one stays for a later directive only it covers.
+        // A narrow one first, so a wide one is more likely to remain for a later
+        // directive only it covers. The matching is greedy, not optimal (see the header).
         const chosen =
             candidates.find(([gone]) => gone === added) ??
             [...candidates].sort(([a], [b]) => width(a) - width(b))[0];
