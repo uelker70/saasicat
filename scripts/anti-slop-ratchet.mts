@@ -440,7 +440,6 @@ function directiveKey(text: string, form: string): string | undefined {
     return `${form}:${variant}|${rules.length === 0 ? '*' : rules.join(',')}`;
 }
 
-/** How far a directive reaches, as a number to compare: larger means wider. */
 /**
  * Whether a directive affects one line only; without `-line`/`-next-line` it
  * reaches to the end of the file.
@@ -450,6 +449,7 @@ function oneLineOnly(form: string): boolean {
     return variant === '-line' || variant === '-next-line';
 }
 
+/** How far a directive reaches, as a number to compare: larger means wider. */
 function width(key: string): number {
     const [form = '', rules = ''] = key.split('|');
     // Reach weighs before the number of rules; no directive names a thousand rules.
