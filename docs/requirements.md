@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 78      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 32      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 630 entries: 🟢 543 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
+Of 631 entries: 🟢 544 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
 🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -225,7 +225,7 @@ Of 630 entries: 🟢 543 stand today, 🟡 60 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 630 requirements. Do not edit by hand:
+Generated from `requirements/` — 631 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -12252,6 +12252,27 @@ _Tested by:_
         - is UTC where the application names none
         - is the one the application names, where the runtime can read it
         - refuses a name the runtime cannot read, naming it, with the runtime’s reason as cause
+
+<!-- END proof -->
+
+### SC-PROMO-032 — A deleted code stays as it was deleted
+
+🟢 A code the operator deleted is changed no further: changing it, or deleting it again, is answered
+as a code that does not exist, as reading it already is. A change would alter terms no list shows
+any longer, and a second delete would move the day the code was deleted. A code that never existed
+is answered the same way, rather than as a failure of the store.
+
+_Source:_ uelker70/autohauspro#541
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - a deleted code stays as it was deleted
+        - a change to it is refused as a code that does not exist, and changes nothing
+        - deleting it again is refused the same way, and keeps the day it was deleted
+        - ${action} of a code that never existed is refused the same way
 
 <!-- END proof -->
 

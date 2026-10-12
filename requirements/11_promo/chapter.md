@@ -855,3 +855,24 @@ _Tested by:_
         - refuses a name the runtime cannot read, naming it, with the runtime’s reason as cause
 
 <!-- END proof -->
+
+### SC-PROMO-032 — A deleted code stays as it was deleted
+
+🟢 A code the operator deleted is changed no further: changing it, or deleting it again, is answered
+as a code that does not exist, as reading it already is. A change would alter terms no list shows
+any longer, and a second delete would move the day the code was deleted. A code that never existed
+is answered the same way, rather than as a failure of the store.
+
+_Source:_ uelker70/autohauspro#541
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - a deleted code stays as it was deleted
+        - a change to it is refused as a code that does not exist, and changes nothing
+        - deleting it again is refused the same way, and keeps the day it was deleted
+        - ${action} of a code that never existed is refused the same way
+
+<!-- END proof -->

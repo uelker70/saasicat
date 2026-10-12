@@ -660,6 +660,58 @@ describe('a code that has been redeemed is kept', () => {
     });
 });
 
+// A deleted code keeps its name (SC-PROMO-028), and the rest of it is what it
+// was when it was deleted: its terms, and the day it was deleted.
+describe('a deleted code stays as it was deleted', () => {
+    const refusedAsNotFound = (id) => (error) => {
+        assert.equal(error.getStatus(), 404);
+        assert.equal(error.response.code, 'PROMO_CODE_NOT_FOUND');
+        assert.deepEqual(error.response.params, { promoCodeId: id, promoCode: null });
+        return true;
+    };
+
+    async function aDeletedCode() {
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({ promoRepo });
+        const created = await svc.create(BASE_INPUT);
+        await svc.softDelete(created.id);
+        return {
+            promoRepo,
+            svc,
+            id: created.id,
+            deleted: { ...(await promoRepo.findById(created.id)) },
+        };
+    }
+
+    // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+    test('a change to it is refused as a code that does not exist, and changes nothing', async () => {
+        const { promoRepo, svc, id, deleted } = await aDeletedCode();
+
+        await assert.rejects(() => svc.update(id, { value: 50 }), refusedAsNotFound(id));
+        assert.deepEqual(await promoRepo.findById(id), deleted);
+    });
+
+    // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+    test('deleting it again is refused the same way, and keeps the day it was deleted', async () => {
+        const { promoRepo, svc, id, deleted } = await aDeletedCode();
+
+        await assert.rejects(() => svc.softDelete(id), refusedAsNotFound(id));
+        assert.equal((await promoRepo.findById(id)).deletedAt, deleted.deletedAt);
+    });
+
+    for (const [action, call] of [
+        ['a change', (svc) => svc.update('never-created', { value: 50 })],
+        ['a delete', (svc) => svc.softDelete('never-created')],
+    ]) {
+        // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+        test(`${action} of a code that never existed is refused the same way`, async () => {
+            const svc = buildSvc({ promoRepo: new FakePromoRepo() });
+
+            await assert.rejects(() => call(svc), refusedAsNotFound('never-created'));
+        });
+    }
+});
+
 describe('what a code promised at redemption stays with the redemption', () => {
     // The code is an offer that changes: an operator edits its value, shortens
     // its duration, or lets it expire. The redemption is the answer to "why did
