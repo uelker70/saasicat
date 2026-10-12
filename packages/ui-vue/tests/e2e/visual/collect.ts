@@ -72,6 +72,12 @@ export const COLLECT = ({ properties }: { properties: readonly string[] }) => {
         // meaningful computed geometry and would only add churn.
         const style = window.getComputedStyle(el);
         if (style.display === 'none') continue;
+        // What sits inside an icon is its ligature name, which Quasar sets in a
+        // `span` of its own. The fixture loads no icon webfont, so that span is
+        // as wide as the word in whatever fallback font the machine has — a
+        // width that differs between two machines and says nothing about the
+        // page. The icon itself is recorded, size and colour included.
+        if (el.parentElement?.closest('.q-icon')) continue;
 
         const values = properties
             .map((prop) => `${prop}=${style.getPropertyValue(prop).trim()}`)
