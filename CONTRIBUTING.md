@@ -24,7 +24,21 @@ Tests run with `--workspace-concurrency=1` because parallel workers each bootstr
 NestJS test apps; running them serially keeps memory use sane.
 
 Lint and formatting configs at the repo root are binding — run `pnpm lint`,
-`pnpm run lint:css` and `pnpm typecheck` before opening a PR.
+`pnpm run lint:css`, `pnpm run lint:anti-slop` and `pnpm typecheck` before
+opening a PR.
+
+`pnpm run lint:anti-slop` counts the findings of the rules in
+[`oxlint.config.mts`](oxlint.config.mts) — type assertions without a
+`// SAFETY:` justification, chained assertions, `Reflect.get`, module mocks and
+the rest, each with its reason there — plus the comments that switch one of
+them off, and compares them with `anti-slop-ratchet.json`. The numbers are
+exact and only move down. On top of that, every finding on a line that is new
+or changed since your branch left `main` fails, an old one too: whoever touches
+a line fixes it. A necessary assertion gets a `// SAFETY:` line saying what
+makes it true. Whoever removes
+findings records that with `pnpm run lint:anti-slop:update`. The plugin is a
+copy under `tools/oxlint/anti-slop/`; its provenance and how to update it are
+in its [`UPSTREAM.md`](tools/oxlint/anti-slop/UPSTREAM.md).
 
 `lint:css` is Stylelint, and it answers the one question ESLint cannot: whether
 a CSS value comes from the design system. Colour, shadow and type are errors —

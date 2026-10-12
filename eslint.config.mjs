@@ -275,6 +275,9 @@ export default tseslint.config(
             // `tests/agent-worktrees-are-not-linted.test.js` holds the two
             // files together.
             '**/.claude/**',
+            // An unchanged copy of a third-party plugin (provenance in its
+            // UPSTREAM.md); it follows its upstream's style.
+            'tools/oxlint/anti-slop/**',
         ],
     },
     {

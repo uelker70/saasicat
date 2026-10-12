@@ -23,5 +23,9 @@
         "!.claude/**",
         // The internal planning folder: German, gitignored, never published.
         "!handoff/**",
+        // Documentation of another project, copied with its licence: its paths
+        // and line lengths are that project's. Our own `UPSTREAM.md` one level
+        // up is linted.
+        "!tools/oxlint/anti-slop/vendor/**",
     ],
 }

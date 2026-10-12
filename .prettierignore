@@ -12,3 +12,10 @@ examples/notesapp/var/
 # `version` run — with two-space indentation. Reformatting it here would make
 # the next release run fail `format:check` on a file nobody edited.
 .changeset/pre.json
+
+# An unchanged copy of a third-party plugin (provenance in its UPSTREAM.md). It
+# follows its upstream's style; formatting it would turn every upstream update
+# into a diff over everything. Our own notes next to it stay formatted.
+tools/oxlint/anti-slop/**
+!tools/oxlint/anti-slop/UPSTREAM.md
+!tools/oxlint/anti-slop/package.json
