@@ -293,16 +293,22 @@ or `prepare`, so publishing from a fresh clone packs whatever `dist/` holds —
 nothing — and puts out a version that exports nothing. Unrecallable in the same
 way, from the same block.
 
-**In the same sitting, set the trusted publisher**: on npmjs.com → the package →
-Settings → Trusted Publisher, this repository and workflow `release.yml`. From
-then on the workflow publishes it like the others. Left out, it fails one
-release late: the release that carries the hand-published version skips the
-package as already published, so that run is green, and the next one fails with
-`E404` on the package's `PUT` — after publishing every other package.
-`@saasicat/tax-de` hit this at `1.0.0-rc.26`. Changesets treats an
-already-published version as done, so either failure is repaired the same way:
-publish the version the run wanted by hand as above, set the trusted publisher,
-and re-run the failed job.
+**Set the trusted publisher for the release that will use it**: on npmjs.com →
+the package → Settings → Trusted Publisher, this repository and workflow
+`release.yml`. Under "Allowed actions", allow `npm publish` as well: the
+workflow publishes directly, and a configuration made since 2026-09-03 always
+allows `npm stage publish` but leaves direct publishing to your choice. npm
+expires a new configuration that has not completed a publish within two days
+([trusted publishers](https://docs.npmjs.com/trusted-publishers/)), and a
+hand-published version validates nothing — the release that carries it skips the
+package as already published. So create the configuration, or delete and
+recreate one that has lapsed, within the two days before merging the next
+version PR, and read that run's log for the package. Without a valid
+configuration the run fails with `E404` on the package's `PUT`, after publishing
+every other package; `@saasicat/tax-de` hit this at `1.0.0-rc.26`. Changesets
+treats an already-published version as done, so the repair is to publish the
+version the run wanted by hand as above and re-run the failed job — and to set
+the configuration up again before the release after it.
 
 **`pnpm publish`, never `npm publish`.** Every package here depends on its
 siblings through `workspace:^`, which is a protocol only the workspace
