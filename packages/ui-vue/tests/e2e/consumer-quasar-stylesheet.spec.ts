@@ -1,5 +1,3 @@
-import { expect, test } from '@playwright/test';
-
 // Quasar's stylesheet reaches an assembled application through the one import
 // it writes, `@saasicat/ui-vue/quasar.css`. That file only imports
 // `quasar/dist/quasar.css`, which the application's own bundler resolves from
@@ -9,6 +7,8 @@ import { expect, test } from '@playwright/test';
 // because none of them reads a style Quasar alone sets.
 
 // @requirement SC-UI-027 — The administration's framework stylesheet is the one of the framework it runs
+
+import { expect, test } from '@playwright/test';
 
 test.describe("an assembled application's Quasar stylesheet", () => {
     test("carries Quasar's own rule for a button", async ({ page }) => {

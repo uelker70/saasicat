@@ -26,29 +26,35 @@ const require = createRequire(join(PACKAGE, 'package.json'));
 const packageRootOf = (file, name) =>
     file.slice(0, file.lastIndexOf(`/${name}/`) + name.length + 1);
 
-describe('the Quasar stylesheet the administration hands out', () => {
+/** Quasar's entry among the stylesheets this package hands out by reference. */
+function quasarReference() {
     const quasar = VENDOR_IMPORTS.find((reference) => reference.from.startsWith('quasar/'));
+    assert.ok(quasar, 'Quasar is no longer handed out by reference');
+    return quasar;
+}
 
+describe('the Quasar stylesheet the administration hands out', () => {
     test('is what the package exports as ./quasar.css', () => {
-        assert.ok(quasar, 'Quasar is no longer handed out by reference');
-        assert.equal(MANIFEST.exports['./quasar.css'], `./dist/assets/${quasar.to}`);
+        assert.equal(MANIFEST.exports['./quasar.css'], `./dist/assets/${quasarReference().to}`);
     });
 
     test("imports Quasar's stylesheet and holds nothing of its own", () => {
+        const quasar = quasarReference();
         const shipped = readFileSync(join(PACKAGE, 'dist', 'assets', quasar.to), 'utf8');
 
         assert.equal(shipped, importOf(quasar));
         assert.ok(!shipped.includes('{'), 'a rule was written beside the import');
     });
 
-    test('resolves from the same Quasar installation as the JavaScript', () => {
-        const stylesheet = require.resolve(quasar.from);
-        const script = require.resolve('quasar');
+    // Which release an application runs is its bundler's to decide, from where
+    // this file lies; an assembled application is checked in
+    // `tests/e2e/consumer-quasar-stylesheet.spec.ts`. What can be held here is
+    // that the import names a file Quasar itself publishes.
+    test('names a stylesheet Quasar publishes beside its JavaScript', () => {
+        const stylesheet = require.resolve(quasarReference().from);
+        const root = packageRootOf(stylesheet, 'quasar');
 
-        assert.equal(packageRootOf(stylesheet, 'quasar'), packageRootOf(script, 'quasar'));
-        const installed = JSON.parse(
-            readFileSync(join(packageRootOf(script, 'quasar'), 'package.json'), 'utf8'),
-        );
-        assert.equal(installed.name, 'quasar');
+        assert.ok(stylesheet.endsWith('.css'), stylesheet);
+        assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name, 'quasar');
     });
 });

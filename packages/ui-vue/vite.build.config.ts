@@ -102,7 +102,8 @@ export default defineConfig({
         // suite is what said so.
         //
         // No `sassVariables`: branding is a custom property now (ADR 0011), and
-        // Quasar's stylesheet is copied prebuilt rather than compiled here.
+        // Quasar's stylesheet is imported prebuilt from the installed Quasar
+        // (ADR 0014) rather than compiled here.
         quasar(),
     ],
     build: {

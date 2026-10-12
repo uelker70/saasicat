@@ -16493,11 +16493,13 @@ _Source:_ ADR 0014 · #425
 
 _Tested by:_
 
+- `packages/ui-vue/tests/e2e/consumer-quasar-stylesheet.spec.ts`
+    - carries Quasar's own rule for a button
 - `packages/ui-vue/tests/quasar-stylesheet-is-the-installed-quasars.test.js`
     - the Quasar stylesheet the administration hands out
         - is what the package exports as ./quasar.css
         - imports Quasar's stylesheet and holds nothing of its own
-        - resolves from the same Quasar installation as the JavaScript
+        - names a stylesheet Quasar publishes beside its JavaScript
 
 <!-- END proof -->
 
