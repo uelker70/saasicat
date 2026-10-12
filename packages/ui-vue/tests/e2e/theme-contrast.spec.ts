@@ -189,8 +189,9 @@ const COLLECT = (): Reading => {
         // words in the body font and the family says nothing. The ligature name
         // itself too: Quasar sets it as the icon's first child, a `span` with
         // `aria-hidden="true"` and nothing else on it. Slot content follows it,
-        // and a span from a component's template carries its scope attribute,
-        // so a badge or a styled label in an icon is still judged.
+        // a span from a scoped component's template carries its scope attribute
+        // and a styled one its class, so a badge or a label in an icon is still
+        // judged.
         if (el.classList.contains('q-icon')) continue;
         if (
             el.tagName === 'SPAN' &&
