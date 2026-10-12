@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 78      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 31      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 32      |
@@ -129,10 +129,10 @@ properties it has while doing it.
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 19      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
-| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 19      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 630 entries: 🟢 543 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
+Of 632 entries: 🟢 545 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
 🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -225,7 +225,7 @@ Of 630 entries: 🟢 543 stand today, 🟡 60 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 630 requirements. Do not edit by hand:
+Generated from `requirements/` — 632 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7195,6 +7195,9 @@ _Tested by:_
         - a plan stored by its row id is found through its key, as the Prisma adapter's
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
+        - the version stood for is the one on sale by its dates, as the platform reads them
+        - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
 
 <!-- END proof -->
@@ -12250,6 +12253,28 @@ _Tested by:_
         - is UTC where the application names none
         - is the one the application names, where the runtime can read it
         - refuses a name the runtime cannot read, naming it, with the runtime’s reason as cause
+
+<!-- END proof -->
+
+### SC-PROMO-032 — A deleted code stays as it was deleted
+
+🟢 A code the operator deleted is changed no further: changing it, or deleting it again, is answered
+as a code that does not exist, as reading it already is. A change would alter terms no list shows
+any longer, and a second delete would move the day the code was deleted. A code that never existed
+is answered the same way, rather than as a failure of the store.
+
+_Source:_ uelker70/autohauspro#541
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - a deleted code stays as it was deleted
+        - a change to it is refused as a code that does not exist, and changes nothing
+        - deleting it again is refused the same way, and keeps the day it was deleted
+        - ${action} that meets a code deleted since it was read is refused the same way
+        - ${action} of a code that never existed is refused the same way
 
 <!-- END proof -->
 
@@ -20062,6 +20087,9 @@ _Tested by:_
         - a plan stored by its row id is found through its key, as the Prisma adapter's
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
+        - the version stood for is the one on sale by its dates, as the platform reads them
+        - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
@@ -20185,6 +20213,9 @@ _Tested by:_
         - a plan stored by its row id is found through its key, as the Prisma adapter's
           normalized-plan-id binding stores it
         - a schema with no plans table is matched by key alone
+        - the version stood for is the one on sale by its dates, as the platform reads them
+        - a session in ${zone} reads ${what} as the UTC it is stored in
+        - a schema from before the version dates chooses as the platform does without them
         - a second run pins nothing published since the first
     - the pending version is dropped
         - the seven columns go, and their index and foreign key with them
@@ -21886,6 +21917,30 @@ _Tested by:_
         - opened on another client refuses a lifted statement inside the bypass
     - a client that does not say where a statement runs
         - is refused inside the bypass rather than guessed at
+
+<!-- END proof -->
+
+### SC-COMP-020 — Every shipped adapter takes the client Prisma generates from the shipped fragments
+
+🟢 The fragments declare enum columns and `Json` columns, and a client Prisma generates from them
+asks for that enum's members and for its own JSON input there. Every shipped adapter that takes a
+client takes such a client as it is, so an integrator who wires one by hand needs no cast — a cast
+would switch off the type check exactly where a renamed column or a new enum member should be
+caught.
+
+_Source:_ #351 · uelker70/autohauspro#541
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-generated-client-wires-every-adapter.test.js`
+    - a client Prisma generates from the shipped fragments
+        - there are adapters to wire
+        - is taken by every shipped adapter, and by both client shapes, without a cast
+        - compares every adapter with it, except the ones named for taking anything
+        - accepts in a JSON column whatever the generated client accepts there
+        - the check sees an enum member the generated client does not have
 
 <!-- END proof -->
 

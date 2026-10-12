@@ -1628,12 +1628,13 @@ describe('a scheduled change learns the version it was quoted at', () => {
         superseded = null,
         endsAt = null,
         validFrom = null,
+        validUntil = null,
     ) =>
         client.query(
             'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
-                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "endsAt", "validFrom", "updatedAt") ' +
-                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, $6, $7, NOW())",
-            [id, planId, number, published, superseded, endsAt, validFrom],
+                '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "endsAt", "validFrom", "validUntil", "updatedAt") ' +
+                "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', $4, $5, $6, $7, $8, NOW())",
+            [id, planId, number, published, superseded, endsAt, validFrom, validUntil],
         );
     const subscription = (tenantId, pendingPlan) =>
         client.query(
@@ -1713,6 +1714,158 @@ describe('a scheduled change learns the version it was quoted at', () => {
         await apply(MIGRATION);
 
         assert.deepEqual(await quoted(), { 'to-another-plan': 'pro-2' });
+    });
+
+    /**
+     * A moment as Prisma stores it in a `TIMESTAMP(3)` column: UTC, written
+     * without an offset, `hours` from the start of today's UTC day.
+     */
+    const utc = (hours) => {
+        const now = new Date();
+        const at =
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) + hours * 3_600_000;
+        return new Date(at).toISOString().replace('T', ' ').replace('Z', '');
+    };
+    const hoursFromNow = (hours) =>
+        new Date(Date.now() + hours * 3_600_000).toISOString().replace('T', ' ').replace('Z', '');
+
+    test('the version stood for is the one on sale by its dates, as the platform reads them', async () => {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+        await version('starter-1', 'STARTER', 1, '2026-01-01');
+        // Its last day was yesterday: no longer sold.
+        await version(
+            'last-day-passed-1',
+            'LAST_DAY_PASSED',
+            1,
+            '2026-01-01',
+            null,
+            null,
+            null,
+            utc(-24),
+        );
+        await subscription('to-a-plan-whose-last-day-passed', 'LAST_DAY_PASSED');
+        // Its last day is today: still sold, to the end of it.
+        await version(
+            'last-day-today-1',
+            'LAST_DAY_TODAY',
+            1,
+            '2026-01-01',
+            null,
+            null,
+            null,
+            utc(0),
+        );
+        await subscription('to-a-plan-whose-last-day-is-today', 'LAST_DAY_TODAY');
+        // Superseded, but given a last day that has not come: sold until then,
+        // while its successor has not begun.
+        await version(
+            'still-on-sale-1',
+            'STILL_ON_SALE',
+            1,
+            '2026-01-01',
+            '2026-09-01',
+            null,
+            null,
+            utc(24),
+        );
+        await version('still-on-sale-2', 'STILL_ON_SALE', 2, '2026-09-01', null, null, utc(48));
+        await subscription('to-a-plan-superseded-but-still-on-sale', 'STILL_ON_SALE');
+        // Of two on sale, the one begun later, whatever its number.
+        await version('later-start-5', 'LATER_START', 5, '2026-01-01', null, null, '2026-01-01');
+        await version('later-start-4', 'LATER_START', 4, '2026-01-01', null, null, '2026-06-01');
+        await subscription('to-a-plan-whose-later-start-has-the-lower-number', 'LATER_START');
+        // A version with no start of its own comes after one that has a start.
+        await version('no-start-2', 'NO_START', 2, '2026-01-01');
+        await version('no-start-1', 'NO_START', 1, '2026-01-01', null, null, '2026-01-01');
+        await subscription('to-a-plan-whose-newest-has-no-start', 'NO_START');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), {
+            'to-a-plan-superseded-but-still-on-sale': 'still-on-sale-1',
+            'to-a-plan-whose-last-day-is-today': 'last-day-today-1',
+            'to-a-plan-whose-last-day-passed': null,
+            'to-a-plan-whose-later-start-has-the-lower-number': 'later-start-4',
+            'to-a-plan-whose-newest-has-no-start': 'no-start-1',
+        });
+    });
+
+    // A session ahead of UTC would read a start still to come as begun, one
+    // behind it an end already past as still to come — each where the column
+    // is read as the session's local time instead of the UTC it holds.
+    for (const [zone, what, plan, row, expectedOnSale] of [
+        [
+            'Pacific/Kiritimati',
+            'a version that begins in three hours',
+            'BEGINS_LATER',
+            () =>
+                version(
+                    'begins-later-1',
+                    'BEGINS_LATER',
+                    1,
+                    '2026-01-01',
+                    null,
+                    null,
+                    hoursFromNow(3),
+                ),
+            null,
+        ],
+        [
+            'Pacific/Pago_Pago',
+            'a version that ended an hour ago',
+            'ENDED_AN_HOUR_AGO',
+            () => version('ended-1', 'ENDED_AN_HOUR_AGO', 1, '2026-01-01', null, hoursFromNow(-1)),
+            null,
+        ],
+    ]) {
+        test(`a session in ${zone} reads ${what} as the UTC it is stored in`, async () => {
+            await freshGround();
+            await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+            await version('starter-1', 'STARTER', 1, '2026-01-01');
+            await row();
+            await subscription('to-the-plan', plan);
+
+            await client.query(`SET TIME ZONE '${zone}'`);
+            try {
+                await apply(MIGRATION);
+            } finally {
+                await client.query('RESET TIME ZONE');
+            }
+
+            assert.deepEqual(await quoted(), { 'to-the-plan': expectedOnSale });
+        });
+    }
+
+    test('a schema from before the version dates chooses as the platform does without them', async () => {
+        await freshGround();
+        await client.query('ALTER TABLE "subscriptions" DROP COLUMN "pendingChangeVersionId"');
+        await client.query(
+            'ALTER TABLE "plan_versions" DROP COLUMN "validUntil", DROP COLUMN "validFrom", DROP COLUMN "endsAt"',
+        );
+        const undated = (id, planId, number, superseded = null) =>
+            client.query(
+                'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
+                    '"monthlyNet", "yearlyNet", "changeNote", "publishedAt", "supersededAt", "updatedAt") ' +
+                    "VALUES ($1, $2, $3, '[]', '{}', 10, 100, 'note', '2026-01-01', $4, NOW())",
+                [id, planId, number, superseded],
+            );
+        await undated('starter-1', 'STARTER', 1);
+        // Without a last day, a superseded version is not on sale.
+        await undated('replaced-1', 'REPLACED', 1);
+        await undated('replaced-2', 'REPLACED', 2, '2026-03-01');
+        await subscription('to-a-plan-whose-newer-version-was-superseded', 'REPLACED');
+        // Without a start, the higher number is the later one.
+        await undated('numbered-1', 'NUMBERED', 1);
+        await undated('numbered-3', 'NUMBERED', 3);
+        await subscription('to-a-plan-with-two-versions-on-sale', 'NUMBERED');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await quoted(), {
+            'to-a-plan-whose-newer-version-was-superseded': 'replaced-1',
+            'to-a-plan-with-two-versions-on-sale': 'numbered-3',
+        });
     });
 
     test('a second run pins nothing published since the first', async () => {

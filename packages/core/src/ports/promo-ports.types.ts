@@ -142,8 +142,20 @@ export interface PromoCodeRepository {
      * together, and the second one's answer is the refusal, not a driver error.
      */
     create(data: CreatePromoCodeData): Promise<PromoCodeRecord>;
-    update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord>;
-    softDelete(id: string): Promise<void>;
+    /**
+     * Changes the code under `id` only while it is not deleted, in the one
+     * write that changes it, and answers `null` where no such code is there —
+     * none under `id`, or one deleted, even since the platform read it
+     * (`SC-PROMO-032`).
+     */
+    update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord | null>;
+    /**
+     * Marks the code under `id` deleted only while it is not, in the one
+     * write that marks it, and answers whether it did: a second delete,
+     * however close behind the first, leaves the day it was deleted
+     * (`SC-PROMO-032`).
+     */
+    softDelete(id: string): Promise<boolean>;
     /**
      * Atomic slot reservation: increments `redemptionsCount` and checks
      * `status === 'ACTIVE' && (maxRedemptions IS NULL || redemptionsCount + heldCount < maxRedemptions)`.

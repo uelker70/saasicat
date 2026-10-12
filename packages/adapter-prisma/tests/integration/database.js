@@ -48,8 +48,12 @@ function composeSchema() {
     return `${header}\n${fragments.join('\n')}`;
 }
 
-/** The `PrismaClient` class generated into `<package>/.integration-tmp/<suite>`. */
-export function generatedPrismaClient(suite) {
+/**
+ * Generates a client from the composed fragments into
+ * `<package>/.integration-tmp/<suite>/generated-client` and returns that
+ * directory. Generating needs no database.
+ */
+export function generatePrismaClient(suite) {
     const workDir = join(packageRoot, '.integration-tmp', suite);
     rmSync(workDir, { recursive: true, force: true });
     mkdirSync(workDir, { recursive: true });
@@ -60,7 +64,12 @@ export function generatedPrismaClient(suite) {
         env: { ...process.env, PRISMA_HIDE_UPDATE_MESSAGE: '1' },
         stdio: 'inherit',
     });
-    return require(join(workDir, 'generated-client')).PrismaClient;
+    return join(workDir, 'generated-client');
+}
+
+/** The `PrismaClient` class generated into `<package>/.integration-tmp/<suite>`. */
+export function generatedPrismaClient(suite) {
+    return require(generatePrismaClient(suite)).PrismaClient;
 }
 
 function sqlStatements(file) {

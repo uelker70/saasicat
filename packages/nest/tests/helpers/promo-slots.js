@@ -146,6 +146,7 @@ export class MemoryPromoCodes {
 
     async update(id, data) {
         const row = this.codes.get(id);
+        if (!row || row.deletedAt) return null;
         const defined = Object.fromEntries(
             Object.entries(data).filter(([, value]) => value !== undefined),
         );
@@ -157,7 +158,10 @@ export class MemoryPromoCodes {
     }
 
     async softDelete(id) {
-        this.codes.get(id).deletedAt = new Date();
+        const row = this.codes.get(id);
+        if (!row || row.deletedAt) return false;
+        row.deletedAt = new Date();
+        return true;
     }
 
     async claimSlot(id) {

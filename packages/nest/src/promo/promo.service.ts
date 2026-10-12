@@ -209,6 +209,15 @@ type Verdict =
           shownRate: number;
       };
 
+/** The answer for a code there is none of to act on: unknown, or deleted. */
+function codeNotFound(id: string): NotFoundException {
+    return new NotFoundException({
+        code: PROMO_ERROR_CODES.PROMO_CODE_NOT_FOUND,
+        message: 'Code not found',
+        params: { promoCodeId: id, promoCode: null },
+    });
+}
+
 @Injectable()
 export class PromoCodesService {
     constructor(
@@ -298,14 +307,7 @@ export class PromoCodesService {
      * ones `create` would accept. Pausing alone is always possible.
      */
     async update(id: string, input: UpdatePromoCodeData): Promise<PromoCodeRecord> {
-        const existing = await this.promoRepo.findById(id);
-        if (!existing) {
-            throw new NotFoundException({
-                code: PROMO_ERROR_CODES.PROMO_CODE_NOT_FOUND,
-                message: 'Code not found',
-                params: { promoCodeId: id, promoCode: null },
-            });
-        }
+        const existing = await this.liveCode(id);
 
         if (input.maxRedemptions != null && existing.maxRedemptions != null) {
             if (input.maxRedemptions < existing.maxRedemptions) {
@@ -325,10 +327,13 @@ export class PromoCodesService {
         );
         await assertCodeTerms(termsAfter(existing, input), changed, this.ruleContext());
 
-        return this.promoRepo.update(id, input);
+        const updated = await this.promoRepo.update(id, input);
+        if (!updated) throw codeNotFound(id);
+        return updated;
     }
 
     async softDelete(id: string): Promise<void> {
+        await this.liveCode(id);
         const redemptions = await this.redemptionRepo.countByPromoCode(id);
         const held = await this.liveHeldCount(id);
         if (redemptions > 0 || held > 0) {
@@ -339,7 +344,7 @@ export class PromoCodesService {
                 params: { promoCodeId: id, redemptions, held },
             });
         }
-        await this.promoRepo.softDelete(id);
+        if (!(await this.promoRepo.softDelete(id))) throw codeNotFound(id);
     }
 
     async findAll(filter: PromoCodeFilter = {}): Promise<PromoCodeRecord[]> {
@@ -351,14 +356,19 @@ export class PromoCodesService {
     async findOne(id: string): Promise<PromoCodeRecord> {
         await this.lazyExpire();
         await this.holds?.expireDue(new Date(), id);
+        return this.liveCode(id);
+    }
+
+    /**
+     * The code under `id`, or the refusal reading, changing and deleting it
+     * share where there is none to act on: a deleted code is read, changed and
+     * deleted no more than one that never existed (`SC-PROMO-032`). A change or
+     * a delete asks the store again in its write, since the code can be
+     * deleted between this read and that write.
+     */
+    private async liveCode(id: string): Promise<PromoCodeRecord> {
         const code = await this.promoRepo.findById(id);
-        if (!code || code.deletedAt) {
-            throw new NotFoundException({
-                code: PROMO_ERROR_CODES.PROMO_CODE_NOT_FOUND,
-                message: 'Code not found',
-                params: { promoCodeId: id, promoCode: null },
-            });
-        }
+        if (!code || code.deletedAt) throw codeNotFound(id);
         return code;
     }
 

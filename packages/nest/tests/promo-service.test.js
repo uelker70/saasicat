@@ -64,6 +64,7 @@ class FakePromoRepo {
     }
     async update(id, data) {
         const cur = this.byId.get(id);
+        if (!cur || cur.deletedAt) return null;
         const next = { ...cur, ...data };
         this.byId.set(id, next);
         this.byCode.set(next.code, next);
@@ -71,7 +72,9 @@ class FakePromoRepo {
     }
     async softDelete(id) {
         const cur = this.byId.get(id);
+        if (!cur || cur.deletedAt) return false;
         cur.deletedAt = new Date();
+        return true;
     }
     async claimSlot() {
         return true;
@@ -658,6 +661,85 @@ describe('a code that has been redeemed is kept', () => {
         await svc.softDelete(created.id);
         assert.ok((await promoRepo.findById(created.id)).deletedAt instanceof Date);
     });
+});
+
+// A deleted code keeps its name (SC-PROMO-028), and the rest of it is what it
+// was when it was deleted: its terms, and the day it was deleted.
+describe('a deleted code stays as it was deleted', () => {
+    const refusedAsNotFound = (id) => (error) => {
+        assert.equal(error.getStatus(), 404);
+        assert.equal(error.response.code, 'PROMO_CODE_NOT_FOUND');
+        assert.deepEqual(error.response.params, { promoCodeId: id, promoCode: null });
+        return true;
+    };
+
+    async function aDeletedCode() {
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({ promoRepo });
+        const created = await svc.create(BASE_INPUT);
+        await svc.softDelete(created.id);
+        return {
+            promoRepo,
+            svc,
+            id: created.id,
+            deleted: { ...(await promoRepo.findById(created.id)) },
+        };
+    }
+
+    // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+    test('a change to it is refused as a code that does not exist, and changes nothing', async () => {
+        const { promoRepo, svc, id, deleted } = await aDeletedCode();
+
+        await assert.rejects(() => svc.update(id, { value: 50 }), refusedAsNotFound(id));
+        assert.deepEqual(await promoRepo.findById(id), deleted);
+    });
+
+    // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+    test('deleting it again is refused the same way, and keeps the day it was deleted', async () => {
+        const { promoRepo, svc, id, deleted } = await aDeletedCode();
+
+        await assert.rejects(() => svc.softDelete(id), refusedAsNotFound(id));
+        assert.equal((await promoRepo.findById(id)).deletedAt, deleted.deletedAt);
+    });
+
+    /** A store in which the code is deleted after the platform read it, before it writes. */
+    class DeletedInBetween extends FakePromoRepo {
+        async findById(id) {
+            const row = await super.findById(id);
+            return row && { ...row, deletedAt: null };
+        }
+    }
+
+    for (const [action, call] of [
+        ['a change', (svc, id) => svc.update(id, { value: 50 })],
+        ['a delete', (svc, id) => svc.softDelete(id)],
+    ]) {
+        // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+        test(`${action} that meets a code deleted since it was read is refused the same way`, async () => {
+            const promoRepo = new DeletedInBetween();
+            const svc = buildSvc({ promoRepo });
+            const created = await svc.create(BASE_INPUT);
+            const deletedAt = new Date('2026-10-01T00:00:00.000Z');
+            promoRepo.byId.get(created.id).deletedAt = deletedAt;
+
+            await assert.rejects(() => call(svc, created.id), refusedAsNotFound(created.id));
+            const row = promoRepo.byId.get(created.id);
+            assert.equal(row.deletedAt, deletedAt);
+            assert.equal(row.value, '25');
+        });
+    }
+
+    for (const [action, call] of [
+        ['a change', (svc) => svc.update('never-created', { value: 50 })],
+        ['a delete', (svc) => svc.softDelete('never-created')],
+    ]) {
+        // @requirement SC-PROMO-032 — A deleted code stays as it was deleted
+        test(`${action} of a code that never existed is refused the same way`, async () => {
+            const svc = buildSvc({ promoRepo: new FakePromoRepo() });
+
+            await assert.rejects(() => call(svc), refusedAsNotFound('never-created'));
+        });
+    }
 });
 
 describe('what a code promised at redemption stays with the redemption', () => {

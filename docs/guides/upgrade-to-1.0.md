@@ -2405,11 +2405,16 @@ between reaches the customer as an offer, never through a change they confirmed 
    `PlanVersion`, from `prisma-fragments/01-subscription.prisma` and `03-plan-versions.prisma`;
    `saasicat schema check` names what is missing.
 2. Run the migration once, before `db push` where you use one. A change already scheduled to another
-   plan is given the version live when the file runs:
+   plan is given the version on sale when the file runs, chosen as the platform chooses it — begun,
+   its last day not past, not ended, superseded only while a last day it was given runs, the latest
+   begun first — with every date read as UTC:
 
     ```bash
     psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql
     ```
+
+    The file chooses only in the run that adds the column, so a database that ran a copy from
+    `1.0.0-rc.26` or earlier keeps what that run chose.
 
 - **A `PendingPlanQueryPort` of your own** returns `pendingChangeVersionId` on each
   `DuePendingPlanChange`. It is required, so your build stops until it does: a query that left it
@@ -2541,6 +2546,17 @@ change saves every field it names (`SC-PROMO-027`).
   amount beyond the column answers `500`.
 - **Code of your own that redeems a code it looked up** checks `deletedAt`, as the platform's
   callers do: `findByCode` no longer hides a deleted one.
+
+### A deleted promo code is changed and deleted no further
+
+Changing a promo code the operator deleted, or deleting it again, answers `404 PROMO_CODE_NOT_FOUND`,
+as reading it already did, and so does a code that never existed (`SC-PROMO-032`) — also where the
+code is deleted between the platform's read and its write, which two operators can bring about.
+
+- **A `PromoCodeRepository` of your own** changes and marks a code only while it is not deleted, in
+  the write itself: `update` answers `null` where no code under the id is live, and `softDelete`
+  answers whether it marked one. A `softDelete` that answers nothing no longer compiles. Both shipped
+  adapters do this, and the persistence contract checks it.
 
 ### A store refuses by code where a request loses a race
 
