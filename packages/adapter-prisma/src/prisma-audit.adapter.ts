@@ -35,10 +35,10 @@ export class PrismaAuditAdapter implements AuditPort {
                 entity: input.entity,
                 entityId: input.entityId,
                 action: input.action,
-                // The port hands `changes` over as plain data, and Prisma writes a
-                // `Json` column as `JSON.stringify` renders it; the assertion names
-                // that for a generated client, which `Record<string, unknown>`
-                // cannot prove to it.
+                // SAFETY: the port hands `changes` over as plain data, and Prisma
+                // writes a `Json` column as `JSON.stringify` renders it; the
+                // assertion names that for a generated client, which
+                // `Record<string, unknown>` cannot prove to it.
                 changes: (input.changes ?? {}) as JsonInputLike,
                 actorTag: buildActorTag(input.actor),
             },
