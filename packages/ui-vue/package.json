@@ -102,7 +102,7 @@
     },
     "dependencies": {
         "@saasicat/core": "workspace:^",
-        "quasar": "^2.24.0"
+        "quasar": "^2.32.2"
     },
     "peerDependencies": {
         "pinia": "^2.0.0 || ^3.0.0",
