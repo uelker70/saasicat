@@ -3109,10 +3109,11 @@ granted to nobody from then, everybody who holds it is told at once and pays les
 without it, and may end at once while it is missing. How it works:
 [Withdrawing a Feature](wire-the-backend.md#withdrawing-a-feature). It comes with version notices:
 where `tenantBilling.versionNotices` is not set, the platform keeps no withdrawal, serves none of
-their routes and reads none in an entitlement check. Such an installation leaves the fragment out
-and declares `FeatureWithdrawal` in `notAdopted`; without that, turning version notices on later
-would hand the platform a store over a table that is not there. Every other installation has to do
-this:
+their routes and reads none in an entitlement check. Such an installation may leave the fragment
+and the migration out; if it does, it declares `FeatureWithdrawal` in `notAdopted`, since turning
+version notices on later would otherwise hand the platform a store over a table that is not there. A
+schema that has the table keeps it out of `notAdopted`, or withdrawals stay off once version notices
+are on. Every installation with version notices on has to do this:
 
 1. **Run the migration, and adopt the fragment.** `feature_withdrawals` keeps one row per
    withdrawal, with a partial unique index that holds a feature to one withdrawal not lifted. Adopt

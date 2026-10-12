@@ -31,8 +31,9 @@ It comes with version notices. Where they are on, run
 `sql/1.0-a-feature-is-withdrawn.postgres.sql`, adopt
 `prisma-fragments/21-feature-withdrawal.prisma`, and handle the notice kinds
 `feature-withdrawn`, `feature-withdrawal-lifted` and `ended-at-once` in your
-`SubscriptionNoticePort`; where they are off, declare `FeatureWithdrawal` in
-`notAdopted`. The action is offered only where every subscription it
+`SubscriptionNoticePort`. Where they are off, both may stay out; a schema
+without the table then declares `FeatureWithdrawal` in `notAdopted`, and one
+with it does not. The action is offered only where every subscription it
 reaches can be found: a `SubscriptionUsagePort` of your own needs
 `listBoundToVersion` and `listByIds`, a `SubscriptionBundleRepository` of your
 own `listOfVersion`, and the plan repository `listVersions`. Ending at once
