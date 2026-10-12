@@ -81,20 +81,23 @@ overrides:
     # IPv6 address inside a trusted subnet. Reached through express, which
     # @nestjs/platform-express brings to the test harness and examples/notesapp;
     # express admits 2.0.8, so an application's own install resolves it anyway.
-    proxy-addr: '^2.0.8'
+    'proxy-addr@^2.0.0': '^2.0.8'
     # GHSA-g2v6-rqmx-r4w6: cross-site scripting through an attribute name the
     # server renderer let through. vue pins @vue/server-renderer to its own
     # version, so the fix is vue 3.5.42; every workspace package already admits
-    # it, and a published package's own range is left as it is.
-    vue: '^3.5.42'
+    # it, and a published package's own range is left as it is. Scoped to 3.x,
+    # so that a workspace range of vue 4 is not held to 3.5; pnpm still narrows
+    # a dependency's peer range that admits 3.x (vue-router's `^3.5.34 || ^4.0.0`)
+    # to `^3.5.42`, so the move to vue 4 removes this entry.
+    'vue@^3.0.0': '^3.5.42'
     # GHSA-68fv-2mgg-jv7q: event-loop denial of service through indexed
     # source-map section offsets. Reached through the Vue compiler, PostCSS and
     # Sass at build time.
-    source-map-js: '^1.2.2'
+    'source-map-js@^1.0.0': '^1.2.2'
     # GHSA-rj75-hqrm-r3gf: quadratic time parsing a flat selector. Reached
     # through stylelint and eslint-plugin-vue, which parse this repository's own
     # styles and templates.
-    postcss-selector-parser: '^7.1.6'
+    'postcss-selector-parser@^7.0.0': '^7.1.6'
     # GHSA-238p-pmpm-9mq7: prototype pollution elsewhere can bypass KaTeX's trust
     # restrictions, fixed in 0.18.2. Reached only through markdownlint's math
     # extension, whose newest release still asks for ^0.16.0, so this lifts it
