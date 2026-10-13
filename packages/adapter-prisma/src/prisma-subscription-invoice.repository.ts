@@ -140,7 +140,10 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
                 invoice.numberYear,
                 numberSequence,
             );
-            const columns = subscriptionInvoiceColumns(invoice, { number, numberSequence });
+            const { payment, collectionDate, ...columns } = subscriptionInvoiceColumns(invoice, {
+                number,
+                numberSequence,
+            });
             const id = randomUUID();
             const row = await db.subscriptionInvoice.create({
                 data: {
@@ -150,6 +153,11 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
                     dueDate: utcMidnightOf(columns.dueDate),
                     servicePeriodFrom: utcMidnightOf(columns.servicePeriodFrom),
                     servicePeriodUntil: utcMidnightOf(columns.servicePeriodUntil),
+                    // Prisma takes no plain null for a JSON column, and this
+                    // package has no `DbNull` to give it instead: left out, the
+                    // column keeps its default, NULL.
+                    payment: payment ?? undefined,
+                    collectionDate: collectionDate === null ? null : utcMidnightOf(collectionDate),
                 },
             });
             // `ON CONFLICT DO NOTHING` on the unique `chargeId`: a charge another

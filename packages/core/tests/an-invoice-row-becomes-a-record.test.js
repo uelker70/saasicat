@@ -43,6 +43,8 @@ const INVOICE = {
     dueDate: '2026-02-15',
     servicePeriodFrom: '2026-02-01',
     servicePeriodUntil: '2026-02-28',
+    payment: null,
+    collectionDate: null,
     currency: 'EUR',
     issuer: { ...PARTY, legalName: 'Issuer GmbH', vatId: 'DE123456789' },
     subscriber: { ...PARTY, customerNumber: 'K-10001' },
@@ -85,6 +87,29 @@ const INVOICE = {
     ],
 };
 
+/** A card, as an invoice collected by it records it. */
+const CARD = {
+    paymentMethodId: 'payment-method-1',
+    gatewayAccount: 'stripe-main',
+    type: 'card',
+    brand: 'visa',
+    last4: '4242',
+    mandateReference: null,
+};
+
+/** A direct debit, as an invoice collected by it records it. */
+const DEBIT = {
+    paymentMethodId: 'payment-method-2',
+    gatewayAccount: 'stripe-main',
+    type: 'sepa_debit',
+    brand: null,
+    last4: '3000',
+    mandateReference: 'MANDAT-0001',
+};
+
+/** The invoice collected by direct debit, on the day it announces and falls due on. */
+const BY_DEBIT = { ...INVOICE, payment: DEBIT, collectionDate: '2026-02-15' };
+
 /** A Prisma `Decimal`: an object that is read through its text. */
 const decimal = (text) => ({ toString: () => text });
 
@@ -103,8 +128,8 @@ function drizzleRows(invoice = INVOICE) {
 }
 
 /** The same invoice as Prisma reads it: days as `Date`s at midnight UTC, amounts as `Decimal`s. */
-function prismaRows() {
-    const { row, lines } = drizzleRows();
+function prismaRows(invoice = INVOICE) {
+    const { row, lines } = drizzleRows(invoice);
     return {
         row: {
             ...row,
@@ -112,6 +137,7 @@ function prismaRows() {
             dueDate: utcMidnightOf(row.dueDate),
             servicePeriodFrom: utcMidnightOf(row.servicePeriodFrom),
             servicePeriodUntil: utcMidnightOf(row.servicePeriodUntil),
+            collectionDate: row.collectionDate === null ? null : utcMidnightOf(row.collectionDate),
             totalNet: decimal(row.totalNet),
             totalTax: decimal(row.totalTax),
             totalGross: decimal(row.totalGross),
@@ -152,6 +178,20 @@ describe('an invoice row becomes a record', () => {
                 ['invoice-1', 'AHP-2026-000001', 1],
             );
             assert.ok(record.lines.every((line) => line.invoiceId === 'invoice-1'));
+        }
+    });
+
+    // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
+    test('that says how the invoice is paid, from either adapter’s row', () => {
+        for (const invoice of [BY_DEBIT, { ...INVOICE, payment: CARD }]) {
+            for (const { row, lines } of [drizzleRows(invoice), prismaRows(invoice)]) {
+                const record = toSubscriptionInvoiceRecord(row, lines);
+
+                assert.deepEqual(
+                    [record.payment, record.collectionDate],
+                    [invoice.payment, invoice.collectionDate],
+                );
+            }
         }
     });
 
@@ -227,6 +267,51 @@ describe('an invoice row becomes a record', () => {
             { taxes: [{ rate: 19, net: 1 }] },
             /taxes of invoice-1 is not an amount/,
         ],
+        [
+            'a payment that is not a payment method',
+            { payment: 'card' },
+            /payment of invoice-1 is not a payment method/,
+        ],
+        [
+            'a payment of a type nothing collects',
+            { payment: { ...CARD, type: 'cash' } },
+            /holds payment.type 'cash'/,
+        ],
+        [
+            'a payment without the last four digits it tells apart by',
+            { payment: { ...CARD, last4: null } },
+            /payment of invoice-1 names no last4/,
+        ],
+        [
+            'a direct debit without the mandate reference it announced',
+            { payment: { ...DEBIT, mandateReference: null }, collectionDate: '2026-02-15' },
+            /payment of invoice-1 names no mandateReference/,
+        ],
+        [
+            'a direct debit without the day it is collected',
+            { payment: DEBIT, collectionDate: null },
+            /collectionDate of invoice-1 is not a day/,
+        ],
+        [
+            'a card with a collection date',
+            { payment: CARD, collectionDate: '2026-02-15' },
+            /collectionDate of invoice-1 is set on an invoice paid by card/,
+        ],
+        [
+            'a collection date on an invoice that is not collected',
+            { payment: null, collectionDate: '2026-02-15' },
+            /collectionDate of invoice-1 is set on an invoice that is not collected/,
+        ],
+        [
+            'a row read without its payment',
+            { payment: undefined },
+            /invoice-1 was read without its payment or its collection date/,
+        ],
+        [
+            'a row read without its collection date',
+            { collectionDate: undefined },
+            /invoice-1 was read without its payment or its collection date/,
+        ],
     ];
     for (const [what, overrides, message] of broken) {
         test(`refuses ${what}`, () => {
@@ -271,6 +356,15 @@ describe('an invoice is written', () => {
             () => drizzleRows({ ...INVOICE, lines: [{ ...INVOICE.lines[0], amountNet: 0.001 }] }),
             /amountNet of 0.001 is not a whole number of cents/,
         );
+    });
+
+    test('with the payment method it is collected with as a copy, which a later change leaves alone', () => {
+        const payment = { ...DEBIT };
+        const { row } = drizzleRows({ ...BY_DEBIT, payment });
+
+        payment.mandateReference = 'CHANGED';
+
+        assert.deepEqual([row.payment, row.collectionDate], [DEBIT, '2026-02-15']);
     });
 
     test('with its days as the days they are, and as midnight UTC where the column takes a date', () => {

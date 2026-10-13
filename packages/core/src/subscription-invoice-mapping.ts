@@ -13,11 +13,13 @@ import {
     SUBSCRIBER_CHARGE_ORIGINS,
     SUBSCRIBER_CHARGE_SOURCES,
 } from './subscriber-ledger-mapping.js';
+import { PAYMENT_METHOD_TYPES } from './subscriber-payment-method-mapping.js';
 import type {
     NewSubscriptionInvoice,
     NewSubscriptionInvoiceLine,
     SubscriptionInvoiceIssuer,
     SubscriptionInvoiceLineRecord,
+    SubscriptionInvoicePayment,
     SubscriptionInvoiceRecord,
     SubscriptionInvoiceSubscriber,
 } from './subscription-invoice.types.js';
@@ -51,6 +53,9 @@ export interface CanonicalSubscriptionInvoiceRow {
     dueDate: unknown;
     servicePeriodFrom: unknown;
     servicePeriodUntil: unknown;
+    /** `null` on an invoice that is not collected, and on one issued before invoices recorded it. */
+    payment: unknown;
+    collectionDate: unknown;
     currency: string;
     issuerParty: unknown;
     subscriberParty: unknown;
@@ -104,6 +109,7 @@ export function toSubscriptionInvoiceRecord(
         dueDate: dayOf(row.dueDate, where('dueDate')),
         servicePeriodFrom: dayOf(row.servicePeriodFrom, where('servicePeriodFrom')),
         servicePeriodUntil: dayOf(row.servicePeriodUntil, where('servicePeriodUntil')),
+        ...collectionOf(row.payment, row.collectionDate, where),
         currency: row.currency,
         issuer: issuerOf(row.issuerParty, where('issuerParty')),
         subscriber: subscriberOf(row.subscriberParty, where('subscriberParty')),
@@ -159,6 +165,8 @@ export interface SubscriptionInvoiceColumns {
     dueDate: CalendarDay;
     servicePeriodFrom: CalendarDay;
     servicePeriodUntil: CalendarDay;
+    payment: SubscriptionInvoicePayment | null;
+    collectionDate: CalendarDay | null;
     currency: string;
     issuerParty: SubscriptionInvoiceIssuer;
     subscriberParty: SubscriptionInvoiceSubscriber;
@@ -204,6 +212,8 @@ export function subscriptionInvoiceColumns(
         dueDate: invoice.dueDate,
         servicePeriodFrom: invoice.servicePeriodFrom,
         servicePeriodUntil: invoice.servicePeriodUntil,
+        payment: invoice.payment ? { ...invoice.payment } : null,
+        collectionDate: invoice.collectionDate,
         currency: invoice.currency,
         issuerParty: { ...invoice.issuer },
         subscriberParty: { ...invoice.subscriber },
@@ -259,6 +269,66 @@ function dayOf(value: unknown, where: Where): CalendarDay {
     throw new Error(`${where.table}.${where.column} of ${where.id} is not a day.`);
 }
 
+/**
+ * How the invoice is paid, read together because each half answers for the
+ * other: a direct debit is announced with its mandate reference and the day it
+ * is collected (`SC-PRIC-028`), and nothing else has a collection date. A row
+ * that breaks either is not an invoice a collection may act on.
+ */
+function collectionOf(
+    payment: unknown,
+    collectionDate: unknown,
+    where: (column: string) => Where,
+): Pick<SubscriptionInvoiceRecord, 'payment' | 'collectionDate'> {
+    const paymentAt = where('payment');
+    // A column the adapter did not read would otherwise pass for an invoice
+    // that is not collected.
+    if (payment === undefined || collectionDate === undefined) {
+        throw new Error(
+            `${paymentAt.table} row ${paymentAt.id} was read without its payment or its collection date.`,
+        );
+    }
+    if (payment === null) {
+        if (collectionDate !== null) {
+            throw new Error(
+                `${paymentAt.table}.collectionDate of ${paymentAt.id} is set on an invoice that is not collected.`,
+            );
+        }
+        return { payment: null, collectionDate: null };
+    }
+    if (typeof payment !== 'object' || Array.isArray(payment)) {
+        throw new Error(`${paymentAt.table}.payment of ${paymentAt.id} is not a payment method.`);
+    }
+    const required = (key: string): string => {
+        const value = textOrNull(payment, key, paymentAt);
+        if (value === null) {
+            throw new Error(`${paymentAt.table}.payment of ${paymentAt.id} names no ${key}.`);
+        }
+        return value;
+    };
+    const type = oneOf(PAYMENT_METHOD_TYPES, required('type'), {
+        ...paymentAt,
+        column: 'payment.type',
+    });
+    const recorded: SubscriptionInvoicePayment = {
+        paymentMethodId: required('paymentMethodId'),
+        gatewayAccount: required('gatewayAccount'),
+        type,
+        brand: textOrNull(payment, 'brand', paymentAt),
+        last4: required('last4'),
+        mandateReference: type === 'sepa_debit' ? required('mandateReference') : null,
+    };
+    if (type !== 'sepa_debit') {
+        if (collectionDate !== null) {
+            throw new Error(
+                `${paymentAt.table}.collectionDate of ${paymentAt.id} is set on an invoice paid by ${type}.`,
+            );
+        }
+        return { payment: recorded, collectionDate: null };
+    }
+    return { payment: recorded, collectionDate: dayOf(collectionDate, where('collectionDate')) };
+}
+
 function footerOf(value: unknown, where: Where): string[] {
     if (!Array.isArray(value) || !value.every((line) => typeof line === 'string')) {
         throw new Error(`${where.table}.${where.column} of ${where.id} is not a list of lines.`);
@@ -285,8 +355,14 @@ function centsText(amount: number, field: string): string {
     return amount.toFixed(2);
 }
 
-function textOrNull(source: Record<string, unknown>, key: string, where: Where): string | null {
-    const value = source[key];
+/** The field `key` of a JSON object as it was read, `undefined` where it has none. */
+function fieldOf(source: object, key: string): unknown {
+    const field: unknown = Object.getOwnPropertyDescriptor(source, key)?.value;
+    return field;
+}
+
+function textOrNull(source: object, key: string, where: Where): string | null {
+    const value = fieldOf(source, key);
     if (value === null || value === undefined) return null;
     if (typeof value !== 'string') {
         throw new Error(`${where.table}.${where.column}.${key} of ${where.id} is not text.`);

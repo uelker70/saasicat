@@ -7,12 +7,15 @@
 
 import { addDaysToDay, dayInZone, lastDayInZone, yearOfDay } from './zoned-day.js';
 import type { TaxPerRate } from './money.js';
+import type { PlanCatalogInvoicing } from './plan-catalog.types.js';
 import type { SubscriberChargeRecord } from './subscriber-ledger.types.js';
+import type { SubscriberPaymentMethodRecord } from './subscriber-payment-method.types.js';
 import type { ContractLineItemRecord } from './subscription-contract.types.js';
 import type {
     NewSubscriptionInvoice,
     NewSubscriptionInvoiceLine,
     SubscriptionInvoiceIssuer,
+    SubscriptionInvoicePayment,
     SubscriptionInvoiceSubscriber,
 } from './subscription-invoice.types.js';
 import type { InvoiceContentDraft, InvoiceTaxLine, TaxTreatment } from './tax.types.js';
@@ -76,8 +79,53 @@ export interface InvoiceDraftInput {
     /** The installation's time zone, which every day the invoice states is read in (`SC-PRIC-045`). */
     timeZone: string;
     numberPrefix: string;
-    /** Days from the issue date to the due date (`SC-PRIC-046`). */
+    /** Days from the issue date to the due date, unless collected by direct debit (`SC-PRIC-046`). */
     paymentTermDays: number;
+    /**
+     * The subscriber's payment method as `invoicePaymentOf` records it, or
+     * `null` where it has none that can be collected.
+     */
+    payment: SubscriptionInvoicePayment | null;
+    /** Days from the issue date to the day a direct debit is collected (`SC-PRIC-028`). */
+    directDebitLeadDays: number;
+}
+
+/**
+ * Calendar days a direct debit is announced before it is collected where
+ * `config/saas.yaml#invoicing` names none: the SEPA rulebook's own notice.
+ */
+export const DIRECT_DEBIT_LEAD_DAYS = 14;
+
+/** The lead time `invoicing` names, or `DIRECT_DEBIT_LEAD_DAYS`. */
+export function directDebitLeadDaysOf(
+    invoicing: Pick<PlanCatalogInvoicing, 'directDebitLeadDays'>,
+): number {
+    return invoicing.directDebitLeadDays ?? DIRECT_DEBIT_LEAD_DAYS;
+}
+
+/**
+ * What an invoice records of the payment method it is collected with, or
+ * `null` where there is none to collect with: the subscriber has no payment
+ * method, or one that cannot be collected as an invoice announces it — a
+ * direct debit without the mandate reference its announcement has to quote
+ * (`SC-PRIC-028`).
+ */
+export function invoicePaymentOf(
+    method: Pick<
+        SubscriberPaymentMethodRecord,
+        'id' | 'gatewayAccount' | 'type' | 'brand' | 'last4' | 'mandateReference'
+    > | null,
+): SubscriptionInvoicePayment | null {
+    if (!method) return null;
+    if (method.type === 'sepa_debit' && method.mandateReference === null) return null;
+    return {
+        paymentMethodId: method.id,
+        gatewayAccount: method.gatewayAccount,
+        type: method.type,
+        brand: method.brand,
+        last4: method.last4,
+        mandateReference: method.type === 'sepa_debit' ? method.mandateReference : null,
+    };
 }
 
 /**
@@ -87,14 +135,31 @@ export interface InvoiceDraftInput {
  * line carries the treatment's rate, and the tax is the adapter's, computed
  * once per rate over the lines' net amounts.
  *
+ * An invoice that asks for an amount records the payment method it is
+ * collected with. A direct debit is collected the lead time after the issue
+ * date, which the invoice announces and falls due on; anything else falls due
+ * the payment term after it (`SC-PRIC-028`, `SC-PRIC-046`). An invoice that
+ * asks for nothing is collected with nothing.
+ *
  * Throws where the charges contradict each other — a currency or a contract
- * line the group cannot have — which no invoice can be drawn up from.
+ * line the group cannot have — which no invoice can be drawn up from, and for
+ * a direct debit without its mandate reference, which `invoicePaymentOf`
+ * never hands over.
  */
 export function draftSubscriptionInvoice(input: InvoiceDraftInput): NewSubscriptionInvoice {
     const { group, treatment, timeZone } = input;
     const lines = linesOf(input);
     const issueDate = dayInZone(input.issuedAt, timeZone);
     const tax = input.tax(lines.map((line) => ({ net: line.amountNet, rate: line.taxRate })));
+    const payment = tax.gross > 0 ? input.payment : null;
+    if (payment?.type === 'sepa_debit' && payment.mandateReference === null) {
+        throw new Error(
+            `Payment method ${payment.paymentMethodId} is a direct debit without a mandate ` +
+                'reference, which an invoice collected by it has to announce.',
+        );
+    }
+    const collectionDate =
+        payment?.type === 'sepa_debit' ? addDaysToDay(issueDate, input.directDebitLeadDays) : null;
     return {
         numberPrefix: input.numberPrefix,
         numberYear: yearOfDay(issueDate),
@@ -104,7 +169,9 @@ export function draftSubscriptionInvoice(input: InvoiceDraftInput): NewSubscript
         contractId: group.contractId,
         issuedAt: input.issuedAt,
         issueDate,
-        dueDate: addDaysToDay(issueDate, input.paymentTermDays),
+        dueDate: collectionDate ?? addDaysToDay(issueDate, input.paymentTermDays),
+        payment: payment ? { ...payment } : null,
+        collectionDate,
         servicePeriodFrom: lines.map((line) => line.periodFrom).sort()[0]!,
         servicePeriodUntil: lines
             .map((line) => line.periodUntil)

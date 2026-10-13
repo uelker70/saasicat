@@ -646,6 +646,8 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
     dueDate: day('dueDate').notNull(),
     servicePeriodFrom: day('servicePeriodFrom').notNull(),
     servicePeriodUntil: day('servicePeriodUntil').notNull(),
+    payment: jsonb('payment'),
+    collectionDate: day('collectionDate'),
     currency: text('currency').notNull(),
     issuerParty: jsonb('issuerParty').notNull(),
     subscriberParty: jsonb('subscriberParty').notNull(),

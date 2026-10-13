@@ -109,6 +109,27 @@ describe('invoices start', () => {
     });
 });
 
+// @requirement SC-PRIC-028 — A direct debit is announced before it is collected
+describe('the payment methods invoices are collected with', () => {
+    test('are read where the file names payment accounts and the platform composes the payments', async () => {
+        const moduleRef = await started(installation({ payments: 'wired' }));
+
+        assert.ok(moduleRef.get(SubscriptionInvoiceService, { strict: false }));
+        await moduleRef.close();
+    });
+
+    test('refuse the start where the file names payment accounts and nothing reads them', async () => {
+        // Its invoices would announce no collection, and nothing would say
+        // why none is ever collected.
+        const message = await refusal(installation({ payments: 'unread' }));
+
+        assert.match(
+            message,
+            /the invoices cannot read the payment methods they are collected with/,
+        );
+    });
+});
+
 // @requirement SC-PRIC-072 — Invoice numbers run without gaps in one range per issuer, restarting each year
 describe('the range of one issuer', () => {
     test('needs the record of the applied settings, without which another legal entity could take it over', async () => {

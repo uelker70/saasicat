@@ -9261,6 +9261,79 @@ stands on its own and leaves the invoice as it was issued (`SC-PRIC-025`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
+    - how an invoice is paid
+        - a direct debit is collected the lead time after the issue date, the day it falls due,
+          under its mandate
+        - the lead time counts in the installation’s zone, across a month and a year, whatever the
+          payment term
+        - a card is recorded with the invoice, which falls due the payment term after the issue date
+        - without a payment method the invoice is not collected and falls due the payment term after
+        - an invoice that asks for ${what} is collected with nothing
+        - an invoice that asks for a cent is collected
+        - refuses a direct debit without the mandate reference it would have to announce
+        - is what the adapter is asked to check, the due date included
+- `packages/core/tests/an-invoice-row-becomes-a-record.test.js`
+    - an invoice row becomes a record
+        - that says how the invoice is paid, from either adapter’s row
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - an issued invoice rendered by the default renderer
+        - (${name}) is the file the German adapter asks for, named by its number
+        - is the same bytes every time, whatever was rendered in between
+        - is dated from the moment the invoice was issued, not the clock
+        - of another invoice is another file, under another identifier
+    - what the page says
+        - the parties, the invoice’s facts, its lines and its total, labelled in German and English
+        - the subscriber’s VAT id and its country by name, under the reverse charge
+        - a direct debit announced with its amount, the day it is collected from and its mandate, in
+          German and English
+        - a card named by the last four digits of its number, and nothing more
+        - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - nothing about a payment where the invoice is not collected
+        - the footer lines and the page’s number on every page of an invoice that runs on
+        - a footer line wider than the page, broken onto the next line, on every page
+        - a name or an address line wider than its column, all of it, line after line
+        - no footer where the invoice carries none
+        - Greek and Cyrillic in their letters, a character its font has no glyph for as ?, and the
+          XML as written but for what XML cannot hold
+    - where the page sets its text
+        - (${name}) keeps every run of text between the margins, clear of every other
+        - (${name}) leaves 5 mm at least between the foot and the text above it
+    - a figure
+        - of ${amount} reads ${page} on the page and ${xml} in the XML
+        - taken off at the smallest amount reads -0,01, as one unit taken back at 0.01
+    - the XML it carries
+        - takes a line off as one unit taken back at a price that is not negative
+        - names the categories and reasons EN 16931 asks for each treatment
+        - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
+        - of a small business with a tax number only, identifies the seller by it
+        - under the reverse charge, names both VAT ids
+    - a font the application passes
+        - is the one the page is set in
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - how an invoice is paid
+        - a direct debit in use is announced with its mandate, collected and due fourteen days after
+          the issue date
+        - the lead time the file names counts instead, whatever the payment term
+        - a card in use is recorded, and the invoice falls due the payment term after the issue date
+        - without a payment method the invoice is not collected and falls due the payment term after
+        - a direct debit without a mandate reference is not announced, and the invoice is issued all
+          the same
+        - is the payment method in use when it is issued: not the one it replaced, and a later one
+          changes nothing
+        - is the subscriber’s own, beside another subscriber’s
+        - is collected with nothing where the invoice asks for nothing
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the payment methods invoices are collected with
+        - are read where the file names payment accounts and the platform composes the payments
+        - refuse the start where the file names payment accounts and nothing reads them
+
+<!-- END proof -->
+
 ### SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
 
 🟡 _(Decided, not yet delivered.)_ 💰 A confirmation that arrives twice records one payment, as
@@ -9645,6 +9718,11 @@ _Tested by:_
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
+        - a direct debit announced with its amount, the day it is collected from and its mandate, in
+          German and English
+        - a card named by the last four digits of its number, and nothing more
+        - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
         - a name or an address line wider than its column, all of it, line after line
@@ -9769,6 +9847,11 @@ _Tested by:_
     - what the page says
         - the parties, the invoice’s facts, its lines and its total, labelled in German and English
         - the subscriber’s VAT id and its country by name, under the reverse charge
+        - a direct debit announced with its amount, the day it is collected from and its mandate, in
+          German and English
+        - a card named by the last four digits of its number, and nothing more
+        - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
         - a name or an address line wider than its column, all of it, line after line
@@ -9891,12 +9974,35 @@ _Tested by:_
         - belong to the new year half an hour after midnight on 1 January, whatever UTC says
         - belong to the old year until midnight in the zone
         - fall due the payment term after the issue date, across a month and a year
+    - how an invoice is paid
+        - a direct debit is collected the lead time after the issue date, the day it falls due,
+          under its mandate
+        - the lead time counts in the installation’s zone, across a month and a year, whatever the
+          payment term
+        - a card is recorded with the invoice, which falls due the payment term after the issue date
+        - without a payment method the invoice is not collected and falls due the payment term after
+        - an invoice that asks for ${what} is collected with nothing
+        - an invoice that asks for a cent is collected
+        - refuses a direct debit without the mandate reference it would have to announce
+        - is what the adapter is asked to check, the due date included
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - the days and the number of an invoice
         - are counted in the installation’s zone: issued at 00:30 on 1 January in Berlin it is the
           new year’s first
         - fall due the payment term the file names after the issue date
         - carry the prefix the file names
+    - how an invoice is paid
+        - a direct debit in use is announced with its mandate, collected and due fourteen days after
+          the issue date
+        - the lead time the file names counts instead, whatever the payment term
+        - a card in use is recorded, and the invoice falls due the payment term after the issue date
+        - without a payment method the invoice is not collected and falls due the payment term after
+        - a direct debit without a mandate reference is not announced, and the invoice is issued all
+          the same
+        - is the payment method in use when it is issued: not the one it replaced, and a later one
+          changes nothing
+        - is the subscriber’s own, beside another subscriber’s
+        - is collected with nothing where the invoice asks for nothing
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - invoices start
         - where they are wired, the file names their range and term, an adapter decides and an
@@ -20116,6 +20222,11 @@ _Tested by:_
         - refuses ${what}, and the file stays
         - still refuses after the migration ran a second time
         - takes a file for another invoice, and none for the same one again
+    - an invoice says how it is paid
+        - a database from before ends up with the schema the fragments declare
+        - an invoice issued before records no payment and keeps the day it is due
+        - a second run leaves a payment recorded in between as it was written
+        - an installation without invoices is left without them, and runs through
 
 <!-- END proof -->
 
@@ -20242,6 +20353,11 @@ _Tested by:_
         - refuses ${what}, and the file stays
         - still refuses after the migration ran a second time
         - takes a file for another invoice, and none for the same one again
+    - an invoice says how it is paid
+        - a database from before ends up with the schema the fragments declare
+        - an invoice issued before records no payment and keeps the day it is due
+        - a second run leaves a payment recorded in between as it was written
+        - an installation without invoices is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

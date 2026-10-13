@@ -823,6 +823,8 @@ CREATE TABLE "subscription_invoices" (
     "dueDate" DATE NOT NULL,
     "servicePeriodFrom" DATE NOT NULL,
     "servicePeriodUntil" DATE NOT NULL,
+    "payment" JSONB,
+    "collectionDate" DATE,
     "currency" TEXT NOT NULL,
     "issuerParty" JSONB NOT NULL,
     "subscriberParty" JSONB NOT NULL,

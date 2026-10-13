@@ -1,7 +1,7 @@
 // Invoices as the store reads them back, one for each treatment the German
-// adapter decides and one long enough to run on to further pages. The tests
-// render them, and CI hands the files to the format's own validators
-// (`scripts/write-samples.mjs`).
+// adapter decides, one for each way an invoice is collected, and one long
+// enough to run on to further pages. The tests render them, and CI hands the
+// files to the format's own validators (`scripts/write-samples.mjs`).
 
 const ISSUED_AT = new Date('2026-02-01T05:15:00.000Z');
 
@@ -46,6 +46,26 @@ const WIDEST_FOOTER = [
 
 const ADAPTER = { name: '@saasicat/tax-de', version: '1.0.0-rc.26' };
 
+/** The direct debit an invoice collected by one records. */
+export const DIRECT_DEBIT = {
+    paymentMethodId: 'payment-method-1',
+    gatewayAccount: 'stripe-main',
+    type: 'sepa_debit',
+    brand: null,
+    last4: '3000',
+    mandateReference: 'MANDAT-2026-0001',
+};
+
+/** The card an invoice collected by one records. */
+export const CARD = {
+    paymentMethodId: 'payment-method-2',
+    gatewayAccount: 'stripe-main',
+    type: 'card',
+    brand: 'visa',
+    last4: '4242',
+    mandateReference: null,
+};
+
 /** A line as the store reads it back. */
 function line(position, title, amountNet, taxRate, overrides = {}) {
     return {
@@ -68,7 +88,16 @@ function line(position, title, amountNet, taxRate, overrides = {}) {
 /** An invoice of `lines` under `treatment`, its tax computed once per rate. */
 function invoice(
     name,
-    { treatment, lines, issuer = ISSUER, subscriber = SUBSCRIBER, footer = FOOTER, number },
+    {
+        treatment,
+        lines,
+        issuer = ISSUER,
+        subscriber = SUBSCRIBER,
+        footer = FOOTER,
+        number,
+        payment = null,
+        collectionDate = null,
+    },
 ) {
     const net = Math.round(lines.reduce((sum, each) => sum + each.amountNet * 100, 0)) / 100;
     const tax = Math.round(net * treatment.rate) / 100;
@@ -86,9 +115,11 @@ function invoice(
             contractId: 'contract-1',
             issuedAt: ISSUED_AT,
             issueDate: '2026-02-01',
-            dueDate: '2026-02-15',
+            dueDate: collectionDate ?? '2026-02-15',
             servicePeriodFrom: '2026-02-01',
             servicePeriodUntil: '2026-02-28',
+            payment,
+            collectionDate,
             currency: 'EUR',
             issuer,
             subscriber,
@@ -112,6 +143,27 @@ export const SAMPLES = [
             line(2, 'Zusatzmodul Werkstattplanung', 19.9, 19),
             line(3, 'Willkommensrabatt 10 %', -4.9, 19),
         ],
+    }),
+    invoice('direct-debit', {
+        treatment: { kind: 'standard', rate: 19, note: null },
+        lines: [line(1, 'Standard, monatlich', 49, 19)],
+        payment: DIRECT_DEBIT,
+        collectionDate: '2026-02-03',
+    }),
+    invoice('card', {
+        treatment: { kind: 'standard', rate: 19, note: null },
+        lines: [line(1, 'Standard, monatlich', 49, 19)],
+        payment: CARD,
+    }),
+    invoice('small-business-direct-debit', {
+        treatment: {
+            kind: 'small-business',
+            rate: 0,
+            note: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+        },
+        lines: [line(1, 'Standard, monatlich', 49, 0)],
+        payment: DIRECT_DEBIT,
+        collectionDate: '2026-02-15',
     }),
     invoice('small-business', {
         treatment: {

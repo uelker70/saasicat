@@ -1962,6 +1962,48 @@ and a line break reads back as something else.
   a tenant name by the same rule, and one of nothing but whitespace, with `field: 'tenantName'`,
   since step 4 makes it the legal name; `invoiceEmail` there is the sign-up's e-mail address.
 
+### An invoice says how it is paid
+
+Where you adopted [invoices](#an-invoice-is-issued-from-the-charge-journal): an invoice now records,
+when it is issued, the subscriber's payment method in use that it is collected with, and an invoice
+collected by SEPA direct debit announces the day it is collected from, with its amount and the
+mandate reference (`SC-PRIC-028`). It falls due on that day, the issue date plus
+`invoicing.directDebitLeadDays`, rather than the payment term after it (`SC-PRIC-046`). Nothing is
+collected yet; collecting follows in this release line.
+
+1. Run the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql
+    ```
+
+    It adds `payment` and `collectionDate` to `subscription_invoices`, both nullable; take the two
+    fields of `prisma-fragments/20-subscription-invoice.prisma` into your schema as well. An invoice
+    issued before records no payment method: it is not collected, and it stays due on the day it
+    states. The file does nothing on a second run, nor without the table.
+
+2. Name the lead time under `invoicing` in `config/saas.yaml` where it is not fourteen days:
+   `directDebitLeadDays`, in calendar days. **It has to be what the mandate your subscribers accepted
+   provides for** — fourteen days is the SEPA rulebook's own notice, and the mandate Stripe shows
+   when a direct debit is set up through `@saasicat/payment-stripe` provides for two. With Stripe's
+   creditor identifier, Stripe sends its own notice of each debit besides.
+3. Where `config/saas.yaml` names `payments`, the invoice run reads the payment methods from
+   `PaymentsModule`, which `SaaSiCatModule` composes and which is global by default. The start
+   refuses invoices that cannot reach them, since none of them would announce a collection.
+
+- **A renderer of your own** states, for an invoice whose `payment` is a direct debit, the amount,
+  `collectionDate` and `payment.mandateReference`, as SEPA asks of the notice before a debit;
+  `zugferdInvoiceRenderer()` says it on the page, in German and English, and in the XML as the
+  payment means (`59`, or `48` for a card with its last four digits), the payment terms' text and the
+  mandate reference. A card is named by its last four digits where a renderer names it at all.
+- **A subscriber whose direct debit has no mandate reference** — a gateway that never reported one —
+  gets invoices that announce no collection; the run says so in the log. Such an invoice is due the
+  payment term after its issue date.
+- **A `SubscriptionInvoiceRepository` of your own** writes and reads the two columns:
+  `subscriptionInvoiceColumns` and `toSubscriptionInvoiceRecord` from `@saasicat/core` carry them,
+  and the persistence contract reads back an invoice collected by direct debit, one by card, and one
+  not collected.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

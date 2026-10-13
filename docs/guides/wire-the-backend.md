@@ -986,7 +986,8 @@ of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only ag
 does a start refuse another legal entity named as the issuer, which would otherwise number on in
 the range of the one before, and the record keeps the corrections of the issuer an invoice
 follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
-`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql` once and
+`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql` and
+`sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` once and
 `sql/1.0-an-invoice-document-is-archived.postgres.sql` after `db push`, name the range and the
 payment term, and wire the repository, the renderer, the archive and the mail beside the journal:
 
@@ -995,6 +996,7 @@ payment term, and wire the repository, the renderer, the archive and the mail be
 invoicing:
     numberPrefix: AHP # AHP-2026-000123
     paymentTermDays: 14 # due 14 days after the issue date
+    directDebitLeadDays: 2 # optional, 14 unless set: as the SEPA mandate provides
     footer: # optional: what a business letter of yours states, on every page
         - 'Amtsgericht München HRB 123456 · Geschäftsführerin: Erika Muster'
         - 'IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001'
@@ -1048,6 +1050,13 @@ archived. Each invoice is put together from what holds on its issue date:
   rule, once per rate (`SC-PRIC-041`);
 - **its days** in the installation's `timeZone`: the issue date, each line's period, and the due
   date, the issue date plus `paymentTermDays` (`SC-PRIC-045`, `SC-PRIC-046`);
+- **how it is paid**: the subscriber's payment method in use, where `config/saas.yaml` names
+  `payments`. An invoice collected by SEPA direct debit announces the amount, the day it is
+  collected from — the issue date plus `directDebitLeadDays`, fourteen unless set — and the mandate
+  reference, and falls due on that day rather than after the payment term (`SC-PRIC-028`). Set the
+  lead time to what the mandate your subscribers accepted provides for; the one Stripe shows provides
+  for two days. An invoice that asks for nothing, one of a subscriber without a payment method, and
+  one of a direct debit whose gateway never named its mandate are not collected;
 - **its lines** in the order of the contract's lines, each naming its charge and its contract line
   (`SC-AUD-013`) and titled as the contract line is.
 

@@ -7,6 +7,7 @@
 
 // @requirement SC-PRIC-078 — The shipped renderer issues an invoice the format's own validators accept
 // @requirement SC-PRIC-042 — An invoice is issued in the format its tax adapter requires
+// @requirement SC-PRIC-028 — A direct debit is announced before it is collected
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -116,6 +117,95 @@ describe('what the page says', () => {
             ),
         );
         assert.ok(!page.some((text) => text.startsWith('USt 0')), 'a rate stood beside no tax');
+    });
+
+    test('a direct debit announced with its amount, the day it is collected from and its mandate, in German and English', async () => {
+        const { content } = await render('direct-debit');
+        const [page] = await pageTexts(content);
+        const said = unspaced(page.join(''));
+        const xml = await embeddedXml(content);
+
+        assert.ok(page.includes('Fällig am / Due date') && page.includes('03.02.2026'));
+        for (const text of [
+            'Der Betrag von 58,31 EUR wird frühestens am 03.02.2026 per SEPA-Lastschrift von ' +
+                'Ihrem Konto mit der Endung 3000 eingezogen, Mandatsreferenz MANDAT-2026-0001.',
+            'The amount of 58,31 EUR is collected by SEPA direct debit from your account ending ' +
+                'in 3000 on or after 03.02.2026, mandate reference MANDAT-2026-0001.',
+        ]) {
+            assert.ok(said.includes(unspaced(text)), text);
+        }
+        assert.ok(
+            xml.includes(
+                '<ram:SpecifiedTradeSettlementPaymentMeans><ram:TypeCode>59</ram:TypeCode>' +
+                    '</ram:SpecifiedTradeSettlementPaymentMeans>',
+            ),
+        );
+        assert.ok(
+            xml.includes(
+                '<ram:DueDateDateTime><udt:DateTimeString format="102">20260203</udt:DateTimeString>' +
+                    '</ram:DueDateDateTime><ram:DirectDebitMandateID>MANDAT-2026-0001' +
+                    '</ram:DirectDebitMandateID></ram:SpecifiedTradePaymentTerms>',
+            ),
+        );
+        assert.ok(xml.includes('<ram:Description>Der Betrag von 58,31 EUR wird frühestens am'));
+    });
+
+    test('a card named by the last four digits of its number, and nothing more', async () => {
+        const { content } = await render('card');
+        const [page] = await pageTexts(content);
+        const said = unspaced(page.join(''));
+        const xml = await embeddedXml(content);
+
+        for (const text of [
+            'Der Betrag wird von Ihrer Karte mit der Endung 4242 eingezogen.',
+            'The amount is charged to your card ending in 4242.',
+        ]) {
+            assert.ok(said.includes(unspaced(text)), text);
+        }
+        assert.ok(
+            xml.includes(
+                '<ram:SpecifiedTradeSettlementPaymentMeans><ram:TypeCode>48</ram:TypeCode>' +
+                    '<ram:ApplicableTradeSettlementFinancialCard><ram:ID>4242</ram:ID>' +
+                    '</ram:ApplicableTradeSettlementFinancialCard>' +
+                    '</ram:SpecifiedTradeSettlementPaymentMeans>',
+            ),
+        );
+        assert.ok(!xml.includes('DirectDebitMandateID'));
+    });
+
+    test('the treatment’s note before how the invoice is paid, each a paragraph of its own', async () => {
+        const [page] = await pageTexts((await render('small-business-direct-debit')).content);
+        const said = unspaced(page.join(''));
+
+        const note = said.indexOf(unspaced('Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.'));
+        const debit = said.indexOf(
+            unspaced('Der Betrag von 49,00 EUR wird frühestens am 15.02.2026'),
+        );
+        assert.ok(note >= 0 && debit > note, JSON.stringify(page));
+    });
+
+    for (const [what, overrides] of [
+        ['the day it is collected from', { collectionDate: null }],
+        [
+            'the mandate it is collected under',
+            { payment: { ...sample('direct-debit').payment, mandateReference: null } },
+        ],
+    ]) {
+        test(`no document for a direct debit without ${what}, which its announcement names`, async () => {
+            await assert.rejects(
+                renderer.render({ ...sample('direct-debit'), ...overrides }),
+                /AHP-2026-000123 is collected by direct debit without the day or the mandate/,
+            );
+        });
+    }
+
+    test('nothing about a payment where the invoice is not collected', async () => {
+        const { content } = await render('standard');
+        const [page] = await pageTexts(content);
+        const xml = await embeddedXml(content);
+
+        assert.ok(!page.some((text) => text.includes('SEPA') || text.includes('Karte')));
+        assert.ok(!xml.includes('PaymentMeans') && !xml.includes('<ram:Description>'));
     });
 
     test('the footer lines and the page’s number on every page of an invoice that runs on', async () => {

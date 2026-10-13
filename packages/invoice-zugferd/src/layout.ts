@@ -1,8 +1,8 @@
 // The page a person reads: an A4 letter laid out after DIN 5008 — the sender
 // above the address field, the issuer and the invoice's facts to the right,
 // the lines in a table that runs on over as many pages as it needs, the tax
-// per rate, the total, the treatment's note, and the footer lines on every
-// page. Every figure on it is the one the XML states.
+// per rate, the total, the treatment's note, how the invoice is paid, and the
+// footer lines on every page. Every figure on it is the one the XML states.
 
 import { PDFName, grayscale, type PDFDocument, type PDFFont, type PDFPage } from 'pdf-lib';
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
@@ -10,6 +10,7 @@ import type { SubscriptionInvoiceRecord } from '@saasicat/core';
 import { taxStatementOf } from './categories.js';
 import { pageAmount, pageDay, pageRate } from './format.js';
 import { LABELS, bilingual, type Label } from './labels.js';
+import { paymentNoteOf } from './payment-note.js';
 
 /** A4, in points. */
 const PAGE = { width: 595.28, height: 841.89 };
@@ -316,7 +317,10 @@ function tableHeader(
     return y - 18;
 }
 
-/** The totals and the treatment's note: how tall they are, and how to draw them from `y` down. */
+/**
+ * The totals, the treatment's note and how the invoice is paid: how tall they
+ * are, and how to draw them from `y` down.
+ */
 function closingLines(
     pen: Pen,
     invoice: SubscriptionInvoiceRecord,
@@ -343,7 +347,16 @@ function closingLines(
     const note = invoice.taxTreatment.note
         ? pen.wrap(invoice.taxTreatment.note, RIGHT - LEFT, 8.5)
         : [];
-    const height = 8 + rows.length * 14 + (note.length > 0 ? 10 + note.length * 11 : 0);
+    const paymentNote = paymentNoteOf(invoice);
+    // German first, then English, each a paragraph of its own.
+    const payment = paymentNote
+        ? [paymentNote.de, paymentNote.en].map((text) => pen.wrap(text, RIGHT - LEFT, 8.5))
+        : [];
+    const paragraphs = [note, ...payment].filter((lines) => lines.length > 0);
+    const height =
+        8 +
+        rows.length * 14 +
+        paragraphs.reduce((total, lines) => total + 10 + lines.length * 11, 0);
 
     return {
         height,
@@ -363,10 +376,12 @@ function closingLines(
                 });
                 y -= 14;
             }
-            y -= 10;
-            for (const text of note) {
-                pen.write(page, text, LEFT, y, 8.5);
-                y -= 11;
+            for (const lines of paragraphs) {
+                y -= 10;
+                for (const text of lines) {
+                    pen.write(page, text, LEFT, y, 8.5);
+                    y -= 11;
+                }
             }
         },
     };

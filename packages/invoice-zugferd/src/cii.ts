@@ -14,6 +14,7 @@ import type {
 
 import { taxStatementOf, type TaxStatement } from './categories.js';
 import { xmlAmount, xmlDay, xmlRate, xmlText } from './format.js';
+import { paymentNoteOf } from './payment-note.js';
 
 /** The guideline id of the EN 16931 profile. */
 export const EN_16931_GUIDELINE = 'urn:cen.eu:en16931:2017';
@@ -23,6 +24,9 @@ const COMMERCIAL_INVOICE = '380';
 
 /** UN/ECE Recommendation 20: one unit. */
 const ONE = 'C62';
+
+/** UNTDID 4461, the payment means an invoice is collected by (BT-81). */
+const PAYMENT_MEANS = { card: '48', sepa_debit: '59' } as const;
 
 const NAMESPACES = [
     'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"',
@@ -123,6 +127,42 @@ function line(entry: SubscriptionInvoiceLineRecord, tax: TaxStatement): string {
     );
 }
 
+/**
+ * How the invoice is paid (BG-16): a SEPA direct debit, or a bank card named
+ * by the last four digits of its number (BT-87), never more. Nothing where
+ * the invoice is not collected — EN 16931 asks for no payment means.
+ */
+function paymentMeans(invoice: SubscriptionInvoiceRecord): string {
+    const { payment } = invoice;
+    if (!payment) return '';
+    const card =
+        payment.type === 'card'
+            ? `<ram:ApplicableTradeSettlementFinancialCard>${element('ram:ID', payment.last4)}</ram:ApplicableTradeSettlementFinancialCard>`
+            : '';
+    return (
+        '<ram:SpecifiedTradeSettlementPaymentMeans>' +
+        `<ram:TypeCode>${PAYMENT_MEANS[payment.type]}</ram:TypeCode>` +
+        card +
+        '</ram:SpecifiedTradeSettlementPaymentMeans>'
+    );
+}
+
+/**
+ * The payment terms: what the page says about how the invoice is paid
+ * (BT-20), the day it is due (BT-9) and the mandate a direct debit is
+ * collected under (BT-89).
+ */
+function paymentTerms(invoice: SubscriptionInvoiceRecord): string {
+    const note = paymentNoteOf(invoice);
+    return (
+        '<ram:SpecifiedTradePaymentTerms>' +
+        element('ram:Description', note && `${note.de} / ${note.en}`) +
+        day('ram:DueDateDateTime', invoice.dueDate) +
+        element('ram:DirectDebitMandateID', invoice.payment?.mandateReference) +
+        '</ram:SpecifiedTradePaymentTerms>'
+    );
+}
+
 function headerTaxes(invoice: SubscriptionInvoiceRecord, tax: TaxStatement): string {
     return invoice.taxes
         .map(
@@ -172,9 +212,10 @@ export function ciiOf(invoice: SubscriptionInvoiceRecord): string {
         '</ram:ActualDeliverySupplyChainEvent></ram:ApplicableHeaderTradeDelivery>' +
         '<ram:ApplicableHeaderTradeSettlement>' +
         element('ram:InvoiceCurrencyCode', invoice.currency) +
+        paymentMeans(invoice) +
         headerTaxes(invoice, tax) +
         period(invoice.servicePeriodFrom, invoice.servicePeriodUntil) +
-        `<ram:SpecifiedTradePaymentTerms>${day('ram:DueDateDateTime', invoice.dueDate)}</ram:SpecifiedTradePaymentTerms>` +
+        paymentTerms(invoice) +
         '<ram:SpecifiedTradeSettlementHeaderMonetarySummation>' +
         element('ram:LineTotalAmount', xmlAmount(lineTotal)) +
         element('ram:TaxBasisTotalAmount', xmlAmount(invoice.totalNet)) +

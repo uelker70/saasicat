@@ -29,6 +29,7 @@ import type {
     NewBundleVersionRetirement,
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
+    SubscriptionInvoicePayment,
     TaxTreatment,
     VatIdCheck,
     NewVersionRetirement,
@@ -6645,6 +6646,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     dueDate: '2026-02-15',
                     servicePeriodFrom: '2026-02-01',
                     servicePeriodUntil: '2026-02-28',
+                    payment: null,
+                    collectionDate: null,
                     currency: 'EUR',
                     issuer: parties.issuer!,
                     subscriber: parties.subscriber,
@@ -7018,6 +7021,55 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 (await invoices.listBySubscriber(subscriberId)).map((each) => each.id),
                 [issued.id],
             );
+        });
+
+        // @requirement SC-PRIC-028
+        // @requirement SC-PRIC-046
+        test('an invoice reads back how it is paid: a direct debit with its mandate and the day it is collected, a card, or nothing', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-payment');
+            if (!account) return;
+            const { invoices, record, invoiceOf } = account;
+            const [february, march, april] = await record(monthly(1), monthly(2), monthly(3));
+            const debit: SubscriptionInvoicePayment = {
+                paymentMethodId: 'payment-method-debit',
+                gatewayAccount: 'stripe-main',
+                type: 'sepa_debit',
+                brand: null,
+                last4: '3000',
+                mandateReference: 'MANDAT-Ä-0001',
+            };
+            const card: SubscriptionInvoicePayment = {
+                paymentMethodId: 'payment-method-card',
+                gatewayAccount: 'stripe-main',
+                type: 'card',
+                brand: 'visa',
+                last4: '4242',
+                mandateReference: null,
+            };
+
+            const issued = [
+                await invoices.issue(
+                    invoiceOf([february!], {
+                        payment: debit,
+                        collectionDate: '2026-02-03',
+                        dueDate: '2026-02-03',
+                    }),
+                ),
+                await invoices.issue(invoiceOf([march!], { payment: card })),
+                await invoices.issue(invoiceOf([april!])),
+            ];
+
+            assert.deepEqual(
+                issued.map((invoice) => [invoice.payment, invoice.collectionDate, invoice.dueDate]),
+                [
+                    [debit, '2026-02-03', '2026-02-03'],
+                    [card, null, '2026-02-15'],
+                    [null, null, '2026-02-15'],
+                ],
+            );
+            for (const invoice of issued) {
+                assert.deepEqual(await invoices.findById(invoice.id), invoice);
+            }
         });
 
         test("a subscriber's invoices come back latest number first, each with its lines in order", async (t) => {
