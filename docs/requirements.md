@@ -9293,6 +9293,7 @@ _Tested by:_
           German and English
         - a card named by the last four digits of its number, and nothing more
         - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - no document for a direct debit without ${what}, which its announcement names
         - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
@@ -9722,6 +9723,7 @@ _Tested by:_
           German and English
         - a card named by the last four digits of its number, and nothing more
         - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - no document for a direct debit without ${what}, which its announcement names
         - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
@@ -9851,6 +9853,7 @@ _Tested by:_
           German and English
         - a card named by the last four digits of its number, and nothing more
         - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - no document for a direct debit without ${what}, which its announcement names
         - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
@@ -21480,6 +21483,10 @@ _Tested by:_
     - PrismaSubscriptionInvoiceRepository
         - issuing draws the year’s next number and writes the invoice with it, in one transaction
         - days reach their date columns as midnight UTC, amounts as two-place text
+        - a direct debit’s collection date reaches its date column as midnight UTC, its payment
+          method as it is
+        - an invoice that is not collected leaves its payment out, which Prisma writes as NULL, and
+          its date NULL
         - a line the unique key left unwritten refuses the invoice by code, naming the charge
         - a year whose row cannot be raised is said, rather than numbered from nothing
         - on the caller’s transaction it opens none of its own, and writes inside a savepoint

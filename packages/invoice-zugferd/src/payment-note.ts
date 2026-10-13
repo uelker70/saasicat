@@ -1,3 +1,6 @@
+// translation-catalogue — the sentences below are German on purpose, with
+// English beside them.
+//
 // What an invoice says about how it is paid, in German and in English, as the
 // page shows it and the XML states it as its payment terms.
 //

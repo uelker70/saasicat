@@ -1196,6 +1196,7 @@ _Tested by:_
           German and English
         - a card named by the last four digits of its number, and nothing more
         - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - no document for a direct debit without ${what}, which its announcement names
         - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
@@ -1625,6 +1626,7 @@ _Tested by:_
           German and English
         - a card named by the last four digits of its number, and nothing more
         - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - no document for a direct debit without ${what}, which its announcement names
         - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
@@ -1754,6 +1756,7 @@ _Tested by:_
           German and English
         - a card named by the last four digits of its number, and nothing more
         - the treatment’s note before how the invoice is paid, each a paragraph of its own
+        - no document for a direct debit without ${what}, which its announcement names
         - nothing about a payment where the invoice is not collected
         - the footer lines and the page’s number on every page of an invoice that runs on
         - a footer line wider than the page, broken onto the next line, on every page
