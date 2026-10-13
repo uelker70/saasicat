@@ -9322,8 +9322,10 @@ _Tested by:_
         - the lead time the file names counts instead, whatever the payment term
         - a card in use is recorded, and the invoice falls due the payment term after the issue date
         - without a payment method the invoice is not collected and falls due the payment term after
-        - a direct debit without a mandate reference is not announced, and the invoice is issued all
-          the same
+        - a direct debit without a mandate reference holds the invoice, which draws no number until
+          the payment method is replaced
+        - a direct debit without a mandate reference holds nothing where the invoice asks for
+          nothing
         - is the payment method in use when it is issued: not the one it replaced, and a later one
           changes nothing
         - is the subscriber’s own, beside another subscriber’s
@@ -10000,8 +10002,10 @@ _Tested by:_
         - the lead time the file names counts instead, whatever the payment term
         - a card in use is recorded, and the invoice falls due the payment term after the issue date
         - without a payment method the invoice is not collected and falls due the payment term after
-        - a direct debit without a mandate reference is not announced, and the invoice is issued all
-          the same
+        - a direct debit without a mandate reference holds the invoice, which draws no number until
+          the payment method is replaced
+        - a direct debit without a mandate reference holds nothing where the invoice asks for
+          nothing
         - is the payment method in use when it is issued: not the one it replaced, and a later one
           changes nothing
         - is the subscriber’s own, beside another subscriber’s

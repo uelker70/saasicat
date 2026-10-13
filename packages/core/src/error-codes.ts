@@ -678,6 +678,13 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED: 'SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED',
     /**
+     * The subscriber's direct debit names no mandate reference
+     * (`paymentMethodId`), which an invoice collected by it has to announce
+     * (`SC-PRIC-028`). The invoice draws no number and waits until the payment
+     * method is replaced.
+     */
+    SUBSCRIPTION_INVOICE_MANDATE_MISSING: 'SUBSCRIPTION_INVOICE_MANDATE_MISSING',
+    /**
      * A file of the invoice's document has another checksum than the one
      * recorded or archived for it (`invoiceId`, `recorded`, `rendered`), and
      * the first stays. The run takes the archived file as the one issued, or —

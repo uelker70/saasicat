@@ -1997,8 +1997,11 @@ collected yet; collecting follows in this release line.
   payment means (`59`, or `48` for a card with its last four digits), the payment terms' text and the
   mandate reference. A card is named by its last four digits where a renderer names it at all.
 - **A subscriber whose direct debit has no mandate reference** — a gateway that never reported one —
-  gets invoices that announce no collection; the run says so in the log. Such an invoice is due the
-  payment term after its issue date.
+  cannot be announced a debit, so its invoices wait, draw no number, and are issued with their
+  announcement once the payment method is replaced: the audit log records
+  `SUBSCRIPTION_INVOICE_HELD` with `SUBSCRIPTION_INVOICE_MANDATE_MISSING` and the payment method's
+  id. An invoice that asks for nothing is issued all the same.
+- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_MANDATE_MISSING`.
 - **A `SubscriptionInvoiceRepository` of your own** writes and reads the two columns:
   `subscriptionInvoiceColumns` and `toSubscriptionInvoiceRecord` from `@saasicat/core` carry them,
   and the persistence contract reads back an invoice collected by direct debit, one by card, and one

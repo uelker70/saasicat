@@ -94,6 +94,7 @@ export function toSubscriptionInvoiceRecord(
     if (!treatment) {
         throw new Error(`${INVOICES}.taxTreatment of ${row.id} is not a tax treatment.`);
     }
+    const dueDate = dayOf(row.dueDate, where('dueDate'));
     return {
         id: row.id,
         number: row.number,
@@ -106,10 +107,10 @@ export function toSubscriptionInvoiceRecord(
         contractId: row.contractId,
         issuedAt: row.issuedAt,
         issueDate: dayOf(row.issueDate, where('issueDate')),
-        dueDate: dayOf(row.dueDate, where('dueDate')),
+        dueDate,
         servicePeriodFrom: dayOf(row.servicePeriodFrom, where('servicePeriodFrom')),
         servicePeriodUntil: dayOf(row.servicePeriodUntil, where('servicePeriodUntil')),
-        ...collectionOf(row.payment, row.collectionDate, where),
+        ...collectionOf(row.payment, row.collectionDate, dueDate, where),
         currency: row.currency,
         issuer: issuerOf(row.issuerParty, where('issuerParty')),
         subscriber: subscriberOf(row.subscriberParty, where('subscriberParty')),
@@ -272,12 +273,15 @@ function dayOf(value: unknown, where: Where): CalendarDay {
 /**
  * How the invoice is paid, read together because each half answers for the
  * other: a direct debit is announced with its mandate reference and the day it
- * is collected (`SC-PRIC-028`), and nothing else has a collection date. A row
- * that breaks either is not an invoice a collection may act on.
+ * is collected (`SC-PRIC-028`), on which it falls due (`SC-PRIC-046`), and
+ * nothing else has a collection date. A row that breaks any of it is not an
+ * invoice a collection may act on, and its document would announce one day
+ * and name another as due.
  */
 function collectionOf(
     payment: unknown,
     collectionDate: unknown,
+    dueDate: CalendarDay,
     where: (column: string) => Where,
 ): Pick<SubscriptionInvoiceRecord, 'payment' | 'collectionDate'> {
     const paymentAt = where('payment');
@@ -326,7 +330,14 @@ function collectionOf(
         }
         return { payment: recorded, collectionDate: null };
     }
-    return { payment: recorded, collectionDate: dayOf(collectionDate, where('collectionDate')) };
+    const collected = dayOf(collectionDate, where('collectionDate'));
+    if (collected !== dueDate) {
+        throw new Error(
+            `${paymentAt.table}.dueDate of ${paymentAt.id} is ${dueDate}, and a direct debit falls due ` +
+                `on the day it is collected, ${collected}.`,
+        );
+    }
+    return { payment: recorded, collectionDate: collected };
 }
 
 function footerOf(value: unknown, where: Where): string[] {

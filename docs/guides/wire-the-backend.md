@@ -1055,8 +1055,9 @@ archived. Each invoice is put together from what holds on its issue date:
   collected from — the issue date plus `directDebitLeadDays`, fourteen unless set — and the mandate
   reference, and falls due on that day rather than after the payment term (`SC-PRIC-028`). Set the
   lead time to what the mandate your subscribers accepted provides for; the one Stripe shows provides
-  for two days. An invoice that asks for nothing, one of a subscriber without a payment method, and
-  one of a direct debit whose gateway never named its mandate are not collected;
+  for two days. An invoice that asks for nothing and one of a subscriber without a payment method
+  are not collected; one of a direct debit whose gateway never named its mandate reference waits, as
+  `SUBSCRIPTION_INVOICE_MANDATE_MISSING`, until the payment method is replaced;
 - **its lines** in the order of the contract's lines, each naming its charge and its contract line
   (`SC-AUD-013`) and titled as the contract line is.
 

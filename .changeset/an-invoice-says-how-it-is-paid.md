@@ -21,9 +21,12 @@ mandate your subscribers accepted provides for; the one Stripe shows provides
 for two days. Any other invoice falls due the payment term after its issue date,
 as before. Nothing is collected yet.
 
-An invoice that asks for nothing, one of a subscriber without a payment method,
-and one of a direct debit whose gateway never named its mandate reference record
-none and are not collected; the last is said in the log.
+An invoice that asks for nothing and one of a subscriber without a payment
+method record none and are not collected. One of a direct debit whose gateway
+never named its mandate reference cannot be announced: it waits, draws no
+number, and is issued with its announcement once the payment method is
+replaced. The audit log records it as `SUBSCRIPTION_INVOICE_HELD` with the new
+code `SUBSCRIPTION_INVOICE_MANDATE_MISSING`.
 
 `zugferdInvoiceRenderer()` states it on the page, in German and English, and in
 the XML: the payment means (`59` for a direct debit, `48` for a card named by

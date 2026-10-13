@@ -496,23 +496,64 @@ describe('how an invoice is paid', () => {
         );
     });
 
-    test('a direct debit without a mandate reference is not announced, and the invoice is issued all the same', async () => {
-        const { run, store, subscriber, paymentMethods } = await aPayingSubscriber();
+    test('a direct debit without a mandate reference holds the invoice, which draws no number until the payment method is replaced', async () => {
+        const { run, store, audits, subscriber, paymentMethods } = await aPayingSubscriber();
+        const { method } = await paymentMethods.recordConfirmed(
+            aDirectDebit(subscriber.id, { mandateReference: null }),
+        );
+
+        assert.deepEqual(await run(new Date('2026-02-01T05:15:00.000Z')), {
+            issued: 0,
+            held: 1,
+            failed: 0,
+        });
+        assert.deepEqual(holdsIn(audits), [
+            [
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_MANDATE_MISSING,
+                { paymentMethodId: method.id },
+            ],
+        ]);
+        assert.deepEqual(store.invoices, []);
+
+        const { method: replaced } = await paymentMethods.recordConfirmed(
+            aDirectDebit(subscriber.id, {
+                paymentMethodRef: 'pm_debit_replaced',
+                confirmedAt: berlin('2026-02-02'),
+            }),
+        );
+        assert.deepEqual(await run(new Date('2026-02-03T05:15:00.000Z')), {
+            issued: 1,
+            held: 0,
+            failed: 0,
+        });
+        const [invoice] = store.invoices;
+        assert.equal(invoice.number, 'AHP-2026-000001');
+        assert.deepEqual(invoice.payment, recordedOf(replaced));
+        assert.equal(invoice.collectionDate, '2026-02-17');
+    });
+
+    test('a direct debit without a mandate reference holds nothing where the invoice asks for nothing', async () => {
+        const paymentMethods = new MemoryPaymentMethods();
+        const installation = anInvoicingInstallation({ paymentMethods });
+        const subscriber = await installation.aSubscriber('t1');
+        const contract = await installation.aContract(subscriber, {
+            lineItems: [
+                line('plan', 'STANDARD', 49, 'Standard, monthly'),
+                line('discount', 'FREE', -49, 'Free first month'),
+            ],
+        });
+        installation.charge(contract, 'plan');
+        installation.charge(contract, 'discount');
         await paymentMethods.recordConfirmed(
             aDirectDebit(subscriber.id, { mandateReference: null }),
         );
 
-        const outcome = await run(new Date('2026-02-01T05:15:00.000Z'));
-
-        assert.deepEqual(outcome, { issued: 1, held: 0, failed: 0 });
-        assert.deepEqual(
-            [
-                store.invoices[0].payment,
-                store.invoices[0].collectionDate,
-                store.invoices[0].dueDate,
-            ],
-            [null, null, '2026-02-15'],
-        );
+        assert.deepEqual(await installation.run(new Date('2026-02-01T05:15:00.000Z')), {
+            issued: 1,
+            held: 0,
+            failed: 0,
+        });
+        assert.equal(installation.store.invoices[0].payment, null);
     });
 
     test('is the payment method in use when it is issued: not the one it replaced, and a later one changes nothing', async () => {

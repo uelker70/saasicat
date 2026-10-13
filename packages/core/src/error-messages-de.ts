@@ -333,6 +333,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Rechnung fehlt, was der Steueradapter {adapter} verlangt: {missing}. Sie wird ausgestellt, sobald es ergänzt ist.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Der Vertrag {contractId} nennt keinen bestätigten Aussteller und Abonnenten – eine Migration hat seine Parteien übernommen, oder er nennt keinen Aussteller –, deshalb werden seine Forderungen nicht in Rechnung gestellt.',
+    SUBSCRIPTION_INVOICE_MANDATE_MISSING:
+        'Die Lastschrift {paymentMethodId} nennt keine Mandatsreferenz, die die Rechnung ankündigen muss. Sie wird ausgestellt, sobald die Zahlungsart ersetzt ist.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'Das Dokument der Rechnung {invoiceId} weicht vom festgehaltenen oder archivierten ab ({rendered} statt {recorded}); das erste bleibt, und der nächste Lauf klärt, welches die Rechnung behält.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:

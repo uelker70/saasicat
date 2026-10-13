@@ -188,14 +188,15 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
     });
 
     test('an invoice that is not collected leaves its payment out, which Prisma writes as NULL, and its date NULL', async () => {
-        // Prisma refuses a plain null for a JSON column; left out, the column
-        // keeps its default.
+        // Prisma refuses a plain null for a JSON column, and under
+        // `strictUndefinedChecks` a field set to `undefined` as well; left
+        // out, the column keeps its default.
         const client = fakeClient();
 
         const issued = await new PrismaSubscriptionInvoiceRepository(client).issue(INVOICE);
 
         const [[, { data: invoice }]] = callsNamed(client, 'create');
-        assert.equal(invoice.payment, undefined);
+        assert.ok(!Object.hasOwn(invoice, 'payment'), 'the data names payment');
         assert.equal(invoice.collectionDate, null);
         assert.deepEqual([issued.payment, issued.collectionDate], [null, null]);
     });

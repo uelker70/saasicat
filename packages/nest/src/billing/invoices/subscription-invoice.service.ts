@@ -16,10 +16,11 @@
 // A group that cannot be invoiced yet is held rather than guessed at: a
 // subscriber whose invoice address has gaps (`SC-PRIC-032`), one the adapter
 // supports no treatment for (`SC-PRIC-039`), a contract whose parties nobody
-// has confirmed (`SC-AUD-012`), or content the law requires and the invoice
-// lacks. Each is logged on every run and written to the audit log once per
-// process; the charges wait on no invoice, and the invoice takes the next
-// number on the first run after what held it is put right.
+// has confirmed (`SC-AUD-012`), content the law requires and the invoice
+// lacks, or a direct debit without the mandate reference the invoice has to
+// announce (`SC-PRIC-028`). Each is logged on every run and written to the
+// audit log once per process; the charges wait on no invoice, and the invoice
+// takes the next number on the first run after what held it is put right.
 //
 // Platform-wide, so inside `RlsBypassPort`. Several instances may run it at
 // once: a charge another one invoiced first is passed over.
@@ -50,7 +51,6 @@ import {
     type RlsBypassPort,
     type SubscriberPaymentMethodRepository,
     type SubscriptionContractRepository,
-    type SubscriptionInvoicePayment,
     type SubscriptionInvoiceRepository,
     type TaxTreatment,
 } from '@saasicat/core';
@@ -256,7 +256,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             ),
         );
         const invoicing = this.settings.invoicing!;
-        const payment = await this.paymentOf(first!.subscriberId);
+        const method = (await this.paymentMethods?.findActive(first!.subscriberId)) ?? null;
         const invoice = draftSubscriptionInvoice({
             group,
             contractLines: contract.lineItems,
@@ -272,9 +272,19 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             timeZone: this.settings.timeZone!,
             numberPrefix: invoicing.numberPrefix,
             paymentTermDays: invoicing.paymentTermDays,
-            payment,
+            payment: invoicePaymentOf(method),
             directDebitLeadDays: directDebitLeadDaysOf(invoicing),
         });
+        // A direct debit whose gateway named no mandate reference cannot be
+        // announced (`SC-PRIC-028`). Issued without a collection, the invoice
+        // could only be corrected by cancelling it; held, it is issued with its
+        // announcement once the payment method is replaced.
+        if (method && !invoice.payment && invoice.totalGross > 0) {
+            throw new Held({
+                code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_MANDATE_MISSING,
+                params: { paymentMethodId: method.id },
+            });
+        }
         const missing = this.taxes.invoiceContentGaps(invoiceContentDraftOf(invoice));
         if (missing.length > 0) {
             throw new Held({
@@ -283,26 +293,6 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             });
         }
         return invoice;
-    }
-
-    /**
-     * The subscriber's payment method in use, as an invoice records it; `null`
-     * where it has none, or one an invoice cannot announce a collection by — a
-     * direct debit whose mandate reference the gateway never named. That one is
-     * said in the log, since the invoice is then not collected.
-     */
-    private async paymentOf(subscriberId: string): Promise<SubscriptionInvoicePayment | null> {
-        const method = await this.paymentMethods?.findActive(subscriberId);
-        if (!method) return null;
-        const payment = invoicePaymentOf(method);
-        if (!payment) {
-            this.logger.warn(
-                `Payment method ${method.id} of subscriber ${subscriberId} is a direct debit without ` +
-                    'a mandate reference, which an invoice has to announce; its invoices are issued ' +
-                    'without a collection until the payment method is replaced.',
-            );
-        }
-        return payment;
     }
 
     /** The recorded settings changes, the oldest first; none without the record. */

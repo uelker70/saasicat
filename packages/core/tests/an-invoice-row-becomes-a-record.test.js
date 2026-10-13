@@ -108,7 +108,12 @@ const DEBIT = {
 };
 
 /** The invoice collected by direct debit, on the day it announces and falls due on. */
-const BY_DEBIT = { ...INVOICE, payment: DEBIT, collectionDate: '2026-02-15' };
+const BY_DEBIT = {
+    ...INVOICE,
+    dueDate: '2026-02-03',
+    payment: DEBIT,
+    collectionDate: '2026-02-03',
+};
 
 /** A Prisma `Decimal`: an object that is read through its text. */
 const decimal = (text) => ({ toString: () => text });
@@ -288,6 +293,11 @@ describe('an invoice row becomes a record', () => {
             /payment of invoice-1 names no mandateReference/,
         ],
         [
+            'a direct debit due on another day than it is collected',
+            { payment: DEBIT, collectionDate: '2026-02-14' },
+            /dueDate of invoice-1 is 2026-02-15, and a direct debit falls due on the day it is collected, 2026-02-14/,
+        ],
+        [
             'a direct debit without the day it is collected',
             { payment: DEBIT, collectionDate: null },
             /collectionDate of invoice-1 is not a day/,
@@ -364,7 +374,7 @@ describe('an invoice is written', () => {
 
         payment.mandateReference = 'CHANGED';
 
-        assert.deepEqual([row.payment, row.collectionDate], [DEBIT, '2026-02-15']);
+        assert.deepEqual([row.payment, row.collectionDate], [DEBIT, '2026-02-03']);
     });
 
     test('with its days as the days they are, and as midnight UTC where the column takes a date', () => {
