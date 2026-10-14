@@ -33,7 +33,9 @@ gateway's code. It is not retried yet, and the subscriber is not told yet.
 session under the attempt key, and `DevPaymentGateway` in memory. A restricted
 Stripe key needs payment intents (write) and charges (read) beside what it had.
 The Stripe gateway now refuses a currency Stripe does not take to the cent,
-such as `JPY` or `ISK`.
+such as `JPY` or `ISK`, and answers an invoice in another currency than its
+account's as failed with the code `saasicat_other_currency`, without sending
+anything.
 
 Adopt `23-subscription-invoice-collection.prisma`, run
 `1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass

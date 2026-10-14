@@ -84,15 +84,16 @@ const NOT_TO_THE_CENT: ReadonlySet<string> = new Set([
 const OTHER_CURRENCY = 'saasicat_other_currency';
 
 /**
- * The statuses of a request Stripe refused as it stands — a parameter it does
- * not take, an object that no longer exists — which no repeat of it changes. A
- * conflict (`409`, such as `idempotency_key_in_use` while the first request
- * under the key is still running) or a lock that timed out says nothing about
- * whether a charge was made, and Stripe's advice is to repeat the request
- * under the same key: those are thrown, whichever class the Stripe library
- * gives them, and the attempt is asked about later.
+ * The statuses of a request Stripe refused as it stands, which no repeat of it
+ * changes: a card declined (`402`), a parameter it does not take or an object
+ * that no longer exists (`400`, `404`). A conflict (`409`, such as
+ * `idempotency_key_in_use` while the first request under the key is still
+ * running) or a lock that timed out (`429`) says nothing about whether a charge
+ * was made, and Stripe's advice is to repeat the request under the same key:
+ * every other status is thrown, whichever class the Stripe library gives it,
+ * and the attempt is asked about later.
  */
-const REFUSED_REQUEST: ReadonlySet<number> = new Set([400, 404]);
+const REFUSED_REQUEST: ReadonlySet<number> = new Set([400, 402, 404]);
 
 /**
  * The reason each of Stripe's codes stands for: a card's decline code, or a
@@ -604,21 +605,25 @@ function reasonOf(code: string | null): CollectionFailureReason {
  * What a refused request is a refusal of. A declined card is answered with the
  * intent it created where there is one; a request Stripe refused as invalid —
  * a payment method detached since, a parameter it does not take — created
- * none and is answered as failed. Anything else — the network, a rate limit, a
- * key reused with other parameters, Stripe's own error, the account's keys —
- * says nothing about whether a charge was made, and is thrown, so the attempt
- * is asked about later.
+ * none and is answered as failed. Anything else — a status `REFUSED_REQUEST`
+ * does not name, the network, a rate limit, a key reused with other
+ * parameters, Stripe's own error, the account's keys — says nothing about
+ * whether a charge was made, and is thrown, so the attempt is asked about
+ * later.
  */
 function refusalOf(error: unknown): CollectionOutcome {
+    if (
+        !(error instanceof Stripe.errors.StripeError) ||
+        !REFUSED_REQUEST.has(error.statusCode ?? 0)
+    ) {
+        throw error;
+    }
     if (error instanceof Stripe.errors.StripeCardError) {
         if (error.payment_intent) return outcomeOf(error.payment_intent);
         const code = error.decline_code ?? error.code ?? null;
         return { status: 'failed', paymentRef: null, reason: reasonOf(code), gatewayCode: code };
     }
-    if (
-        error instanceof Stripe.errors.StripeInvalidRequestError &&
-        REFUSED_REQUEST.has(error.statusCode ?? 0)
-    ) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError) {
         if (error.payment_intent) return outcomeOf(error.payment_intent);
         const code = error.code ?? null;
         return { status: 'failed', paymentRef: null, reason: reasonOf(code), gatewayCode: code };

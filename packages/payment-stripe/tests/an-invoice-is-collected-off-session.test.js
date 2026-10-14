@@ -278,23 +278,39 @@ describe('an answer that says nothing about a charge is thrown, so the attempt i
         });
     }
 
-    test('a conflict is thrown by its status, whichever class the library gives it', async () => {
-        const conflict = new Stripe.errors.StripeInvalidRequestError({
-            type: 'invalid_request_error',
-            code: 'idempotency_key_in_use',
-            message: 'There is currently another in-progress request using this key',
-            statusCode: 409,
-        });
-        const gateway = gatewayWith({
-            paymentIntents: {
-                create: async () => {
-                    throw conflict;
+    for (const [what, conflict] of [
+        [
+            'an invalid request',
+            new Stripe.errors.StripeInvalidRequestError({
+                type: 'invalid_request_error',
+                code: 'idempotency_key_in_use',
+                message: 'There is currently another in-progress request using this key',
+                statusCode: 409,
+            }),
+        ],
+        [
+            'a declined card',
+            new Stripe.errors.StripeCardError({
+                type: 'card_error',
+                code: 'card_declined',
+                decline_code: 'generic_decline',
+                message: 'There is currently another in-progress request using this key',
+                statusCode: 409,
+            }),
+        ],
+    ]) {
+        test(`a conflict is thrown by its status where the library classes it as ${what}`, async () => {
+            const gateway = gatewayWith({
+                paymentIntents: {
+                    create: async () => {
+                        throw conflict;
+                    },
                 },
-            },
-        });
+            });
 
-        await assert.rejects(gateway.collect(BY_CARD), (error) => error === conflict);
-    });
+            await assert.rejects(gateway.collect(BY_CARD), (error) => error === conflict);
+        });
+    }
 });
 
 describe('what became of an attempt is asked of Stripe', () => {

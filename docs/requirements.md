@@ -9608,7 +9608,7 @@ _Tested by:_
         - ${what}
     - an answer that says nothing about a charge is thrown, so the attempt is asked about later
         - ${what}
-        - a conflict is thrown by its status, whichever class the library gives it
+        - a conflict is thrown by its status where the library classes it as ${what}
     - what became of an attempt is asked of Stripe
         - by its key among the customer’s intents created since an hour before it was submitted
         - nothing under its key: the request never arrived
