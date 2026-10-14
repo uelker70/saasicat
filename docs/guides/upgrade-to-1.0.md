@@ -2028,7 +2028,8 @@ replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC
 
     It creates `subscription_invoice_collections` with the partial unique index that holds an
     invoice to one attempt open — planned, or sent and not settled — and none after one succeeded,
-    which `db push` cannot create. It does nothing on a second run, nor without
+    which `db push` cannot create. Where the table exists without the columns of a planned
+    attempt, it adds them and replaces that index. It does nothing on a second run, nor without
     `subscription_invoices`.
 
 3. Pass `persistence.entitlement.invoiceCollectionRepository` as

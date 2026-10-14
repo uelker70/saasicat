@@ -1703,6 +1703,10 @@ _Tested by:_
     - the payment methods invoices are collected with
         - refuse the start where the invoices are collected and nothing records what the subscriber
           is told
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an invoice is collected through its payment gateway
+        - a table without the columns of a planned attempt is brought to the shape the fragments
+          declare, twice, keeping its attempts
 
 <!-- END proof -->
 

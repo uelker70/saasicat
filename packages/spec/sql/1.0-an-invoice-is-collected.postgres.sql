@@ -20,15 +20,21 @@
 --   holds an invoice to one attempt open — planned, or sent and not settled —
 --   and none after one succeeded, which `db push` cannot create.
 --
+--   A `subscription_invoice_collections` that lacks the columns of a planned
+--   attempt — `collectOn`, `announcedAt`, `followedUpAt` — gains them, its
+--   `submittedAt` and `heldAt` stop being required, and its partial unique
+--   index is replaced where it does not hold a planned attempt (`SCHEDULED`).
+--
 -- Skipped, with a notice, where `subscription_invoices` is missing. Nothing is
 -- backfilled: an invoice issued before collecting was switched on is collected
 -- by the next run where it announced a payment method, and has no attempt
 -- until then.
 --
 -- Safe to run again: the table and every index are created only where they are
--- missing, and the foreign key only where its name is not taken. On a database
--- created from `reference-schema.postgres.sql` the whole file does nothing at
--- all.
+-- missing, a column only where it is missing, the partial index replaced only
+-- where it lacks `SCHEDULED`, and the foreign key only where its name is not
+-- taken. On a database created from `reference-schema.postgres.sql` the whole
+-- file does nothing at all.
 
 BEGIN;
 
@@ -70,6 +76,22 @@ BEGIN
         ON "subscription_invoice_collections"("status", "heldAt");
     CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoice_collections_invoiceId_attempt_key"
         ON "subscription_invoice_collections"("invoiceId", "attempt");
+    -- A table without the columns of a planned attempt gains them, and lets a
+    -- planned attempt carry no moment it was sent at; an index that does not
+    -- hold a planned attempt is replaced by one that does.
+    ALTER TABLE "subscription_invoice_collections" ADD COLUMN IF NOT EXISTS "collectOn" DATE;
+    ALTER TABLE "subscription_invoice_collections" ADD COLUMN IF NOT EXISTS "announcedAt" TIMESTAMP(3);
+    ALTER TABLE "subscription_invoice_collections" ADD COLUMN IF NOT EXISTS "followedUpAt" TIMESTAMP(3);
+    ALTER TABLE "subscription_invoice_collections" ALTER COLUMN "submittedAt" DROP NOT NULL;
+    ALTER TABLE "subscription_invoice_collections" ALTER COLUMN "heldAt" DROP NOT NULL;
+    IF EXISTS (
+        SELECT 1 FROM pg_indexes
+         WHERE schemaname = current_schema()
+           AND indexname = 'subscription_invoice_collections_one_open_per_invoice'
+           AND indexdef NOT LIKE '%SCHEDULED%'
+    ) THEN
+        DROP INDEX subscription_invoice_collections_one_open_per_invoice;
+    END IF;
     CREATE UNIQUE INDEX IF NOT EXISTS subscription_invoice_collections_one_open_per_invoice
         ON subscription_invoice_collections ("invoiceId")
         WHERE "status" IN ('SCHEDULED', 'SUBMITTED', 'PENDING', 'SUCCEEDED');

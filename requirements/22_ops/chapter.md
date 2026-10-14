@@ -270,6 +270,9 @@ _Tested by:_
         - an installation without invoices is left without them, and runs through
     - an invoice is collected through its payment gateway
         - a database from before ends up with the schema the fragments declare
+        - a table without the columns of a planned attempt is brought to the shape the fragments
+          declare, twice, keeping its attempts
+        - a planned attempt beside another open one is refused once the table was brought up
         - an invoice takes one attempt that is not settled, and none after one succeeded
         - an installation without invoices is left without the attempts, and runs through
 
@@ -405,6 +408,9 @@ _Tested by:_
         - an installation without invoices is left without them, and runs through
     - an invoice is collected through its payment gateway
         - a database from before ends up with the schema the fragments declare
+        - a table without the columns of a planned attempt is brought to the shape the fragments
+          declare, twice, keeping its attempts
+        - a planned attempt beside another open one is refused once the table was brought up
         - an invoice takes one attempt that is not settled, and none after one succeeded
         - an installation without invoices is left without the attempts, and runs through
 - `tests/build-stamp.test.js`

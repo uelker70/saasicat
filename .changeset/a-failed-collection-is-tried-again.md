@@ -46,4 +46,5 @@ a `CollectionFailedNotice` or a `CollectionAnnouncedNotice`. Each is recorded in
 `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`, and
 `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE` is gone: neither case waits any more.
 `1.0-an-invoice-is-collected.postgres.sql` and fragment 23 carry the planned
-attempts' columns.
+attempts' columns; the migration adds them, and replaces the partial index, on
+a table that exists without them.
