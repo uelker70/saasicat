@@ -819,8 +819,26 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             run.unanswered += 1;
             return;
         }
-        // The request never reached the gateway: the same request, under the
-        // same key, cannot charge twice.
+        // The request never reached the gateway. Where a payment came for the
+        // invoice meanwhile — a late one for an earlier attempt —, nothing is
+        // sent again; otherwise the same request, under the same key, cannot
+        // charge twice.
+        if (await this.collections.abandonPaid(attempt.id, new Date())) {
+            this.logger.log(
+                `Collection attempt ${attempt.attemptKey} is not sent again: invoice ` +
+                    `${attempt.invoiceNumber} was paid meanwhile.`,
+            );
+            await this.writeAudit(attempt.invoiceId, {
+                action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
+                changes: {
+                    number: attempt.invoiceNumber,
+                    attempt: attempt.attempt,
+                    paymentMethodId: attempt.paymentMethodId,
+                    because: 'paid',
+                },
+            });
+            return;
+        }
         await this.send(account, attempt, run);
     }
 

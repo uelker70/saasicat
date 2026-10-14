@@ -14,6 +14,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    COLLECTION_NOT_SENT_PAID,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -328,6 +329,18 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
             const { count } = await db.subscriptionInvoiceCollection.updateMany({
                 where: { id, status: 'FAILED' },
                 data: collectionOutcomeColumns(outcome, at),
+            });
+            return count === 1;
+        });
+    }
+
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        return this.inTurnOf(id, tx, async (db) => {
+            const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            if (row?.status !== 'SUBMITTED' || (await owes(db, row.invoiceId))) return false;
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: 'SUBMITTED' },
+                data: collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
             });
             return count === 1;
         });

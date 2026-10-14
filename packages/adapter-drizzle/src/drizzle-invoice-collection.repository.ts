@@ -30,6 +30,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    COLLECTION_NOT_SENT_PAID,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -436,6 +437,30 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 );
             if (others.length > 0) return false;
             return settle(db, ['FAILED']);
+        });
+    }
+
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        return this.inTurnOf(id, tx, async (db) => {
+            const [row] = await db
+                .select({
+                    invoiceId: subscriptionInvoiceCollections.invoiceId,
+                    status: subscriptionInvoiceCollections.status,
+                })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (row?.status !== 'SUBMITTED' || (await owes(db, row.invoiceId))) return false;
+            const settled = await db
+                .update(subscriptionInvoiceCollections)
+                .set(collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at))
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.id, id),
+                        eq(subscriptionInvoiceCollections.status, 'SUBMITTED'),
+                    ),
+                )
+                .returning({ id: subscriptionInvoiceCollections.id });
+            return settled.length === 1;
         });
     }
 

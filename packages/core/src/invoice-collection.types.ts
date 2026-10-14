@@ -177,3 +177,16 @@ export function collectionStatusOf(outcome: CollectionOutcome): InvoiceCollectio
     if (outcome.status === 'pending') return 'PENDING';
     return 'FAILED';
 }
+
+/**
+ * What an attempt whose request never reached the gateway is settled with
+ * where its invoice was paid meanwhile — a late payment for an earlier
+ * attempt — instead of being sent again: failed, for no reason the
+ * subscriber has to act on, under SaaSiCat's own code.
+ */
+export const COLLECTION_NOT_SENT_PAID: CollectionOutcome = {
+    status: 'failed',
+    paymentRef: null,
+    reason: 'other',
+    gatewayCode: 'saasicat_invoice_paid',
+};

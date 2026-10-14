@@ -37,6 +37,7 @@ import {
     sentCollectionOf,
     collectionOutcomeColumns,
     UNSETTLED_COLLECTION_STATUSES,
+    COLLECTION_NOT_SENT_PAID,
     isEndedRefund,
     openOfCredit,
     owedOn,
@@ -2277,6 +2278,15 @@ export function createMemoryHarness() {
                 return false;
             }
             Object.assign(row, collectionOutcomeColumns(outcome, at));
+            return true;
+        },
+        async abandonPaid(id, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'SUBMITTED') return false;
+            if (stillOwes(state.invoices.find((invoice) => invoice.id === row.invoiceId))) {
+                return false;
+            }
+            Object.assign(row, collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at));
             return true;
         },
         async hold(id, heldBefore, at) {

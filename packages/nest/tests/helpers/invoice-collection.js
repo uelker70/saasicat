@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, mock } from 'node:test';
 import { Logger } from '@nestjs/common';
 import {
+    COLLECTION_NOT_SENT_PAID,
     UNSETTLED_COLLECTION_STATUSES,
     collectionAttemptKey,
     collectionOutcomeColumns,
@@ -261,6 +262,12 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
             );
             if (blocked) return false;
             Object.assign(attempt, collectionOutcomeColumns(outcome, at));
+            return true;
+        },
+        async abandonPaid(id, at) {
+            const attempt = attempts.find((each) => each.id === id);
+            if (attempt?.status !== 'SUBMITTED' || owes(attempt.invoiceId)) return false;
+            Object.assign(attempt, collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at));
             return true;
         },
         async hold(id, heldBefore, at) {

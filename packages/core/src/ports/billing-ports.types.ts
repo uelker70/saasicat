@@ -850,6 +850,17 @@ export interface InvoiceCollectionRepository {
     ): Promise<boolean>;
 
     /**
+     * Settles a `SUBMITTED` attempt whose request never reached the gateway as
+     * `COLLECTION_NOT_SENT_PAID`, at `at`, where its invoice owes nothing —
+     * read in the invoice's turn, which a payment is recorded in — and returns
+     * `true`; `false`, writing nothing, where the invoice still owes something
+     * or the attempt is not `SUBMITTED`. A run asks it before it sends such a
+     * request again, so a payment that arrived meanwhile is never charged a
+     * second time.
+     */
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
+
+    /**
      * Takes on an attempt that is not settled for the run calling it at `at`,
      * where no run took it on since `heldBefore`, and returns `true`; of two
      * concurrent calls exactly one does.

@@ -8555,6 +8555,33 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.ok(!(await collections.listCollectableAgain({ limit: 50 })).includes(ids[1]!));
         });
 
+        // @requirement SC-PRIC-029
+        test('a request that never reached the gateway is settled rather than sent again, where its invoice was paid meanwhile', async (t) => {
+            const account = await payable(t, 'tenant-pay-abandon', 2);
+            if (!account) return;
+            const { collections, payments, attempts, grosses, paymentOf } = account;
+            const [paid, owing] = attempts;
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), false, 'it owes');
+
+            await payments.recordPayment(paymentOf(paid!, 'pi_elsewhere', grosses[0]!));
+
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), true);
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), false, 'settled twice');
+            assert.equal(await collections.abandonPaid(owing!.id, PAID_AT), false);
+            const settled = await collections.findById(paid!.id);
+            assert.deepEqual(
+                [
+                    settled?.status,
+                    settled?.failureReason,
+                    settled?.failureCode,
+                    settled?.paymentRef,
+                    settled?.resolvedAt?.getTime(),
+                ],
+                ['FAILED', 'other', 'saasicat_invoice_paid', null, PAID_AT.getTime()],
+            );
+            assert.equal((await collections.findById(owing!.id))?.status, 'SUBMITTED');
+        });
+
         // @requirement SC-PRIC-083
         test('what a payment brings beyond what its invoice owes is a credit, one cent included', async (t) => {
             const account = await payable(t, 'tenant-pay-beyond', 2);

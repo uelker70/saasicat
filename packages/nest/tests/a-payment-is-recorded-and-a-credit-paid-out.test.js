@@ -320,6 +320,58 @@ describe('an invoice a late payment covered', () => {
         assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED').length, 0);
     });
 
+    test('has a retry whose request never reached the gateway settled rather than sent again', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { collect, collections, gateway, audits, notices, invoice } = installation;
+        const deliver = (event) =>
+            installation.callbacks.handle(MAIN_ACCOUNT, signedCallback(event));
+        // The first collection fails for want of funds; the run plans a retry.
+        gateway.answers.push({
+            status: 'failed',
+            paymentRef: 'pi_first',
+            reason: 'insufficient-funds',
+            gatewayCode: 'insufficient_funds',
+        });
+        await collect(FIRST_RUN);
+        await collect(after(FIRST_RUN, { minutes: 15 }));
+        const [first, retry] = collections.attempts;
+        assert.equal(retry?.status, 'SCHEDULED', 'the premise: a retry is planned');
+
+        // The retry is sent on its day, and its request never arrives.
+        const retryDay = after(FIRST_RUN, { days: 7 });
+        clockAt(retryDay);
+        gateway.answers.push(new Error('the connection was refused'));
+        await collect(retryDay);
+        assert.equal(collections.attempts[1].status, 'SUBMITTED', 'the premise: on its way');
+
+        // The first intent succeeds after all, while the retry is open.
+        await deliver(
+            collectionReported('evt_late', first.attemptKey, succeeded(invoice, 'pi_first')),
+        );
+        const sentBefore = gateway.collections.length;
+
+        const afterTheLease = sinceHeld(collections.attempts[1], INVOICE_COLLECTION_LEASE_MS + 1);
+        clockAt(afterTheLease);
+        await collect(afterTheLease);
+
+        assert.equal(gateway.collections.length, sentBefore, 'the paid invoice was charged again');
+        assert.deepEqual(
+            [collections.attempts[1].status, collections.attempts[1].failureCode],
+            ['FAILED', 'saasicat_invoice_paid'],
+        );
+        assert.ok(
+            ![...notices.rows.values()].some((row) => row.subject === retry.attemptKey),
+            'the subscriber was told of a failure on a paid invoice',
+        );
+        assert.deepEqual(
+            entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN').map(
+                (entry) => entry.because,
+            ),
+            ['paid'],
+        );
+    });
+
     test('has a planned attempt withdrawn rather than sent, naming why', async () => {
         const { collections, payments, gateway, audits, invoice, collect } =
             await anInvoiceToCollect();

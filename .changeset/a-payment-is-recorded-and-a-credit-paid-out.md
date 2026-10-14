@@ -38,8 +38,9 @@ A success in `CollectionOutcome` names what the gateway received, as
 a restricted key needs refunds (read). A success reported for an attempt
 recorded as failed is recorded too: the attempt succeeds and what was planned
 after it is withdrawn. An invoice that owes nothing is collected no further:
-no attempt is started, planned or sent for it, and a failure beside the payment
-is followed up without a notice. `InvoiceCollectionRepository` gains
+no attempt is started, planned or sent for it, a request that never reached the
+gateway is settled rather than sent again (`abandonPaid`), and a failure beside
+the payment is followed up without a notice. `InvoiceCollectionRepository` gains
 `findByKey`, and a refund in another currency than its payment is refused.
 
 The operator reads a subscriber's credits on the tenant's page

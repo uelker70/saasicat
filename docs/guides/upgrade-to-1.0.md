@@ -2104,7 +2104,9 @@ gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
   withdrawn and the attempt succeeds, unless another of the invoice's is on its way or succeeded.
   An invoice that owes nothing — its total no more than what `subscription_invoice_settlements`
   holds against it — is collected no further: `startAttempt`, `plan` and `submitPlanned` write
-  nothing for it in its turn, and `listCollectableAgain` leaves it out.
+  nothing for it in its turn, `listCollectableAgain` leaves it out, and `abandonPaid` settles an
+  attempt whose request never reached the gateway as `COLLECTION_NOT_SENT_PAID` rather than let
+  the run send it again.
 - **A persistence contract harness** gains `subscriberPaymentRepository`, or declares
   `gaps: ['subscriberPayments']`; the collection scenarios need it as well, since an attempt reads
   what the payments settle. Empty the five tables between scenarios with the invoices.
