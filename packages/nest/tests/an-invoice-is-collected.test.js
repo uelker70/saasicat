@@ -401,6 +401,22 @@ describe('collecting starts', () => {
         );
         assert.doesNotThrow(() => installation.collection.onModuleInit());
     });
+
+    // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
+    test('not while an attempt not settled is held at an account the file no longer names, which it names', async () => {
+        const installation = await anInvoiceToCollect('sepa_debit');
+        installation.gateway.answers.push({ status: 'pending', paymentRef: 'pi_debit' });
+        await installation.collect(new Date('2026-02-15T08:00:00.000Z'));
+        installation.collections.attempts[0].gatewayAccount = 'stripe-old';
+
+        await assert.rejects(
+            installation.collection.onApplicationBootstrap(),
+            /Collections not settled are held at 'stripe-old', which config\/saas\.yaml#payments\.accounts no longer names/,
+        );
+
+        installation.collections.attempts[0].status = 'SUCCEEDED';
+        await installation.collection.onApplicationBootstrap();
+    });
 });
 
 // @requirement SC-PRIC-079 — An invoice is collected once it has reached the subscriber

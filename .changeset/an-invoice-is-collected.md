@@ -38,5 +38,7 @@ Adopt `23-subscription-invoice-collection.prisma`, run
 `1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
 `persistence.entitlement.invoiceCollectionRepository` as
 `tenantBilling.chargeJournal.invoices.collections`; the start refuses invoices
-without it where the file names `payments`. A persistence contract harness gains
+without it where the file names `payments`, and refuses to start while a
+collection not settled was sent to an account the file no longer names
+(`SC-PRIC-030`). A persistence contract harness gains
 `invoiceCollectionRepository`, or declares `gaps: ['invoiceCollections']`.

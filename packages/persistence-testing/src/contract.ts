@@ -7504,9 +7504,13 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         /** The moment a run starts an attempt, and the attempt it starts for `invoiceId`. */
         const STARTED_AT = new Date('2026-02-01T05:20:00.000Z');
-        const attemptOf = (invoiceId: string, at = STARTED_AT): NewInvoiceCollection => ({
+        const attemptOf = (
+            invoiceId: string,
+            at = STARTED_AT,
+            gatewayAccount = 'stripe-main',
+        ): NewInvoiceCollection => ({
             invoiceId,
-            gatewayAccount: 'stripe-main',
+            gatewayAccount,
             paymentMethodId: 'payment-method-card',
             paymentMethodType: 'card',
             customerRef: 'cus_1',
@@ -7822,6 +7826,35 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ],
                 ['FAILED', 'mandate-invalid', 'debit_not_authorized', settledAt],
             );
+        });
+
+        // @requirement SC-PRIC-030
+        test('the accounts attempts not settled were sent to are listed, each once, and a settled one is not', async (t) => {
+            const account = await collectable(t, 'tenant-collect-accounts', [{}, {}, {}, {}]);
+            if (!account) return;
+            const { collections, ids } = account;
+            const [first, second, third, fourth] = ids;
+            const pending = await collections.startAttempt(attemptOf(first!));
+            await collections.startAttempt(attemptOf(second!));
+            const settled = await collections.startAttempt(
+                attemptOf(third!, STARTED_AT, 'stripe-old'),
+            );
+            await collections.recordOutcome(
+                pending!.id,
+                { status: 'pending', paymentRef: 'pi_1' },
+                STARTED_AT,
+            );
+            await collections.recordOutcome(
+                settled!.id,
+                { status: 'succeeded', paymentRef: 'pi_3' },
+                STARTED_AT,
+            );
+
+            assert.deepEqual(await collections.accountsInUse(), ['stripe-main']);
+
+            await collections.startAttempt(attemptOf(fourth!, STARTED_AT, 'stripe-old'));
+
+            assert.deepEqual(await collections.accountsInUse(), ['stripe-main', 'stripe-old']);
         });
 
         // @requirement SC-PRIC-034

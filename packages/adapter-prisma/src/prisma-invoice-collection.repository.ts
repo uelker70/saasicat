@@ -166,6 +166,16 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return row ? toInvoiceCollectionRecord(row) : null;
     }
 
+    async accountsInUse(tx?: TransactionContext): Promise<string[]> {
+        const rows = await this.db(tx).subscriptionInvoiceCollection.findMany({
+            where: { status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
+            select: { gatewayAccount: true },
+            distinct: ['gatewayAccount'],
+            orderBy: { gatewayAccount: 'asc' },
+        });
+        return rows.map((row) => row.gatewayAccount);
+    }
+
     async listByInvoice(
         invoiceId: string,
         tx?: TransactionContext,

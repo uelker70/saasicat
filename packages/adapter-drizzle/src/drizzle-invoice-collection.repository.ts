@@ -202,6 +202,17 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         return row ? toInvoiceCollectionRecord(row) : null;
     }
 
+    async accountsInUse(tx?: TransactionContext): Promise<string[]> {
+        const rows = await resolveDb(this.db, tx)
+            .selectDistinct({ gatewayAccount: subscriptionInvoiceCollections.gatewayAccount })
+            .from(subscriptionInvoiceCollections)
+            .where(
+                inArray(subscriptionInvoiceCollections.status, [...UNSETTLED_COLLECTION_STATUSES]),
+            )
+            .orderBy(asc(subscriptionInvoiceCollections.gatewayAccount));
+        return rows.map((row) => row.gatewayAccount);
+    }
+
     async listByInvoice(
         invoiceId: string,
         tx?: TransactionContext,

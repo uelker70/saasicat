@@ -92,7 +92,8 @@ export function invoicingPlatform({
     if (payments === 'wired' || payments === 'unread') {
         composed.tenantBilling.chargeJournal.invoices = {
             ...composed.tenantBilling.chargeJournal.invoices,
-            collections: {},
+            // No attempt is open, so no account has to stay for one.
+            collections: { accountsInUse: async () => [] },
         };
     }
     if (payments === 'wired' || payments === 'uncollected') {

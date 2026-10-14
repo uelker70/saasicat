@@ -767,6 +767,15 @@ export interface InvoiceCollectionRepository {
 
     /** Every attempt of one invoice, the first first. */
     listByInvoice(invoiceId: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord[]>;
+
+    /**
+     * Every gateway account an attempt that is not settled was sent to, each
+     * once — the accounts that have to stay configured until their attempts
+     * settle, since only the account can say what became of them
+     * (`SC-PRIC-030`). Platform-wide: a start asks it before anything is
+     * served, through `RlsBypassPort`.
+     */
+    accountsInUse(tx?: TransactionContext): Promise<string[]>;
 }
 
 // -----------------------------------------------------------------------------

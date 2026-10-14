@@ -2030,7 +2030,9 @@ once, by direct debit from the collection date it announced (`SC-PRIC-079`).
 
 3. Pass `persistence.entitlement.invoiceCollectionRepository` as
    `tenantBilling.chargeJournal.invoices.collections`. The start refuses invoices without it where
-   the file names `payments`, since they announce a collection nothing would make.
+   the file names `payments`, since they announce a collection nothing would make, and refuses to
+   start while a collection not settled was sent to an account the file no longer names: keep an
+   account listed until its collections have settled (`SC-PRIC-030`).
 4. A restricted Stripe key needs payment intents (write) and charges (read) beside what it had; the
    [package's README](../../packages/payment-stripe/README.md) says how to prove the grant.
 

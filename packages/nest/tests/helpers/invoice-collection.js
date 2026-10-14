@@ -117,6 +117,15 @@ export function collectionStore(store) {
         async listByInvoice(invoiceId) {
             return structuredClone(attempts.filter((each) => each.invoiceId === invoiceId));
         },
+        async accountsInUse() {
+            return [
+                ...new Set(
+                    attempts
+                        .filter((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))
+                        .map((each) => each.gatewayAccount),
+                ),
+            ].sort();
+        },
     };
     return collections;
 }

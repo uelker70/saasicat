@@ -790,12 +790,13 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   class does not. What stops a stranger's callback is not the tenant scope but the open setup,
   which names the account, the session and the subscriber together.
 - **At start**, the application refuses to boot when the bound gateways and the accounts in the file
-  disagree, when a payment method in use belongs to an account the file no longer names, and when
-  a sign-up is still waiting for its payment method at such an account — each named in the message.
-  An account stays listed until nothing in use belongs to it. Those checks read platform-wide,
-  before anything is served: the platform wraps them in `RlsBypassPort`, and an implementation of
-  that port which needs a request context, or answers with the caller's tenant scope, turns the
-  check that exists to refuse into one that passes.
+  disagree, when a payment method in use belongs to an account the file no longer names, when a
+  sign-up is still waiting for its payment method at such an account, and — where invoices are
+  collected — when a collection not settled was sent to it, each named in the message. An account
+  stays listed until nothing in use belongs to it and its collections have settled. Those checks
+  read platform-wide, before anything is served: the platform wraps them in `RlsBypassPort`, and an
+  implementation of that port which needs a request context, or answers with the caller's tenant
+  scope, turns the check that exists to refuse into one that passes.
 
 ## The Tax Adapter
 

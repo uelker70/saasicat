@@ -184,6 +184,16 @@ describe('reading', () => {
         assert.ok(statements[0].params.includes('PENDING'));
     });
 
+    test('the accounts in use are those of attempts not settled, each once', async () => {
+        const { repo, statements } = recordingDb([
+            [/^select distinct/i, [['stripe-main'], ['stripe-old']]],
+        ]);
+
+        assert.deepEqual(await repo.accountsInUse(), ['stripe-main', 'stripe-old']);
+        assert.ok(statements[0].params.includes('SUBMITTED'));
+        assert.ok(statements[0].params.includes('PENDING'));
+    });
+
     test('an attempt reads back as a record, by id and with its invoice’s others, the first first', async () => {
         const one = recordingDb([[/^select/i, [attemptRow(1, 'FAILED')]]]);
         const none = recordingDb([]);

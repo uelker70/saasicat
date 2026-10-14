@@ -21,7 +21,14 @@
 //
 // Platform-wide, so inside `RlsBypassPort`.
 
-import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
+import {
+    Inject,
+    Injectable,
+    Logger,
+    type OnApplicationBootstrap,
+    type OnModuleInit,
+    Optional,
+} from '@nestjs/common';
 import {
     INVOICE_COLLECTION_ASK_EVERY_MS,
     INVOICE_COLLECTION_LEASE_MS,
@@ -113,7 +120,7 @@ type CollectionAudit =
       };
 
 @Injectable()
-export class InvoiceCollectionService implements OnModuleInit {
+export class InvoiceCollectionService implements OnModuleInit, OnApplicationBootstrap {
     private readonly logger = new Logger(InvoiceCollectionService.name);
     private readonly audited = new AuditedOnce();
     private readonly timeoutMs = INVOICE_COLLECTION_TIMEOUT_MS;
@@ -152,6 +159,26 @@ export class InvoiceCollectionService implements OnModuleInit {
             'Invoices cannot start:\n- collecting invoices needs the payment accounts under payments ' +
                 'in config/saas.yaml and PaymentsModule, wired globally as it is by default, which ' +
                 'binds a gateway for each account.',
+        );
+    }
+
+    /**
+     * Refuses the start where an attempt that is not settled was sent to an
+     * account the configuration no longer names: only that account can say
+     * what became of it, so it would stay open for good, and a direct debit
+     * on its way can still be collected or returned there (`SC-PRIC-030`).
+     * Read platform-wide, at a boot with no tenant, through the RLS bypass.
+     */
+    async onApplicationBootstrap(): Promise<void> {
+        const held = await readAcrossTenants(this.rlsBypass, () =>
+            this.collections.accountsInUse(),
+        );
+        const unconfigured = this.gateways!.unconfigured(held);
+        if (unconfigured.length === 0) return;
+        throw new Error(
+            `Collections not settled are held at ${unconfigured.map((name) => `'${name}'`).join(', ')}, ` +
+                'which config/saas.yaml#payments.accounts no longer names. List each account again, ' +
+                'with its gateway bound, until its collections have settled.',
         );
     }
 

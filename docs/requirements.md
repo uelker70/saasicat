@@ -9423,6 +9423,10 @@ _Tested by:_
         - and it reads them platform-wide, which needs the bypass frame
         - a payment method in use at an account the file no longer names stops the start, and is
           named
+- `packages/nest/tests/an-invoice-is-collected.test.js`
+    - collecting starts
+        - not while an attempt not settled is held at an account the file no longer names, which it
+          names
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
     - who sees the card
         - a user holding the billing permission sees the payment method in use
@@ -9553,6 +9557,7 @@ _Tested by:_
           attempt
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
+        - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 - `packages/core/tests/a-collection-attempt-row-becomes-a-record.test.js`
     - the key of a collection attempt
@@ -9696,6 +9701,7 @@ _Tested by:_
           attempt
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
+        - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 
 <!-- END proof -->

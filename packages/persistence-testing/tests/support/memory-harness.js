@@ -2169,6 +2169,15 @@ export function createMemoryHarness() {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
             return row ? toInvoiceCollectionRecord(structuredClone(row)) : null;
         },
+        async accountsInUse() {
+            return [
+                ...new Set(
+                    state.invoiceCollections
+                        .filter((row) => unsettled.has(row.status))
+                        .map((row) => row.gatewayAccount),
+                ),
+            ].sort();
+        },
         async listByInvoice(invoiceId) {
             return state.invoiceCollections
                 .filter((row) => row.invoiceId === invoiceId)
