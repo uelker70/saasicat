@@ -873,11 +873,15 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             `Invoice ${invoice.number} is not collected yet: ${waiting.code} ` +
                 `${JSON.stringify(waiting.params)}.`,
         );
-        await this.audited.record(`${invoice.id}|${waiting.code}`, () =>
-            this.writeAudit(invoice.id, {
-                action: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
-                changes: { number: invoice.number, ...waiting },
-            }),
+        // Once per invoice, reason and what the reason names: a debit held
+        // behind a second failure is a wait of its own.
+        await this.audited.record(
+            `${invoice.id}|${waiting.code}|${JSON.stringify(waiting.params)}`,
+            () =>
+                this.writeAudit(invoice.id, {
+                    action: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
+                    changes: { number: invoice.number, ...waiting },
+                }),
         );
     }
 

@@ -630,6 +630,47 @@ describe('a failure the subscriber has not heard of yet', () => {
         assert.equal(collections.attempts[1].collectOn, '2026-03-01');
     });
 
+    test('a debit held behind each of two failures is audited for each', async () => {
+        quietLog();
+        // The first failure's notice is refused once, the second's twice.
+        const refusals = new Map([
+            ['announced-again', 1],
+            ['replace-payment-method', 2],
+        ]);
+        const mail = aMailbox({
+            tellRefuses: (notice) => {
+                if (notice.kind !== 'collection-failed') return false;
+                const left = refusals.get(notice.next.action) ?? 0;
+                refusals.set(notice.next.action, left - 1);
+                return left > 0;
+            },
+        });
+        const { collect, gateway, collections, audits, paymentMethods, subscriber } =
+            await anInvoiceToCollect('sepa_debit', { mail });
+        gateway.answers.push(FUNDS_SHORT, FUNDS_SHORT);
+        const firstOfMarch = berlinMidnight('2026-03-01');
+        await collect(COLLECTED);
+        await collect(clockAt(after(COLLECTED, { minutes: 15 })));
+        await collect(clockAt(firstOfMarch));
+        await collect(clockAt(after(firstOfMarch, { minutes: 15 })));
+        await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'sepa_debit', {
+                paymentMethodRef: 'pm_debit_new',
+                mandateReference: 'MANDAT-NEW',
+                confirmedAt: new Date('2026-03-01T00:20:00.000Z'),
+            }),
+        );
+
+        await collect(clockAt(after(firstOfMarch, { minutes: 30 })));
+
+        assert.deepEqual(
+            entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING').map(
+                (each) => each.params.attemptKey,
+            ),
+            [collections.attempts[0].attemptKey, collections.attempts[1].attemptKey],
+        );
+    });
+
     test('never announces a debit after a failure nobody was told of, even one marked followed up', async () => {
         quietLog();
         const { collect, gateway, mail, collections, notices } = await anInvoiceToCollect(

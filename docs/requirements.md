@@ -9807,6 +9807,7 @@ _Tested by:_
     - a failure the subscriber has not heard of yet
         - holds back the direct debit announced after it until it is told, and the audit log says
           why
+        - a debit held behind each of two failures is audited for each
         - never announces a debit after a failure nobody was told of, even one marked followed up
         - holds back a direct debit planned by a run that stopped before it recorded the failure
     - runs side by side

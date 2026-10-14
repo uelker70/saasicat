@@ -58,13 +58,15 @@ export function anArchive({ problem = null } = {}) {
 /**
  * The application's mail: every invoice it took, after failing the first
  * `failures` with `refusal`, and every collection notice, after failing the
- * first `tellFailures` — of the kind `tellFailing`, where it names one.
+ * first `tellFailures` — of the kind `tellFailing`, where it names one — and
+ * every one `tellRefuses` answers `true` for.
  */
 export function aMailbox({
     failures = 0,
     refusal = 'the mail server refused the message',
     tellFailures = 0,
     tellFailing = null,
+    tellRefuses = null,
 } = {}) {
     let left = failures;
     let tellsLeft = tellFailures;
@@ -82,6 +84,7 @@ export function aMailbox({
             sent.push(structuredClone(mail));
         },
         tell: async (mail) => {
+            if (tellRefuses?.(mail.notice)) throw new Error(refusal);
             if (tellsLeft > 0 && (tellFailing === null || mail.notice.kind === tellFailing)) {
                 tellsLeft -= 1;
                 throw new Error(refusal);
