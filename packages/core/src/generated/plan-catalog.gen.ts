@@ -192,9 +192,13 @@ export interface PlanCatalog {
          */
         numberPrefix: string;
         /**
-         * Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed.
+         * Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed. An invoice collected by direct debit is due on the day it is collected instead, which `directDebitLeadDays` sets.
          */
         paymentTermDays: number;
+        /**
+         * Calendar days between an invoice that is collected by SEPA direct debit and the day it is collected, which the invoice announces with the amount and the mandate reference and on which it falls due (SC-PRIC-028, SC-PRIC-046): with 14, an invoice issued on 1 March is collected from 15 March. Fourteen days unless set, the SEPA rulebook's own notice. A shorter one has to be what the mandate the subscriber accepted provides for — the mandate Stripe shows when a direct debit is set up provides for two days.
+         */
+        directDebitLeadDays?: number;
         /**
          * Lines a business letter of the issuer has to state beyond the invoice's own content, printed at the foot of every page of its document: the register court and number and the managing directors of a GmbH (§ 35a GmbHG), a bank account to pay into, and the like — e.g. ["Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster", "IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001"]. An invoice copies them on its issue date, so a later change leaves the invoices issued before as they were (SC-PRIC-077). At most six lines of 120 characters, which is what fits the foot of a page.
          *

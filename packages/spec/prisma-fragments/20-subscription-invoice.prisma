@@ -24,8 +24,9 @@
 // one issuer; the number is `<prefix>-<year>-<sequence>`.
 //
 // The days an invoice states — its issue date, its due date, the period its
-// charges cover — are calendar days in the installation's time zone, kept as
-// `date` columns; `issuedAt` is the instant it was issued.
+// charges cover, a direct debit's collection date — are calendar days in the
+// installation's time zone, kept as `date` columns; `issuedAt` is the instant
+// it was issued.
 //
 // `origin` and `source` on a line are text holding the charge's closed sets,
 // checked when a row is read (`toSubscriptionInvoiceRecord` in @saasicat/core).
@@ -53,6 +54,13 @@ model SubscriptionInvoice {
     dueDate            DateTime @db.Date
     servicePeriodFrom  DateTime @db.Date
     servicePeriodUntil DateTime @db.Date
+
+    // The payment method it is collected with, copied when it was issued —
+    // its id, account, type and masked details, and a direct debit's mandate
+    // reference; null where it is not collected. A direct debit's collection
+    // date, which the invoice announces and falls due on; null otherwise.
+    payment        Json?
+    collectionDate DateTime? @db.Date
 
     currency        String
     // The parties as the invoice names them, copied when it was issued.

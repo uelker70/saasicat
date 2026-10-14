@@ -140,17 +140,27 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
                 invoice.numberYear,
                 numberSequence,
             );
-            const columns = subscriptionInvoiceColumns(invoice, { number, numberSequence });
+            const { payment, collectionDate, ...columns } = subscriptionInvoiceColumns(invoice, {
+                number,
+                numberSequence,
+            });
             const id = randomUUID();
+            const written = {
+                id,
+                ...columns,
+                issueDate: utcMidnightOf(columns.issueDate),
+                dueDate: utcMidnightOf(columns.dueDate),
+                servicePeriodFrom: utcMidnightOf(columns.servicePeriodFrom),
+                servicePeriodUntil: utcMidnightOf(columns.servicePeriodUntil),
+                collectionDate: collectionDate === null ? null : utcMidnightOf(collectionDate),
+            };
+            // Prisma takes no plain null for a JSON column, this package has no
+            // `DbNull` to give it instead, and a client with
+            // `strictUndefinedChecks` refuses a field set to `undefined`. An
+            // invoice that is not collected therefore carries no `payment` at
+            // all, and the column keeps its default, NULL.
             const row = await db.subscriptionInvoice.create({
-                data: {
-                    id,
-                    ...columns,
-                    issueDate: utcMidnightOf(columns.issueDate),
-                    dueDate: utcMidnightOf(columns.dueDate),
-                    servicePeriodFrom: utcMidnightOf(columns.servicePeriodFrom),
-                    servicePeriodUntil: utcMidnightOf(columns.servicePeriodUntil),
-                },
+                data: payment === null ? written : { ...written, payment },
             });
             // `ON CONFLICT DO NOTHING` on the unique `chargeId`: a charge another
             // invoice took first is waited for and skipped, and the line that

@@ -263,6 +263,11 @@ _Tested by:_
         - refuses ${what}, and the file stays
         - still refuses after the migration ran a second time
         - takes a file for another invoice, and none for the same one again
+    - an invoice says how it is paid
+        - a database from before ends up with the schema the fragments declare
+        - an invoice issued before records no payment and keeps the day it is due
+        - a second run leaves a payment recorded in between as it was written
+        - an installation without invoices is left without them, and runs through
 
 <!-- END proof -->
 
@@ -389,6 +394,11 @@ _Tested by:_
         - refuses ${what}, and the file stays
         - still refuses after the migration ran a second time
         - takes a file for another invoice, and none for the same one again
+    - an invoice says how it is paid
+        - a database from before ends up with the schema the fragments declare
+        - an invoice issued before records no payment and keeps the day it is due
+        - a second run leaves a payment recorded in between as it was written
+        - an installation without invoices is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

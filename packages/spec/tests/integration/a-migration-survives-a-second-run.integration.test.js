@@ -2423,3 +2423,117 @@ describe('an archived invoice document is kept as it was issued', () => {
         assert.equal((await stored()).length, 2);
     });
 });
+
+describe('an invoice says how it is paid', () => {
+    // The migration gives an invoice the payment method it is collected with
+    // and a direct debit's collection date. The second-run suite runs it on
+    // the reference schema, where both columns are already there; these start
+    // from the schema as rc.26 left it, with an invoice already issued.
+
+    const MIGRATION = '1.0-an-invoice-says-how-it-is-paid.postgres.sql';
+
+    /** The reference schema with this migration's columns taken back out. */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query(
+            'ALTER TABLE "subscription_invoices" DROP COLUMN "payment", DROP COLUMN "collectionDate"',
+        );
+    }
+
+    /** An invoice as rc.26 issued it, with the subscriber and contract it names. */
+    async function anInvoiceFromBefore() {
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") ` +
+                `VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_invoices" ("id", "number", "numberPrefix", "numberYear", ' +
+                '"numberSequence", "tenantId", "subscriberId", "subscriptionId", "contractId", ' +
+                '"issuedAt", "issueDate", "dueDate", "servicePeriodFrom", "servicePeriodUntil", ' +
+                '"currency", "issuerParty", "subscriberParty", "taxTreatment", "taxes", ' +
+                '"totalNet", "totalTax", "totalGross") ' +
+                "VALUES ('invoice-1', 'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', 'sub-1', " +
+                "'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', 'EUR', " +
+                "'{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
+        );
+    }
+
+    test('a database from before ends up with the schema the fragments declare', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('an invoice issued before records no payment and keeps the day it is due', async () => {
+        await beforeTheMigration();
+        await anInvoiceFromBefore();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "number", "payment", "collectionDate", "dueDate"::text AS "dueDate" ' +
+                'FROM "subscription_invoices"',
+        );
+        assert.deepEqual(rows, [
+            {
+                number: 'AHP-2026-000001',
+                payment: null,
+                collectionDate: null,
+                dueDate: '2026-10-15',
+            },
+        ]);
+    });
+
+    test('a second run leaves a payment recorded in between as it was written', async () => {
+        await beforeTheMigration();
+        await anInvoiceFromBefore();
+        await apply(MIGRATION);
+        const payment = {
+            paymentMethodId: 'pm-1',
+            gatewayAccount: 'stripe-main',
+            type: 'sepa_debit',
+            brand: null,
+            last4: '3000',
+            mandateReference: 'MANDATE-1',
+        };
+        await client.query(
+            'UPDATE "subscription_invoices" SET "payment" = $1, "collectionDate" = $2',
+            [JSON.stringify(payment), '2026-10-15'],
+        );
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "payment", "collectionDate"::text AS "collectionDate" FROM "subscription_invoices"',
+        );
+        assert.deepEqual(rows, [{ payment, collectionDate: '2026-10-15' }]);
+    });
+
+    test('an installation without invoices is left without them, and runs through', async () => {
+        await freshGround();
+        await client.query('DROP TABLE "subscription_invoices" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_invoices') AS invoices`,
+        );
+        assert.deepEqual(rows, [{ invoices: null }]);
+    });
+});

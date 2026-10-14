@@ -54,6 +54,8 @@ const INVOICE = {
     dueDate: '2026-02-15',
     servicePeriodFrom: '2026-02-01',
     servicePeriodUntil: '2026-02-28',
+    payment: null,
+    collectionDate: null,
     currency: 'EUR',
     issuer: { ...PARTY, legalName: 'Issuer GmbH' },
     subscriber: { ...PARTY, customerNumber: 'K-10001' },
@@ -71,8 +73,26 @@ const INVOICE = {
     lines: [LINE],
 };
 
-/** The rows the client hands back, the way Prisma reads them. */
-const created = (data) => ({ ...data, createdAt: ISSUED_AT });
+/**
+ * The rows the client hands back, the way Prisma reads them: a JSON column the
+ * write left out reads back as NULL.
+ */
+const created = (data) => ({ ...data, payment: data.payment ?? null, createdAt: ISSUED_AT });
+
+/** The invoice collected by direct debit, on the day it announces. */
+const BY_DEBIT = {
+    ...INVOICE,
+    dueDate: '2026-02-03',
+    payment: {
+        paymentMethodId: 'payment-method-1',
+        gatewayAccount: 'stripe-main',
+        type: 'sepa_debit',
+        brand: null,
+        last4: '3000',
+        mandateReference: 'MANDAT-0001',
+    },
+    collectionDate: '2026-02-03',
+};
 
 /** A client whose calls are recorded; `linesWritten` is how many lines `createManyAndReturn` gives back. */
 function fakeClient({ linesWritten = 1, drawn = [{ last: 7 }], rows = [], prefixes = [] } = {}) {
@@ -154,6 +174,31 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
         assert.equal(lines.data[0].invoiceId, invoice.id);
         assert.equal(lines.data[0].periodFrom.toISOString(), '2026-02-01T00:00:00.000Z');
         assert.equal(lines.data[0].amountNet, '49.00');
+    });
+
+    test('a direct debit’s collection date reaches its date column as midnight UTC, its payment method as it is', async () => {
+        const client = fakeClient();
+
+        const issued = await new PrismaSubscriptionInvoiceRepository(client).issue(BY_DEBIT);
+
+        const [[, { data: invoice }]] = callsNamed(client, 'create');
+        assert.equal(invoice.collectionDate.toISOString(), '2026-02-03T00:00:00.000Z');
+        assert.deepEqual(invoice.payment, BY_DEBIT.payment);
+        assert.deepEqual([issued.payment, issued.collectionDate], [BY_DEBIT.payment, '2026-02-03']);
+    });
+
+    test('an invoice that is not collected leaves its payment out, which Prisma writes as NULL, and its date NULL', async () => {
+        // Prisma refuses a plain null for a JSON column, and under
+        // `strictUndefinedChecks` a field set to `undefined` as well; left
+        // out, the column keeps its default.
+        const client = fakeClient();
+
+        const issued = await new PrismaSubscriptionInvoiceRepository(client).issue(INVOICE);
+
+        const [[, { data: invoice }]] = callsNamed(client, 'create');
+        assert.ok(!Object.hasOwn(invoice, 'payment'), 'the data names payment');
+        assert.equal(invoice.collectionDate, null);
+        assert.deepEqual([issued.payment, issued.collectionDate], [null, null]);
     });
 
     test('a line the unique key left unwritten refuses the invoice by code, naming the charge', async () => {

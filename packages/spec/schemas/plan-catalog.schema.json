@@ -272,7 +272,13 @@
                 "paymentTermDays": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed."
+                    "description": "Days from an invoice's issue date to the day it is due (SC-PRIC-046): 14 makes an invoice issued on 1 March due on 15 March; 0 makes it due on the day it is issued. Required, because a term is part of what the subscriber is asked to pay and none is assumed. An invoice collected by direct debit is due on the day it is collected instead, which `directDebitLeadDays` sets."
+                },
+                "directDebitLeadDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 14,
+                    "description": "Calendar days between an invoice that is collected by SEPA direct debit and the day it is collected, which the invoice announces with the amount and the mandate reference and on which it falls due (SC-PRIC-028, SC-PRIC-046): with 14, an invoice issued on 1 March is collected from 15 March. Fourteen days unless set, the SEPA rulebook's own notice. A shorter one has to be what the mandate the subscriber accepted provides for — the mandate Stripe shows when a direct debit is set up provides for two days."
                 },
                 "footer": {
                     "type": "array",

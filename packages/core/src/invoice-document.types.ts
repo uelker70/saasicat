@@ -40,6 +40,10 @@ export interface InvoiceDocument {
  * the invoice's `issuedAt`. A renderer updated between two attempts renders
  * other bytes; while nothing is archived, those take the place of the ones
  * recorded, and the audit log says so (`SC-AUD-019`).
+ *
+ * An invoice collected by direct debit is the notice SEPA asks for before the
+ * debit: its document states the amount, the `collectionDate` and the
+ * `payment.mandateReference` (`SC-PRIC-028`).
  */
 export interface InvoiceRenderer {
     render(invoice: SubscriptionInvoiceRecord): Promise<InvoiceDocument>;

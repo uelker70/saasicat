@@ -4,12 +4,15 @@
 // opens with together, a charge that arises later in the period on an invoice
 // of its own (`SC-PRIC-022`). It copies everything it states on the day it is
 // issued — the issuer and the subscriber as they stand then (`SC-PRIC-026`),
-// the tax treatment the adapter decides then (`SC-PRIC-038`, `SC-PRIC-043`) —
-// so a later change leaves it as it was. Nothing here edits an issued invoice;
+// the tax treatment the adapter decides then (`SC-PRIC-038`, `SC-PRIC-043`),
+// the payment method it is collected with and the day a direct debit is
+// collected (`SC-PRIC-028`) — so a later change leaves it as it was. Nothing
+// here edits an issued invoice;
 // a correction is a cancellation invoice and its replacement (`SC-PRIC-025`).
 
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 import type { TaxAtRate } from './money.js';
+import type { PaymentMethodType } from './payment-gateway.types.js';
 import type { SubscriberChargeOrigin, SubscriberChargeSource } from './subscriber-ledger.types.js';
 import type { TaxTreatment } from './tax.types.js';
 import type { CalendarDay } from './zoned-day.js';
@@ -49,6 +52,25 @@ export interface SubscriptionInvoiceLineRecord {
 /** A line to write: everything but what the store assigns. */
 export type NewSubscriptionInvoiceLine = Omit<SubscriptionInvoiceLineRecord, 'id' | 'invoiceId'>;
 
+/**
+ * The payment method an invoice is collected with, copied from the
+ * subscriber's on the day it was issued — what the invoice tells the
+ * subscriber, so a later change leaves it as it was (`SC-PRIC-028`).
+ */
+export interface SubscriptionInvoicePayment {
+    /** The subscriber's payment method, which the collection charges. */
+    paymentMethodId: string;
+    /** The account in `config/saas.yaml#payments.accounts` that holds it. */
+    gatewayAccount: string;
+    type: PaymentMethodType;
+    /** The card network, such as `visa`; `null` for a direct debit. */
+    brand: string | null;
+    /** The last four digits of the card number or the IBAN. */
+    last4: string;
+    /** The mandate a direct debit is collected under; `null` for a card. */
+    mandateReference: string | null;
+}
+
 /** An invoice as a store reads it back. */
 export interface SubscriptionInvoiceRecord {
     id: string;
@@ -67,8 +89,23 @@ export interface SubscriptionInvoiceRecord {
     issuedAt: Date;
     /** The day it was issued, in the installation's time zone. */
     issueDate: CalendarDay;
-    /** The day it is due: the issue date plus the payment term (`SC-PRIC-046`). */
+    /**
+     * The day it is due (`SC-PRIC-046`): the collection date where it is
+     * collected by direct debit, the issue date plus the payment term otherwise.
+     */
     dueDate: CalendarDay;
+    /**
+     * The payment method it is collected with, as it stood when the invoice
+     * was issued; `null` where it is not collected — the subscriber had no
+     * payment method that can be, or the invoice asks for nothing.
+     */
+    payment: SubscriptionInvoicePayment | null;
+    /**
+     * The day a direct debit is collected from, which the invoice announces
+     * with its amount and mandate reference (`SC-PRIC-028`): the issue date
+     * plus the lead time. `null` unless `payment` is a direct debit.
+     */
+    collectionDate: CalendarDay | null;
     /** The first day its charges cover. */
     servicePeriodFrom: CalendarDay;
     /** The last day its charges cover. */

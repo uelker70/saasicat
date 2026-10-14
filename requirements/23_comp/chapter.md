@@ -779,6 +779,10 @@ _Tested by:_
     - PrismaSubscriptionInvoiceRepository
         - issuing draws the year’s next number and writes the invoice with it, in one transaction
         - days reach their date columns as midnight UTC, amounts as two-place text
+        - a direct debit’s collection date reaches its date column as midnight UTC, its payment
+          method as it is
+        - an invoice that is not collected leaves its payment out, which Prisma writes as NULL, and
+          its date NULL
         - a line the unique key left unwritten refuses the invoice by code, naming the charge
         - a year whose row cannot be raised is said, rather than numbered from nothing
         - on the caller’s transaction it opens none of its own, and writes inside a savepoint

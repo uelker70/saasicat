@@ -27,6 +27,7 @@ import {
     line,
 } from './helpers/invoice-run.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
+import { MAIN_ACCOUNT, MemoryPaymentMethods } from './helpers/payments.js';
 import { TEST_TAX_ADAPTER } from './helpers/tax-adapter.js';
 
 /** The first moment of April in Berlin, in summer time. */
@@ -371,6 +372,245 @@ describe('the days and the number of an invoice', () => {
         await run();
 
         assert.equal(store.invoices[0].number, 'VFX-2026-000001');
+    });
+});
+
+/** A direct debit the gateway confirmed for `subscriberId`, as `MemoryPaymentMethods` records it. */
+function aDirectDebit(subscriberId, overrides = {}) {
+    return {
+        subscriberId,
+        gatewayAccount: MAIN_ACCOUNT,
+        provider: 'stripe',
+        customerRef: `cus_${subscriberId}`,
+        paymentMethodRef: `pm_debit_${subscriberId}`,
+        type: 'sepa_debit',
+        brand: null,
+        last4: '3000',
+        expiryMonth: null,
+        expiryYear: null,
+        country: 'DE',
+        bankCode: '37040044',
+        mandateReference: `MANDAT-${subscriberId}`,
+        confirmedAt: berlin('2026-01-15'),
+        ...overrides,
+    };
+}
+
+/** A card the gateway confirmed for `subscriberId`. */
+function aCard(subscriberId, overrides = {}) {
+    return aDirectDebit(subscriberId, {
+        paymentMethodRef: `pm_card_${subscriberId}`,
+        type: 'card',
+        brand: 'visa',
+        last4: '4242',
+        expiryMonth: 12,
+        expiryYear: 2029,
+        country: null,
+        bankCode: null,
+        mandateReference: null,
+        ...overrides,
+    });
+}
+
+/** What an invoice records of the payment method `method`, the row its store keeps. */
+const recordedOf = (method) => ({
+    paymentMethodId: method.id,
+    gatewayAccount: method.gatewayAccount,
+    type: method.type,
+    brand: method.brand,
+    last4: method.last4,
+    mandateReference: method.mandateReference,
+});
+
+// @requirement SC-PRIC-028 — A direct debit is announced before it is collected
+// @requirement SC-PRIC-046 — An invoice states the day it is due
+describe('how an invoice is paid', () => {
+    /** A charged subscriber of an installation that takes payment methods, with the file's `invoicing`. */
+    async function aPayingSubscriber(invoicing = INVOICING_SETTINGS.invoicing) {
+        const paymentMethods = new MemoryPaymentMethods();
+        const installation = await aChargedSubscriber({
+            settings: { ...INVOICING_SETTINGS, invoicing },
+            paymentMethods,
+        });
+        return { ...installation, paymentMethods };
+    }
+
+    test('a direct debit in use is announced with its mandate, collected and due fourteen days after the issue date', async () => {
+        const { run, store, subscriber, paymentMethods } = await aPayingSubscriber();
+        const { method } = await paymentMethods.recordConfirmed(aDirectDebit(subscriber.id));
+
+        await run(new Date('2026-02-01T05:15:00.000Z'));
+
+        const [invoice] = store.invoices;
+        assert.deepEqual(invoice.payment, recordedOf(method));
+        assert.equal(invoice.payment.mandateReference, `MANDAT-${subscriber.id}`);
+        assert.deepEqual(
+            [invoice.issueDate, invoice.collectionDate, invoice.dueDate],
+            ['2026-02-01', '2026-02-15', '2026-02-15'],
+        );
+    });
+
+    test('the lead time the file names counts instead, whatever the payment term', async () => {
+        const { run, store, subscriber, paymentMethods } = await aPayingSubscriber({
+            numberPrefix: 'AHP',
+            paymentTermDays: 30,
+            directDebitLeadDays: 2,
+        });
+        await paymentMethods.recordConfirmed(aDirectDebit(subscriber.id));
+
+        await run(new Date('2026-02-01T05:15:00.000Z'));
+
+        assert.deepEqual(
+            [store.invoices[0].collectionDate, store.invoices[0].dueDate],
+            ['2026-02-03', '2026-02-03'],
+        );
+    });
+
+    test('a card in use is recorded, and the invoice falls due the payment term after the issue date', async () => {
+        const { run, store, subscriber, paymentMethods } = await aPayingSubscriber({
+            numberPrefix: 'AHP',
+            paymentTermDays: 14,
+            directDebitLeadDays: 2,
+        });
+        const { method } = await paymentMethods.recordConfirmed(aCard(subscriber.id));
+
+        await run(new Date('2026-02-01T05:15:00.000Z'));
+
+        const [invoice] = store.invoices;
+        assert.deepEqual(invoice.payment, recordedOf(method));
+        assert.deepEqual([invoice.collectionDate, invoice.dueDate], [null, '2026-02-15']);
+    });
+
+    test('without a payment method the invoice is not collected and falls due the payment term after', async () => {
+        const { run, store } = await aPayingSubscriber();
+
+        await run(new Date('2026-02-01T05:15:00.000Z'));
+
+        assert.deepEqual(
+            [
+                store.invoices[0].payment,
+                store.invoices[0].collectionDate,
+                store.invoices[0].dueDate,
+            ],
+            [null, null, '2026-02-15'],
+        );
+    });
+
+    test('a direct debit without a mandate reference holds the invoice, which draws no number until the payment method is replaced', async () => {
+        const { run, store, audits, subscriber, paymentMethods } = await aPayingSubscriber();
+        const { method } = await paymentMethods.recordConfirmed(
+            aDirectDebit(subscriber.id, { mandateReference: null }),
+        );
+
+        assert.deepEqual(await run(new Date('2026-02-01T05:15:00.000Z')), {
+            issued: 0,
+            held: 1,
+            failed: 0,
+        });
+        assert.deepEqual(holdsIn(audits), [
+            [
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_MANDATE_MISSING,
+                { paymentMethodId: method.id },
+            ],
+        ]);
+        assert.deepEqual(store.invoices, []);
+
+        const { method: replaced } = await paymentMethods.recordConfirmed(
+            aDirectDebit(subscriber.id, {
+                paymentMethodRef: 'pm_debit_replaced',
+                confirmedAt: berlin('2026-02-02'),
+            }),
+        );
+        assert.deepEqual(await run(new Date('2026-02-03T05:15:00.000Z')), {
+            issued: 1,
+            held: 0,
+            failed: 0,
+        });
+        const [invoice] = store.invoices;
+        assert.equal(invoice.number, 'AHP-2026-000001');
+        assert.deepEqual(invoice.payment, recordedOf(replaced));
+        assert.equal(invoice.collectionDate, '2026-02-17');
+    });
+
+    test('a direct debit without a mandate reference holds nothing where the invoice asks for nothing', async () => {
+        const paymentMethods = new MemoryPaymentMethods();
+        const installation = anInvoicingInstallation({ paymentMethods });
+        const subscriber = await installation.aSubscriber('t1');
+        const contract = await installation.aContract(subscriber, {
+            lineItems: [
+                line('plan', 'STANDARD', 49, 'Standard, monthly'),
+                line('discount', 'FREE', -49, 'Free first month'),
+            ],
+        });
+        installation.charge(contract, 'plan');
+        installation.charge(contract, 'discount');
+        await paymentMethods.recordConfirmed(
+            aDirectDebit(subscriber.id, { mandateReference: null }),
+        );
+
+        assert.deepEqual(await installation.run(new Date('2026-02-01T05:15:00.000Z')), {
+            issued: 1,
+            held: 0,
+            failed: 0,
+        });
+        assert.equal(installation.store.invoices[0].payment, null);
+    });
+
+    test('is the payment method in use when it is issued: not the one it replaced, and a later one changes nothing', async () => {
+        const { run, store, subscriber, paymentMethods } = await aPayingSubscriber();
+        await paymentMethods.recordConfirmed(aCard(subscriber.id));
+        const { method: inUse } = await paymentMethods.recordConfirmed(
+            aDirectDebit(subscriber.id, { confirmedAt: berlin('2026-01-20') }),
+        );
+
+        await run(new Date('2026-02-01T05:15:00.000Z'));
+        await paymentMethods.recordConfirmed(
+            aCard(subscriber.id, {
+                paymentMethodRef: 'pm_card_later',
+                confirmedAt: berlin('2026-02-02'),
+            }),
+        );
+
+        assert.deepEqual(store.invoices[0].payment, recordedOf(inUse));
+        assert.deepEqual((await store.findById(store.invoices[0].id)).payment, recordedOf(inUse));
+    });
+
+    test('is the subscriber’s own, beside another subscriber’s', async () => {
+        const { run, store, subscriber, paymentMethods, aSubscriber, aContract, charge } =
+            await aPayingSubscriber();
+        const other = await aSubscriber('t2');
+        charge(await aContract(other), 'plan');
+        const { method } = await paymentMethods.recordConfirmed(aDirectDebit(other.id));
+
+        await run(new Date('2026-02-01T05:15:00.000Z'));
+
+        const invoiceOf = (id) => store.invoices.find((invoice) => invoice.subscriberId === id);
+        assert.equal(invoiceOf(subscriber.id).payment, null);
+        assert.deepEqual(invoiceOf(other.id).payment, recordedOf(method));
+    });
+
+    test('is collected with nothing where the invoice asks for nothing', async () => {
+        const paymentMethods = new MemoryPaymentMethods();
+        const installation = anInvoicingInstallation({ paymentMethods });
+        const subscriber = await installation.aSubscriber('t1');
+        const contract = await installation.aContract(subscriber, {
+            lineItems: [
+                line('plan', 'STANDARD', 49, 'Standard, monthly'),
+                line('discount', 'FREE', -49, 'Free first month'),
+            ],
+        });
+        installation.charge(contract, 'plan');
+        installation.charge(contract, 'discount');
+        await paymentMethods.recordConfirmed(aDirectDebit(subscriber.id));
+
+        await installation.run(new Date('2026-02-01T05:15:00.000Z'));
+
+        const [invoice] = installation.store.invoices;
+        assert.equal(invoice.totalGross, 0);
+        assert.deepEqual(
+            [invoice.payment, invoice.collectionDate, invoice.dueDate],
+            [null, null, '2026-02-15'],
+        );
     });
 });
 

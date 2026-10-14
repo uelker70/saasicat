@@ -186,8 +186,17 @@ export interface PlanCatalogSubscribers {
 export interface PlanCatalogInvoicing {
     /** Put in front of every invoice number: `AHP` gives `AHP-2026-000123`. */
     numberPrefix: string;
-    /** Days from an invoice's issue date to the day it is due (`SC-PRIC-046`). */
+    /**
+     * Days from an invoice's issue date to the day it is due (`SC-PRIC-046`),
+     * unless it is collected by direct debit.
+     */
     paymentTermDays: number;
+    /**
+     * Calendar days between an invoice collected by direct debit and the day
+     * it is collected, which the invoice announces and falls due on
+     * (`SC-PRIC-028`). `DIRECT_DEBIT_LEAD_DAYS` where it is not set.
+     */
+    directDebitLeadDays?: number;
     /**
      * What a business letter of the issuer states beyond the invoice's own
      * content, line by line — copied onto every invoice issued (`SC-PRIC-077`).

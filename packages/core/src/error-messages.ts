@@ -329,6 +329,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.',
+    SUBSCRIPTION_INVOICE_MANDATE_MISSING:
+        'The direct debit {paymentMethodId} names no mandate reference, which the invoice has to announce. It is issued once the payment method is replaced.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:

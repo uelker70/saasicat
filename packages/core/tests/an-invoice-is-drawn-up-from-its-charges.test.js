@@ -8,12 +8,15 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    DIRECT_DEBIT_LEAD_DAYS,
     addDaysToDay,
     dayInZone,
+    directDebitLeadDaysOf,
     draftSubscriptionInvoice,
     formatInvoiceNumber,
     invoiceContentDraftOf,
     invoiceGroupsOf,
+    invoicePaymentOf,
     lastDayInZone,
     taxPerRate,
     yearOfDay,
@@ -86,9 +89,49 @@ function draft(charges, overrides = {}) {
         timeZone: BERLIN,
         numberPrefix: 'AHP',
         paymentTermDays: 14,
+        payment: null,
+        directDebitLeadDays: 14,
         ...overrides,
     });
 }
+
+/** The subscriber's payment method in use, as its store reads it back. */
+function paymentMethod(overrides = {}) {
+    return {
+        id: 'payment-method-1',
+        subscriberId: 'subscriber-1',
+        gatewayAccount: 'stripe-main',
+        provider: 'stripe',
+        customerRef: 'cus_1',
+        paymentMethodRef: 'pm_1',
+        type: 'sepa_debit',
+        brand: null,
+        last4: '3000',
+        expiryMonth: null,
+        expiryYear: null,
+        country: 'DE',
+        bankCode: '37040044',
+        mandateReference: 'MANDAT-0001',
+        status: 'ACTIVE',
+        confirmedAt: berlin('2026-01-15'),
+        replacedAt: null,
+        createdAt: berlin('2026-01-15'),
+        ...overrides,
+    };
+}
+
+/** A card in use, as its store reads it back. */
+const aCard = (overrides = {}) =>
+    paymentMethod({
+        type: 'card',
+        brand: 'visa',
+        last4: '4242',
+        expiryMonth: 12,
+        expiryYear: 2029,
+        bankCode: null,
+        mandateReference: null,
+        ...overrides,
+    });
 
 // @requirement SC-PRIC-022 — Every charge of a subscription is invoiced once, on that subscription's invoice
 // @requirement SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
@@ -278,6 +321,148 @@ describe('the days an invoice states', () => {
         assert.equal(due('2026-02-01T08:00:00.000Z', 14), '2026-02-15');
         assert.equal(due('2026-02-20T08:00:00.000Z', 14), '2026-03-06');
         assert.equal(due('2026-12-25T08:00:00.000Z', 14), '2027-01-08');
+    });
+});
+
+// @requirement SC-PRIC-028 — A direct debit is announced before it is collected
+// @requirement SC-PRIC-046 — An invoice states the day it is due
+describe('how an invoice is paid', () => {
+    test('a direct debit is collected the lead time after the issue date, the day it falls due, under its mandate', () => {
+        const invoice = draft([charge()], { payment: invoicePaymentOf(paymentMethod()) });
+
+        assert.deepEqual(invoice.payment, {
+            paymentMethodId: 'payment-method-1',
+            gatewayAccount: 'stripe-main',
+            type: 'sepa_debit',
+            brand: null,
+            last4: '3000',
+            mandateReference: 'MANDAT-0001',
+        });
+        assert.deepEqual(
+            [invoice.issueDate, invoice.collectionDate, invoice.dueDate],
+            ['2026-02-01', '2026-02-15', '2026-02-15'],
+        );
+    });
+
+    test('the lead time counts in the installation’s zone, across a month and a year, whatever the payment term', () => {
+        const collected = (issuedAt, directDebitLeadDays) => {
+            const invoice = draft([charge()], {
+                issuedAt: new Date(issuedAt),
+                directDebitLeadDays,
+                paymentTermDays: 30,
+                payment: invoicePaymentOf(paymentMethod()),
+            });
+            return [invoice.collectionDate, invoice.dueDate];
+        };
+
+        // Half an hour after midnight in Berlin is the next day, whatever UTC says.
+        assert.deepEqual(collected('2026-01-31T23:30:00.000Z', 14), ['2026-02-15', '2026-02-15']);
+        assert.deepEqual(collected('2026-02-27T08:00:00.000Z', 2), ['2026-03-01', '2026-03-01']);
+        assert.deepEqual(collected('2026-12-31T08:00:00.000Z', 1), ['2027-01-01', '2027-01-01']);
+    });
+
+    test('a card is recorded with the invoice, which falls due the payment term after the issue date', () => {
+        const invoice = draft([charge()], {
+            payment: invoicePaymentOf(aCard()),
+            directDebitLeadDays: 2,
+        });
+
+        assert.deepEqual(invoice.payment, {
+            paymentMethodId: 'payment-method-1',
+            gatewayAccount: 'stripe-main',
+            type: 'card',
+            brand: 'visa',
+            last4: '4242',
+            mandateReference: null,
+        });
+        assert.deepEqual([invoice.collectionDate, invoice.dueDate], [null, '2026-02-15']);
+    });
+
+    test('without a payment method the invoice is not collected and falls due the payment term after', () => {
+        const invoice = draft([charge()], { payment: null, directDebitLeadDays: 2 });
+
+        assert.deepEqual(
+            [invoice.payment, invoice.collectionDate, invoice.dueDate],
+            [null, null, '2026-02-15'],
+        );
+    });
+
+    for (const [what, discount] of [
+        ['nothing', -49],
+        ['less than nothing', -60],
+    ]) {
+        test(`an invoice that asks for ${what} is collected with nothing`, () => {
+            const invoice = draft(
+                [charge(), charge({ contractLineItemId: 'line-discount', amountNet: discount })],
+                { payment: invoicePaymentOf(paymentMethod()) },
+            );
+
+            assert.deepEqual(
+                [invoice.payment, invoice.collectionDate, invoice.dueDate],
+                [null, null, '2026-02-15'],
+            );
+        });
+    }
+
+    test('an invoice that asks for a cent is collected', () => {
+        const invoice = draft(
+            [charge(), charge({ contractLineItemId: 'line-discount', amountNet: -48.99 })],
+            { payment: invoicePaymentOf(paymentMethod()) },
+        );
+
+        assert.equal(invoice.totalGross, 0.01);
+        assert.equal(invoice.collectionDate, '2026-02-15');
+    });
+
+    test('refuses a direct debit without the mandate reference it would have to announce', () => {
+        const payment = { ...invoicePaymentOf(paymentMethod()), mandateReference: null };
+
+        assert.throws(
+            () => draft([charge()], { payment }),
+            /payment-method-1 is a direct debit without a mandate reference/,
+        );
+    });
+
+    test('is what the adapter is asked to check, the due date included', () => {
+        const invoice = draft([charge()], { payment: invoicePaymentOf(paymentMethod()) });
+
+        assert.equal(invoiceContentDraftOf(invoice).dueDate, '2026-02-15');
+    });
+});
+
+describe('the payment method an invoice records', () => {
+    test('is the one in use, by its id and account, with what tells it apart', () => {
+        assert.deepEqual(invoicePaymentOf(aCard({ id: 'payment-method-7' })), {
+            paymentMethodId: 'payment-method-7',
+            gatewayAccount: 'stripe-main',
+            type: 'card',
+            brand: 'visa',
+            last4: '4242',
+            mandateReference: null,
+        });
+    });
+
+    test('is none where the subscriber has none', () => {
+        assert.equal(invoicePaymentOf(null), null);
+    });
+
+    test('is none for a direct debit without a mandate reference, which no invoice can announce', () => {
+        assert.equal(invoicePaymentOf(paymentMethod({ mandateReference: null })), null);
+    });
+
+    test('names no mandate for a card, whatever the store holds beside it', () => {
+        assert.equal(invoicePaymentOf(aCard({ mandateReference: 'STRAY' })).mandateReference, null);
+    });
+});
+
+describe('the direct debit lead time', () => {
+    test('is fourteen days where the file names none', () => {
+        assert.equal(DIRECT_DEBIT_LEAD_DAYS, 14);
+        assert.equal(directDebitLeadDaysOf({}), 14);
+    });
+
+    test('is what the file names', () => {
+        assert.equal(directDebitLeadDaysOf({ directDebitLeadDays: 2 }), 2);
     });
 });
 

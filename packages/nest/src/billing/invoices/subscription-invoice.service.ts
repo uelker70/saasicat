@@ -6,18 +6,21 @@
 // its issue date: the subscriber as its record stands, the issuer of the
 // contract (`SC-PRIC-026`), the treatment the tax adapter decides for the
 // subscriber now (`SC-PRIC-043`), the tax by the adapter's rule
-// (`SC-PRIC-041`), and its days in the installation's time zone
-// (`SC-PRIC-045`). The adapter checks its content before the number is drawn
-// (`SC-PRIC-027`), and the store draws the number in the transaction that
-// writes the invoice (`SC-PRIC-072`).
+// (`SC-PRIC-041`), its days in the installation's time zone (`SC-PRIC-045`),
+// and the subscriber's payment method it is collected with — a direct debit on
+// the day it announces, the lead time after the issue date (`SC-PRIC-028`).
+// The adapter checks its content before the number is drawn (`SC-PRIC-027`),
+// and the store draws the number in the transaction that writes the invoice
+// (`SC-PRIC-072`).
 //
 // A group that cannot be invoiced yet is held rather than guessed at: a
 // subscriber whose invoice address has gaps (`SC-PRIC-032`), one the adapter
 // supports no treatment for (`SC-PRIC-039`), a contract whose parties nobody
-// has confirmed (`SC-AUD-012`), or content the law requires and the invoice
-// lacks. Each is logged on every run and written to the audit log once per
-// process; the charges wait on no invoice, and the invoice takes the next
-// number on the first run after what held it is put right.
+// has confirmed (`SC-AUD-012`), content the law requires and the invoice
+// lacks, or a direct debit without the mandate reference the invoice has to
+// announce (`SC-PRIC-028`). Each is logged on every run and written to the
+// audit log once per process; the charges wait on no invoice, and the invoice
+// takes the next number on the first run after what held it is put right.
 //
 // Platform-wide, so inside `RlsBypassPort`. Several instances may run it at
 // once: a charge another one invoiced first is passed over.
@@ -32,11 +35,13 @@ import {
 } from '@nestjs/common';
 import {
     INVOICE_ERROR_CODES,
+    directDebitLeadDaysOf,
     draftSubscriptionInvoice,
     invoiceContentDraftOf,
     invoiceGroupsOf,
     invoiceFooterOf,
     invoiceIssuerOf,
+    invoicePaymentOf,
     isPersistenceRefusal,
     type AppliedSettingsPort,
     type InvoiceGroup,
@@ -44,6 +49,7 @@ import {
     type NewSubscriptionInvoice,
     type PlanCatalogSettings,
     type RlsBypassPort,
+    type SubscriberPaymentMethodRepository,
     type SubscriptionContractRepository,
     type SubscriptionInvoiceRepository,
     type TaxTreatment,
@@ -52,6 +58,7 @@ import {
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { AdminAuditService, platformJobActor } from '../../admin/admin-audit.service.js';
 import { readAcrossTenants } from '../../admin/read-across-tenants.js';
+import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../../payments/payments.tokens.js';
 import { APPLIED_SETTINGS_PORT_TOKEN } from '../../settings/settings.tokens.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
@@ -120,6 +127,11 @@ export class SubscriptionInvoiceService implements OnModuleInit {
         @Optional()
         @Inject(AdminAuditService)
         private readonly audit: AdminAuditService | null = null,
+        // Where `PaymentsModule` is wired; required to start where the file
+        // names payment accounts, see `onModuleInit`.
+        @Optional()
+        @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
+        private readonly paymentMethods: SubscriberPaymentMethodRepository | null = null,
     ) {}
 
     /**
@@ -129,14 +141,31 @@ export class SubscriptionInvoiceService implements OnModuleInit {
      * correction of: without it, another legal entity named in
      * `config/saas.yaml` would number on in the range of the one before. The
      * record also keeps the corrections an invoice follows (`SC-PRIC-026`).
+     *
+     * Refuses, too, an installation that takes payment methods and gives this
+     * run no way to read them: its invoices would announce no collection, and
+     * nothing would say why none is ever collected.
      */
     onModuleInit(): void {
-        if (this.appliedSettings) return;
+        const problems: string[] = [];
+        if (!this.appliedSettings) {
+            problems.push(
+                'invoices need the record of the applied settings, which holds the issuer to one ' +
+                    'legal entity and keeps its declared corrections: adopt `AppliedSettings` and ' +
+                    '`SettingsChange` (12-applied-settings.prisma), which the persistence bundle ' +
+                    'then binds, or bind your own in `adapters.appliedSettings`.',
+            );
+        }
+        if (this.settings.payments && !this.paymentMethods) {
+            problems.push(
+                'config/saas.yaml names payment accounts, and the invoices cannot read the payment ' +
+                    'methods they are collected with: wire PaymentsModule globally, as it is by ' +
+                    'default, beside the tenant billing module.',
+            );
+        }
+        if (problems.length === 0) return;
         throw new Error(
-            'Invoices cannot start:\n- invoices need the record of the applied settings, which holds ' +
-                'the issuer to one legal entity and keeps its declared corrections: adopt ' +
-                '`AppliedSettings` and `SettingsChange` (12-applied-settings.prisma), which the ' +
-                'persistence bundle then binds, or bind your own in `adapters.appliedSettings`.',
+            `Invoices cannot start:\n${problems.map((problem) => `- ${problem}`).join('\n')}`,
         );
     }
 
@@ -227,6 +256,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             ),
         );
         const invoicing = this.settings.invoicing!;
+        const method = (await this.paymentMethods?.findActive(first!.subscriberId)) ?? null;
         const invoice = draftSubscriptionInvoice({
             group,
             contractLines: contract.lineItems,
@@ -242,7 +272,19 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             timeZone: this.settings.timeZone!,
             numberPrefix: invoicing.numberPrefix,
             paymentTermDays: invoicing.paymentTermDays,
+            payment: invoicePaymentOf(method),
+            directDebitLeadDays: directDebitLeadDaysOf(invoicing),
         });
+        // A direct debit whose gateway named no mandate reference cannot be
+        // announced (`SC-PRIC-028`). Issued without a collection, the invoice
+        // could only be corrected by cancelling it; held, it is issued with its
+        // announcement once the payment method is replaced.
+        if (method && !invoice.payment && invoice.totalGross > 0) {
+            throw new Held({
+                code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_MANDATE_MISSING,
+                params: { paymentMethodId: method.id },
+            });
+        }
         const missing = this.taxes.invoiceContentGaps(invoiceContentDraftOf(invoice));
         if (missing.length > 0) {
             throw new Held({

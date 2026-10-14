@@ -12,6 +12,13 @@ import { FakeAppliedSettingsPort } from './applied-settings-port.js';
 import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER } from './invoice-run.js';
 import { bootable, everythingOnOptions } from './operator-routes.js';
+import {
+    MAIN_ACCOUNT,
+    MemoryPaymentEventLog,
+    MemoryPaymentMethods,
+    ScriptedGateway,
+    paymentsCatalog,
+} from './payments.js';
 
 export const INVOICING = { numberPrefix: 'AHP', paymentTermDays: 14 };
 
@@ -33,7 +40,10 @@ export const wiredInvoices = (overrides = {}) => ({
 /**
  * The options of an installation whose file names `invoicing` and whose tenant
  * billing wires `invoices`, beside a tax adapter, an issuer and the record of
- * the applied settings, unless told otherwise.
+ * the applied settings, unless told otherwise. `payments` is whether it takes
+ * payment methods: `'none'`, `'wired'` — the file names an account and the
+ * platform composes the payments beside it — or `'unread'`, where the file
+ * names the account and nothing composes them.
  */
 export function invoicingPlatform({
     invoicing = INVOICING,
@@ -41,6 +51,7 @@ export function invoicingPlatform({
     tax = true,
     issuer = ISSUER,
     record = true,
+    payments = 'none',
 } = {}) {
     const options = everythingOnOptions();
     const {
@@ -76,6 +87,18 @@ export function invoicingPlatform({
     composed.persistence.core.rlsBypass = { runWithBypass: (fn) => fn() };
     // A record that has kept nothing yet: the first start that names an issuer.
     composed.persistence.core.appliedSettings = record ? new FakeAppliedSettingsPort() : undefined;
+    if (payments !== 'none') composed.planCatalog.payments = paymentsCatalog().payments;
+    if (payments === 'wired') {
+        composed.payments = {
+            gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
+            // The tenant's payment routes resolve the same guards tenant billing does.
+            extraProviders: composed.tenantBilling.extraProviders,
+        };
+        composed.persistence.payments = {
+            paymentEventLog: new MemoryPaymentEventLog(),
+            subscriberPaymentMethodRepository: new MemoryPaymentMethods(),
+        };
+    }
     return composed;
 }
 

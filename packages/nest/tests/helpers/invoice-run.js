@@ -274,7 +274,8 @@ const pageOf = (ids, { limit, after }) =>
  * tax adapter, `appliedSettings` the settings record, or `null` for an
  * installation that keeps none; the first `failingAuditWrites` writes to the
  * audit log fail. `renderer`, `archive` and `mail` are what the application
- * wires for the invoices' documents.
+ * wires for the invoices' documents, `paymentMethods` the subscribers' payment
+ * methods where it takes them.
  */
 export function anInvoicingInstallation({
     settings = INVOICING_SETTINGS,
@@ -284,6 +285,7 @@ export function anInvoicingInstallation({
     renderer = aRenderer(),
     archive = anArchive(),
     mail = aMailbox(),
+    paymentMethods = null,
 } = {}) {
     const subscriberRepository = new FakeSubscriberRepository();
     const taxes = new TaxTreatments(settings, adapter);
@@ -302,6 +304,7 @@ export function anInvoicingInstallation({
         appliedSettings,
         null,
         audit,
+        paymentMethods,
     );
     const documents = new InvoiceDocumentService(
         store,
@@ -328,6 +331,7 @@ export function anInvoicingInstallation({
         archive,
         mail,
         documents,
+        paymentMethods,
         /** A subscriber of `tenantId`, in Germany with a complete address unless `details` says otherwise. */
         aSubscriber(tenantId, details = {}) {
             return subscribers.createForTenant(tenantId, {
