@@ -22,6 +22,8 @@ const KINDS: Record<SubscriptionNoticeKind, true> = {
     'feature-withdrawn': true,
     'feature-withdrawal-lifted': true,
     'ended-at-once': true,
+    'collection-failed': true,
+    'collection-announced': true,
 };
 
 /**

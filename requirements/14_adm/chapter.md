@@ -761,7 +761,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
 
 🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
-that holds, such as an ended subscription (`SC-CANC-020`), an overdue invoice (`SC-PRIC-035`), a
+that holds, such as an ended subscription (`SC-CANC-020`), an overdue invoice (`SC-PRIC-081`), a
 suspension or a deletion under way; the strictest of them applies, a deletion under way before a
 suspension and a suspension before read-only, and ending one reason lifts only that one. The
 application checks it on every request through a port, sign-in included, so a session that was

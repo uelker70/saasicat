@@ -88,13 +88,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
     ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
 
--- An invoice has at most ONE collection attempt that is not settled, and none
--- after one succeeded: of two runs that find the same invoice open, one starts
--- an attempt and the other's insert meets it. A failed attempt leaves the index,
--- so the next attempt of the same invoice can be started.
+-- An invoice has at most ONE collection attempt that is open — planned, or
+-- sent and not settled — and none after one succeeded: of two runs that find the
+-- same invoice open, one starts or plans an attempt and the other's insert meets
+-- it. A failed or withdrawn attempt leaves the index, so the next attempt of the
+-- same invoice can be started.
 CREATE UNIQUE INDEX IF NOT EXISTS subscription_invoice_collections_one_open_per_invoice
     ON subscription_invoice_collections ("invoiceId")
-    WHERE "status" IN ('SUBMITTED', 'PENDING', 'SUCCEEDED');
+    WHERE "status" IN ('SCHEDULED', 'SUBMITTED', 'PENDING', 'SUCCEEDED');
 
 -- A gateway session is confirmed ONCE.
 --

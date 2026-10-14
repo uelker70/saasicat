@@ -9,7 +9,10 @@ import type {
 } from '@saasicat/core';
 
 import { SubscriptionBundleModule } from '../../billing/subscription-bundles.module.js';
-import { TenantBillingModule } from '../../billing/tenant-billing.module.js';
+import {
+    TenantBillingModule,
+    type TenantBillingModuleOptions,
+} from '../../billing/tenant-billing.module.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { normalizeTenantAuthGuards, quotaUsageSnapshotProvider } from './tenant-bindings.js';
 
@@ -77,6 +80,15 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         // The platform's runner, unless the application names its own: a
         // successor contract and the end of the one it replaces are written
         // on one transaction.
+        // Collecting records what it tells a subscriber with the other
+        // notices, in the bundle's record unless the application names one.
+        chargeJournal: withCollectionNotices(
+            tenantOptions.chargeJournal,
+            // SAFETY: the bundle's member is the provider of the record of
+            // notices, as `versionNotices.notices` reads it below.
+            tenantSlice?.subscriptionNotices as
+                ProviderSpec<SubscriptionNoticeRepository> | undefined,
+        ),
         contractFreeze: tenantOptions.contractFreeze && {
             transactionRunner: ctx.adapters.transactionRunner as
                 ProviderSpec<TransactionRunner> | undefined,
@@ -96,6 +108,21 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         extraExports: [...quotaProviders, ...(extraExports ?? [])],
     });
     return [ctx.shared.tenantBillingModule];
+}
+
+/**
+ * The charge journal as the application configured it, with `notices` taken
+ * from the bundle where invoices are collected and the application names none.
+ */
+function withCollectionNotices(
+    chargeJournal: TenantBillingModuleOptions['chargeJournal'],
+    bundled: ProviderSpec<SubscriptionNoticeRepository> | undefined,
+): TenantBillingModuleOptions['chargeJournal'] {
+    const invoices = chargeJournal?.invoices;
+    if (!chargeJournal || !invoices?.collections || invoices.notices || !bundled) {
+        return chargeJournal;
+    }
+    return { ...chargeJournal, invoices: { ...invoices, notices: bundled } };
 }
 
 /**

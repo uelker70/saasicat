@@ -84,7 +84,10 @@ import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
 import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
-import { INVOICE_COLLECTION_REPOSITORY_TOKEN } from './invoices/invoice-collection.tokens.js';
+import {
+    INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
+    INVOICE_COLLECTION_REPOSITORY_TOKEN,
+} from './invoices/invoice-collection.tokens.js';
 import {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,
@@ -406,9 +409,17 @@ export interface TenantBillingModuleOptions {
              * gateway are kept — `persistence.entitlement.invoiceCollectionRepository`.
              * Required where `config/saas.yaml` names `payments`: the invoices
              * then announce how they are collected, and the quarter-hourly run
-             * collects them (`SC-PRIC-079`). Needs `PaymentsModule`.
+             * collects them (`SC-PRIC-082`). Needs `PaymentsModule`.
              */
             collections?: ProviderSpec<InvoiceCollectionRepository>;
+            /**
+             * Where what the subscriber is told about collecting an invoice is
+             * recorded — a failure, and a direct debit announced again — so
+             * each is sent once (`SC-PRIC-080`). Required with `collections`;
+             * `SaaSiCatModule` takes `persistence.tenantBilling.subscriptionNotices`
+             * unless this names another.
+             */
+            notices?: ProviderSpec<SubscriptionNoticeRepository>;
             /**
              * `false` leaves out the quarter-hourly run — for a CLI boot, or an
              * application that calls `SubscriptionInvoiceService.issueDue`, then
@@ -606,6 +617,9 @@ export class TenantBillingModule {
                           asProvider(INVOICE_COLLECTION_REPOSITORY_TOKEN, invoices.collections),
                           InvoiceCollectionService,
                       ]
+                    : []),
+                ...(invoices.notices
+                    ? [asProvider(INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN, invoices.notices)]
                     : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
             );

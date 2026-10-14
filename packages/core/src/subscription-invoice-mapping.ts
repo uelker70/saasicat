@@ -7,6 +7,7 @@
 // a blank or a zero.
 
 import { oneOf } from './closed-value.js';
+import { dayOf, type ColumnWhere } from './column-day.js';
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 import type { TaxAtRate } from './money.js';
 import {
@@ -252,23 +253,7 @@ export function utcMidnightOf(day: CalendarDay): Date {
     return new Date(`${day}T00:00:00.000Z`);
 }
 
-type Where = { table: string; column: string; id: string };
-
-const DAY_LENGTH = 'YYYY-MM-DD'.length;
-
-function dayOf(value: unknown, where: Where): CalendarDay {
-    if (value instanceof Date && !Number.isNaN(value.getTime())) {
-        return value.toISOString().slice(0, DAY_LENGTH);
-    }
-    if (
-        typeof value === 'string' &&
-        value.length === DAY_LENGTH &&
-        !Number.isNaN(Date.parse(value))
-    ) {
-        return value;
-    }
-    throw new Error(`${where.table}.${where.column} of ${where.id} is not a day.`);
-}
+type Where = ColumnWhere;
 
 /**
  * How the invoice is paid, read together because each half answers for the

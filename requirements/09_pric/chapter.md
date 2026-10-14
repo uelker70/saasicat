@@ -1155,7 +1155,7 @@ _Tested by:_
 
 ### SC-PRIC-028 — A direct debit is announced before it is collected
 
-🟡 _(Decided, not yet delivered.)_ 💰 The invoice states the amount, the collection date and the
+🟢 💰 The invoice states the amount, the collection date and the
 mandate reference, and it reaches the subscriber at least the lead time named in
 `config/saas.yaml` before the collection. A collection whose date or mandate differs from what the
 invoice announced, such as after the payment method was replaced or a collection is retried, is
@@ -1168,6 +1168,21 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 _Tested by:_
 
+- `packages/core/tests/a-failed-collection-is-planned-once-more.test.js`
+    - a payment method that failed
+        - is charged once more where funds were short or a refusal named no cause
+        - is not charged again for a reason that cannot pass
+        - is not charged a third time: one earlier failure with it ends its tries
+        - that replaced one which failed gets its own second try
+        - a withdrawn plan with it does not count as a try
+        - an attempt that did not fail is not followed by another
+    - the day a card is charged again
+        - is ${COLLECTION_RETRY_AFTER_DAYS} days after a failure on ${failedOn}: ${expected}
+    - the day a direct debit announced again is collected
+        - is the lead time after its announcement where that is later than the day planned
+        - is the day planned where the lead time ends before it
+        - is the day planned where the lead time ends on it
+        - counts the lead time across a month and a year
 - `packages/core/tests/an-invoice-is-drawn-up-from-its-charges.test.js`
     - how an invoice is paid
         - a direct debit is collected the lead time after the issue date, the day it falls due,
@@ -1218,14 +1233,20 @@ _Tested by:_
         - under the reverse charge, names both VAT ids
     - a font the application passes
         - is the one the page is set in
+- `packages/nest/tests/a-failed-collection-is-tried-again.test.js`
+    - a direct debit that failed for a reason that can pass
+        - is announced again under its mandate for the lead time after, and debited on that day, not
+          the minute before
+        - whose announcement the mail refused is announced the next day, for the lead time after
+          that day
+        - that was announced without the announcement being recorded keeps the day it was told, and
+          is not announced twice
+    - a direct debit whose invoice reached the subscriber too late for its day
+        - is announced again for the lead time after, and debited then rather than on the day it
+          named
 - `packages/nest/tests/an-invoice-is-collected.test.js`
-    - an invoice not collected as it announced
-        - waits where the payment method in use is another than it named, and the audit log says so
-          once
-        - by direct debit waits where it reached the subscriber less than the lead time before its
-          day
-        - by direct debit mailed exactly the lead time before its day is collected
-        - waits where the subscriber has no payment method in use any more
+    - a direct debit and the lead time of its announcement
+        - by direct debit mailed exactly the lead time before its day is collected on that day
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - how an invoice is paid
         - a direct debit in use is announced with its mandate, collected and due fourteen days after
@@ -1245,6 +1266,8 @@ _Tested by:_
     - the payment methods invoices are collected with
         - are read where the file names payment accounts and the platform composes the payments
         - refuse the start where the file names payment accounts and nothing reads them
+        - refuse the start where the invoices are collected and nothing records what the subscriber
+          is told
         - refuse the start where the file names payment accounts and nothing collects the invoices
 
 <!-- END proof -->
@@ -1363,7 +1386,7 @@ A credit the gateway can no longer refund, because the payment's gateway account
 configured (`SC-PRIC-030`) or the gateway's own refund period has passed, is paid out by the
 operator outside the gateway, such as by bank transfer, and the operator records that payout with
 its reference against the credit; SaaSiCat still initiates nothing. What follows a reversal is
-`SC-PRIC-035`'s: the invoice it reopens is unpaid like any other.
+`SC-PRIC-081`'s: the invoice it reopens is unpaid like any other.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -1449,10 +1472,16 @@ _Tested by:_
 
 - `packages/adapter-drizzle/tests/an-attempt-is-written-in-the-invoices-turn.test.js`
     - starting an attempt
-        - locks the invoice, reads its attempts, then writes the next one as submitted, without a
+        - locks the invoice, reads its attempts, then writes the first one as submitted, without a
           conflict raised
-        - writes nothing where an attempt is ${status.toLowerCase()}
+        - writes no first attempt where one is ${status.toLowerCase()}
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
+    - planning an attempt
+        - locks the invoice, reads its attempts, then writes the next one as planned for its day
+        - writes nothing where another attempt came after the one it follows
+        - an announcement is written only to a planned attempt not announced yet
+        - a planned attempt is taken up as sent, or withdrawn, only while it is planned
+        - what follows a failure is recorded only once, and only for a failure
     - settling and taking on an attempt
         - an outcome is written only to an attempt not settled, and says whether it was
         - a hold is taken only where the last one is older than the lease
@@ -1461,6 +1490,8 @@ _Tested by:_
           attempt
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
+        - the planned attempts are listed by id
+        - the invoices not collected are those whose attempts none is open or succeeded
         - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 - `packages/core/tests/a-collection-attempt-row-becomes-a-record.test.js`
@@ -1471,8 +1502,18 @@ _Tested by:_
         - can pass where funds were short or a refusal named no cause, and nowhere else
     - an attempt row
         - is written as submitted, under its key, with the amount as two-place text
+        - planned is written for its day, with nothing sent and nothing held
+        - planned reads back with its day, from a Prisma date or a Drizzle text
+        - withdrawn before it left reads back without a moment it was sent at
         - reads back from either adapter’s shape: a numeric string, or a Prisma decimal
         - refuses ${what}
+        - refuses ${what}
+        - one that left is read as sent, and a planned one is refused as such
+    - the attempt an invoice’s turn writes
+        - is numbered after the last, from 1
+        - is the first only where the invoice has none, whatever became of an earlier one
+        - is planned after the attempt it follows, where none is open or succeeded
+        - is not planned from attempts read before another came
     - an outcome
         - collected settles the attempt at its moment, with the gateway’s reference
         - on its way leaves it open
@@ -1485,8 +1526,7 @@ _Tested by:_
         - not yet mailed is not collected
         - by direct debit is collected from the day it announced, not the day before
     - a failed collection
-        - is recorded with its reason and the gateway’s code, written to the audit log once, and not
-          collected again
+        - is recorded with its reason and the gateway’s code, and written to the audit log once
     - a request whose answer was lost
         - stays submitted, and no run sends anything for it while the lease holds
         - is not taken on within the lease by a run called for a later moment than the clock’s
@@ -1529,21 +1569,179 @@ _Tested by:_
 
 ### SC-PRIC-079 — An invoice is collected once it has reached the subscriber
 
-🟢 💰 An invoice that names the payment method it is collected with (`SC-PRIC-028`) is collected
-through the gateway account that payment method is held at once it was handed to the mail: by card
-at once, by direct debit from the collection date it announced. It is collected only as it announced
-it. Where the subscriber's payment method in use is another than the invoice named, or the invoice
-reached the subscriber less than the lead time before the date its direct debit announced, it is not
-collected and waits, and the operator is shown why. Collecting is the fourth step of the
-quarter-hourly run that issues, archives and mails invoices, so nothing is collected before the
-subscriber was sent what it is collected for.
+🔵 _(Superseded on 2026-10-14 by `SC-PRIC-082`.)_ 💰 An invoice that names the payment method it is
+collected with (`SC-PRIC-028`) is collected through the gateway account that payment method is held
+at once it was handed to the mail: by card at once, by direct debit from the collection date it
+announced. It is collected only as it announced it. Where the subscriber's payment method in use is
+another than the invoice named, or the invoice reached the subscriber less than the lead time before
+the date its direct debit announced, it is not collected and waits, and the operator is shown why.
+Collecting is the fourth step of the quarter-hourly run that issues, archives and mails invoices, so
+nothing is collected before the subscriber was sent what it is collected for.
 
 _Source:_ #333 (decided 2026-10-13: collected at once, by the same run) · #276
+
+### SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+
+🟢 💰 A collection that fails is told to the subscriber at their invoice email, with the invoice, the
+amount, the reason and what follows. Where the reason can pass — funds short, or a refusal that
+gives no cause — the same payment method is charged once more: a card seven days after the
+failure, a direct debit on the day its new announcement names, which is seven days after the
+failure at the earliest and the lead time after the announcement reached the subscriber
+(`SC-PRIC-028`). A second failure of the same payment method, and a failure for a reason that cannot
+pass, is not tried again: the subscriber is asked to replace the payment method, and the
+replacement collects the invoice (`SC-PRIC-082`). A gateway tries nothing again of its own. The
+invoice stays as it was issued, its due date included (`SC-PRIC-046`).
+
+_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/an-attempt-is-written-in-the-invoices-turn.test.js`
+    - starting an attempt
+        - locks the invoice, reads its attempts, then writes the first one as submitted, without a
+          conflict raised
+        - writes no first attempt where one is ${status.toLowerCase()}
+        - answers no attempt where the insert met one, and refuses an invoice that does not exist
+    - planning an attempt
+        - locks the invoice, reads its attempts, then writes the next one as planned for its day
+        - writes nothing where another attempt came after the one it follows
+        - an announcement is written only to a planned attempt not announced yet
+        - a planned attempt is taken up as sent, or withdrawn, only while it is planned
+        - what follows a failure is recorded only once, and only for a failure
+    - settling and taking on an attempt
+        - an outcome is written only to an attempt not settled, and says whether it was
+        - a hold is taken only where the last one is older than the lease
+    - reading
+        - the invoices due are mailed, with a payment, on or before their date, and without an
+          attempt
+        - the attempts not settled are the submitted ones past the lease and the pending ones past
+          the hour
+        - the planned attempts are listed by id
+        - the invoices not collected are those whose attempts none is open or succeeded
+        - the accounts in use are those of attempts not settled, each once
+        - an attempt reads back as a record, by id and with its invoice’s others, the first first
+- `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
+    - writing an invoice’s next attempt
+        - the first is started in the invoice’s turn after its attempts were read
+        - no first attempt is started where the invoice has one, and nothing is written
+        - a planned one is written for its day, the day as midnight UTC, on the caller’s transaction
+        - no planned one is written after another attempt than the one it follows
+        - an invoice that does not exist is refused
+    - a write that names the state it expects
+        - what
+        - a planned attempt is taken up as sent once, and read back as written
+    - reading
+        - the invoices due and the invoices not collected are raw queries over the attempts
+        - the planned and the unsettled attempts are listed by id, page by page
+        - an attempt, an invoice’s attempts and the accounts in use read back as records
+- `packages/core/tests/a-collection-notice-reads-back.test.js`
+    - a failure notice
+        - reads back as it was recorded, whatever follows it
+        - refuses ${what}
+    - an announcement
+        - reads back with the day it named and its mandate
+        - refuses ${what}
+- `packages/core/tests/a-failed-collection-is-planned-once-more.test.js`
+    - a payment method that failed
+        - is charged once more where funds were short or a refusal named no cause
+        - is not charged again for a reason that cannot pass
+        - is not charged a third time: one earlier failure with it ends its tries
+        - that replaced one which failed gets its own second try
+        - a withdrawn plan with it does not count as a try
+        - an attempt that did not fail is not followed by another
+    - the day a card is charged again
+        - is ${COLLECTION_RETRY_AFTER_DAYS} days after a failure on ${failedOn}: ${expected}
+    - the day a direct debit announced again is collected
+        - is the lead time after its announcement where that is later than the day planned
+        - is the day planned where the lead time ends before it
+        - is the day planned where the lead time ends on it
+        - counts the lead time across a month and a year
+- `packages/nest/tests/a-failed-collection-is-tried-again.test.js`
+    - a card that failed for a reason that can pass
+        - is told to the subscriber once, at their invoice email, with the day it is charged again
+        - is charged once more with the same card seven days after the failure, not the minute
+          before
+        - that fails again is told so, and not tried a third time: the subscriber is asked to
+          replace the card
+    - a collection that failed for a reason that cannot pass
+        - is told, and not tried again until the payment method is replaced
+    - a direct debit that failed for a reason that can pass
+        - is announced again under its mandate for the lead time after, and debited on that day, not
+          the minute before
+        - whose announcement the mail refused is announced the next day, for the lead time after
+          that day
+        - that was announced without the announcement being recorded keeps the day it was told, and
+          is not announced twice
+    - a payment method that replaced the one an invoice named, or the one that failed
+        - before the invoice is collected, a card in use instead of its direct debit is charged on
+          the day it named
+        - before the invoice is collected, a direct debit in use instead of its card is announced
+          and debited the lead time after
+        - after a failure that cannot pass, the replacement collects the invoice
+        - a failure learned after the payment method was replaced is followed by the replacement at
+          once, as the subscriber is told
+        - while a second charge is planned, the plan is withdrawn and the replacement charged
+          instead
+        - no payment method in use: the invoice waits, and the audit log says so once
+        - a direct debit without a mandate reference is not announced, and waits
+    - a direct debit whose invoice reached the subscriber too late for its day
+        - is announced again for the lead time after, and debited then rather than on the day it
+          named
+    - what the subscriber is told of a failure
+        - is sent by the next run where the mail refused it
+        - a run that stops after recording the notice plans the second charge the next time, from
+          the day it failed, without a second notice
+    - runs side by side
+        - two runs that both see a failure tell it once and plan one second charge
+        - two runs on the day a second charge is due send it once
+- `packages/nest/tests/an-invoice-is-collected.test.js`
+    - collecting starts
+        - not without the record of what the subscriber is told, which it names
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the payment methods invoices are collected with
+        - refuse the start where the invoices are collected and nothing records what the subscriber
+          is told
+
+<!-- END proof -->
+
+### SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
+
+🟢 💰 An invoice that names the payment method it is collected with (`SC-PRIC-028`) is collected
+through the gateway account that payment method is held at once it was handed to the mail: by card
+at once, by direct debit from the collection date it announced. Where the subscriber's payment
+method in use is another than the invoice named, the invoice is collected with the one in use: a
+card at once, a direct debit from the date a new announcement names (`SC-PRIC-028`); so is an
+invoice that could not be collected (`SC-PRIC-080`) once its payment method is replaced. A direct
+debit whose invoice reached the subscriber less than the lead time before the date it announced is
+announced again rather than collected early. Without a payment method in use nothing is collected,
+and the operator is shown why. Collecting is the fourth step of the quarter-hourly run that issues,
+archives and mails invoices, so nothing is collected before the subscriber was sent what it is
+collected for.
+
+_Source:_ #333 (decided 2026-10-13 and 2026-10-14) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-failed-collection-is-tried-again.test.js`
+    - a payment method that replaced the one an invoice named, or the one that failed
+        - before the invoice is collected, a card in use instead of its direct debit is charged on
+          the day it named
+        - before the invoice is collected, a direct debit in use instead of its card is announced
+          and debited the lead time after
+        - after a failure that cannot pass, the replacement collects the invoice
+        - a failure learned after the payment method was replaced is followed by the replacement at
+          once, as the subscriber is told
+        - while a second charge is planned, the plan is withdrawn and the replacement charged
+          instead
+        - no payment method in use: the invoice waits, and the audit log says so once
+        - a direct debit without a mandate reference is not announced, and waits
+    - a direct debit whose invoice reached the subscriber too late for its day
+        - is announced again for the lead time after, and debited then rather than on the day it
+          named
 - `packages/nest/tests/an-invoice-is-collected.test.js`
     - an invoice that reached the subscriber
         - by card is collected at once, through the account its payment method is held at, under its
@@ -1562,18 +1760,34 @@ _Tested by:_
 
 ### SC-PRIC-035 — An invoice left unpaid past its grace period makes the tenant read-only
 
-🟡 _(Decided, not yet delivered.)_ 💰 A collection that fails, the first one after sign-up included,
-and a reversal (`SC-PRIC-031`) leave the invoice open; the gateway retries, and the subscriber is
-told. An invoice still open when the grace period named in `config/saas.yaml` has passed, counted
-from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`), where a user
-holding the billing permission (`SC-UI-023`) can still replace the payment method. Settling every
-overdue invoice lifts that reason and no other: a tenant whose subscription has ended
+🔵 _(Superseded on 2026-10-14 by `SC-PRIC-081`.)_ 💰 A collection that fails, the first one after
+sign-up included, and a reversal (`SC-PRIC-031`) leave the invoice open; the gateway retries, and
+the subscriber is told. An invoice still open when the grace period named in `config/saas.yaml` has
+passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
+where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
+Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
 (`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
 restricted as that reason makes it. Suspending the tenant stays the operator's decision
 (`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
 (`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-081 — An invoice left unpaid past its grace period makes the tenant read-only
+
+🟡 _(Decided, not yet delivered.)_ 💰 A collection that fails, the first one after sign-up included,
+and a reversal (`SC-PRIC-031`) leave the invoice open; it is collected again and the subscriber told
+as `SC-PRIC-080` says. An invoice still open when the grace period named in `config/saas.yaml` has
+passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
+where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
+Settling every overdue invoice lifts that reason and no other: a tenant whose subscription has ended
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+restricted as that reason makes it. Suspending the tenant stays the operator's decision
+(`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
+(`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #333
+(decided 2026-10-14)
 
 ### SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 
@@ -1599,10 +1813,16 @@ _Tested by:_
 
 - `packages/adapter-drizzle/tests/an-attempt-is-written-in-the-invoices-turn.test.js`
     - starting an attempt
-        - locks the invoice, reads its attempts, then writes the next one as submitted, without a
+        - locks the invoice, reads its attempts, then writes the first one as submitted, without a
           conflict raised
-        - writes nothing where an attempt is ${status.toLowerCase()}
+        - writes no first attempt where one is ${status.toLowerCase()}
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
+    - planning an attempt
+        - locks the invoice, reads its attempts, then writes the next one as planned for its day
+        - writes nothing where another attempt came after the one it follows
+        - an announcement is written only to a planned attempt not announced yet
+        - a planned attempt is taken up as sent, or withdrawn, only while it is planned
+        - what follows a failure is recorded only once, and only for a failure
     - settling and taking on an attempt
         - an outcome is written only to an attempt not settled, and says whether it was
         - a hold is taken only where the last one is older than the lease
@@ -1611,6 +1831,8 @@ _Tested by:_
           attempt
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
+        - the planned attempts are listed by id
+        - the invoices not collected are those whose attempts none is open or succeeded
         - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 
@@ -2019,7 +2241,7 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 An invoice collected by direct debit is due on the collection
 date it announces (`SC-PRIC-028`), any other on its issue date plus the payment term named in
-`config/saas.yaml`. The grace period of `SC-PRIC-035` counts from that day, and a collection
+`config/saas.yaml`. The grace period of `SC-PRIC-081` counts from that day, and a collection
 announced again with a later date leaves the due date as the invoice states it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

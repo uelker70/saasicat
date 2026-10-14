@@ -3,8 +3,9 @@
 -- =============================================================================
 --
 -- The attempts to collect an invoice: each request the platform makes of the
--- gateway, with everything it carries, and what became of it (#276 step 6,
--- SC-PRIC-034). Needed where `tenantBilling.chargeJournal.invoices.collections`
+-- gateway, with everything it carries, and what became of it, and the attempts
+-- planned after a failure or with a payment method that replaced the one the
+-- invoice named (#276 step 6, SC-PRIC-034, SC-PRIC-080). Needed where `tenantBilling.chargeJournal.invoices.collections`
 -- is configured. Run it BEFORE `db push`, and after
 -- `1.0-an-invoice-is-issued.postgres.sql`, whose `subscription_invoices` table
 -- every attempt points at:
@@ -16,8 +17,8 @@
 --   `subscription_invoice_collections` — created with its indexes, among them
 --   the unique key of every attempt and the unique (invoiceId, attempt), its
 --   foreign key to `subscription_invoices`, and the partial unique index that
---   holds an invoice to one attempt not settled and none after one succeeded,
---   which `db push` cannot create.
+--   holds an invoice to one attempt open — planned, or sent and not settled —
+--   and none after one succeeded, which `db push` cannot create.
 --
 -- Skipped, with a notice, where `subscription_invoices` is missing. Nothing is
 -- backfilled: an invoice issued before collecting was switched on is collected
@@ -55,9 +56,12 @@ BEGIN
         "paymentRef" TEXT,
         "failureReason" TEXT,
         "failureCode" TEXT,
-        "submittedAt" TIMESTAMP(3) NOT NULL,
-        "heldAt" TIMESTAMP(3) NOT NULL,
+        "submittedAt" TIMESTAMP(3),
+        "heldAt" TIMESTAMP(3),
         "resolvedAt" TIMESTAMP(3),
+        "collectOn" DATE,
+        "announcedAt" TIMESTAMP(3),
+        "followedUpAt" TIMESTAMP(3),
         CONSTRAINT "subscription_invoice_collections_pkey" PRIMARY KEY ("id")
     );
     CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoice_collections_attemptKey_key"
@@ -68,7 +72,7 @@ BEGIN
         ON "subscription_invoice_collections"("invoiceId", "attempt");
     CREATE UNIQUE INDEX IF NOT EXISTS subscription_invoice_collections_one_open_per_invoice
         ON subscription_invoice_collections ("invoiceId")
-        WHERE "status" IN ('SUBMITTED', 'PENDING', 'SUCCEEDED');
+        WHERE "status" IN ('SCHEDULED', 'SUBMITTED', 'PENDING', 'SUCCEEDED');
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'subscription_invoice_collections_invoiceId_fkey'
     ) THEN

@@ -30,6 +30,12 @@ import {
     toArchivedInvoiceDocument,
     toInvoiceCollectionRecord,
     invoiceCollectionColumns,
+    plannedCollectionColumns,
+    lastCollectionOf,
+    refusesFirstAttempt,
+    refusesPlannedAttempt,
+    sentCollectionOf,
+    BLOCKING_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     UNSETTLED_COLLECTION_STATUSES,
     subscriberPaymentMethodColumns,
@@ -2098,10 +2104,29 @@ export function createMemoryHarness() {
         },
     };
 
-    // The attempts to collect an invoice: one not settled, and none after one
+    // The attempts to collect an invoice: one open, and none after one
     // succeeded, decided in one synchronous step as the indexes decide it.
-    const blocking = new Set([...UNSETTLED_COLLECTION_STATUSES, 'SUCCEEDED']);
+    const blocking = new Set(BLOCKING_COLLECTION_STATUSES);
     const unsettled = new Set(UNSETTLED_COLLECTION_STATUSES);
+    const writeNextCollection = (invoiceId, refuses, columns) => {
+        if (!state.invoices.some((row) => row.id === invoiceId)) {
+            throw new Error(`invoice '${invoiceId}' does not exist`);
+        }
+        const earlier = state.invoiceCollections.filter((row) => row.invoiceId === invoiceId);
+        if (refuses(earlier)) return null;
+        const row = {
+            id: nextId('collection'),
+            ...columns(lastCollectionOf(earlier) + 1),
+            paymentRef: null,
+            failureReason: null,
+            failureCode: null,
+            resolvedAt: null,
+            announcedAt: null,
+            followedUpAt: null,
+        };
+        state.invoiceCollections.push(row);
+        return toInvoiceCollectionRecord(structuredClone(row));
+    };
     const pageOf = (ids, { limit, after }) =>
         ids
             .filter((id) => after === undefined || id > after)
@@ -2124,23 +2149,60 @@ export function createMemoryHarness() {
             );
         },
         async startAttempt(attempt) {
-            if (!state.invoices.some((row) => row.id === attempt.invoiceId)) {
-                throw new Error(`invoice '${attempt.invoiceId}' does not exist`);
-            }
-            const earlier = state.invoiceCollections.filter(
-                (row) => row.invoiceId === attempt.invoiceId,
+            return writeNextCollection(attempt.invoiceId, refusesFirstAttempt, (number) =>
+                invoiceCollectionColumns(attempt, number),
             );
-            if (earlier.some((row) => blocking.has(row.status))) return null;
-            const row = {
-                id: nextId('collection'),
-                ...invoiceCollectionColumns(attempt, earlier.length + 1),
-                paymentRef: null,
-                failureReason: null,
-                failureCode: null,
-                resolvedAt: null,
-            };
-            state.invoiceCollections.push(row);
-            return toInvoiceCollectionRecord(structuredClone(row));
+        },
+        async plan(plan) {
+            return writeNextCollection(
+                plan.invoiceId,
+                (earlier) => refusesPlannedAttempt(earlier, plan.after),
+                (number) => plannedCollectionColumns(plan, number),
+            );
+        },
+        async announce(id, collectOn, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'SCHEDULED' || row.announcedAt !== null) return false;
+            Object.assign(row, { collectOn, announcedAt: at });
+            return true;
+        },
+        async submitPlanned(id, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'SCHEDULED') return null;
+            Object.assign(row, { status: 'SUBMITTED', submittedAt: at, heldAt: at });
+            return sentCollectionOf(toInvoiceCollectionRecord(structuredClone(row)));
+        },
+        async withdraw(id, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'SCHEDULED') return false;
+            Object.assign(row, { status: 'WITHDRAWN', resolvedAt: at });
+            return true;
+        },
+        async listPlanned(page) {
+            return pageOf(
+                state.invoiceCollections
+                    .filter((row) => row.status === 'SCHEDULED')
+                    .map((row) => row.id),
+                page,
+            );
+        },
+        async listUncollected(page) {
+            const tried = new Set(state.invoiceCollections.map((row) => row.invoiceId));
+            const open = new Set(
+                state.invoiceCollections
+                    .filter((row) => blocking.has(row.status))
+                    .map((row) => row.invoiceId),
+            );
+            return pageOf(
+                [...tried].filter((invoiceId) => !open.has(invoiceId)),
+                page,
+            );
+        },
+        async markFollowedUp(id, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'FAILED' || row.followedUpAt !== null) return false;
+            row.followedUpAt = at;
+            return true;
         },
         async recordOutcome(id, outcome, at) {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);

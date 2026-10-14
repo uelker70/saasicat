@@ -330,11 +330,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.',
     SUBSCRIPTION_INVOICE_MANDATE_MISSING:
-        'The direct debit {paymentMethodId} names no mandate reference, which the invoice has to announce. It is issued once the payment method is replaced.',
-    SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED:
-        'The invoice announced payment method {announced}, and {paymentMethodId} is in use now. It is not collected until a collection is announced again.',
-    SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE:
-        'The invoice reached the subscriber on {deliveredOn}, less than {leadDays} days before the debit it announced for {collectionDate}. It is not debited until a collection is announced again.',
+        'The direct debit {paymentMethodId} names no mandate reference, which has to be announced before it is debited. The invoice waits until the payment method is replaced.',
+    SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD:
+        'The subscriber {subscriberId} has no payment method in use. The invoice is collected once one is.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:

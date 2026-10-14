@@ -4,16 +4,27 @@ import type {
     CalendarDay,
     CanonicalInvoiceCollectionRow,
     CollectionOutcome,
+    EarlierCollection,
+    InvoiceCollectionColumns,
     InvoiceCollectionRecord,
     InvoiceCollectionRepository,
     NewInvoiceCollection,
+    PlannedInvoiceCollection,
+    SubmittedInvoiceCollection,
     TransactionContext,
 } from '@saasicat/core';
 import {
+    BLOCKING_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
+    lastCollectionOf,
+    plannedCollectionColumns,
+    refusesFirstAttempt,
+    refusesPlannedAttempt,
+    sentCollectionOf,
     toInvoiceCollectionRecord,
+    utcMidnightOf,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
@@ -27,9 +38,6 @@ interface CollectionPrisma {
 interface CollectionRepositoryClient {
     $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 }
-
-/** The statuses that keep an invoice from a new attempt: one not settled, or one that succeeded. */
-const BLOCKING: ReadonlySet<string> = new Set([...UNSETTLED_COLLECTION_STATUSES, 'SUCCEEDED']);
 
 /**
  * `InvoiceCollectionRepository` against `subscription_invoice_collections`.
@@ -78,41 +86,156 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return idsOf(rows);
     }
 
-    async startAttempt(
+    startAttempt(
         attempt: NewInvoiceCollection,
         tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null> {
-        if (tx) return this.startIn(this.db(tx), attempt);
-        return this.prisma.$transaction((own) => this.startIn(this.db(own), attempt));
+        return this.writeNext(
+            attempt.invoiceId,
+            refusesFirstAttempt,
+            (number) => invoiceCollectionColumns(attempt, number),
+            tx,
+        );
     }
 
-    private async startIn(
-        db: CollectionPrisma,
-        attempt: NewInvoiceCollection,
+    plan(
+        plan: PlannedInvoiceCollection,
+        tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null> {
-        // The invoice's turn: a second run starting an attempt for it waits
+        return this.writeNext(
+            plan.invoiceId,
+            (earlier) => refusesPlannedAttempt(earlier, plan.after),
+            (number) => plannedCollectionColumns(plan, number),
+            tx,
+        );
+    }
+
+    /** Writes the invoice's next attempt in its turn, unless what it holds by then `refuses` it. */
+    private writeNext(
+        invoiceId: string,
+        refuses: (earlier: readonly EarlierCollection[]) => boolean,
+        columns: (number: number) => InvoiceCollectionColumns,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null> {
+        const write = (db: CollectionPrisma) => this.writeNextIn(db, invoiceId, refuses, columns);
+        if (tx) return write(this.db(tx));
+        return this.prisma.$transaction((own) => write(this.db(own)));
+    }
+
+    private async writeNextIn(
+        db: CollectionPrisma,
+        invoiceId: string,
+        refuses: (earlier: readonly EarlierCollection[]) => boolean,
+        columns: (number: number) => InvoiceCollectionColumns,
+    ): Promise<InvoiceCollectionRecord | null> {
+        // The invoice's turn: a second run writing an attempt for it waits
         // here, and then reads the attempt the first one wrote.
         const locked = idsOf(
             await db.$queryRaw`
                 SELECT "id" FROM "subscription_invoices"
-                 WHERE "id" = ${attempt.invoiceId}
+                 WHERE "id" = ${invoiceId}
                    FOR UPDATE`,
         );
-        if (locked.length === 0) throw new Error(`Invoice ${attempt.invoiceId} does not exist.`);
+        if (locked.length === 0) throw new Error(`Invoice ${invoiceId} does not exist.`);
         const earlier = await db.subscriptionInvoiceCollection.findMany({
-            where: { invoiceId: attempt.invoiceId },
+            where: { invoiceId },
             select: { attempt: true, status: true },
         });
-        if (earlier.some((row) => BLOCKING.has(row.status))) return null;
-        const number = earlier.reduce((last, row) => Math.max(last, row.attempt), 0) + 1;
+        if (refuses(earlier)) return null;
+        const number = lastCollectionOf(earlier) + 1;
+        const { collectOn, ...written } = columns(number);
         // `ON CONFLICT DO NOTHING` without a target, so any of the unique
         // indexes turns a second attempt into no row rather than an error that
         // would end the caller's transaction.
         const [row] = await db.subscriptionInvoiceCollection.createManyAndReturn({
-            data: [{ id: randomUUID(), ...invoiceCollectionColumns(attempt, number) }],
+            data: [
+                {
+                    id: randomUUID(),
+                    ...written,
+                    collectOn: collectOn === null ? null : utcMidnightOf(collectOn),
+                },
+            ],
             skipDuplicates: true,
         });
         return row ? toInvoiceCollectionRecord(row) : null;
+    }
+
+    async announce(
+        id: string,
+        collectOn: CalendarDay,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
+            where: { id, status: 'SCHEDULED', announcedAt: null },
+            data: { collectOn: utcMidnightOf(collectOn), announcedAt: at },
+        });
+        return count === 1;
+    }
+
+    async submitPlanned(
+        id: string,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<SubmittedInvoiceCollection | null> {
+        const db = this.db(tx);
+        const { count } = await db.subscriptionInvoiceCollection.updateMany({
+            where: { id, status: 'SCHEDULED' },
+            data: { status: 'SUBMITTED', submittedAt: at, heldAt: at },
+        });
+        if (count !== 1) return null;
+        const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+        return row ? sentCollectionOf(toInvoiceCollectionRecord(row)) : null;
+    }
+
+    async withdraw(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
+            where: { id, status: 'SCHEDULED' },
+            data: { status: 'WITHDRAWN', resolvedAt: at },
+        });
+        return count === 1;
+    }
+
+    async listPlanned(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        const rows = await this.db(tx).subscriptionInvoiceCollection.findMany({
+            // An empty text sorts before every id, as in `listDue`.
+            where: { id: { gt: page.after ?? '' }, status: 'SCHEDULED' },
+            select: { id: true },
+            orderBy: { id: 'asc' },
+            take: page.limit,
+        });
+        return rows.map((row) => row.id);
+    }
+
+    async listUncollected(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        // An empty text sorts before every id, as in `listDue`.
+        const after = page.after ?? '';
+        const rows = await this.db(tx).$queryRaw`
+            SELECT DISTINCT c."invoiceId" AS "id"
+              FROM "subscription_invoice_collections" c
+             WHERE c."invoiceId" > ${after}
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_collections" o
+                        WHERE o."invoiceId" = c."invoiceId"
+                          AND o."status" = ANY(${[...BLOCKING_COLLECTION_STATUSES]})
+                   )
+             ORDER BY c."invoiceId"
+             LIMIT ${page.limit}`;
+        return idsOf(rows);
+    }
+
+    async markFollowedUp(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
+            where: { id, status: 'FAILED', followedUpAt: null },
+            data: { followedUpAt: at },
+        });
+        return count === 1;
     }
 
     async recordOutcome(

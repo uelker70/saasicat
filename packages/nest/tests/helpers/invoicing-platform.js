@@ -45,6 +45,8 @@ export const wiredInvoices = (overrides = {}) => ({
  * platform composes the payments beside it, and the invoices are collected —,
  * `'uncollected'`, where they are composed and nothing collects the invoices,
  * or `'unread'`, where the file names the account and nothing composes them.
+ * `notices: false` takes the record of subscriber notices out of the
+ * persistence bundle the platform reads it from.
  */
 export function invoicingPlatform({
     invoicing = INVOICING,
@@ -53,6 +55,7 @@ export function invoicingPlatform({
     issuer = ISSUER,
     record = true,
     payments = 'none',
+    notices = true,
 } = {}) {
     const options = everythingOnOptions();
     const {
@@ -88,6 +91,7 @@ export function invoicingPlatform({
     composed.persistence.core.rlsBypass = { runWithBypass: (fn) => fn() };
     // A record that has kept nothing yet: the first start that names an issuer.
     composed.persistence.core.appliedSettings = record ? new FakeAppliedSettingsPort() : undefined;
+    if (!notices) composed.persistence.tenantBilling.subscriptionNotices = undefined;
     if (payments !== 'none') composed.planCatalog.payments = paymentsCatalog().payments;
     if (payments === 'wired' || payments === 'unread') {
         composed.tenantBilling.chargeJournal.invoices = {
