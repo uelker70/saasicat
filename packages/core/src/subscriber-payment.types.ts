@@ -236,6 +236,11 @@ export interface AdminSubscriberCredit {
 /** A tenant's credits as the operator reads them, the oldest first. */
 export interface AdminSubscriberCredits {
     credits: AdminSubscriberCredit[];
+    /**
+     * The installation's time zone, in which a payout's day is judged: no
+     * payout lies after today there, wherever the operator sits.
+     */
+    timeZone: string;
 }
 
 /** A payout the operator records against a credit. */

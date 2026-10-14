@@ -3302,12 +3302,17 @@ components:
 
         AdminSubscriberCredits:
             type: object
-            required: [credits]
+            required: [credits, timeZone]
             properties:
                 credits:
                     type: array
                     description: The oldest first.
                     items: { $ref: '#/components/schemas/AdminSubscriberCredit' }
+                timeZone:
+                    type: string
+                    description: >-
+                        The installation's time zone, in which a payout's day is
+                        judged: no payout lies after today there.
 
         AdminSubscriberPayout:
             type: object
@@ -3319,7 +3324,10 @@ components:
                     maximum: 9999999999.99
                     multipleOf: 0.01
                 reference: { type: string, maxLength: 200, description: Not blank. }
-                paidOn: { type: string, format: date, description: Today or earlier. }
+                paidOn:
+                    type: string
+                    format: date
+                    description: Today or earlier, in the installation's time zone.
                 note: { type: string, nullable: true, maxLength: 500 }
 
         SubscriberReadiness:

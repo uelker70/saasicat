@@ -9,7 +9,7 @@
 
 // @requirement SC-PRIC-083 — A credit is paid out by the operator, and never offset against a later invoice
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
@@ -45,6 +45,8 @@ const CREDITS = {
             entries: [],
         },
     ],
+    // Fourteen hours ahead of UTC: its day turns long before the browser's.
+    timeZone: 'Pacific/Kiritimati',
 };
 
 const PAYING = { capabilities: { 'credits.read': true, 'credits.payout': true } };
@@ -219,6 +221,29 @@ describe('a payout the operator records on the tenant page', () => {
         ]);
         expect(document.querySelector('.sa-dialog')).toBeNull();
         expect(notices).toEqual([['positive', 'Payout recorded.']]);
+    });
+
+    test("is dated today in the installation's time zone, read again each time the dialog opens", async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            // Noon in UTC, where the test runs, and already the 4th in Kiritimati.
+            vi.setSystemTime(new Date('2026-03-03T12:00:00.000Z'));
+            const { wrapper } = await mountPage();
+
+            await buttonsNamed(wrapper, 'Record payout')[0]!.trigger('click');
+            await settle();
+            expect(fieldOf('Transferred on').value).toBe('2026-03-04');
+            expect(fieldOf('Transferred on').getAttribute('max')).toBe('2026-03-04');
+            dialog().node?.querySelector<HTMLButtonElement>('.sa-dialog__actions button')?.click();
+            await settle();
+
+            vi.setSystemTime(new Date('2026-03-04T12:00:00.000Z'));
+            await buttonsNamed(wrapper, 'Record payout')[0]!.trigger('click');
+            await settle();
+            expect(fieldOf('Transferred on').value).toBe('2026-03-05');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     test('more than is open cannot be sent', async () => {

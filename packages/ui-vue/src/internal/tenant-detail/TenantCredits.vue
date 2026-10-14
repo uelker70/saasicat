@@ -75,12 +75,16 @@ const chosenId = ref<string | null>(null);
 const chosen = computed<AdminSubscriberCredit | null>(
     () => props.credits?.credits.find((credit) => credit.id === chosenId.value) ?? null,
 );
-/** Today where the operator sits, which a payout cannot lie after. */
-const today = computed(() =>
-    dayInZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
-);
+/**
+ * Today in the installation's time zone, where the platform judges a payout's
+ * day — not where the operator sits. Read when the dialog opens, so a page left
+ * open overnight offers the day it is.
+ */
+const today = ref('');
 
 function openPayout(creditId: string): void {
+    if (!props.credits) return;
+    today.value = dayInZone(new Date(), props.credits.timeZone);
     chosenId.value = creditId;
     payoutOpen.value = true;
 }

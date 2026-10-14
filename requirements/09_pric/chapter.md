@@ -1520,6 +1520,7 @@ _Tested by:_
           view alone
     - a payout the operator records on the tenant page
         - opens with what is open, is sent once a reference names it, with the second factor
+        - is dated today in the installation's time zone, read again each time the dialog opens
         - more than is open cannot be sent
     - the payout the form describes
         - is what is open, a reference and a note trimmed, an empty note as none

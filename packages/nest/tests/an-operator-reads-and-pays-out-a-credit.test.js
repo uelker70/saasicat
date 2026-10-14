@@ -111,8 +111,9 @@ describe("the operator reads a subscriber's credits", () => {
     test('the oldest first, each named by the invoice it comes from, with what is open', async () => {
         const { service } = await twoSubscribersWithCredits();
 
-        const { credits } = await service.creditsOf('tenant-of-subscriber-1');
+        const { credits, timeZone } = await service.creditsOf('tenant-of-subscriber-1');
 
+        assert.equal(timeZone, 'Europe/Berlin', 'the zone a payout day is judged in');
         assert.deepEqual(
             credits.map(({ origin, amount, open, createdAt }) => ({
                 origin,
@@ -144,7 +145,10 @@ describe("the operator reads a subscriber's credits", () => {
     test('a tenant without a subscriber has none', async () => {
         const { service } = await twoSubscribersWithCredits();
 
-        assert.deepEqual(await service.creditsOf('tenant-without'), { credits: [] });
+        assert.deepEqual(await service.creditsOf('tenant-without'), {
+            credits: [],
+            timeZone: 'Europe/Berlin',
+        });
     });
 
     test('a refund paid out of a credit is shown with its reference at the gateway', async () => {

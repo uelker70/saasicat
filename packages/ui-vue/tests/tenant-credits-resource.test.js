@@ -36,7 +36,7 @@ function answering(status, body) {
     return { http, calls };
 }
 
-const CREDITS = { credits: [] };
+const CREDITS = { credits: [], timeZone: 'Europe/Berlin' };
 const PAYOUT = { amount: 40, reference: 'TRF-2026-0042', paidOn: '2026-03-03', note: null };
 
 describe('tenantsResource.credits', () => {

@@ -54,7 +54,7 @@ export class SubscriberCreditService {
     /** The credits of the tenant's subscriber, the oldest first; none for a tenant without one. */
     async creditsOf(tenantId: string): Promise<AdminSubscriberCredits> {
         const subscriber = await this.subscribers.findByTenantId(tenantId);
-        if (!subscriber) return { credits: [] };
+        if (!subscriber) return { credits: [], timeZone: this.zone() };
         return this.viewOf(await this.payments.listCredits(subscriber.id));
     }
 
@@ -76,11 +76,7 @@ export class SubscriberCreditService {
         if (!subscriber) throw creditNotFound(creditId);
         const own = await this.payments.listCredits(subscriber.id);
         if (!own.some(({ credit }) => credit.id === creditId)) throw creditNotFound(creditId);
-        const zone = this.settings.timeZone;
-        if (!zone) {
-            throw new Error('Invoicing runs without a time zone, which its start refuses.');
-        }
-        const today = dayInZone(now, zone);
+        const today = dayInZone(now, this.zone());
         if (payout.paidOn > today) {
             throw new BadRequestException(
                 codedError(INVOICE_ERROR_CODES.SUBSCRIBER_PAYOUT_NOT_MADE_YET, {
@@ -146,7 +142,16 @@ export class SubscriberCreditService {
                 entries: entries.map(entryViewOf),
             });
         }
-        return { credits };
+        return { credits, timeZone: this.zone() };
+    }
+
+    /** The installation's time zone, which invoicing requires to start. */
+    private zone(): string {
+        const zone = this.settings.timeZone;
+        if (!zone) {
+            throw new Error('Invoicing runs without a time zone, which its start refuses.');
+        }
+        return zone;
     }
 }
 
