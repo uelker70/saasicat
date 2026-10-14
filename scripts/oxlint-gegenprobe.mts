@@ -300,22 +300,37 @@ function deviations(reports: readonly Report[]): string[] {
     ]);
 }
 
-// A signal is passed on to oxlint, `finally` removes the probes, and the script
-// ends with the signal's code. Without a handler of its own, Node would end the
-// process at once, the probes would stay in the tree, and the next build or
-// `git add -A` would pick them up. With a handler but oxlint started
-// synchronously, Node never calls the handler during the run: a signal to this
-// script alone would let oxlint finish and end in success.
-const SIGNALS = [
-    ['SIGINT', 130],
-    ['SIGTERM', 143],
-] as const;
-let abort: number | undefined;
-for (const [signal, code] of SIGNALS) {
+// A signal is passed on to oxlint, a second one ends oxlint hard, `finally`
+// removes the probes, and then the signal ends this script itself. Without a
+// handler of its own, Node would end the process at once, the probes would stay
+// in the tree, and the next build or `git add -A` would pick them up. With a
+// handler but oxlint started synchronously, Node never calls the handler during
+// the run: a signal to this script alone would let oxlint finish and end in
+// success.
+let abort: NodeJS.Signals | undefined;
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
-        abort = code;
-        runningOxlint?.kill(signal);
+        if (abort === undefined) {
+            abort = signal;
+            runningOxlint?.kill(signal);
+        } else {
+            runningOxlint?.kill('SIGKILL');
+        }
     });
+}
+
+/**
+ * Delivers a signal that came during synchronous work — Node calls the handler
+ * only once the event loop runs again — and then ends on it instead of with a
+ * code: a calling shell sees an end by the signal, and a loop around this
+ * script stops.
+ */
+async function followPendingSignal(): Promise<void> {
+    await new Promise((proceed) => setImmediate(proceed));
+    if (abort !== undefined) {
+        process.removeAllListeners(abort);
+        process.kill(process.pid, abort);
+    }
 }
 
 cleanUp();
@@ -328,9 +343,7 @@ try {
     reports = reportsFrom(await oxlintOutput());
 } finally {
     cleanUp();
-    if (abort !== undefined) {
-        process.exit(abort);
-    }
+    await followPendingSignal();
 }
 
 const open = deviations(reports);
@@ -342,11 +355,13 @@ if (open.length > 0) {
             ' refuses a tsconfig, or the packages are not built — or an exemption of the' +
             ' configuration no longer holds or reaches too far. Its comments say which and why.',
     );
-    process.exit(1);
+    process.exitCode = 1;
+} else {
+    const count = (field: 'expected' | 'forbidden'): number =>
+        PROBES.reduce((sum, probe) => sum + probe[field].length, 0);
+    console.log(
+        `OK — ${PROBES.length} probes; expected reports present: ${count('expected')}, ` +
+            `exempted ones absent: ${count('forbidden')}.`,
+    );
 }
-const count = (field: 'expected' | 'forbidden'): number =>
-    PROBES.reduce((sum, probe) => sum + probe[field].length, 0);
-console.log(
-    `OK — ${PROBES.length} probes; expected reports present: ${count('expected')}, ` +
-        `exempted ones absent: ${count('forbidden')}.`,
-);
+await followPendingSignal();
