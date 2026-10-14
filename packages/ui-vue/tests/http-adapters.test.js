@@ -327,6 +327,23 @@ describe('createAxiosHttpClient', () => {
         assert.equal(calls[0].data, '{"immediately":true}');
     });
 
+    test('a response header reads as text, a repeated one joined, anything else as absent', async () => {
+        const { instance } = stubAxios({
+            headers: {
+                ETag: 'W/"abc"',
+                'Content-Length': 42,
+                'Set-Cookie': ['a=1', 'b=2'],
+                'X-Odd': { nested: true },
+            },
+        });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(res.headers.get('etag'), 'W/"abc"');
+        assert.equal(res.headers.get('content-length'), '42');
+        assert.equal(res.headers.get('set-cookie'), 'a=1,b=2');
+        assert.equal(res.headers.get('x-odd'), null);
+        assert.equal(res.headers.get('x-missing'), null);
+    });
+
     test('json() returns what axios already parsed', async () => {
         const { instance } = stubAxios({ data: { slug: 'acme' } });
         const res = await createAxiosHttpClient(instance)('/x');

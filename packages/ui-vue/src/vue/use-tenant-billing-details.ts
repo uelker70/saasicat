@@ -120,7 +120,7 @@ export function useTenantBillingDetails(
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void reload());
+        queueMicrotask(() => void reload());
     }
 
     return { details, available, loading, error, reload, save };

@@ -477,15 +477,31 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
 export type ErrorMessageParams = Record<string, unknown>;
 
 /**
+ * The text a parameter reads as, or `null` when it has none: an object would
+ * read "[object Object]". A list reads as its items joined with commas, as
+ * `String` joins it — `{missing}` arrives as one.
+ */
+function parameterText(value: unknown): string | null {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+        return String(value);
+    }
+    if (value instanceof Date) return String(value);
+    if (!Array.isArray(value)) return null;
+    const items = value.map(parameterText);
+    return items.every((item) => item !== null) ? items.join(',') : null;
+}
+
+/**
  * Replaces `{name}` with `params.name`. An unknown placeholder is left
  * verbatim, so a missing value is visible in the UI rather than silently
- * vanishing.
+ * vanishing — and so is a value without a text of its own.
  */
 export function formatErrorMessage(template: string, params: ErrorMessageParams = {}): string {
-    return template.replace(/\{(\w+)\}/g, (match, name: string) => {
-        const value = params[name];
-        return value === undefined || value === null ? match : String(value);
-    });
+    return template.replace(
+        /\{(\w+)\}/g,
+        (match, name: string) => parameterText(params[name]) ?? match,
+    );
 }
 
 /**

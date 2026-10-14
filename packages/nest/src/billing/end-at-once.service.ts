@@ -296,9 +296,11 @@ export class EndAtOnceService {
     ): Date | null {
         const declared = booking ? declaredEndOf(booking) : cancellationLandsAt(subscription);
         if (!declared) return null;
-        const store = booking ? this.bookings?.endNow : this.writes.endNow;
+        const canStore = booking
+            ? typeof this.bookings?.endNow === 'function'
+            : typeof this.writes.endNow === 'function';
         const recorded = (booking ?? subscription).canceledEffectiveAt;
-        if (store && recorded !== null) return declared;
+        if (canStore && recorded !== null) return declared;
         throw new UnprocessableEntityException({
             code: BILLING_ERROR_CODES.FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED,
             message:

@@ -177,7 +177,7 @@ export class DrizzlePromoCodeHoldRepository implements PromoCodeHoldRepository {
 
     /** Runs `work` on a transaction of its own, a savepoint where the caller has one. */
     private onTransaction<T>(
-        tx: TransactionContext | undefined,
+        tx: TransactionContext,
         work: (db: DrizzleClient) => Promise<T>,
     ): Promise<T> {
         return resolveDb(this.db, tx).transaction((transaction) =>

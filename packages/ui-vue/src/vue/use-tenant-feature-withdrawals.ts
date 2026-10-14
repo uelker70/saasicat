@@ -178,7 +178,7 @@ export function useTenantFeatureWithdrawals(
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void reload());
+        queueMicrotask(() => void reload());
     }
 
     return { withdrawals, available, loading, error, reload, previewEnd, end };

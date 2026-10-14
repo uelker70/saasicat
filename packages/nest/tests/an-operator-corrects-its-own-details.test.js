@@ -146,12 +146,12 @@ function settingsOf(catalog) {
  * `{ legalName, endedAt }`, which is how an ordinary cancellation leaves a
  * contract: a window that has closed, and the status left where it was.
  */
-function contractsRunning(...entries) {
+async function contractsRunning(...entries) {
     const repo = new FakeSubscriptionContractRepository();
     for (const [index, entry] of entries.entries()) {
         const { legalName, endedAt = null } =
             entry === null || typeof entry === 'string' ? { legalName: entry } : entry;
-        repo.create({
+        await repo.create({
             tenantId: `tenant-${index + 1}`,
             parties: {
                 subscriberId: `subscriber-${index + 1}`,
@@ -229,7 +229,10 @@ describe('a start that finds the issuer where it left it', () => {
     test('lets the address move without a word from the operator', async () => {
         const moved = { ...GMBH, addressLine1: 'Hauptstraße 1', city: 'Berlin' };
         const port = portRecording(settingsOf(catalogWith(GMBH)));
-        app = await boot(catalogWith(moved), { port, contracts: contractsRunning(GMBH.legalName) });
+        app = await boot(catalogWith(moved), {
+            port,
+            contracts: await contractsRunning(GMBH.legalName),
+        });
         assert.equal(port.applied.settings.issuer.city, 'Berlin');
         assert.equal(port.changes.length, 1, 'the move is recorded like any other setting');
     });
@@ -248,7 +251,7 @@ describe('a start that finds the issuer where it left it', () => {
         const said = await capturingLogs(async () => {
             app = await boot(catalogWith(corrected), {
                 port,
-                contracts: contractsRunning(GMBH.legalName),
+                contracts: await contractsRunning(GMBH.legalName),
             });
         });
         assert.equal(port.applied.settings.issuer.legalName, 'Example Software AG');
@@ -279,7 +282,7 @@ describe('a start that finds the issuer where it left it', () => {
         const port = portRecording(settingsOf(catalogWith(corrected)));
         app = await boot(catalogWith(corrected), {
             port,
-            contracts: contractsRunning(GMBH.legalName),
+            contracts: await contractsRunning(GMBH.legalName),
         });
         assert.deepEqual(port.changes, [], 'nothing moved, so nothing was recorded');
     });
@@ -289,7 +292,7 @@ describe('a start that finds the issuer where it left it', () => {
 describe('a start that finds another legal entity', () => {
     test('does not start, and names the contracts still running under the previous one', async () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
-        const contracts = contractsRunning('Example Software GmbH', 'Example Software GmbH');
+        const contracts = await contractsRunning('Example Software GmbH', 'Example Software GmbH');
         const message = await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
             port,
             contracts,
@@ -311,7 +314,7 @@ describe('a start that finds another legal entity', () => {
         const port = portRecording(settings);
         await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
             port,
-            contracts: contractsRunning('Example Software GmbH'),
+            contracts: await contractsRunning('Example Software GmbH'),
         });
         assert.deepEqual(port.applied.settings, settings);
         assert.equal(port.applied.appliedAt.toISOString(), '2026-08-01T06:00:00.000Z');
@@ -339,7 +342,7 @@ describe('a start that finds another legal entity', () => {
                 legalName: 'Other Software AG',
                 correctionOf: { legalName: 'Example Software OHG', reason: 'Renamed' },
             }),
-            { port, contracts: contractsRunning('Example Software GmbH') },
+            { port, contracts: await contractsRunning('Example Software GmbH') },
         );
         assert.match(message, /issuer\.correctionOf\.legalName` names 'Example Software OHG'/);
     });
@@ -356,7 +359,7 @@ describe('a start that finds another legal entity', () => {
                     reason: 'Change of legal form',
                 },
             }),
-            { port, contracts: contractsRunning('Example Software GmbH') },
+            { port, contracts: await contractsRunning('Example Software GmbH') },
         );
         assert.match(message, /says nothing about `vatId`/);
     });
@@ -365,7 +368,7 @@ describe('a start that finds another legal entity', () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
         const message = await refusalOf(catalogWith(undefined), {
             port,
-            contracts: contractsRunning('Example Software GmbH'),
+            contracts: await contractsRunning('Example Software GmbH'),
         });
         assert.match(message, /no issuer is named at all/);
         assert.match(message, /names no issuer for a declaration to be about/);
@@ -392,7 +395,7 @@ describe('a start that finds another legal entity', () => {
                     reason: 'Change of legal form',
                 },
             }),
-            { port, contracts: contractsRunning('Example Software GmbH') },
+            { port, contracts: await contractsRunning('Example Software GmbH') },
         );
         assert.match(message, /names no issuer for a declaration to be about/);
         assert.deepEqual(port.applied.settings, settings, 'a nameless issuer was recorded');
@@ -433,7 +436,7 @@ describe('a start that finds another legal entity', () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
         const message = await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
             port,
-            contracts: contractsRunning(GMBH.legalName),
+            contracts: await contractsRunning(GMBH.legalName),
             bypass,
         });
         assert.deepEqual(seen, ['in'], 'the contracts were read outside the bypass');
@@ -454,7 +457,7 @@ describe('a start that finds another legal entity', () => {
         const port = portRecording(settingsOf(catalogWith(full)));
         const message = await refusalOf(catalogWith(undefined), {
             port,
-            contracts: contractsRunning(full.legalName),
+            contracts: await contractsRunning(full.legalName),
         });
         // Read as data rather than matched as a pattern: a name out of the
         // schema built into a regex is a pattern that says something else the
@@ -474,7 +477,9 @@ describe('a start that finds another legal entity', () => {
 
     test('names the contracts up to a limit, and how many more there are', async () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
-        const contracts = contractsRunning(...Array.from({ length: 7 }, () => GMBH.legalName));
+        const contracts = await contractsRunning(
+            ...Array.from({ length: 7 }, () => GMBH.legalName),
+        );
         const message = await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
             port,
             contracts,
@@ -494,7 +499,7 @@ describe('a start that finds another legal entity', () => {
         // day arrives. Counting by status alone would report every customer who
         // ever left as still running — and, oldest first, name exactly those.
         const port = portRecording(settingsOf(catalogWith(GMBH)));
-        const contracts = contractsRunning(
+        const contracts = await contractsRunning(
             { legalName: GMBH.legalName, endedAt: new Date('2026-03-01T00:00:00.000Z') },
             { legalName: GMBH.legalName, endedAt: new Date('2099-01-01T00:00:00.000Z') },
             GMBH.legalName,
@@ -516,7 +521,7 @@ describe('a start that finds another legal entity', () => {
         const port = portRecording(settingsOf(catalogWith(awkward)));
         const message = await refusalOf(catalogWith({ ...awkward, legalName: 'Other AG' }), {
             port,
-            contracts: contractsRunning(awkward.legalName),
+            contracts: await contractsRunning(awkward.legalName),
         });
         assert.match(message, /legalName: "Beispiel: Software GmbH"/);
     });
@@ -527,7 +532,7 @@ describe('a start that finds another legal entity', () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
         const message = await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
             port,
-            contracts: contractsRunning(null),
+            contracts: await contractsRunning(null),
         });
         assert.match(message, /names no issuer/);
     });
@@ -537,7 +542,9 @@ describe('a start that finds another legal entity', () => {
 describe('what the comparison needs, and what it does without', () => {
     test('an installation that records nothing compares the issuer with nothing, and says so', async () => {
         const said = await capturingLogs(async () => {
-            app = await boot(catalogWith(GMBH), { contracts: contractsRunning(GMBH.legalName) });
+            app = await boot(catalogWith(GMBH), {
+                contracts: await contractsRunning(GMBH.legalName),
+            });
         });
         assert.ok(
             said.warn.some((line) => /compared with nothing/.test(line)),
@@ -600,7 +607,7 @@ describe('what this start found stays what this start found', () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
         app = await boot(catalogWith(corrected), {
             port,
-            contracts: contractsRunning(GMBH.legalName),
+            contracts: await contractsRunning(GMBH.legalName),
         });
 
         assert.equal(
@@ -619,7 +626,7 @@ describe('what this start found stays what this start found', () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
         app = await boot(catalogWith(GMBH), {
             port,
-            contracts: contractsRunning(GMBH.legalName, GMBH.legalName, null),
+            contracts: await contractsRunning(GMBH.legalName, GMBH.legalName, null),
         });
         assert.equal(await app.get(IssuerIdentityInspector).runningContractCount(), 3);
     });
@@ -678,7 +685,10 @@ describe('the record is still a mirror', () => {
             },
         };
         const port = portRecording(stale);
-        app = await boot(catalogWith(GMBH), { port, contracts: contractsRunning(GMBH.legalName) });
+        app = await boot(catalogWith(GMBH), {
+            port,
+            contracts: await contractsRunning(GMBH.legalName),
+        });
         const verdict = await app.get(IssuerIdentityInspector).inspect();
         assert.equal(verdict.change.kind, 'unchanged');
         assert.equal(port.applied.settings.currency, 'EUR', 'the file is what runs');

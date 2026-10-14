@@ -817,7 +817,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void reload());
+        queueMicrotask(() => void reload());
     }
 
     return {

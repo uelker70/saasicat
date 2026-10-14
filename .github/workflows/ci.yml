@@ -153,9 +153,14 @@ jobs:
               run: pnpm exec eslint .
             # Code that is very likely wrong or useless, in every source. Unlike
             # the ratchet it keeps no baseline: a finding fails. Which category
-            # and why is in oxlint.correctness.config.mts.
+            # and why is in oxlint.correctness.config.mts. The rules with types
+            # read the built packages, so the step stays after the build; the
+            # guard after it holds that they report where the configuration
+            # promises and its exemptions reach no further than said.
             - name: Lint (oxlint correctness)
-              run: pnpm run lint:correctness
+              run: |
+                  pnpm run lint:correctness
+                  node scripts/oxlint-gegenprobe.mts
             # The two questions ESLint cannot answer, because they are about a
             # CSS value: is this a token, and is this one of the five
             # breakpoints. Colour and type are errors; spacing, radii and

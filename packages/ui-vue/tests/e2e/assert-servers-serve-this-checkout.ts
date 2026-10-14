@@ -207,7 +207,7 @@ async function complaintAbout(baseURL: string): Promise<string | null> {
             ? await viteDevServerComplaint(baseURL)
             : await staticFixtureServerComplaint(baseURL);
     } catch (error) {
-        return `${baseURL} could not be probed: ${error instanceof Error ? error.message : error}`;
+        return `${baseURL} could not be probed: ${error instanceof Error ? error.message : String(error)}`;
     }
 }
 

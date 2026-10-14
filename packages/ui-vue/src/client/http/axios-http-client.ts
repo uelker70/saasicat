@@ -141,7 +141,10 @@ function headerReader(headers: unknown): (name: string) => string | null {
     for (const [key, value] of Object.entries(record)) lowered.set(key.toLowerCase(), value);
     return (name) => {
         const value = lowered.get(name.toLowerCase());
-        return value == null ? null : String(value);
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        // A repeated header (`set-cookie`) arrives as a list; `String` joined it with commas.
+        return Array.isArray(value) ? value.join(',') : null;
     };
 }
 

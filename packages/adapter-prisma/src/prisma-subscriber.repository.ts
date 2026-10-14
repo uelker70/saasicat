@@ -88,7 +88,7 @@ export class PrismaSubscriberRepository implements SubscriberRepository {
 
     /** On the caller's transaction when there is one, otherwise in one of its own. */
     private inTransaction<T>(
-        tx: TransactionContext | undefined,
+        tx: TransactionContext,
         fn: (db: SubscriberPrisma) => Promise<T>,
     ): Promise<T> {
         if (tx) return fn(this.db(tx));

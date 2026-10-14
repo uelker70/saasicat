@@ -153,7 +153,7 @@ export function useTenantBillingCatalog(
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void load());
+        queueMicrotask(() => void load());
     }
 
     return { plans, featureRegistry, bundles, loading, error, load };

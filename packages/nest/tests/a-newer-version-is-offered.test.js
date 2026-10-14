@@ -36,7 +36,7 @@ function serviceFor({
     sub = subscription(),
     rows = [BOUND],
     live = V2({ quotas: { users: 5, vehicles: 150 } }),
-    plans = undefined,
+    plans,
     blocked = null,
     told = [],
 } = {}) {
@@ -312,7 +312,7 @@ describe('GET billing/version-offer', () => {
 
 describe('beside a retirement told for the version bound', () => {
     /** The subscription told of a retirement of v1 onto `planVersionId`, and `live` on sale. */
-    const toldOnto = (planVersionId, live = undefined, sub = {}) =>
+    const toldOnto = (planVersionId, live, sub = {}) =>
         offerOf({
             sub: subscription({ id: 'sub-t1', ...sub }),
             told: [{ retired: { planVersionId: BOUND.id }, replacement: { planVersionId } }],

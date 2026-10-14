@@ -100,6 +100,7 @@ describe('useSuperAdminManifest', () => {
                 render: () => null,
             });
             // Run setup() directly — no mount needed
+            // oxlint-disable-next-line typescript/no-floating-promises -- Vue types a setup as possibly async; this one returns its render function synchronously
             probe.setup();
         });
         assert.equal(result, null);

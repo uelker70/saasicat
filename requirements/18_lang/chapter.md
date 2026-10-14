@@ -441,6 +441,8 @@ _Tested by:_
     - formatErrorMessage
         - substitutes named values
         - leaves an unknown placeholder visible rather than dropping it
+        - leaves the placeholder for a value without a text of its own
+        - reads text, numbers, booleans, dates and lists of them as before
         - treats null like a missing value
     - resolveErrorMessage
         - prefers the consumer override
@@ -585,6 +587,8 @@ _Tested by:_
     - formatErrorMessage
         - substitutes named values
         - leaves an unknown placeholder visible rather than dropping it
+        - leaves the placeholder for a value without a text of its own
+        - reads text, numbers, booleans, dates and lists of them as before
         - treats null like a missing value
     - resolveErrorMessage
         - prefers the consumer override

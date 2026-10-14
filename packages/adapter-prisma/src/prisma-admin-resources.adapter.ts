@@ -10,7 +10,7 @@ import type {
     AdminUserListRow,
     AuditEntry,
 } from '@saasicat/core';
-import type { PrismaLike, PrismaModelDelegateLike } from './prisma-client-token.js';
+import type { DecimalLike, PrismaLike, PrismaModelDelegateLike } from './prisma-client-token.js';
 import { getPrismaDelegate } from './prisma-plan-binding.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
 import {
@@ -90,7 +90,7 @@ interface AdminSubscriptionRow {
     billingCycle: string;
     currentPeriodEnd?: Date | null;
     tenant: { slug: string; name: string };
-    planVersion?: { monthlyNet: unknown } | null;
+    planVersion?: { monthlyNet: DecimalLike } | null;
 }
 
 /**

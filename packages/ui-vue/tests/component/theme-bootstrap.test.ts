@@ -75,7 +75,7 @@ function machinePrefers(initial: 'light' | 'dark') {
                 fn({ matches: dark } as MediaQueryListEvent);
             }
         },
-        restore() {
+        restore: () => {
             listeners.clear();
             if (original) Object.defineProperty(window, 'matchMedia', original);
             else delete (window as unknown as Record<string, unknown>).matchMedia;

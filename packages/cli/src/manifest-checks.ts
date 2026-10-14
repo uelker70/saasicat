@@ -73,7 +73,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
         run: (m) =>
             m.schemaVersion === 1
                 ? ok('schemaVersion=1')
-                : err(`Unexpected schemaVersion ${m.schemaVersion}`),
+                : err(`Unexpected schemaVersion ${JSON.stringify(m.schemaVersion)}`),
     },
     {
         id: 'manifest.hash-format',

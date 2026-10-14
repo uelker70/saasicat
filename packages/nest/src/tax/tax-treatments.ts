@@ -220,6 +220,7 @@ export function taxRefusalOf(
         const response = (error as HttpException).getResponse() as {
             params?: { reason?: unknown };
         };
-        return String(response.params?.reason ?? '');
+        const reason = response.params?.reason;
+        return typeof reason === 'string' ? reason : '';
     }
 }

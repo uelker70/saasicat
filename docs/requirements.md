@@ -7850,6 +7850,7 @@ _Tested by:_
         - ends it now, records it first, ends the contract and credits the unused rest
         - brings forward a cancellation declared for the end of the term
         - is refused, and nothing recorded, where the store cannot bring a declared end forward
+        - is refused the same where the store names its end-now write as null
         - is refused as one that cannot be brought forward where only the declaration date names the
           end
         - is refused for a withdrawal it was not told of, or one not in effect now
@@ -18745,6 +18746,8 @@ _Tested by:_
     - formatErrorMessage
         - substitutes named values
         - leaves an unknown placeholder visible rather than dropping it
+        - leaves the placeholder for a value without a text of its own
+        - reads text, numbers, booleans, dates and lists of them as before
         - treats null like a missing value
     - resolveErrorMessage
         - prefers the consumer override
@@ -18889,6 +18892,8 @@ _Tested by:_
     - formatErrorMessage
         - substitutes named values
         - leaves an unknown placeholder visible rather than dropping it
+        - leaves the placeholder for a value without a text of its own
+        - reads text, numbers, booleans, dates and lists of them as before
         - treats null like a missing value
     - resolveErrorMessage
         - prefers the consumer override
@@ -19225,6 +19230,7 @@ _Tested by:_
         - no status throws — 304, 402 and 500 all arrive as responses
         - the method is upper-cased and defaults to GET
         - a DELETE carries its body through
+        - a response header reads as text, a repeated one joined, anything else as absent
         - json() returns what axios already parsed
         - json() parses a raw string, for an instance with transformResponse disabled
         - every way of turning axios’s own decoding off is read as text

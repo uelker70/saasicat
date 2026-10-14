@@ -78,7 +78,7 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
      * transaction.
      */
     private inTransaction<T>(
-        tx: TransactionContext | undefined,
+        tx: TransactionContext,
         fn: (db: InvoicePrisma) => Promise<T>,
     ): Promise<T> {
         if (!tx) return this.prisma.$transaction((own) => fn(own as InvoicePrisma));

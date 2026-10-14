@@ -120,7 +120,7 @@ export interface CapabilityCatalogEntryRow {
  * `CORE` < `ADVANCED` < `PRO` < `ENTERPRISE`. Apps may add further
  * tiers; sorting then happens via `FeatureCatalogEntry.sortOrder`.
  */
-export type FeatureTier = 'CORE' | 'ADVANCED' | 'PRO' | 'ENTERPRISE' | string;
+export type FeatureTier = 'CORE' | 'ADVANCED' | 'PRO' | 'ENTERPRISE' | (string & {});
 
 /**
  * SuperAdmin projection of a feature (aggregation of capabilities that declare

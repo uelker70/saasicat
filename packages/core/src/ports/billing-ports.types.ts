@@ -876,7 +876,7 @@ export interface SubscriptionUsageRecord {
      * `null` for subscriptions that did not originate from a CheckoutOffer
      * (direct creation, migration).
      */
-    packageSnapshot?: unknown | null;
+    packageSnapshot?: unknown;
     /**
      * P11.4: reference to the original `CheckoutOffer.id`. Mostly not needed
      * for the UI (the snapshot is self-contained), but useful for support

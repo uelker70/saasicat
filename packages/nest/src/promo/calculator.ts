@@ -15,9 +15,9 @@ import { grossFromNet, netFromGross } from './math.js';
  * without a cast. Internally `Number(...)` is called.
  */
 export interface PromoCodeForCalc {
-    valueType: PromoCodeValueType | string;
+    valueType: PromoCodeValueType | (string & {});
     value: number | string | { toString(): string };
-    durationType?: PromoCodeDurationType | string;
+    durationType?: PromoCodeDurationType | (string & {});
     durationValue?: number | null;
 }
 
@@ -174,7 +174,7 @@ function requireSupportedLocale(locale: string): void {
 
 function formatPromoValue(
     value: number,
-    valueType: PromoCodeValueType | string,
+    valueType: PromoCodeValueType | (string & {}),
     { locale = LEGACY_LABEL_LOCALE, currency = LEGACY_LABEL_CURRENCY }: PromoLabelOptions,
 ): string {
     requireSupportedLocale(locale);

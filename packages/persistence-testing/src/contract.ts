@@ -286,7 +286,7 @@ function contractFromOffer(
  */
 const CONTRACT_GAPS: Record<
     ContractGap,
-    { reason: string; present(harness: PersistenceContractHarness): boolean }
+    { reason: string; present: (harness: PersistenceContractHarness) => boolean }
 > = {
     atomicPlanBinding: {
         reason: 'adapter does not expose atomic plan-binding writes',
@@ -295,7 +295,7 @@ const CONTRACT_GAPS: Record<
     atomicOnboarding: {
         reason: 'adapter does not expose atomic onboarding writes',
         present: ({ adapter }) =>
-            Boolean(adapter.tenantSubscriptionWrite?.applyOnboardingSelection),
+            typeof adapter.tenantSubscriptionWrite?.applyOnboardingSelection === 'function',
     },
     promoCodes: {
         reason: 'adapter provides no PromoCodeRepository',
@@ -327,7 +327,7 @@ const CONTRACT_GAPS: Record<
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
                 repository.findActivePlanVersion &&
-                repository.terminate,
+                typeof repository.terminate === 'function',
             );
         },
     },
@@ -339,14 +339,17 @@ const CONTRACT_GAPS: Record<
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
                 repository.findVersionById &&
-                repository.findActivePlanVersion,
+                typeof repository.findActivePlanVersion === 'function',
             );
         },
     },
     planRetirement: {
         reason: 'adapter provides no PlanRepository that retires and finds plans by key',
         present: ({ adapter }) =>
-            Boolean(adapter.planRepository?.softDelete && adapter.planRepository.findByKey),
+            Boolean(
+                adapter.planRepository?.softDelete &&
+                typeof adapter.planRepository.findByKey === 'function',
+            ),
     },
     planVersionReads: {
         reason: 'adapter provides no PlanRepository that reads versions by plan key',
@@ -355,7 +358,7 @@ const CONTRACT_GAPS: Record<
             return Boolean(
                 repository?.listVersions &&
                 repository.findCurrentDraft &&
-                repository.findLatestLivePlanVersion,
+                typeof repository.findLatestLivePlanVersion === 'function',
             );
         },
     },
@@ -369,7 +372,7 @@ const CONTRACT_GAPS: Record<
                 repository.listVersions &&
                 repository.findCurrentDraft &&
                 repository.findLatestLivePlanVersion &&
-                repository.softDelete,
+                typeof repository.softDelete === 'function',
             );
         },
     },
@@ -379,15 +382,16 @@ const CONTRACT_GAPS: Record<
     },
     bundleValidity: {
         reason: 'adapter provides no time-aware BundleRepository',
-        present: ({ adapter }) => Boolean(adapter.bundleRepository?.findActiveBundleVersion),
+        present: ({ adapter }) =>
+            typeof adapter.bundleRepository?.findActiveBundleVersion === 'function',
     },
     bundleDraftDiscard: {
         reason: 'adapter provides no BundleRepository that discards drafts',
-        present: ({ adapter }) => Boolean(adapter.bundleRepository?.deleteDraft),
+        present: ({ adapter }) => typeof adapter.bundleRepository?.deleteDraft === 'function',
     },
     bundleDraftPublish: {
         reason: 'adapter provides no BundleRepository that publishes drafts',
-        present: ({ adapter }) => Boolean(adapter.bundleRepository?.publishDraft),
+        present: ({ adapter }) => typeof adapter.bundleRepository?.publishDraft === 'function',
     },
     planDraftPublish: {
         reason: 'adapter provides no PlanRepository that creates, publishes and reads drafts',
@@ -396,7 +400,7 @@ const CONTRACT_GAPS: Record<
             return Boolean(
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
-                repository.findVersionById,
+                typeof repository.findVersionById === 'function',
             );
         },
     },
@@ -408,31 +412,38 @@ const CONTRACT_GAPS: Record<
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
                 repository.findVersionById &&
-                repository.deletePlanVersionDraft,
+                typeof repository.deletePlanVersionDraft === 'function',
             );
         },
     },
     bundleRetirement: {
         reason: 'adapter provides no BundleRepository that retires and finds bundles by key',
         present: ({ adapter }) =>
-            Boolean(adapter.bundleRepository?.softDelete && adapter.bundleRepository.findByKey),
+            Boolean(
+                adapter.bundleRepository?.softDelete &&
+                typeof adapter.bundleRepository.findByKey === 'function',
+            ),
     },
     bundleBookings: {
         reason: 'adapter provides no SubscriptionBundleRepository or bundle catalog',
         present: ({ adapter, seed }) =>
-            Boolean(adapter.subscriptionBundleRepository && seed.createBundleVersion),
+            Boolean(
+                adapter.subscriptionBundleRepository &&
+                typeof seed.createBundleVersion === 'function',
+            ),
     },
     halfCancelledBookingSeed: {
         reason: 'adapter harness cannot write the half-cancelled shape',
-        present: ({ seed }) => Boolean(seed.clearBookingRequestDate),
+        present: ({ seed }) => typeof seed.clearBookingRequestDate === 'function',
     },
     foreignBookingCycleSeed: {
         reason: 'adapter harness cannot write a rhythm the platform never writes',
-        present: ({ seed }) => Boolean(seed.setBookingCycle),
+        present: ({ seed }) => typeof seed.setBookingCycle === 'function',
     },
     countByPlanVersionId: {
         reason: 'adapter does not implement countByPlanVersionId (fail-closed fallback)',
-        present: ({ adapter }) => Boolean(adapter.subscriptionRepository.countByPlanVersionId),
+        present: ({ adapter }) =>
+            typeof adapter.subscriptionRepository.countByPlanVersionId === 'function',
     },
     audit: {
         reason: 'adapter provides no AuditPort/AuditQueryPort pair',
@@ -445,7 +456,10 @@ const CONTRACT_GAPS: Record<
     subscriptionContracts: {
         reason: 'adapter provides no SubscriptionContractRepository, or no subscriber seed for it',
         present: ({ adapter, seed }) =>
-            Boolean(adapter.subscriptionContractRepository && seed.createSubscriber),
+            Boolean(
+                adapter.subscriptionContractRepository &&
+                typeof seed.createSubscriber === 'function',
+            ),
     },
     subscribers: {
         reason: 'adapter provides no SubscriberRepository',
@@ -458,7 +472,10 @@ const CONTRACT_GAPS: Record<
     subscriberPaymentMethods: {
         reason: 'adapter provides no SubscriberPaymentMethodRepository, or no subscriber seed for it',
         present: ({ adapter, seed }) =>
-            Boolean(adapter.subscriberPaymentMethodRepository && seed.createSubscriber),
+            Boolean(
+                adapter.subscriberPaymentMethodRepository &&
+                typeof seed.createSubscriber === 'function',
+            ),
     },
     subscriberLedger: {
         reason: 'adapter provides no SubscriberLedgerRepository, or no contracts and subscriber seed for it',
@@ -466,7 +483,7 @@ const CONTRACT_GAPS: Record<
             Boolean(
                 adapter.subscriberLedgerRepository &&
                 adapter.subscriptionContractRepository &&
-                seed.createSubscriber,
+                typeof seed.createSubscriber === 'function',
             ),
     },
     subscriptionInvoices: {
@@ -476,7 +493,7 @@ const CONTRACT_GAPS: Record<
                 adapter.subscriptionInvoiceRepository &&
                 adapter.subscriberLedgerRepository &&
                 adapter.subscriptionContractRepository &&
-                seed.createSubscriber,
+                typeof seed.createSubscriber === 'function',
             ),
     },
     invoiceArchive: {
@@ -517,7 +534,8 @@ const CONTRACT_GAPS: Record<
     },
     boundSubscriptions: {
         reason: 'adapter provides no SubscriptionUsagePort that lists a version',
-        present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listBoundToVersion),
+        present: ({ adapter }) =>
+            typeof adapter.subscriptionUsage?.listBoundToVersion === 'function',
     },
     bundleVersionRetirements: {
         reason: 'adapter provides no BundleVersionRetirementRepository',
@@ -527,14 +545,16 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no SubscriptionBundleRepository that lists an add-on version',
         present: ({ adapter, seed }) =>
             Boolean(
-                adapter.subscriptionBundleRepository?.listOfVersion && seed.createBundleVersion,
+                adapter.subscriptionBundleRepository?.listOfVersion &&
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     bookingsMoved: {
         reason: 'adapter provides no SubscriptionBundleRepository that moves a booking to another version',
         present: ({ adapter, seed }) =>
             Boolean(
-                adapter.subscriptionBundleRepository?.moveToVersion && seed.createBundleVersion,
+                adapter.subscriptionBundleRepository?.moveToVersion &&
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     bookingsScheduled: {
@@ -544,12 +564,12 @@ const CONTRACT_GAPS: Record<
                 adapter.subscriptionBundleRepository?.scheduleVersion &&
                 adapter.subscriptionBundleRepository.unscheduleVersion &&
                 adapter.subscriptionBundleRepository.listScheduledVersionsDue &&
-                seed.createBundleVersion,
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     subscriptionsById: {
         reason: 'adapter provides no SubscriptionUsagePort that reads subscriptions by id',
-        present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listByIds),
+        present: ({ adapter }) => typeof adapter.subscriptionUsage?.listByIds === 'function',
     },
     featureWithdrawals: {
         reason: 'adapter provides no FeatureWithdrawalRepository',
@@ -558,11 +578,14 @@ const CONTRACT_GAPS: Record<
     bookingsEndedNow: {
         reason: 'adapter provides no SubscriptionBundleRepository that ends a cancelled booking at once',
         present: ({ adapter, seed }) =>
-            Boolean(adapter.subscriptionBundleRepository?.endNow && seed.createBundleVersion),
+            Boolean(
+                adapter.subscriptionBundleRepository?.endNow &&
+                typeof seed.createBundleVersion === 'function',
+            ),
     },
     subscriptionsEndedNow: {
         reason: 'adapter provides no TenantSubscriptionWritePort that ends a cancelled subscription at once',
-        present: ({ adapter }) => Boolean(adapter.tenantSubscriptionWrite?.endNow),
+        present: ({ adapter }) => typeof adapter.tenantSubscriptionWrite?.endNow === 'function',
     },
 };
 
@@ -2099,7 +2122,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 missing(t, 'bundleBookings');
                 return;
             }
-            const setBookingCycle = seed.setBookingCycle;
+            const setBookingCycle = seed.setBookingCycle?.bind(seed);
             if (!setBookingCycle) {
                 missing(t, 'foreignBookingCycleSeed');
                 return;
@@ -2325,7 +2348,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 canceledAt: new Date('2026-02-01T00:00:00.000Z'),
                 canceledEffectiveAt: new Date('2026-03-01T00:00:00.000Z'),
             });
-            const clearRequestDate = harness.seed.clearBookingRequestDate;
+            const clearRequestDate = harness.seed.clearBookingRequestDate?.bind(harness.seed);
             if (!clearRequestDate) {
                 missing(t, 'halfCancelledBookingSeed');
                 return;
@@ -3790,7 +3813,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const tagsFor = async (actorTag: string) =>
                 (await adapter.auditQuery!.list({ actorTag }))
                     .map((entry) => entry.actorTag)
-                    .sort();
+                    .sort((a, b) => (a ?? '').localeCompare(b ?? ''));
 
             assert.deepEqual(await tagsFor('*:ops@example.com:*'), [
                 'cli:ops@example.com:host1',
@@ -3980,7 +4003,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // known fields would drop the name, and the add-on would be granted
             // by nobody before its date.
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -4046,7 +4069,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // -------------------------------------------------------------
         test('a contract keeps what was agreed, and ending it does not rewrite it', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -4234,7 +4257,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a successor takes over without erasing the contract it replaces', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -4363,7 +4386,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // -------------------------------------------------------------
         test('a line keeps the currency and the tax it was booked with', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -4497,7 +4520,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // reaches the write by mistake cannot end another tenant's contract
             // — also where no row policy would stop it.
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -4537,7 +4560,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // keeps the second of them from superseding it again — and from
             // superseding one whose end a cancellation declared in between.
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -4693,7 +4716,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // goes with them, or the copy passes for what was agreed one
             // contract later.
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -5600,7 +5623,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a contract records the tax treatment it was concluded with, and none where none was decided', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -5648,7 +5671,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // copy the migration made names no issuer at all.
             const { adapter } = harness;
             const contracts = adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
@@ -5952,7 +5975,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test("a confirmed payment method becomes the subscriber's, with its references and masked details", async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -5993,7 +6016,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a newer payment method takes over, and the one it replaced stays as history', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6016,7 +6039,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a confirmation recorded again is recognised, and changes nothing', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6041,7 +6064,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a reference belongs to one subscriber, and another one neither reads nor records it', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6084,7 +6107,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('two subscribers confirming one reference at once: the second is refused in the same words', async (t) => {
             const { adapter } = harness;
             const methods = adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6158,7 +6181,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a confirmation older than the payment method in use is recorded as already replaced', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6181,7 +6204,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('two confirmations for one subscriber at once leave one payment method in use', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6221,7 +6244,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a payment method written on a transaction is undone with it', async (t) => {
             const { adapter } = harness;
             const methods = adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6271,7 +6294,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('the accounts in use are those holding a payment method in use, each once', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6310,7 +6333,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a setup is completed once, and only by the account, session and subscriber it was started with', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6352,7 +6375,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a setup completed on a transaction that rolls back is open again', async (t) => {
             const { adapter } = harness;
             const methods = adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6383,7 +6406,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('one session is one setup, however often it is recorded', async (t) => {
             const methods = harness.adapter.subscriberPaymentMethodRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!methods || !createSubscriber) {
                 missing(t, 'subscriberPaymentMethods');
                 return;
@@ -6413,7 +6436,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         async function anAccount(t: TestContext, tenantId: string) {
             const ledger = harness.adapter.subscriberLedgerRepository;
             const contracts = harness.adapter.subscriptionContractRepository;
-            const createSubscriber = harness.seed.createSubscriber;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
             if (!ledger || !contracts || !createSubscriber) {
                 missing(t, 'subscriberLedger');
                 return null;
