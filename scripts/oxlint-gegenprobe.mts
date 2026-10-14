@@ -301,37 +301,43 @@ function deviations(reports: readonly Report[]): string[] {
 }
 
 // A signal is passed on to oxlint, a second one ends oxlint hard, `finally`
-// removes the probes, and then the signal ends this script itself. Without a
-// handler of its own, Node would end the process at once, the probes would stay
-// in the tree, and the next build or `git add -A` would pick them up. With a
-// handler but oxlint started synchronously, Node never calls the handler during
-// the run: a signal to this script alone would let oxlint finish and end in
-// success.
+// removes the probes, and then the signal ends this script itself — so a
+// calling shell sees an end by the signal, and a loop around this script stops.
+// Without a handler of its own, Node would end the process at once, the probes
+// would stay in the tree, and the next build or `git add -A` would pick them
+// up. With a handler but oxlint started synchronously, Node never calls the
+// handler during the run: a signal to this script alone would let oxlint finish
+// and end in success.
 let abort: NodeJS.Signals | undefined;
+let cleanedUp = false;
+
+function endOnSignal(signal: NodeJS.Signals): void {
+    process.removeAllListeners(signal);
+    process.kill(process.pid, signal);
+}
+
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
-        if (abort === undefined) {
-            abort = signal;
-            runningOxlint?.kill(signal);
-        } else {
+        if (abort !== undefined) {
             runningOxlint?.kill('SIGKILL');
+            return;
+        }
+        abort = signal;
+        if (cleanedUp) {
+            endOnSignal(signal);
+        } else {
+            runningOxlint?.kill(signal);
         }
     });
 }
 
-/**
- * Delivers a signal that came during synchronous work — Node calls the handler
- * only once the event loop runs again — and then ends on it instead of with a
- * code: a calling shell sees an end by the signal, and a loop around this
- * script stops.
- */
-async function followPendingSignal(): Promise<void> {
-    await new Promise((proceed) => setImmediate(proceed));
-    if (abort !== undefined) {
-        process.removeAllListeners(abort);
-        process.kill(process.pid, abort);
-    }
-}
+// Node calls a signal handler only once the event loop reads the signal pipe,
+// and it ends as soon as nothing is left to do — a signal from the synchronous
+// evaluation would then stay unread, and the run would end with its result.
+// One last turn still reads it.
+process.once('beforeExit', () => {
+    setImmediate(() => undefined);
+});
 
 cleanUp();
 let reports: Report[];
@@ -343,7 +349,10 @@ try {
     reports = reportsFrom(await oxlintOutput());
 } finally {
     cleanUp();
-    await followPendingSignal();
+    cleanedUp = true;
+    if (abort !== undefined) {
+        endOnSignal(abort);
+    }
 }
 
 const open = deviations(reports);
@@ -364,4 +373,3 @@ if (open.length > 0) {
             `exempted ones absent: ${count('forbidden')}.`,
     );
 }
-await followPendingSignal();
