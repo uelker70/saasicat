@@ -27,7 +27,7 @@
 // The files exist only for the run, because the overrides' `files` hang on
 // paths. Started next to the lint step, that step would see them too.
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
@@ -37,10 +37,6 @@ const ROOT = join(import.meta.dirname, '..');
 const OXLINT = join(ROOT, 'node_modules', '.bin', 'oxlint');
 const CONFIGURATION = 'oxlint.correctness.config.mts';
 const FOLDER = '__oxlint_gegenprobe__';
-// Once an exemption breaks, the full run reports thousands of findings — some
-// 7,900 for `node:test` alone, several megabytes of JSON. `spawnSync`'s default
-// buffer (1 MiB) would stop with ENOBUFS instead of naming the deviation.
-const MAX_OUTPUT = 256 * 1024 * 1024;
 
 const FLOATING_PROMISE = 'typescript(no-floating-promises)';
 const UNBOUND_METHOD = 'typescript(unbound-method)';
@@ -255,17 +251,34 @@ function foldersOf(probes: readonly Probe[]): string[] {
     return [...new Set(probes.map((probe) => dirname(probe.file)))];
 }
 
-function lint(): Report[] {
-    const run = spawnSync(OXLINT, ['-c', CONFIGURATION, '--format', 'json'], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        maxBuffer: MAX_OUTPUT,
+let runningOxlint: ChildProcess | undefined;
+
+/**
+ * The JSON output of a full run. Once an exemption breaks, that is thousands of
+ * findings, several megabytes; it is read as a stream without a ceiling.
+ */
+function oxlintOutput(): Promise<string> {
+    return new Promise((fulfil, reject) => {
+        const child = spawn(OXLINT, ['-c', CONFIGURATION, '--format', 'json'], {
+            cwd: ROOT,
+            stdio: ['ignore', 'pipe', 'inherit'],
+        });
+        runningOxlint = child;
+        let output = '';
+        child.stdout.setEncoding('utf8');
+        child.stdout.on('data', (part: string) => {
+            output += part;
+        });
+        child.on('error', reject);
+        child.on('close', (_code, signal) => {
+            runningOxlint = undefined;
+            if (signal === null) {
+                fulfil(output);
+            } else {
+                reject(new Error(`oxlint ended with ${signal}; the guard has no result.`));
+            }
+        });
     });
-    if (run.error !== undefined) throw run.error;
-    if (run.signal !== null) {
-        throw new Error(`oxlint ended with ${run.signal}; the guard has no result.`);
-    }
-    return reportsFrom(run.stdout);
 }
 
 function cleanUp(): void {
@@ -287,14 +300,22 @@ function deviations(reports: readonly Report[]): string[] {
     ]);
 }
 
-// Without a handler of its own, a signal ends the process at once, even inside
-// `spawnSync`, and `finally` does not run: the probes would stay in the tree,
-// and the next build or `git add -A` would pick them up. With one registered,
-// the synchronous run finishes including `finally`, and Node does not call the
-// handler afterwards. When Ctrl+C hits the whole process group, oxlint ends
-// without a result; `lint` reports that.
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.on(signal, () => undefined);
+// A signal is passed on to oxlint, `finally` removes the probes, and the script
+// ends with the signal's code. Without a handler of its own, Node would end the
+// process at once, the probes would stay in the tree, and the next build or
+// `git add -A` would pick them up. With a handler but oxlint started
+// synchronously, Node never calls the handler during the run: a signal to this
+// script alone would let oxlint finish and end in success.
+const SIGNALS = [
+    ['SIGINT', 130],
+    ['SIGTERM', 143],
+] as const;
+let abort: number | undefined;
+for (const [signal, code] of SIGNALS) {
+    process.on(signal, () => {
+        abort = code;
+        runningOxlint?.kill(signal);
+    });
 }
 
 cleanUp();
@@ -304,9 +325,12 @@ try {
         mkdirSync(join(ROOT, dirname(probe.file)), { recursive: true });
         writeFileSync(join(ROOT, probe.file), probe.content);
     }
-    reports = lint();
+    reports = reportsFrom(await oxlintOutput());
 } finally {
     cleanUp();
+    if (abort !== undefined) {
+        process.exit(abort);
+    }
 }
 
 const open = deviations(reports);
