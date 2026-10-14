@@ -13,6 +13,7 @@
 // recorded. Once archived, it is mailed to the subscriber's invoice email with
 // the file attached (`SC-PRIC-047`).
 
+import type { InvoiceCollectionNotice } from './invoice-collection-notice.types.js';
 import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
 
 /**
@@ -95,8 +96,17 @@ export interface InvoiceMail {
     document: InvoiceDocument;
 }
 
+/** A notice about collecting an invoice on its way to the subscriber. */
+export interface InvoiceNoticeMail {
+    notice: InvoiceCollectionNotice;
+    /** The invoice email on the subscriber's record. */
+    to: string;
+}
+
 /**
- * Sends an invoice to the subscriber with its file attached (`SC-PRIC-047`).
+ * Sends an invoice to the subscriber with its file attached (`SC-PRIC-047`),
+ * and what the subscriber is told about collecting it (`SC-PRIC-028`,
+ * `SC-PRIC-080`).
  *
  * The application words the message — in the subscriber's language, with a
  * link to the tenant's sign-in rather than to the file itself — and sends it
@@ -112,6 +122,15 @@ export interface InvoiceMail {
  */
 export interface InvoiceMailPort {
     deliver(mail: InvoiceMail): Promise<void>;
+    /**
+     * Tells the subscriber that a collection failed and what follows, or the
+     * day a direct debit announced again is collected under which mandate.
+     * The application words it as it words the invoice; a direct debit's
+     * announcement names the amount, the day and the mandate reference. It
+     * rejects where the message could not be handed on, and the next run tries
+     * again; each notice is sent once however many instances run.
+     */
+    tell(mail: InvoiceNoticeMail): Promise<void>;
 }
 
 /** Where an invoice's document stands, as the invoice records it. */

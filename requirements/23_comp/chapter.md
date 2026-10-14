@@ -751,6 +751,22 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
+    - writing an invoice’s next attempt
+        - the first is started in the invoice’s turn after its attempts were read
+        - no first attempt is started where the invoice has one, and nothing is written
+        - a planned one is written for its day, the day as midnight UTC, on the caller’s transaction
+        - no planned one is written after another attempt than the one it follows
+        - an invoice that does not exist is refused
+    - a write that names the state it expects
+        - what
+        - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn
+        - a planned attempt is taken up as sent once, and read back as written
+    - reading
+        - the invoices due and the invoices another payment method can collect are raw queries
+        - the failed attempts not followed up are listed by id
+        - the planned and the unsettled attempts are listed by id, page by page
+        - an attempt, an invoice’s attempts and the accounts in use read back as records
 - `packages/adapter-prisma/tests/prisma-invoice-document.test.js`
     - where an invoice’s document stands, as the Prisma adapter writes it
         - a rendering is written conflict-free on the invoice and answered as written

@@ -1,26 +1,36 @@
 // An invoice's collection attempts: each request the platform makes of a
 // gateway to collect it, and what became of it.
 //
-// An invoice has at most one attempt that is not settled — submitted and not
-// answered, or a direct debit on its way — so two runs that find it open do
-// not both collect it. An attempt is written as submitted in the invoice's turn
+// An invoice has at most one attempt that is open — planned, submitted and not
+// answered, or a direct debit on its way — so two runs that find it open do not
+// both collect it. An attempt is written as submitted in the invoice's turn
 // before its request leaves, with everything the request carries, so that a
 // request whose answer was lost is repeated as exactly the same request under
 // the same key, and the gateway is asked what became of it first
 // (`SC-PRIC-034`, `SC-PRIC-036`).
+//
+// An attempt after a failure, or with a payment method that replaced the one
+// the invoice named, is planned first, for a day: a card's for the day it is
+// charged, a direct debit's for the day its own announcement names
+// (`SC-PRIC-028`, `SC-PRIC-080`, `SC-PRIC-082`).
 
 import type {
     CollectionFailureReason,
     CollectionOutcome,
     PaymentMethodType,
 } from './payment-gateway.types.js';
+import type { CalendarDay } from './zoned-day.js';
 
 /**
- * Where an attempt stands: `SUBMITTED` once it is written, before its request
- * leaves, and until an answer is recorded; `PENDING` while a direct debit is on
- * its way; `SUCCEEDED` and `FAILED` once it is settled.
+ * Where an attempt stands: `SCHEDULED` while it is planned for a day and has
+ * not left; `SUBMITTED` once it is written as sent, before its request leaves,
+ * and until an answer is recorded; `PENDING` while a direct debit is on its
+ * way; `SUCCEEDED` and `FAILED` once it is settled; `WITHDRAWN` where a planned
+ * one will not be made, because the payment method it was planned with is no
+ * longer in use.
  */
-export type InvoiceCollectionStatus = 'SUBMITTED' | 'PENDING' | 'SUCCEEDED' | 'FAILED';
+export type InvoiceCollectionStatus =
+    'SCHEDULED' | 'SUBMITTED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'WITHDRAWN';
 
 /** An attempt as a store reads it back. */
 export interface InvoiceCollectionRecord {
@@ -49,16 +59,53 @@ export interface InvoiceCollectionRecord {
     failureReason: CollectionFailureReason | null;
     /** The gateway's own code for the failure. */
     failureCode: string | null;
-    /** When it was written and its request first left. */
-    submittedAt: Date;
+    /**
+     * When it was written as sent and its request first left; `null` while it
+     * is planned, and for a planned one withdrawn before it left.
+     */
+    submittedAt: Date | null;
     /**
      * When a run last took it on — to send it, to send it again, or to ask
      * the gateway about it. Another run leaves it alone until this is old
      * enough (`INVOICE_COLLECTION_LEASE_MS`, `INVOICE_COLLECTION_ASK_EVERY_MS`).
+     * `null` where `submittedAt` is.
      */
-    heldAt: Date;
-    /** When it was settled; `null` while it is not. */
+    heldAt: Date | null;
+    /** When it was settled, or withdrawn; `null` while it is not. */
     resolvedAt: Date | null;
+    /**
+     * The day a planned attempt is collected from; `null` for one written as
+     * sent from the start, which the invoice's own date governs. A direct
+     * debit's is the earliest day until it is announced, and the day its
+     * announcement names after.
+     */
+    collectOn: CalendarDay | null;
+    /** When a planned direct debit's announcement reached the subscriber; `null` until it did. */
+    announcedAt: Date | null;
+    /**
+     * When what follows a failure was decided — the subscriber's notice
+     * recorded, and the next attempt planned where one is made; `null` until it
+     * was, and for an attempt that did not fail.
+     */
+    followedUpAt: Date | null;
+}
+
+/** An attempt that has been sent: its request carries a moment, and a run holds it. */
+export type SubmittedInvoiceCollection = InvoiceCollectionRecord & {
+    submittedAt: Date;
+    heldAt: Date;
+};
+
+/**
+ * `attempt` as one that has been sent. Throws for one that has not left, which
+ * a run never meets where it reads an attempt it sent or holds.
+ */
+export function sentCollectionOf(attempt: InvoiceCollectionRecord): SubmittedInvoiceCollection {
+    const { submittedAt, heldAt } = attempt;
+    if (submittedAt === null || heldAt === null) {
+        throw new Error(`Collection attempt ${attempt.attemptKey} has not been sent.`);
+    }
+    return { ...attempt, submittedAt, heldAt };
 }
 
 /** An attempt to start: what its request carries, and the moment it is taken on. */
@@ -74,6 +121,27 @@ export interface NewInvoiceCollection {
     currency: string;
     /** Written as both `submittedAt` and `heldAt`. */
     at: Date;
+}
+
+/** An attempt to plan for `collectOn`: what its request will carry. */
+export interface PlannedInvoiceCollection {
+    invoiceId: string;
+    /**
+     * The number of the invoice's last attempt the plan follows — `0` where it
+     * has none. A run decides what follows from the attempts it read; one that
+     * read them before another run added an attempt plans nothing.
+     */
+    after: number;
+    gatewayAccount: string;
+    paymentMethodId: string;
+    paymentMethodType: PaymentMethodType;
+    customerRef: string;
+    paymentMethodRef: string;
+    invoiceNumber: string;
+    amount: number;
+    currency: string;
+    /** The day it is collected from; for a direct debit, the earliest such day. */
+    collectOn: CalendarDay;
 }
 
 /**

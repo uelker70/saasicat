@@ -2013,7 +2013,9 @@ Where you adopted [invoices](#an-invoice-is-issued-from-the-charge-journal) and 
 names `payments`: an invoice that announced how it is paid
 ([above](#an-invoice-says-how-it-is-paid)) is collected through the gateway account its payment
 method is held at, as the fourth step of the quarter-hourly run, once it was mailed — by card at
-once, by direct debit from the collection date it announced (`SC-PRIC-079`).
+once, by direct debit from the collection date it announced (`SC-PRIC-082`). A collection that fails
+is told to the subscriber and, where its reason can pass, tried once more; a payment method that
+replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC-080`).
 
 1. Add `SubscriptionInvoiceCollection` from `prisma-fragments/23-subscription-invoice-collection.prisma`
    to your schema, with the `collections` back-relation it names on `SubscriptionInvoice`. With
@@ -2025,15 +2027,24 @@ once, by direct debit from the collection date it announced (`SC-PRIC-079`).
     ```
 
     It creates `subscription_invoice_collections` with the partial unique index that holds an
-    invoice to one attempt not settled and none after one succeeded, which `db push` cannot create.
-    It does nothing on a second run, nor without `subscription_invoices`.
+    invoice to one attempt open — planned, or sent and not settled — and none after one succeeded,
+    which `db push` cannot create. Where the table exists without the columns of a planned
+    attempt, it adds them and replaces that index. It does nothing on a second run, nor without
+    `subscription_invoices`.
 
 3. Pass `persistence.entitlement.invoiceCollectionRepository` as
    `tenantBilling.chargeJournal.invoices.collections`. The start refuses invoices without it where
    the file names `payments`, since they announce a collection nothing would make, and refuses to
    start while a collection not settled was sent to an account the file no longer names: keep an
    account listed until its collections have settled (`SC-PRIC-030`).
-4. A restricted Stripe key needs payment intents (write) and charges (read) beside what it had; the
+4. What the subscriber is told about collecting is kept with the subscriber notices
+   (`subscription_notices`, fragment 17): `SaaSiCatModule` takes
+   `persistence.tenantBilling.subscriptionNotices` for `chargeJournal.invoices.notices`, and the
+   start refuses collections without it. Implement `tell({ notice, to })` on your `InvoiceMailPort`
+   beside `deliver`: it sends a failure — with what follows — or a direct debit announced again —
+   with the amount, the day and the mandate reference — to the subscriber's invoice email
+   ([wire the backend](wire-the-backend.md#collecting-an-invoice)).
+5. A restricted Stripe key needs payment intents (write) and charges (read) beside what it had; the
    [package's README](../../packages/payment-stripe/README.md) says how to prove the grant.
 
 - **A gateway of your own** implements `collect(input)` and `findCollection(input)` of
@@ -2041,15 +2052,15 @@ once, by direct debit from the collection date it announced (`SC-PRIC-079`).
   `failed` outcome with a `CollectionFailureReason`, and only an answer that says nothing about a
   charge is thrown. `@saasicat/payment-stripe` and `DevPaymentGateway` have both.
 - **A persistence contract harness** gains `invoiceCollectionRepository`, beside what the invoice
-  scenarios need; a harness without it declares `gaps: ['invoiceCollections']`. Empty
+  and the payment method scenarios need — one of its reads joins `subscriber_payment_methods`; a
+  harness without it declares `gaps: ['invoiceCollections']`. Empty
   `subscription_invoice_collections` between scenarios with the invoices.
-- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`
-  and `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE`, which the audit log records for an invoice not
-  collected as it announced, under `SUBSCRIPTION_INVOICE_COLLECTION_WAITING`;
-  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` records a failed collection with its reason.
-
-A failed collection is not retried yet, and the subscriber is not told yet: both follow in this
-release line, before invoicing is switched on for real customers.
+- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` and
+  `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`, which the audit log records under
+  `SUBSCRIPTION_INVOICE_COLLECTION_WAITING` for an invoice whose subscriber has no payment method in
+  use, and for a direct debit that waits until the subscriber was told of the failure before it.
+  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` records a failed collection with its reason;
+  `…_PLANNED`, `…_ANNOUNCED` and `…_WITHDRAWN` record what follows.
 
 ### The plan catalogue is read when it is asked for
 

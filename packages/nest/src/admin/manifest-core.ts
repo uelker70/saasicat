@@ -220,8 +220,23 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'high',
             },
             {
+                key: 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED',
+                label: 'Invoice collection planned: once more after a failure, or with a replaced payment method',
+                severity: 'low',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_COLLECTION_ANNOUNCED',
+                label: 'Direct debit announced again to the subscriber for its own day',
+                severity: 'low',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
+                label: 'Planned invoice collection withdrawn: its payment method is no longer in use',
+                severity: 'low',
+            },
+            {
                 key: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
-                label: 'Invoice not collected as it announced: it waits for a new announcement',
+                label: 'Invoice not collected yet: no payment method, or no mandate, to collect it with',
                 severity: 'medium',
             },
             {

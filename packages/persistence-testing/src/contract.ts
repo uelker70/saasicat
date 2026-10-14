@@ -31,6 +31,7 @@ import type {
     SubscriberChargeRecord,
     SubscriptionInvoicePayment,
     NewInvoiceCollection,
+    PlannedInvoiceCollection,
     TaxTreatment,
     VatIdCheck,
     NewVersionRetirement,
@@ -505,11 +506,12 @@ const CONTRACT_GAPS: Record<
             ),
     },
     invoiceCollections: {
-        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice needs before it',
+        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice or a payment method needs before it',
         present: (harness) =>
             Boolean(
                 harness.adapter.invoiceCollectionRepository &&
-                CONTRACT_GAPS.subscriptionInvoices.present(harness),
+                CONTRACT_GAPS.subscriptionInvoices.present(harness) &&
+                CONTRACT_GAPS.subscriberPaymentMethods.present(harness),
             ),
     },
     checkoutOffers: {
@@ -7544,6 +7546,40 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             at,
         });
 
+        /** The attempt a run plans for `invoiceId` after attempt `after`, collected from `collectOn`. */
+        const planOf = (
+            invoiceId: string,
+            {
+                after = 0,
+                collectOn = '2026-02-22',
+                paymentMethodType = 'card',
+            }: {
+                after?: number;
+                collectOn?: string;
+                paymentMethodType?: 'card' | 'sepa_debit';
+            } = {},
+        ): PlannedInvoiceCollection => ({
+            invoiceId,
+            after,
+            gatewayAccount: 'stripe-main',
+            paymentMethodId: `payment-method-${paymentMethodType}`,
+            paymentMethodType,
+            customerRef: 'cus_1',
+            paymentMethodRef: 'pm_1',
+            invoiceNumber: 'EX-2026-000001',
+            amount: 99_999_999.99,
+            currency: 'EUR',
+            collectOn,
+        });
+
+        /** What a failed attempt records. */
+        const FAILURE = {
+            status: 'failed' as const,
+            paymentRef: 'pi_1',
+            reason: 'insufficient-funds' as const,
+            gatewayCode: 'insufficient_funds',
+        };
+
         /**
          * A subscriber's invoices to collect, each issued with `payment` and
          * `collectionDate` and handed to the mail unless `delivered` is false.
@@ -7591,7 +7627,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             return { ...account, collections, ids };
         }
 
-        // @requirement SC-PRIC-079
+        // @requirement SC-PRIC-082
         // @requirement SC-PRIC-028
         test('an invoice is due once it was mailed: by card at once, by direct debit from the day it announced, until it has an attempt', async (t) => {
             const account = await collectable(t, 'tenant-collect-due', [
@@ -7666,6 +7702,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 submittedAt: STARTED_AT,
                 heldAt: STARTED_AT,
                 resolvedAt: null,
+                collectOn: null,
+                announcedAt: null,
+                followedUpAt: null,
             });
             assert.deepEqual(await collections.findById(id), started);
             assert.deepEqual(await collections.listByInvoice(invoiceId!), [started]);
@@ -7673,7 +7712,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-034
-        test('no second attempt while one is not settled, nor after one succeeded; after a failure the next is numbered 2', async (t) => {
+        // @requirement SC-PRIC-080
+        test('the first attempt is started once, and never beside another; after a failure the next is planned, numbered 2', async (t) => {
             const account = await collectable(t, 'tenant-collect-one-open');
             if (!account) return;
             const { collections, ids } = account;
@@ -7698,17 +7738,23 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 STARTED_AT,
             );
 
-            const second = await collections.startAttempt(attemptOf(invoiceId!));
+            assert.equal(
+                await collections.startAttempt(attemptOf(invoiceId!)),
+                null,
+                'a first attempt was started after one failed',
+            );
+            const planned = await collections.plan(planOf(invoiceId!, { after: 1 }));
             assert.deepEqual(
-                [second?.attempt, second?.attemptKey],
+                [planned?.attempt, planned?.attemptKey],
                 [2, collectionAttemptKey(invoiceId!, 2)],
             );
+            const second = await collections.submitPlanned(planned!.id, STARTED_AT);
             await collections.recordOutcome(
                 second!.id,
                 { status: 'succeeded', paymentRef: 'pi_2' },
                 STARTED_AT,
             );
-            assert.equal(await collections.startAttempt(attemptOf(invoiceId!)), null);
+            assert.equal(await collections.plan(planOf(invoiceId!, { after: 2 })), null);
             assert.deepEqual(
                 (await collections.listByInvoice(invoiceId!)).map((each) => [
                     each.attempt,
@@ -7948,6 +7994,271 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ),
                 [pending!.id],
             );
+        });
+
+        // @requirement SC-PRIC-080
+        // @requirement SC-PRIC-082
+        test('an attempt is planned for its day with nothing sent, keeps the invoice from another, and is taken up as sent by one run', async (t) => {
+            const account = await collectable(t, 'tenant-collect-plan');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+
+            const planned = await collections.plan(planOf(invoiceId!));
+
+            assert.ok(planned);
+            const { id, ...rest } = planned;
+            assert.deepEqual(rest, {
+                invoiceId,
+                attempt: 1,
+                attemptKey: collectionAttemptKey(invoiceId!, 1),
+                gatewayAccount: 'stripe-main',
+                paymentMethodId: 'payment-method-card',
+                paymentMethodType: 'card',
+                customerRef: 'cus_1',
+                paymentMethodRef: 'pm_1',
+                invoiceNumber: 'EX-2026-000001',
+                amount: 99_999_999.99,
+                currency: 'EUR',
+                status: 'SCHEDULED',
+                paymentRef: null,
+                failureReason: null,
+                failureCode: null,
+                submittedAt: null,
+                heldAt: null,
+                resolvedAt: null,
+                collectOn: '2026-02-22',
+                announcedAt: null,
+                followedUpAt: null,
+            });
+            assert.deepEqual(await collections.findById(id), planned);
+            assert.ok((await collections.listPlanned({ limit: 50 })).includes(id));
+            assert.ok(
+                !(await collections.listDue('2026-12-31', { limit: 50 })).includes(invoiceId!),
+            );
+            assert.equal(await collections.plan(planOf(invoiceId!)), null);
+            assert.equal(await collections.startAttempt(attemptOf(invoiceId!)), null);
+
+            const takenAt = new Date('2026-02-22T05:20:00.000Z');
+            const taken = await Promise.all(
+                Array.from({ length: 3 }, () => collections.submitPlanned(id, takenAt)),
+            );
+
+            const sent = taken.filter((each) => each !== null);
+            assert.equal(sent.length, 1);
+            assert.deepEqual(
+                [sent[0]!.status, sent[0]!.submittedAt, sent[0]!.heldAt, sent[0]!.collectOn],
+                ['SUBMITTED', takenAt, takenAt, '2026-02-22'],
+            );
+            assert.deepEqual(await collections.findById(id), sent[0]);
+            assert.ok(!(await collections.listPlanned({ limit: 50 })).includes(id));
+        });
+
+        // @requirement SC-PRIC-080
+        test('attempts planned at the same time for one invoice: one is, and the others are told', async (t) => {
+            const account = await collectable(t, 'tenant-collect-plan-race');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+
+            const planned = await Promise.all(
+                Array.from({ length: 5 }, () => collections.plan(planOf(invoiceId!))),
+            );
+
+            assert.equal(planned.filter((each) => each !== null).length, 1);
+            assert.equal((await collections.listByInvoice(invoiceId!)).length, 1);
+        });
+
+        // @requirement SC-PRIC-036
+        test('a planned attempt is taken up in the invoice’s turn: a second waits for the first transaction, then is told', async (t) => {
+            const { adapter } = harness;
+            if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const account = await collectable(t, 'tenant-collect-plan-turn');
+            if (!account) return;
+            const { collections, ids } = account;
+            const planned = await collections.plan(planOf(ids[0]!));
+
+            const sections: Array<{ enter: number; exit: number; taken: boolean }> = [];
+            const critical = (tx: TransactionContext) =>
+                collections.submitPlanned(planned!.id, STARTED_AT, tx).then(async (taken) => {
+                    const enter = Date.now();
+                    await sleep(LOCK_HOLD_MS);
+                    sections.push({ enter, exit: Date.now(), taken: taken !== null });
+                });
+
+            await Promise.all([
+                adapter.transactionRunner.run(critical),
+                adapter.transactionRunner.run(critical),
+            ]);
+
+            sections.sort((a, b) => a.enter - b.enter);
+            assert.deepEqual(
+                sections.map((each) => each.taken),
+                [true, false],
+            );
+            assert.ok(
+                sections[1]!.enter >= sections[0]!.exit,
+                'the second was decided before the first transaction ended',
+            );
+        });
+
+        // @requirement SC-PRIC-080
+        test('a plan that follows an attempt another has come after since is refused', async (t) => {
+            const account = await collectable(t, 'tenant-collect-plan-stale');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+            const first = await collections.startAttempt(attemptOf(invoiceId!));
+            await collections.recordOutcome(first!.id, FAILURE, STARTED_AT);
+            const second = await collections.plan(planOf(invoiceId!, { after: 1 }));
+            await collections.submitPlanned(second!.id, STARTED_AT);
+            await collections.recordOutcome(second!.id, FAILURE, STARTED_AT);
+
+            assert.equal(
+                await collections.plan(planOf(invoiceId!, { after: 1 })),
+                null,
+                'a plan made from the first failure was written after the second',
+            );
+            assert.equal((await collections.plan(planOf(invoiceId!, { after: 2 })))?.attempt, 3);
+        });
+
+        // @requirement SC-PRIC-028
+        test('a planned direct debit is announced once, for the day its announcement names', async (t) => {
+            const account = await collectable(t, 'tenant-collect-announce');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+            const planned = await collections.plan(
+                planOf(invoiceId!, { paymentMethodType: 'sepa_debit' }),
+            );
+            const announcedAt = new Date('2026-02-15T05:20:00.000Z');
+
+            assert.equal(await collections.announce(planned!.id, '2026-03-01', announcedAt), true);
+            assert.equal(
+                await collections.announce(planned!.id, '2026-03-02', new Date()),
+                false,
+                'an announcement was recorded twice',
+            );
+            const announced = await collections.findById(planned!.id);
+            assert.deepEqual(
+                [announced!.status, announced!.collectOn, announced!.announcedAt],
+                ['SCHEDULED', '2026-03-01', announcedAt],
+            );
+
+            await collections.submitPlanned(planned!.id, new Date('2026-03-01T05:20:00.000Z'));
+            const other = await collectable(t, 'tenant-collect-announce-sent');
+            if (!other) return;
+            const sent = await collections.startAttempt(attemptOf(other.ids[0]!));
+            assert.equal(await collections.announce(sent!.id, '2026-03-01', announcedAt), false);
+        });
+
+        // @requirement SC-PRIC-082
+        test('a planned attempt is withdrawn once, is never sent, and the invoice can be planned again', async (t) => {
+            const account = await collectable(t, 'tenant-collect-withdraw');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+            const planned = await collections.plan(planOf(invoiceId!));
+            const withdrawnAt = new Date('2026-02-10T05:20:00.000Z');
+
+            assert.equal(await collections.withdraw(planned!.id, withdrawnAt), true);
+            assert.equal(await collections.withdraw(planned!.id, new Date()), false);
+            assert.equal(await collections.submitPlanned(planned!.id, new Date()), null);
+            const withdrawn = await collections.findById(planned!.id);
+            assert.deepEqual(
+                [withdrawn!.status, withdrawn!.resolvedAt, withdrawn!.submittedAt],
+                ['WITHDRAWN', withdrawnAt, null],
+            );
+
+            const again = await collections.plan(
+                planOf(invoiceId!, { after: 1, collectOn: '2026-02-11' }),
+            );
+            assert.equal(again?.attempt, 2);
+            const sent = await collections.startAttempt(attemptOf(ids[0]!));
+            assert.equal(sent, null, 'a first attempt was started beside a planned one');
+        });
+
+        // @requirement SC-PRIC-080
+        test('the failed attempts whose follow-up is not recorded are listed, page by page, and no others', async (t) => {
+            const account = await collectable(t, 'tenant-collect-to-follow-up', [{}, {}, {}]);
+            if (!account) return;
+            const { collections, ids } = account;
+            const [failed, followed, open] = await Promise.all(
+                ids.map((invoiceId) => collections.startAttempt(attemptOf(invoiceId))),
+            );
+            await collections.recordOutcome(failed!.id, FAILURE, STARTED_AT);
+            await collections.recordOutcome(followed!.id, FAILURE, STARTED_AT);
+            await collections.markFollowedUp(followed!.id, STARTED_AT);
+            const mine = (found: string[]) =>
+                found.filter((id) => [failed, followed, open].some((a) => a!.id === id));
+
+            const first = await collections.listToFollowUp({ limit: 1 });
+            const rest = await collections.listToFollowUp({ limit: 50, after: first.at(-1) });
+
+            assert.deepEqual(mine([...first, ...rest]), [failed!.id]);
+            assert.equal(first.length, 1);
+        });
+
+        // @requirement SC-PRIC-082
+        test('the invoices another payment method can collect are those whose last attempt failed and was followed up, or was withdrawn, and no others', async (t) => {
+            const account = await collectable(t, 'tenant-collect-again', [{}, {}, {}, {}, {}, {}]);
+            if (!account) return;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const { collections, ids, subscriberId } = account;
+            const { method: inUse } = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_in_use', '2026-02-02T10:00:00.000Z'),
+            );
+            const [replaced, untold, stillInUse, withdrawn, open, retried] = ids;
+            const failed = async (invoiceId: string, paymentMethodId: string, followed = true) => {
+                const attempt = await collections.startAttempt({
+                    ...attemptOf(invoiceId),
+                    paymentMethodId,
+                });
+                await collections.recordOutcome(attempt!.id, FAILURE, STARTED_AT);
+                if (followed) await collections.markFollowedUp(attempt!.id, STARTED_AT);
+                return attempt!;
+            };
+            await failed(replaced!, 'payment-method-old');
+            await failed(untold!, 'payment-method-old', false);
+            await failed(stillInUse!, inUse.id);
+            const plan = await collections.plan(planOf(withdrawn!));
+            await collections.withdraw(plan!.id, STARTED_AT);
+            await collections.startAttempt(attemptOf(open!));
+            await failed(retried!, 'payment-method-old');
+            await collections.plan(planOf(retried!, { after: 1 }));
+            const mine = (found: string[]) => found.filter((id) => ids.includes(id));
+
+            const first = await collections.listCollectableAgain({ limit: 1 });
+            const rest = await collections.listCollectableAgain({ limit: 50, after: first.at(-1) });
+
+            assert.deepEqual(mine([...first, ...rest]), [replaced!, withdrawn!].sort());
+            assert.equal(first.length, 1);
+        });
+
+        // @requirement SC-PRIC-080
+        test('what follows a failure is recorded once, and only for a failure', async (t) => {
+            const account = await collectable(t, 'tenant-collect-follow-up', [{}, {}]);
+            if (!account) return;
+            const { collections, ids } = account;
+            const failed = await collections.startAttempt(attemptOf(ids[0]!));
+            await collections.recordOutcome(failed!.id, FAILURE, STARTED_AT);
+            const open = await collections.startAttempt(attemptOf(ids[1]!));
+            const followedUpAt = new Date('2026-02-01T05:30:00.000Z');
+
+            const marked = await Promise.all(
+                Array.from({ length: 3 }, () =>
+                    collections.markFollowedUp(failed!.id, followedUpAt),
+                ),
+            );
+
+            assert.equal(marked.filter(Boolean).length, 1);
+            assert.deepEqual((await collections.findById(failed!.id))!.followedUpAt, followedUpAt);
+            assert.equal(await collections.markFollowedUp(open!.id, followedUpAt), false);
+            assert.equal((await collections.findById(open!.id))!.followedUpAt, null);
         });
 
         /** An issued invoice and the archive to keep its document in. Null without an archive. */

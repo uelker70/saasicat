@@ -712,9 +712,12 @@ export const subscriptionInvoiceCollections = pgTable('subscription_invoice_coll
     paymentRef: text('paymentRef'),
     failureReason: text('failureReason'),
     failureCode: text('failureCode'),
-    submittedAt: ts('submittedAt').notNull(),
-    heldAt: ts('heldAt').notNull(),
+    submittedAt: ts('submittedAt'),
+    heldAt: ts('heldAt'),
     resolvedAt: ts('resolvedAt'),
+    collectOn: day('collectOn'),
+    announcedAt: ts('announcedAt'),
+    followedUpAt: ts('followedUpAt'),
 });
 
 /** A `bytea` column, read and written as bytes. */

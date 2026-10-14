@@ -3,7 +3,8 @@
 // A notice goes to the administrators of the tenant a subscription belongs to,
 // in the application's words and through its channels. The platform decides
 // when one is due and keeps the record; the application says who it went to
-// and how.
+// and how. A notice about collecting an invoice is kept here too, and goes to
+// the subscriber's invoice email instead (`invoice-collection-notice.types.ts`).
 
 import type { BundleVersionOfferView } from './bundle-version-offer.types.js';
 import type {
@@ -31,7 +32,9 @@ export type SubscriptionNoticeKind =
     | 'bundle-version-offered'
     | 'feature-withdrawn'
     | 'feature-withdrawal-lifted'
-    | 'ended-at-once';
+    | 'ended-at-once'
+    | 'collection-failed'
+    | 'collection-announced';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -53,7 +56,9 @@ export interface SubscriptionNoticeKey {
      * booking is told of the version once. For `feature-withdrawn` and
      * `feature-withdrawal-lifted`, the id of the withdrawal: a subscription is
      * told of each once. For `ended-at-once`, the id of what ended — the
-     * subscription, or the booking — which ends once.
+     * subscription, or the booking — which ends once. For `collection-failed`,
+     * the key of the attempt that failed; for `collection-announced`, the key
+     * of the attempt announced: each is told once.
      */
     readonly subject: string;
 }

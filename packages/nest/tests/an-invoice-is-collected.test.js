@@ -7,66 +7,26 @@
 // asserted is the request a gateway receives, how often, and what the
 // installation records of its answer.
 
-import { afterEach, beforeEach, describe, mock, test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Logger } from '@nestjs/common';
-import {
-    INVOICE_COLLECTION_ASK_EVERY_MS,
-    INVOICE_COLLECTION_LEASE_MS,
-    INVOICE_ERROR_CODES,
-} from '@saasicat/core';
+import { INVOICE_COLLECTION_ASK_EVERY_MS, INVOICE_COLLECTION_LEASE_MS } from '@saasicat/core';
 
 import { InvoiceCollectionService, SubscriptionInvoiceCron } from '../dist/billing/index.js';
-import { aCollectingInstallation, paymentMethodOf } from './helpers/invoice-collection.js';
+import {
+    FIRST_RUN,
+    ISSUED,
+    aCollectingInstallation,
+    after,
+    anInvoiceToCollect,
+    clockAt,
+    clockFrom,
+    entriesOf,
+    quietLog,
+    sinceHeld,
+} from './helpers/invoice-collection.js';
 import { MAIN_ACCOUNT, hanging, lostAfter } from './helpers/payments.js';
 
-/** 06:15 in Berlin on 1 February, when the invoices of February are issued. */
-const ISSUED = new Date('2026-02-01T05:15:00.000Z');
-
-/** `days` days and `minutes` minutes after `at`. */
-const after = (at, { days = 0, minutes = 0 } = {}) =>
-    new Date(at.getTime() + days * 86_400_000 + minutes * 60_000);
-
-/** The first run after the invoices of February were issued. */
-const FIRST_RUN = after(ISSUED, { minutes: 15 });
-
-/**
- * Runs the clock from `at`: the service stamps every hold with it and judges
- * every hold by it, whatever moment a run is called for.
- */
-function clockFrom(at) {
-    beforeEach(() => mock.timers.enable({ apis: ['Date'], now: at }));
-    afterEach(() => mock.timers.reset());
-}
-
-/** Moves the clock to `at`, and answers it. */
-function clockAt(at) {
-    mock.timers.setTime(at.getTime());
-    return at;
-}
-
-/** `ms` milliseconds after the moment `attempt` was last taken on. */
-const sinceHeld = (attempt, ms) => new Date(attempt.heldAt.getTime() + ms);
-
-/** The audit entries of `action`, as what they changed. */
-const entriesOf = (audits, action) =>
-    audits.filter((entry) => entry.action === action).map((entry) => entry.changes);
-
-/** Leaves the log out of the output of a test that provokes it. */
-function quietLog() {
-    mock.method(Logger.prototype, 'warn', () => {});
-    mock.method(Logger.prototype, 'error', () => {});
-}
-
-/** An installation with one subscriber paying by `method`, its February invoice issued and mailed. */
-async function anInvoiceToCollect(method = 'card', { mailedAt = ISSUED } = {}) {
-    const installation = aCollectingInstallation();
-    const paying = await installation.aPayingSubscriber('t1', method);
-    const invoice = await installation.anInvoiceMailed(paying.subscriber.id, ISSUED, mailedAt);
-    return { ...installation, ...paying, invoice };
-}
-
-// @requirement SC-PRIC-079 — An invoice is collected once it has reached the subscriber
+// @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 describe('an invoice that reached the subscriber', () => {
     test('by card is collected at once, through the account its payment method is held at, under its attempt key', async () => {
@@ -74,7 +34,16 @@ describe('an invoice that reached the subscriber', () => {
 
         const run = await collect(after(ISSUED, { minutes: 15 }));
 
-        assert.deepEqual(run, { collected: 1, pending: 0, failed: 0, waiting: 0, unanswered: 0 });
+        assert.deepEqual(run, {
+            collected: 1,
+            pending: 0,
+            failed: 0,
+            planned: 0,
+            announced: 0,
+            told: 0,
+            waiting: 0,
+            unanswered: 0,
+        });
         assert.deepEqual(gateway.collections, [
             {
                 attemptKey: `saasicat:collect:${invoice.id}:1`,
@@ -136,56 +105,8 @@ describe('an invoice that reached the subscriber', () => {
 });
 
 // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
-describe('an invoice not collected as it announced', () => {
-    test('waits where the payment method in use is another than it named, and the audit log says so once', async () => {
-        quietLog();
-        const installation = await anInvoiceToCollect('sepa_debit');
-        const { collect, gateway, audits, invoice, paymentMethods, subscriber, method } =
-            installation;
-        const { method: replaced } = await paymentMethods.recordConfirmed(
-            paymentMethodOf(subscriber.id, 'card', { confirmedAt: new Date('2026-02-03') }),
-        );
-
-        const run = await collect(new Date('2026-02-15T08:00:00.000Z'));
-        await collect(new Date('2026-02-15T08:15:00.000Z'));
-
-        assert.equal(run.waiting, 1);
-        assert.deepEqual(gateway.collections, []);
-        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING'), [
-            {
-                number: invoice.number,
-                code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED,
-                params: { announced: method.id, paymentMethodId: replaced.id },
-            },
-        ]);
-    });
-
-    test('by direct debit waits where it reached the subscriber less than the lead time before its day', async () => {
-        quietLog();
-        // Mailed on the 2nd: the 14 days end on the 16th, after the 15th it announced.
-        const { collect, gateway, audits } = await anInvoiceToCollect('sepa_debit', {
-            mailedAt: new Date('2026-02-02T09:00:00.000Z'),
-        });
-
-        const run = await collect(new Date('2026-02-20T08:00:00.000Z'));
-
-        assert.equal(run.waiting, 1);
-        assert.deepEqual(gateway.collections, []);
-        assert.deepEqual(
-            entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING').map((entry) => [
-                entry.code,
-                entry.params,
-            ]),
-            [
-                [
-                    INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE,
-                    { deliveredOn: '2026-02-02', leadDays: 14, collectionDate: '2026-02-15' },
-                ],
-            ],
-        );
-    });
-
-    test('by direct debit mailed exactly the lead time before its day is collected', async () => {
+describe('a direct debit and the lead time of its announcement', () => {
+    test('by direct debit mailed exactly the lead time before its day is collected on that day', async () => {
         // Mailed at 23:30 on the 1st in Berlin: the 14 days end on the 15th.
         const { collect, gateway } = await anInvoiceToCollect('sepa_debit', {
             mailedAt: new Date('2026-02-01T22:30:00.000Z'),
@@ -195,22 +116,11 @@ describe('an invoice not collected as it announced', () => {
 
         assert.equal(gateway.collections.length, 1);
     });
-
-    test('waits where the subscriber has no payment method in use any more', async () => {
-        quietLog();
-        const { collect, gateway, paymentMethods } = await anInvoiceToCollect();
-        paymentMethods.rows = [];
-
-        const run = await collect(after(ISSUED, { minutes: 15 }));
-
-        assert.equal(run.waiting, 1);
-        assert.deepEqual(gateway.collections, []);
-    });
 });
 
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 describe('a failed collection', () => {
-    test('is recorded with its reason and the gateway’s code, written to the audit log once, and not collected again', async () => {
+    test('is recorded with its reason and the gateway’s code, and written to the audit log once', async () => {
         quietLog();
         const { collect, gateway, collections, audits, invoice } = await anInvoiceToCollect();
         gateway.answers.push({
@@ -221,7 +131,7 @@ describe('a failed collection', () => {
         });
 
         const run = await collect(after(ISSUED, { minutes: 15 }));
-        await collect(after(ISSUED, { days: 1 }));
+        await collect(after(ISSUED, { minutes: 30 }));
 
         assert.equal(run.failed, 1);
         assert.equal(gateway.collections.length, 1);
@@ -447,6 +357,28 @@ describe('collecting starts', () => {
         assert.doesNotThrow(() => installation.collection.onModuleInit());
     });
 
+    // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+    test('not without the record of what the subscriber is told, which it names', () => {
+        const installation = aCollectingInstallation();
+        const untold = new InvoiceCollectionService(
+            installation.collections,
+            installation.store,
+            installation.settings,
+            installation.gateways,
+            installation.paymentMethods,
+            null,
+            null,
+            null,
+            installation.mail,
+            installation.subscribers,
+        );
+
+        assert.throws(
+            () => untold.onModuleInit(),
+            /tells the subscriber of a failure and announces a direct debit again: pass chargeJournal\.invoices\.notices/,
+        );
+    });
+
     // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
     test('not while an attempt not settled is held at an account the file no longer names, which it names', async () => {
         const installation = await anInvoiceToCollect('sepa_debit');
@@ -464,7 +396,7 @@ describe('collecting starts', () => {
     });
 });
 
-// @requirement SC-PRIC-079 — An invoice is collected once it has reached the subscriber
+// @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
 describe('the quarter-hourly run', () => {
     test('issues, archives, mails and collects an invoice by card in one run', async () => {
         const installation = aCollectingInstallation();

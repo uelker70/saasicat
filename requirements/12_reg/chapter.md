@@ -362,7 +362,7 @@ _Tested by:_
 🟢 Or not at all: only after the gateway confirmed the payment
 method, which sign-up asks for in the gateway's own form, together with the master data an invoice
 needs (`SC-PRIC-032`), and a partial creation is undone. A first collection that then fails leaves
-an invoice unpaid like any other, with the grace period of `SC-PRIC-035`.
+an invoice unpaid like any other, with the grace period of `SC-PRIC-081`.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 

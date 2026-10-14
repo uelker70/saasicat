@@ -129,7 +129,17 @@ describe('the payment methods invoices are collected with', () => {
         );
     });
 
-    // @requirement SC-PRIC-079 — An invoice is collected once it has reached the subscriber
+    // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+    test('refuse the start where the invoices are collected and nothing records what the subscriber is told', async () => {
+        const message = await refusal(installation({ payments: 'wired', notices: false }));
+
+        assert.match(
+            message,
+            /collecting invoices tells the subscriber of a failure and announces a direct debit again/,
+        );
+    });
+
+    // @requirement SC-PRIC-082 — An invoice is collected as it, or an announcement after it, says
     test('refuse the start where the file names payment accounts and nothing collects the invoices', async () => {
         const message = await refusal(installation({ payments: 'uncollected' }));
 

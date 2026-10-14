@@ -2605,6 +2605,74 @@ describe('an invoice is collected through its payment gateway', () => {
         assert.equal(rows.length, 1, 'the attempts do not point at their invoice');
     });
 
+    /**
+     * The table without the columns of a planned attempt, with the moment an
+     * attempt was sent at required and an index that holds no planned one —
+     * and an attempt in it.
+     */
+    async function withoutPlannedAttempts() {
+        await beforeTheMigration();
+        await anInvoice();
+        await client.query(`
+            CREATE TABLE "subscription_invoice_collections" (
+                "id" TEXT NOT NULL, "invoiceId" TEXT NOT NULL, "attempt" INTEGER NOT NULL,
+                "attemptKey" TEXT NOT NULL, "gatewayAccount" TEXT NOT NULL,
+                "paymentMethodId" TEXT NOT NULL, "paymentMethodType" TEXT NOT NULL,
+                "customerRef" TEXT NOT NULL, "paymentMethodRef" TEXT NOT NULL,
+                "invoiceNumber" TEXT NOT NULL, "amount" DECIMAL(12,2) NOT NULL,
+                "currency" TEXT NOT NULL, "status" TEXT NOT NULL, "paymentRef" TEXT,
+                "failureReason" TEXT, "failureCode" TEXT, "submittedAt" TIMESTAMP(3) NOT NULL,
+                "heldAt" TIMESTAMP(3) NOT NULL, "resolvedAt" TIMESTAMP(3),
+                CONSTRAINT "subscription_invoice_collections_pkey" PRIMARY KEY ("id")
+            );
+            CREATE UNIQUE INDEX subscription_invoice_collections_one_open_per_invoice
+                ON subscription_invoice_collections ("invoiceId")
+                WHERE "status" IN ('SUBMITTED', 'PENDING', 'SUCCEEDED');
+        `);
+        await anAttempt(1, 'FAILED');
+    }
+
+    // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
+    test('a table without the columns of a planned attempt is brought to the shape the fragments declare, twice, keeping its attempts', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await withoutPlannedAttempts();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        const { rows: required } = await client.query(
+            `SELECT column_name, is_nullable FROM information_schema.columns
+              WHERE table_name = 'subscription_invoice_collections'
+                AND column_name IN ('submittedAt', 'heldAt') ORDER BY column_name`,
+        );
+        assert.deepEqual(required, [
+            { column_name: 'heldAt', is_nullable: 'YES' },
+            { column_name: 'submittedAt', is_nullable: 'YES' },
+        ]);
+        const { rows: kept } = await client.query(
+            'SELECT "attempt", "status" FROM "subscription_invoice_collections"',
+        );
+        assert.deepEqual(kept, [{ attempt: 1, status: 'FAILED' }]);
+    });
+
+    test('a planned attempt beside another open one is refused once the table was brought up', async () => {
+        await withoutPlannedAttempts();
+        await apply(MIGRATION);
+
+        await client.query(
+            'INSERT INTO "subscription_invoice_collections" ("id", "invoiceId", "attempt", ' +
+                '"attemptKey", "gatewayAccount", "paymentMethodId", "paymentMethodType", ' +
+                '"customerRef", "paymentMethodRef", "invoiceNumber", "amount", "currency", ' +
+                '"status", "collectOn") ' +
+                "VALUES ('attempt-2', 'invoice-1', 2, 'saasicat:collect:invoice-1:2', " +
+                "'stripe-main', 'pm-1', 'card', 'cus_1', 'pm_1', 'AHP-2026-000001', 58.31, " +
+                "'EUR', 'SCHEDULED', '2026-10-22')",
+        );
+        await assert.rejects(anAttempt(3, 'SUBMITTED'), { code: '23505' });
+    });
+
     test('an invoice takes one attempt that is not settled, and none after one succeeded', async () => {
         await beforeTheMigration();
         await anInvoice();

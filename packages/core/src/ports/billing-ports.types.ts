@@ -30,7 +30,12 @@ import type {
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
-import type { InvoiceCollectionRecord, NewInvoiceCollection } from '../invoice-collection.types.js';
+import type {
+    InvoiceCollectionRecord,
+    NewInvoiceCollection,
+    PlannedInvoiceCollection,
+    SubmittedInvoiceCollection,
+} from '../invoice-collection.types.js';
 import type { CollectionOutcome } from '../payment-gateway.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
@@ -696,9 +701,10 @@ export interface SubscriptionInvoiceRepository {
 /**
  * The attempts to collect an invoice through its payment gateway.
  *
- * An invoice has at most one attempt that is not settled, and none after one
- * succeeded: the database holds that (`sql/constraints.postgres.sql`), and the
- * turn holds it against two runs that start at once. Every write that settles
+ * An invoice has at most one attempt that is open — planned, or sent and not
+ * settled — and none after one succeeded: the database holds that
+ * (`sql/constraints.postgres.sql`), and the turn holds it against two runs
+ * that start at once. Every write that settles
  * or takes on an attempt names the state it expects, so of two runs one wins
  * and the other is told.
  *
@@ -709,7 +715,8 @@ export interface InvoiceCollectionRepository {
      * The invoices to collect on `today`, by id, at most `limit`, after `after`
      * where it is given: issued with a payment method to collect with, handed
      * to the mail — so their announcement has reached the subscriber — with no
-     * collection date or one on or before `today`, and no attempt yet.
+     * collection date or one on or before `today`, and no attempt yet, planned
+     * or sent.
      */
     listDue(
         today: CalendarDay,
@@ -718,9 +725,11 @@ export interface InvoiceCollectionRepository {
     ): Promise<string[]>;
 
     /**
-     * Starts the invoice's next attempt in its turn and returns it, written as
-     * `SUBMITTED` before its request leaves; `null`, writing nothing, where an
-     * attempt of it is not settled or one succeeded. The turn is the invoice's
+     * Starts the invoice's first attempt in its turn and returns it, written as
+     * `SUBMITTED` before its request leaves; `null`, writing nothing, where the
+     * invoice has an attempt already — every later one is planned (`plan`), so
+     * a run that found the invoice due before another run's attempt failed
+     * does not charge it again at once. The turn is the invoice's
      * own row, locked for the transaction — the chain of one invoice, which a
      * cancellation's replacement joins — so a cancellation never meets an
      * attempt about to be sent without knowing it (`SC-PRIC-036`). The attempt
@@ -731,6 +740,81 @@ export interface InvoiceCollectionRepository {
         attempt: NewInvoiceCollection,
         tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null>;
+
+    /**
+     * Plans the invoice's next attempt in its turn, as `startAttempt` starts
+     * one, and returns it, written as `SCHEDULED` for `plan.collectOn` with
+     * nothing sent; `null`, writing nothing, where an attempt of it is open or
+     * one succeeded, or where its last attempt is not the one numbered
+     * `plan.after` any more.
+     */
+    plan(
+        plan: PlannedInvoiceCollection,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null>;
+
+    /**
+     * Records that a planned direct debit's announcement reached the subscriber
+     * at `at`, naming `collectOn`, and returns `true`; `false`, writing nothing,
+     * where it is not planned or was announced already.
+     */
+    announce(
+        id: string,
+        collectOn: CalendarDay,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Takes a planned attempt up as sent — `SUBMITTED`, sent and held at `at` —
+     * in its invoice's turn, as `startAttempt` writes one, before its request
+     * leaves, and returns it; `null`, writing nothing, where it is not planned
+     * any more, so of two runs one sends it.
+     */
+    submitPlanned(
+        id: string,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<SubmittedInvoiceCollection | null>;
+
+    /**
+     * Withdraws a planned attempt that will not be made, at `at`, in its
+     * invoice's turn, and returns `true`; `false`, writing nothing, where it is
+     * not planned.
+     */
+    withdraw(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
+
+    /** The planned attempts, by id and page as above, whatever their day. */
+    listPlanned(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /** The failed attempts, by id and page as above, whose follow-up is not recorded yet. */
+    listToFollowUp(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * The invoices, by id and page as above, that another payment method can
+     * collect: their last attempt was withdrawn, or failed and was followed
+     * up, and their subscriber has a payment method in use other than the one
+     * that attempt was made with (`subscriber_payment_methods`). An invoice
+     * whose failed payment method is still in use, or whose subscriber has
+     * none, is not read until that changes.
+     */
+    listCollectableAgain(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * Records that what follows a failed attempt was decided, at `at`, and
+     * returns `true`; `false`, writing nothing, where it did not fail or was
+     * followed up already.
+     */
+    markFollowedUp(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
 
     /**
      * Records what became of an attempt that is not settled — `SUBMITTED` or

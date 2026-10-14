@@ -1,6 +1,7 @@
 // The pure parts of collecting an invoice: the key an attempt carries, the
-// reasons a second try can pass on, and an attempt row read back by either
-// adapter — strictly, since an attempt is what money moved under.
+// reasons a second try can pass on, which attempt an invoice's turn writes,
+// and an attempt row read back by either adapter — strictly, since an attempt
+// is what money moved under.
 
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 
@@ -14,6 +15,11 @@ import {
     collectionStatusOf,
     invoiceCollectionColumns,
     isRetryableCollectionFailure,
+    lastCollectionOf,
+    plannedCollectionColumns,
+    refusesFirstAttempt,
+    refusesPlannedAttempt,
+    sentCollectionOf,
     toInvoiceCollectionRecord,
 } from '../dist/index.js';
 
@@ -33,14 +39,44 @@ const ATTEMPT = {
     at: AT,
 };
 
-/** The row either adapter reads back for `ATTEMPT`, numbered 1. */
-const row = (overrides = {}) => ({
-    id: 'attempt-1',
-    ...invoiceCollectionColumns(ATTEMPT, 1),
+/** An attempt as a run plans it, after the invoice's first. */
+const PLAN = {
+    invoiceId: 'invoice-1',
+    after: 1,
+    gatewayAccount: 'stripe-main',
+    paymentMethodId: 'payment-method-1',
+    paymentMethodType: 'sepa_debit',
+    customerRef: 'cus_1',
+    paymentMethodRef: 'pm_1',
+    invoiceNumber: 'AHP-2026-000123',
+    amount: 58.31,
+    currency: 'EUR',
+    collectOn: '2026-03-01',
+};
+
+/** What a store keeps beside the columns an attempt is written with. */
+const UNSETTLED = {
     paymentRef: null,
     failureReason: null,
     failureCode: null,
     resolvedAt: null,
+    announcedAt: null,
+    followedUpAt: null,
+};
+
+/** The row either adapter reads back for `ATTEMPT`, numbered 1. */
+const row = (overrides = {}) => ({
+    id: 'attempt-1',
+    ...invoiceCollectionColumns(ATTEMPT, 1),
+    ...UNSETTLED,
+    ...overrides,
+});
+
+/** The row either adapter reads back for `PLAN`, numbered 2. */
+const plannedRow = (overrides = {}) => ({
+    id: 'attempt-2',
+    ...plannedCollectionColumns(PLAN, 2),
+    ...UNSETTLED,
     ...overrides,
 });
 
@@ -86,7 +122,46 @@ describe('an attempt row', () => {
             status: 'SUBMITTED',
             submittedAt: AT,
             heldAt: AT,
+            collectOn: null,
         });
+    });
+
+    test('planned is written for its day, with nothing sent and nothing held', () => {
+        const columns = plannedCollectionColumns(PLAN, 2);
+
+        assert.deepEqual(
+            [
+                columns.attemptKey,
+                columns.status,
+                columns.collectOn,
+                columns.submittedAt,
+                columns.heldAt,
+            ],
+            ['saasicat:collect:invoice-1:2', 'SCHEDULED', '2026-03-01', null, null],
+        );
+        assert.ok(!('after' in columns), 'the number it follows was written as a column');
+    });
+
+    test('planned reads back with its day, from a Prisma date or a Drizzle text', () => {
+        for (const collectOn of ['2026-03-01', new Date('2026-03-01T00:00:00.000Z')]) {
+            const record = toInvoiceCollectionRecord(plannedRow({ collectOn }));
+
+            assert.deepEqual(
+                [record.status, record.collectOn, record.submittedAt, record.heldAt],
+                ['SCHEDULED', '2026-03-01', null, null],
+            );
+        }
+    });
+
+    test('withdrawn before it left reads back without a moment it was sent at', () => {
+        const record = toInvoiceCollectionRecord(
+            plannedRow({ status: 'WITHDRAWN', resolvedAt: AT }),
+        );
+
+        assert.deepEqual(
+            [record.status, record.submittedAt, record.resolvedAt],
+            ['WITHDRAWN', null, AT],
+        );
     });
 
     test('reads back from either adapter’s shape: a numeric string, or a Prisma decimal', () => {
@@ -113,11 +188,93 @@ describe('an attempt row', () => {
         ],
         ['an amount that is not one', { amount: 'n/a' }, /amount of attempt-1 is not an amount/],
         ['an amount that is missing', { amount: null }, /amount of attempt-1 is not an amount/],
+        [
+            'a sent attempt without the moment it was sent',
+            { submittedAt: null },
+            /submittedAt and heldAt of attempt-1 do not fit its status SUBMITTED/,
+        ],
+        [
+            'a sent attempt without a hold',
+            { heldAt: null },
+            /submittedAt and heldAt of attempt-1 do not fit its status SUBMITTED/,
+        ],
+        ['a day that is not one', { collectOn: '1 March' }, /collectOn of attempt-1 is not a day/],
     ]) {
         test(`refuses ${what}`, () => {
             assert.throws(() => toInvoiceCollectionRecord(row(overrides)), message);
         });
     }
+
+    for (const [what, overrides, message] of [
+        [
+            'a planned attempt without its day',
+            { collectOn: null },
+            /collectOn of attempt-2 is missing/,
+        ],
+        [
+            'a planned attempt sent at a moment',
+            { submittedAt: AT, heldAt: AT },
+            /do not fit its status SCHEDULED/,
+        ],
+    ]) {
+        test(`refuses ${what}`, () => {
+            assert.throws(() => toInvoiceCollectionRecord(plannedRow(overrides)), message);
+        });
+    }
+
+    test('one that left is read as sent, and a planned one is refused as such', () => {
+        const sent = sentCollectionOf(toInvoiceCollectionRecord(row()));
+
+        assert.deepEqual([sent.submittedAt, sent.heldAt], [AT, AT]);
+        assert.throws(
+            () => sentCollectionOf(toInvoiceCollectionRecord(plannedRow())),
+            /saasicat:collect:invoice-1:2 has not been sent/,
+        );
+    });
+});
+
+describe('the attempt an invoice’s turn writes', () => {
+    const attempts = (...statuses) =>
+        statuses.map((status, index) => ({ attempt: index + 1, status }));
+
+    test('is numbered after the last, from 1', () => {
+        assert.equal(lastCollectionOf([]), 0);
+        assert.equal(
+            lastCollectionOf([
+                { attempt: 2, status: 'FAILED' },
+                { attempt: 1, status: 'FAILED' },
+            ]),
+            2,
+        );
+    });
+
+    test('is the first only where the invoice has none, whatever became of an earlier one', () => {
+        assert.equal(refusesFirstAttempt([]), false);
+        for (const status of [
+            'SCHEDULED',
+            'SUBMITTED',
+            'PENDING',
+            'SUCCEEDED',
+            'FAILED',
+            'WITHDRAWN',
+        ]) {
+            assert.equal(refusesFirstAttempt(attempts(status)), true, status);
+        }
+    });
+
+    test('is planned after the attempt it follows, where none is open or succeeded', () => {
+        assert.equal(refusesPlannedAttempt([], 0), false);
+        assert.equal(refusesPlannedAttempt(attempts('FAILED'), 1), false);
+        assert.equal(refusesPlannedAttempt(attempts('FAILED', 'WITHDRAWN'), 2), false);
+        for (const status of ['SCHEDULED', 'SUBMITTED', 'PENDING', 'SUCCEEDED']) {
+            assert.equal(refusesPlannedAttempt(attempts('FAILED', status), 2), true, status);
+        }
+    });
+
+    test('is not planned from attempts read before another came', () => {
+        assert.equal(refusesPlannedAttempt(attempts('FAILED', 'FAILED'), 1), true);
+        assert.equal(refusesPlannedAttempt(attempts('FAILED'), 0), true);
+    });
 });
 
 describe('an outcome', () => {

@@ -12,7 +12,14 @@
 // gateway was asked what became of it. `heldAt` is when a run last took it on;
 // another run leaves it alone until that is old enough.
 //
-// An invoice has at most one attempt that is not settled (`SUBMITTED`,
+// An attempt after a failure, or with a payment method that replaced the one
+// the invoice named, is planned first: `SCHEDULED` for `collectOn`, with
+// nothing sent and neither `submittedAt` nor `heldAt`. A planned direct debit
+// is announced to the subscriber before it is collected, and `announcedAt`
+// records when; a planned attempt whose payment method is no longer in use is
+// `WITHDRAWN`. `followedUpAt` records that what follows a failure was decided.
+//
+// An invoice has at most one attempt that is open (`SCHEDULED`, `SUBMITTED`,
 // `PENDING`), and none after one succeeded: a partial unique index in
 // sql/constraints.postgres.sql, which the Prisma DSL cannot express. `status`,
 // `paymentMethodType` and `failureReason` are text holding closed sets, checked
@@ -41,16 +48,20 @@ model SubscriptionInvoiceCollection {
     amount            Decimal @db.Decimal(12, 2)
     currency          String
 
-    status        String // SUBMITTED | PENDING | SUCCEEDED | FAILED
+    status        String // SCHEDULED | SUBMITTED | PENDING | SUCCEEDED | FAILED | WITHDRAWN
     // The gateway's reference to what it created for the attempt.
     paymentRef    String?
     failureReason String?
     // The gateway's own code for the failure.
     failureCode   String?
 
-    submittedAt DateTime
-    heldAt      DateTime
-    resolvedAt  DateTime?
+    submittedAt  DateTime?
+    heldAt       DateTime?
+    resolvedAt   DateTime?
+    // The day a planned attempt is collected from.
+    collectOn    DateTime? @db.Date
+    announcedAt  DateTime?
+    followedUpAt DateTime?
 
     invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
 

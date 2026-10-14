@@ -1145,33 +1145,56 @@ tenant billing module it built.
 
 Where `config/saas.yaml` names `payments`, an invoice that announced how it is paid is collected
 through the gateway account its payment method is held at, as the fourth step of the quarter-hourly
-run — after it was mailed (`SC-PRIC-079`): by card at once, by direct debit from the collection date
+run — after it was mailed (`SC-PRIC-082`): by card at once, by direct debit from the collection date
 it announced. Adopt `prisma-fragments/23-subscription-invoice-collection.prisma` with the
 `collections` back-relation it names on `SubscriptionInvoice`, run
 `sql/1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
-`chargeJournal.invoices.collections`. The start refuses invoices that announce collections nothing
-makes, and collections without the payments that make them. An application with a scheduler of its
+`chargeJournal.invoices.collections`. What the subscriber is told about collecting is recorded with
+the other subscriber notices: `SaaSiCatModule` takes `persistence.tenantBilling.subscriptionNotices`
+for `chargeJournal.invoices.notices` unless you name another. The start refuses invoices that
+announce collections nothing makes, collections without the payments that make them, and
+collections without that record. An application with a scheduler of its
 own calls `InvoiceCollectionService.collectDue(now)` after `deliverDue()`: `now` names the day whose
 invoices are due, while whether another run may take an attempt on is judged by the clock, which
 stamps every hold.
 
-- **One attempt not settled per invoice.** An attempt is started in the invoice's turn and written
-  as submitted, with everything its request carries, before the request leaves; the database holds
-  an invoice to one attempt not settled and none after one succeeded, so of several instances one
-  collects it (`SC-PRIC-034`, `SC-PRIC-036`).
+- **One attempt open per invoice.** The first attempt is started in the invoice's turn and written
+  as submitted, with everything its request carries, before the request leaves; every later one is
+  planned first. The database holds an invoice to one attempt open — planned, or sent and not
+  settled — and none after one succeeded, so of several instances one collects it (`SC-PRIC-034`,
+  `SC-PRIC-036`).
 - **A request whose answer was lost** stays submitted. Fifteen minutes later a run asks the gateway
   what became of it, under the key the request carried — `saasicat:collect:<invoice>:<attempt>` —
   and records that; only where the gateway holds nothing under the key is the same request sent
   again, which cannot charge twice. A direct debit on its way is asked about once an hour until the
   bank settles it.
-- **Only as announced.** Where the subscriber's payment method in use is another than the invoice
-  named, or a direct debit's invoice reached the subscriber less than `directDebitLeadDays` before
-  its date, it is not collected: the audit log records `SUBSCRIPTION_INVOICE_COLLECTION_WAITING` with
-  `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED` or `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE`, once
-  per process.
+- **As announced, or announced again.** Where the subscriber's payment method in use is another than
+  the invoice named, the invoice is collected with that one: a card at once, a direct debit from the
+  day a new announcement names. A direct debit whose invoice reached the subscriber less than
+  `directDebitLeadDays` before its date is announced again too. The new announcement names the
+  amount, the day and the mandate reference, and its day is fixed when it goes out:
+  `directDebitLeadDays` after it, never earlier than planned. It leaves the invoice as issued
+  (`SC-PRIC-028`). The audit log records each plan (`SUBSCRIPTION_INVOICE_COLLECTION_PLANNED`), each
+  announcement (`…_ANNOUNCED`) and each plan withdrawn because its payment method was replaced
+  before its day (`…_WITHDRAWN`). An invoice without a payment method in use, or whose direct debit
+  names no mandate reference, waits (`…_WAITING` with `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` or
+  `SUBSCRIPTION_INVOICE_MANDATE_MISSING`, once per process), and so does a direct debit announced
+  again while the subscriber has not been told of the failure before it
+  (`SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`).
 - **A failure** is recorded with its reason and the gateway's code, and the audit log records
-  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` once. Nothing is retried yet, and the subscriber is not
-  told yet; both follow in this release line.
+  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` once (`SC-PRIC-080`). The subscriber is told, at their
+  invoice email, with what follows. Where the reason can pass — funds short, a refusal without a
+  cause — the same payment method is charged once more: a card seven days after the failure, a
+  direct debit on the day its new announcement names, seven days after at the earliest. A second
+  failure, and one for any other reason, is not tried again: the subscriber is asked to replace the
+  payment method, and the replacement collects the invoice.
+
+**What the subscriber is told** goes through `InvoiceMailPort.tell({ notice, to })`, beside
+`deliver`: a `CollectionFailedNotice` — the invoice, the amount, the reason, and what follows, as
+`next.action` `charged-again` with the day, `announced-again`, or `replace-payment-method` — or a
+`CollectionAnnouncedNotice` with the amount, `collectOn`, the mandate reference and the account's
+last four digits. Word them as you word the invoice; each is sent once, and one the port rejects is
+tried again by the next run.
 
 **A gateway of your own** implements `collect(input)` and `findCollection(input)` of `PaymentGateway`:
 a refusal is a `failed` outcome with a reason of `CollectionFailureReason` and your provider's code,

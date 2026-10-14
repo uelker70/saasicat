@@ -334,11 +334,11 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:
         'Der Vertrag {contractId} nennt keinen bestätigten Aussteller und Abonnenten – eine Migration hat seine Parteien übernommen, oder er nennt keinen Aussteller –, deshalb werden seine Forderungen nicht in Rechnung gestellt.',
     SUBSCRIPTION_INVOICE_MANDATE_MISSING:
-        'Die Lastschrift {paymentMethodId} nennt keine Mandatsreferenz, die die Rechnung ankündigen muss. Sie wird ausgestellt, sobald die Zahlungsart ersetzt ist.',
-    SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED:
-        'Die Rechnung hat die Zahlungsart {announced} angekündigt, in Gebrauch ist jetzt {paymentMethodId}. Sie wird erst eingezogen, wenn ein Einzug neu angekündigt ist.',
-    SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE:
-        'Die Rechnung hat den Abonnenten am {deliveredOn} erreicht, weniger als {leadDays} Tage vor der für den {collectionDate} angekündigten Lastschrift. Sie wird erst eingezogen, wenn ein Einzug neu angekündigt ist.',
+        'Die Lastschrift {paymentMethodId} nennt keine Mandatsreferenz, die vor dem Einzug angekündigt werden muss. Die Rechnung wartet, bis die Zahlungsart ersetzt ist.',
+    SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD:
+        'Der Abonnent {subscriberId} hat keine Zahlungsart in Gebrauch. Die Rechnung wird eingezogen, sobald er eine hat.',
+    SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD:
+        'Die Lastschrift wird angekündigt, sobald dem Abonnenten mitgeteilt ist, dass der Einzug {attemptKey} gescheitert ist.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'Das Dokument der Rechnung {invoiceId} weicht vom festgehaltenen oder archivierten ab ({rendered} statt {recorded}); das erste bleibt, und der nächste Lauf klärt, welches die Rechnung behält.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:

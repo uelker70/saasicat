@@ -6,7 +6,7 @@ import { Logger } from '@nestjs/common';
 import type {
     SubscriptionNotice,
     SubscriptionNoticeDelivery,
-    SubscriptionNoticePort,
+    SubscriptionNoticeKind,
     SubscriptionNoticeRepository,
 } from '@saasicat/core';
 
@@ -33,6 +33,18 @@ const NOBODY_WARNING_INTERVAL_MS = 24 * 60 * 60_000;
  */
 export type NoticeOutcome = 'told' | 'failed' | 'untold' | null;
 
+/** What a notice is, as the record of it is keyed. */
+export interface KeyedNotice {
+    readonly kind: SubscriptionNoticeKind;
+    readonly tenantId: string;
+    readonly subscriptionId: string;
+}
+
+/** Sends a notice and says to whom: the application's port, or one the platform builds on another. */
+export interface NoticeDeliveryPort<N extends KeyedNotice> {
+    deliver(notice: N): Promise<SubscriptionNoticeDelivery>;
+}
+
 export interface NoticeSenderOptions {
     /**
      * Whether a notice the application tells nobody of is tried again, rather
@@ -42,7 +54,7 @@ export interface NoticeSenderOptions {
     readonly retriesNobody?: boolean;
 }
 
-export class NoticeSender {
+export class NoticeSender<N extends KeyedNotice = SubscriptionNotice> {
     private readonly logger = new Logger(NoticeSender.name);
     private readonly retriesNobody: boolean;
     /** When each notice told nobody was last said in the log, so it is said once a day. */
@@ -50,7 +62,7 @@ export class NoticeSender {
 
     constructor(
         private readonly notices: SubscriptionNoticeRepository,
-        private readonly port: SubscriptionNoticePort,
+        private readonly port: NoticeDeliveryPort<N>,
         options: NoticeSenderOptions = {},
     ) {
         this.retriesNobody = options.retriesNobody ?? false;
@@ -60,11 +72,7 @@ export class NoticeSender {
      * Claims the notice about `subject`, has the application send it, and
      * records to whom. Null where another run holds it or it went out meanwhile.
      */
-    async tell(
-        notice: SubscriptionNotice,
-        subject: string,
-        deliveryTimeoutMs: number,
-    ): Promise<NoticeOutcome> {
+    async tell(notice: N, subject: string, deliveryTimeoutMs: number): Promise<NoticeOutcome> {
         // Stamped with the moment it is taken, not with the start of the run: a
         // run that takes longer than the lease would otherwise take claims that
         // every other instance already reads as abandoned.
