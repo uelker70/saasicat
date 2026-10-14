@@ -12,18 +12,19 @@
 // reached the subscriber less than the lead time before its day, is planned
 // instead.
 //
-// It then decides what follows for each invoice whose attempts all failed or
-// were withdrawn. Once after a failure, the subscriber's notice is recorded
-// and, where the reason can pass, the same payment method is planned once more;
-// where the payment method in use is another than the one last tried, the
-// invoice is planned with that one.
+// It then follows each failure up, once: where the reason can pass the same
+// payment method is planned once more, where another payment method replaced
+// it that one is planned, and the subscriber's notice is recorded from what
+// was planned. An invoice whose last attempt failed and was followed up, or
+// was withdrawn, is planned again once its subscriber uses another payment
+// method.
 //
 // It tells the subscriber of every failure not yet told, and last takes up
-// what is planned. A planned attempt whose payment method is
-// no longer in use is withdrawn; a planned direct debit is announced to the
-// subscriber first, and its day is fixed when the announcement goes out — the
-// lead time after, never earlier than planned — so it cannot be announced too
-// late (`SC-PRIC-028`); what is due is sent.
+// what is planned. A planned attempt whose payment method is no longer in use
+// is withdrawn; a planned direct debit is announced to the subscriber first —
+// after the failure before it reached them — and its day is fixed when the
+// announcement goes out, the lead time after and never earlier than planned,
+// so it cannot be announced too late (`SC-PRIC-028`); what is due is sent.
 //
 // Each attempt is started or taken up in the invoice's turn and written as
 // submitted before its request leaves (`SC-PRIC-036`), so of several instances
@@ -77,6 +78,7 @@ import {
     type SubscriptionInvoiceRecord,
     type SubscriptionInvoiceRepository,
     type SubscriptionNoticeDelivery,
+    type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
 } from '@saasicat/core';
 
@@ -320,8 +322,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             // After the first collections, so a failure among them is told,
             // and what follows it planned, in the same run.
             await this.eachPage(
-                (page) => this.collections.listUncollected(page),
-                (invoiceId) => this.followUp(invoiceId, today, run),
+                (page) => this.collections.listToFollowUp(page),
+                (id) => this.followUpFailure(id, today, run),
+            );
+            await this.eachPage(
+                (page) => this.collections.listCollectableAgain(page),
+                (invoiceId) => this.planAgain(invoiceId, today, run),
             );
             // Before what is planned, so the subscriber hears of a failure
             // before the direct debit announced again after it.
@@ -398,58 +404,28 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     }
 
     /**
-     * Decides what follows for an invoice whose attempts all failed or were
-     * withdrawn. Once after a failure: the subscriber's notice, and the next
-     * attempt where one is made. After that, or after a withdrawal: an attempt
-     * with the payment method in use, where it is another than the one tried.
-     */
-    private async followUp(
-        invoiceId: string,
-        today: CalendarDay,
-        run: InvoiceCollectionRun,
-    ): Promise<void> {
-        const attempts = await this.collections.listByInvoice(invoiceId);
-        const last = attempts.at(-1);
-        if (!last) return;
-        const invoice = await this.invoiceOf(invoiceId);
-        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
-        if (last.status === 'FAILED' && last.followedUpAt === null) {
-            await this.followUpFailure(invoice, last, attempts, method, today, run);
-            return;
-        }
-        if (!method) {
-            await this.recordWaiting(invoice, noPaymentMethod(invoice), run);
-            return;
-        }
-        // The payment method that failed is not tried again of itself; the
-        // one that replaced it is (`SC-PRIC-080`).
-        if (last.status === 'FAILED' && method.id === last.paymentMethodId) return;
-        await this.planWith(invoice, last.attempt, method, today, 'payment-method-replaced', run);
-    }
-
-    /**
-     * Records what the subscriber is told of a failure and plans what follows
-     * it: the same payment method once more where the reason can pass, or the
-     * one that replaced it. The notice is recorded first, and the failure
-     * marked last, so a run that stops in between leaves the notice to be
-     * sent and the decision to be made again — and both come out the same.
+     * Decides what follows a failure, once: plans the next attempt where one
+     * is made, then records what the subscriber is told from the attempt that
+     * follows — the one planned now, or the one a run that stopped before it
+     * recorded the notice planned — and marks the failure last. So the notice
+     * always says what was planned, and a run that stops anywhere leaves the
+     * failure to be followed up again with the same outcome.
      */
     private async followUpFailure(
-        invoice: SubscriptionInvoiceRecord,
-        failed: InvoiceCollectionRecord,
-        attempts: readonly InvoiceCollectionRecord[],
-        method: SubscriberPaymentMethodRecord | null,
+        id: string,
         today: CalendarDay,
         run: InvoiceCollectionRun,
     ): Promise<void> {
-        const { reason, failedAt } = failureOf(failed);
-        const next = method && this.nextAfter(failed, attempts, method, failedAt, today);
+        const failed = await this.collections.findById(id);
+        if (failed?.status !== 'FAILED' || failed.followedUpAt !== null) return;
+        const invoice = await this.invoiceOf(failed.invoiceId);
+        const next = await this.attemptAfter(invoice, failed, today, run);
         const notice: CollectionFailedNotice = {
             kind: 'collection-failed',
             ...aboutInvoice(invoice),
             paymentMethodType: failed.paymentMethodType,
-            reason,
-            next: toldNext(method && next ? method.type : null, next?.collectOn ?? null),
+            reason: failureOf(failed).reason,
+            next: toldNext(next),
         };
         await this.notices!.record(
             [
@@ -463,10 +439,61 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             ],
             new Date(),
         );
-        if (next && method) {
-            await this.planWith(invoice, failed.attempt, method, next.collectOn, next.because, run);
-        }
         await this.collections.markFollowedUp(failed.id, new Date());
+    }
+
+    /**
+     * The attempt that follows `failed`: the one already there, or the one
+     * planned now with the payment method in use, or `null` where none is
+     * made until the payment method is replaced.
+     */
+    private async attemptAfter(
+        invoice: SubscriptionInvoiceRecord,
+        failed: InvoiceCollectionRecord,
+        today: CalendarDay,
+        run: InvoiceCollectionRun,
+    ): Promise<InvoiceCollectionRecord | null> {
+        const following = (attempts: readonly InvoiceCollectionRecord[]) =>
+            attempts.find((each) => each.attempt === failed.attempt + 1) ?? null;
+        const attempts = await this.collections.listByInvoice(invoice.id);
+        const existing = following(attempts);
+        if (existing) return existing;
+        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        const decided =
+            method && this.nextAfter(failed, attempts, method, failureOf(failed).failedAt, today);
+        if (!method || !decided) return null;
+        const planned = await this.planWith(
+            invoice,
+            failed.attempt,
+            method,
+            decided.collectOn,
+            decided.because,
+            run,
+        );
+        // Where another run planned it first, its plan is the one that follows.
+        return planned ?? following(await this.collections.listByInvoice(invoice.id));
+    }
+
+    /**
+     * Plans an invoice with the payment method that replaced the one its last
+     * attempt was made with: after a failure that was followed up, or after a
+     * plan was withdrawn. The payment method in use is read again, since it
+     * may have changed since the invoice was listed.
+     */
+    private async planAgain(
+        invoiceId: string,
+        today: CalendarDay,
+        run: InvoiceCollectionRun,
+    ): Promise<void> {
+        const last = (await this.collections.listByInvoice(invoiceId)).at(-1);
+        const ended =
+            last?.status === 'WITHDRAWN' ||
+            (last?.status === 'FAILED' && last.followedUpAt !== null);
+        if (!last || !ended) return;
+        const invoice = await this.invoiceOf(invoiceId);
+        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        if (!method || method.id === last.paymentMethodId) return;
+        await this.planWith(invoice, last.attempt, method, today, 'payment-method-replaced', run);
     }
 
     /**
@@ -495,7 +522,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     /**
      * Plans the invoice's next attempt with `method`, from `collectOn`, as the
      * one after attempt `after` — the last this run read, so a decision made
-     * from attempts another run has added to since plans nothing.
+     * from attempts another run has added to since plans nothing — and
+     * returns it, or `null` where nothing was planned.
      */
     private async planWith(
         invoice: SubscriptionInvoiceRecord,
@@ -504,7 +532,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         collectOn: CalendarDay,
         because: PlannedBecause,
         run: InvoiceCollectionRun,
-    ): Promise<void> {
+    ): Promise<InvoiceCollectionRecord | null> {
         const planned = await this.collections.plan({
             invoiceId: invoice.id,
             after,
@@ -519,7 +547,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             collectOn,
         });
         // Another instance planned it first, or one of its attempts is open.
-        if (!planned) return;
+        if (!planned) return null;
         run.planned += 1;
         await this.writeAudit(invoice.id, {
             action: 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED',
@@ -531,6 +559,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 because,
             },
         });
+        return planned;
     }
 
     /**
@@ -591,6 +620,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             );
             return;
         }
+        const told = await this.notices!.listForSubscription(invoice.subscriptionId);
+        if (await this.failureUntold(invoice, told)) return;
         const notice: CollectionAnnouncedNotice = {
             kind: 'collection-announced',
             ...aboutInvoice(invoice),
@@ -608,7 +639,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             return;
         }
         if (outcome !== null) return;
-        const sent = (await this.notices!.listForSubscription(invoice.subscriptionId)).find(
+        const sent = told.find(
             (record) =>
                 record.kind === 'collection-announced' &&
                 record.subject === attempt.attemptKey &&
@@ -617,6 +648,29 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (!sent?.deliveredAt) return;
         const collectOn = toCollectionAnnouncedNotice(sent.content, sent.id).collectOn;
         await this.recordAnnounced(attempt, invoice, collectOn, sent.deliveredAt, run);
+    }
+
+    /**
+     * Whether a failure of the invoice has not reached the subscriber yet: not
+     * followed up, so its notice is not even recorded, or recorded and not
+     * delivered. A direct debit announced again waits for it, so the subscriber
+     * hears of the failure before of the debit that follows it.
+     */
+    private async failureUntold(
+        invoice: SubscriptionInvoiceRecord,
+        told: readonly SubscriptionNoticeRecord[],
+    ): Promise<boolean> {
+        const failures = (await this.collections.listByInvoice(invoice.id)).filter(
+            (each) => each.status === 'FAILED',
+        );
+        if (failures.some((each) => each.followedUpAt === null)) return true;
+        const keys = new Set(failures.map((each) => each.attemptKey));
+        return told.some(
+            (record) =>
+                record.kind === 'collection-failed' &&
+                keys.has(record.subject) &&
+                record.deliveredAt === null,
+        );
     }
 
     private async recordAnnounced(
@@ -634,18 +688,30 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         });
     }
 
-    /** Sends the failures not told yet: recorded, and not sent, or sent and not answered. */
+    /**
+     * Sends the failures not told yet: recorded, and not sent, or sent and not
+     * answered. One that cannot be read or sent is said in the log and left
+     * for the next run, and the others go on.
+     */
     private async tellUntold(run: InvoiceCollectionRun): Promise<void> {
         const staleBefore = new Date(Date.now() - NOTICE_CLAIM_LEASE_MS);
         const untold = await this.notices!.listUndelivered('collection-failed', staleBefore);
         for (const record of untold) {
-            const notice = toCollectionFailedNotice(record.content, record.id);
-            const outcome = await this.sender!.tell(
-                notice,
-                record.subject,
-                NOTICE_DELIVERY_TIMEOUT_MS,
-            );
-            if (outcome === 'told') run.told += 1;
+            try {
+                const notice = toCollectionFailedNotice(record.content, record.id);
+                const outcome = await this.sender!.tell(
+                    notice,
+                    record.subject,
+                    NOTICE_DELIVERY_TIMEOUT_MS,
+                );
+                if (outcome === 'told') run.told += 1;
+            } catch (error) {
+                this.logger.error(
+                    `The notice ${record.id} of a failed collection could not be sent; the next ` +
+                        'run tries again.',
+                    error instanceof Error ? error.stack : String(error),
+                );
+            }
         }
     }
 
@@ -933,16 +999,15 @@ function failureOf(failed: InvoiceCollectionRecord): {
 }
 
 /**
- * What the subscriber is told follows a failure: a card charged on the day
- * planned, a direct debit announced again, or nothing until the payment method
- * is replaced.
+ * What the subscriber is told follows a failure, from the attempt that
+ * follows it: a card charged on the day it was planned for, a direct debit
+ * announced again, or nothing until the payment method is replaced.
  */
-function toldNext(
-    plannedWith: PaymentMethodType | null,
-    collectOn: CalendarDay | null,
-): CollectionFailureNext {
-    if (plannedWith === null || collectOn === null) return { action: 'replace-payment-method' };
-    if (plannedWith === 'card') return { action: 'charged-again', on: collectOn };
+function toldNext(next: InvoiceCollectionRecord | null): CollectionFailureNext {
+    if (next === null) return { action: 'replace-payment-method' };
+    if (next.paymentMethodType === 'card') {
+        return { action: 'charged-again', on: plannedDayOf(next) };
+    }
     return { action: 'announced-again' };
 }
 

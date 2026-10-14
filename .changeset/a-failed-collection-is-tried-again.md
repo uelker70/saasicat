@@ -32,9 +32,11 @@ replaced before that day. `InvoiceCollectionRepository.startAttempt` starts only
 an invoice's first attempt now, so a run that found an invoice due before
 another run's attempt failed no longer charges it again at once; `plan` writes a
 later one only after the attempt the decision read. The repository gains
-`plan`, `announce`, `submitPlanned`, `withdraw`, `listPlanned`,
-`listUncollected` and `markFollowedUp`, and a persistence contract harness runs
-their scenarios.
+`plan`, `announce`, `submitPlanned`, `withdraw` — both in the invoice's turn —,
+`listPlanned`, `listToFollowUp`, `listCollectableAgain` and `markFollowedUp`,
+and a persistence contract harness runs their scenarios; `listCollectableAgain`
+reads `subscriber_payment_methods`, so the collection scenarios need the
+payment methods too.
 
 `InvoiceMailPort` gains `tell({ notice, to })` for what the subscriber is told:
 a `CollectionFailedNotice` or a `CollectionAnnouncedNotice`. Each is recorded in

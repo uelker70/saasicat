@@ -14,7 +14,6 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
-    BLOCKING_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -173,27 +172,50 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return count === 1;
     }
 
-    async submitPlanned(
+    submitPlanned(
         id: string,
         at: Date,
         tx?: TransactionContext,
     ): Promise<SubmittedInvoiceCollection | null> {
-        const db = this.db(tx);
-        const { count } = await db.subscriptionInvoiceCollection.updateMany({
-            where: { id, status: 'SCHEDULED' },
-            data: { status: 'SUBMITTED', submittedAt: at, heldAt: at },
+        return this.inTurnOf(id, tx, async (db) => {
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: 'SCHEDULED' },
+                data: { status: 'SUBMITTED', submittedAt: at, heldAt: at },
+            });
+            if (count !== 1) return null;
+            const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            return row ? sentCollectionOf(toInvoiceCollectionRecord(row)) : null;
         });
-        if (count !== 1) return null;
-        const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
-        return row ? sentCollectionOf(toInvoiceCollectionRecord(row)) : null;
     }
 
-    async withdraw(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
-        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
-            where: { id, status: 'SCHEDULED' },
-            data: { status: 'WITHDRAWN', resolvedAt: at },
+    withdraw(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        return this.inTurnOf(id, tx, async (db) => {
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: 'SCHEDULED' },
+                data: { status: 'WITHDRAWN', resolvedAt: at },
+            });
+            return count === 1;
         });
-        return count === 1;
+    }
+
+    /** Runs `work` in the turn of the invoice attempt `id` belongs to, as `writeNext` takes it. */
+    private inTurnOf<T>(
+        id: string,
+        tx: TransactionContext,
+        work: (db: CollectionPrisma) => Promise<T>,
+    ): Promise<T> {
+        const take = async (db: CollectionPrisma) => {
+            await db.$queryRaw`
+                SELECT i."id" FROM "subscription_invoices" i
+                 WHERE i."id" = (
+                           SELECT c."invoiceId" FROM "subscription_invoice_collections" c
+                            WHERE c."id" = ${id}
+                       )
+                   FOR UPDATE`;
+            return work(db);
+        };
+        if (tx) return take(this.db(tx));
+        return this.prisma.$transaction((own) => take(this.db(own)));
     }
 
     async listPlanned(
@@ -210,22 +232,44 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return rows.map((row) => row.id);
     }
 
-    async listUncollected(
+    async listToFollowUp(
         page: { limit: number; after?: string },
         tx?: TransactionContext,
     ): Promise<string[]> {
-        // An empty text sorts before every id, as in `listDue`.
+        const rows = await this.db(tx).subscriptionInvoiceCollection.findMany({
+            // An empty text sorts before every id, as in `listDue`.
+            where: { id: { gt: page.after ?? '' }, status: 'FAILED', followedUpAt: null },
+            select: { id: true },
+            orderBy: { id: 'asc' },
+            take: page.limit,
+        });
+        return rows.map((row) => row.id);
+    }
+
+    async listCollectableAgain(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        // An empty text sorts before every id, as in `listDue`. The last
+        // attempt only: a later one exists only where none before it was open
+        // or succeeded, so a last one that failed or was withdrawn means none
+        // of the invoice's is.
         const after = page.after ?? '';
         const rows = await this.db(tx).$queryRaw`
-            SELECT DISTINCT c."invoiceId" AS "id"
-              FROM "subscription_invoice_collections" c
-             WHERE c."invoiceId" > ${after}
-               AND NOT EXISTS (
-                       SELECT 1 FROM "subscription_invoice_collections" o
-                        WHERE o."invoiceId" = c."invoiceId"
-                          AND o."status" = ANY(${[...BLOCKING_COLLECTION_STATUSES]})
+            SELECT i."id"
+              FROM "subscription_invoices" i
+              JOIN "subscription_invoice_collections" c ON c."invoiceId" = i."id"
+              JOIN "subscriber_payment_methods" m
+                ON m."subscriberId" = i."subscriberId" AND m."status" = 'ACTIVE'
+             WHERE i."id" > ${after}
+               AND c."attempt" = (
+                       SELECT max(o."attempt") FROM "subscription_invoice_collections" o
+                        WHERE o."invoiceId" = i."id"
                    )
-             ORDER BY c."invoiceId"
+               AND (c."status" = 'WITHDRAWN'
+                    OR (c."status" = 'FAILED' AND c."followedUpAt" IS NOT NULL))
+               AND m."id" <> c."paymentMethodId"
+             ORDER BY i."id"
              LIMIT ${page.limit}`;
         return idsOf(rows);
     }

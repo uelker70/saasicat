@@ -236,6 +236,25 @@ describe('a write that names the state it expects', () => {
         });
     }
 
+    test('a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn', async () => {
+        for (const take of [
+            (repo) => repo.submitPlanned('attempt-2', AT),
+            (repo) => repo.withdraw('attempt-2', AT),
+        ]) {
+            const client = fakeClient();
+
+            await take(new PrismaInvoiceCollectionRepository(client));
+
+            assert.deepEqual(
+                client.calls.slice(0, 3).map(([name]) => name),
+                ['$transaction', '$queryRaw', 'updateMany'],
+            );
+            const [[, lock, values]] = callsOf(client, '$queryRaw');
+            assert.match(lock, /FROM "subscription_invoices"[\s\S]*FOR UPDATE/);
+            assert.deepEqual(values, ['attempt-2']);
+        }
+    });
+
     test('a planned attempt is taken up as sent once, and read back as written', async () => {
         const client = fakeClient({ row: rowOf({ id: 'attempt-2', attempt: 2 }) });
         const gone = fakeClient({ updated: 0 });
@@ -258,26 +277,39 @@ describe('a write that names the state it expects', () => {
 });
 
 describe('reading', () => {
-    test('the invoices due and the invoices not collected are raw queries over the attempts', async () => {
+    test('the invoices due and the invoices another payment method can collect are raw queries', async () => {
         const client = fakeClient({ raw: [{ id: 'invoice-1' }, { id: 7 }] });
         const repo = new PrismaInvoiceCollectionRepository(client);
 
         assert.deepEqual(await repo.listDue('2026-02-15', { limit: 10 }), ['invoice-1']);
-        assert.deepEqual(await repo.listUncollected({ limit: 10, after: 'invoice-0' }), [
+        assert.deepEqual(await repo.listCollectableAgain({ limit: 10, after: 'invoice-0' }), [
             'invoice-1',
         ]);
 
-        const [due, uncollected] = callsOf(client, '$queryRaw');
+        const [due, again] = callsOf(client, '$queryRaw');
         assert.match(due[1], /NOT EXISTS/);
         assert.ok(due[2].includes('2026-02-15'));
-        assert.match(uncollected[1], /NOT EXISTS/);
-        assert.ok(uncollected[2].includes('invoice-0'));
-        assert.deepEqual(uncollected[2].find(Array.isArray), [
-            'SCHEDULED',
-            'SUBMITTED',
-            'PENDING',
-            'SUCCEEDED',
-        ]);
+        assert.match(again[1], /JOIN "subscriber_payment_methods" m/);
+        assert.match(again[1], /max\(o\."attempt"\)/);
+        assert.match(again[1], /c\."followedUpAt" IS NOT NULL/);
+        assert.match(again[1], /m\."id" <> c\."paymentMethodId"/);
+        assert.ok(again[2].includes('invoice-0'));
+    });
+
+    test('the failed attempts not followed up are listed by id', async () => {
+        const client = fakeClient();
+
+        await new PrismaInvoiceCollectionRepository(client).listToFollowUp({
+            limit: 10,
+            after: 'attempt-0',
+        });
+
+        const [[, listed]] = callsOf(client, 'findMany');
+        assert.deepEqual(listed.where, {
+            id: { gt: 'attempt-0' },
+            status: 'FAILED',
+            followedUpAt: null,
+        });
     });
 
     test('the planned and the unsettled attempts are listed by id, page by page', async () => {

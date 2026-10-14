@@ -1480,7 +1480,8 @@ _Tested by:_
         - locks the invoice, reads its attempts, then writes the next one as planned for its day
         - writes nothing where another attempt came after the one it follows
         - an announcement is written only to a planned attempt not announced yet
-        - a planned attempt is taken up as sent, or withdrawn, only while it is planned
+        - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn and only while
+          it is planned
         - what follows a failure is recorded only once, and only for a failure
     - settling and taking on an attempt
         - an outcome is written only to an attempt not settled, and says whether it was
@@ -1491,7 +1492,9 @@ _Tested by:_
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
         - the planned attempts are listed by id
-        - the invoices not collected are those whose attempts none is open or succeeded
+        - the failed attempts not followed up are listed by id
+        - the invoices another payment method can collect are read by their last attempt and the one
+          in use
         - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 - `packages/core/tests/a-collection-attempt-row-becomes-a-record.test.js`
@@ -1608,7 +1611,8 @@ _Tested by:_
         - locks the invoice, reads its attempts, then writes the next one as planned for its day
         - writes nothing where another attempt came after the one it follows
         - an announcement is written only to a planned attempt not announced yet
-        - a planned attempt is taken up as sent, or withdrawn, only while it is planned
+        - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn and only while
+          it is planned
         - what follows a failure is recorded only once, and only for a failure
     - settling and taking on an attempt
         - an outcome is written only to an attempt not settled, and says whether it was
@@ -1619,7 +1623,9 @@ _Tested by:_
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
         - the planned attempts are listed by id
-        - the invoices not collected are those whose attempts none is open or succeeded
+        - the failed attempts not followed up are listed by id
+        - the invoices another payment method can collect are read by their last attempt and the one
+          in use
         - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
@@ -1631,9 +1637,11 @@ _Tested by:_
         - an invoice that does not exist is refused
     - a write that names the state it expects
         - what
+        - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn
         - a planned attempt is taken up as sent once, and read back as written
     - reading
-        - the invoices due and the invoices not collected are raw queries over the attempts
+        - the invoices due and the invoices another payment method can collect are raw queries
+        - the failed attempts not followed up are listed by id
         - the planned and the unsettled attempts are listed by id, page by page
         - an attempt, an invoice’s attempts and the accounts in use read back as records
 - `packages/core/tests/a-collection-notice-reads-back.test.js`
@@ -1690,9 +1698,15 @@ _Tested by:_
         - is announced again for the lead time after, and debited then rather than on the day it
           named
     - what the subscriber is told of a failure
+        - a run that stops after it planned records the notice the next time, saying what was
+          planned, once
+        - a notice that cannot be read holds up no planned collection
         - is sent by the next run where the mail refused it
-        - a run that stops after recording the notice plans the second charge the next time, from
-          the day it failed, without a second notice
+        - a run that stops before it planned what follows plans it the next time, from the day it
+          failed, and tells it once
+    - a failure the subscriber has not heard of yet
+        - holds back the direct debit announced after it until it is told
+        - holds back a direct debit planned by a run that stopped before it recorded the failure
     - runs side by side
         - two runs that both see a failure tell it once and plan one second charge
         - two runs on the day a second charge is due send it once
@@ -1825,7 +1839,8 @@ _Tested by:_
         - locks the invoice, reads its attempts, then writes the next one as planned for its day
         - writes nothing where another attempt came after the one it follows
         - an announcement is written only to a planned attempt not announced yet
-        - a planned attempt is taken up as sent, or withdrawn, only while it is planned
+        - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn and only while
+          it is planned
         - what follows a failure is recorded only once, and only for a failure
     - settling and taking on an attempt
         - an outcome is written only to an attempt not settled, and says whether it was
@@ -1836,7 +1851,9 @@ _Tested by:_
         - the attempts not settled are the submitted ones past the lease and the pending ones past
           the hour
         - the planned attempts are listed by id
-        - the invoices not collected are those whose attempts none is open or succeeded
+        - the failed attempts not followed up are listed by id
+        - the invoices another payment method can collect are read by their last attempt and the one
+          in use
         - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
 

@@ -8,7 +8,6 @@
 import { afterEach, beforeEach, mock } from 'node:test';
 import { Logger } from '@nestjs/common';
 import {
-    BLOCKING_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionAttemptKey,
     collectionOutcomeColumns,
@@ -86,10 +85,11 @@ export const COLLECTING_SETTINGS = {
     payments: paymentsCatalog().payments,
 };
 
-const BLOCKING = new Set(BLOCKING_COLLECTION_STATUSES);
-
-/** The attempts in memory, beside the invoices and documents of `store`. */
-export function collectionStore(store) {
+/**
+ * The attempts in memory, beside the invoices and documents of `store` and
+ * the subscribers' payment methods.
+ */
+export function collectionStore(store, paymentMethods) {
     const attempts = [];
     const pageOf = (ids, { limit, after }) =>
         ids
@@ -196,12 +196,32 @@ export function collectionStore(store) {
                 page,
             );
         },
-        async listUncollected(page) {
-            const open = new Set(
-                attempts.filter((each) => BLOCKING.has(each.status)).map((each) => each.invoiceId),
-            );
+        async listToFollowUp(page) {
             return pageOf(
-                [...new Set(attempts.map((each) => each.invoiceId))].filter((id) => !open.has(id)),
+                attempts
+                    .filter((each) => each.status === 'FAILED' && each.followedUpAt === null)
+                    .map((each) => each.id),
+                page,
+            );
+        },
+        async listCollectableAgain(page) {
+            const collectable = store.invoices.filter((invoice) => {
+                const last = attempts
+                    .filter((each) => each.invoiceId === invoice.id)
+                    .sort((a, b) => b.attempt - a.attempt)[0];
+                const inUse = paymentMethods.rows.find(
+                    (row) => row.subscriberId === invoice.subscriberId && row.status === 'ACTIVE',
+                );
+                return (
+                    last !== undefined &&
+                    inUse !== undefined &&
+                    (last.status === 'WITHDRAWN' ||
+                        (last.status === 'FAILED' && last.followedUpAt !== null)) &&
+                    inUse.id !== last.paymentMethodId
+                );
+            });
+            return pageOf(
+                collectable.map((invoice) => invoice.id),
                 page,
             );
         },
@@ -266,7 +286,7 @@ export function aCollectingInstallation({
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
     const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
-    const collections = collectionStore(installation.store);
+    const collections = collectionStore(installation.store, paymentMethods);
     const notices = noticeRecord();
     const gateway = new ScriptedGateway('stripe');
     const gateways = new PaymentGatewayRegistry(settings, { [MAIN_ACCOUNT]: gateway });

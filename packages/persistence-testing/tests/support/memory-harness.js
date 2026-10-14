@@ -35,7 +35,6 @@ import {
     refusesFirstAttempt,
     refusesPlannedAttempt,
     sentCollectionOf,
-    BLOCKING_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     UNSETTLED_COLLECTION_STATUSES,
     subscriberPaymentMethodColumns,
@@ -2106,7 +2105,6 @@ export function createMemoryHarness() {
 
     // The attempts to collect an invoice: one open, and none after one
     // succeeded, decided in one synchronous step as the indexes decide it.
-    const blocking = new Set(BLOCKING_COLLECTION_STATUSES);
     const unsettled = new Set(UNSETTLED_COLLECTION_STATUSES);
     const writeNextCollection = (invoiceId, refuses, columns) => {
         if (!state.invoices.some((row) => row.id === invoiceId)) {
@@ -2186,15 +2184,33 @@ export function createMemoryHarness() {
                 page,
             );
         },
-        async listUncollected(page) {
-            const tried = new Set(state.invoiceCollections.map((row) => row.invoiceId));
-            const open = new Set(
-                state.invoiceCollections
-                    .filter((row) => blocking.has(row.status))
-                    .map((row) => row.invoiceId),
-            );
+        async listToFollowUp(page) {
             return pageOf(
-                [...tried].filter((invoiceId) => !open.has(invoiceId)),
+                state.invoiceCollections
+                    .filter((row) => row.status === 'FAILED' && row.followedUpAt === null)
+                    .map((row) => row.id),
+                page,
+            );
+        },
+        async listCollectableAgain(page) {
+            const collectable = state.invoices.filter((invoice) => {
+                const last = state.invoiceCollections
+                    .filter((row) => row.invoiceId === invoice.id)
+                    .sort((a, b) => b.attempt - a.attempt)[0];
+                const inUse = state.paymentMethods.find(
+                    (method) =>
+                        method.subscriberId === invoice.subscriberId && method.status === 'ACTIVE',
+                );
+                return (
+                    last !== undefined &&
+                    inUse !== undefined &&
+                    (last.status === 'WITHDRAWN' ||
+                        (last.status === 'FAILED' && last.followedUpAt !== null)) &&
+                    inUse.id !== last.paymentMethodId
+                );
+            });
+            return pageOf(
+                collectable.map((invoice) => invoice.id),
                 page,
             );
         },

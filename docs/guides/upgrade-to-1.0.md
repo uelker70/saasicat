@@ -2052,7 +2052,8 @@ replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC
   `failed` outcome with a `CollectionFailureReason`, and only an answer that says nothing about a
   charge is thrown. `@saasicat/payment-stripe` and `DevPaymentGateway` have both.
 - **A persistence contract harness** gains `invoiceCollectionRepository`, beside what the invoice
-  scenarios need; a harness without it declares `gaps: ['invoiceCollections']`. Empty
+  and the payment method scenarios need — one of its reads joins `subscriber_payment_methods`; a
+  harness without it declares `gaps: ['invoiceCollections']`. Empty
   `subscription_invoice_collections` between scenarios with the invoices.
 - **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD`, which
   the audit log records under `SUBSCRIPTION_INVOICE_COLLECTION_WAITING` for an invoice whose

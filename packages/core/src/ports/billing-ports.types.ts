@@ -767,8 +767,9 @@ export interface InvoiceCollectionRepository {
 
     /**
      * Takes a planned attempt up as sent — `SUBMITTED`, sent and held at `at` —
-     * before its request leaves, and returns it; `null`, writing nothing, where
-     * it is not planned any more, so of two runs one sends it.
+     * in its invoice's turn, as `startAttempt` writes one, before its request
+     * leaves, and returns it; `null`, writing nothing, where it is not planned
+     * any more, so of two runs one sends it.
      */
     submitPlanned(
         id: string,
@@ -777,8 +778,9 @@ export interface InvoiceCollectionRepository {
     ): Promise<SubmittedInvoiceCollection | null>;
 
     /**
-     * Withdraws a planned attempt that will not be made, at `at`, and returns
-     * `true`; `false`, writing nothing, where it is not planned.
+     * Withdraws a planned attempt that will not be made, at `at`, in its
+     * invoice's turn, and returns `true`; `false`, writing nothing, where it is
+     * not planned.
      */
     withdraw(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
 
@@ -788,13 +790,21 @@ export interface InvoiceCollectionRepository {
         tx?: TransactionContext,
     ): Promise<string[]>;
 
+    /** The failed attempts, by id and page as above, whose follow-up is not recorded yet. */
+    listToFollowUp(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
     /**
-     * The invoices, by id and page as above, that have attempts and none open
-     * or succeeded: every one failed or was withdrawn, so what follows is the
-     * run's to decide — a notice and a second try after a failure, or the
-     * payment method that replaced the one tried.
+     * The invoices, by id and page as above, that another payment method can
+     * collect: their last attempt was withdrawn, or failed and was followed
+     * up, and their subscriber has a payment method in use other than the one
+     * that attempt was made with (`subscriber_payment_methods`). An invoice
+     * whose failed payment method is still in use, or whose subscriber has
+     * none, is not read until that changes.
      */
-    listUncollected(
+    listCollectableAgain(
         page: { limit: number; after?: string },
         tx?: TransactionContext,
     ): Promise<string[]>;

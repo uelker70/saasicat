@@ -506,11 +506,12 @@ const CONTRACT_GAPS: Record<
             ),
     },
     invoiceCollections: {
-        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice needs before it',
+        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice or a payment method needs before it',
         present: (harness) =>
             Boolean(
                 harness.adapter.invoiceCollectionRepository &&
-                CONTRACT_GAPS.subscriptionInvoices.present(harness),
+                CONTRACT_GAPS.subscriptionInvoices.present(harness) &&
+                CONTRACT_GAPS.subscriberPaymentMethods.present(harness),
             ),
     },
     checkoutOffers: {
@@ -8068,6 +8069,42 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await collections.listByInvoice(invoiceId!)).length, 1);
         });
 
+        // @requirement SC-PRIC-036
+        test('a planned attempt is taken up in the invoice’s turn: a second waits for the first transaction, then is told', async (t) => {
+            const { adapter } = harness;
+            if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const account = await collectable(t, 'tenant-collect-plan-turn');
+            if (!account) return;
+            const { collections, ids } = account;
+            const planned = await collections.plan(planOf(ids[0]!));
+
+            const sections: Array<{ enter: number; exit: number; taken: boolean }> = [];
+            const critical = (tx: TransactionContext) =>
+                collections.submitPlanned(planned!.id, STARTED_AT, tx).then(async (taken) => {
+                    const enter = Date.now();
+                    await sleep(LOCK_HOLD_MS);
+                    sections.push({ enter, exit: Date.now(), taken: taken !== null });
+                });
+
+            await Promise.all([
+                adapter.transactionRunner.run(critical),
+                adapter.transactionRunner.run(critical),
+            ]);
+
+            sections.sort((a, b) => a.enter - b.enter);
+            assert.deepEqual(
+                sections.map((each) => each.taken),
+                [true, false],
+            );
+            assert.ok(
+                sections[1]!.enter >= sections[0]!.exit,
+                'the second was decided before the first transaction ended',
+            );
+        });
+
         // @requirement SC-PRIC-080
         test('a plan that follows an attempt another has come after since is refused', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan-stale');
@@ -8145,39 +8182,60 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-080
-        // @requirement SC-PRIC-082
-        test('the invoices whose attempts all failed or were withdrawn are listed, page by page, and no others', async (t) => {
-            const account = await collectable(t, 'tenant-collect-uncollected', [
-                {},
-                {},
-                {},
-                {},
-                {},
-                {},
-            ]);
+        test('the failed attempts whose follow-up is not recorded are listed, page by page, and no others', async (t) => {
+            const account = await collectable(t, 'tenant-collect-to-follow-up', [{}, {}, {}]);
             if (!account) return;
             const { collections, ids } = account;
-            const [failed, withdrawn, open, succeeded, , retried] = ids;
-            const failedOne = await collections.startAttempt(attemptOf(failed!));
-            await collections.recordOutcome(failedOne!.id, FAILURE, STARTED_AT);
-            const plannedOne = await collections.plan(planOf(withdrawn!));
-            await collections.withdraw(plannedOne!.id, STARTED_AT);
-            await collections.startAttempt(attemptOf(open!));
-            const succeededOne = await collections.startAttempt(attemptOf(succeeded!));
-            await collections.recordOutcome(
-                succeededOne!.id,
-                { status: 'succeeded', paymentRef: 'pi_4' },
-                STARTED_AT,
+            const [failed, followed, open] = await Promise.all(
+                ids.map((invoiceId) => collections.startAttempt(attemptOf(invoiceId))),
             );
-            const retriedOne = await collections.startAttempt(attemptOf(retried!));
-            await collections.recordOutcome(retriedOne!.id, FAILURE, STARTED_AT);
+            await collections.recordOutcome(failed!.id, FAILURE, STARTED_AT);
+            await collections.recordOutcome(followed!.id, FAILURE, STARTED_AT);
+            await collections.markFollowedUp(followed!.id, STARTED_AT);
+            const mine = (found: string[]) =>
+                found.filter((id) => [failed, followed, open].some((a) => a!.id === id));
+
+            const first = await collections.listToFollowUp({ limit: 1 });
+            const rest = await collections.listToFollowUp({ limit: 50, after: first.at(-1) });
+
+            assert.deepEqual(mine([...first, ...rest]), [failed!.id]);
+            assert.equal(first.length, 1);
+        });
+
+        // @requirement SC-PRIC-082
+        test('the invoices another payment method can collect are those whose last attempt failed and was followed up, or was withdrawn, and no others', async (t) => {
+            const account = await collectable(t, 'tenant-collect-again', [{}, {}, {}, {}, {}, {}]);
+            if (!account) return;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const { collections, ids, subscriberId } = account;
+            const { method: inUse } = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_in_use', '2026-02-02T10:00:00.000Z'),
+            );
+            const [replaced, untold, stillInUse, withdrawn, open, retried] = ids;
+            const failed = async (invoiceId: string, paymentMethodId: string, followed = true) => {
+                const attempt = await collections.startAttempt({
+                    ...attemptOf(invoiceId),
+                    paymentMethodId,
+                });
+                await collections.recordOutcome(attempt!.id, FAILURE, STARTED_AT);
+                if (followed) await collections.markFollowedUp(attempt!.id, STARTED_AT);
+                return attempt!;
+            };
+            await failed(replaced!, 'payment-method-old');
+            await failed(untold!, 'payment-method-old', false);
+            await failed(stillInUse!, inUse.id);
+            const plan = await collections.plan(planOf(withdrawn!));
+            await collections.withdraw(plan!.id, STARTED_AT);
+            await collections.startAttempt(attemptOf(open!));
+            await failed(retried!, 'payment-method-old');
             await collections.plan(planOf(retried!, { after: 1 }));
             const mine = (found: string[]) => found.filter((id) => ids.includes(id));
 
-            const first = await collections.listUncollected({ limit: 1 });
-            const rest = await collections.listUncollected({ limit: 50, after: first.at(-1) });
+            const first = await collections.listCollectableAgain({ limit: 1 });
+            const rest = await collections.listCollectableAgain({ limit: 50, after: first.at(-1) });
 
-            assert.deepEqual(mine([...first, ...rest]), [failed!, withdrawn!].sort());
+            assert.deepEqual(mine([...first, ...rest]), [replaced!, withdrawn!].sort());
             assert.equal(first.length, 1);
         });
 

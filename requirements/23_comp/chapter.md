@@ -760,9 +760,11 @@ _Tested by:_
         - an invoice that does not exist is refused
     - a write that names the state it expects
         - what
+        - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn
         - a planned attempt is taken up as sent once, and read back as written
     - reading
-        - the invoices due and the invoices not collected are raw queries over the attempts
+        - the invoices due and the invoices another payment method can collect are raw queries
+        - the failed attempts not followed up are listed by id
         - the planned and the unsettled attempts are listed by id, page by page
         - an attempt, an invoice’s attempts and the accounts in use read back as records
 - `packages/adapter-prisma/tests/prisma-invoice-document.test.js`
