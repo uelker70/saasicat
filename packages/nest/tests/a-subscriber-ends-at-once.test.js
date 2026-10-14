@@ -411,6 +411,24 @@ describe('ending a subscription at once', () => {
         );
     });
 
+    test('is refused the same where the store names its end-now write as null', async () => {
+        // A JavaScript adapter, or one built as `supported ? fn : null`: a null
+        // write is as absent as a missing one, not a function to call.
+        const { service, calls } = await ending({
+            subscription: {
+                canceledAt: new Date('2026-04-01'),
+                canceledEffectiveAt: new Date('2027-01-01T00:00:00.000Z'),
+            },
+            writes: { endNow: null },
+        });
+        const refusal = await refusalOf(service.end('t1', 'fw-1', null, NOW));
+        assert.deepEqual(
+            [refusal.code, refusal.params],
+            ['FEATURE_WITHDRAWAL_END_NOW_UNSUPPORTED', { date: '2027-01-01' }],
+        );
+        assert.deepEqual(calls, []);
+    });
+
     test('is refused as one that cannot be brought forward where only the declaration date names the end', async () => {
         // A declared end only `canceledAt` carries: the guarded write compares
         // the effective date, so it would refuse every attempt as a change.

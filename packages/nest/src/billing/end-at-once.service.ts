@@ -297,8 +297,8 @@ export class EndAtOnceService {
         const declared = booking ? declaredEndOf(booking) : cancellationLandsAt(subscription);
         if (!declared) return null;
         const canStore = booking
-            ? this.bookings?.endNow !== undefined
-            : this.writes.endNow !== undefined;
+            ? typeof this.bookings?.endNow === 'function'
+            : typeof this.writes.endNow === 'function';
         const recorded = (booking ?? subscription).canceledEffectiveAt;
         if (canStore && recorded !== null) return declared;
         throw new UnprocessableEntityException({

@@ -125,7 +125,7 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
             this.bookings.scheduleVersion &&
             this.bookings.unscheduleVersion &&
             this.bookings.listScheduledVersionsDue &&
-            this.subscriptions.listByIds !== undefined,
+            typeof this.subscriptions.listByIds === 'function',
         );
     }
 

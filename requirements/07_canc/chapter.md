@@ -564,6 +564,7 @@ _Tested by:_
         - ends it now, records it first, ends the contract and credits the unused rest
         - brings forward a cancellation declared for the end of the term
         - is refused, and nothing recorded, where the store cannot bring a declared end forward
+        - is refused the same where the store names its end-now write as null
         - is refused as one that cannot be brought forward where only the declaration date names the
           end
         - is refused for a withdrawal it was not told of, or one not in effect now

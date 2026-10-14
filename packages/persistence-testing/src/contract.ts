@@ -295,7 +295,7 @@ const CONTRACT_GAPS: Record<
     atomicOnboarding: {
         reason: 'adapter does not expose atomic onboarding writes',
         present: ({ adapter }) =>
-            Boolean(adapter.tenantSubscriptionWrite?.applyOnboardingSelection !== undefined),
+            typeof adapter.tenantSubscriptionWrite?.applyOnboardingSelection === 'function',
     },
     promoCodes: {
         reason: 'adapter provides no PromoCodeRepository',
@@ -327,7 +327,7 @@ const CONTRACT_GAPS: Record<
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
                 repository.findActivePlanVersion &&
-                repository.terminate !== undefined,
+                typeof repository.terminate === 'function',
             );
         },
     },
@@ -339,7 +339,7 @@ const CONTRACT_GAPS: Record<
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
                 repository.findVersionById &&
-                repository.findActivePlanVersion !== undefined,
+                typeof repository.findActivePlanVersion === 'function',
             );
         },
     },
@@ -348,7 +348,7 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter }) =>
             Boolean(
                 adapter.planRepository?.softDelete &&
-                adapter.planRepository.findByKey !== undefined,
+                typeof adapter.planRepository.findByKey === 'function',
             ),
     },
     planVersionReads: {
@@ -358,7 +358,7 @@ const CONTRACT_GAPS: Record<
             return Boolean(
                 repository?.listVersions &&
                 repository.findCurrentDraft &&
-                repository.findLatestLivePlanVersion !== undefined,
+                typeof repository.findLatestLivePlanVersion === 'function',
             );
         },
     },
@@ -372,7 +372,7 @@ const CONTRACT_GAPS: Record<
                 repository.listVersions &&
                 repository.findCurrentDraft &&
                 repository.findLatestLivePlanVersion &&
-                repository.softDelete !== undefined,
+                typeof repository.softDelete === 'function',
             );
         },
     },
@@ -383,15 +383,15 @@ const CONTRACT_GAPS: Record<
     bundleValidity: {
         reason: 'adapter provides no time-aware BundleRepository',
         present: ({ adapter }) =>
-            Boolean(adapter.bundleRepository?.findActiveBundleVersion !== undefined),
+            typeof adapter.bundleRepository?.findActiveBundleVersion === 'function',
     },
     bundleDraftDiscard: {
         reason: 'adapter provides no BundleRepository that discards drafts',
-        present: ({ adapter }) => Boolean(adapter.bundleRepository?.deleteDraft !== undefined),
+        present: ({ adapter }) => typeof adapter.bundleRepository?.deleteDraft === 'function',
     },
     bundleDraftPublish: {
         reason: 'adapter provides no BundleRepository that publishes drafts',
-        present: ({ adapter }) => Boolean(adapter.bundleRepository?.publishDraft !== undefined),
+        present: ({ adapter }) => typeof adapter.bundleRepository?.publishDraft === 'function',
     },
     planDraftPublish: {
         reason: 'adapter provides no PlanRepository that creates, publishes and reads drafts',
@@ -400,7 +400,7 @@ const CONTRACT_GAPS: Record<
             return Boolean(
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
-                repository.findVersionById !== undefined,
+                typeof repository.findVersionById === 'function',
             );
         },
     },
@@ -412,7 +412,7 @@ const CONTRACT_GAPS: Record<
                 repository?.createPlanVersionDraft &&
                 repository.publishPlanVersionDraft &&
                 repository.findVersionById &&
-                repository.deletePlanVersionDraft !== undefined,
+                typeof repository.deletePlanVersionDraft === 'function',
             );
         },
     },
@@ -421,26 +421,29 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter }) =>
             Boolean(
                 adapter.bundleRepository?.softDelete &&
-                adapter.bundleRepository.findByKey !== undefined,
+                typeof adapter.bundleRepository.findByKey === 'function',
             ),
     },
     bundleBookings: {
         reason: 'adapter provides no SubscriptionBundleRepository or bundle catalog',
         present: ({ adapter, seed }) =>
-            Boolean(adapter.subscriptionBundleRepository && seed.createBundleVersion !== undefined),
+            Boolean(
+                adapter.subscriptionBundleRepository &&
+                typeof seed.createBundleVersion === 'function',
+            ),
     },
     halfCancelledBookingSeed: {
         reason: 'adapter harness cannot write the half-cancelled shape',
-        present: ({ seed }) => Boolean(seed.clearBookingRequestDate !== undefined),
+        present: ({ seed }) => typeof seed.clearBookingRequestDate === 'function',
     },
     foreignBookingCycleSeed: {
         reason: 'adapter harness cannot write a rhythm the platform never writes',
-        present: ({ seed }) => Boolean(seed.setBookingCycle !== undefined),
+        present: ({ seed }) => typeof seed.setBookingCycle === 'function',
     },
     countByPlanVersionId: {
         reason: 'adapter does not implement countByPlanVersionId (fail-closed fallback)',
         present: ({ adapter }) =>
-            Boolean(adapter.subscriptionRepository.countByPlanVersionId !== undefined),
+            typeof adapter.subscriptionRepository.countByPlanVersionId === 'function',
     },
     audit: {
         reason: 'adapter provides no AuditPort/AuditQueryPort pair',
@@ -453,7 +456,10 @@ const CONTRACT_GAPS: Record<
     subscriptionContracts: {
         reason: 'adapter provides no SubscriptionContractRepository, or no subscriber seed for it',
         present: ({ adapter, seed }) =>
-            Boolean(adapter.subscriptionContractRepository && seed.createSubscriber !== undefined),
+            Boolean(
+                adapter.subscriptionContractRepository &&
+                typeof seed.createSubscriber === 'function',
+            ),
     },
     subscribers: {
         reason: 'adapter provides no SubscriberRepository',
@@ -467,7 +473,8 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no SubscriberPaymentMethodRepository, or no subscriber seed for it',
         present: ({ adapter, seed }) =>
             Boolean(
-                adapter.subscriberPaymentMethodRepository && seed.createSubscriber !== undefined,
+                adapter.subscriberPaymentMethodRepository &&
+                typeof seed.createSubscriber === 'function',
             ),
     },
     subscriberLedger: {
@@ -476,7 +483,7 @@ const CONTRACT_GAPS: Record<
             Boolean(
                 adapter.subscriberLedgerRepository &&
                 adapter.subscriptionContractRepository &&
-                seed.createSubscriber !== undefined,
+                typeof seed.createSubscriber === 'function',
             ),
     },
     subscriptionInvoices: {
@@ -486,7 +493,7 @@ const CONTRACT_GAPS: Record<
                 adapter.subscriptionInvoiceRepository &&
                 adapter.subscriberLedgerRepository &&
                 adapter.subscriptionContractRepository &&
-                seed.createSubscriber !== undefined,
+                typeof seed.createSubscriber === 'function',
             ),
     },
     invoiceArchive: {
@@ -528,7 +535,7 @@ const CONTRACT_GAPS: Record<
     boundSubscriptions: {
         reason: 'adapter provides no SubscriptionUsagePort that lists a version',
         present: ({ adapter }) =>
-            Boolean(adapter.subscriptionUsage?.listBoundToVersion !== undefined),
+            typeof adapter.subscriptionUsage?.listBoundToVersion === 'function',
     },
     bundleVersionRetirements: {
         reason: 'adapter provides no BundleVersionRetirementRepository',
@@ -539,7 +546,7 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter, seed }) =>
             Boolean(
                 adapter.subscriptionBundleRepository?.listOfVersion &&
-                seed.createBundleVersion !== undefined,
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     bookingsMoved: {
@@ -547,7 +554,7 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter, seed }) =>
             Boolean(
                 adapter.subscriptionBundleRepository?.moveToVersion &&
-                seed.createBundleVersion !== undefined,
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     bookingsScheduled: {
@@ -557,12 +564,12 @@ const CONTRACT_GAPS: Record<
                 adapter.subscriptionBundleRepository?.scheduleVersion &&
                 adapter.subscriptionBundleRepository.unscheduleVersion &&
                 adapter.subscriptionBundleRepository.listScheduledVersionsDue &&
-                seed.createBundleVersion !== undefined,
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     subscriptionsById: {
         reason: 'adapter provides no SubscriptionUsagePort that reads subscriptions by id',
-        present: ({ adapter }) => Boolean(adapter.subscriptionUsage?.listByIds !== undefined),
+        present: ({ adapter }) => typeof adapter.subscriptionUsage?.listByIds === 'function',
     },
     featureWithdrawals: {
         reason: 'adapter provides no FeatureWithdrawalRepository',
@@ -573,12 +580,12 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter, seed }) =>
             Boolean(
                 adapter.subscriptionBundleRepository?.endNow &&
-                seed.createBundleVersion !== undefined,
+                typeof seed.createBundleVersion === 'function',
             ),
     },
     subscriptionsEndedNow: {
         reason: 'adapter provides no TenantSubscriptionWritePort that ends a cancelled subscription at once',
-        present: ({ adapter }) => Boolean(adapter.tenantSubscriptionWrite?.endNow !== undefined),
+        present: ({ adapter }) => typeof adapter.tenantSubscriptionWrite?.endNow === 'function',
     },
 };
 
