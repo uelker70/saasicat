@@ -7,7 +7,7 @@
 // asserted is the request a gateway receives, how often, and what the
 // installation records of its answer.
 
-import { describe, mock, test } from 'node:test';
+import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Logger } from '@nestjs/common';
 import {
@@ -26,6 +26,27 @@ const ISSUED = new Date('2026-02-01T05:15:00.000Z');
 /** `days` days and `minutes` minutes after `at`. */
 const after = (at, { days = 0, minutes = 0 } = {}) =>
     new Date(at.getTime() + days * 86_400_000 + minutes * 60_000);
+
+/** The first run after the invoices of February were issued. */
+const FIRST_RUN = after(ISSUED, { minutes: 15 });
+
+/**
+ * Runs the clock from `at`: the service stamps every hold with it and judges
+ * every hold by it, whatever moment a run is called for.
+ */
+function clockFrom(at) {
+    beforeEach(() => mock.timers.enable({ apis: ['Date'], now: at }));
+    afterEach(() => mock.timers.reset());
+}
+
+/** Moves the clock to `at`, and answers it. */
+function clockAt(at) {
+    mock.timers.setTime(at.getTime());
+    return at;
+}
+
+/** `ms` milliseconds after the moment `attempt` was last taken on. */
+const sinceHeld = (attempt, ms) => new Date(attempt.heldAt.getTime() + ms);
 
 /** The audit entries of `action`, as what they changed. */
 const entriesOf = (audits, action) =>
@@ -222,16 +243,16 @@ describe('a failed collection', () => {
 
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 describe('a request whose answer was lost', () => {
+    clockFrom(FIRST_RUN);
+
     test('stays submitted, and no run sends anything for it while the lease holds', async () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
         gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
-        const now = after(ISSUED, { minutes: 15 });
 
-        const run = await collect(now);
-        // The hold is stamped with the clock, as another instance reads it.
+        const run = await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
-        await collect(new Date(submitted.heldAt.getTime() + INVOICE_COLLECTION_LEASE_MS));
+        await collect(clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS)));
 
         assert.equal(run.unanswered, 1);
         assert.equal(collections.attempts[0].status, 'SUBMITTED');
@@ -239,17 +260,41 @@ describe('a request whose answer was lost', () => {
         assert.deepEqual(gateway.asked, []);
     });
 
+    test('is not taken on within the lease by a run called for a later moment than the clock’s', async () => {
+        quietLog();
+        const { collect, gateway, collections } = await anInvoiceToCollect();
+        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        await collect(FIRST_RUN);
+
+        await collect(after(FIRST_RUN, { days: 1 }));
+
+        assert.deepEqual(gateway.asked, []);
+        assert.equal(gateway.collections.length, 1);
+        assert.equal(collections.attempts[0].status, 'SUBMITTED');
+    });
+
+    test('is taken on once the clock is past the lease, by a run called for an earlier moment', async () => {
+        quietLog();
+        const { collect, gateway, collections } = await anInvoiceToCollect();
+        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        await collect(FIRST_RUN);
+        const [submitted] = collections.attempts;
+        clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1));
+
+        await collect(FIRST_RUN);
+
+        assert.equal(gateway.asked.length, 1);
+        assert.equal(collections.attempts[0].status, 'SUCCEEDED');
+    });
+
     test('is asked about once the lease has passed, and what the gateway made is recorded, with nothing sent again', async () => {
         quietLog();
         const { collect, gateway, collections, invoice, method } = await anInvoiceToCollect();
         gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
-        const now = after(ISSUED, { minutes: 15 });
-        await collect(now);
+        await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
 
-        const run = await collect(
-            new Date(submitted.heldAt.getTime() + INVOICE_COLLECTION_LEASE_MS + 1),
-        );
+        const run = await collect(clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1)));
 
         assert.equal(run.collected, 1);
         assert.equal(gateway.collections.length, 1, 'the request was sent again');
@@ -271,11 +316,13 @@ describe('a request whose answer was lost', () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
         gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
-        await collect(after(ISSUED, { minutes: 15 }));
+        await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
-        const later = new Date(submitted.heldAt.getTime() + INVOICE_COLLECTION_LEASE_MS + 1);
+        const later = clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1));
 
-        await Promise.all([collect(later), collect(later)]);
+        // The second run is called for a later moment than the clock's: the
+        // hold the first one took is judged by the clock all the same.
+        await Promise.all([collect(later), collect(after(later, { days: 1 }))]);
 
         assert.equal(gateway.asked.length, 1);
         assert.equal(gateway.collections.length, 1);
@@ -286,10 +333,10 @@ describe('a request whose answer was lost', () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
         gateway.answers.push(new Error('connect ECONNREFUSED'));
-        await collect(after(ISSUED, { minutes: 15 }));
+        await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
 
-        await collect(new Date(submitted.heldAt.getTime() + INVOICE_COLLECTION_LEASE_MS + 1));
+        await collect(clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1)));
 
         assert.equal(gateway.collections.length, 2);
         assert.deepEqual(gateway.collections[1], gateway.collections[0]);
@@ -304,7 +351,7 @@ describe('a request whose answer was lost', () => {
         gateway.answers.push(hanging);
         collection.timeoutMs = 10;
 
-        const run = await collection.collectDue(after(ISSUED, { minutes: 15 }));
+        const run = await collection.collectDue(FIRST_RUN);
 
         assert.equal(run.unanswered, 1);
         assert.equal(collections.attempts[0].status, 'SUBMITTED');
@@ -314,11 +361,11 @@ describe('a request whose answer was lost', () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
         collections.failNextRecord = new Error('database unreachable');
-        await collect(after(ISSUED, { minutes: 15 }));
+        await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
         assert.equal(submitted.status, 'SUBMITTED');
 
-        await collect(new Date(submitted.heldAt.getTime() + INVOICE_COLLECTION_LEASE_MS + 1));
+        await collect(clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1)));
 
         assert.equal(gateway.collections.length, 1);
         assert.equal(collections.attempts[0].status, 'SUCCEEDED');
@@ -328,15 +375,13 @@ describe('a request whose answer was lost', () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
         gateway.answers.push(new Error('connect ECONNREFUSED'));
-        await collect(after(ISSUED, { minutes: 15 }));
+        await collect(FIRST_RUN);
         gateway.findCollection = async () => {
             throw new Error('the gateway is down');
         };
         const [submitted] = collections.attempts;
 
-        const run = await collect(
-            new Date(submitted.heldAt.getTime() + INVOICE_COLLECTION_LEASE_MS + 1),
-        );
+        const run = await collect(clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1)));
 
         assert.equal(run.unanswered, 1);
         assert.equal(gateway.collections.length, 1, 'it was sent again without an answer');
@@ -346,19 +391,21 @@ describe('a request whose answer was lost', () => {
 
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 describe('a direct debit on its way', () => {
+    /** 09:00 in Berlin on its collection date. */
+    const COLLECTED = new Date('2026-02-15T08:00:00.000Z');
+    clockFrom(COLLECTED);
+
     test('is asked about once an hour, and settled by what the gateway says', async () => {
         const { collect, gateway, collections } = await anInvoiceToCollect('sepa_debit');
         gateway.answers.push({ status: 'pending', paymentRef: 'pi_debit' });
-        await collect(new Date('2026-02-15T08:00:00.000Z'));
+        await collect(COLLECTED);
         const [pending] = collections.attempts;
         gateway.held.set(pending.attemptKey, { status: 'succeeded', paymentRef: 'pi_debit' });
 
-        await collect(new Date(pending.heldAt.getTime() + INVOICE_COLLECTION_ASK_EVERY_MS));
+        await collect(clockAt(sinceHeld(pending, INVOICE_COLLECTION_ASK_EVERY_MS)));
         assert.deepEqual(gateway.asked, [], 'asked before the hour was over');
 
-        const run = await collect(
-            new Date(pending.heldAt.getTime() + INVOICE_COLLECTION_ASK_EVERY_MS + 1),
-        );
+        const run = await collect(clockAt(sinceHeld(pending, INVOICE_COLLECTION_ASK_EVERY_MS + 1)));
 
         assert.equal(run.collected, 1);
         assert.equal(gateway.asked.length, 1);
@@ -370,13 +417,11 @@ describe('a direct debit on its way', () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect('sepa_debit');
         gateway.answers.push({ status: 'pending', paymentRef: 'pi_debit' });
-        await collect(new Date('2026-02-15T08:00:00.000Z'));
+        await collect(COLLECTED);
         gateway.held.clear();
         const [pending] = collections.attempts;
 
-        const run = await collect(
-            new Date(pending.heldAt.getTime() + INVOICE_COLLECTION_ASK_EVERY_MS + 1),
-        );
+        const run = await collect(clockAt(sinceHeld(pending, INVOICE_COLLECTION_ASK_EVERY_MS + 1)));
 
         assert.equal(run.unanswered, 1);
         assert.equal(gateway.collections.length, 1);

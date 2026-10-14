@@ -1151,7 +1151,9 @@ it announced. Adopt `prisma-fragments/23-subscription-invoice-collection.prisma`
 `sql/1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
 `chargeJournal.invoices.collections`. The start refuses invoices that announce collections nothing
 makes, and collections without the payments that make them. An application with a scheduler of its
-own calls `InvoiceCollectionService.collectDue(now)` after `deliverDue()`.
+own calls `InvoiceCollectionService.collectDue(now)` after `deliverDue()`: `now` names the day whose
+invoices are due, while whether another run may take an attempt on is judged by the clock, which
+stamps every hold.
 
 - **One attempt not settled per invoice.** An attempt is started in the invoice's turn and written
   as submitted, with everything its request carries, before the request leaves; the database holds

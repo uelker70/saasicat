@@ -1489,6 +1489,8 @@ _Tested by:_
           collected again
     - a request whose answer was lost
         - stays submitted, and no run sends anything for it while the lease holds
+        - is not taken on within the lease by a run called for a later moment than the clock’s
+        - is taken on once the clock is past the lease, by a run called for an earlier moment
         - is asked about once the lease has passed, and what the gateway made is recorded, with
           nothing sent again
         - found by two runs after the lease is taken on by one: it asks, and the other sends nothing

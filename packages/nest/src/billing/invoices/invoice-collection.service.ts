@@ -182,7 +182,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         );
     }
 
-    /** Settles what is open, then collects every invoice due at `now`. */
+    /**
+     * Settles what is open, then collects every invoice due on the day of
+     * `now`. What is open is judged by the clock, which stamps every hold, and
+     * not by `now`: a cutoff from another clock than the stamp's lets two runs
+     * take the same attempt on wherever `now` runs ahead of it.
+     */
     async collectDue(now: Date): Promise<InvoiceCollectionRun> {
         return readAcrossTenants(this.rlsBypass, async () => {
             const run: InvoiceCollectionRun = {
@@ -192,13 +197,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 waiting: 0,
                 unanswered: 0,
             };
-            const before = {
-                submittedBefore: new Date(now.getTime() - INVOICE_COLLECTION_LEASE_MS),
-                pendingBefore: new Date(now.getTime() - INVOICE_COLLECTION_ASK_EVERY_MS),
-            };
+            const before = unsettledBefore(new Date());
             await this.eachPage(
                 (page) => this.collections.listUnsettled(before, page),
-                (id) => this.settleOne(id, before, run),
+                (id) => this.settleOne(id, run),
             );
             const today = dayInZone(now, this.timeZone());
             await this.eachPage(
@@ -278,16 +280,16 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      * from the gateway, and where the gateway holds nothing under its key, by
      * sending the same request again.
      */
-    private async settleOne(
-        id: string,
-        before: { submittedBefore: Date; pendingBefore: Date },
-        run: InvoiceCollectionRun,
-    ): Promise<void> {
+    private async settleOne(id: string, run: InvoiceCollectionRun): Promise<void> {
         const attempt = await this.collections.findById(id);
         if (!attempt) return;
+        // Judged from the moment the hold is stamped with, so that a hold
+        // lasts the lease on one clock.
+        const at = new Date();
+        const before = unsettledBefore(at);
         const heldBefore =
             attempt.status === 'SUBMITTED' ? before.submittedBefore : before.pendingBefore;
-        if (!(await this.collections.hold(id, heldBefore, new Date()))) return;
+        if (!(await this.collections.hold(id, heldBefore, at))) return;
         const account = this.accountOf(attempt.gatewayAccount);
         let found: CollectionOutcome | null;
         try {
@@ -466,6 +468,17 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             after = page.at(-1);
         }
     }
+}
+
+/**
+ * Before when an attempt was last taken on for another run to take it on, seen
+ * from `at`: a submitted one after the lease, one on its way after the hour.
+ */
+function unsettledBefore(at: Date): { submittedBefore: Date; pendingBefore: Date } {
+    return {
+        submittedBefore: new Date(at.getTime() - INVOICE_COLLECTION_LEASE_MS),
+        pendingBefore: new Date(at.getTime() - INVOICE_COLLECTION_ASK_EVERY_MS),
+    };
 }
 
 /** The request an attempt makes, the same however often it is sent. */
