@@ -28,6 +28,10 @@ import {
     subscriptionInvoiceLineColumns,
     toSubscriptionInvoiceRecord,
     toArchivedInvoiceDocument,
+    toInvoiceCollectionRecord,
+    invoiceCollectionColumns,
+    collectionOutcomeColumns,
+    UNSETTLED_COLLECTION_STATUSES,
     subscriberPaymentMethodColumns,
     toSubscriberChargeRecord,
     subscriptionBundleAlreadyCancelled,
@@ -83,6 +87,7 @@ export function createMemoryHarness() {
         invoiceNumbers: {},
         invoiceDocuments: [],
         invoiceArchive: [],
+        invoiceCollections: [],
         subscribers: [],
         subscriberCorrections: [],
         subscriberTaxOriginChanges: [],
@@ -2093,6 +2098,85 @@ export function createMemoryHarness() {
         },
     };
 
+    // The attempts to collect an invoice: one not settled, and none after one
+    // succeeded, decided in one synchronous step as the indexes decide it.
+    const blocking = new Set([...UNSETTLED_COLLECTION_STATUSES, 'SUCCEEDED']);
+    const unsettled = new Set(UNSETTLED_COLLECTION_STATUSES);
+    const pageOf = (ids, { limit, after }) =>
+        ids
+            .filter((id) => after === undefined || id > after)
+            .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+            .slice(0, limit);
+    const invoiceCollectionRepository = {
+        async listDue(today, page) {
+            const due = state.invoices.filter((invoice) => {
+                const document = state.invoiceDocuments.find((row) => row.invoiceId === invoice.id);
+                return (
+                    invoice.payment !== null &&
+                    document?.deliveredAt &&
+                    (invoice.collectionDate === null || invoice.collectionDate <= today) &&
+                    !state.invoiceCollections.some((row) => row.invoiceId === invoice.id)
+                );
+            });
+            return pageOf(
+                due.map((invoice) => invoice.id),
+                page,
+            );
+        },
+        async startAttempt(attempt) {
+            if (!state.invoices.some((row) => row.id === attempt.invoiceId)) {
+                throw new Error(`invoice '${attempt.invoiceId}' does not exist`);
+            }
+            const earlier = state.invoiceCollections.filter(
+                (row) => row.invoiceId === attempt.invoiceId,
+            );
+            if (earlier.some((row) => blocking.has(row.status))) return null;
+            const row = {
+                id: nextId('collection'),
+                ...invoiceCollectionColumns(attempt, earlier.length + 1),
+                paymentRef: null,
+                failureReason: null,
+                failureCode: null,
+                resolvedAt: null,
+            };
+            state.invoiceCollections.push(row);
+            return toInvoiceCollectionRecord(structuredClone(row));
+        },
+        async recordOutcome(id, outcome, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || !unsettled.has(row.status)) return false;
+            Object.assign(row, collectionOutcomeColumns(outcome, at));
+            return true;
+        },
+        async hold(id, heldBefore, at) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            if (!row || !unsettled.has(row.status) || row.heldAt >= heldBefore) return false;
+            row.heldAt = at;
+            return true;
+        },
+        async listUnsettled({ submittedBefore, pendingBefore }, page) {
+            const open = state.invoiceCollections.filter(
+                (row) =>
+                    (row.status === 'SUBMITTED' && row.heldAt < submittedBefore) ||
+                    (row.status === 'PENDING' && row.heldAt < pendingBefore),
+            );
+            return pageOf(
+                open.map((row) => row.id),
+                page,
+            );
+        },
+        async findById(id) {
+            const row = state.invoiceCollections.find((candidate) => candidate.id === id);
+            return row ? toInvoiceCollectionRecord(structuredClone(row)) : null;
+        },
+        async listByInvoice(invoiceId) {
+            return state.invoiceCollections
+                .filter((row) => row.invoiceId === invoiceId)
+                .sort((a, b) => a.attempt - b.attempt)
+                .map((row) => toInvoiceCollectionRecord(structuredClone(row)));
+        },
+    };
+
     return {
         adapter: {
             capabilities: {
@@ -2109,6 +2193,7 @@ export function createMemoryHarness() {
             subscriberLedgerRepository,
             subscriptionInvoiceRepository,
             invoiceArchive,
+            invoiceCollectionRepository,
             promoCodeRepository,
             promoCodeRedemptionRepository,
             promoCodeHoldRepository,

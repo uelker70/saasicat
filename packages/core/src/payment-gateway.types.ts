@@ -1,4 +1,5 @@
-// Payment gateway — where a subscriber's means of payment live.
+// Payment gateway — where a subscriber's means of payment live, and where an
+// invoice is collected with them.
 //
 // SaaSiCat never holds a card number or an IBAN. The person enters them in the
 // gateway's own form; the gateway confirms, and SaaSiCat keeps the gateway's
@@ -6,6 +7,12 @@
 // account at a provider, named in `config/saas.yaml#payments` — is what a
 // reference is meaningful to, so every reference is stored with the account
 // that issued it.
+//
+// An invoice is collected with the payment method it announced, without the
+// subscriber present. Every request carries a key that stays the same for that
+// invoice and attempt, so a request whose answer was lost is repeated as the
+// same request, and the gateway can be asked what became of it before anything
+// is sent under a new key (`SC-PRIC-034`).
 
 import type { PartyAddress } from './legal-identity.js';
 
@@ -140,6 +147,78 @@ export type PaymentGatewayEvent =
       };
 
 /**
+ * Why a collection failed, in SaaSiCat's words; the gateway's own code is kept
+ * beside it. Whether a second try can pass follows from the reason alone
+ * (`isRetryableCollectionFailure`):
+ *
+ * - `insufficient-funds` — the account or the card does not cover the amount;
+ * - `declined` — refused without a reason that rules out a second try, or the
+ *   bank or issuer could not be reached;
+ * - `authentication-required` — the card's bank asks the subscriber to confirm
+ *   the payment, which nobody can do while they are not present;
+ * - `payment-method-unusable` — the card is lost, stolen, blocked or expired,
+ *   or the account is closed or restricted;
+ * - `mandate-invalid` — the direct debit's mandate was revoked, does not match
+ *   or was disputed;
+ * - `other` — anything the gateway names that is none of these.
+ */
+export type CollectionFailureReason =
+    | 'insufficient-funds'
+    | 'declined'
+    | 'authentication-required'
+    | 'payment-method-unusable'
+    | 'mandate-invalid'
+    | 'other';
+
+/** The collection of one invoice, as the platform asks a gateway to make it. */
+export interface CollectInvoiceInput {
+    /**
+     * The same for this invoice and attempt across every repeat of the
+     * request, and kept by the gateway with what it creates, so
+     * `findCollection` finds it again. Never a second charge for one key.
+     */
+    attemptKey: string;
+    invoiceId: string;
+    /** The invoice's number, which the subscriber's statement names. */
+    invoiceNumber: string;
+    /** The invoice's gross amount in cents, of `currency`. */
+    amountCents: number;
+    /** As `config/saas.yaml#currency` writes it, e.g. `EUR`. */
+    currency: string;
+    /** The customer the payment method is kept for at the gateway. */
+    customerRef: string;
+    paymentMethodRef: string;
+    type: PaymentMethodType;
+}
+
+/**
+ * What became of a collection: collected, still on its way — a direct debit
+ * is submitted to the bank and settles days later —, or failed.
+ * `paymentRef` is the gateway's reference to what it created for the attempt.
+ */
+export type CollectionOutcome =
+    | { status: 'succeeded'; paymentRef: string }
+    | { status: 'pending'; paymentRef: string }
+    | {
+          status: 'failed';
+          /** `null` where the gateway refused before it created anything. */
+          paymentRef: string | null;
+          reason: CollectionFailureReason;
+          /** The gateway's own code for the reason, for the operator. */
+          gatewayCode: string | null;
+      };
+
+/** Which attempt the gateway is asked about. */
+export interface FindCollectionInput {
+    attemptKey: string;
+    customerRef: string;
+    /** The gateway's reference, where an earlier answer named one. */
+    paymentRef: string | null;
+    /** When the attempt was first submitted: nothing created before it is its. */
+    submittedAt: Date;
+}
+
+/**
  * One account at a payment gateway: its keys, its form and its callbacks.
  *
  * An adapter is bound to one account, and `config/saas.yaml#payments.accounts`
@@ -168,6 +247,40 @@ export interface PaymentGateway {
      * an `immediateCallback` is read for.
      */
     readCallback(callback: PaymentGatewayCallback): Promise<PaymentGatewayEvent>;
+    /**
+     * Collects an invoice with the payment method it announced, without the
+     * subscriber present, under `attemptKey`: a repeat of the request with the
+     * same key creates nothing new.
+     *
+     * Answers a refusal — a declined card, a debit the bank turned down — as a
+     * `failed` outcome. Throws only where the answer is unknown: the request
+     * may or may not have reached the gateway, and the platform asks
+     * `findCollection` before it sends anything again.
+     */
+    collect(input: CollectInvoiceInput): Promise<CollectionOutcome>;
+    /**
+     * What became of the attempt `attemptKey` names, read from the gateway
+     * itself; `null` where the gateway holds nothing under it, so the request
+     * never arrived and may be sent again. Throws where the gateway cannot be
+     * asked.
+     */
+    findCollection(input: FindCollectionInput): Promise<CollectionOutcome | null>;
+}
+
+/** The reasons a second try can pass on: a balance that changes, a refusal without a cause. */
+const RETRYABLE_FAILURES: ReadonlySet<CollectionFailureReason> = new Set([
+    'insufficient-funds',
+    'declined',
+]);
+
+/**
+ * Whether a collection that failed for `reason` can pass on a second try: an
+ * account short of funds and a refusal without a cause can; a closed account,
+ * a revoked mandate, a lost card or a payment the subscriber has to confirm
+ * cannot, and asks the subscriber to act instead.
+ */
+export function isRetryableCollectionFailure(reason: CollectionFailureReason): boolean {
+    return RETRYABLE_FAILURES.has(reason);
 }
 
 const PAYMENT_CALLBACK_REJECTED = 'PAYMENT_CALLBACK_REJECTED';

@@ -30,6 +30,7 @@ import type {
     NewSubscriptionInvoice,
     SubscriberChargeRecord,
     SubscriptionInvoicePayment,
+    NewInvoiceCollection,
     TaxTreatment,
     VatIdCheck,
     NewVersionRetirement,
@@ -48,6 +49,7 @@ import {
     CONTRACT_ERROR_CODES,
     INVOICE_ERROR_CODES,
     PROMO_ERROR_CODES,
+    collectionAttemptKey,
     isPersistenceRefusal,
     taxPerRate,
 } from '@saasicat/core';
@@ -482,6 +484,14 @@ const CONTRACT_GAPS: Record<
         present: (harness) =>
             Boolean(
                 harness.adapter.invoiceArchive &&
+                CONTRACT_GAPS.subscriptionInvoices.present(harness),
+            ),
+    },
+    invoiceCollections: {
+        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice needs before it',
+        present: (harness) =>
+            Boolean(
+                harness.adapter.invoiceCollectionRepository &&
                 CONTRACT_GAPS.subscriptionInvoices.present(harness),
             ),
     },
@@ -7465,6 +7475,422 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(
                 await invoices.listAwaitingDelivery({ limit: 10, after: archived }),
                 [],
+            );
+        });
+
+        // -------------------------------------------------------------
+        // Collections — one attempt not settled per invoice, and its outcome once
+        // -------------------------------------------------------------
+
+        /** The card an invoice collected by card records. */
+        const CARD: SubscriptionInvoicePayment = {
+            paymentMethodId: 'payment-method-card',
+            gatewayAccount: 'stripe-main',
+            type: 'card',
+            brand: 'visa',
+            last4: '4242',
+            mandateReference: null,
+        };
+
+        /** The direct debit an invoice collected by one records. */
+        const DEBIT: SubscriptionInvoicePayment = {
+            paymentMethodId: 'payment-method-debit',
+            gatewayAccount: 'stripe-main',
+            type: 'sepa_debit',
+            brand: null,
+            last4: '3000',
+            mandateReference: 'MANDAT-0001',
+        };
+
+        /** The moment a run starts an attempt, and the attempt it starts for `invoiceId`. */
+        const STARTED_AT = new Date('2026-02-01T05:20:00.000Z');
+        const attemptOf = (invoiceId: string, at = STARTED_AT): NewInvoiceCollection => ({
+            invoiceId,
+            gatewayAccount: 'stripe-main',
+            paymentMethodId: 'payment-method-card',
+            paymentMethodType: 'card',
+            customerRef: 'cus_1',
+            paymentMethodRef: 'pm_1',
+            invoiceNumber: 'EX-2026-000001',
+            amount: 99_999_999.99,
+            currency: 'EUR',
+            at,
+        });
+
+        /**
+         * A subscriber's invoices to collect, each issued with `payment` and
+         * `collectionDate` and handed to the mail unless `delivered` is false.
+         * Null where the adapter provides no collections.
+         */
+        async function collectable(
+            t: TestContext,
+            tenantId: string,
+            invoices: Array<{
+                payment?: SubscriptionInvoicePayment | null;
+                collectionDate?: string | null;
+                delivered?: boolean;
+            }> = [{}],
+        ) {
+            const collections = harness.adapter.invoiceCollectionRepository;
+            if (!collections || !CONTRACT_GAPS.invoiceCollections.present(harness)) {
+                missing(t, 'invoiceCollections');
+                return null;
+            }
+            const account = await anInvoiceAccount(t, tenantId);
+            if (!account) return null;
+            const charges = await account.record(...invoices.map((_, index) => monthly(index + 1)));
+            const ids: string[] = [];
+            for (const [index, wanted] of invoices.entries()) {
+                const collectionDate = wanted.collectionDate ?? null;
+                const issued = await account.invoices.issue(
+                    account.invoiceOf([charges[index]!], {
+                        payment: wanted.payment === undefined ? CARD : wanted.payment,
+                        collectionDate,
+                        dueDate: collectionDate ?? '2026-02-15',
+                    }),
+                );
+                await account.invoices.recordRendering(issued.id, renderingOf(CHECKSUM));
+                await account.invoices.markArchived(issued.id, STARTED_AT, CHECKSUM);
+                if (wanted.delivered !== false) {
+                    await account.invoices.claimDelivery(issued.id, STARTED_AT, STARTED_AT);
+                    await account.invoices.markDelivered(issued.id, {
+                        claimedAt: STARTED_AT,
+                        at: STARTED_AT,
+                        to: 'billing@example.com',
+                    });
+                }
+                ids.push(issued.id);
+            }
+            return { ...account, collections, ids };
+        }
+
+        // @requirement SC-PRIC-079
+        // @requirement SC-PRIC-028
+        test('an invoice is due once it was mailed: by card at once, by direct debit from the day it announced, until it has an attempt', async (t) => {
+            const account = await collectable(t, 'tenant-collect-due', [
+                {},
+                { delivered: false },
+                { payment: DEBIT, collectionDate: '2026-02-15' },
+                { payment: null },
+            ]);
+            if (!account) return;
+            const { collections, ids } = account;
+            const [byCard, notMailed, byDebit] = ids;
+            const due = (today: string) =>
+                collections
+                    .listDue(today, { limit: 10 })
+                    .then((found) => found.filter((id) => ids.includes(id)).sort());
+
+            assert.deepEqual(await due('2026-02-14'), [byCard!].sort());
+            assert.deepEqual(await due('2026-02-15'), [byCard!, byDebit!].sort());
+            assert.ok(
+                !(await due('2026-12-31')).includes(notMailed!),
+                'an invoice not mailed is due',
+            );
+
+            await collections.startAttempt(attemptOf(byCard!));
+
+            assert.deepEqual(await due('2026-02-15'), [byDebit!]);
+        });
+
+        test('the invoices due are read page by page', async (t) => {
+            const account = await collectable(t, 'tenant-collect-pages', [{}, {}, {}]);
+            if (!account) return;
+            const { collections, ids } = account;
+            const sorted = [...ids].sort();
+
+            const first = await collections.listDue('2026-02-15', { limit: 2 });
+            const rest = await collections.listDue('2026-02-15', { limit: 2, after: first.at(-1) });
+
+            assert.deepEqual(
+                [...first, ...rest].filter((id) => ids.includes(id)),
+                sorted,
+            );
+            assert.equal(first.length, 2);
+        });
+
+        // @requirement SC-PRIC-034
+        test('an attempt is numbered from 1 under its key and written as submitted with what its request carries', async (t) => {
+            const account = await collectable(t, 'tenant-collect-start');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+
+            const started = await collections.startAttempt(attemptOf(invoiceId!));
+
+            assert.ok(started);
+            const { id, ...rest } = started;
+            assert.deepEqual(rest, {
+                invoiceId,
+                attempt: 1,
+                attemptKey: collectionAttemptKey(invoiceId!, 1),
+                gatewayAccount: 'stripe-main',
+                paymentMethodId: 'payment-method-card',
+                paymentMethodType: 'card',
+                customerRef: 'cus_1',
+                paymentMethodRef: 'pm_1',
+                invoiceNumber: 'EX-2026-000001',
+                amount: 99_999_999.99,
+                currency: 'EUR',
+                status: 'SUBMITTED',
+                paymentRef: null,
+                failureReason: null,
+                failureCode: null,
+                submittedAt: STARTED_AT,
+                heldAt: STARTED_AT,
+                resolvedAt: null,
+            });
+            assert.deepEqual(await collections.findById(id), started);
+            assert.deepEqual(await collections.listByInvoice(invoiceId!), [started]);
+            assert.equal(await collections.findById(NO_SUCH_VERSION), null);
+        });
+
+        // @requirement SC-PRIC-034
+        test('no second attempt while one is not settled, nor after one succeeded; after a failure the next is numbered 2', async (t) => {
+            const account = await collectable(t, 'tenant-collect-one-open');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+            const first = await collections.startAttempt(attemptOf(invoiceId!));
+
+            assert.equal(await collections.startAttempt(attemptOf(invoiceId!)), null);
+            await collections.recordOutcome(
+                first!.id,
+                { status: 'pending', paymentRef: 'pi_1' },
+                STARTED_AT,
+            );
+            assert.equal(await collections.startAttempt(attemptOf(invoiceId!)), null);
+            await collections.recordOutcome(
+                first!.id,
+                {
+                    status: 'failed',
+                    paymentRef: 'pi_1',
+                    reason: 'insufficient-funds',
+                    gatewayCode: 'insufficient_funds',
+                },
+                STARTED_AT,
+            );
+
+            const second = await collections.startAttempt(attemptOf(invoiceId!));
+            assert.deepEqual(
+                [second?.attempt, second?.attemptKey],
+                [2, collectionAttemptKey(invoiceId!, 2)],
+            );
+            await collections.recordOutcome(
+                second!.id,
+                { status: 'succeeded', paymentRef: 'pi_2' },
+                STARTED_AT,
+            );
+            assert.equal(await collections.startAttempt(attemptOf(invoiceId!)), null);
+            assert.deepEqual(
+                (await collections.listByInvoice(invoiceId!)).map((each) => [
+                    each.attempt,
+                    each.status,
+                ]),
+                [
+                    [1, 'FAILED'],
+                    [2, 'SUCCEEDED'],
+                ],
+            );
+        });
+
+        // @requirement SC-PRIC-034
+        // @requirement SC-PRIC-036
+        test('attempts started at the same time for one invoice: one is, and the others are told', async (t) => {
+            const account = await collectable(t, 'tenant-collect-race');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+
+            const started = await Promise.all(
+                Array.from({ length: 5 }, () => collections.startAttempt(attemptOf(invoiceId!))),
+            );
+
+            assert.equal(started.filter((each) => each !== null).length, 1);
+            assert.equal((await collections.listByInvoice(invoiceId!)).length, 1);
+        });
+
+        // @requirement SC-PRIC-036
+        test('an attempt is started in the invoice’s turn: a second waits for the first transaction, then is told', async (t) => {
+            const { adapter } = harness;
+            if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const account = await collectable(t, 'tenant-collect-turn');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+
+            const sections: Array<{ enter: number; exit: number; started: boolean }> = [];
+            const critical = (tx: TransactionContext) =>
+                collections.startAttempt(attemptOf(invoiceId!), tx).then(async (started) => {
+                    const enter = Date.now();
+                    await sleep(LOCK_HOLD_MS);
+                    sections.push({ enter, exit: Date.now(), started: started !== null });
+                });
+
+            await Promise.all([
+                adapter.transactionRunner.run(critical),
+                adapter.transactionRunner.run(critical),
+            ]);
+
+            sections.sort((a, b) => a.enter - b.enter);
+            assert.deepEqual(
+                sections.map((each) => each.started),
+                [true, false],
+            );
+            assert.ok(
+                sections[1]!.enter >= sections[0]!.exit,
+                'the second attempt was decided before the first transaction ended',
+            );
+        });
+
+        test('an attempt started on a transaction that rolls back is gone, and the invoice is due again', async (t) => {
+            const account = await collectable(t, 'tenant-collect-rollback');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    await collections.startAttempt(attemptOf(invoiceId!), tx);
+                    throw new Error('the request was never sent');
+                }),
+                /never sent/,
+            );
+
+            assert.deepEqual(await collections.listByInvoice(invoiceId!), []);
+            assert.ok(
+                (await collections.listDue('2026-02-15', { limit: 50 })).includes(invoiceId!),
+            );
+        });
+
+        test('an attempt for an invoice that does not exist is refused', async (t) => {
+            const account = await collectable(t, 'tenant-collect-orphan', []);
+            if (!account) return;
+
+            await assert.rejects(account.collections.startAttempt(attemptOf(NO_SUCH_VERSION)));
+        });
+
+        // @requirement SC-PRIC-034
+        test('an outcome is recorded once: a direct debit on its way stays open, and an answer to a settled attempt changes nothing', async (t) => {
+            const account = await collectable(t, 'tenant-collect-outcome');
+            if (!account) return;
+            const { collections, ids } = account;
+            const [invoiceId] = ids;
+            const attempt = await collections.startAttempt(attemptOf(invoiceId!));
+            const settledAt = new Date('2026-02-07T05:00:00.000Z');
+
+            assert.equal(
+                await collections.recordOutcome(
+                    attempt!.id,
+                    { status: 'pending', paymentRef: 'pi_1' },
+                    STARTED_AT,
+                ),
+                true,
+            );
+            const pending = await collections.findById(attempt!.id);
+            assert.deepEqual(
+                [pending!.status, pending!.paymentRef, pending!.resolvedAt],
+                ['PENDING', 'pi_1', null],
+            );
+
+            const failure = {
+                status: 'failed' as const,
+                paymentRef: 'pi_1',
+                reason: 'mandate-invalid' as const,
+                gatewayCode: 'debit_not_authorized',
+            };
+            assert.equal(await collections.recordOutcome(attempt!.id, failure, settledAt), true);
+            assert.equal(
+                await collections.recordOutcome(
+                    attempt!.id,
+                    { status: 'succeeded', paymentRef: 'pi_1' },
+                    new Date('2026-02-08T05:00:00.000Z'),
+                ),
+                false,
+                'an answer changed a settled attempt',
+            );
+            const settled = await collections.findById(attempt!.id);
+            assert.deepEqual(
+                [
+                    settled!.status,
+                    settled!.failureReason,
+                    settled!.failureCode,
+                    settled!.resolvedAt,
+                ],
+                ['FAILED', 'mandate-invalid', 'debit_not_authorized', settledAt],
+            );
+        });
+
+        // @requirement SC-PRIC-034
+        test('an attempt not settled is taken on again once its hold is old enough, by one run, and listed until then', async (t) => {
+            const account = await collectable(t, 'tenant-collect-hold', [{}, {}, {}]);
+            if (!account) return;
+            const { collections, ids } = account;
+            const [submitted, pending, settled] = await Promise.all(
+                ids.map((invoiceId) => collections.startAttempt(attemptOf(invoiceId))),
+            );
+            await collections.recordOutcome(
+                pending!.id,
+                { status: 'pending', paymentRef: 'pi_2' },
+                STARTED_AT,
+            );
+            await collections.recordOutcome(
+                settled!.id,
+                { status: 'succeeded', paymentRef: 'pi_3' },
+                STARTED_AT,
+            );
+            const later = new Date(STARTED_AT.getTime() + 1);
+            const mine = (found: string[]) =>
+                found.filter((id) => [submitted, pending, settled].some((a) => a!.id === id));
+
+            assert.deepEqual(
+                mine(
+                    await collections.listUnsettled(
+                        { submittedBefore: STARTED_AT, pendingBefore: STARTED_AT },
+                        { limit: 50 },
+                    ),
+                ),
+                [],
+                'an attempt held exactly as long as the lease was listed',
+            );
+            assert.deepEqual(
+                mine(
+                    await collections.listUnsettled(
+                        { submittedBefore: later, pendingBefore: STARTED_AT },
+                        { limit: 50 },
+                    ),
+                ),
+                [submitted!.id],
+            );
+            assert.deepEqual(
+                mine(
+                    await collections.listUnsettled(
+                        { submittedBefore: later, pendingBefore: later },
+                        { limit: 50 },
+                    ),
+                ).sort(),
+                [submitted!.id, pending!.id].sort(),
+            );
+
+            const takenAt = new Date('2026-02-01T06:00:00.000Z');
+            assert.equal(await collections.hold(submitted!.id, STARTED_AT, takenAt), false);
+            const holds = await Promise.all(
+                Array.from({ length: 3 }, () => collections.hold(submitted!.id, later, takenAt)),
+            );
+            assert.equal(holds.filter(Boolean).length, 1);
+            assert.equal(await collections.hold(settled!.id, takenAt, takenAt), false);
+            assert.deepEqual((await collections.findById(submitted!.id))!.heldAt, takenAt);
+            assert.deepEqual(
+                mine(
+                    await collections.listUnsettled(
+                        { submittedBefore: later, pendingBefore: later },
+                        { limit: 50 },
+                    ),
+                ),
+                [pending!.id],
             );
         });
 

@@ -10,6 +10,7 @@ import type {
     AuditQueryPort,
     BundleRepository,
     CheckoutOfferRepository,
+    InvoiceCollectionRepository,
     MaintenanceWindowPort,
     MfaPort,
     PaymentEventLog,
@@ -108,6 +109,16 @@ export interface ContractAdapterInstances {
      * everything the invoice scenarios need.
      */
     invoiceArchive?: InvoiceArchivePort;
+    /**
+     * Enables the collection scenarios: an invoice is due once it is
+     * delivered — by direct debit from its collection date —, an attempt is
+     * started in the invoice's turn, numbered under its key, one not settled
+     * at a time and none after one succeeded, its outcome recorded once, and
+     * a run takes it on again only once its hold is old enough. An attempt
+     * belongs to an issued invoice, so they also need everything the invoice
+     * scenarios need, and `transactionRunner`.
+     */
+    invoiceCollectionRepository?: InvoiceCollectionRepository;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -334,6 +345,7 @@ export type ContractGap =
     | 'subscriberLedger'
     | 'subscriptionInvoices'
     | 'invoiceArchive'
+    | 'invoiceCollections'
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'

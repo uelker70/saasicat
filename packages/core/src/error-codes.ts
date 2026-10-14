@@ -685,6 +685,20 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_MANDATE_MISSING: 'SUBSCRIPTION_INVOICE_MANDATE_MISSING',
     /**
+     * The subscriber's payment method in use is not the one the invoice
+     * announced (`paymentMethodId`, `announced`): it is not collected under the
+     * announcement, and waits until a collection is announced again
+     * (`SC-PRIC-028`).
+     */
+    SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED: 'SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED',
+    /**
+     * The invoice reached the subscriber (`deliveredOn`) less than the lead
+     * time (`leadDays`) before the day its direct debit announced
+     * (`collectionDate`): it is not debited on that day, and waits until a
+     * collection is announced again (`SC-PRIC-028`).
+     */
+    SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE: 'SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE',
+    /**
      * A file of the invoice's document has another checksum than the one
      * recorded or archived for it (`invoiceId`, `recorded`, `rendered`), and
      * the first stays. The run takes the archived file as the one issued, or —

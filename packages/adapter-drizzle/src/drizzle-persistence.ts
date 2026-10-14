@@ -32,6 +32,7 @@ import { DrizzleSubscriptionContractRepository } from './drizzle-subscription-co
 import { DrizzleSubscriberLedgerRepository } from './drizzle-subscriber-ledger.repository.js';
 import { DrizzleSubscriptionInvoiceRepository } from './drizzle-subscription-invoice.repository.js';
 import { DrizzleInvoiceArchive } from './drizzle-invoice-archive.js';
+import { DrizzleInvoiceCollectionRepository } from './drizzle-invoice-collection.repository.js';
 import { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
 import { DrizzleSubscriberRepository } from './drizzle-subscriber.repository.js';
 import { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
@@ -181,6 +182,11 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             subscriptionInvoiceArchive: unless(
                 'entitlement.subscriptionInvoiceArchive',
                 provide((client) => new DrizzleInvoiceArchive(client)),
+            ),
+            // The attempts to collect them through their payment gateway.
+            invoiceCollectionRepository: unless(
+                'entitlement.invoiceCollectionRepository',
+                provide((client) => new DrizzleInvoiceCollectionRepository(client)),
             ),
             // The catalogue behind those bookings: entitlement resolves a
             // booking's features by reading the pinned version.

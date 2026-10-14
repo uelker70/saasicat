@@ -914,7 +914,8 @@ describe('every contract names the subscriber it is concluded with', () => {
         // Payment methods, the charge journal, the tax origin and the invoices
         // came later still, and point at the subscribers.
         await client.query(
-            'DROP TABLE "subscription_invoice_archive", "subscription_invoice_documents", ' +
+            'DROP TABLE "subscription_invoice_collections", "subscription_invoice_archive", ' +
+                '"subscription_invoice_documents", ' +
                 '"subscription_invoice_lines", "subscription_invoices", ' +
                 '"subscription_invoice_numbers", ' +
                 '"subscriber_ledger_entries", "subscriber_payment_method_setups", ' +
@@ -2535,5 +2536,108 @@ describe('an invoice says how it is paid', () => {
             `SELECT to_regclass('subscription_invoices') AS invoices`,
         );
         assert.deepEqual(rows, [{ invoices: null }]);
+    });
+});
+
+describe('an invoice is collected through its payment gateway', () => {
+    // The migration creates the collection attempts. The second-run suite runs
+    // it on the reference schema, where the table is already there; these
+    // start from the schema as it stood before, with an invoice issued.
+
+    const MIGRATION = '1.0-an-invoice-is-collected.postgres.sql';
+
+    /** The reference schema with this migration's table taken back out. */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query('DROP TABLE "subscription_invoice_collections"');
+    }
+
+    /** An invoice issued before, with the subscriber and contract it names. */
+    async function anInvoice() {
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_invoices" ("id", "number", "numberPrefix", "numberYear", ' +
+                '"numberSequence", "tenantId", "subscriberId", "subscriptionId", "contractId", ' +
+                '"issuedAt", "issueDate", "dueDate", "servicePeriodFrom", "servicePeriodUntil", ' +
+                '"currency", "issuerParty", "subscriberParty", "taxTreatment", "taxes", ' +
+                '"totalNet", "totalTax", "totalGross") ' +
+                "VALUES ('invoice-1', 'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', 'sub-1', " +
+                "'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', 'EUR', " +
+                "'{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
+        );
+    }
+
+    /** An attempt of invoice-1, numbered `attempt`, in `status`. */
+    const anAttempt = (attempt, status) =>
+        client.query(
+            'INSERT INTO "subscription_invoice_collections" ("id", "invoiceId", "attempt", ' +
+                '"attemptKey", "gatewayAccount", "paymentMethodId", "paymentMethodType", ' +
+                '"customerRef", "paymentMethodRef", "invoiceNumber", "amount", "currency", ' +
+                '"status", "submittedAt", "heldAt") ' +
+                `VALUES ('attempt-${attempt}', 'invoice-1', ${attempt}, ` +
+                `'saasicat:collect:invoice-1:${attempt}', 'stripe-main', 'pm-1', 'card', ` +
+                `'cus_1', 'pm_1', 'AHP-2026-000001', 58.31, 'EUR', '${status}', NOW(), NOW())`,
+        );
+
+    test('a database from before ends up with the schema the fragments declare', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        const { rows } = await client.query(
+            `SELECT conname FROM pg_constraint WHERE conname = 'subscription_invoice_collections_invoiceId_fkey'`,
+        );
+        assert.equal(rows.length, 1, 'the attempts do not point at their invoice');
+    });
+
+    test('an invoice takes one attempt that is not settled, and none after one succeeded', async () => {
+        await beforeTheMigration();
+        await anInvoice();
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        await anAttempt(1, 'FAILED');
+        await anAttempt(2, 'SUBMITTED');
+        await assert.rejects(anAttempt(3, 'PENDING'), { code: '23505' });
+        await client.query(
+            `UPDATE "subscription_invoice_collections" SET "status" = 'SUCCEEDED' WHERE "attempt" = 2`,
+        );
+        await assert.rejects(anAttempt(3, 'SUBMITTED'), { code: '23505' });
+
+        const { rows } = await client.query(
+            'SELECT "attempt", "status" FROM "subscription_invoice_collections" ORDER BY "attempt"',
+        );
+        assert.deepEqual(rows, [
+            { attempt: 1, status: 'FAILED' },
+            { attempt: 2, status: 'SUCCEEDED' },
+        ]);
+    });
+
+    test('an installation without invoices is left without the attempts, and runs through', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "subscription_invoices" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_invoice_collections') AS collections`,
+        );
+        assert.deepEqual(rows, [{ collections: null }]);
     });
 });

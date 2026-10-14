@@ -1,0 +1,60 @@
+// =============================================================================
+// SaaSiCat platform Prisma fragment: SubscriptionInvoiceCollection
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The attempts to collect an invoice (20-subscription-invoice.prisma) through
+// its payment gateway: each request the platform makes, with everything it
+// carries, and what became of it. An attempt is written as `SUBMITTED` before
+// its request leaves, under the key `saasicat:collect:<invoice>:<attempt>`, so
+// a request whose answer was lost is repeated as the same request, after the
+// gateway was asked what became of it. `heldAt` is when a run last took it on;
+// another run leaves it alone until that is old enough.
+//
+// An invoice has at most one attempt that is not settled (`SUBMITTED`,
+// `PENDING`), and none after one succeeded: a partial unique index in
+// sql/constraints.postgres.sql, which the Prisma DSL cannot express. `status`,
+// `paymentMethodType` and `failureReason` are text holding closed sets, checked
+// when a row is read (`toInvoiceCollectionRecord` in @saasicat/core).
+//
+// Optional: adopt it where invoices are collected through a gateway —
+// `tenantBilling.chargeJournal.invoices.collections` — which needs the
+// invoices and the payment methods (14-payments.prisma).
+//
+// Contract: @saasicat/core (InvoiceCollectionRepository).
+
+model SubscriptionInvoiceCollection {
+    id                String @id @default(uuid())
+    invoiceId         String
+    // From 1, per invoice.
+    attempt           Int
+    attemptKey        String @unique
+
+    // The request as it left, so a repeat is the same request.
+    gatewayAccount    String
+    paymentMethodId   String
+    paymentMethodType String // card | sepa_debit
+    customerRef       String
+    paymentMethodRef  String
+    invoiceNumber     String
+    amount            Decimal @db.Decimal(12, 2)
+    currency          String
+
+    status        String // SUBMITTED | PENDING | SUCCEEDED | FAILED
+    // The gateway's reference to what it created for the attempt.
+    paymentRef    String?
+    failureReason String?
+    // The gateway's own code for the failure.
+    failureCode   String?
+
+    submittedAt DateTime
+    heldAt      DateTime
+    resolvedAt  DateTime?
+
+    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+    @@unique([invoiceId, attempt])
+    @@index([status, heldAt])
+    @@map("subscription_invoice_collections")
+}

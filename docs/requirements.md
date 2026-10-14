@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 78      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 79      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 632 entries: 🟢 545 stand today, 🟡 60 decided but not yet delivered, ⚪ 0 drafts,
+Of 633 entries: 🟢 547 stand today, 🟡 59 decided but not yet delivered, ⚪ 0 drafts,
 🔵 24 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -155,7 +155,6 @@ Of 632 entries: 🟢 545 stand today, 🟡 60 decided but not yet delivered, ⚪
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
 [SC-PRIC-033](#sc-pric-033--an-invoice-interrupted-in-archiving-keeps-its-number-and-is-never-issued-twice),
-[SC-PRIC-034](#sc-pric-034--a-collection-retried-after-an-unanswered-request-never-charges-twice),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-036](#sc-pric-036--what-an-invoice-owes-and-how-it-is-paid-changes-one-step-at-a-time),
 [SC-PRIC-037](#sc-pric-037--the-tax-a-subscriber-is-charged-is-decided-by-a-tax-adapter-for-the-issuer),
@@ -225,7 +224,7 @@ Of 632 entries: 🟢 545 stand today, 🟡 60 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 632 requirements. Do not edit by hand:
+Generated from `requirements/` — 633 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9315,6 +9314,14 @@ _Tested by:_
         - under the reverse charge, names both VAT ids
     - a font the application passes
         - is the one the page is set in
+- `packages/nest/tests/an-invoice-is-collected.test.js`
+    - an invoice not collected as it announced
+        - waits where the payment method in use is another than it named, and the audit log says so
+          once
+        - by direct debit waits where it reached the subscriber less than the lead time before its
+          day
+        - by direct debit mailed exactly the lead time before its day is collected
+        - waits where the subscriber has no payment method in use any more
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - how an invoice is paid
         - a direct debit in use is announced with its mandate, collected and due fourteen days after
@@ -9334,6 +9341,7 @@ _Tested by:_
     - the payment methods invoices are collected with
         - are read where the file names payment accounts and the platform composes the payments
         - refuse the start where the file names payment accounts and nothing reads them
+        - refuse the start where the file names payment accounts and nothing collects the invoices
 
 <!-- END proof -->
 
@@ -9515,7 +9523,7 @@ _Tested by:_
 
 ### SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 
-🟡 _(Decided, not yet delivered.)_ 💰 An invoice has at most one active collection attempt, claimed
+🟢 💰 An invoice has at most one active collection attempt, claimed
 atomically in the database before any request reaches the gateway, so two workers that find the
 same invoice open do not both collect it. Asking the gateway to collect an invoice carries a key
 that stays the same for that invoice and attempt across every retry, so a request whose answer was
@@ -9526,6 +9534,116 @@ meets an attempt that is about to be sent without knowing it. Deduplicating the 
 (`SC-PRIC-029`) covers the other direction.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/an-attempt-is-written-in-the-invoices-turn.test.js`
+    - starting an attempt
+        - locks the invoice, reads its attempts, then writes the next one as submitted, without a
+          conflict raised
+        - writes nothing where an attempt is ${status.toLowerCase()}
+        - answers no attempt where the insert met one, and refuses an invoice that does not exist
+    - settling and taking on an attempt
+        - an outcome is written only to an attempt not settled, and says whether it was
+        - a hold is taken only where the last one is older than the lease
+    - reading
+        - the invoices due are mailed, with a payment, on or before their date, and without an
+          attempt
+        - the attempts not settled are the submitted ones past the lease and the pending ones past
+          the hour
+        - an attempt reads back as a record, by id and with its invoice’s others, the first first
+- `packages/core/tests/a-collection-attempt-row-becomes-a-record.test.js`
+    - the key of a collection attempt
+        - names the invoice and the attempt, the same however often it is asked for
+        - counts from 1: ${attempt} is refused
+    - a second try
+        - can pass where funds were short or a refusal named no cause, and nowhere else
+    - an attempt row
+        - is written as submitted, under its key, with the amount as two-place text
+        - reads back from either adapter’s shape: a numeric string, or a Prisma decimal
+        - refuses ${what}
+    - an outcome
+        - collected settles the attempt at its moment, with the gateway’s reference
+        - on its way leaves it open
+        - failed settles it with the reason and the gateway’s code
+- `packages/nest/tests/an-invoice-is-collected.test.js`
+    - an invoice that reached the subscriber
+        - by card is collected at once, through the account its payment method is held at, under its
+          attempt key
+        - is collected once: a second run, and one running beside the first, send nothing more
+        - not yet mailed is not collected
+        - by direct debit is collected from the day it announced, not the day before
+    - a failed collection
+        - is recorded with its reason and the gateway’s code, written to the audit log once, and not
+          collected again
+    - a request whose answer was lost
+        - stays submitted, and no run sends anything for it while the lease holds
+        - is asked about once the lease has passed, and what the gateway made is recorded, with
+          nothing sent again
+        - found by two runs after the lease is taken on by one: it asks, and the other sends nothing
+        - that never reached the gateway is sent again once the lease has passed: the same request
+          under the same key
+        - whose gateway does not answer in time counts as unanswered, and the next run after the
+          lease asks
+        - whose answer arrived and could not be recorded is asked about later, and charged once
+        - whose gateway cannot be asked stays as it is, and is asked again after the next lease
+    - a direct debit on its way
+        - is asked about once an hour, and settled by what the gateway says
+        - that the gateway holds nothing of is left on its way, and nothing is sent again
+- `packages/payment-stripe/tests/an-invoice-is-collected-off-session.test.js`
+    - an invoice is collected off session
+        - as a payment intent confirmed for the payment method it announced, under the attempt key
+        - a direct debit is on its way until the bank settles it
+        - the same attempt sent again is the same request, under the same key
+    - a refusal is a failure with its reason
+        - ${what}
+    - an answer that says nothing about a charge is thrown, so the attempt is asked about later
+        - ${what}
+    - what became of an attempt is asked of Stripe
+        - by its key among the customer’s intents created since an hour before it was submitted
+        - nothing under its key: the request never arrived
+        - by its reference where an answer named one: a direct debit the bank refused names the
+          charge’s code
+        - an intent under its reference that carries another attempt is not taken for it
+    - the currency
+        - one Stripe takes in other units than cents is refused, before anything is collected in it
+
+<!-- END proof -->
+
+### SC-PRIC-079 — An invoice is collected once it has reached the subscriber
+
+🟢 💰 An invoice that names the payment method it is collected with (`SC-PRIC-028`) is collected
+through the gateway account that payment method is held at once it was handed to the mail: by card
+at once, by direct debit from the collection date it announced. It is collected only as it announced
+it. Where the subscriber's payment method in use is another than the invoice named, or the invoice
+reached the subscriber less than the lead time before the date its direct debit announced, it is not
+collected and waits, and the operator is shown why. Collecting is the fourth step of the
+quarter-hourly run that issues, archives and mails invoices, so nothing is collected before the
+subscriber was sent what it is collected for.
+
+_Source:_ #333 (decided 2026-10-13: collected at once, by the same run) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-invoice-is-collected.test.js`
+    - an invoice that reached the subscriber
+        - by card is collected at once, through the account its payment method is held at, under its
+          attempt key
+        - is collected once: a second run, and one running beside the first, send nothing more
+        - not yet mailed is not collected
+        - by direct debit is collected from the day it announced, not the day before
+    - the quarter-hourly run
+        - issues, archives, mails and collects an invoice by card in one run
+        - whose collection fails says so and leaves the next run to try again
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the payment methods invoices are collected with
+        - refuse the start where the file names payment accounts and nothing collects the invoices
+
+<!-- END proof -->
 
 ### SC-PRIC-035 — An invoice left unpaid past its grace period makes the tenant read-only
 
@@ -9559,6 +9677,28 @@ chain is unresolved, so a replacement of a replacement waits for the attempt its
 sent. The turn covers the writes and not the gateway's answer, which arrives as an event of its own.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/an-attempt-is-written-in-the-invoices-turn.test.js`
+    - starting an attempt
+        - locks the invoice, reads its attempts, then writes the next one as submitted, without a
+          conflict raised
+        - writes nothing where an attempt is ${status.toLowerCase()}
+        - answers no attempt where the insert met one, and refuses an invoice that does not exist
+    - settling and taking on an attempt
+        - an outcome is written only to an attempt not settled, and says whether it was
+        - a hold is taken only where the last one is older than the lease
+    - reading
+        - the invoices due are mailed, with a payment, on or before their date, and without an
+          attempt
+        - the attempts not settled are the submitted ones past the lease and the pending ones past
+          the hour
+        - an attempt reads back as a record, by id and with its invoice’s others, the first first
+
+<!-- END proof -->
 
 ### SC-PRIC-037 — The tax a subscriber is charged is decided by a tax adapter for the issuer
 
@@ -20234,6 +20374,10 @@ _Tested by:_
         - an invoice issued before records no payment and keeps the day it is due
         - a second run leaves a payment recorded in between as it was written
         - an installation without invoices is left without them, and runs through
+    - an invoice is collected through its payment gateway
+        - a database from before ends up with the schema the fragments declare
+        - an invoice takes one attempt that is not settled, and none after one succeeded
+        - an installation without invoices is left without the attempts, and runs through
 
 <!-- END proof -->
 
@@ -20365,6 +20509,10 @@ _Tested by:_
         - an invoice issued before records no payment and keeps the day it is due
         - a second run leaves a payment recorded in between as it was written
         - an installation without invoices is left without them, and runs through
+    - an invoice is collected through its payment gateway
+        - a database from before ends up with the schema the fragments declare
+        - an invoice takes one attempt that is not settled, and none after one succeeded
+        - an installation without invoices is left without the attempts, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

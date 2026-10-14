@@ -215,6 +215,16 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'medium',
             },
             {
+                key: 'SUBSCRIPTION_INVOICE_COLLECTION_FAILED',
+                label: 'Invoice could not be collected through its payment gateway',
+                severity: 'high',
+            },
+            {
+                key: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
+                label: 'Invoice not collected as it announced: it waits for a new announcement',
+                severity: 'medium',
+            },
+            {
                 key: 'SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH',
                 label: 'Archived invoice document does not match its checksum and is not handed out',
                 severity: 'high',

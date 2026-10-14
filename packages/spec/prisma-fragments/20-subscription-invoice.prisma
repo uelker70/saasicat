@@ -80,8 +80,9 @@ model SubscriptionInvoice {
     subscriber Subscriber                   @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
     contract   SubscriptionContract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
     lines      SubscriptionInvoiceLine[]
-    document   SubscriptionInvoiceDocument?
-    archive    SubscriptionInvoiceArchive?
+    document    SubscriptionInvoiceDocument?
+    archive     SubscriptionInvoiceArchive?
+    collections SubscriptionInvoiceCollection[]
 
     @@unique([numberYear, numberSequence])
     @@index([subscriberId, issuedAt])

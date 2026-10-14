@@ -1014,6 +1014,8 @@ tenantBilling: {
             renderer: zugferdInvoiceRenderer(),
             archive: persistence.entitlement!.subscriptionInvoiceArchive!,
             mail: new YourInvoiceMail(), // InvoiceMailPort
+            // Where config/saas.yaml names payments: the invoices are collected.
+            collections: persistence.entitlement!.invoiceCollectionRepository!,
         },
     },
 },
@@ -1137,6 +1139,42 @@ recorded in the audit log under that action; an invoice still waiting for its do
 `TenantBillingModule` itself mounts the route with
 `InvoiceDocumentModule.forRoot({ guards, imports })` from `@saasicat/nest/billing`, importing the
 tenant billing module it built.
+
+### Collecting an invoice
+
+Where `config/saas.yaml` names `payments`, an invoice that announced how it is paid is collected
+through the gateway account its payment method is held at, as the fourth step of the quarter-hourly
+run — after it was mailed (`SC-PRIC-079`): by card at once, by direct debit from the collection date
+it announced. Adopt `prisma-fragments/23-subscription-invoice-collection.prisma` with the
+`collections` back-relation it names on `SubscriptionInvoice`, run
+`sql/1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
+`chargeJournal.invoices.collections`. The start refuses invoices that announce collections nothing
+makes, and collections without the payments that make them. An application with a scheduler of its
+own calls `InvoiceCollectionService.collectDue(now)` after `deliverDue()`.
+
+- **One attempt not settled per invoice.** An attempt is started in the invoice's turn and written
+  as submitted, with everything its request carries, before the request leaves; the database holds
+  an invoice to one attempt not settled and none after one succeeded, so of several instances one
+  collects it (`SC-PRIC-034`, `SC-PRIC-036`).
+- **A request whose answer was lost** stays submitted. Fifteen minutes later a run asks the gateway
+  what became of it, under the key the request carried — `saasicat:collect:<invoice>:<attempt>` —
+  and records that; only where the gateway holds nothing under the key is the same request sent
+  again, which cannot charge twice. A direct debit on its way is asked about once an hour until the
+  bank settles it.
+- **Only as announced.** Where the subscriber's payment method in use is another than the invoice
+  named, or a direct debit's invoice reached the subscriber less than `directDebitLeadDays` before
+  its date, it is not collected: the audit log records `SUBSCRIPTION_INVOICE_COLLECTION_WAITING` with
+  `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED` or `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE`, once
+  per process.
+- **A failure** is recorded with its reason and the gateway's code, and the audit log records
+  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` once. Nothing is retried yet, and the subscriber is not
+  told yet; both follow in this release line.
+
+**A gateway of your own** implements `collect(input)` and `findCollection(input)` of `PaymentGateway`:
+a refusal is a `failed` outcome with a reason of `CollectionFailureReason` and your provider's code,
+and only an answer that says nothing about a charge is thrown. The `attemptKey` is your provider's
+idempotency key, and kept with the payment so that `findCollection` finds it again — after the
+provider forgets the key, too. `DevPaymentGateway` collects at once and keeps what it made in memory.
 
 The runs read and write across tenants inside `RlsBypassPort`. If the invoice tables, the journal,
 your contracts or subscribers carry a row-level policy, your implementation of that port has to lift

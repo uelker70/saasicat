@@ -694,6 +694,29 @@ export const subscriptionInvoiceDocuments = pgTable('subscription_invoice_docume
     deliveredTo: text('deliveredTo'),
 });
 
+/** An attempt to collect an invoice, with the request it made and what became of it. */
+export const subscriptionInvoiceCollections = pgTable('subscription_invoice_collections', {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoiceId').notNull(),
+    attempt: integer('attempt').notNull(),
+    attemptKey: text('attemptKey').notNull(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    paymentMethodId: text('paymentMethodId').notNull(),
+    paymentMethodType: text('paymentMethodType').notNull(),
+    customerRef: text('customerRef').notNull(),
+    paymentMethodRef: text('paymentMethodRef').notNull(),
+    invoiceNumber: text('invoiceNumber').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: text('currency').notNull(),
+    status: text('status').notNull(),
+    paymentRef: text('paymentRef'),
+    failureReason: text('failureReason'),
+    failureCode: text('failureCode'),
+    submittedAt: ts('submittedAt').notNull(),
+    heldAt: ts('heldAt').notNull(),
+    resolvedAt: ts('resolvedAt'),
+});
+
 /** A `bytea` column, read and written as bytes. */
 const bytes = customType<{ data: Uint8Array; driverData: Buffer }>({
     dataType: () => 'bytea',

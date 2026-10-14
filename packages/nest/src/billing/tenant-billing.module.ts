@@ -20,6 +20,7 @@ import type {
     SubscriptionContractRepository,
     SubscriptionInvoiceRepository,
     InvoiceArchivePort,
+    InvoiceCollectionRepository,
     InvoiceMailPort,
     InvoiceRenderer,
     SubscriptionNoticePort,
@@ -82,6 +83,8 @@ import { InvoiceNumberPrefixCheck, invoicingStartProblems } from './invoices/inv
 import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
+import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
+import { INVOICE_COLLECTION_REPOSITORY_TOKEN } from './invoices/invoice-collection.tokens.js';
 import {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,
@@ -399,10 +402,19 @@ export interface TenantBillingModuleOptions {
             /** Sends an archived invoice to the subscriber with its file attached (`SC-PRIC-047`). */
             mail: ProviderSpec<InvoiceMailPort>;
             /**
+             * Where the attempts to collect the invoices through their payment
+             * gateway are kept — `persistence.entitlement.invoiceCollectionRepository`.
+             * Required where `config/saas.yaml` names `payments`: the invoices
+             * then announce how they are collected, and the quarter-hourly run
+             * collects them (`SC-PRIC-079`). Needs `PaymentsModule`.
+             */
+            collections?: ProviderSpec<InvoiceCollectionRepository>;
+            /**
              * `false` leaves out the quarter-hourly run — for a CLI boot, or an
              * application that calls `SubscriptionInvoiceService.issueDue`, then
-             * `InvoiceDocumentService.archiveDue` and `deliverDue`, from a
-             * scheduler of its own. Default: included.
+             * `InvoiceDocumentService.archiveDue` and `deliverDue`, and
+             * `InvoiceCollectionService.collectDue`, from a scheduler of its
+             * own. Default: included.
              */
             includeCron?: boolean;
         };
@@ -589,6 +601,12 @@ export class TenantBillingModule {
                 ...(invoices.renderer && invoices.archive && invoices.mail
                     ? [InvoiceDocumentService]
                     : []),
+                ...(invoices.collections
+                    ? [
+                          asProvider(INVOICE_COLLECTION_REPOSITORY_TOKEN, invoices.collections),
+                          InvoiceCollectionService,
+                      ]
+                    : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
             );
         }
@@ -747,6 +765,7 @@ export class TenantBillingModule {
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [InvoiceDocumentService]
                     : []),
+                ...(invoices?.collections ? [InvoiceCollectionService] : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
                 ...(hasBookings ? [BundleVersionOfferService, BundleVersionSwitchService] : []),
                 ...(versionNotices && hasBookings

@@ -42,8 +42,9 @@ export const wiredInvoices = (overrides = {}) => ({
  * billing wires `invoices`, beside a tax adapter, an issuer and the record of
  * the applied settings, unless told otherwise. `payments` is whether it takes
  * payment methods: `'none'`, `'wired'` — the file names an account and the
- * platform composes the payments beside it — or `'unread'`, where the file
- * names the account and nothing composes them.
+ * platform composes the payments beside it, and the invoices are collected —,
+ * `'uncollected'`, where they are composed and nothing collects the invoices,
+ * or `'unread'`, where the file names the account and nothing composes them.
  */
 export function invoicingPlatform({
     invoicing = INVOICING,
@@ -88,7 +89,13 @@ export function invoicingPlatform({
     // A record that has kept nothing yet: the first start that names an issuer.
     composed.persistence.core.appliedSettings = record ? new FakeAppliedSettingsPort() : undefined;
     if (payments !== 'none') composed.planCatalog.payments = paymentsCatalog().payments;
-    if (payments === 'wired') {
+    if (payments === 'wired' || payments === 'unread') {
+        composed.tenantBilling.chargeJournal.invoices = {
+            ...composed.tenantBilling.chargeJournal.invoices,
+            collections: {},
+        };
+    }
+    if (payments === 'wired' || payments === 'uncollected') {
         composed.payments = {
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
             // The tenant's payment routes resolve the same guards tenant billing does.

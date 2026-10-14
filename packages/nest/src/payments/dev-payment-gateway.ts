@@ -1,6 +1,9 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type {
+    CollectInvoiceInput,
+    CollectionOutcome,
     ConfirmedPaymentMethod,
+    FindCollectionInput,
     PaymentGateway,
     PaymentGatewayCallback,
     PaymentGatewayEvent,
@@ -32,12 +35,18 @@ interface DevConfirmation {
  * memory, which the platform handles like any other — verified, claimed and
  * recorded on one transaction. The person is sent to the success URL.
  *
+ * Collecting an invoice succeeds at once, by card and by direct debit alike,
+ * and is kept in memory under its key, so a repeat of the request answers what
+ * the first one did and asking about it finds it — until the process restarts.
+ *
  * It takes no means of payment and charges nothing, which is why it refuses to
  * be constructed with `NODE_ENV=production`.
  */
 export class DevPaymentGateway implements PaymentGateway {
     readonly provider = DEV_PAYMENT_PROVIDER;
     private readonly key = randomBytes(32);
+    /** Every collection made, by its attempt key. */
+    private readonly collections = new Map<string, CollectionOutcome>();
 
     constructor() {
         if (process.env.NODE_ENV === 'production') {
@@ -93,6 +102,21 @@ export class DevPaymentGateway implements PaymentGateway {
             subject: confirmation.subject,
             paymentMethod: confirmation.paymentMethod,
         };
+    }
+
+    async collect(input: CollectInvoiceInput): Promise<CollectionOutcome> {
+        const made = this.collections.get(input.attemptKey);
+        if (made) return made;
+        const outcome: CollectionOutcome = {
+            status: 'succeeded',
+            paymentRef: `dev_pi_${randomUUID()}`,
+        };
+        this.collections.set(input.attemptKey, outcome);
+        return outcome;
+    }
+
+    async findCollection(input: FindCollectionInput): Promise<CollectionOutcome | null> {
+        return this.collections.get(input.attemptKey) ?? null;
     }
 
     private sign(body: string): string {

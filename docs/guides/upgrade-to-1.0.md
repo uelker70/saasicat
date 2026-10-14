@@ -2007,6 +2007,48 @@ collected yet; collecting follows in this release line.
   and the persistence contract reads back an invoice collected by direct debit, one by card, and one
   not collected.
 
+### An invoice is collected through its payment gateway
+
+Where you adopted [invoices](#an-invoice-is-issued-from-the-charge-journal) and `config/saas.yaml`
+names `payments`: an invoice that announced how it is paid
+([above](#an-invoice-says-how-it-is-paid)) is collected through the gateway account its payment
+method is held at, as the fourth step of the quarter-hourly run, once it was mailed — by card at
+once, by direct debit from the collection date it announced (`SC-PRIC-079`).
+
+1. Add `SubscriptionInvoiceCollection` from `prisma-fragments/23-subscription-invoice-collection.prisma`
+   to your schema, with the `collections` back-relation it names on `SubscriptionInvoice`. With
+   `prismaPersistence()` or `drizzlePersistence()` leaving it out, pass it in `notAdopted`.
+2. Run the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-an-invoice-is-collected.postgres.sql
+    ```
+
+    It creates `subscription_invoice_collections` with the partial unique index that holds an
+    invoice to one attempt not settled and none after one succeeded, which `db push` cannot create.
+    It does nothing on a second run, nor without `subscription_invoices`.
+
+3. Pass `persistence.entitlement.invoiceCollectionRepository` as
+   `tenantBilling.chargeJournal.invoices.collections`. The start refuses invoices without it where
+   the file names `payments`, since they announce a collection nothing would make.
+4. A restricted Stripe key needs payment intents (write) and charges (read) beside what it had; the
+   [package's README](../../packages/payment-stripe/README.md) says how to prove the grant.
+
+- **A gateway of your own** implements `collect(input)` and `findCollection(input)` of
+  `PaymentGateway` ([wire the backend](wire-the-backend.md#collecting-an-invoice)): a refusal is a
+  `failed` outcome with a `CollectionFailureReason`, and only an answer that says nothing about a
+  charge is thrown. `@saasicat/payment-stripe` and `DevPaymentGateway` have both.
+- **A persistence contract harness** gains `invoiceCollectionRepository`, beside what the invoice
+  scenarios need; a harness without it declares `gaps: ['invoiceCollections']`. Empty
+  `subscription_invoice_collections` between scenarios with the invoices.
+- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`
+  and `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE`, which the audit log records for an invoice not
+  collected as it announced, under `SUBSCRIPTION_INVOICE_COLLECTION_WAITING`;
+  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` records a failed collection with its reason.
+
+A failed collection is not retried yet, and the subscriber is not told yet: both follow in this
+release line, before invoicing is switched on for real customers.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

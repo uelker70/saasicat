@@ -26,8 +26,10 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
  * nothing issues an invoice.
  */
 export function invoicingStartProblems(
-    settings: Pick<PlanCatalogSettings, 'invoicing' | 'issuer'>,
-    wired: { renderer?: unknown; archive?: unknown; mail?: unknown } | undefined,
+    settings: Pick<PlanCatalogSettings, 'invoicing' | 'issuer' | 'payments'>,
+    wired:
+        | { renderer?: unknown; archive?: unknown; mail?: unknown; collections?: unknown }
+        | undefined,
     adapterBound: boolean,
 ): string[] {
     if (!wired) {
@@ -70,6 +72,15 @@ export function invoicingStartProblems(
     }
     if (!wired.mail) {
         problems.push('invoices reach the subscriber by email: pass chargeJournal.invoices.mail.');
+    }
+    // An installation that takes payment methods issues invoices that
+    // announce a collection; without the attempts nothing would make it.
+    if (settings.payments && !wired.collections) {
+        problems.push(
+            'config/saas.yaml names payment accounts, so invoices announce how they are collected, ' +
+                'and nothing collects them: pass chargeJournal.invoices.collections, such as ' +
+                'persistence.entitlement.invoiceCollectionRepository.',
+        );
     }
     return problems;
 }
