@@ -253,6 +253,7 @@ _Tested by:_
         - no status throws — 304, 402 and 500 all arrive as responses
         - the method is upper-cased and defaults to GET
         - a DELETE carries its body through
+        - a response header reads as text, a repeated one joined, anything else as absent
         - json() returns what axios already parsed
         - json() parses a raw string, for an instance with transformResponse disabled
         - every way of turning axios’s own decoding off is read as text
