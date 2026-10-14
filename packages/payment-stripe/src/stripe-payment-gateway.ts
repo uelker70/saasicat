@@ -44,11 +44,13 @@ const INVOICE_ID = 'saasicat_invoice';
 const CLOCK_MARGIN_SECONDS = 60 * 60;
 
 /**
- * Currencies Stripe takes in other units than cents — whole units, or
- * thousandths. SaaSiCat computes every amount to the cent, so an invoice in one
- * of them would be collected a hundredfold or a tenth of what it says.
+ * Currencies Stripe does not take to the cent: in whole units or thousandths,
+ * or, for `isk` and `ugx`, in cents of which it takes only whole units.
+ * SaaSiCat computes every amount to the cent, so an invoice in one of them
+ * would be collected for a hundredfold or a tenth of what it says, or refused
+ * wherever it has cents.
  */
-const NOT_IN_CENTS: ReadonlySet<string> = new Set([
+const NOT_TO_THE_CENT: ReadonlySet<string> = new Set([
     'bif',
     'clp',
     'djf',
@@ -70,7 +72,27 @@ const NOT_IN_CENTS: ReadonlySet<string> = new Set([
     'kwd',
     'omr',
     'tnd',
+    'isk',
 ]);
+
+/**
+ * The code an invoice in another currency than the account's is refused with,
+ * before anything is sent: only the account's currency was checked against
+ * `NOT_TO_THE_CENT`, and a direct debit's mandate is set up in it. Prefixed so
+ * that nobody reads it as one of Stripe's.
+ */
+const OTHER_CURRENCY = 'saasicat_other_currency';
+
+/**
+ * The statuses of a request Stripe refused as it stands — a parameter it does
+ * not take, an object that no longer exists — which no repeat of it changes. A
+ * conflict (`409`, such as `idempotency_key_in_use` while the first request
+ * under the key is still running) or a lock that timed out says nothing about
+ * whether a charge was made, and Stripe's advice is to repeat the request
+ * under the same key: those are thrown, whichever class the Stripe library
+ * gives them, and the attempt is asked about later.
+ */
+const REFUSED_REQUEST: ReadonlySet<number> = new Set([400, 404]);
 
 /**
  * The reason each of Stripe's codes stands for: a card's decline code, or a
@@ -95,6 +117,9 @@ const FAILURE_REASONS: ReadonlyMap<string, CollectionFailureReason> = new Map([
         'withdrawal_count_limit_exceeded',
         'refer_to_customer',
         'generic_could_not_process',
+        // A volume limit of the account, which clears with time.
+        'charge_exceeds_source_limit',
+        'charge_exceeds_weekly_limit',
     ].map((code): [string, CollectionFailureReason] => [code, 'declined']),
     ['authentication_required', 'authentication-required'],
     ...[
@@ -115,6 +140,7 @@ const FAILURE_REASONS: ReadonlyMap<string, CollectionFailureReason> = new Map([
         'bank_account_restricted',
         'branch_does_not_exist',
         'invalid_account_number',
+        'no_account',
         'recipient_deceased',
         'resource_missing',
         'payment_method_unexpected_state',
@@ -221,11 +247,11 @@ export class StripePaymentGateway implements PaymentGateway {
         // Stripe takes the currency in lower case, and `config/saas.yaml`
         // writes it the way an invoice does.
         this.currency = options.currency.toLowerCase();
-        if (NOT_IN_CENTS.has(this.currency)) {
+        if (NOT_TO_THE_CENT.has(this.currency)) {
             throw new Error(
-                `Stripe takes ${options.currency} in other units than cents, and SaaSiCat computes ` +
+                `Stripe does not take ${options.currency} to the cent, and SaaSiCat computes ` +
                     'every amount to the cent: an invoice in it would be collected for another ' +
-                    'amount than it states.',
+                    'amount than it states, or refused.',
             );
         }
         this.stripe =
@@ -299,15 +325,24 @@ export class StripePaymentGateway implements PaymentGateway {
      * invoice announced, under the attempt key as its idempotency key: a
      * repeat within Stripe's day of keeping the key gets the same intent, and
      * `findCollection` finds it by the key in its metadata after that. A
-     * direct debit uses the mandate its setup created.
+     * direct debit uses the mandate its setup created. An invoice in another
+     * currency than the account's is refused without a request.
      */
     async collect(input: CollectInvoiceInput): Promise<CollectionOutcome> {
+        if (input.currency.toLowerCase() !== this.currency) {
+            return {
+                status: 'failed',
+                paymentRef: null,
+                reason: 'other',
+                gatewayCode: OTHER_CURRENCY,
+            };
+        }
         let intent: Stripe.PaymentIntent;
         try {
             intent = await this.stripe.paymentIntents.create(
                 {
                     amount: input.amountCents,
-                    currency: input.currency.toLowerCase(),
+                    currency: this.currency,
                     customer: input.customerRef,
                     payment_method: input.paymentMethodRef,
                     payment_method_types: [input.type],
@@ -549,11 +584,16 @@ function outcomeOf(intent: Stripe.PaymentIntent): CollectionOutcome {
     }
 }
 
-/** The code of the last failure: the charge's for a direct debit, the decline code for a card. */
+/**
+ * The code of the last failure: a card's decline code, which names why the
+ * bank refused it — a charge's own code is `card_declined` for every one of
+ * them —, else the charge's code, which is what names a direct debit's
+ * failure, else the error's.
+ */
 function failureCodeOf(intent: Stripe.PaymentIntent): string | null {
     const charge = expanded<Stripe.Charge>(intent.latest_charge);
     const error = intent.last_payment_error;
-    return charge?.failure_code ?? error?.decline_code ?? error?.code ?? null;
+    return error?.decline_code ?? charge?.failure_code ?? error?.code ?? null;
 }
 
 function reasonOf(code: string | null): CollectionFailureReason {
@@ -575,7 +615,10 @@ function refusalOf(error: unknown): CollectionOutcome {
         const code = error.decline_code ?? error.code ?? null;
         return { status: 'failed', paymentRef: null, reason: reasonOf(code), gatewayCode: code };
     }
-    if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+    if (
+        error instanceof Stripe.errors.StripeInvalidRequestError &&
+        REFUSED_REQUEST.has(error.statusCode ?? 0)
+    ) {
         if (error.payment_intent) return outcomeOf(error.payment_intent);
         const code = error.code ?? null;
         return { status: 'failed', paymentRef: null, reason: reasonOf(code), gatewayCode: code };

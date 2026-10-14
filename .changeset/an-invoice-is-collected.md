@@ -29,10 +29,11 @@ asked about once an hour. A failure is recorded with its reason and the
 gateway's code. It is not retried yet, and the subscriber is not told yet.
 
 `PaymentGateway` gains `collect` and `findCollection`, which
-`@saasicat/payment-stripe` implements with payment intents confirmed off session
-under the attempt key, and `DevPaymentGateway` in memory. A restricted Stripe key
-needs payment intents (write) and charges (read) beside what it had. The Stripe
-gateway now refuses a currency Stripe takes in other units than cents.
+`@saasicat/payment-stripe` implements with payment intents confirmed off
+session under the attempt key, and `DevPaymentGateway` in memory. A restricted
+Stripe key needs payment intents (write) and charges (read) beside what it had.
+The Stripe gateway now refuses a currency Stripe does not take to the cent,
+such as `JPY` or `ISK`.
 
 Adopt `23-subscription-invoice-collection.prisma`, run
 `1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass

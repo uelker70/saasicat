@@ -11,6 +11,8 @@
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import Stripe from 'stripe';
+
 import { StripePaymentGateway } from '../dist/index.js';
 import { fakeStripe, reply } from './support/fake-stripe.js';
 
@@ -59,19 +61,20 @@ afterEach(async () => {
     for (const server of open.splice(0)) await server.close();
 });
 
+/** A gateway for `currency` over `client`. */
+const gatewayWith = (client, currency = 'EUR') =>
+    new StripePaymentGateway({
+        secretKey: 'sk_test_unused',
+        webhookSecret: 'whsec_test_secret',
+        currency,
+        client,
+    });
+
 /** A gateway over a local Stripe, with the routes a test needs. */
 async function gatewayOver(routes) {
     const server = await fakeStripe(routes);
     open.push(server);
-    return {
-        ...server,
-        gateway: new StripePaymentGateway({
-            secretKey: 'sk_test_unused',
-            webhookSecret: 'whsec_test_secret',
-            currency: 'EUR',
-            client: server.client,
-        }),
-    };
+    return { ...server, gateway: gatewayWith(server.client) };
 }
 
 describe('an invoice is collected off session', () => {
@@ -187,6 +190,22 @@ describe('a refusal is a failure with its reason', () => {
             },
         ],
         [
+            'an account over its volume limit, which clears with time',
+            reply(400, {
+                error: {
+                    type: 'invalid_request_error',
+                    code: 'charge_exceeds_source_limit',
+                    message: 'This payment would exceed your processing limit',
+                },
+            }),
+            {
+                status: 'failed',
+                paymentRef: null,
+                reason: 'declined',
+                gatewayCode: 'charge_exceeds_source_limit',
+            },
+        ],
+        [
             'a payment method detached since, which Stripe refuses as a request',
             reply(400, {
                 error: {
@@ -235,6 +254,16 @@ describe('an answer that says nothing about a charge is thrown, so the attempt i
             reply(429, { error: { type: 'invalid_request_error', code: 'rate_limit' } }),
         ],
         [
+            'a conflict with the first request under the key, still running',
+            reply(409, {
+                error: { type: 'invalid_request_error', code: 'idempotency_key_in_use' },
+            }),
+        ],
+        [
+            'a lock that timed out',
+            reply(429, { error: { type: 'invalid_request_error', code: 'lock_timeout' } }),
+        ],
+        [
             'a key reused with other parameters',
             reply(400, {
                 error: { type: 'idempotency_error', message: 'Keys for idempotent requests' },
@@ -248,6 +277,24 @@ describe('an answer that says nothing about a charge is thrown, so the attempt i
             await assert.rejects(ctx.gateway.collect(BY_CARD));
         });
     }
+
+    test('a conflict is thrown by its status, whichever class the library gives it', async () => {
+        const conflict = new Stripe.errors.StripeInvalidRequestError({
+            type: 'invalid_request_error',
+            code: 'idempotency_key_in_use',
+            message: 'There is currently another in-progress request using this key',
+            statusCode: 409,
+        });
+        const gateway = gatewayWith({
+            paymentIntents: {
+                create: async () => {
+                    throw conflict;
+                },
+            },
+        });
+
+        await assert.rejects(gateway.collect(BY_CARD), (error) => error === conflict);
+    });
 });
 
 describe('what became of an attempt is asked of Stripe', () => {
@@ -321,6 +368,37 @@ describe('what became of an attempt is asked of Stripe', () => {
         });
     });
 
+    test('a card the bank refused is named by its decline code, not by the charge’s', async () => {
+        const ctx = await gatewayOver({
+            'GET /v1/payment_intents/pi_1': intent('requires_payment_method', {
+                latest_charge: { id: 'ch_1', object: 'charge', failure_code: 'card_declined' },
+                last_payment_error: { code: 'card_declined', decline_code: 'stolen_card' },
+            }),
+        });
+
+        const found = await ctx.gateway.findCollection({ ...ASKED, paymentRef: 'pi_1' });
+
+        assert.deepEqual(found, {
+            status: 'failed',
+            paymentRef: 'pi_1',
+            reason: 'payment-method-unusable',
+            gatewayCode: 'stolen_card',
+        });
+    });
+
+    test('a direct debit to an account the bank does not know names an unusable payment method', async () => {
+        const ctx = await gatewayOver({
+            'GET /v1/payment_intents/pi_1': intent('requires_payment_method', {
+                latest_charge: { id: 'ch_1', object: 'charge', failure_code: 'no_account' },
+                last_payment_error: { code: 'payment_method_provider_decline' },
+            }),
+        });
+
+        const found = await ctx.gateway.findCollection({ ...ASKED, paymentRef: 'pi_1' });
+
+        assert.equal(found.reason, 'payment-method-unusable');
+    });
+
     test('an intent under its reference that carries another attempt is not taken for it', async () => {
         const ctx = await gatewayOver({
             'GET /v1/payment_intents/pi_1': intent('succeeded', {
@@ -336,15 +414,30 @@ describe('what became of an attempt is asked of Stripe', () => {
 });
 
 describe('the currency', () => {
-    test('one Stripe takes in other units than cents is refused, before anything is collected in it', () => {
-        assert.throws(
-            () =>
-                new StripePaymentGateway({
-                    secretKey: 'sk_test_unused',
-                    webhookSecret: 'whsec_test_secret',
-                    currency: 'JPY',
-                }),
-            /Stripe takes JPY in other units than cents/,
-        );
+    for (const [currency, what] of [
+        ['JPY', 'in whole units'],
+        ['KWD', 'in thousandths'],
+        ['ISK', 'in cents of which it takes only whole units'],
+    ]) {
+        test(`one Stripe takes ${what}, as ${currency}, is refused before anything is collected in it`, () => {
+            assert.throws(
+                () => gatewayWith(undefined, currency),
+                (error) => error.message.startsWith(`Stripe does not take ${currency} to the cent`),
+            );
+        });
+    }
+
+    test('an invoice in another currency than the account’s is refused without a request', async () => {
+        const ctx = await gatewayOver({ 'POST /v1/payment_intents': intent('succeeded') });
+
+        const outcome = await ctx.gateway.collect({ ...BY_CARD, currency: 'USD' });
+
+        assert.deepEqual(outcome, {
+            status: 'failed',
+            paymentRef: null,
+            reason: 'other',
+            gatewayCode: 'saasicat_other_currency',
+        });
+        assert.equal(ctx.requests.length, 0);
     });
 });

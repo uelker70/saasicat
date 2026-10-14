@@ -1510,14 +1510,18 @@ _Tested by:_
         - ${what}
     - an answer that says nothing about a charge is thrown, so the attempt is asked about later
         - ${what}
+        - a conflict is thrown by its status, whichever class the library gives it
     - what became of an attempt is asked of Stripe
         - by its key among the customer’s intents created since an hour before it was submitted
         - nothing under its key: the request never arrived
         - by its reference where an answer named one: a direct debit the bank refused names the
           charge’s code
+        - a card the bank refused is named by its decline code, not by the charge’s
+        - a direct debit to an account the bank does not know names an unusable payment method
         - an intent under its reference that carries another attempt is not taken for it
     - the currency
-        - one Stripe takes in other units than cents is refused, before anything is collected in it
+        - one Stripe takes ${what}, as ${currency}, is refused before anything is collected in it
+        - an invoice in another currency than the account’s is refused without a request
 
 <!-- END proof -->
 

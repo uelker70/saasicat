@@ -33,13 +33,19 @@ the masked details, and an invoice SaaSiCat issued is collected with it.
   attempt among the customer's intents by that key after it, before it sends
   anything again. A direct debit uses the mandate its setup created, and stays
   on its way while it is `processing`. A declined card or a debit the bank
-  refused is answered as a failure with its reason and Stripe's code;
+  refused is answered as a failure with its reason and Stripe's code — a
+  card's decline code, which names why its bank refused it —;
   `authentication_required` is a failure too, since nobody present can confirm
-  it. A currency Stripe takes in other units than cents, such as `JPY`, is
+  it, and so is a request Stripe refused as it stands (`400`, `404`). A
+  conflict with a request still running under the same key, a lock that timed
+  out, a rate limit and an error of Stripe's own are raised, whichever class
+  the library gives them, and the attempt is asked about after the lease. A
+  currency Stripe does not take to the cent, such as `JPY` or `ISK`, is
   refused when the gateway is built: SaaSiCat computes every amount to the
-  cent. With Stripe's creditor identifier, Stripe sends its own notice of each
-  direct debit when the intent is created; the invoice is SaaSiCat's
-  announcement, the lead time before.
+  cent. An invoice in another currency than the account's is refused without a
+  request, as `saasicat_other_currency`. With Stripe's creditor identifier,
+  Stripe sends its own notice of each direct debit when the intent is created;
+  the invoice is SaaSiCat's announcement, the lead time before.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
