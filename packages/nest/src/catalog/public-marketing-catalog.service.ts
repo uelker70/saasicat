@@ -219,7 +219,7 @@ export class PublicMarketingCatalogService {
                     asOf,
                 ),
                 features: [...(live.features ?? [])],
-                quotas: { ...(live.quotas ?? {}) },
+                quotas: { ...live.quotas },
             });
         }
 
@@ -314,7 +314,7 @@ export class PublicMarketingCatalogService {
                 [...features, ...requiresFeatures],
                 labelMeta,
             ),
-            quotas: { ...(bv.quotas ?? {}) },
+            quotas: { ...bv.quotas },
             promo: this.resolvePromo(
                 promotions,
                 bv.bundleKey,

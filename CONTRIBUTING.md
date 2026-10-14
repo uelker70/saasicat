@@ -24,8 +24,15 @@ Tests run with `--workspace-concurrency=1` because parallel workers each bootstr
 NestJS test apps; running them serially keeps memory use sane.
 
 Lint and formatting configs at the repo root are binding — run `pnpm lint`,
-`pnpm run lint:css`, `pnpm run lint:anti-slop` and `pnpm typecheck` before
-opening a PR.
+`pnpm run lint:correctness`, `pnpm run lint:css`, `pnpm run lint:anti-slop` and
+`pnpm typecheck` before opening a PR.
+
+`pnpm run lint:correctness` runs oxlint with its `correctness` category over
+every source: code that is very likely wrong or useless. There is no baseline —
+a finding is fixed. If it is intended, a comment switches it off for exactly one
+line and one rule, with the reason after `--`:
+`// oxlint-disable-next-line <rule> -- <reason>`. What is excluded and why is in
+[`oxlint.correctness.config.mts`](oxlint.correctness.config.mts).
 
 `pnpm run lint:anti-slop` counts the findings of the rules in
 [`oxlint.config.mts`](oxlint.config.mts) — type assertions without a

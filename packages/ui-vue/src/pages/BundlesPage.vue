@@ -544,7 +544,7 @@ async function toggle(bundle: BundleRow): Promise<void> {
 
 function setI18n(locale: string, field: 'label' | 'description', value: string): void {
     const next: CatalogEntryI18n = { ...i18nDraft.value };
-    const entry = { ...(next[locale] ?? {}) };
+    const entry = { ...next[locale] };
     if (value) {
         entry[field] = value;
     } else {

@@ -1,9 +1,10 @@
 import { defineConfig } from 'oxlint';
 
-// oxlint runs here only for the anti-slop rules from `tools/oxlint/anti-slop/`
-// (provenance in `UPSTREAM.md` next to it). The built-in categories are off:
-// this configuration counts exactly the rules below; ESLint stays this
-// repository's general linter.
+// This configuration serves only the anti-slop rules from
+// `tools/oxlint/anti-slop/` (provenance in `UPSTREAM.md` next to it). The
+// built-in categories are off: it counts exactly the rules below. ESLint stays
+// this repository's general linter; oxlint's `correctness` run lives in
+// `oxlint.correctness.config.mts` (`pnpm run lint:correctness`).
 //
 // `scripts/anti-slop-ratchet.mts` counts every rule here against
 // `anti-slop-ratchet.json`. "error" therefore means "counted", not "fails on

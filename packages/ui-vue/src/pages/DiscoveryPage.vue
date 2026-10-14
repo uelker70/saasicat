@@ -549,8 +549,12 @@ function onLocaleUpdate(
             kind === 'feature' ? features.value : quotas.value;
         const idKey = kind === 'feature' ? 'featureKey' : 'quotaKey';
         const row = (rows as Array<Record<string, unknown>>).find((r) => r[idKey] === key);
-        const next: CatalogEntryI18n = { ...((row?.i18n as CatalogEntryI18n) ?? {}) };
-        const localeFields = { ...(next[locale] ?? {}) } as Record<string, string>;
+        // SAFETY: `rows` carries `i18n?: CatalogEntryI18n`; only the lookup by key above
+        // widened the row to `Record<string, unknown>`.
+        const next: CatalogEntryI18n = { ...(row?.i18n as CatalogEntryI18n | undefined) };
+        // SAFETY: `CatalogEntryI18nFields` holds only optional strings, and data read from
+        // the server carries no `undefined`; `withField` adds further strings.
+        const localeFields = { ...next[locale] } as Record<string, string>;
         for (const [field, value] of Object.entries(data)) {
             withField(localeFields, field, String(value ?? ''));
         }

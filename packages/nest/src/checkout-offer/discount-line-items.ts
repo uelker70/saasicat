@@ -54,7 +54,7 @@ export function cloneCheckoutOfferLineItem(item: CheckoutOfferLineItem): Checkou
     return {
         ...item,
         featuresSnapshot: [...(item.featuresSnapshot ?? [])],
-        quotaEffectsSnapshot: { ...(item.quotaEffectsSnapshot ?? {}) },
+        quotaEffectsSnapshot: { ...item.quotaEffectsSnapshot },
         metadata: cloneRecord(item.metadata),
     };
 }

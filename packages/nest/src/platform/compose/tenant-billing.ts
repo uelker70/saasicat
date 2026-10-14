@@ -120,7 +120,7 @@ export function composeSubscriptionBundles(ctx: CompositionContext): DynamicModu
                 controller === false
                     ? undefined
                     : {
-                          ...(controller ?? {}),
+                          ...controller,
                           authGuards: ctx.shared.authGuards,
                           subscriptionUsagePort: ctx.shared.subscriptionUsagePort,
                       },

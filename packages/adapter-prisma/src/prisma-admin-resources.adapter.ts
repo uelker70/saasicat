@@ -155,7 +155,7 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
             plan: this.subscriptionOf(row)?.plan ?? null,
             status: this.subscriptionOf(row)?.status ?? null,
             createdAt: row.createdAt.toISOString(),
-            ...(row._count ?? {}),
+            ...row._count,
         }));
     }
 

@@ -548,6 +548,6 @@ function toSnapshot(bundleVersion: BundleVersionRow): BundlePreviewSnapshot {
         label: bundleVersion.label,
         bundleVersionId: bundleVersion.id,
         features: [...(bundleVersion.features ?? [])],
-        quotas: { ...(bundleVersion.quotas ?? {}) },
+        quotas: { ...bundleVersion.quotas },
     };
 }

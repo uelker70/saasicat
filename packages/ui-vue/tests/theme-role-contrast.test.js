@@ -64,7 +64,12 @@ function themeTables() {
 
 function hexToRgba(hex) {
     let value = hex.trim();
-    if (value.length === 4) value = `#${[...value.slice(1)].map((c) => c + c).join('')}`;
+    if (value.length === 4)
+        value = `#${value
+            .slice(1)
+            .split('')
+            .map((c) => c + c)
+            .join('')}`;
     return [
         parseInt(value.slice(1, 3), 16),
         parseInt(value.slice(3, 5), 16),

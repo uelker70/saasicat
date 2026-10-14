@@ -475,7 +475,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                     tenantId,
                     canceledAt: expectedCanceledAt,
                     ...(boundVersionId === undefined ? {} : { planVersionId: boundVersionId }),
-                    ...(scheduledAsRead ?? {}),
+                    ...scheduledAsRead,
                 },
                 data,
             });

@@ -433,7 +433,7 @@ describe('the token layers only point one way', () => {
         };
         const consumerOwned = new Set(
             [...lightValues.keys()].filter(
-                (role) => /-on-accent$/.test(role) || reachesBrand(role),
+                (role) => role.endsWith('-on-accent') || reachesBrand(role),
             ),
         );
         assert.ok(

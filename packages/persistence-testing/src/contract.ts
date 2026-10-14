@@ -7685,7 +7685,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const read = await port.readApplied();
             assert.equal(read?.fingerprint, 'sha256-b');
             assert.equal(read?.appliedAt.toISOString(), SECOND_START.toISOString());
-            assert.equal((read?.settings as { vatRate: number }).vatRate, 20);
+            const settings = read?.settings;
+            assert.ok(typeof settings === 'object' && settings !== null && 'vatRate' in settings);
+            assert.equal(settings.vatRate, 20);
         });
 
         test('the first record is written once: a second writer that read none is refused', async (t) => {

@@ -128,9 +128,7 @@ export class PrismaBundleRepository implements BundleRepository {
     async list(filter: BundleListFilter): Promise<BundleRow[]> {
         const excludeDeleted = filter.excludeDeleted ?? true;
         const rows = await this.db().bundle.findMany({
-            where: {
-                ...(excludeDeleted ? { deletedAt: null } : {}),
-            },
+            where: excludeDeleted ? { deletedAt: null } : {},
             orderBy: [{ sortOrder: 'asc' }, { bundleKey: 'asc' }],
         });
         return rows.map(toBundleStemRow);

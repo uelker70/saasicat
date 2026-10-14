@@ -66,7 +66,7 @@ const defaultFieldLabels = computed<Record<string, string>>(() => ({
 
 const mergedFieldLabels = computed(() => ({
     ...defaultFieldLabels.value,
-    ...(props.fieldLabels ?? {}),
+    ...props.fieldLabels,
 }));
 
 function iconFor(direction: VersionChange['direction']): string {

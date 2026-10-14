@@ -629,7 +629,7 @@ async function refusalHeld<T>(write: () => Promise<T>): Promise<T> {
             isPersistenceRefusal(error) &&
             error.code === INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED
         ) {
-            throw new Held({ code: error.code, params: { ...(error.params ?? {}) } });
+            throw new Held({ code: error.code, params: { ...error.params } });
         }
         throw error;
     }

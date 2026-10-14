@@ -133,7 +133,7 @@ export class PrismaPlanRepository implements PlanRepository {
                 publishedKeys = [...new Set(live.map((version) => version.planId))];
             } else {
                 const plans = await db.plan.findMany({
-                    where: { ...(excludeDeleted ? { deletedAt: null } : {}) },
+                    where: excludeDeleted ? { deletedAt: null } : {},
                 });
                 const planKeyById = new Map(plans.map((plan) => [plan.id, plan.planKey]));
                 const live = await this.versions(db).findMany({

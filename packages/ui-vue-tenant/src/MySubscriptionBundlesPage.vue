@@ -326,7 +326,7 @@ const quotaValueOf = (key: string, value: number): string =>
 
 const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
     ...defaultTenantPlanSectionI18n(locale.value),
-    ...(props.i18n ?? {}),
+    ...props.i18n,
 }));
 
 const { bundles, loading, error, load, add, cancel, switchToReplacement, acceptVersionOffer } =

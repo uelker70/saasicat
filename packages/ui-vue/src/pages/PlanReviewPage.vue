@@ -50,7 +50,7 @@ const reviewVersion = computed(() => {
         baseVersionId: null,
         features: [...(form?.features ?? [])],
         bundles: [...(form?.bundles ?? [])],
-        quotas: { ...(form?.quotas ?? {}) },
+        quotas: { ...form?.quotas },
         monthlyNet: form?.monthlyNet ?? '0.00',
         yearlyNet: form?.yearlyNet ?? '0.00',
         marketed: form?.marketed ?? true,

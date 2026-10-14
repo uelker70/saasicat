@@ -602,8 +602,8 @@ function patchI18n(
     field: 'badge' | 'fineprint',
     value: string,
 ): void {
-    const i18n = { ...(p.i18n ?? {}) };
-    const entry = { ...(i18n[locale] ?? {}) };
+    const i18n = { ...p.i18n };
+    const entry = { ...i18n[locale] };
     if (value) entry[field] = value;
     else delete entry[field];
     i18n[locale] = entry;

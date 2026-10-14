@@ -24,6 +24,7 @@ function recordingClient() {
     let transactions = 0;
 
     /** A statement as Prisma builds it: nothing runs until it is awaited. */
+    // oxlint-disable-next-line unicorn/no-thenable -- imitates Prisma's deferred query
     const lazy = (run) => ({ then: (resolve, reject) => run().then(resolve, reject) });
     const record = (name, where) => async () => {
         sent.push(where ? `${name}@${where.kind}` : name);
