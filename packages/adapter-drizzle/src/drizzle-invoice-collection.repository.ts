@@ -18,6 +18,7 @@ import {
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type {
+    AbandonPaidOutcome,
     CalendarDay,
     CollectionOutcome,
     EarlierCollection,
@@ -440,7 +441,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         });
     }
 
-    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome> {
         return this.inTurnOf(id, tx, async (db) => {
             const [row] = await db
                 .select({
@@ -449,8 +450,9 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 })
                 .from(subscriptionInvoiceCollections)
                 .where(eq(subscriptionInvoiceCollections.id, id));
-            if (row?.status !== 'SUBMITTED' || (await owes(db, row.invoiceId))) return false;
-            const settled = await db
+            if (row?.status !== 'SUBMITTED') return 'settled';
+            if (await owes(db, row.invoiceId)) return 'resend';
+            const abandoned = await db
                 .update(subscriptionInvoiceCollections)
                 .set(collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at))
                 .where(
@@ -460,7 +462,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                     ),
                 )
                 .returning({ id: subscriptionInvoiceCollections.id });
-            return settled.length === 1;
+            return abandoned.length === 1 ? 'abandoned' : 'settled';
         });
     }
 

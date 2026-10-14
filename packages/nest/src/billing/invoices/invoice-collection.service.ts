@@ -195,6 +195,10 @@ type CollectionAudit =
           };
       }
     | {
+          action: 'SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED';
+          changes: { number: string; attempt: number };
+      }
+    | {
           action: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING';
           changes: { number: string } & Waiting;
       };
@@ -821,21 +825,19 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         }
         // The request never reached the gateway. Where a payment came for the
         // invoice meanwhile — a late one for an earlier attempt —, nothing is
-        // sent again; otherwise the same request, under the same key, cannot
+        // sent again, and nothing where a report settled the attempt in the
+        // meantime; otherwise the same request, under the same key, cannot
         // charge twice.
-        if (await this.collections.abandonPaid(attempt.id, new Date())) {
+        const decided = await this.collections.abandonPaid(attempt.id, new Date());
+        if (decided === 'settled') return;
+        if (decided === 'abandoned') {
             this.logger.log(
                 `Collection attempt ${attempt.attemptKey} is not sent again: invoice ` +
                     `${attempt.invoiceNumber} was paid meanwhile.`,
             );
             await this.writeAudit(attempt.invoiceId, {
-                action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
-                changes: {
-                    number: attempt.invoiceNumber,
-                    attempt: attempt.attempt,
-                    paymentMethodId: attempt.paymentMethodId,
-                    because: 'paid',
-                },
+                action: 'SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED',
+                changes: { number: attempt.invoiceNumber, attempt: attempt.attempt },
             });
             return;
         }

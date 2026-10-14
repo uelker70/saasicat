@@ -2282,12 +2282,12 @@ export function createMemoryHarness() {
         },
         async abandonPaid(id, at) {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
-            if (!row || row.status !== 'SUBMITTED') return false;
+            if (!row || row.status !== 'SUBMITTED') return 'settled';
             if (stillOwes(state.invoices.find((invoice) => invoice.id === row.invoiceId))) {
-                return false;
+                return 'resend';
             }
             Object.assign(row, collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at));
-            return true;
+            return 'abandoned';
         },
         async hold(id, heldBefore, at) {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);

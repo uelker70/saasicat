@@ -1310,6 +1310,7 @@ _Tested by:_
         - is collected no further when the attempt beside it fails, and nobody is told of a failure
           on a paid invoice
         - has a retry whose request never reached the gateway settled rather than sent again
+        - sends nothing again for a request a report settled while the gateway was asked
         - has a planned attempt withdrawn rather than sent, naming why
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the payment methods invoices are collected with

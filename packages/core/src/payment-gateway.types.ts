@@ -311,7 +311,9 @@ export interface PaymentGateway {
      * What became of the attempt `attemptKey` names, read from the gateway
      * itself; `null` where the gateway holds nothing under it, so the request
      * never arrived and may be sent again. Throws where the gateway cannot be
-     * asked.
+     * asked. The platform relies on `null`: where the invoice was paid
+     * meanwhile the attempt is settled rather than sent again, and only the
+     * gateway's own report could still record a payment it took after all.
      */
     findCollection(input: FindCollectionInput): Promise<CollectionOutcome | null>;
 }

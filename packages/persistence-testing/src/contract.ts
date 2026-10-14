@@ -8557,17 +8557,24 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         // @requirement SC-PRIC-029
         test('a request that never reached the gateway is settled rather than sent again, where its invoice was paid meanwhile', async (t) => {
-            const account = await payable(t, 'tenant-pay-abandon', 2);
+            const account = await payable(t, 'tenant-pay-abandon', 3);
             if (!account) return;
             const { collections, payments, attempts, grosses, paymentOf } = account;
-            const [paid, owing] = attempts;
-            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), false, 'it owes');
+            const [paid, owing, reported] = attempts;
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), 'resend', 'it owes');
 
             await payments.recordPayment(paymentOf(paid!, 'pi_elsewhere', grosses[0]!));
+            // A report settles the third while its invoice still owes.
+            await collections.recordOutcome(reported!.id, FAILURE, PAID_AT);
 
-            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), true);
-            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), false, 'settled twice');
-            assert.equal(await collections.abandonPaid(owing!.id, PAID_AT), false);
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), 'abandoned');
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), 'settled', 'twice');
+            assert.equal(await collections.abandonPaid(owing!.id, PAID_AT), 'resend');
+            assert.equal(await collections.abandonPaid(reported!.id, PAID_AT), 'settled');
+            assert.equal(
+                (await collections.findById(reported!.id))?.failureCode,
+                FAILURE.gatewayCode,
+            );
             const settled = await collections.findById(paid!.id);
             assert.deepEqual(
                 [

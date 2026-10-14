@@ -2104,17 +2104,19 @@ gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
   withdrawn and the attempt succeeds, unless another of the invoice's is on its way or succeeded.
   An invoice that owes nothing — its total no more than what `subscription_invoice_settlements`
   holds against it — is collected no further: `startAttempt`, `plan` and `submitPlanned` write
-  nothing for it in its turn, `listCollectableAgain` leaves it out, and `abandonPaid` settles an
-  attempt whose request never reached the gateway as `COLLECTION_NOT_SENT_PAID` rather than let
-  the run send it again.
+  nothing for it in its turn, and `listCollectableAgain` leaves it out. `abandonPaid` decides, in
+  the same turn, what becomes of an attempt whose request never reached the gateway: settled as
+  `COLLECTION_NOT_SENT_PAID` where its invoice owes nothing (`'abandoned'`), sent again where it is
+  still `SUBMITTED` and the invoice owes (`'resend'`), nothing where a report settled it meanwhile
+  (`'settled'`).
 - **A persistence contract harness** gains `subscriberPaymentRepository`, or declares
   `gaps: ['subscriberPayments']`; the collection scenarios need it as well, since an attempt reads
   what the payments settle. Empty the five tables between scenarios with the invoices.
 - **An application that words refusals itself** adds `SUBSCRIBER_CREDIT_NOT_FOUND`,
   `SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT` and `SUBSCRIBER_PAYOUT_NOT_MADE_YET`, the payout's refusals. The
   audit log records `SUBSCRIPTION_INVOICE_PAYMENT_RECORDED`, `SUBSCRIBER_CREDIT_RECORDED`,
-  `SUBSCRIBER_REFUND_RECORDED`, `SUBSCRIBER_REFUND_GIVEN_BACK`, `SUBSCRIBER_REFUND_UNMATCHED` and
-  `SUBSCRIBER_CREDIT_PAID_OUT`.
+  `SUBSCRIBER_REFUND_RECORDED`, `SUBSCRIBER_REFUND_GIVEN_BACK`, `SUBSCRIBER_REFUND_UNMATCHED`,
+  `SUBSCRIBER_CREDIT_PAID_OUT` and `SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED`.
 
 ### The plan catalogue is read when it is asked for
 

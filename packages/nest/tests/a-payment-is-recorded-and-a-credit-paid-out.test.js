@@ -364,12 +364,48 @@ describe('an invoice a late payment covered', () => {
             ![...notices.rows.values()].some((row) => row.subject === retry.attemptKey),
             'the subscriber was told of a failure on a paid invoice',
         );
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED'), [
+            { number: invoice.number, attempt: 2 },
+        ]);
+        assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN').length, 0);
+    });
+
+    test('sends nothing again for a request a report settled while the gateway was asked', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { collect, collections, gateway, audits } = installation;
+        const deliver = (event) =>
+            installation.callbacks.handle(MAIN_ACCOUNT, signedCallback(event));
+        gateway.answers.push(new Error('the connection was refused'));
+        await collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        assert.equal(attempt?.status, 'SUBMITTED', 'the premise: on its way');
+        const failure = {
+            status: 'failed',
+            paymentRef: 'pi_meanwhile',
+            reason: 'insufficient-funds',
+            gatewayCode: 'insufficient_funds',
+        };
+        // The gateway's answer that it holds nothing crosses its report of
+        // the attempt, recorded before the run decides what to do.
+        const holdsNothing = gateway.findCollection.bind(gateway);
+        gateway.findCollection = async (input) => {
+            const answer = await holdsNothing(input);
+            await deliver(collectionReported('evt_meanwhile', attempt.attemptKey, failure));
+            return answer;
+        };
+        const sentBefore = gateway.collections.length;
+
+        const afterTheLease = sinceHeld(attempt, INVOICE_COLLECTION_LEASE_MS + 1);
+        clockAt(afterTheLease);
+        await collect(afterTheLease);
+
+        assert.equal(gateway.collections.length, sentBefore, 'a settled request was sent again');
         assert.deepEqual(
-            entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN').map(
-                (entry) => entry.because,
-            ),
-            ['paid'],
+            [collections.attempts[0].status, collections.attempts[0].failureCode],
+            ['FAILED', 'insufficient_funds'],
         );
+        assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED').length, 0);
     });
 
     test('has a planned attempt withdrawn rather than sent, naming why', async () => {

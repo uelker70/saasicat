@@ -235,6 +235,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'low',
             },
             {
+                key: 'SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED',
+                label: 'Invoice collection not sent again: its request never arrived, and the invoice was paid meanwhile',
+                severity: 'low',
+            },
+            {
                 key: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING',
                 label: 'Invoice not collected yet: no payment method, or no mandate, to collect it with',
                 severity: 'medium',

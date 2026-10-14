@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+    AbandonPaidOutcome,
     CalendarDay,
     CanonicalInvoiceCollectionRow,
     CollectionOutcome,
@@ -334,15 +335,16 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         });
     }
 
-    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome> {
         return this.inTurnOf(id, tx, async (db) => {
             const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
-            if (row?.status !== 'SUBMITTED' || (await owes(db, row.invoiceId))) return false;
+            if (row?.status !== 'SUBMITTED') return 'settled';
+            if (await owes(db, row.invoiceId)) return 'resend';
             const { count } = await db.subscriptionInvoiceCollection.updateMany({
                 where: { id, status: 'SUBMITTED' },
                 data: collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
             });
-            return count === 1;
+            return count === 1 ? 'abandoned' : 'settled';
         });
     }
 

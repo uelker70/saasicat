@@ -190,3 +190,13 @@ export const COLLECTION_NOT_SENT_PAID: CollectionOutcome = {
     reason: 'other',
     gatewayCode: 'saasicat_invoice_paid',
 };
+
+/**
+ * What `abandonPaid` found for an attempt whose request never reached the
+ * gateway: `abandoned` — its invoice owes nothing, and it is settled as
+ * `COLLECTION_NOT_SENT_PAID`; `resend` — it is still `SUBMITTED` and its
+ * invoice still owes, so the same request is sent again; `settled` — it is no
+ * longer `SUBMITTED`, a report having settled it meanwhile, and nothing is
+ * sent.
+ */
+export type AbandonPaidOutcome = 'abandoned' | 'resend' | 'settled';

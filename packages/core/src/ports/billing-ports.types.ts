@@ -31,6 +31,7 @@ import type {
 import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
 import type {
+    AbandonPaidOutcome,
     InvoiceCollectionRecord,
     NewInvoiceCollection,
     PlannedInvoiceCollection,
@@ -850,15 +851,16 @@ export interface InvoiceCollectionRepository {
     ): Promise<boolean>;
 
     /**
-     * Settles a `SUBMITTED` attempt whose request never reached the gateway as
-     * `COLLECTION_NOT_SENT_PAID`, at `at`, where its invoice owes nothing —
-     * read in the invoice's turn, which a payment is recorded in — and returns
-     * `true`; `false`, writing nothing, where the invoice still owes something
-     * or the attempt is not `SUBMITTED`. A run asks it before it sends such a
-     * request again, so a payment that arrived meanwhile is never charged a
-     * second time.
+     * Decides, in the invoice's turn — the one a payment is recorded in —,
+     * what becomes of a `SUBMITTED` attempt whose request never reached the
+     * gateway: where its invoice owes nothing it is settled as
+     * `COLLECTION_NOT_SENT_PAID` at `at` (`abandoned`); where it is still
+     * `SUBMITTED` and the invoice owes, it is to be sent again (`resend`);
+     * where a report settled it meanwhile, nothing is (`settled`). A run asks
+     * it before it sends such a request again, so a payment that arrived
+     * meanwhile is never charged a second time.
      */
-    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome>;
 
     /**
      * Takes on an attempt that is not settled for the run calling it at `at`,
