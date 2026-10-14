@@ -339,12 +339,19 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return this.inTurnOf(id, tx, async (db) => {
             const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
             if (row?.status !== 'SUBMITTED') return 'settled';
-            if (await owes(db, row.invoiceId)) return 'resend';
+            const resend = await owes(db, row.invoiceId);
+            // A failure or a pending answer is recorded outside the invoice's
+            // turn, so the status read above may be stale: the answer rests on
+            // a write conditioned on it, which waits for such a report still
+            // being recorded and then finds the attempt settled.
             const { count } = await db.subscriptionInvoiceCollection.updateMany({
                 where: { id, status: 'SUBMITTED' },
-                data: collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
+                data: resend
+                    ? { heldAt: at }
+                    : collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
             });
-            return count === 1 ? 'abandoned' : 'settled';
+            if (count !== 1) return 'settled';
+            return resend ? 'resend' : 'abandoned';
         });
     }
 

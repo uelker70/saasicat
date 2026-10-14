@@ -451,10 +451,18 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 .from(subscriptionInvoiceCollections)
                 .where(eq(subscriptionInvoiceCollections.id, id));
             if (row?.status !== 'SUBMITTED') return 'settled';
-            if (await owes(db, row.invoiceId)) return 'resend';
-            const abandoned = await db
+            const resend = await owes(db, row.invoiceId);
+            // A failure or a pending answer is recorded outside the invoice's
+            // turn, so the status read above may be stale: the answer rests on
+            // a write conditioned on it, which waits for such a report still
+            // being recorded and then finds the attempt settled.
+            const claimed = await db
                 .update(subscriptionInvoiceCollections)
-                .set(collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at))
+                .set(
+                    resend
+                        ? { heldAt: at }
+                        : collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
+                )
                 .where(
                     and(
                         eq(subscriptionInvoiceCollections.id, id),
@@ -462,7 +470,8 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                     ),
                 )
                 .returning({ id: subscriptionInvoiceCollections.id });
-            return abandoned.length === 1 ? 'abandoned' : 'settled';
+            if (claimed.length !== 1) return 'settled';
+            return resend ? 'resend' : 'abandoned';
         });
     }
 

@@ -827,7 +827,9 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         // invoice meanwhile — a late one for an earlier attempt —, nothing is
         // sent again, and nothing where a report settled the attempt in the
         // meantime; otherwise the same request, under the same key, cannot
-        // charge twice.
+        // charge twice. A report that arrives after the decision names a
+        // request the gateway holds, and a repeat under its key creates
+        // nothing new (`PaymentGateway.collect`).
         const decided = await this.collections.abandonPaid(attempt.id, new Date());
         if (decided === 'settled') return;
         if (decided === 'abandoned') {

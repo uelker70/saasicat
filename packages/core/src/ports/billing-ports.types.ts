@@ -855,9 +855,13 @@ export interface InvoiceCollectionRepository {
      * what becomes of a `SUBMITTED` attempt whose request never reached the
      * gateway: where its invoice owes nothing it is settled as
      * `COLLECTION_NOT_SENT_PAID` at `at` (`abandoned`); where it is still
-     * `SUBMITTED` and the invoice owes, it is to be sent again (`resend`);
-     * where a report settled it meanwhile, nothing is (`settled`). A run asks
-     * it before it sends such a request again, so a payment that arrived
+     * `SUBMITTED` and the invoice owes, it is to be sent again (`resend`),
+     * and is held from `at`; where a report settled it or put it on its way
+     * meanwhile, nothing is (`settled`). Both `abandoned` and `resend` rest on
+     * a write conditioned on the attempt still being `SUBMITTED`, so a report
+     * recorded outside the invoice's turn — a failure, an answer that it is on
+     * its way — while the run decides is found rather than overlooked. A run
+     * asks it before it sends such a request again, so a payment that arrived
      * meanwhile is never charged a second time.
      */
     abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome>;

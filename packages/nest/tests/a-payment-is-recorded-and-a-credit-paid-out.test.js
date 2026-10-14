@@ -408,6 +408,48 @@ describe('an invoice a late payment covered', () => {
         assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED').length, 0);
     });
 
+    test('records nothing twice for a report that arrives after the run decided to send again', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { collect, collections, gateway, audits, notices } = installation;
+        const deliver = (event) =>
+            installation.callbacks.handle(MAIN_ACCOUNT, signedCallback(event));
+        gateway.answers.push(new Error('the connection was refused'));
+        await collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        const failure = {
+            status: 'failed',
+            paymentRef: 'pi_after',
+            reason: 'insufficient-funds',
+            gatewayCode: 'insufficient_funds',
+        };
+        // The request reached the gateway after all, and its report arrives
+        // right after the run decided to send it again.
+        const decide = collections.abandonPaid.bind(collections);
+        collections.abandonPaid = async (id, at) => {
+            const decided = await decide(id, at);
+            gateway.held.set(attempt.attemptKey, failure);
+            await deliver(collectionReported('evt_after', attempt.attemptKey, failure));
+            return decided;
+        };
+
+        const afterTheLease = sinceHeld(attempt, INVOICE_COLLECTION_LEASE_MS + 1);
+        clockAt(afterTheLease);
+        await collect(afterTheLease);
+
+        assert.equal(gateway.collections.length, 2, 'the premise: the request was sent again');
+        assert.deepEqual(
+            [collections.attempts[0].status, collections.attempts[0].failureCode],
+            ['FAILED', 'insufficient_funds'],
+        );
+        assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_FAILED').length, 1);
+        assert.equal(
+            [...notices.rows.values()].filter((row) => row.subject === attempt.attemptKey).length,
+            1,
+            'the subscriber was told of one failure twice',
+        );
+    });
+
     test('has a planned attempt withdrawn rather than sent, naming why', async () => {
         const { collections, payments, gateway, audits, invoice, collect } =
             await anInvoiceToCollect();

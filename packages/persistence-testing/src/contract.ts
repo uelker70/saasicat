@@ -8589,6 +8589,36 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await collections.findById(owing!.id))?.status, 'SUBMITTED');
         });
 
+        // @requirement SC-PRIC-029
+        test('a failure still being recorded while the run decides about a lost request is found, and the request is not sent again', async (t) => {
+            const account = await payable(t, 'tenant-pay-abandon-race', 1);
+            if (!account) return;
+            const { collections, attempts } = account;
+            const [attempt] = attempts;
+            let release = () => {};
+            const holding = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // The gateway's failure is recorded — outside the invoice's turn,
+            // as every answer but a success is — and its transaction kept
+            // open while the run decides.
+            const reported = harness.adapter.transactionRunner.run(async (tx) => {
+                const settled = await collections.recordOutcome(attempt!.id, FAILURE, PAID_AT, tx);
+                await holding;
+                return settled;
+            });
+            await pause(100);
+            const decided = collections.abandonPaid(attempt!.id, PAID_AT);
+            await pause(200);
+            release();
+
+            assert.equal(await reported, true);
+            assert.equal(await decided, 'settled', 'a request the gateway answered was sent again');
+            assert.equal((await collections.findById(attempt!.id))?.status, 'FAILED');
+        });
+
         // @requirement SC-PRIC-083
         test('what a payment brings beyond what its invoice owes is a credit, one cent included', async (t) => {
             const account = await payable(t, 'tenant-pay-beyond', 2);

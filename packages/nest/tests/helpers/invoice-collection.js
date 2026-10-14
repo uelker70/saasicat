@@ -267,7 +267,10 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         async abandonPaid(id, at) {
             const attempt = attempts.find((each) => each.id === id);
             if (attempt?.status !== 'SUBMITTED') return 'settled';
-            if (owes(attempt.invoiceId)) return 'resend';
+            if (owes(attempt.invoiceId)) {
+                attempt.heldAt = at;
+                return 'resend';
+            }
             Object.assign(attempt, collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at));
             return 'abandoned';
         },

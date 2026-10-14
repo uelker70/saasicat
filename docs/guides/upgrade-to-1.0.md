@@ -2107,8 +2107,10 @@ gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
   nothing for it in its turn, and `listCollectableAgain` leaves it out. `abandonPaid` decides, in
   the same turn, what becomes of an attempt whose request never reached the gateway: settled as
   `COLLECTION_NOT_SENT_PAID` where its invoice owes nothing (`'abandoned'`), sent again where it is
-  still `SUBMITTED` and the invoice owes (`'resend'`), nothing where a report settled it meanwhile
-  (`'settled'`).
+  still `SUBMITTED` and the invoice owes (`'resend'`, holding it from that moment), nothing where a
+  report settled it or put it on its way meanwhile (`'settled'`). Both `'abandoned'` and `'resend'`
+  rest on a write conditioned on the attempt still being `SUBMITTED`, since a failure or a pending
+  answer is recorded outside the invoice's turn.
 - **A persistence contract harness** gains `subscriberPaymentRepository`, or declares
   `gaps: ['subscriberPayments']`; the collection scenarios need it as well, since an attempt reads
   what the payments settle. Empty the five tables between scenarios with the invoices.

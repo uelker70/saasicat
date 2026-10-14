@@ -2284,6 +2284,7 @@ export function createMemoryHarness() {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
             if (!row || row.status !== 'SUBMITTED') return 'settled';
             if (stillOwes(state.invoices.find((invoice) => invoice.id === row.invoiceId))) {
+                row.heldAt = at;
                 return 'resend';
             }
             Object.assign(row, collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at));

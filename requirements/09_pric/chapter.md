@@ -1311,6 +1311,7 @@ _Tested by:_
           on a paid invoice
         - has a retry whose request never reached the gateway settled rather than sent again
         - sends nothing again for a request a report settled while the gateway was asked
+        - records nothing twice for a report that arrives after the run decided to send again
         - has a planned attempt withdrawn rather than sent, naming why
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the payment methods invoices are collected with
