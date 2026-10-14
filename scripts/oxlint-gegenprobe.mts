@@ -27,7 +27,7 @@
 // The files exist only for the run, because the overrides' `files` hang on
 // paths. Started next to the lint step, that step would see them too.
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
@@ -37,10 +37,6 @@ const ROOT = join(import.meta.dirname, '..');
 const OXLINT = join(ROOT, 'node_modules', '.bin', 'oxlint');
 const CONFIGURATION = 'oxlint.correctness.config.mts';
 const FOLDER = '__oxlint_gegenprobe__';
-// Once an exemption breaks, the full run reports thousands of findings — some
-// 7,900 for `node:test` alone, several megabytes of JSON. `spawnSync`'s default
-// buffer (1 MiB) would stop with ENOBUFS instead of naming the deviation.
-const MAX_OUTPUT = 256 * 1024 * 1024;
 
 const FLOATING_PROMISE = 'typescript(no-floating-promises)';
 const UNBOUND_METHOD = 'typescript(unbound-method)';
@@ -255,14 +251,34 @@ function foldersOf(probes: readonly Probe[]): string[] {
     return [...new Set(probes.map((probe) => dirname(probe.file)))];
 }
 
-function lint(): Report[] {
-    const run = spawnSync(OXLINT, ['-c', CONFIGURATION, '--format', 'json'], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        maxBuffer: MAX_OUTPUT,
+let runningOxlint: ChildProcess | undefined;
+
+/**
+ * The JSON output of a full run. Once an exemption breaks, that is thousands of
+ * findings, several megabytes; it is read as a stream without a ceiling.
+ */
+function oxlintOutput(): Promise<string> {
+    return new Promise((fulfil, reject) => {
+        const child = spawn(OXLINT, ['-c', CONFIGURATION, '--format', 'json'], {
+            cwd: ROOT,
+            stdio: ['ignore', 'pipe', 'inherit'],
+        });
+        runningOxlint = child;
+        let output = '';
+        child.stdout.setEncoding('utf8');
+        child.stdout.on('data', (part: string) => {
+            output += part;
+        });
+        child.on('error', reject);
+        child.on('close', (_code, signal) => {
+            runningOxlint = undefined;
+            if (signal === null) {
+                fulfil(output);
+            } else {
+                reject(new Error(`oxlint ended with ${signal}; the guard has no result.`));
+            }
+        });
     });
-    if (run.error !== undefined) throw run.error;
-    return reportsFrom(run.stdout);
 }
 
 function cleanUp(): void {
@@ -284,6 +300,48 @@ function deviations(reports: readonly Report[]): string[] {
     ]);
 }
 
+// A signal is passed on to oxlint, a second one ends oxlint hard, `finally`
+// removes the probes, and then the signal ends this script itself — so a
+// calling shell sees an end by the signal, and a loop around this script stops.
+// Without a handler of its own, Node would end the process at once, the probes
+// would stay in the tree, and the next build or `git add -A` would pick them
+// up. With a handler but oxlint started synchronously, Node never calls the
+// handler during the run: a signal to this script alone would let oxlint finish
+// and end in success.
+let abort: NodeJS.Signals | undefined;
+const SIGNALS = ['SIGINT', 'SIGTERM'] as const;
+for (const signal of SIGNALS) {
+    process.on(signal, () => {
+        if (abort === undefined) {
+            abort = signal;
+            runningOxlint?.kill(signal);
+        } else {
+            runningOxlint?.kill('SIGKILL');
+        }
+    });
+}
+
+/**
+ * Takes a signal that came during synchronous work, then hands the signals
+ * back to the operating system. libuv reads the signal pipe only in the poll
+ * phase; an immediate created in the poll phase still runs in the same turn,
+ * so only two in a row enclose a poll phase for sure — on the success path as
+ * on the failure path. Without handlers, any later signal ends the process at
+ * once, without the event loop. Lost is only a signal in the microseconds
+ * between that poll phase and removing the handlers; the probes are gone by
+ * then.
+ */
+async function handSignalsBack(): Promise<void> {
+    await new Promise((proceed) => setImmediate(proceed));
+    await new Promise((proceed) => setImmediate(proceed));
+    for (const signal of SIGNALS) {
+        process.removeAllListeners(signal);
+    }
+    if (abort !== undefined) {
+        process.kill(process.pid, abort);
+    }
+}
+
 cleanUp();
 let reports: Report[];
 try {
@@ -291,9 +349,10 @@ try {
         mkdirSync(join(ROOT, dirname(probe.file)), { recursive: true });
         writeFileSync(join(ROOT, probe.file), probe.content);
     }
-    reports = lint();
+    reports = reportsFrom(await oxlintOutput());
 } finally {
     cleanUp();
+    await handSignalsBack();
 }
 
 const open = deviations(reports);
@@ -305,11 +364,12 @@ if (open.length > 0) {
             ' refuses a tsconfig, or the packages are not built — or an exemption of the' +
             ' configuration no longer holds or reaches too far. Its comments say which and why.',
     );
-    process.exit(1);
+    process.exitCode = 1;
+} else {
+    const count = (field: 'expected' | 'forbidden'): number =>
+        PROBES.reduce((sum, probe) => sum + probe[field].length, 0);
+    console.log(
+        `OK — ${PROBES.length} probes; expected reports present: ${count('expected')}, ` +
+            `exempted ones absent: ${count('forbidden')}.`,
+    );
 }
-const count = (field: 'expected' | 'forbidden'): number =>
-    PROBES.reduce((sum, probe) => sum + probe[field].length, 0);
-console.log(
-    `OK — ${PROBES.length} probes; expected reports present: ${count('expected')}, ` +
-        `exempted ones absent: ${count('forbidden')}.`,
-);
