@@ -262,6 +262,9 @@ function lint(): Report[] {
         maxBuffer: MAX_OUTPUT,
     });
     if (run.error !== undefined) throw run.error;
+    if (run.signal !== null) {
+        throw new Error(`oxlint ended with ${run.signal}; the guard has no result.`);
+    }
     return reportsFrom(run.stdout);
 }
 
@@ -282,6 +285,16 @@ function deviations(reports: readonly Report[]): string[] {
             .filter((rule) => reported(probe, rule))
             .map((rule) => `${probe.file}: ${rule} does not belong here`),
     ]);
+}
+
+// Without a handler of its own, a signal ends the process at once, even inside
+// `spawnSync`, and `finally` does not run: the probes would stay in the tree,
+// and the next build or `git add -A` would pick them up. With one registered,
+// the synchronous run finishes including `finally`, and Node does not call the
+// handler afterwards. When Ctrl+C hits the whole process group, oxlint ends
+// without a result; `lint` reports that.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(signal, () => undefined);
 }
 
 cleanUp();
