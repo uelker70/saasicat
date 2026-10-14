@@ -2055,10 +2055,12 @@ replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC
   and the payment method scenarios need — one of its reads joins `subscriber_payment_methods`; a
   harness without it declares `gaps: ['invoiceCollections']`. Empty
   `subscription_invoice_collections` between scenarios with the invoices.
-- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD`, which
-  the audit log records under `SUBSCRIPTION_INVOICE_COLLECTION_WAITING` for an invoice whose
-  subscriber has no payment method in use. `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` records a failed
-  collection with its reason; `…_PLANNED`, `…_ANNOUNCED` and `…_WITHDRAWN` record what follows.
+- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` and
+  `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`, which the audit log records under
+  `SUBSCRIPTION_INVOICE_COLLECTION_WAITING` for an invoice whose subscriber has no payment method in
+  use, and for a direct debit that waits until the subscriber was told of the failure before it.
+  `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` records a failed collection with its reason;
+  `…_PLANNED`, `…_ANNOUNCED` and `…_WITHDRAWN` record what follows.
 
 ### The plan catalogue is read when it is asked for
 

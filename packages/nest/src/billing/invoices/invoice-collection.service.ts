@@ -148,6 +148,10 @@ type Waiting =
     | {
           code: typeof INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_MANDATE_MISSING;
           params: { paymentMethodId: string };
+      }
+    | {
+          code: typeof INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD;
+          params: { attemptKey: string };
       };
 
 /** Why an attempt was planned rather than sent at once. */
@@ -319,15 +323,18 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 (page) => this.collections.listDue(today, page),
                 (invoiceId) => this.collectOne(invoiceId, today, run),
             );
+            // A replacement is planned before the failures are followed up, so a
+            // failure whose plan was withdrawn is told from its replacement in
+            // the same run.
+            await this.eachPage(
+                (page) => this.collections.listCollectableAgain(page),
+                (invoiceId) => this.planAgain(invoiceId, today, run),
+            );
             // After the first collections, so a failure among them is told,
             // and what follows it planned, in the same run.
             await this.eachPage(
                 (page) => this.collections.listToFollowUp(page),
                 (id) => this.followUpFailure(id, today, run),
-            );
-            await this.eachPage(
-                (page) => this.collections.listCollectableAgain(page),
-                (invoiceId) => this.planAgain(invoiceId, today, run),
             );
             // Before what is planned, so the subscriber hears of a failure
             // before the direct debit announced again after it.
@@ -420,6 +427,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (failed?.status !== 'FAILED' || failed.followedUpAt !== null) return;
         const invoice = await this.invoiceOf(failed.invoiceId);
         const next = await this.attemptAfter(invoice, failed, today, run);
+        // Not settled yet: followed up again once the replacement is planned.
+        if (next === undefined) return;
         const notice: CollectionFailedNotice = {
             kind: 'collection-failed',
             ...aboutInvoice(invoice),
@@ -443,22 +452,32 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     }
 
     /**
-     * The attempt that follows `failed`: the one already there, or the one
-     * planned now with the payment method in use, or `null` where none is
-     * made until the payment method is replaced.
+     * The attempt that follows `failed`: the first one after it that still
+     * stands — planned by an earlier run, or now with the payment method in
+     * use — or `null` where none is made until the payment method is replaced.
+     * `undefined` where that is not settled yet: the attempt after it was
+     * planned with a payment method no longer in use, or withdrawn for that,
+     * and the one in use is planned in its place by a run to come.
      */
     private async attemptAfter(
         invoice: SubscriptionInvoiceRecord,
         failed: InvoiceCollectionRecord,
         today: CalendarDay,
         run: InvoiceCollectionRun,
-    ): Promise<InvoiceCollectionRecord | null> {
-        const following = (attempts: readonly InvoiceCollectionRecord[]) =>
-            attempts.find((each) => each.attempt === failed.attempt + 1) ?? null;
+    ): Promise<InvoiceCollectionRecord | null | undefined> {
+        const later = (attempts: readonly InvoiceCollectionRecord[]) =>
+            attempts.filter((each) => each.attempt > failed.attempt);
         const attempts = await this.collections.listByInvoice(invoice.id);
-        const existing = following(attempts);
-        if (existing) return existing;
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        const after = later(attempts);
+        const standing = after.find((each) => each.status !== 'WITHDRAWN');
+        if (
+            standing &&
+            (standing.status !== 'SCHEDULED' || standing.paymentMethodId === method?.id)
+        ) {
+            return standing;
+        }
+        if (standing || after.length > 0) return method ? undefined : null;
         const decided =
             method && this.nextAfter(failed, attempts, method, failureOf(failed).failedAt, today);
         if (!method || !decided) return null;
@@ -470,8 +489,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             decided.because,
             run,
         );
-        // Where another run planned it first, its plan is the one that follows.
-        return planned ?? following(await this.collections.listByInvoice(invoice.id));
+        // Where another run planned first, the next run follows its plan up.
+        return planned ?? undefined;
     }
 
     /**
@@ -620,8 +639,25 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             );
             return;
         }
+        // The failures first, then what was told: a failure is recorded before
+        // the plan this announces, so every one is read, and a notice recorded
+        // between the two reads is among what was told.
+        const failures = (await this.collections.listByInvoice(invoice.id)).filter(
+            (each) => each.status === 'FAILED',
+        );
         const told = await this.notices!.listForSubscription(invoice.subscriptionId);
-        if (await this.failureUntold(invoice, told)) return;
+        const untold = untoldFailure(failures, told);
+        if (untold) {
+            await this.recordWaiting(
+                invoice,
+                {
+                    code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD,
+                    params: { attemptKey: untold.attemptKey },
+                },
+                run,
+            );
+            return;
+        }
         const notice: CollectionAnnouncedNotice = {
             kind: 'collection-announced',
             ...aboutInvoice(invoice),
@@ -648,29 +684,6 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (!sent?.deliveredAt) return;
         const collectOn = toCollectionAnnouncedNotice(sent.content, sent.id).collectOn;
         await this.recordAnnounced(attempt, invoice, collectOn, sent.deliveredAt, run);
-    }
-
-    /**
-     * Whether a failure of the invoice has not reached the subscriber yet: not
-     * followed up, so its notice is not even recorded, or recorded and not
-     * delivered. A direct debit announced again waits for it, so the subscriber
-     * hears of the failure before of the debit that follows it.
-     */
-    private async failureUntold(
-        invoice: SubscriptionInvoiceRecord,
-        told: readonly SubscriptionNoticeRecord[],
-    ): Promise<boolean> {
-        const failures = (await this.collections.listByInvoice(invoice.id)).filter(
-            (each) => each.status === 'FAILED',
-        );
-        if (failures.some((each) => each.followedUpAt === null)) return true;
-        const keys = new Set(failures.map((each) => each.attemptKey));
-        return told.some(
-            (record) =>
-                record.kind === 'collection-failed' &&
-                keys.has(record.subject) &&
-                record.deliveredAt === null,
-        );
     }
 
     private async recordAnnounced(
@@ -975,6 +988,24 @@ function aboutInvoice(invoice: SubscriptionInvoiceRecord) {
         amount: invoice.totalGross,
         currency: invoice.currency,
     };
+}
+
+/**
+ * The first of `failures` the subscriber has not been told of: one whose
+ * notice is not delivered, or not recorded at all. A direct debit announced
+ * again waits for it, so the subscriber hears of the failure before of the
+ * debit that follows it.
+ */
+function untoldFailure(
+    failures: readonly InvoiceCollectionRecord[],
+    told: readonly SubscriptionNoticeRecord[],
+): InvoiceCollectionRecord | null {
+    const delivered = new Set(
+        told
+            .filter((record) => record.kind === 'collection-failed' && record.deliveredAt !== null)
+            .map((record) => record.subject),
+    );
+    return failures.find((each) => !delivered.has(each.attemptKey)) ?? null;
 }
 
 /** The day a planned attempt is collected from, which its read refuses to be without. */

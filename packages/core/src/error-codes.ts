@@ -690,6 +690,12 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD: 'SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD',
     /**
+     * A direct debit announced again after a failed collection (`attemptKey`)
+     * waits until the subscriber has been told of that failure
+     * (`SC-PRIC-080`).
+     */
+    SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD: 'SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD',
+    /**
      * A file of the invoice's document has another checksum than the one
      * recorded or archived for it (`invoiceId`, `recorded`, `rendered`), and
      * the first stays. The run takes the archived file as the one issued, or —

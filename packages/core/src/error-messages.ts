@@ -333,6 +333,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The direct debit {paymentMethodId} names no mandate reference, which has to be announced before it is debited. The invoice waits until the payment method is replaced.',
     SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD:
         'The subscriber {subscriberId} has no payment method in use. The invoice is collected once one is.',
+    SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD:
+        'The direct debit is announced once the subscriber has been told that collection {attemptKey} failed.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:

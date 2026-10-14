@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 268 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 269 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -275,6 +275,7 @@ Invoices issued from the charge journal.
 | `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`     | The archived document of invoice {invoiceId} does not match the checksum recorded when it was rendered, and is not handed out.                                                                  |
 | `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED` | The document of invoice {invoiceId} is not archived yet.                                                                                                                                        |
 | `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED`      | The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.                                                           |
+| `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`      | The direct debit is announced once the subscriber has been told that collection {attemptKey} failed.                                                                                            |
 | `SUBSCRIPTION_INVOICE_MANDATE_MISSING`       | The direct debit {paymentMethodId} names no mandate reference, which has to be announced before it is debited. The invoice waits until the payment method is replaced.                          |
 | `SUBSCRIPTION_INVOICE_NOT_FOUND`             | No invoice '{invoiceId}'.                                                                                                                                                                       |
 | `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`      | Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.                                                                                  |

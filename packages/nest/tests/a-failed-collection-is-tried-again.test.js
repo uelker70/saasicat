@@ -501,6 +501,38 @@ describe('what the subscriber is told of a failure', () => {
         assert.equal(collections.attempts.length, 2, 'what follows was planned twice');
     });
 
+    test('a plan whose card was replaced before the failure was told is not told: its replacement is, and charged', async () => {
+        quietLog();
+        const { collect, gateway, collections, mail, notices, paymentMethods, subscriber, method } =
+            await anInvoiceToCollect();
+        gateway.answers.push(FUNDS_SHORT);
+        const record = notices.record;
+        notices.record = async () => {
+            notices.record = record;
+            throw new Error('database unreachable');
+        };
+        await collect(FIRST_RUN);
+        const { method: card } = await paymentMethods.recordConfirmed(
+            paymentMethodOf(subscriber.id, 'card', {
+                paymentMethodRef: 'pm_card_new',
+                confirmedAt: new Date('2026-02-01T05:35:00.000Z'),
+            }),
+        );
+
+        await collect(clockAt(after(FIRST_RUN, { minutes: 15 })));
+        await collect(clockAt(after(FIRST_RUN, { minutes: 30 })));
+
+        assert.deepEqual(attemptsOf(collections), [
+            [1, 'FAILED', method.paymentMethodRef],
+            [2, 'WITHDRAWN', method.paymentMethodRef],
+            [3, 'SUCCEEDED', card.paymentMethodRef],
+        ]);
+        assert.deepEqual(
+            toldOf(mail, 'collection-failed').map((each) => each.next),
+            [{ action: 'charged-again', on: '2026-02-01' }],
+        );
+    });
+
     test('a notice that cannot be read holds up no planned collection', async () => {
         quietLog();
         const { collect, gateway, notices } = await anInvoiceToCollect();
@@ -570,16 +602,24 @@ describe('a failure the subscriber has not heard of yet', () => {
     const COLLECTED = new Date('2026-02-15T08:00:00.000Z');
     clockFrom(COLLECTED);
 
-    test('holds back the direct debit announced after it until it is told', async () => {
+    test('holds back the direct debit announced after it until it is told, and the audit log says why', async () => {
         quietLog();
-        const { collect, gateway, mail, collections } = await anInvoiceToCollect('sepa_debit', {
-            mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }),
-        });
+        const { collect, gateway, mail, collections, audits, invoice } = await anInvoiceToCollect(
+            'sepa_debit',
+            { mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }) },
+        );
         gateway.answers.push(FUNDS_SHORT);
 
         await collect(COLLECTED);
         assert.deepEqual(mail.told, [], 'the debit was announced before the failure was told');
         assert.equal(collections.attempts[1].announcedAt, null);
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING'), [
+            {
+                number: invoice.number,
+                code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD,
+                params: { attemptKey: collections.attempts[0].attemptKey },
+            },
+        ]);
 
         await collect(clockAt(after(COLLECTED, { minutes: 15 })));
 
@@ -588,6 +628,24 @@ describe('a failure the subscriber has not heard of yet', () => {
             ['collection-failed', 'collection-announced'],
         );
         assert.equal(collections.attempts[1].collectOn, '2026-03-01');
+    });
+
+    test('never announces a debit after a failure nobody was told of, even one marked followed up', async () => {
+        quietLog();
+        const { collect, gateway, mail, collections, notices } = await anInvoiceToCollect(
+            'sepa_debit',
+            { mail: aMailbox({ tellFailures: 1, tellFailing: 'collection-failed' }) },
+        );
+        gateway.answers.push(FUNDS_SHORT);
+        await collect(COLLECTED);
+        assert.ok(collections.attempts[0].followedUpAt, 'the failure was not followed up');
+        // What a run reads where its snapshot of the notices predates the record.
+        notices.rows.clear();
+
+        await collect(clockAt(after(COLLECTED, { minutes: 15 })));
+
+        assert.deepEqual(toldOf(mail, 'collection-announced'), []);
+        assert.equal(collections.attempts[1].announcedAt, null);
     });
 
     test('holds back a direct debit planned by a run that stopped before it recorded the failure', async () => {

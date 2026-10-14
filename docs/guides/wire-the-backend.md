@@ -1178,7 +1178,9 @@ stamps every hold.
   announcement (`…_ANNOUNCED`) and each plan withdrawn because its payment method was replaced
   before its day (`…_WITHDRAWN`). An invoice without a payment method in use, or whose direct debit
   names no mandate reference, waits (`…_WAITING` with `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` or
-  `SUBSCRIPTION_INVOICE_MANDATE_MISSING`, once per process).
+  `SUBSCRIPTION_INVOICE_MANDATE_MISSING`, once per process), and so does a direct debit announced
+  again while the subscriber has not been told of the failure before it
+  (`SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`).
 - **A failure** is recorded with its reason and the gateway's code, and the audit log records
   `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` once (`SC-PRIC-080`). The subscriber is told, at their
   invoice email, with what follows. Where the reason can pass — funds short, a refusal without a

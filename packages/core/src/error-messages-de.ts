@@ -337,6 +337,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Lastschrift {paymentMethodId} nennt keine Mandatsreferenz, die vor dem Einzug angekündigt werden muss. Die Rechnung wartet, bis die Zahlungsart ersetzt ist.',
     SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD:
         'Der Abonnent {subscriberId} hat keine Zahlungsart in Gebrauch. Die Rechnung wird eingezogen, sobald er eine hat.',
+    SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD:
+        'Die Lastschrift wird angekündigt, sobald dem Abonnenten mitgeteilt ist, dass der Einzug {attemptKey} gescheitert ist.',
     SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED:
         'Das Dokument der Rechnung {invoiceId} weicht vom festgehaltenen oder archivierten ab ({rendered} statt {recorded}); das erste bleibt, und der nächste Lauf klärt, welches die Rechnung behält.',
     SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED:

@@ -45,7 +45,9 @@ a `CollectionFailedNotice` or a `CollectionAnnouncedNotice`. Each is recorded in
 `persistence.tenantBilling.subscriptionNotices` for
 `chargeJournal.invoices.notices`, which collecting now requires.
 `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` replaces
-`SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`, and
+`SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`,
+`SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD` names a debit that waits for the failure
+before it to be told, and
 `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE` is gone: neither case waits any more.
 `1.0-an-invoice-is-collected.postgres.sql` and fragment 23 carry the planned
 attempts' columns; the migration adds them, and replaces the partial index, on

@@ -1700,12 +1700,16 @@ _Tested by:_
     - what the subscriber is told of a failure
         - a run that stops after it planned records the notice the next time, saying what was
           planned, once
+        - a plan whose card was replaced before the failure was told is not told: its replacement
+          is, and charged
         - a notice that cannot be read holds up no planned collection
         - is sent by the next run where the mail refused it
         - a run that stops before it planned what follows plans it the next time, from the day it
           failed, and tells it once
     - a failure the subscriber has not heard of yet
-        - holds back the direct debit announced after it until it is told
+        - holds back the direct debit announced after it until it is told, and the audit log says
+          why
+        - never announces a debit after a failure nobody was told of, even one marked followed up
         - holds back a direct debit planned by a run that stopped before it recorded the failure
     - runs side by side
         - two runs that both see a failure tell it once and plan one second charge
