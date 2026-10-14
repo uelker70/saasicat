@@ -4,8 +4,8 @@
 
 The Stripe side of a SaaSiCat gateway account: one class behind the
 `PaymentGateway` port, so a sign-up or a tenant takes a payment method in
-Stripe's own form and SaaSiCat keeps nothing but Stripe's reference to it with
-the masked details.
+Stripe's own form, SaaSiCat keeps nothing but Stripe's reference to it with
+the masked details, and an invoice SaaSiCat issued is collected with it.
 
 - **Stripe Checkout in `setup` mode** for the payment methods the account
   offers — `card` and `sepa_debit`. Nothing is charged: the session sets up a
@@ -26,6 +26,26 @@ the masked details.
   against it, or `canceled` — become a setup that failed, so the sign-up can try
   again. An intent asking for a payment method with nothing recorded against it
   is one nobody has confirmed yet, and is asked about again rather than reported.
+- **An invoice is collected as a payment intent confirmed off session** for the
+  payment method the invoice announced, under the attempt's key as Stripe's
+  idempotency key and in its metadata: a repeat of the request within Stripe's
+  day of keeping the key gets the same intent, and the platform finds the
+  attempt among the customer's intents by that key after it, before it sends
+  anything again. A direct debit uses the mandate its setup created, and stays
+  on its way while it is `processing`. A declined card or a debit the bank
+  refused is answered as a failure with its reason and Stripe's code — a
+  card's decline code, which names why its bank refused it —;
+  `authentication_required` is a failure too, since nobody present can confirm
+  it, and so is a request Stripe refused as it stands (`400`, `404`). A
+  conflict with a request still running under the same key, a lock that timed
+  out, a rate limit and an error of Stripe's own are raised, whichever class
+  the library gives them, and the attempt is asked about after the lease. A
+  currency Stripe does not take to the cent, such as `JPY` or `ISK`, is
+  refused when the gateway is built: SaaSiCat computes every amount to the
+  cent. An invoice in another currency than the account's is refused without a
+  request, as `saasicat_other_currency`. With Stripe's creditor identifier,
+  Stripe sends its own notice of each direct debit when the intent is created;
+  the invoice is SaaSiCat's announcement, the lead time before.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
@@ -130,9 +150,18 @@ hand.
 `STRIPE_SECRET_KEY` does: no API creates an API key, so somebody reads it off
 Stripe's dashboard. Stripe recommends a **restricted key** (`rk_…`) over a secret
 one. What this adapter touches, so you can grant that and no more: customers
-(write), checkout sessions (write), setup intents (read) — and the setup intent is
-read with `payment_method` and `mandate` expanded, which Stripe lists as their own
-permissions.
+(write), checkout sessions (write), setup intents (read), payment intents (write)
+— and the setup intent is read with `payment_method` and `mandate` expanded, and
+a payment intent with `latest_charge`, which Stripe lists as their own
+permissions (charges, read).
+
+A key that may not create or list payment intents fails every collection, each
+counted as unanswered and asked about again after the lease — which the key is
+refused as well —, every quarter of an hour, until the grant is corrected.
+Nothing is charged meanwhile. Exercise it once against the test account by collecting an invoice
+by card and one by direct debit. Without the `latest_charge` expansion a direct
+debit the bank refused names the payment intent's last error instead of the
+charge's own failure code, which can be less precise about why.
 
 Creating the webhook endpoint through the API, as the end of this section
 describes, needs its own write permission beside those.
@@ -271,14 +300,14 @@ two event types this adapter reads — is scriptable end to end.
 
 ## What this is not
 
-Not a billing integration. It sets up a payment method and reports what Stripe
-confirmed; it draws no invoice, charges nothing, and knows no prices. It also
-takes only payment methods that are set up in one go — a mandate a bank rejects
-days later is not reported here, and arrives with the collection that step 4 of
-[#276](https://github.com/uelker70/saasicat/issues/276) brings. Stripe
-Billing, Stripe's own invoices, subscriptions, tax and customer portal stay
-unused — SaaSiCat keeps the commercial record itself, and the gateway holds the
-means of payment. It is also not a place for keys: the secret key and the
+Not a billing integration. It sets up a payment method, reports what Stripe
+confirmed, and collects an invoice SaaSiCat issued when the platform asks; it
+draws no invoice and knows no prices. It also takes only payment methods that
+are set up in one go — a mandate a bank rejects days later is not reported
+here, and shows as the failure of the first debit collected under it. Stripe
+Billing, Stripe's own invoices, subscriptions, Smart Retries, tax and customer
+portal stay unused — SaaSiCat keeps the commercial record itself, and the
+gateway holds the means of payment. It is also not a place for keys: the secret key and the
 webhook secret come from the environment, because `config/saas.yaml` refuses to
 carry a credential.
 

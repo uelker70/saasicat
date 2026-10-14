@@ -166,6 +166,12 @@ export {
     type InvoiceDocumentModuleOptions,
 } from './invoices/invoice-document.module.js';
 export {
+    INVOICE_COLLECTION_TIMEOUT_MS,
+    InvoiceCollectionService,
+    type InvoiceCollectionRun,
+} from './invoices/invoice-collection.service.js';
+export { INVOICE_COLLECTION_REPOSITORY_TOKEN } from './invoices/invoice-collection.tokens.js';
+export {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,
     INVOICE_RENDERER_TOKEN,

@@ -128,6 +128,16 @@ describe('the payment methods invoices are collected with', () => {
             /the invoices cannot read the payment methods they are collected with/,
         );
     });
+
+    // @requirement SC-PRIC-079 — An invoice is collected once it has reached the subscriber
+    test('refuse the start where the file names payment accounts and nothing collects the invoices', async () => {
+        const message = await refusal(installation({ payments: 'uncollected' }));
+
+        assert.match(
+            message,
+            /invoices announce how they are collected, and nothing collects them/,
+        );
+    });
 });
 
 // @requirement SC-PRIC-072 — Invoice numbers run without gaps in one range per issuer, restarting each year

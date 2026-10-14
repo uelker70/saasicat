@@ -30,6 +30,9 @@ import type {
 } from '../subscriber.types.js';
 import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
+import type { InvoiceCollectionRecord, NewInvoiceCollection } from '../invoice-collection.types.js';
+import type { CollectionOutcome } from '../payment-gateway.types.js';
+import type { CalendarDay } from '../zoned-day.js';
 import type {
     NewSubscriptionInvoice,
     SubscriptionInvoiceRecord,
@@ -688,6 +691,91 @@ export interface SubscriptionInvoiceRepository {
         page: { limit: number; after?: string },
         tx?: TransactionContext,
     ): Promise<string[]>;
+}
+
+/**
+ * The attempts to collect an invoice through its payment gateway.
+ *
+ * An invoice has at most one attempt that is not settled, and none after one
+ * succeeded: the database holds that (`sql/constraints.postgres.sql`), and the
+ * turn holds it against two runs that start at once. Every write that settles
+ * or takes on an attempt names the state it expects, so of two runs one wins
+ * and the other is told.
+ *
+ * Platform-wide: the run reads across tenants inside `RlsBypassPort`.
+ */
+export interface InvoiceCollectionRepository {
+    /**
+     * The invoices to collect on `today`, by id, at most `limit`, after `after`
+     * where it is given: issued with a payment method to collect with, handed
+     * to the mail — so their announcement has reached the subscriber — with no
+     * collection date or one on or before `today`, and no attempt yet.
+     */
+    listDue(
+        today: CalendarDay,
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * Starts the invoice's next attempt in its turn and returns it, written as
+     * `SUBMITTED` before its request leaves; `null`, writing nothing, where an
+     * attempt of it is not settled or one succeeded. The turn is the invoice's
+     * own row, locked for the transaction — the chain of one invoice, which a
+     * cancellation's replacement joins — so a cancellation never meets an
+     * attempt about to be sent without knowing it (`SC-PRIC-036`). The attempt
+     * is numbered after the invoice's last, and its key is
+     * `collectionAttemptKey(invoiceId, attempt)`.
+     */
+    startAttempt(
+        attempt: NewInvoiceCollection,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null>;
+
+    /**
+     * Records what became of an attempt that is not settled — `SUBMITTED` or
+     * `PENDING` — and returns `true`; `false`, writing nothing, where it is
+     * settled already. `PENDING` stays open; `SUCCEEDED` and `FAILED` settle it
+     * at `at`.
+     */
+    recordOutcome(
+        id: string,
+        outcome: CollectionOutcome,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Takes on an attempt that is not settled for the run calling it at `at`,
+     * where no run took it on since `heldBefore`, and returns `true`; of two
+     * concurrent calls exactly one does.
+     */
+    hold(id: string, heldBefore: Date, at: Date, tx?: TransactionContext): Promise<boolean>;
+
+    /**
+     * The attempts a run should take on again, by id and page as above:
+     * `SUBMITTED` ones no run took on since `submittedBefore` — their answer
+     * was lost —, and `PENDING` ones none took on since `pendingBefore`.
+     */
+    listUnsettled(
+        before: { submittedBefore: Date; pendingBefore: Date },
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    findById(id: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null>;
+
+    /** Every attempt of one invoice, the first first. */
+    listByInvoice(invoiceId: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord[]>;
+
+    /**
+     * Every gateway account an attempt that is not settled was sent to, each
+     * once — the accounts that have to stay configured until their attempts
+     * settle, since only the account can say what became of them
+     * (`SC-PRIC-030`). Platform-wide: a start asks it before anything is
+     * served, through `RlsBypassPort`.
+     */
+    accountsInUse(tx?: TransactionContext): Promise<string[]>;
 }
 
 // -----------------------------------------------------------------------------

@@ -2,21 +2,24 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../../maintenance/maintenance.service.js';
+import { InvoiceCollectionService } from './invoice-collection.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 import { SubscriptionInvoiceService } from './subscription-invoice.service.js';
 
 /**
  * Issues the invoices the charge journal is owed, every quarter of an hour,
- * then archives their documents and mails them, so a charge is invoiced and
- * sent within one of being written, and whatever was held back goes on within
- * one of being put right.
+ * then archives their documents, mails them, and collects the ones mailed, so
+ * a charge is invoiced, sent and collected within one of being written, and
+ * whatever was held back goes on within one of being put right.
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.chargeJournal.invoices.includeCron: false` — for a CLI boot,
  * or an application that calls `SubscriptionInvoiceService.issueDue`, then
- * `InvoiceDocumentService.archiveDue` and `deliverDue`, from a scheduler of its
- * own. An invoice is mailed only once its document is archived, so a scheduler
- * that leaves out `archiveDue` sends nothing.
+ * `InvoiceDocumentService.archiveDue` and `deliverDue`, then
+ * `InvoiceCollectionService.collectDue`, from a scheduler of its own. An
+ * invoice is mailed only once its document is archived, and collected only
+ * once it is mailed, so a scheduler that leaves out a step stops everything
+ * after it.
  */
 @Injectable()
 export class SubscriptionInvoiceCron {
@@ -34,6 +37,10 @@ export class SubscriptionInvoiceCron {
         @Optional()
         @Inject(InvoiceDocumentService)
         private readonly documents: InvoiceDocumentService | null = null,
+        // Present where invoices are collected through a gateway.
+        @Optional()
+        @Inject(InvoiceCollectionService)
+        private readonly collections: InvoiceCollectionService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'subscriptionInvoices' })
@@ -51,7 +58,8 @@ export class SubscriptionInvoiceCron {
         try {
             // Each step reads the clock as it starts, and each holds up none of
             // the others: an invoice issued now is archived by the step after,
-            // and one archived then is mailed by the last.
+            // one archived then is mailed by the next, and one mailed then is
+            // collected by the last.
             const issued = await this.step('Invoices', () => this.invoices.issueDue(new Date()));
             if (issued && (issued.issued > 0 || issued.held > 0 || issued.failed > 0)) {
                 this.logger.log(
@@ -76,6 +84,16 @@ export class SubscriptionInvoiceCron {
                 this.logger.log(
                     `Invoice mail: ${delivered.delivered} sent, ${delivered.held} held back, ` +
                         `${delivered.failed} to try again.`,
+                );
+            }
+            const collected = await this.step('Invoice collection', () =>
+                this.collections?.collectDue(new Date()),
+            );
+            if (collected && Object.values(collected).some((count) => count > 0)) {
+                this.logger.log(
+                    `Invoice collection: ${collected.collected} collected, ${collected.pending} on ` +
+                        `their way, ${collected.failed} failed, ${collected.waiting} waiting for a ` +
+                        `new announcement, ${collected.unanswered} to ask again.`,
                 );
             }
         } finally {

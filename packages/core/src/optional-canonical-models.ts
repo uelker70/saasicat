@@ -25,6 +25,7 @@ export const OPTIONAL_CANONICAL_MODELS = {
     SubscriptionInvoiceNumber: ['entitlement.subscriptionInvoiceRepository'],
     SubscriptionInvoiceDocument: ['entitlement.subscriptionInvoiceRepository'],
     SubscriptionInvoiceArchive: ['entitlement.subscriptionInvoiceArchive'],
+    SubscriptionInvoiceCollection: ['entitlement.invoiceCollectionRepository'],
     PromoCodeHold: ['promo.holdRepository'],
 } as const;
 

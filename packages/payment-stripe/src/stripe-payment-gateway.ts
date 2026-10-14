@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 import Stripe from 'stripe';
 import type {
+    CollectInvoiceInput,
+    CollectionFailureReason,
+    CollectionOutcome,
+    FindCollectionInput,
     MaskedPaymentMethod,
     PaymentGateway,
     PaymentGatewayCallback,
@@ -24,6 +28,135 @@ export const STRIPE_PAYMENT_PROVIDER = 'stripe';
  */
 const SUBJECT_KIND = 'saasicat_subject_kind';
 const SUBJECT_ID = 'saasicat_subject_id';
+
+/**
+ * Where a collection's attempt key and invoice ride on the payment intent:
+ * the key is what `findCollection` finds the intent by again.
+ */
+const ATTEMPT_KEY = 'saasicat_attempt';
+const INVOICE_ID = 'saasicat_invoice';
+
+/**
+ * How far before an attempt's first submission the intents of its customer are
+ * searched: the moment is this machine's clock, and an intent's `created` is
+ * Stripe's.
+ */
+const CLOCK_MARGIN_SECONDS = 60 * 60;
+
+/**
+ * Currencies Stripe does not take to the cent: in whole units or thousandths,
+ * or, for `isk` and `ugx`, in cents of which it takes only whole units.
+ * SaaSiCat computes every amount to the cent, so an invoice in one of them
+ * would be collected for a hundredfold or a tenth of what it says, or refused
+ * wherever it has cents.
+ */
+const NOT_TO_THE_CENT: ReadonlySet<string> = new Set([
+    'bif',
+    'clp',
+    'djf',
+    'gnf',
+    'jpy',
+    'kmf',
+    'krw',
+    'mga',
+    'pyg',
+    'rwf',
+    'ugx',
+    'vnd',
+    'vuv',
+    'xaf',
+    'xof',
+    'xpf',
+    'bhd',
+    'jod',
+    'kwd',
+    'omr',
+    'tnd',
+    'isk',
+]);
+
+/**
+ * The code an invoice in another currency than the account's is refused with,
+ * before anything is sent: only the account's currency was checked against
+ * `NOT_TO_THE_CENT`, and a direct debit's mandate is set up in it. Prefixed so
+ * that nobody reads it as one of Stripe's.
+ */
+const OTHER_CURRENCY = 'saasicat_other_currency';
+
+/**
+ * The statuses of a request Stripe refused as it stands, which no repeat of it
+ * changes: a card declined (`402`), a parameter it does not take or an object
+ * that no longer exists (`400`, `404`). A conflict (`409`, such as
+ * `idempotency_key_in_use` while the first request under the key is still
+ * running) or a lock that timed out (`429`) says nothing about whether a charge
+ * was made, and Stripe's advice is to repeat the request under the same key:
+ * every other status is thrown, whichever class the Stripe library gives it,
+ * and the attempt is asked about later.
+ */
+const REFUSED_REQUEST: ReadonlySet<number> = new Set([400, 402, 404]);
+
+/**
+ * The reason each of Stripe's codes stands for: a card's decline code, or a
+ * direct debit's failure code. A code not named here is `other`, which no
+ * second try is made for.
+ */
+const FAILURE_REASONS: ReadonlyMap<string, CollectionFailureReason> = new Map([
+    ['insufficient_funds', 'insufficient-funds'],
+    ...[
+        'generic_decline',
+        'card_declined',
+        'do_not_honor',
+        'call_issuer',
+        'no_action_taken',
+        'transaction_not_allowed',
+        'try_again_later',
+        'issuer_not_available',
+        'processing_error',
+        'reenter_transaction',
+        'approve_with_id',
+        'card_velocity_exceeded',
+        'withdrawal_count_limit_exceeded',
+        'refer_to_customer',
+        'generic_could_not_process',
+        // A volume limit of the account, which clears with time.
+        'charge_exceeds_source_limit',
+        'charge_exceeds_weekly_limit',
+    ].map((code): [string, CollectionFailureReason] => [code, 'declined']),
+    ['authentication_required', 'authentication-required'],
+    ...[
+        'expired_card',
+        'lost_card',
+        'stolen_card',
+        'pickup_card',
+        'restricted_card',
+        'card_not_supported',
+        'currency_not_supported',
+        'invalid_account',
+        'new_account_information_available',
+        'incorrect_number',
+        'invalid_number',
+        'invalid_expiry_month',
+        'invalid_expiry_year',
+        'account_closed',
+        'bank_account_restricted',
+        'branch_does_not_exist',
+        'invalid_account_number',
+        'no_account',
+        'recipient_deceased',
+        'resource_missing',
+        'payment_method_unexpected_state',
+    ].map((code): [string, CollectionFailureReason] => [code, 'payment-method-unusable']),
+    ...[
+        'authorization_revoked',
+        'debit_not_authorized',
+        'debit_authorization_not_match',
+        'debit_disputed',
+        'incorrect_account_holder_name',
+        'revocation_of_authorization',
+        'revocation_of_all_authorizations',
+        'stop_payment_order',
+    ].map((code): [string, CollectionFailureReason] => [code, 'mandate-invalid']),
+]);
 
 const SIGNATURE_HEADER = 'stripe-signature';
 
@@ -115,6 +248,13 @@ export class StripePaymentGateway implements PaymentGateway {
         // Stripe takes the currency in lower case, and `config/saas.yaml`
         // writes it the way an invoice does.
         this.currency = options.currency.toLowerCase();
+        if (NOT_TO_THE_CENT.has(this.currency)) {
+            throw new Error(
+                `Stripe does not take ${options.currency} to the cent, and SaaSiCat computes ` +
+                    'every amount to the cent: an invoice in it would be collected for another ' +
+                    'amount than it states, or refused.',
+            );
+        }
         this.stripe =
             options.client ??
             new Stripe(options.secretKey, {
@@ -179,6 +319,77 @@ export class StripePaymentGateway implements PaymentGateway {
             };
         }
         return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
+    }
+
+    /**
+     * Confirms a payment intent off session for the payment method the
+     * invoice announced, under the attempt key as its idempotency key: a
+     * repeat within Stripe's day of keeping the key gets the same intent, and
+     * `findCollection` finds it by the key in its metadata after that. A
+     * direct debit uses the mandate its setup created. An invoice in another
+     * currency than the account's is refused without a request.
+     */
+    async collect(input: CollectInvoiceInput): Promise<CollectionOutcome> {
+        if (input.currency.toLowerCase() !== this.currency) {
+            return {
+                status: 'failed',
+                paymentRef: null,
+                reason: 'other',
+                gatewayCode: OTHER_CURRENCY,
+            };
+        }
+        let intent: Stripe.PaymentIntent;
+        try {
+            intent = await this.stripe.paymentIntents.create(
+                {
+                    amount: input.amountCents,
+                    currency: this.currency,
+                    customer: input.customerRef,
+                    payment_method: input.paymentMethodRef,
+                    payment_method_types: [input.type],
+                    off_session: true,
+                    confirm: true,
+                    description: `Invoice ${input.invoiceNumber}`,
+                    metadata: { [ATTEMPT_KEY]: input.attemptKey, [INVOICE_ID]: input.invoiceId },
+                    expand: ['latest_charge'],
+                },
+                { idempotencyKey: input.attemptKey },
+            );
+        } catch (error) {
+            return refusalOf(error);
+        }
+        return outcomeOf(intent);
+    }
+
+    /**
+     * The intent the attempt created, by its reference where an answer named
+     * one, or by its key among the customer's intents created since it was
+     * first submitted; `null` where there is none. A list rather than
+     * Stripe's search, which answers what it indexed a while ago.
+     */
+    async findCollection(input: FindCollectionInput): Promise<CollectionOutcome | null> {
+        if (input.paymentRef !== null) {
+            const intent = await this.stripe.paymentIntents.retrieve(input.paymentRef, {
+                expand: ['latest_charge'],
+            });
+            if (intent.metadata?.[ATTEMPT_KEY] !== input.attemptKey) {
+                throw new Error(
+                    `Payment intent ${input.paymentRef} carries another attempt than ` +
+                        `${input.attemptKey}, which it was recorded for.`,
+                );
+            }
+            return outcomeOf(intent);
+        }
+        const since = Math.floor(input.submittedAt.getTime() / 1000) - CLOCK_MARGIN_SECONDS;
+        for await (const intent of this.stripe.paymentIntents.list({
+            customer: input.customerRef,
+            created: { gte: since },
+            limit: 100,
+            expand: ['data.latest_charge'],
+        })) {
+            if (intent.metadata?.[ATTEMPT_KEY] === input.attemptKey) return outcomeOf(intent);
+        }
+        return null;
     }
 
     private async createCustomer(input: StartPaymentMethodSetupInput): Promise<string> {
@@ -329,6 +540,95 @@ export class StripePaymentGateway implements PaymentGateway {
             },
         };
     }
+}
+
+/**
+ * What became of a collection, as its payment intent stands: a direct debit is
+ * `processing` until the bank settles it, and an intent that asks for a
+ * payment method again carries the reason the last one failed.
+ */
+function outcomeOf(intent: Stripe.PaymentIntent): CollectionOutcome {
+    switch (intent.status) {
+        case 'succeeded':
+            return { status: 'succeeded', paymentRef: intent.id };
+        case 'processing':
+            return { status: 'pending', paymentRef: intent.id };
+        case 'requires_payment_method': {
+            const code = failureCodeOf(intent);
+            return {
+                status: 'failed',
+                paymentRef: intent.id,
+                reason: reasonOf(code),
+                gatewayCode: code,
+            };
+        }
+        // Off session nobody can complete what the bank asks for.
+        case 'requires_action':
+            return {
+                status: 'failed',
+                paymentRef: intent.id,
+                reason: 'authentication-required',
+                gatewayCode: failureCodeOf(intent) ?? 'authentication_required',
+            };
+        case 'canceled':
+            return {
+                status: 'failed',
+                paymentRef: intent.id,
+                reason: 'other',
+                gatewayCode: intent.cancellation_reason ?? 'canceled',
+            };
+        default:
+            throw new Error(
+                `Payment intent ${intent.id} is '${intent.status}', which an intent confirmed off ` +
+                    'session with automatic capture does not stand in.',
+            );
+    }
+}
+
+/**
+ * The code of the last failure: a card's decline code, which names why the
+ * bank refused it — a charge's own code is `card_declined` for every one of
+ * them —, else the charge's code, which is what names a direct debit's
+ * failure, else the error's.
+ */
+function failureCodeOf(intent: Stripe.PaymentIntent): string | null {
+    const charge = expanded<Stripe.Charge>(intent.latest_charge);
+    const error = intent.last_payment_error;
+    return error?.decline_code ?? charge?.failure_code ?? error?.code ?? null;
+}
+
+function reasonOf(code: string | null): CollectionFailureReason {
+    return (code === null ? undefined : FAILURE_REASONS.get(code)) ?? 'other';
+}
+
+/**
+ * What a refused request is a refusal of. A declined card is answered with the
+ * intent it created where there is one; a request Stripe refused as invalid —
+ * a payment method detached since, a parameter it does not take — created
+ * none and is answered as failed. Anything else — a status `REFUSED_REQUEST`
+ * does not name, the network, a rate limit, a key reused with other
+ * parameters, Stripe's own error, the account's keys — says nothing about
+ * whether a charge was made, and is thrown, so the attempt is asked about
+ * later.
+ */
+function refusalOf(error: unknown): CollectionOutcome {
+    if (
+        !(error instanceof Stripe.errors.StripeError) ||
+        !REFUSED_REQUEST.has(error.statusCode ?? 0)
+    ) {
+        throw error;
+    }
+    if (error instanceof Stripe.errors.StripeCardError) {
+        if (error.payment_intent) return outcomeOf(error.payment_intent);
+        const code = error.decline_code ?? error.code ?? null;
+        return { status: 'failed', paymentRef: null, reason: reasonOf(code), gatewayCode: code };
+    }
+    if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+        if (error.payment_intent) return outcomeOf(error.payment_intent);
+        const code = error.code ?? null;
+        return { status: 'failed', paymentRef: null, reason: reasonOf(code), gatewayCode: code };
+    }
+    throw error;
 }
 
 /**

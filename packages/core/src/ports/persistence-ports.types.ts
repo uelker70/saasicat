@@ -26,6 +26,7 @@ import type {
     PlanVersionRepository,
     SubscriberLedgerRepository,
     SubscriptionInvoiceRepository,
+    InvoiceCollectionRepository,
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -156,6 +157,8 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriptionInvoiceRepository?: PersistenceProvider<SubscriptionInvoiceRepository>;
     /** The invoices' documents, kept in the database (`chargeJournal.invoices.archive`). */
     subscriptionInvoiceArchive?: PersistenceProvider<InvoiceArchivePort>;
+    /** The attempts to collect those invoices (`chargeJournal.invoices.collections`). */
+    invoiceCollectionRepository?: PersistenceProvider<InvoiceCollectionRepository>;
     subscriptionBundleRepository?: PersistenceProvider<SubscriptionBundleRepository>;
     bundleRepository?: PersistenceProvider<BundleRepository>;
 }

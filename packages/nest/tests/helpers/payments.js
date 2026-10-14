@@ -60,6 +60,44 @@ export class ScriptedGateway {
         this.confirmableUntil = null;
         /** Set to an error to make the next start fail, as a gateway that is down does. */
         this.failNextStart = null;
+        /** Every collection requested, as it was sent. */
+        this.collections = [];
+        /** Every question about an attempt, as it was asked. */
+        this.asked = [];
+        /**
+         * The answers the next collections get, in turn: an outcome, an error
+         * — a request that never arrived —, `lostAfter(outcome)` — one the
+         * gateway made and whose answer did not come back —, or `hanging` —
+         * one that never answers. Without one, a collection succeeds.
+         */
+        this.answers = [];
+        /** What the gateway holds, by attempt key, which a question finds. */
+        this.held = new Map();
+    }
+
+    async collect(input) {
+        this.collections.push(structuredClone(input));
+        const answer = this.answers.shift() ?? {
+            status: 'succeeded',
+            paymentRef: `pi_${this.collections.length}`,
+        };
+        if (answer === hanging) return new Promise(() => {});
+        if (answer instanceof Error) throw answer;
+        // A repeat under a key the gateway holds is the same request: it
+        // answers what the first one made, and makes nothing new.
+        const made = this.held.get(input.attemptKey);
+        if (made) return made;
+        if (answer.lost) {
+            this.held.set(input.attemptKey, answer.lost);
+            throw new Error('the connection was reset before the answer arrived');
+        }
+        this.held.set(input.attemptKey, answer);
+        return answer;
+    }
+
+    async findCollection(input) {
+        this.asked.push(structuredClone(input));
+        return this.held.get(input.attemptKey) ?? null;
     }
 
     async startPaymentMethodSetup(input) {
@@ -86,6 +124,12 @@ export class ScriptedGateway {
         return { ...event, occurredAt: new Date(event.occurredAt) };
     }
 }
+
+/** An answer to a collection that never comes. */
+export const hanging = Symbol('hanging');
+
+/** A collection the gateway made, whose answer was lost on the way back. */
+export const lostAfter = (outcome) => ({ lost: outcome });
 
 /**
  * What a provider's SDK throws when it refuses the account's keys: its own

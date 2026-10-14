@@ -268,6 +268,10 @@ _Tested by:_
         - an invoice issued before records no payment and keeps the day it is due
         - a second run leaves a payment recorded in between as it was written
         - an installation without invoices is left without them, and runs through
+    - an invoice is collected through its payment gateway
+        - a database from before ends up with the schema the fragments declare
+        - an invoice takes one attempt that is not settled, and none after one succeeded
+        - an installation without invoices is left without the attempts, and runs through
 
 <!-- END proof -->
 
@@ -399,6 +403,10 @@ _Tested by:_
         - an invoice issued before records no payment and keeps the day it is due
         - a second run leaves a payment recorded in between as it was written
         - an installation without invoices is left without them, and runs through
+    - an invoice is collected through its payment gateway
+        - a database from before ends up with the schema the fragments declare
+        - an invoice takes one attempt that is not settled, and none after one succeeded
+        - an installation without invoices is left without the attempts, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

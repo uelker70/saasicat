@@ -9,9 +9,17 @@
 import { createServer } from 'node:http';
 import Stripe from 'stripe';
 
+const REPLY = Symbol('reply');
+
+/** An answer with another status than 200, such as Stripe's 402 for a declined card. */
+export function reply(status, body) {
+    return { [REPLY]: true, status, body };
+}
+
 /**
  * Starts a server answering the routes given as `{ 'POST /v1/customers': body }`,
- * where a body is either an object or a function of the recorded request.
+ * where a body is either an object, a `reply`, or a function of the recorded
+ * request answering either.
  *
  * Returns the recorded requests, a Stripe client pointed at it, and `close`.
  */
@@ -41,8 +49,9 @@ export async function fakeStripe(routes) {
                 return;
             }
             const answer = typeof route === 'function' ? route(recorded) : route;
-            res.writeHead(200, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(answer));
+            const [status, body] = answer?.[REPLY] ? [answer.status, answer.body] : [200, answer];
+            res.writeHead(status, { 'content-type': 'application/json' });
+            res.end(JSON.stringify(body));
         });
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

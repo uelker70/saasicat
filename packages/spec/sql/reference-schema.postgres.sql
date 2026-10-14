@@ -25,6 +25,7 @@
 --   prisma-fragments/20-subscription-invoice.prisma
 --   prisma-fragments/21-feature-withdrawal.prisma
 --   prisma-fragments/22-subscription-invoice-archive.prisma
+--   prisma-fragments/23-subscription-invoice-collection.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -910,6 +911,31 @@ CREATE TABLE "subscription_invoice_archive" (
     CONSTRAINT "subscription_invoice_archive_pkey" PRIMARY KEY ("invoiceId")
 );
 
+-- CreateTable
+CREATE TABLE "subscription_invoice_collections" (
+    "id" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "attempt" INTEGER NOT NULL,
+    "attemptKey" TEXT NOT NULL,
+    "gatewayAccount" TEXT NOT NULL,
+    "paymentMethodId" TEXT NOT NULL,
+    "paymentMethodType" TEXT NOT NULL,
+    "customerRef" TEXT NOT NULL,
+    "paymentMethodRef" TEXT NOT NULL,
+    "invoiceNumber" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "currency" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "paymentRef" TEXT,
+    "failureReason" TEXT,
+    "failureCode" TEXT,
+    "submittedAt" TIMESTAMP(3) NOT NULL,
+    "heldAt" TIMESTAMP(3) NOT NULL,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "subscription_invoice_collections_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1201,6 +1227,15 @@ CREATE INDEX "subscription_invoice_documents_archivedAt_idx" ON "subscription_in
 -- CreateIndex
 CREATE INDEX "feature_withdrawals_featureKey_idx" ON "feature_withdrawals"("featureKey");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_collections_attemptKey_key" ON "subscription_invoice_collections"("attemptKey");
+
+-- CreateIndex
+CREATE INDEX "subscription_invoice_collections_status_heldAt_idx" ON "subscription_invoice_collections"("status", "heldAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_collections_invoiceId_attempt_key" ON "subscription_invoice_collections"("invoiceId", "attempt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1291,6 +1326,9 @@ ALTER TABLE "subscription_invoice_documents" ADD CONSTRAINT "subscription_invoic
 -- AddForeignKey
 ALTER TABLE "subscription_invoice_archive" ADD CONSTRAINT "subscription_invoice_archive_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_collections" ADD CONSTRAINT "subscription_invoice_collections_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
 -- =============================================================================
@@ -1380,6 +1418,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
 -- method replaced keeps its row as `REPLACED`, so it does not count here.
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
     ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
+
+-- An invoice has at most ONE collection attempt that is not settled, and none
+-- after one succeeded: of two runs that find the same invoice open, one starts
+-- an attempt and the other's insert meets it. A failed attempt leaves the index,
+-- so the next attempt of the same invoice can be started.
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_invoice_collections_one_open_per_invoice
+    ON subscription_invoice_collections ("invoiceId")
+    WHERE "status" IN ('SUBMITTED', 'PENDING', 'SUCCEEDED');
 
 -- A gateway session is confirmed ONCE.
 --
