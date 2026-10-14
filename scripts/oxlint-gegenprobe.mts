@@ -309,35 +309,38 @@ function deviations(reports: readonly Report[]): string[] {
 // handler during the run: a signal to this script alone would let oxlint finish
 // and end in success.
 let abort: NodeJS.Signals | undefined;
-let cleanedUp = false;
-
-function endOnSignal(signal: NodeJS.Signals): void {
-    process.removeAllListeners(signal);
-    process.kill(process.pid, signal);
-}
-
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+const SIGNALS = ['SIGINT', 'SIGTERM'] as const;
+for (const signal of SIGNALS) {
     process.on(signal, () => {
-        if (abort !== undefined) {
-            runningOxlint?.kill('SIGKILL');
-            return;
-        }
-        abort = signal;
-        if (cleanedUp) {
-            endOnSignal(signal);
-        } else {
+        if (abort === undefined) {
+            abort = signal;
             runningOxlint?.kill(signal);
+        } else {
+            runningOxlint?.kill('SIGKILL');
         }
     });
 }
 
-// Node calls a signal handler only once the event loop reads the signal pipe,
-// and it ends as soon as nothing is left to do — a signal from the synchronous
-// evaluation would then stay unread, and the run would end with its result.
-// One last turn still reads it.
-process.once('beforeExit', () => {
-    setImmediate(() => undefined);
-});
+/**
+ * Takes a signal that came during synchronous work, then hands the signals
+ * back to the operating system. libuv reads the signal pipe only in the poll
+ * phase; an immediate created in the poll phase still runs in the same turn,
+ * so only two in a row enclose a poll phase for sure — on the success path as
+ * on the failure path. Without handlers, any later signal ends the process at
+ * once, without the event loop. Lost is only a signal in the microseconds
+ * between that poll phase and removing the handlers; the probes are gone by
+ * then.
+ */
+async function handSignalsBack(): Promise<void> {
+    await new Promise((proceed) => setImmediate(proceed));
+    await new Promise((proceed) => setImmediate(proceed));
+    for (const signal of SIGNALS) {
+        process.removeAllListeners(signal);
+    }
+    if (abort !== undefined) {
+        process.kill(process.pid, abort);
+    }
+}
 
 cleanUp();
 let reports: Report[];
@@ -349,10 +352,7 @@ try {
     reports = reportsFrom(await oxlintOutput());
 } finally {
     cleanUp();
-    cleanedUp = true;
-    if (abort !== undefined) {
-        endOnSignal(abort);
-    }
+    await handSignalsBack();
 }
 
 const open = deviations(reports);
