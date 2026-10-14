@@ -80,7 +80,7 @@ export interface SuperAdminAuthGuardOptions {
  */
 export type SuperAdminLoginResult =
     | { ok: true }
-    | { ok: false; code?: 'BAD_CREDENTIALS' | 'NOT_SUPER_ADMIN' | string; message?: string };
+    | { ok: false; code?: 'BAD_CREDENTIALS' | 'NOT_SUPER_ADMIN' | (string & {}); message?: string };
 
 /**
  * Login adapter. The app passes its auth-store call through here. The platform

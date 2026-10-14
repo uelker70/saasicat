@@ -74,6 +74,7 @@ export function toInvoiceCollectionRecord(
 ): InvoiceCollectionRecord {
     const where = (column: string) => ({ table: TABLE, column, id: row.id });
     const amount = Number(
+        // oxlint-disable-next-line typescript/no-base-to-string -- Prisma hands a Decimal, whose text is the number; any other object becomes NaN and is refused below
         row.amount === null || row.amount === undefined ? NaN : String(row.amount),
     );
     if (!Number.isFinite(amount)) {

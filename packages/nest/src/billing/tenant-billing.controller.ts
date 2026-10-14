@@ -166,7 +166,7 @@ interface UsageResponse {
      * for the tenant self-service UI. `null` for subscriptions without
      * a CheckoutOffer origin.
      */
-    packageSnapshot: unknown | null;
+    packageSnapshot: unknown;
     /** P11.4: Optional reference to the originating CheckoutOffer. */
     checkoutOfferId: string | null;
 }

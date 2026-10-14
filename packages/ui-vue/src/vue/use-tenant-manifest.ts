@@ -81,7 +81,7 @@ export function useTenantManifest(options: UseTenantManifestOptions): UseTenantM
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void load());
+        queueMicrotask(() => void load());
     }
 
     return { manifest, loading, error, load, hasFeature, quotaLimit };

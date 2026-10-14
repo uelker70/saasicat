@@ -14,6 +14,7 @@ export class FakeMaintenanceWindowPort {
     /** Moves to refuse before one lands: a stand-in for another operator getting there first. */
     refuseNextUpdates = 0;
     #next = 0;
+    /** @type {Promise<unknown> | null} */
     #heldRead = null;
 
     async findOpen() {

@@ -54,7 +54,10 @@ export class ManifestCliFlow {
     async validate(): Promise<{ ok: boolean; reason?: string }> {
         const m = await this.access.getManifest();
         if (m.schemaVersion !== 1) {
-            return { ok: false, reason: `Unexpected schemaVersion ${m.schemaVersion}` };
+            return {
+                ok: false,
+                reason: `Unexpected schemaVersion ${JSON.stringify(m.schemaVersion)}`,
+            };
         }
         if (!m.project?.key) {
             return { ok: false, reason: 'No `project.key` in the manifest' };

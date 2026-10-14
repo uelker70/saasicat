@@ -137,7 +137,7 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
     if (options.autoLoad !== false) {
         // One microtask later, so the composable does not block `setup()`
         // during the initial sync phase.
-        Promise.resolve().then(() => void load());
+        queueMicrotask(() => void load());
     }
 
     return {

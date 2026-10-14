@@ -65,7 +65,7 @@ export function judgeModuleResolution(value: string | null): ModuleResolutionVer
  */
 export function readEffectiveModuleResolution(root: string, ts: typeof TypeScript): string | null {
     const configPath = join(root, 'tsconfig.json');
-    const read = ts.readConfigFile(configPath, ts.sys.readFile);
+    const read = ts.readConfigFile(configPath, (path) => ts.sys.readFile(path));
     if (read.error || read.config === undefined) return null;
     const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, root);
     const kind = parsed.options.moduleResolution;

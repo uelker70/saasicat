@@ -14,5 +14,5 @@ export interface RegressionChange {
     field: string;
     oldValue: unknown;
     newValue: unknown;
-    direction: 'REGRESSION' | 'IMPROVEMENT' | string;
+    direction: 'REGRESSION' | 'IMPROVEMENT' | (string & {});
 }

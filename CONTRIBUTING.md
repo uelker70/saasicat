@@ -32,7 +32,11 @@ every source: code that is very likely wrong or useless. There is no baseline â€
 a finding is fixed. If it is intended, a comment switches it off for exactly one
 line and one rule, with the reason after `--`:
 `// oxlint-disable-next-line <rule> -- <reason>`. What is excluded and why is in
-[`oxlint.correctness.config.mts`](oxlint.correctness.config.mts).
+[`oxlint.correctness.config.mts`](oxlint.correctness.config.mts). The rules that
+need types run along (`oxlint-tsgolint`) and read the built packages, so run
+`pnpm -r build` first; in `.vue` they do not apply.
+`node scripts/oxlint-gegenprobe.mts` holds both, and that the exemptions reach
+no further than the configuration says.
 
 `pnpm run lint:anti-slop` counts the findings of the rules in
 [`oxlint.config.mts`](oxlint.config.mts) â€” type assertions without a

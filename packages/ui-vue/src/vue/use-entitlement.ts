@@ -77,7 +77,7 @@ export function useEntitlement(options: UseEntitlementOptions): UseEntitlementRe
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void load());
+        queueMicrotask(() => void load());
     }
 
     return { entitlement, loading, error, load, hasFeature };

@@ -94,6 +94,31 @@ describe('formatErrorMessage', () => {
         assert.equal(formatErrorMessage('Plan {planId} not found', {}), 'Plan {planId} not found');
     });
 
+    test('leaves the placeholder for a value without a text of its own', () => {
+        assert.equal(
+            formatErrorMessage('Field {field} refused', { field: { name: 'x' } }),
+            'Field {field} refused',
+        );
+        assert.equal(
+            formatErrorMessage('Missing: {missing}', { missing: ['a', { b: 1 }] }),
+            'Missing: {missing}',
+        );
+    });
+
+    test('reads text, numbers, booleans, dates and lists of them as before', () => {
+        const date = new Date('2026-10-14T00:00:00Z');
+        assert.equal(
+            formatErrorMessage('{a} {b} {c} {d}', { a: 'x', b: 1.5, c: false, d: 12n }),
+            'x 1.5 false 12',
+        );
+        assert.equal(formatErrorMessage('{d}', { d: date }), String(date));
+        // The tax refusals pass what is missing as a list.
+        assert.equal(
+            formatErrorMessage('Missing: {missing}', { missing: ['buyer.vatId', 2] }),
+            'Missing: buyer.vatId,2',
+        );
+    });
+
     test('treats null like a missing value', () => {
         assert.equal(formatErrorMessage('{a} and {b}', { a: 0, b: null }), '0 and {b}');
     });

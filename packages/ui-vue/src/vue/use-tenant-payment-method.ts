@@ -105,7 +105,7 @@ export function useTenantPaymentMethod(
     }
 
     if (options.autoLoad !== false) {
-        Promise.resolve().then(() => void reload());
+        queueMicrotask(() => void reload());
     }
 
     return { paymentMethod, available, loading, error, reload, startChange };

@@ -348,6 +348,7 @@ function footerOf(value: unknown, where: Where): string[] {
 }
 
 function amountOf(value: unknown, where: Where): number {
+    // oxlint-disable-next-line typescript/no-base-to-string -- Prisma hands a Decimal, whose text is the number; any other object becomes NaN and is refused below
     const amount = Number(value === null || value === undefined ? NaN : String(value));
     if (!Number.isFinite(amount)) {
         throw new Error(`${where.table}.${where.column} of ${where.id} is not an amount.`);

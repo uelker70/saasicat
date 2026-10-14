@@ -162,7 +162,7 @@ export class BundleVersionOfferService {
             !cancellationHasLanded(sub, now) &&
             !cancellationHasLanded(booking, now) &&
             !booking.pendingBundleVersionId &&
-            Boolean(this.bookings.moveToVersion)
+            this.bookings.moveToVersion !== undefined
         );
     }
 
