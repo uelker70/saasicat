@@ -45,11 +45,31 @@ import {
     subscriberPaymentMethods,
     subscriptionInvoiceCollections,
     subscriptionInvoiceDocuments,
+    subscriptionInvoiceSettlements,
     subscriptionInvoices,
 } from './schema.js';
 
 /** The invoice's attempts again, beside the one a query lists. */
 const others = alias(subscriptionInvoiceCollections, 'others');
+
+/**
+ * Whether the invoice a query reads still owes something: its total exceeds
+ * what is settled against it. Exact in the database's numeric arithmetic.
+ */
+const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
+    SELECT SUM(${subscriptionInvoiceSettlements.amount})
+      FROM ${subscriptionInvoiceSettlements}
+     WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
+), 0)`;
+
+/** Whether invoice `invoiceId` still owes something, read on `db`. */
+async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
+    const rows = await db
+        .select({ id: subscriptionInvoices.id })
+        .from(subscriptionInvoices)
+        .where(and(eq(subscriptionInvoices.id, invoiceId), stillOwes));
+    return rows.length === 1;
+}
 
 /**
  * `InvoiceCollectionRepository` against `subscription_invoice_collections`.
@@ -145,6 +165,9 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 .where(eq(subscriptionInvoices.id, invoiceId))
                 .for('update');
             if (!invoice) throw new Error(`Invoice ${invoiceId} does not exist.`);
+            // An invoice that owes nothing — a payment came for it — is
+            // collected no further.
+            if (!(await owes(db, invoiceId))) return null;
             const earlier = await db
                 .select({
                     attempt: subscriptionInvoiceCollections.attempt,
@@ -191,6 +214,11 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         tx?: TransactionContext,
     ): Promise<SubmittedInvoiceCollection | null> {
         return this.inTurnOf(id, tx, async (db) => {
+            const [planned] = await db
+                .select({ invoiceId: subscriptionInvoiceCollections.invoiceId })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (!planned || !(await owes(db, planned.invoiceId))) return null;
             const [row] = await db
                 .update(subscriptionInvoiceCollections)
                 .set({ status: 'SUBMITTED', submittedAt: at, heldAt: at })
@@ -326,6 +354,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                         ),
                     ),
                     ne(subscriberPaymentMethods.id, subscriptionInvoiceCollections.paymentMethodId),
+                    stillOwes,
                 ),
             )
             .orderBy(asc(subscriptionInvoices.id))

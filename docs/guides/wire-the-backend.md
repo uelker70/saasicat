@@ -1212,6 +1212,9 @@ you name another. The start refuses collections without it.
   rest a withdrawal credits; the quarter-hourly run records that credit right after the invoice is
   issued. An application with a scheduler of its own calls `InvoicePaymentService.creditDue()` after
   `issueDue(now)`.
+- **An invoice that owes nothing is collected no further**: a retry planned for it is withdrawn, and
+  a failure of an attempt beside the payment is followed up without telling the subscriber of a
+  failure on a paid invoice.
 - **A credit is never offset** against a later invoice (`SC-PRIC-083`): every invoice is collected
   for the amount it states. The operator pays the credit out. A refund made in the gateway is
   recorded against it when the gateway reports it — the credit the refunded payment left first,

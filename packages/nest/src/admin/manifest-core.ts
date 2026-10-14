@@ -231,7 +231,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
-                label: 'Planned invoice collection withdrawn: its payment method is no longer in use',
+                label: 'Planned invoice collection withdrawn: the invoice is paid, or its payment method is no longer in use',
                 severity: 'low',
             },
             {

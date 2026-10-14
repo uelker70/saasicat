@@ -762,6 +762,7 @@ _Tested by:_
         - what
         - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn
         - a planned attempt is taken up as sent once, and read back as written
+        - nothing is written for an invoice that owes nothing, started, planned or sent
     - reading
         - the invoices due and the invoices another payment method can collect are raw queries
         - the failed attempts not followed up are listed by id

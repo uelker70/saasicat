@@ -231,6 +231,164 @@ describe('a payment the gateway confirmed', () => {
     });
 });
 
+// @requirement SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
+describe('an invoice a late payment covered', () => {
+    clockFrom(FIRST_RUN);
+
+    test('is collected no further when the attempt beside it fails, and nobody is told of a failure on a paid invoice', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { collections, gateway, payments, notices, audits, invoice } = installation;
+        const deliver = (event) =>
+            installation.callbacks.handle(MAIN_ACCOUNT, signedCallback(event));
+        // Attempt 1 failed and was followed up; attempt 2, with the payment
+        // method that replaced it, is on its way.
+        const first = await collections.startAttempt({
+            invoiceId: invoice.id,
+            gatewayAccount: MAIN_ACCOUNT,
+            paymentMethodId: 'card-1',
+            paymentMethodType: 'card',
+            customerRef: 'cus_t1',
+            paymentMethodRef: 'pm_card_1',
+            invoiceNumber: invoice.number,
+            amount: invoice.totalGross,
+            currency: 'EUR',
+            at: FIRST_RUN,
+        });
+        await collections.recordOutcome(
+            first.id,
+            {
+                status: 'failed',
+                paymentRef: 'pi_first',
+                reason: 'authentication-required',
+                gatewayCode: 'authentication_required',
+            },
+            FIRST_RUN,
+        );
+        await collections.markFollowedUp(first.id, FIRST_RUN);
+        const second = await collections.plan({
+            invoiceId: invoice.id,
+            after: 1,
+            gatewayAccount: MAIN_ACCOUNT,
+            paymentMethodId: 'debit-2',
+            paymentMethodType: 'sepa_debit',
+            customerRef: 'cus_t1',
+            paymentMethodRef: 'pm_debit_2',
+            invoiceNumber: invoice.number,
+            amount: invoice.totalGross,
+            currency: 'EUR',
+            collectOn: '2026-02-20',
+        });
+        await collections.submitPlanned(second.id, FIRST_RUN);
+        await collections.recordOutcome(
+            second.id,
+            { status: 'pending', paymentRef: 'pi_second' },
+            FIRST_RUN,
+        );
+
+        // The customer confirms the first intent after all: the money arrives.
+        await deliver(
+            collectionReported('evt_late', first.attemptKey, succeeded(invoice, 'pi_first')),
+        );
+        assert.equal(await payments.owedBy(invoice.id), 0);
+        assert.equal(collections.attempts[0].status, 'FAILED', 'the premise: one is on its way');
+
+        // Then the direct debit beside it is returned for want of funds.
+        gateway.held.set(second.attemptKey, {
+            status: 'failed',
+            paymentRef: 'pi_second',
+            reason: 'insufficient-funds',
+            gatewayCode: 'insufficient_funds',
+        });
+        const later = after(FIRST_RUN, { days: 1 });
+        clockAt(later);
+        await installation.collect(later);
+        clockAt(after(later, { days: 8 }));
+        await installation.collect(after(later, { days: 8 }));
+
+        assert.deepEqual(
+            collections.attempts.map((each) => each.status),
+            ['FAILED', 'FAILED'],
+            'something more was planned for a paid invoice',
+        );
+        assert.ok(collections.attempts[1].followedUpAt, 'the failure was not followed up');
+        assert.equal(gateway.collections.length, 0, 'the paid invoice was charged again');
+        assert.ok(
+            ![...notices.rows.values()].some((row) => row.subject === second.attemptKey),
+            'the subscriber was told of a failure on a paid invoice',
+        );
+        assert.equal(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED').length, 0);
+    });
+
+    test('has a planned attempt withdrawn rather than sent, naming why', async () => {
+        const { collections, payments, gateway, audits, invoice, collect } =
+            await anInvoiceToCollect();
+        const first = await collections.startAttempt({
+            invoiceId: invoice.id,
+            gatewayAccount: MAIN_ACCOUNT,
+            paymentMethodId: 'card-1',
+            paymentMethodType: 'card',
+            customerRef: 'cus_t1',
+            paymentMethodRef: 'pm_card_1',
+            invoiceNumber: invoice.number,
+            amount: invoice.totalGross,
+            currency: 'EUR',
+            at: FIRST_RUN,
+        });
+        await collections.recordOutcome(
+            first.id,
+            {
+                status: 'failed',
+                paymentRef: 'pi_first',
+                reason: 'insufficient-funds',
+                gatewayCode: 'insufficient_funds',
+            },
+            FIRST_RUN,
+        );
+        await collections.markFollowedUp(first.id, FIRST_RUN);
+        const planned = await collections.plan({
+            invoiceId: invoice.id,
+            after: 1,
+            gatewayAccount: MAIN_ACCOUNT,
+            paymentMethodId: 'card-1',
+            paymentMethodType: 'card',
+            customerRef: 'cus_t1',
+            paymentMethodRef: 'pm_card_1',
+            invoiceNumber: invoice.number,
+            amount: invoice.totalGross,
+            currency: 'EUR',
+            collectOn: '2026-02-08',
+        });
+        // A payment covers the invoice without settling an attempt, as one
+        // recorded beside another attempt does.
+        await payments.recordPayment({
+            invoiceId: invoice.id,
+            collectionId: first.id,
+            gatewayAccount: MAIN_ACCOUNT,
+            provider: 'stripe',
+            gatewayRef: 'pi_first',
+            amount: invoice.totalGross,
+            currency: 'EUR',
+            at: FIRST_RUN,
+        });
+
+        clockAt(after(FIRST_RUN, { days: 8 }));
+        await collect(after(FIRST_RUN, { days: 8 }));
+
+        assert.equal(
+            collections.attempts.find((each) => each.id === planned.id).status,
+            'WITHDRAWN',
+        );
+        assert.equal(gateway.collections.length, 0);
+        assert.deepEqual(
+            entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN').map(
+                (entry) => entry.because,
+            ),
+            ['paid'],
+        );
+    });
+});
+
 describe('a collection the gateway reports on its own', () => {
     clockFrom(FIRST_RUN);
 
@@ -345,6 +503,27 @@ describe('a refund the operator made in the gateway', () => {
         const [credit] = await payments.listCredits(subscriber.id);
         assert.equal(credit.open, 5);
         assert.equal(entriesOf(audits, 'SUBSCRIBER_REFUND_GIVEN_BACK').length, 1);
+    });
+
+    test('of an attempt this installation does not hold, or another account sent, records nothing and is not refused', async () => {
+        quietLog();
+        const { deliver, eventLog, payments, collections, attempt, made } =
+            await anAttemptOnItsWay();
+        await deliver(collectionReported('evt_paid', attempt.attemptKey, made));
+        const refund = { refundRef: 're_1', paymentRef: 'pi_made', amountCents: 500 };
+
+        assert.equal(
+            await deliver(refundReported('evt_r1', 'saasicat:collect:elsewhere:1', refund)),
+            'handled',
+        );
+        collections.attempts[0].gatewayAccount = 'stripe-other';
+        assert.equal(
+            await deliver(refundReported('evt_r2', attempt.attemptKey, refund)),
+            'handled',
+        );
+
+        assert.deepEqual(payments.refunds, []);
+        assert.equal(eventLog.claims.length, 3, 'the two refunds were not taken as handled');
     });
 
     test('of a payment not recorded yet is refused, so the gateway delivers it again once it is', async () => {

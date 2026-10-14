@@ -512,10 +512,13 @@ const CONTRACT_GAPS: Record<
             ),
     },
     invoiceCollections: {
-        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice or a payment method needs before it',
+        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice, a payment method or a payment needs before it',
         present: (harness) =>
             Boolean(
                 harness.adapter.invoiceCollectionRepository &&
+                // An invoice that owes nothing is collected no further, which
+                // the attempts read off what the payments settle.
+                harness.adapter.subscriberPaymentRepository &&
                 CONTRACT_GAPS.subscriptionInvoices.present(harness) &&
                 CONTRACT_GAPS.subscriberPaymentMethods.present(harness),
             ),
@@ -8515,6 +8518,43 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-PRIC-029
+        test('an invoice a payment covers is collected no further: nothing planned or sent for it, and not listed to collect again', async (t) => {
+            const account = await payable(t, 'tenant-pay-covered', 2);
+            if (!account) return;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const { collections, payments, attempts, grosses, paymentOf, ids, subscriberId } =
+                account;
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_replaced', '2026-02-02T10:00:00.000Z'),
+            );
+            // Both first attempts failed: the first invoice is planned once
+            // more, the second followed up and waits for another payment method.
+            for (const attempt of attempts) {
+                await collections.recordOutcome(attempt.id, FAILURE, PAID_AT);
+            }
+            const planned = await collections.plan(planOf(ids[0]!, { after: 1 }));
+            assert.ok(planned, 'the premise: a retry is planned');
+            await collections.markFollowedUp(attempts[1]!.id, PAID_AT);
+            assert.ok(
+                (await collections.listCollectableAgain({ limit: 50 })).includes(ids[1]!),
+                'the premise: another payment method can collect the second',
+            );
+
+            for (const [index, attempt] of attempts.entries()) {
+                await payments.recordPayment(
+                    paymentOf(attempt, `pi_covered_${index}`, grosses[index]!),
+                );
+            }
+
+            assert.equal(await collections.submitPlanned(planned!.id, PAID_AT), null);
+            assert.equal((await collections.findById(planned!.id))?.status, 'SCHEDULED');
+            assert.equal(await collections.withdraw(planned!.id, PAID_AT), true);
+            assert.equal(await collections.plan(planOf(ids[0]!, { after: 2 })), null);
+            assert.ok(!(await collections.listCollectableAgain({ limit: 50 })).includes(ids[1]!));
+        });
+
         // @requirement SC-PRIC-083
         test('what a payment brings beyond what its invoice owes is a credit, one cent included', async (t) => {
             const account = await payable(t, 'tenant-pay-beyond', 2);
@@ -8713,6 +8753,22 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 refundOf('re_2', 'pi_over', 1, 'CANCELED'),
             );
             assert.equal(canceled.outcome, 'given-back');
+        });
+
+        // @requirement SC-PRIC-083
+        test('a refund in another currency than the payment it pays back is refused, and pays nothing out', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-currency');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+
+            await assert.rejects(
+                payments.recordRefund({ ...refundOf('re_usd', 'pi_over', 5), currency: 'USD' }),
+            );
+
+            assert.deepEqual(
+                (await openCredits(payments, subscriberId)).map((credit) => credit.open),
+                [40, 5],
+            );
         });
 
         // @requirement SC-PRIC-083

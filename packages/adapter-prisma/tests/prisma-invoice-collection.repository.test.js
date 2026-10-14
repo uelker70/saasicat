@@ -85,6 +85,7 @@ function fakeClient({
     raw = [{ id: 'invoice-1' }],
     updated = 1,
     row = rowOf(),
+    owing = true,
 } = {}) {
     const calls = [];
     const record = (name, answer) => async (args) => {
@@ -103,7 +104,9 @@ function fakeClient({
         },
         async $queryRaw(strings, ...values) {
             calls.push(['$queryRaw', strings.join('?'), values]);
-            return raw;
+            // What the invoice owes is read against its settlements.
+            const owes = strings.join('?').includes('"subscription_invoice_settlements"');
+            return owes && !owing ? [] : raw;
         },
         async $transaction(work) {
             calls.push(['$transaction']);
@@ -124,9 +127,10 @@ describe('writing an invoice’s next attempt', () => {
 
         assert.deepEqual(
             client.calls.map(([name]) => name),
-            ['$transaction', '$queryRaw', 'findMany', 'createManyAndReturn'],
+            ['$transaction', '$queryRaw', '$queryRaw', 'findMany', 'createManyAndReturn'],
         );
         assert.match(callsOf(client, '$queryRaw')[0][1], /FOR UPDATE/);
+        assert.match(callsOf(client, '$queryRaw')[1][1], /"subscription_invoice_settlements"/);
         const [[, insert]] = callsOf(client, 'createManyAndReturn');
         assert.equal(insert.skipDuplicates, true);
         assert.deepEqual(
@@ -246,9 +250,10 @@ describe('a write that names the state it expects', () => {
             await take(new PrismaInvoiceCollectionRepository(client));
 
             assert.deepEqual(
-                client.calls.slice(0, 3).map(([name]) => name),
-                ['$transaction', '$queryRaw', 'updateMany'],
+                client.calls.slice(0, 2).map(([name]) => name),
+                ['$transaction', '$queryRaw'],
             );
+            assert.equal(callsOf(client, 'updateMany').length, 1);
             const [[, lock, values]] = callsOf(client, '$queryRaw');
             assert.match(lock, /FROM "subscription_invoices"[\s\S]*FOR UPDATE/);
             assert.deepEqual(values, ['attempt-2']);
@@ -272,7 +277,21 @@ describe('a write that names the state it expects', () => {
             await new PrismaInvoiceCollectionRepository(gone).submitPlanned('attempt-2', AT),
             null,
         );
-        assert.equal(callsOf(gone, 'findUnique').length, 0);
+        assert.equal(callsOf(gone, 'findUnique').length, 1, 'read back though not taken up');
+    });
+
+    test('nothing is written for an invoice that owes nothing, started, planned or sent', async () => {
+        for (const write of [
+            (repo) => repo.startAttempt(ATTEMPT),
+            (repo) => repo.plan(PLAN),
+            (repo) => repo.submitPlanned('attempt-2', AT),
+        ]) {
+            const client = fakeClient({ owing: false });
+
+            assert.equal(await write(new PrismaInvoiceCollectionRepository(client)), null);
+            assert.equal(callsOf(client, 'createManyAndReturn').length, 0);
+            assert.equal(callsOf(client, 'updateMany').length, 0);
+        }
     });
 });
 

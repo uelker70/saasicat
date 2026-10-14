@@ -1306,6 +1306,10 @@ _Tested by:_
         - whose audit entry cannot be written stays recorded
         - reported after the attempt was recorded as failed is recorded all the same, and what was
           planned after it is not sent
+    - an invoice a late payment covered
+        - is collected no further when the attempt beside it fails, and nobody is told of a failure
+          on a paid invoice
+        - has a planned attempt withdrawn rather than sent, naming why
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the payment methods invoices are collected with
         - refuse the start where the invoices are collected and nothing records what they brought
@@ -1493,6 +1497,8 @@ _Tested by:_
         - beyond what the subscriber is owed is recorded, and what matches nothing audited for the
           operator
         - that fails gives back what it paid out, once
+        - of an attempt this installation does not hold, or another account sent, records nothing
+          and is not refused
         - of a payment not recorded yet is refused, so the gateway delivers it again once it is
     - an invoice whose total is negative
         - is credited to its subscriber once, by the run after it was issued
@@ -1628,6 +1634,7 @@ _Tested by:_
           conflict raised
         - writes no first attempt where one is ${status.toLowerCase()}
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
+        - writes none for an invoice that owes nothing, reading no attempt
     - planning an attempt
         - locks the invoice, reads its attempts, then writes the next one as planned for its day
         - writes nothing where another attempt came after the one it follows
@@ -1759,6 +1766,7 @@ _Tested by:_
           conflict raised
         - writes no first attempt where one is ${status.toLowerCase()}
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
+        - writes none for an invoice that owes nothing, reading no attempt
     - planning an attempt
         - locks the invoice, reads its attempts, then writes the next one as planned for its day
         - writes nothing where another attempt came after the one it follows
@@ -1791,6 +1799,7 @@ _Tested by:_
         - what
         - a planned attempt is taken up as sent, or withdrawn, in the invoice’s turn
         - a planned attempt is taken up as sent once, and read back as written
+        - nothing is written for an invoice that owes nothing, started, planned or sent
     - reading
         - the invoices due and the invoices another payment method can collect are raw queries
         - the failed attempts not followed up are listed by id
@@ -1992,6 +2001,7 @@ _Tested by:_
           conflict raised
         - writes no first attempt where one is ${status.toLowerCase()}
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
+        - writes none for an invoice that owes nothing, reading no attempt
     - planning an attempt
         - locks the invoice, reads its attempts, then writes the next one as planned for its day
         - writes nothing where another attempt came after the one it follows

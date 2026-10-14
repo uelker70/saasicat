@@ -2102,8 +2102,12 @@ gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
 - **An `InvoiceCollectionRepository` of your own** implements `findByKey`, and records a success
   reported for an attempt recorded as failed: in the invoice's turn, a planned attempt after it is
   withdrawn and the attempt succeeds, unless another of the invoice's is on its way or succeeded.
+  An invoice that owes nothing — its total no more than what `subscription_invoice_settlements`
+  holds against it — is collected no further: `startAttempt`, `plan` and `submitPlanned` write
+  nothing for it in its turn, and `listCollectableAgain` leaves it out.
 - **A persistence contract harness** gains `subscriberPaymentRepository`, or declares
-  `gaps: ['subscriberPayments']`. Empty the five tables between scenarios with the invoices.
+  `gaps: ['subscriberPayments']`; the collection scenarios need it as well, since an attempt reads
+  what the payments settle. Empty the five tables between scenarios with the invoices.
 - **An application that words refusals itself** adds `SUBSCRIBER_CREDIT_NOT_FOUND`,
   `SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT` and `SUBSCRIBER_PAYOUT_NOT_MADE_YET`, the payout's refusals. The
   audit log records `SUBSCRIPTION_INVOICE_PAYMENT_RECORDED`, `SUBSCRIBER_CREDIT_RECORDED`,

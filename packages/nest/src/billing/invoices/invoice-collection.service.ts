@@ -186,7 +186,13 @@ type CollectionAudit =
       }
     | {
           action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN';
-          changes: { number: string; attempt: number; paymentMethodId: string };
+          changes: {
+              number: string;
+              attempt: number;
+              paymentMethodId: string;
+              /** The invoice owes nothing any more, or its payment method was replaced. */
+              because: 'paid' | 'payment-method-replaced';
+          };
       }
     | {
           action: 'SUBSCRIPTION_INVOICE_COLLECTION_WAITING';
@@ -441,6 +447,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     ): Promise<void> {
         const failed = await this.collections.findById(id);
         if (failed?.status !== 'FAILED' || failed.followedUpAt !== null) return;
+        // A payment came for the invoice — a late one beside this attempt —
+        // so nothing follows, and there is no failure left to tell.
+        if (!(await this.recording().payments.owes(failed.invoiceId))) {
+            await this.collections.markFollowedUp(failed.id, new Date());
+            return;
+        }
         const invoice = await this.invoiceOf(failed.invoiceId);
         const next = await this.attemptAfter(invoice, failed, today, run);
         // Not settled yet: followed up again once the replacement is planned.
@@ -607,7 +619,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (attempt?.status !== 'SCHEDULED') return;
         const invoice = await this.invoiceOf(attempt.invoiceId);
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
-        if (method?.id !== attempt.paymentMethodId) {
+        const paid = !(await this.recording().payments.owes(invoice.id));
+        if (paid || method?.id !== attempt.paymentMethodId) {
             if (!(await this.collections.withdraw(id, new Date()))) return;
             await this.writeAudit(invoice.id, {
                 action: 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN',
@@ -615,6 +628,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                     number: invoice.number,
                     attempt: attempt.attempt,
                     paymentMethodId: attempt.paymentMethodId,
+                    because: paid ? 'paid' : 'payment-method-replaced',
                 },
             });
             return;

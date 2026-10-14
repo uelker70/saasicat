@@ -90,9 +90,10 @@ export const COLLECTING_SETTINGS = {
 
 /**
  * The attempts in memory, beside the invoices and documents of `store` and
- * the subscribers' payment methods.
+ * the subscribers' payment methods. `owes` says whether an invoice still owes
+ * something; one that owes nothing is collected no further.
  */
-export function collectionStore(store, paymentMethods) {
+export function collectionStore(store, paymentMethods, owes = () => true) {
     const attempts = [];
     const pageOf = (ids, { limit, after }) =>
         ids
@@ -106,6 +107,7 @@ export function collectionStore(store, paymentMethods) {
         if (!store.invoices.some((invoice) => invoice.id === request.invoiceId)) {
             throw new Error(`no invoice ${request.invoiceId}`);
         }
+        if (!owes(request.invoiceId)) return null;
         const earlier = attempts.filter((each) => each.invoiceId === request.invoiceId);
         if (refuses(earlier)) return null;
         const number = lastCollectionOf(earlier) + 1;
@@ -183,7 +185,7 @@ export function collectionStore(store, paymentMethods) {
         },
         async submitPlanned(id, at) {
             const attempt = attempts.find((each) => each.id === id);
-            if (attempt?.status !== 'SCHEDULED') return null;
+            if (attempt?.status !== 'SCHEDULED' || !owes(attempt.invoiceId)) return null;
             Object.assign(attempt, { status: 'SUBMITTED', submittedAt: at, heldAt: at });
             return structuredClone(attempt);
         },
@@ -220,7 +222,8 @@ export function collectionStore(store, paymentMethods) {
                     inUse !== undefined &&
                     (last.status === 'WITHDRAWN' ||
                         (last.status === 'FAILED' && last.followedUpAt !== null)) &&
-                    inUse.id !== last.paymentMethodId
+                    inUse.id !== last.paymentMethodId &&
+                    owes(invoice.id)
                 );
             });
             return pageOf(
@@ -312,12 +315,14 @@ export function aCollectingInstallation({
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
     const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
-    const collections = collectionStore(installation.store, paymentMethods);
+    const payments = new MemorySubscriberPayments(installation.store.invoices);
+    const collections = collectionStore(installation.store, paymentMethods, (invoiceId) =>
+        payments.stillOwes(invoiceId),
+    );
     const notices = noticeRecord();
     const gateway = new ScriptedGateway('stripe');
     const gateways = new PaymentGatewayRegistry(settings, { [MAIN_ACCOUNT]: gateway });
     const audits = [];
-    const payments = new MemorySubscriberPayments(installation.store.invoices);
     const eventLog = new MemoryPaymentEventLog();
     const transactions = new RollbackRunner([payments, eventLog]);
     const callbacks = new PaymentCallbackService(gateways, eventLog, transactions);

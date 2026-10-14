@@ -383,7 +383,12 @@ describe('a payment method that replaced the one an invoice named, or the one th
             [3, 'SUCCEEDED', card.paymentMethodRef],
         ]);
         assert.deepEqual(entriesOf(audits, 'SUBSCRIPTION_INVOICE_COLLECTION_WITHDRAWN'), [
-            { number: invoice.number, attempt: 2, paymentMethodId: method.id },
+            {
+                number: invoice.number,
+                attempt: 2,
+                paymentMethodId: method.id,
+                because: 'payment-method-replaced',
+            },
         ]);
     });
 

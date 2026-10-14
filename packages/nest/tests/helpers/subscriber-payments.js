@@ -145,6 +145,7 @@ export class MemorySubscriberPayments {
                 each.gatewayRef === refund.paymentRef,
         );
         if (!payment) return { outcome: 'unknown-payment' };
+        if (refund.currency !== payment.currency) throw new Error('another currency');
         const known = this.refunds.find(
             (each) =>
                 each.gatewayAccount === refund.gatewayAccount &&
@@ -253,6 +254,12 @@ export class MemorySubscriberPayments {
 
     async listPaymentsByInvoice(invoiceId) {
         return structuredClone(this.payments.filter((each) => each.invoiceId === invoiceId));
+    }
+
+    /** Whether the invoice still owes something, as the attempts' turn reads it. */
+    stillOwes(invoiceId) {
+        const invoice = this.invoices.find((each) => each.id === invoiceId);
+        return invoice ? this.#owed(invoice) > 0 : true;
     }
 
     async owedBy(invoiceId) {

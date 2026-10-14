@@ -2125,10 +2125,20 @@ export function createMemoryHarness() {
     // The attempts to collect an invoice: one open, and none after one
     // succeeded, decided in one synchronous step as the indexes decide it.
     const unsettled = new Set(UNSETTLED_COLLECTION_STATUSES);
+    /** Whether the invoice still owes something after what is settled against it. */
+    const stillOwes = (invoice) =>
+        owedOn(
+            Number(invoice.totalGross),
+            state.settlements
+                .filter((row) => row.invoiceId === invoice.id)
+                .map((row) => Number(row.amount)),
+        ) > 0;
     const writeNextCollection = (invoiceId, refuses, columns) => {
-        if (!state.invoices.some((row) => row.id === invoiceId)) {
+        const invoice = state.invoices.find((row) => row.id === invoiceId);
+        if (!invoice) {
             throw new Error(`invoice '${invoiceId}' does not exist`);
         }
+        if (!stillOwes(invoice)) return null;
         const earlier = state.invoiceCollections.filter((row) => row.invoiceId === invoiceId);
         if (refuses(earlier)) return null;
         const row = {
@@ -2186,6 +2196,9 @@ export function createMemoryHarness() {
         async submitPlanned(id, at) {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
             if (!row || row.status !== 'SCHEDULED') return null;
+            if (!stillOwes(state.invoices.find((invoice) => invoice.id === row.invoiceId))) {
+                return null;
+            }
             Object.assign(row, { status: 'SUBMITTED', submittedAt: at, heldAt: at });
             return sentCollectionOf(toInvoiceCollectionRecord(structuredClone(row)));
         },
@@ -2225,7 +2238,8 @@ export function createMemoryHarness() {
                     inUse !== undefined &&
                     (last.status === 'WITHDRAWN' ||
                         (last.status === 'FAILED' && last.followedUpAt !== null)) &&
-                    inUse.id !== last.paymentMethodId
+                    inUse.id !== last.paymentMethodId &&
+                    stillOwes(invoice)
                 );
             });
             return pageOf(
@@ -2438,6 +2452,9 @@ export function createMemoryHarness() {
             );
             if (!paymentRow) return { outcome: 'unknown-payment' };
             const payment = toSubscriberPaymentRecord(structuredClone(paymentRow));
+            if (refund.currency !== payment.currency) {
+                throw new Error(`refund in ${refund.currency}, payment in ${payment.currency}`);
+            }
             const existing = state.refunds.find(
                 (row) =>
                     row.gatewayAccount === refund.gatewayAccount &&

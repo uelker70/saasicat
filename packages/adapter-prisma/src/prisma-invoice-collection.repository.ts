@@ -137,6 +137,9 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                    FOR UPDATE`,
         );
         if (locked.length === 0) throw new Error(`Invoice ${invoiceId} does not exist.`);
+        // An invoice that owes nothing — a payment came for it — is collected
+        // no further.
+        if (!(await owes(db, invoiceId))) return null;
         const earlier = await db.subscriptionInvoiceCollection.findMany({
             where: { invoiceId },
             select: { attempt: true, status: true },
@@ -179,6 +182,8 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         tx?: TransactionContext,
     ): Promise<SubmittedInvoiceCollection | null> {
         return this.inTurnOf(id, tx, async (db) => {
+            const planned = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            if (!planned || !(await owes(db, planned.invoiceId))) return null;
             const { count } = await db.subscriptionInvoiceCollection.updateMany({
                 where: { id, status: 'SCHEDULED' },
                 data: { status: 'SUBMITTED', submittedAt: at, heldAt: at },
@@ -270,6 +275,10 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                AND (c."status" = 'WITHDRAWN'
                     OR (c."status" = 'FAILED' AND c."followedUpAt" IS NOT NULL))
                AND m."id" <> c."paymentMethodId"
+               AND i."totalGross" > COALESCE((
+                       SELECT SUM(s."amount") FROM "subscription_invoice_settlements" s
+                        WHERE s."invoiceId" = i."id"
+                   ), 0)
              ORDER BY i."id"
              LIMIT ${page.limit}`;
         return idsOf(rows);
@@ -392,4 +401,19 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         });
         return rows.map(toInvoiceCollectionRecord);
     }
+}
+
+/**
+ * Whether invoice `invoiceId` still owes something: its total exceeds what is
+ * settled against it. Exact in the database's numeric arithmetic.
+ */
+async function owes(db: CollectionPrisma, invoiceId: string): Promise<boolean> {
+    const rows = await db.$queryRaw`
+        SELECT i."id" FROM "subscription_invoices" i
+         WHERE i."id" = ${invoiceId}
+           AND i."totalGross" > COALESCE((
+                   SELECT SUM(s."amount") FROM "subscription_invoice_settlements" s
+                    WHERE s."invoiceId" = i."id"
+               ), 0)`;
+    return idsOf(rows).length === 1;
 }

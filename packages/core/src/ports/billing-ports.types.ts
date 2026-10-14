@@ -738,7 +738,9 @@ export interface InvoiceCollectionRepository {
     /**
      * Starts the invoice's first attempt in its turn and returns it, written as
      * `SUBMITTED` before its request leaves; `null`, writing nothing, where the
-     * invoice has an attempt already — every later one is planned (`plan`), so
+     * invoice owes nothing — its total no more than what is settled against
+     * it in `subscription_invoice_settlements` — or has an attempt already —
+     * every later one is planned (`plan`), so
      * a run that found the invoice due before another run's attempt failed
      * does not charge it again at once. The turn is the invoice's
      * own row, locked for the transaction — the chain of one invoice, which a
@@ -755,9 +757,9 @@ export interface InvoiceCollectionRepository {
     /**
      * Plans the invoice's next attempt in its turn, as `startAttempt` starts
      * one, and returns it, written as `SCHEDULED` for `plan.collectOn` with
-     * nothing sent; `null`, writing nothing, where an attempt of it is open or
-     * one succeeded, or where its last attempt is not the one numbered
-     * `plan.after` any more.
+     * nothing sent; `null`, writing nothing, where the invoice owes nothing,
+     * where an attempt of it is open or one succeeded, or where its last
+     * attempt is not the one numbered `plan.after` any more.
      */
     plan(
         plan: PlannedInvoiceCollection,
@@ -780,7 +782,8 @@ export interface InvoiceCollectionRepository {
      * Takes a planned attempt up as sent — `SUBMITTED`, sent and held at `at` —
      * in its invoice's turn, as `startAttempt` writes one, before its request
      * leaves, and returns it; `null`, writing nothing, where it is not planned
-     * any more, so of two runs one sends it.
+     * any more, so of two runs one sends it, or where its invoice owes nothing,
+     * a payment having come for it meanwhile.
      */
     submitPlanned(
         id: string,
@@ -811,9 +814,9 @@ export interface InvoiceCollectionRepository {
      * The invoices, by id and page as above, that another payment method can
      * collect: their last attempt was withdrawn, or failed and was followed
      * up, and their subscriber has a payment method in use other than the one
-     * that attempt was made with (`subscriber_payment_methods`). An invoice
-     * whose failed payment method is still in use, or whose subscriber has
-     * none, is not read until that changes.
+     * that attempt was made with (`subscriber_payment_methods`), and that still
+     * owe something. An invoice whose failed payment method is still in use,
+     * or whose subscriber has none, is not read until that changes.
      */
     listCollectableAgain(
         page: { limit: number; after?: string },

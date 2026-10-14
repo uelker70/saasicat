@@ -280,6 +280,17 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
         context: PaymentEventContext,
     ): Promise<PaymentEventEffect> {
         const { refund } = event;
+        // Only a refund of a payment this installation collected is its to
+        // record; another installation at the same account sees its own.
+        const attempt = await this.collections.findByKey(event.attemptKey, context.tx);
+        if (!attempt || attempt.gatewayAccount !== context.gatewayAccount) {
+            this.logger.warn(
+                `Payment event ${event.eventId} at '${context.gatewayAccount}' reports refund ` +
+                    `${refund.refundRef} of collection attempt ${event.attemptKey}, which ` +
+                    `${attempt ? 'was sent to another account' : 'this installation does not hold'}; nothing was recorded.`,
+            );
+            return 'nothing-to-do';
+        }
         const recorded = await this.payments.recordRefund(
             {
                 gatewayAccount: context.gatewayAccount,
@@ -302,6 +313,16 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
         if (recorded.outcome === 'unchanged') return 'nothing-to-do';
         context.afterCommit(() => this.reportRefund(recorded, refund.paymentRef));
         return 'took-effect';
+    }
+
+    /**
+     * Whether the invoice still owes something after what is settled against
+     * it. One that owes nothing — a payment came for it, a late one included —
+     * is collected no further.
+     */
+    async owes(invoiceId: string): Promise<boolean> {
+        const owed = await this.payments.owedBy(invoiceId);
+        return owed === null || owed > 0;
     }
 
     /**

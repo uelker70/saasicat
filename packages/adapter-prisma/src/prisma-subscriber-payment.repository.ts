@@ -201,6 +201,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             });
             if (!paymentRow) return { outcome: 'unknown-payment' };
             const payment = toSubscriberPaymentRecord(paymentRow);
+            refuseOtherCurrency(refund, payment);
             // The subscriber's credits are the refund's to divide: held, in
             // one order, before anything of them is read.
             await db.$queryRaw`
@@ -455,4 +456,19 @@ async function writeRefundEntries(
         })),
         skipDuplicates: true,
     });
+}
+
+/**
+ * Refuses a refund in another currency than the payment it pays back: it
+ * would be divided across credits of a currency the payment never brought.
+ */
+function refuseOtherCurrency(
+    refund: ReportedSubscriberRefund,
+    payment: SubscriberPaymentRecord,
+): void {
+    if (refund.currency === payment.currency) return;
+    throw new Error(
+        `Refund ${refund.gatewayRef} at '${refund.gatewayAccount}' is in ${refund.currency}, ` +
+            `and payment ${payment.gatewayRef} it pays back in ${payment.currency}.`,
+    );
 }
