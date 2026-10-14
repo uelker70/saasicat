@@ -195,7 +195,7 @@ function fakePrisma(seedVersions = []) {
                 // answers the same whatever it is asked is not a fake of
                 // anything.
                 let count = 0;
-                for (const row of [...versions.values()]) {
+                for (const row of versions.values()) {
                     if (!matchesVersionWhere(row, args.where)) continue;
                     versions.set(row.id, { ...row, ...args.data });
                     count += 1;

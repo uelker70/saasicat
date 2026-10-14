@@ -167,7 +167,7 @@ export function casesIn(text) {
     // every one of them as proof — which is the one thing a coverage number
     // must never say. Depth rather than braces, for the same reason the rest of
     // this reads indentation: Prettier owns the formatting of every file here.
-    const skipped = new Array(lines.length).fill(false);
+    const skipped = Array.from({ length: lines.length }, () => false);
     const open = [];
 
     // And the suites a line sits in, so a case is named by its path rather than

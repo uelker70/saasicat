@@ -482,7 +482,7 @@ const error = computed(() => billing.error.value ?? catalog.error.value);
 
 const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
     ...defaultTenantPlanSectionI18n(locale.value),
-    ...(props.i18n ?? {}),
+    ...props.i18n,
 }));
 
 // One provider for the whole section. Six children read the catalog and used to

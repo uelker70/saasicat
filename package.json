@@ -14,6 +14,7 @@
         "typecheck": "pnpm -r typecheck",
         "duplication": "pnpm dlx jscpd@4 || fail=1; pnpm dlx jscpd@4 -c .jscpd.tests.json || fail=1; exit ${fail:-0}",
         "lint": "eslint .",
+        "lint:correctness": "oxlint -c oxlint.correctness.config.mts --deny-warnings",
         "lint:css": "stylelint \"packages/ui-vue/src/{pages,features,internal}/**/*.{vue,css}\" \"packages/ui-vue-tenant/src/**/*.{vue,css}\" --max-warnings 0",
         "lint:md": "markdownlint-cli2",
         "lint:anti-slop": "tsc -p scripts && node scripts/anti-slop-ratchet.mts",

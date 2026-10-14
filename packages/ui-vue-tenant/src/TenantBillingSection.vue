@@ -62,7 +62,7 @@ const shown = reactive({ paymentMethod: false, details: false });
 provideTenantI18n(
     computed<TenantPlanSectionI18n>(() => ({
         ...defaultTenantPlanSectionI18n(locale.value),
-        ...(props.i18n ?? {}),
+        ...props.i18n,
     })),
 );
 </script>

@@ -594,7 +594,7 @@ export class SubscriptionContractService {
                 'lineItems.minimumTermUntil',
             ),
             featuresSnapshot: [...(item.featuresSnapshot ?? [])],
-            quotaEffectsSnapshot: { ...(item.quotaEffectsSnapshot ?? {}) },
+            quotaEffectsSnapshot: { ...item.quotaEffectsSnapshot },
             metadata: item.metadata ?? null,
         };
     }

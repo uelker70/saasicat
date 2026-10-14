@@ -13,6 +13,7 @@ import { AsyncLocalRlsBypassAdapter } from '../dist/index.js';
 /** A query as a builder hands it back: nothing runs until it is awaited. */
 function lazyQuery(port) {
     return {
+        // oxlint-disable-next-line unicorn/no-thenable -- imitates Prisma's deferred query
         then(resolve, reject) {
             return Promise.resolve(port.isBypassActive()).then(resolve, reject);
         },

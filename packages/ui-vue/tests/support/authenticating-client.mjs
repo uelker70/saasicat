@@ -20,7 +20,7 @@ export function authenticating(http, token) {
     const read = typeof token === 'function' ? token : () => token;
     return (url, init = {}) => {
         const value = read();
-        const headers = { ...(init.headers ?? {}) };
+        const headers = { ...init.headers };
         if (value != null) headers.Authorization = `Bearer ${value}`;
         return http(url, { ...init, headers });
     };

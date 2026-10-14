@@ -69,7 +69,11 @@ function machinePrefers(initial: 'light' | 'dark') {
     return {
         flipTo(next: 'light' | 'dark') {
             dark = next === 'dark';
-            for (const fn of [...listeners]) fn({ matches: dark } as MediaQueryListEvent);
+            // oxlint-disable-next-line unicorn/no-useless-spread -- a listener may (un)register while the change is dispatched
+            for (const fn of [...listeners]) {
+                // SAFETY: the listener under test reads only `matches`, which this event carries.
+                fn({ matches: dark } as MediaQueryListEvent);
+            }
         },
         restore() {
             listeners.clear();

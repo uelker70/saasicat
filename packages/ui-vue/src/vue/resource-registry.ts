@@ -82,7 +82,7 @@ function mergeOverrides<TOps extends ResourceOps>(
     layer: ResourceOverride<TOps>,
 ): ResourceOverride<TOps> {
     if (!base) return layer;
-    const ops: Record<string, unknown> = { ...(base.ops ?? {}) };
+    const ops: Partial<Record<string, (...args: never[]) => unknown>> = { ...base.ops };
     for (const [name, outer] of Object.entries(layer.ops ?? {})) {
         if (typeof outer !== 'function') continue;
         const inner = (base.ops as Record<string, unknown> | undefined)?.[name];

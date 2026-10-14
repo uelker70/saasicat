@@ -474,7 +474,7 @@ function onSave(): void {
         validFrom: form.validFrom,
         validUntil: form.validUntil,
         compatibility: {
-            ...(props.version.compatibility ?? {}),
+            ...props.version.compatibility,
             planIds: [...form.planIds],
         },
     });

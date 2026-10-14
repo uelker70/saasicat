@@ -66,8 +66,8 @@ export function mountWithQuasar(
         global: {
             ...globalOptions,
             plugins: [Quasar, ...(globalOptions.plugins ?? [])],
-            components: { ...QUASAR_COMPONENTS, ...(globalOptions.components ?? {}) },
-            directives: { ClosePopup, ...(globalOptions.directives ?? {}) },
+            components: { ...QUASAR_COMPONENTS, ...globalOptions.components },
+            directives: { ClosePopup, ...globalOptions.directives },
         },
     });
 }

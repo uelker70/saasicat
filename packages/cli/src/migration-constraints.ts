@@ -69,7 +69,7 @@ export function constraintsFor(constraintsSql: string, tables: readonly string[]
         .split(/\n\s*\n/)
         .filter((block) => {
             const addressed = tablesAddressedBy(block);
-            return addressed.length === 0 || addressed.every((table) => known.has(table));
+            return addressed.every((table) => known.has(table));
         })
         .join('\n\n')
         .trimEnd();

@@ -885,7 +885,7 @@ function openEditDraft(row: PlanVersionRow): void {
             version: row.version,
             features: [...row.features],
             bundles: [...(row.bundles ?? [])],
-            quotas: { ...(row.quotas ?? {}) },
+            quotas: { ...row.quotas },
             monthlyNet: row.monthlyNet,
             yearlyNet: row.yearlyNet,
             changeNote: row.changeNote ?? '',
@@ -906,7 +906,7 @@ async function persistDraft(): Promise<PlanVersionRow | null> {
     const body = {
         features: [...d.features],
         bundles: [...(d.bundles ?? [])],
-        quotas: { ...(d.quotas ?? {}) },
+        quotas: { ...d.quotas },
         monthlyNet: d.monthlyNet,
         yearlyNet: d.yearlyNet,
         marketed: d.marketed,

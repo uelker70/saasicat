@@ -25,7 +25,7 @@ export class AdminAuditService {
             entity: input.entity,
             entityId: input.entityId,
             action: input.action,
-            changes: { ...(input.changes ?? {}), actor: this.actorTag(input.actor) },
+            changes: { ...input.changes, actor: this.actorTag(input.actor) },
         });
     }
 

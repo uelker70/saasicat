@@ -58,7 +58,7 @@ const predecessor = computed<PredecessorVersion | null>(() => {
     return {
         version: latest.version,
         features: [...latest.features],
-        quotas: { ...(latest.quotas ?? {}) },
+        quotas: { ...latest.quotas },
         monthlyNet: latest.monthlyNet,
         yearlyNet: latest.yearlyNet,
         validFrom: latest.validFrom,

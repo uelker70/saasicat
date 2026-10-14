@@ -699,8 +699,8 @@ async function main(): Promise<void> {
     const after = perFile(measurement.findings, (reported) => reported);
     const moreThanBefore = changedFiles.flatMap((file) =>
         [...(after.get(file) ?? new Map<string, number>())].flatMap(([rule, now]) => {
-            const then = before.get(file)?.get(rule) ?? 0;
-            return now > then ? [{ file, rule, then, now }] : [];
+            const was = before.get(file)?.get(rule) ?? 0;
+            return now > was ? [{ file, rule, was, now }] : [];
         }),
     );
     const newDirectives = measurement.findings.filter(
@@ -777,8 +777,8 @@ async function main(): Promise<void> {
     }
     if (moreThanBefore.length > 0) {
         console.error('More findings than at the merge base:');
-        for (const { file, rule, then, now } of moreThanBefore) {
-            console.error(`  ${file}: ${rule} ${then} → ${now}`);
+        for (const { file, rule, was, now } of moreThanBefore) {
+            console.error(`  ${file}: ${rule} ${was} → ${now}`);
         }
         console.error('A changed file may not have more findings per rule than before.');
     }

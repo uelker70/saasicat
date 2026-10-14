@@ -115,7 +115,7 @@ export function buildStandardManifestContribution(
             'promoCodes.delete': true,
         });
         navigation.standardPages = {
-            ...(navigation.standardPages ?? {}),
+            ...navigation.standardPages,
             promoCodes: {
                 enabled: true,
                 requiredCapability: 'promoCodes.read',
