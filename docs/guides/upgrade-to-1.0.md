@@ -2062,6 +2062,54 @@ replaced the one an invoice named, or the one that failed, collects it (`SC-PRIC
   `SUBSCRIPTION_INVOICE_COLLECTION_FAILED` records a failed collection with its reason;
   `…_PLANNED`, `…_ANNOUNCED` and `…_WITHDRAWN` record what follows.
 
+### A payment is recorded, and a credit paid out
+
+Where invoices are [collected](#an-invoice-is-collected-through-its-payment-gateway): what a
+collection brought is recorded with its outcome — the payment, once, by its gateway account and the
+gateway's reference, settling what its invoice owes (`SC-PRIC-029`) — and what a subscriber is owed
+is a credit, never offset against a later invoice, which the operator pays out by a refund in the
+gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
+
+1. Add the five models of `prisma-fragments/24-subscriber-payments.prisma` to your schema, with the
+   back-relations it names on `Subscriber`, `SubscriptionInvoice` and
+   `SubscriptionInvoiceCollection`. With `prismaPersistence()` or `drizzlePersistence()` leaving them
+   out, pass them in `notAdopted` — and leave out `SubscriptionInvoiceCollection` with them, since
+   collecting now records what it brings.
+2. Run the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-payment-is-recorded.postgres.sql
+    ```
+
+    It creates the five tables, the unique gateway account and reference of a payment and of a
+    refund, and their foreign keys. It does nothing on a second run, nor without
+    `subscription_invoice_collections`.
+
+3. `SaaSiCatModule` takes `persistence.entitlement.subscriberPaymentRepository` for
+   `tenantBilling.chargeJournal.invoices.payments`; an application wiring `TenantBillingModule`
+   itself passes it there. The start refuses collections without it.
+4. Subscribe the gateway's webhook to what it reports about money: for Stripe, `payment_intent.*`
+   and `refund.*` as [its README](../../packages/payment-stripe/README.md) lists them. A restricted
+   Stripe key needs refunds (read) beside what it had.
+5. An application with a scheduler of its own calls `InvoicePaymentService.creditDue()` after
+   `issueDue(now)`, which credits an invoice whose total is negative.
+6. Grant the operators who pay credits out `credits.read` and `credits.payout`, which the manifest
+   announces where both are served; the payout asks for the second factor.
+
+- **A gateway of your own** names what it received on a success — `amountCents` and `currency` of
+  `CollectionOutcome` — and reports outcomes and refunds through `readCallback` as
+  `collection-reported` and `refund-reported`.
+- **An `InvoiceCollectionRepository` of your own** implements `findByKey`, and records a success
+  reported for an attempt recorded as failed: in the invoice's turn, a planned attempt after it is
+  withdrawn and the attempt succeeds, unless another of the invoice's is on its way or succeeded.
+- **A persistence contract harness** gains `subscriberPaymentRepository`, or declares
+  `gaps: ['subscriberPayments']`. Empty the five tables between scenarios with the invoices.
+- **An application that words refusals itself** adds `SUBSCRIBER_CREDIT_NOT_FOUND`,
+  `SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT` and `SUBSCRIBER_PAYOUT_NOT_MADE_YET`, the payout's refusals. The
+  audit log records `SUBSCRIPTION_INVOICE_PAYMENT_RECORDED`, `SUBSCRIBER_CREDIT_RECORDED`,
+  `SUBSCRIBER_REFUND_RECORDED`, `SUBSCRIBER_REFUND_GIVEN_BACK`, `SUBSCRIBER_REFUND_UNMATCHED` and
+  `SUBSCRIBER_CREDIT_PAID_OUT`.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

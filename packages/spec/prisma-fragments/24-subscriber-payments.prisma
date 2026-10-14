@@ -1,0 +1,142 @@
+// =============================================================================
+// SaaSiCat platform Prisma fragment: SubscriberPayment, SubscriptionInvoiceSettlement,
+// SubscriberCredit, SubscriberCreditEntry, SubscriberRefund
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// What money moved between a subscriber and the operator. A payment is what
+// the gateway confirmed for an invoice's collection attempt
+// (23-subscription-invoice-collection.prisma), recorded once by its gateway
+// account and the gateway's reference however often it is reported. What it
+// settles of its invoice is a settlement of its own; what it brought beyond
+// that, and an invoice whose total is negative, is a credit the subscriber is
+// owed. A credit is never offset against a later invoice: the operator pays it
+// out, by a refund in the gateway — recorded when the gateway reports it — or
+// by a payout outside it, each an entry against the credit. A refund that
+// fails or is canceled gives back what it paid out, as an entry of its own.
+//
+// Nothing here is updated but a refund's status: every change is a new row.
+// `kind` and `status` are text holding closed sets, checked when a row is read
+// (`toSubscriberCreditRecord` and the other readers in @saasicat/core), and so
+// is a credit's one origin — a payment or an invoice, never both.
+//
+// Optional, as one: adopt all five where invoices are collected through a
+// gateway — `tenantBilling.chargeJournal.invoices.payments` — beside the
+// collection attempts, which every payment points at.
+//
+// Contract: @saasicat/core (SubscriberPaymentRepository).
+
+model SubscriberPayment {
+    id             String   @id @default(uuid())
+    subscriberId   String
+    // The tenant the invoice was for, as a trace; no relation to it.
+    tenantId       String
+    invoiceId      String
+    collectionId   String
+    gatewayAccount String
+    provider       String
+    // The gateway's own reference to the payment, unique within its account.
+    gatewayRef     String
+    amount         Decimal  @db.Decimal(12, 2)
+    currency       String
+    recordedAt     DateTime @default(now())
+
+    subscriber  Subscriber                    @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    invoice     SubscriptionInvoice           @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    collection  SubscriptionInvoiceCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+    settlements SubscriptionInvoiceSettlement[]
+    credit      SubscriberCredit?
+    refunds     SubscriberRefund[]
+
+    @@unique([gatewayAccount, gatewayRef])
+    @@index([invoiceId])
+    @@index([subscriberId])
+    @@map("subscriber_payments")
+}
+
+model SubscriptionInvoiceSettlement {
+    id         String   @id @default(uuid())
+    invoiceId  String
+    paymentId  String
+    kind       String // PAYMENT
+    // What it takes off what the invoice owes, positive.
+    amount     Decimal  @db.Decimal(12, 2)
+    recordedAt DateTime @default(now())
+
+    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    payment SubscriberPayment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+    @@index([invoiceId])
+    @@index([paymentId])
+    @@map("subscription_invoice_settlements")
+}
+
+model SubscriberCredit {
+    id              String   @id @default(uuid())
+    subscriberId    String
+    // The tenant it arose in, as a trace; no relation to it.
+    tenantId        String
+    // What the subscriber is owed, positive.
+    amount          Decimal  @db.Decimal(12, 2)
+    currency        String
+    // Exactly one of the two: the payment that brought more than its invoice
+    // owed, or the invoice whose total is negative.
+    originPaymentId String?  @unique
+    originInvoiceId String?  @unique
+    createdAt       DateTime @default(now())
+
+    subscriber    Subscriber             @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    originPayment SubscriberPayment?     @relation(fields: [originPaymentId], references: [id], onDelete: Restrict)
+    originInvoice SubscriptionInvoice?   @relation(fields: [originInvoiceId], references: [id], onDelete: Restrict)
+    entries       SubscriberCreditEntry[]
+
+    @@index([subscriberId, createdAt])
+    @@map("subscriber_credits")
+}
+
+model SubscriberCreditEntry {
+    id         String    @id @default(uuid())
+    creditId   String
+    kind       String // REFUND | REFUND_FAILED | PAYOUT
+    // Positive: what a REFUND or a PAYOUT pays out, what a REFUND_FAILED gives back.
+    amount     Decimal   @db.Decimal(12, 2)
+    // The refund, for a REFUND and its REFUND_FAILED.
+    refundId   String?
+    // A payout's: the transfer's reference, the day it left, who recorded it.
+    reference  String?
+    paidOn     DateTime? @db.Date
+    recordedBy String?
+    note       String?
+    recordedAt DateTime  @default(now())
+
+    credit SubscriberCredit  @relation(fields: [creditId], references: [id], onDelete: Restrict)
+    refund SubscriberRefund? @relation(fields: [refundId], references: [id], onDelete: Restrict)
+
+    @@unique([refundId, creditId, kind])
+    @@index([creditId])
+    @@map("subscriber_credit_entries")
+}
+
+model SubscriberRefund {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    paymentId      String
+    gatewayAccount String
+    // The gateway's own reference to the refund, unique within its account.
+    gatewayRef     String
+    amount         Decimal   @db.Decimal(12, 2)
+    currency       String
+    status         String // PENDING | SUCCEEDED | FAILED | CANCELED
+    recordedAt     DateTime  @default(now())
+    // When it was recorded as failed or canceled.
+    endedAt        DateTime?
+
+    subscriber Subscriber              @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment    SubscriberPayment       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    entries    SubscriberCreditEntry[]
+
+    @@unique([gatewayAccount, gatewayRef])
+    @@index([paymentId])
+    @@map("subscriber_refunds")
+}

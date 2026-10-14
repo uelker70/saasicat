@@ -1196,11 +1196,46 @@ stamps every hold.
 last four digits. Word them as you word the invoice; each is sent once, and one the port rejects is
 tried again by the next run.
 
+### What a collection brings, and what the subscriber is owed
+
+What a collection brought is recorded with its outcome, on one transaction and in the invoice's
+turn: the payment, once, by its gateway account and the gateway's reference, however it is reported
+first — the run asking, or the gateway's callback — and however often (`SC-PRIC-029`,
+`SC-PRIC-036`). Adopt `prisma-fragments/24-subscriber-payments.prisma` with the back-relations it
+names on `Subscriber`, `SubscriptionInvoice` and `SubscriptionInvoiceCollection`, run
+`sql/1.0-a-payment-is-recorded.postgres.sql` once before `db push`, and `SaaSiCatModule` takes
+`persistence.entitlement.subscriberPaymentRepository` for `chargeJournal.invoices.payments` unless
+you name another. The start refuses collections without it.
+
+- **A payment settles what its invoice owes**, and what it brought beyond that is a credit on the
+  subscriber's account. So is an invoice whose total is negative, such as one carrying the unused
+  rest a withdrawal credits; the quarter-hourly run records that credit right after the invoice is
+  issued. An application with a scheduler of its own calls `InvoicePaymentService.creditDue()` after
+  `issueDue(now)`.
+- **A credit is never offset** against a later invoice (`SC-PRIC-083`): every invoice is collected
+  for the amount it states. The operator pays the credit out. A refund made in the gateway is
+  recorded against it when the gateway reports it — the credit the refunded payment left first,
+  then the oldest — and given back when the refund fails or is canceled; the part a credit does not
+  take is recorded as matching none (`SUBSCRIBER_REFUND_UNMATCHED`, for the operator to reconcile).
+  Where the gateway can no longer refund — its account no longer configured, or a direct debit past
+  the gateway's refund period — the operator records a transfer with its reference on the tenant's
+  page (`credits.payout`, behind the second factor). SaaSiCat initiates neither.
+- **The audit log** records each payment (`SUBSCRIPTION_INVOICE_PAYMENT_RECORDED`), each credit
+  (`SUBSCRIBER_CREDIT_RECORDED`), each refund (`SUBSCRIBER_REFUND_RECORDED`, and
+  `SUBSCRIBER_REFUND_GIVEN_BACK` when it fails) and each payout (`SUBSCRIBER_CREDIT_PAID_OUT`).
+- **The gateway's callbacks** carry the collections' outcomes and the refunds: subscribe the
+  account's webhook to the events its adapter names — for Stripe, the payment intent and refund
+  events in [its README](../../packages/payment-stripe/README.md). A refund of a payment not
+  recorded yet is answered with an error, so the gateway delivers it again once the payment is.
+
 **A gateway of your own** implements `collect(input)` and `findCollection(input)` of `PaymentGateway`:
 a refusal is a `failed` outcome with a reason of `CollectionFailureReason` and your provider's code,
-and only an answer that says nothing about a charge is thrown. The `attemptKey` is your provider's
-idempotency key, and kept with the payment so that `findCollection` finds it again — after the
-provider forgets the key, too. `DevPaymentGateway` collects at once and keeps what it made in memory.
+and only an answer that says nothing about a charge is thrown. A success names what the provider
+received, as `amountCents` of `currency`. The `attemptKey` is your provider's idempotency key, and
+kept with the payment so that `findCollection` finds it again — after the provider forgets the key,
+too. Its `readCallback` reports a collection's outcome as `collection-reported` with the attempt's
+key, and a refund as `refund-reported`, each read as it stands when it is translated. `DevPaymentGateway`
+collects at once and keeps what it made in memory.
 
 The runs read and write across tenants inside `RlsBypassPort`. If the invoice tables, the journal,
 your contracts or subscribers carry a row-level policy, your implementation of that port has to lift

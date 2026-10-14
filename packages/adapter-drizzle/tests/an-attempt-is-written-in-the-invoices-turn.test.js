@@ -228,7 +228,7 @@ describe('settling and taking on an attempt', () => {
         assert.equal(
             await settled.repo.recordOutcome(
                 'attempt-1',
-                { status: 'succeeded', paymentRef: 'pi_1' },
+                { status: 'succeeded', paymentRef: 'pi_1', amountCents: 5831, currency: 'EUR' },
                 AT,
             ),
             true,
@@ -241,10 +241,14 @@ describe('settling and taking on an attempt', () => {
             ),
             false,
         );
-        const [update] = settled.statements;
+        // A success is the money arriving: it takes the invoice's turn first,
+        // as a late success for a failed attempt has to.
+        const [turn, update] = settled.statements;
+        assert.match(turn.sql, /for update/i);
         assert.match(update.sql, /"status" in \(\$\d+, \$\d+\)/i);
         assert.ok(update.params.includes('SUBMITTED') && update.params.includes('PENDING'));
         assert.ok(update.params.includes('SUCCEEDED'));
+        assert.match(already.statements[0].sql, /^update/i, 'anything else takes no turn');
     });
 
     test('a hold is taken only where the last one is older than the lease', async () => {

@@ -12,8 +12,12 @@ export {
 } from './payments.module.js';
 export {
     PaymentCallbackService,
+    type CollectionReportedEvent,
     type PaymentCallbackOutcome,
     type PaymentEventContext,
+    type PaymentEventEffect,
+    type PaymentMoneyEventHandler,
+    type RefundReportedEvent,
     type PaymentMethodConfirmedEvent,
     type PaymentMethodSetupFailedEvent,
     type PaymentSetupEventHandler,

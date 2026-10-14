@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../../maintenance/maintenance.service.js';
 import { InvoiceCollectionService } from './invoice-collection.service.js';
+import { InvoicePaymentService } from './invoice-payment.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 import { SubscriptionInvoiceService } from './subscription-invoice.service.js';
 
@@ -41,6 +42,10 @@ export class SubscriptionInvoiceCron {
         @Optional()
         @Inject(InvoiceCollectionService)
         private readonly collections: InvoiceCollectionService | null = null,
+        // Beside the collections: what they brought, and the credits.
+        @Optional()
+        @Inject(InvoicePaymentService)
+        private readonly payments: InvoicePaymentService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'subscriptionInvoices' })
@@ -67,6 +72,10 @@ export class SubscriptionInvoiceCron {
                         `${issued.failed} to try again.`,
                 );
             }
+            // An invoice whose total is negative is a credit from the run that
+            // issued it (`SC-PRIC-083`).
+            const credited = await this.step('Invoice credits', () => this.payments?.creditDue());
+            if (credited) this.logger.log(`Invoice credits: ${credited} recorded.`);
             const archived = await this.step('Invoice documents', () =>
                 this.documents?.archiveDue(new Date()),
             );

@@ -387,6 +387,73 @@ paths:
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
+    /tenants/{slug}/credits:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [subscriptions]
+            summary: The credits of the tenant's subscriber, the oldest first
+            description: >-
+                Served where the platform shows tenants (`adminResources`) and
+                collects invoices, recording what each collection brought
+                (`tenantBilling.chargeJournal.invoices.collections` and
+                `payments`); the manifest announces it as `credits.read`. A
+                credit is what a payment brought beyond its invoice, or what an
+                invoice whose total is negative owes the subscriber. It is never
+                offset against a later invoice: the operator pays it out, by a
+                refund in the gateway or a payout recorded here.
+            responses:
+                '200':
+                    description: The credits
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberCredits' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+
+    /tenants/{slug}/credits/{creditId}/payouts:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+            - name: creditId
+              in: path
+              required: true
+              schema: { type: string }
+        post:
+            tags: [subscriptions]
+            summary: Record a payout made outside the gateway against one credit
+            description: >-
+                For a credit the gateway can no longer refund — its account no
+                longer configured, or the payment past the gateway's own refund
+                period. SaaSiCat pays nothing out itself: the payout is recorded
+                once it left, with the reference the operator's bank statement
+                names, and never beyond what the credit still owes. The manifest
+                announces it as `credits.payout`.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/AdminSubscriberPayout' }
+            responses:
+                '200':
+                    description: The credits as they stand after the payout
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberCredits' }
+                '400':
+                    description: >-
+                        A field out of shape, or a day still to come in the
+                        installation's zone (`SUBSCRIBER_PAYOUT_NOT_MADE_YET`)
+                '404':
+                    description: >-
+                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
+                        credit under this id of its subscriber
+                        (`SUBSCRIBER_CREDIT_NOT_FOUND`)
+                '409':
+                    description: >-
+                        More than the credit still owes, which it names
+                        (`SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`); nothing is recorded
+
     /invoices/{id}/document:
         parameters:
             - name: id
@@ -3184,6 +3251,76 @@ components:
                                     The contract line's title as it was when the
                                     contract was concluded; null where that line
                                     cannot be read.
+
+        AdminSubscriberCreditEntry:
+            type: object
+            required: [kind, amount, reference, paidOn, note, recordedAt]
+            properties:
+                kind:
+                    type: string
+                    enum: [REFUND, REFUND_FAILED, PAYOUT]
+                    description: >-
+                        A refund made in the gateway and a payout pay the
+                        credit out; a refund that failed or was canceled gives
+                        its amount back.
+                amount: { type: number, description: Positive. }
+                reference:
+                    type: string
+                    nullable: true
+                    description: The refund's reference at the gateway, or the payout's.
+                paidOn:
+                    type: string
+                    format: date
+                    nullable: true
+                    description: The day a payout left; null for a refund's entries.
+                note: { type: string, nullable: true }
+                recordedAt: { type: string, format: date-time }
+
+        AdminSubscriberCredit:
+            type: object
+            required: [id, amount, currency, origin, createdAt, open, entries]
+            properties:
+                id: { type: string }
+                amount: { type: number, description: What the subscriber is owed, positive. }
+                currency: { type: string }
+                origin:
+                    type: object
+                    required: [kind, invoiceNumber]
+                    description: >-
+                        The payment that brought more than its invoice owed —
+                        with its reference at the gateway —, or the invoice
+                        whose total is negative.
+                    properties:
+                        kind: { type: string, enum: [payment, invoice] }
+                        paymentRef: { type: string }
+                        invoiceNumber: { type: string, nullable: true }
+                createdAt: { type: string, format: date-time }
+                open: { type: number, description: What is still owed of it; never below 0. }
+                entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminSubscriberCreditEntry' }
+
+        AdminSubscriberCredits:
+            type: object
+            required: [credits]
+            properties:
+                credits:
+                    type: array
+                    description: The oldest first.
+                    items: { $ref: '#/components/schemas/AdminSubscriberCredit' }
+
+        AdminSubscriberPayout:
+            type: object
+            required: [amount, reference, paidOn]
+            properties:
+                amount:
+                    type: number
+                    minimum: 0.01
+                    maximum: 9999999999.99
+                    multipleOf: 0.01
+                reference: { type: string, maxLength: 200, description: Not blank. }
+                paidOn: { type: string, format: date, description: Today or earlier. }
+                note: { type: string, nullable: true, maxLength: 500 }
 
         SubscriberReadiness:
             type: object

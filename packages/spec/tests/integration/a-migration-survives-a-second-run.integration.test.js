@@ -914,7 +914,9 @@ describe('every contract names the subscriber it is concluded with', () => {
         // Payment methods, the charge journal, the tax origin and the invoices
         // came later still, and point at the subscribers.
         await client.query(
-            'DROP TABLE "subscription_invoice_collections", "subscription_invoice_archive", ' +
+            'DROP TABLE "subscriber_credit_entries", "subscriber_refunds", "subscriber_credits", ' +
+                '"subscription_invoice_settlements", "subscriber_payments", ' +
+                '"subscription_invoice_collections", "subscription_invoice_archive", ' +
                 '"subscription_invoice_documents", ' +
                 '"subscription_invoice_lines", "subscription_invoices", ' +
                 '"subscription_invoice_numbers", ' +
@@ -2546,9 +2548,20 @@ describe('an invoice is collected through its payment gateway', () => {
 
     const MIGRATION = '1.0-an-invoice-is-collected.postgres.sql';
 
-    /** The reference schema with this migration's table taken back out. */
+    /**
+     * The payments came later and point at the attempts: taken out with them,
+     * and put back by their own migration where a test compares the whole
+     * schema.
+     */
+    const PAYMENTS_MIGRATION = '1.0-a-payment-is-recorded.postgres.sql';
+
+    /** The reference schema with this migration's table, and the payments after it, taken back out. */
     async function beforeTheMigration() {
         await freshGround();
+        await client.query(
+            'DROP TABLE "subscriber_credit_entries", "subscriber_refunds", "subscriber_credits", ' +
+                '"subscription_invoice_settlements", "subscriber_payments"',
+        );
         await client.query('DROP TABLE "subscription_invoice_collections"');
     }
 
@@ -2597,6 +2610,7 @@ describe('an invoice is collected through its payment gateway', () => {
         );
 
         await apply(MIGRATION);
+        await apply(PAYMENTS_MIGRATION);
 
         assert.equal(await fingerprint(client), reference);
         const { rows } = await client.query(
@@ -2640,6 +2654,7 @@ describe('an invoice is collected through its payment gateway', () => {
 
         await apply(MIGRATION);
         await apply(MIGRATION);
+        await apply(PAYMENTS_MIGRATION);
 
         assert.equal(await fingerprint(client), reference);
         const { rows: required } = await client.query(
@@ -2707,5 +2722,117 @@ describe('an invoice is collected through its payment gateway', () => {
             `SELECT to_regclass('subscription_invoice_collections') AS collections`,
         );
         assert.deepEqual(rows, [{ collections: null }]);
+    });
+});
+
+describe('a payment is recorded, and a credit paid out', () => {
+    // The migration creates the payments, what they settle, the credits and
+    // what pays them out. The second-run suite runs it on the reference
+    // schema, where the tables are already there; these start from the schema
+    // as it stood before.
+
+    const MIGRATION = '1.0-a-payment-is-recorded.postgres.sql';
+
+    /** The tables it creates, each before the ones it points at. */
+    const TABLES = [
+        'subscriber_credit_entries',
+        'subscriber_refunds',
+        'subscriber_credits',
+        'subscription_invoice_settlements',
+        'subscriber_payments',
+    ];
+
+    /** The reference schema with this migration's tables taken back out. */
+    async function beforeTheMigration() {
+        await freshGround();
+        for (const table of TABLES) await client.query(`DROP TABLE "${table}"`);
+    }
+
+    /** A payment of an invoice's first attempt, under `account` and `ref`. */
+    async function aPayment(id, account, ref) {
+        await client.query(
+            'INSERT INTO "subscriber_payments" ("id", "subscriberId", "tenantId", "invoiceId", ' +
+                '"collectionId", "gatewayAccount", "provider", "gatewayRef", "amount", "currency") ' +
+                `VALUES ('${id}', 's-1', 't-1', 'invoice-1', 'attempt-1', '${account}', 'stripe', ` +
+                `'${ref}', 58.31, 'EUR')`,
+        );
+    }
+
+    /** An invoice issued before with its first attempt, and the subscriber and contract it names. */
+    async function anInvoiceWithAnAttempt() {
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_invoices" ("id", "number", "numberPrefix", "numberYear", ' +
+                '"numberSequence", "tenantId", "subscriberId", "subscriptionId", "contractId", ' +
+                '"issuedAt", "issueDate", "dueDate", "servicePeriodFrom", "servicePeriodUntil", ' +
+                '"currency", "issuerParty", "subscriberParty", "taxTreatment", "taxes", ' +
+                '"totalNet", "totalTax", "totalGross") ' +
+                "VALUES ('invoice-1', 'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', 'sub-1', " +
+                "'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', 'EUR', " +
+                "'{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
+        );
+        await client.query(
+            'INSERT INTO "subscription_invoice_collections" ("id", "invoiceId", "attempt", ' +
+                '"attemptKey", "gatewayAccount", "paymentMethodId", "paymentMethodType", ' +
+                '"customerRef", "paymentMethodRef", "invoiceNumber", "amount", "currency", ' +
+                '"status", "submittedAt", "heldAt") ' +
+                "VALUES ('attempt-1', 'invoice-1', 1, 'saasicat:collect:invoice-1:1', " +
+                "'stripe-main', 'pm-1', 'card', 'cus_1', 'pm_1', 'AHP-2026-000001', 58.31, 'EUR', " +
+                "'SUCCEEDED', NOW(), NOW())",
+        );
+    }
+
+    // @requirement SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
+    test('a database from before ends up with the schema the fragments declare, twice', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+        assert.equal(await fingerprint(client), reference);
+        await apply(MIGRATION);
+        assert.equal(await fingerprint(client), reference);
+
+        const { rows } = await client.query(
+            "SELECT count(*)::int AS keys FROM pg_constraint WHERE contype = 'f' " +
+                `AND conrelid::regclass::text IN (${TABLES.map((table) => `'${table}'`).join(', ')})`,
+        );
+        assert.deepEqual(rows, [{ keys: 12 }], 'the foreign keys of the five tables');
+    });
+
+    // @requirement SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
+    test('a payment is taken once under its gateway account and reference, and another account may reuse the reference', async () => {
+        await beforeTheMigration();
+        await apply(MIGRATION);
+        await anInvoiceWithAnAttempt();
+
+        await aPayment('p-1', 'stripe-main', 'pi_1');
+        await assert.rejects(aPayment('p-2', 'stripe-main', 'pi_1'), { code: '23505' });
+        await aPayment('p-3', 'stripe-eu', 'pi_1');
+    });
+
+    test('an installation without collection attempts is left without the payments, and runs through', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "subscription_invoice_collections"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_payments') AS payments`,
+        );
+        assert.deepEqual(rows, [{ payments: null }]);
     });
 });

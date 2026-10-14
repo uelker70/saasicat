@@ -240,6 +240,36 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'medium',
             },
             {
+                key: 'SUBSCRIPTION_INVOICE_PAYMENT_RECORDED',
+                label: 'Payment the gateway confirmed recorded against its invoice',
+                severity: 'low',
+            },
+            {
+                key: 'SUBSCRIBER_CREDIT_RECORDED',
+                label: 'Credit recorded: a payment beyond its invoice, or an invoice below zero',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIBER_REFUND_RECORDED',
+                label: 'Refund made in the gateway recorded against the credits it pays out',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIBER_REFUND_GIVEN_BACK',
+                label: 'Refund failed or was canceled, and gave back what it paid out',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIBER_REFUND_UNMATCHED',
+                label: 'Refund pays out more than the subscriber is owed, to reconcile',
+                severity: 'high',
+            },
+            {
+                key: 'SUBSCRIBER_CREDIT_PAID_OUT',
+                label: 'Credit paid out outside the gateway, recorded with its reference',
+                severity: 'medium',
+            },
+            {
                 key: 'SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH',
                 label: 'Archived invoice document does not match its checksum and is not handed out',
                 severity: 'high',

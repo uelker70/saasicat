@@ -26,6 +26,7 @@ import {
     utcMidnightOf,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
+import { idsOf } from './raw-ids.js';
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface CollectionPrisma {
@@ -288,11 +289,39 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         at: Date,
         tx?: TransactionContext,
     ): Promise<boolean> {
-        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
-            where: { id, status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
-            data: collectionOutcomeColumns(outcome, at),
+        const settle = async (db: CollectionPrisma) => {
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
+                data: collectionOutcomeColumns(outcome, at),
+            });
+            return count === 1;
+        };
+        if (outcome.status !== 'succeeded') return settle(this.db(tx));
+        return this.inTurnOf(id, tx, async (db) => {
+            if (await settle(db)) return true;
+            const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            if (!row || row.status !== 'FAILED') return false;
+            // The money arrived after all: what was planned after the failure
+            // is not made, and the attempt succeeded — where no other attempt
+            // of its invoice is on its way or succeeded.
+            await db.subscriptionInvoiceCollection.updateMany({
+                where: { invoiceId: row.invoiceId, status: 'SCHEDULED' },
+                data: { status: 'WITHDRAWN', resolvedAt: at },
+            });
+            const others = await db.subscriptionInvoiceCollection.count({
+                where: {
+                    invoiceId: row.invoiceId,
+                    id: { not: id },
+                    status: { in: [...UNSETTLED_COLLECTION_STATUSES, 'SUCCEEDED'] },
+                },
+            });
+            if (others > 0) return false;
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: 'FAILED' },
+                data: collectionOutcomeColumns(outcome, at),
+            });
+            return count === 1;
         });
-        return count === 1;
     }
 
     async hold(id: string, heldBefore: Date, at: Date, tx?: TransactionContext): Promise<boolean> {
@@ -333,6 +362,16 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return row ? toInvoiceCollectionRecord(row) : null;
     }
 
+    async findByKey(
+        attemptKey: string,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null> {
+        const row = await this.db(tx).subscriptionInvoiceCollection.findUnique({
+            where: { attemptKey },
+        });
+        return row ? toInvoiceCollectionRecord(row) : null;
+    }
+
     async accountsInUse(tx?: TransactionContext): Promise<string[]> {
         const rows = await this.db(tx).subscriptionInvoiceCollection.findMany({
             where: { status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
@@ -353,16 +392,4 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         });
         return rows.map(toInvoiceCollectionRecord);
     }
-}
-
-/** The ids a raw query selected as `id`. */
-function idsOf(rows: unknown): string[] {
-    if (!Array.isArray(rows)) return [];
-    return rows.flatMap((row: unknown) => {
-        const id: unknown =
-            row !== null && typeof row === 'object'
-                ? Object.getOwnPropertyDescriptor(row, 'id')?.value
-                : undefined;
-        return typeof id === 'string' ? [id] : [];
-    });
 }

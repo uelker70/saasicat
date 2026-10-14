@@ -10,6 +10,8 @@
 import type { FactoryProvider } from '@nestjs/common';
 import {
     INVOICE_DOCUMENT_CAPABILITY,
+    SUBSCRIBER_CREDIT_CAPABILITY,
+    SUBSCRIBER_PAYOUT_CAPABILITY,
     SUBSCRIBER_ACCOUNT_CAPABILITY,
     SUBSCRIBER_ATTENTION_CAPABILITY,
     SUBSCRIBER_CORRECTION_CAPABILITY,
@@ -51,6 +53,7 @@ export function buildStandardManifestContribution(
     served: {
         subscriberAccounts: boolean;
         invoiceDocuments?: boolean;
+        subscriberCredits?: boolean;
         subscriberStanding?: boolean;
         subscriberAttention?: boolean;
         versionRetirements: boolean;
@@ -97,6 +100,11 @@ export function buildStandardManifestContribution(
     }
     if (served.subscriberAccounts) capabilities[SUBSCRIBER_ACCOUNT_CAPABILITY] = true;
     if (served.invoiceDocuments) capabilities[INVOICE_DOCUMENT_CAPABILITY] = true;
+    if (served.subscriberCredits) {
+        // One module serves the view and the payout beside it.
+        capabilities[SUBSCRIBER_CREDIT_CAPABILITY] = true;
+        capabilities[SUBSCRIBER_PAYOUT_CAPABILITY] = true;
+    }
     if (served.subscriberStanding) {
         // One module serves the view and the corrections beside it.
         capabilities[SUBSCRIBER_STANDING_CAPABILITY] = true;

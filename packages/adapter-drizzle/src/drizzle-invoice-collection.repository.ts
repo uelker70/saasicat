@@ -354,19 +354,60 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         at: Date,
         tx?: TransactionContext,
     ): Promise<boolean> {
-        const rows = await resolveDb(this.db, tx)
-            .update(subscriptionInvoiceCollections)
-            .set(collectionOutcomeColumns(outcome, at))
-            .where(
-                and(
-                    eq(subscriptionInvoiceCollections.id, id),
-                    inArray(subscriptionInvoiceCollections.status, [
-                        ...UNSETTLED_COLLECTION_STATUSES,
-                    ]),
-                ),
-            )
-            .returning({ id: subscriptionInvoiceCollections.id });
-        return rows.length === 1;
+        const settle = async (db: ReturnType<typeof resolveDb>, from: readonly string[]) => {
+            const rows = await db
+                .update(subscriptionInvoiceCollections)
+                .set(collectionOutcomeColumns(outcome, at))
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.id, id),
+                        inArray(subscriptionInvoiceCollections.status, [...from]),
+                    ),
+                )
+                .returning({ id: subscriptionInvoiceCollections.id });
+            return rows.length === 1;
+        };
+        if (outcome.status !== 'succeeded') {
+            return settle(resolveDb(this.db, tx), UNSETTLED_COLLECTION_STATUSES);
+        }
+        return this.inTurnOf(id, tx, async (db) => {
+            if (await settle(db, UNSETTLED_COLLECTION_STATUSES)) return true;
+            const [row] = await db
+                .select({
+                    invoiceId: subscriptionInvoiceCollections.invoiceId,
+                    status: subscriptionInvoiceCollections.status,
+                })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (!row || row.status !== 'FAILED') return false;
+            // The money arrived after all: what was planned after the failure
+            // is not made, and the attempt succeeded — where no other attempt
+            // of its invoice is on its way or succeeded.
+            await db
+                .update(subscriptionInvoiceCollections)
+                .set({ status: 'WITHDRAWN', resolvedAt: at })
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.invoiceId, row.invoiceId),
+                        eq(subscriptionInvoiceCollections.status, 'SCHEDULED'),
+                    ),
+                );
+            const others = await db
+                .select({ id: subscriptionInvoiceCollections.id })
+                .from(subscriptionInvoiceCollections)
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.invoiceId, row.invoiceId),
+                        ne(subscriptionInvoiceCollections.id, id),
+                        inArray(subscriptionInvoiceCollections.status, [
+                            ...UNSETTLED_COLLECTION_STATUSES,
+                            'SUCCEEDED',
+                        ]),
+                    ),
+                );
+            if (others.length > 0) return false;
+            return settle(db, ['FAILED']);
+        });
     }
 
     async hold(id: string, heldBefore: Date, at: Date, tx?: TransactionContext): Promise<boolean> {
@@ -414,6 +455,17 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             .orderBy(asc(subscriptionInvoiceCollections.id))
             .limit(page.limit);
         return rows.map((row) => row.id);
+    }
+
+    async findByKey(
+        attemptKey: string,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null> {
+        const [row] = await resolveDb(this.db, tx)
+            .select()
+            .from(subscriptionInvoiceCollections)
+            .where(eq(subscriptionInvoiceCollections.attemptKey, attemptKey));
+        return row ? toInvoiceCollectionRecord(row) : null;
     }
 
     async findById(id: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null> {

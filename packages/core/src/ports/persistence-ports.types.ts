@@ -27,6 +27,7 @@ import type {
     SubscriberLedgerRepository,
     SubscriptionInvoiceRepository,
     InvoiceCollectionRepository,
+    SubscriberPaymentRepository,
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -159,6 +160,11 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriptionInvoiceArchive?: PersistenceProvider<InvoiceArchivePort>;
     /** The attempts to collect those invoices (`chargeJournal.invoices.collections`). */
     invoiceCollectionRepository?: PersistenceProvider<InvoiceCollectionRepository>;
+    /**
+     * The payments those collections brought, the credits and what pays them
+     * out (`chargeJournal.invoices.payments`).
+     */
+    subscriberPaymentRepository?: PersistenceProvider<SubscriberPaymentRepository>;
     subscriptionBundleRepository?: PersistenceProvider<SubscriptionBundleRepository>;
     bundleRepository?: PersistenceProvider<BundleRepository>;
 }

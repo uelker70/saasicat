@@ -97,6 +97,18 @@
                     :format-date="formatDateResolved"
                 />
 
+                <!-- The subscriber's credits, where the platform records what collections brought -->
+                <TenantCredits
+                    v-if="credits.available.value"
+                    :credits="credits.data.value"
+                    :pending="credits.pending.value"
+                    :error="credits.error.value"
+                    :retry="credits.reload"
+                    :format-date="formatDateResolved"
+                    :can-pay-out="credits.canPayOut.value"
+                    :pay-out="credits.payOut"
+                />
+
                 <slot name="extra-cards" :data="data" :reload="load" />
             </template>
         </AdminBody>
@@ -137,6 +149,7 @@ import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
+import TenantCredits from '../internal/tenant-detail/TenantCredits.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantSubscriber from '../internal/tenant-detail/TenantSubscriber.vue';
 import TenantSubscriberHistory from '../internal/tenant-detail/TenantSubscriberHistory.vue';
@@ -147,6 +160,7 @@ import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDia
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantAccount } from '../vue/use-tenant-account.js';
+import { useTenantCredits } from '../vue/use-tenant-credits.js';
 import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
@@ -286,6 +300,9 @@ const corrections = useSubscriberCorrections(tenantSlug, servedBy, tenants, {
     mfa,
     onChanged: () => subscriber.reload(),
 });
+
+// The subscriber's credits, and a payout behind the same second-factor dialog.
+const credits = useTenantCredits(tenantSlug, servedBy, tenants, { notify, mfa });
 
 function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<string | null> {
     return mfa.prompt(

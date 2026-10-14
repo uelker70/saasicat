@@ -39,6 +39,8 @@ const LASTING = [
     // Every tenant locked out at once, and let back in (`SC-ADM-029`).
     'POST admin/maintenance/lock',
     'POST admin/maintenance/unlock',
+    // Money the operator paid a subscriber, recorded for good (`SC-PRIC-083`).
+    'POST admin/tenants/:slug/credits/:creditId/payouts',
     'POST admin/tenants/:slug/reactivate',
     // What the next invoice's tax is decided from, and whom it names
     // (`SC-SUB-017`, `SC-PRIC-043`).
@@ -137,7 +139,9 @@ after(() => {
 });
 
 describe('which routes the platform mounts ask for the second factor', () => {
-    const handlers = operatorHandlers(SaaSiCatModule.forRoot(everythingOnOptions()));
+    const handlers = operatorHandlers(
+        SaaSiCatModule.forRoot(everythingOnOptions([SignedInGuard], { collecting: true })),
+    );
 
     test('the walk reaches every lasting action', () => {
         const routes = handlers.map((h) => h.route);
@@ -169,7 +173,9 @@ describe('what the chain Nest builds does with a request', () => {
     let handlers;
 
     before(async () => {
-        const root = SaaSiCatModule.forRoot(bootable());
+        const root = SaaSiCatModule.forRoot(
+            bootable(everythingOnOptions([SignedInGuard], { collecting: true })),
+        );
         handlers = operatorHandlers(root);
         moduleRef = await compile([root]);
     });

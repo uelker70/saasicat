@@ -110,6 +110,8 @@ export class DevPaymentGateway implements PaymentGateway {
         const outcome: CollectionOutcome = {
             status: 'succeeded',
             paymentRef: `dev_pi_${randomUUID()}`,
+            amountCents: input.amountCents,
+            currency: input.currency,
         };
         this.collections.set(input.attemptKey, outcome);
         return outcome;

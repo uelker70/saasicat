@@ -84,6 +84,7 @@ export * from './vue/use-nav.js';
 export * from './vue/use-actions.js';
 export * from './vue/use-tenant-action-flow.js';
 export * from './vue/use-tenant-account.js';
+export * from './vue/use-tenant-credits.js';
 export * from './vue/use-tenant-subscriber.js';
 export * from './vue/use-subscriber-attention.js';
 export * from './vue/use-subscriber-corrections.js';

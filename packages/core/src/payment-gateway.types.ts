@@ -138,6 +138,33 @@ export type PaymentGatewayEvent =
           subject: PaymentMethodSetupSubject;
       }
     | {
+          /**
+           * What became of a collection, reported by the gateway on its own:
+           * the same outcome `findCollection` answers, for the attempt its key
+           * names. Each report reads the payment as it stands when the adapter
+           * translates it, so reports arriving out of order never take an
+           * attempt back to an earlier state.
+           */
+          kind: 'collection-reported';
+          eventId: string;
+          occurredAt: Date;
+          attemptKey: string;
+          outcome: CollectionOutcome;
+      }
+    | {
+          /**
+           * A refund the operator made in the gateway, of a payment an attempt
+           * of SaaSiCat's collected, as it stands when the adapter translates
+           * the report: created, settled, failed or canceled.
+           */
+          kind: 'refund-reported';
+          eventId: string;
+          occurredAt: Date;
+          /** The attempt that collected the payment it pays back. */
+          attemptKey: string;
+          refund: GatewayRefund;
+      }
+    | {
           /** Genuine, and nothing SaaSiCat acts on. */
           kind: 'unhandled';
           eventId: string;
@@ -197,7 +224,14 @@ export interface CollectInvoiceInput {
  * `paymentRef` is the gateway's reference to what it created for the attempt.
  */
 export type CollectionOutcome =
-    | { status: 'succeeded'; paymentRef: string }
+    | {
+          status: 'succeeded';
+          paymentRef: string;
+          /** What the gateway received, in cents of `currency`. */
+          amountCents: number;
+          /** As `config/saas.yaml#currency` writes it, e.g. `EUR`. */
+          currency: string;
+      }
     | { status: 'pending'; paymentRef: string }
     | {
           status: 'failed';
@@ -207,6 +241,21 @@ export type CollectionOutcome =
           /** The gateway's own code for the reason, for the operator. */
           gatewayCode: string | null;
       };
+
+/**
+ * A refund as the gateway reports it. `pending` and `succeeded` pay the money
+ * out; `failed` and `canceled` gave it back to the operator.
+ */
+export interface GatewayRefund {
+    /** The gateway's reference to the refund, unique within its account. */
+    refundRef: string;
+    /** The gateway's reference to the payment it pays back. */
+    paymentRef: string;
+    amountCents: number;
+    /** As `config/saas.yaml#currency` writes it, e.g. `EUR`. */
+    currency: string;
+    status: 'pending' | 'succeeded' | 'failed' | 'canceled';
+}
 
 /** Which attempt the gateway is asked about. */
 export interface FindCollectionInput {

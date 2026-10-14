@@ -37,6 +37,20 @@ import {
     sentCollectionOf,
     collectionOutcomeColumns,
     UNSETTLED_COLLECTION_STATUSES,
+    isEndedRefund,
+    openOfCredit,
+    owedOn,
+    paymentSettlement,
+    payoutEntryColumns,
+    refundEntryColumns,
+    refundParts,
+    subscriberPaymentColumns,
+    subscriberRefundColumns,
+    toCents as centsOf,
+    toSubscriberCreditEntryRecord,
+    toSubscriberCreditRecord,
+    toSubscriberPaymentRecord,
+    toSubscriberRefundRecord,
     subscriberPaymentMethodColumns,
     toSubscriberChargeRecord,
     subscriptionBundleAlreadyCancelled,
@@ -93,6 +107,11 @@ export function createMemoryHarness() {
         invoiceDocuments: [],
         invoiceArchive: [],
         invoiceCollections: [],
+        payments: [],
+        settlements: [],
+        credits: [],
+        creditEntries: [],
+        refunds: [],
         subscribers: [],
         subscriberCorrections: [],
         subscriberTaxOriginChanges: [],
@@ -2222,7 +2241,27 @@ export function createMemoryHarness() {
         },
         async recordOutcome(id, outcome, at) {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
-            if (!row || !unsettled.has(row.status)) return false;
+            if (!row) return false;
+            if (unsettled.has(row.status)) {
+                Object.assign(row, collectionOutcomeColumns(outcome, at));
+                return true;
+            }
+            if (outcome.status !== 'succeeded' || row.status !== 'FAILED') return false;
+            const ofInvoice = state.invoiceCollections.filter(
+                (other) => other.invoiceId === row.invoiceId,
+            );
+            for (const planned of ofInvoice.filter((other) => other.status === 'SCHEDULED')) {
+                Object.assign(planned, { status: 'WITHDRAWN', resolvedAt: at });
+            }
+            if (
+                ofInvoice.some(
+                    (other) =>
+                        other.id !== id &&
+                        (unsettled.has(other.status) || other.status === 'SUCCEEDED'),
+                )
+            ) {
+                return false;
+            }
             Object.assign(row, collectionOutcomeColumns(outcome, at));
             return true;
         },
@@ -2247,6 +2286,12 @@ export function createMemoryHarness() {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
             return row ? toInvoiceCollectionRecord(structuredClone(row)) : null;
         },
+        async findByKey(attemptKey) {
+            const row = state.invoiceCollections.find(
+                (candidate) => candidate.attemptKey === attemptKey,
+            );
+            return row ? toInvoiceCollectionRecord(structuredClone(row)) : null;
+        },
         async accountsInUse() {
             return [
                 ...new Set(
@@ -2261,6 +2306,223 @@ export function createMemoryHarness() {
                 .filter((row) => row.invoiceId === invoiceId)
                 .sort((a, b) => a.attempt - b.attempt)
                 .map((row) => toInvoiceCollectionRecord(structuredClone(row)));
+        },
+    };
+
+    // Payments, credits and what pays them out. Every method decides in one
+    // synchronous step, as the turn and the unique indexes decide it.
+    const invoiceOf = (invoiceId) => {
+        const invoice = state.invoices.find((row) => row.id === invoiceId);
+        if (!invoice) throw new Error(`invoice '${invoiceId}' does not exist`);
+        return invoice;
+    };
+    const owedOnInvoice = (invoice) =>
+        owedOn(
+            Number(invoice.totalGross),
+            state.settlements
+                .filter((row) => row.invoiceId === invoice.id)
+                .map((row) => Number(row.amount)),
+        );
+    const writeCredit = (invoice, amount, origin, at) => {
+        const taken = state.credits.some(
+            (row) =>
+                (origin.originPaymentId && row.originPaymentId === origin.originPaymentId) ||
+                (origin.originInvoiceId && row.originInvoiceId === origin.originInvoiceId),
+        );
+        if (taken) return null;
+        const row = {
+            id: nextId('credit'),
+            subscriberId: invoice.subscriberId,
+            tenantId: invoice.tenantId,
+            amount: amount.toFixed(2),
+            currency: invoice.currency,
+            originPaymentId: origin.originPaymentId ?? null,
+            originInvoiceId: origin.originInvoiceId ?? null,
+            createdAt: at,
+        };
+        state.credits.push(row);
+        return toSubscriberCreditRecord(structuredClone(row));
+    };
+    const standingsOf = (subscriberId, currency) =>
+        state.credits
+            .filter(
+                (row) =>
+                    row.subscriberId === subscriberId &&
+                    (currency === null || row.currency === currency),
+            )
+            .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
+            .map((row) => {
+                const credit = toSubscriberCreditRecord(structuredClone(row));
+                const entries = state.creditEntries
+                    .filter((entry) => entry.creditId === row.id)
+                    .map((entry) => toSubscriberCreditEntryRecord(structuredClone(entry)));
+                return { credit, entries, open: openOfCredit(credit.amount, entries) };
+            });
+    const writeRefundEntries = (refund, kind, parts, at) => {
+        for (const part of parts) {
+            if (
+                state.creditEntries.some(
+                    (row) =>
+                        row.refundId === refund.id &&
+                        row.creditId === part.creditId &&
+                        row.kind === kind,
+                )
+            ) {
+                continue;
+            }
+            state.creditEntries.push({
+                id: nextId('credit-entry'),
+                ...refundEntryColumns(part.creditId, refund, kind, part.amount, at),
+            });
+        }
+    };
+    const subscriberPaymentRepository = {
+        async recordPayment(payment) {
+            const invoice = invoiceOf(payment.invoiceId);
+            if (invoice.currency !== payment.currency) {
+                throw new Error(`payment in ${payment.currency}, invoice in ${invoice.currency}`);
+            }
+            if (
+                state.payments.some(
+                    (row) =>
+                        row.gatewayAccount === payment.gatewayAccount &&
+                        row.gatewayRef === payment.gatewayRef,
+                )
+            ) {
+                return null;
+            }
+            const row = { id: nextId('payment'), ...subscriberPaymentColumns(payment, invoice) };
+            const owed = owedOnInvoice(invoice);
+            state.payments.push(row);
+            const recorded = toSubscriberPaymentRecord(structuredClone(row));
+            const { settles, credits } = paymentSettlement(recorded.amount, owed);
+            if (settles > 0) {
+                state.settlements.push({
+                    id: nextId('settlement'),
+                    invoiceId: invoice.id,
+                    paymentId: recorded.id,
+                    kind: 'PAYMENT',
+                    amount: settles.toFixed(2),
+                    recordedAt: payment.at,
+                });
+            }
+            const credit =
+                credits > 0
+                    ? writeCredit(invoice, credits, { originPaymentId: recorded.id }, payment.at)
+                    : null;
+            return { payment: recorded, settled: settles, credit };
+        },
+        async creditInvoice(invoiceId, at) {
+            const invoice = invoiceOf(invoiceId);
+            const gross = Number(invoice.totalGross);
+            if (gross >= 0) return null;
+            return writeCredit(invoice, -gross, { originInvoiceId: invoice.id }, at);
+        },
+        async listUncredited(page) {
+            return pageOf(
+                state.invoices
+                    .filter(
+                        (invoice) =>
+                            Number(invoice.totalGross) < 0 &&
+                            !state.credits.some((row) => row.originInvoiceId === invoice.id),
+                    )
+                    .map((invoice) => invoice.id),
+                page,
+            );
+        },
+        async recordRefund(refund) {
+            const paymentRow = state.payments.find(
+                (row) =>
+                    row.gatewayAccount === refund.gatewayAccount &&
+                    row.gatewayRef === refund.paymentRef,
+            );
+            if (!paymentRow) return { outcome: 'unknown-payment' };
+            const payment = toSubscriberPaymentRecord(structuredClone(paymentRow));
+            const existing = state.refunds.find(
+                (row) =>
+                    row.gatewayAccount === refund.gatewayAccount &&
+                    row.gatewayRef === refund.gatewayRef,
+            );
+            if (!existing) {
+                const row = { id: nextId('refund'), ...subscriberRefundColumns(refund, payment) };
+                state.refunds.push(row);
+                const recorded = toSubscriberRefundRecord(structuredClone(row));
+                if (isEndedRefund(recorded.status)) {
+                    return { outcome: 'recorded', refund: recorded, parts: [], unmatched: 0 };
+                }
+                const { parts, unmatched } = refundParts(
+                    recorded.amount,
+                    payment.id,
+                    standingsOf(payment.subscriberId, recorded.currency).map(
+                        ({ credit, open }) => ({
+                            id: credit.id,
+                            origin: credit.origin,
+                            createdAt: credit.createdAt,
+                            open,
+                        }),
+                    ),
+                );
+                writeRefundEntries(recorded, 'REFUND', parts, recorded.recordedAt);
+                return { outcome: 'recorded', refund: recorded, parts, unmatched };
+            }
+            const before = toSubscriberRefundRecord(structuredClone(existing));
+            if (isEndedRefund(before.status) || refund.status === before.status) {
+                return { outcome: 'unchanged', refund: before };
+            }
+            const ends = isEndedRefund(refund.status);
+            Object.assign(existing, { status: refund.status, endedAt: ends ? refund.at : null });
+            const restated = toSubscriberRefundRecord(structuredClone(existing));
+            if (!ends) return { outcome: 'unchanged', refund: restated };
+            const parts = state.creditEntries
+                .filter((row) => row.refundId === existing.id && row.kind === 'REFUND')
+                .map((row) => {
+                    const entry = toSubscriberCreditEntryRecord(structuredClone(row));
+                    return { creditId: entry.creditId, amount: entry.amount };
+                });
+            writeRefundEntries(restated, 'REFUND_FAILED', parts, refund.at);
+            return { outcome: 'given-back', refund: restated, parts };
+        },
+        async recordPayout(payout) {
+            const [standing] = state.credits
+                .filter((row) => row.id === payout.creditId)
+                .map((row) => standingsOf(row.subscriberId, null))
+                .flat()
+                .filter((each) => each.credit.id === payout.creditId);
+            if (!standing) return { outcome: 'unknown-credit' };
+            if (centsOf(payout.amount) > centsOf(standing.open)) {
+                return { outcome: 'exceeds-open', open: standing.open };
+            }
+            const row = { id: nextId('credit-entry'), ...payoutEntryColumns(payout) };
+            state.creditEntries.push(row);
+            return {
+                outcome: 'recorded',
+                entry: toSubscriberCreditEntryRecord(structuredClone(row)),
+                open: (centsOf(standing.open) - centsOf(payout.amount)) / 100,
+            };
+        },
+        async listCredits(subscriberId) {
+            return standingsOf(subscriberId, null);
+        },
+        async findPaymentById(id) {
+            const row = state.payments.find((candidate) => candidate.id === id);
+            return row ? toSubscriberPaymentRecord(structuredClone(row)) : null;
+        },
+        async findPaymentByRef(gatewayAccount, gatewayRef) {
+            const row = state.payments.find(
+                (candidate) =>
+                    candidate.gatewayAccount === gatewayAccount &&
+                    candidate.gatewayRef === gatewayRef,
+            );
+            return row ? toSubscriberPaymentRecord(structuredClone(row)) : null;
+        },
+        async listPaymentsByInvoice(invoiceId) {
+            return state.payments
+                .filter((row) => row.invoiceId === invoiceId)
+                .map((row) => toSubscriberPaymentRecord(structuredClone(row)));
+        },
+        async owedBy(invoiceId) {
+            const invoice = state.invoices.find((row) => row.id === invoiceId);
+            return invoice ? owedOnInvoice(invoice) : null;
         },
     };
 
@@ -2281,6 +2543,7 @@ export function createMemoryHarness() {
             subscriptionInvoiceRepository,
             invoiceArchive,
             invoiceCollectionRepository,
+            subscriberPaymentRepository,
             promoCodeRepository,
             promoCodeRedemptionRepository,
             promoCodeHoldRepository,

@@ -158,7 +158,14 @@ describe('a request whose answer was lost', () => {
     test('stays submitted, and no run sends anything for it while the lease holds', async () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
-        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        gateway.answers.push(
+            lostAfter({
+                status: 'succeeded',
+                paymentRef: 'pi_made',
+                amountCents: 5831,
+                currency: 'EUR',
+            }),
+        );
 
         const run = await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
@@ -173,7 +180,14 @@ describe('a request whose answer was lost', () => {
     test('is not taken on within the lease by a run called for a later moment than the clock’s', async () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
-        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        gateway.answers.push(
+            lostAfter({
+                status: 'succeeded',
+                paymentRef: 'pi_made',
+                amountCents: 5831,
+                currency: 'EUR',
+            }),
+        );
         await collect(FIRST_RUN);
 
         await collect(after(FIRST_RUN, { days: 1 }));
@@ -186,7 +200,14 @@ describe('a request whose answer was lost', () => {
     test('is taken on once the clock is past the lease, by a run called for an earlier moment', async () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
-        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        gateway.answers.push(
+            lostAfter({
+                status: 'succeeded',
+                paymentRef: 'pi_made',
+                amountCents: 5831,
+                currency: 'EUR',
+            }),
+        );
         await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
         clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1));
@@ -200,7 +221,14 @@ describe('a request whose answer was lost', () => {
     test('is asked about once the lease has passed, and what the gateway made is recorded, with nothing sent again', async () => {
         quietLog();
         const { collect, gateway, collections, invoice, method } = await anInvoiceToCollect();
-        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        gateway.answers.push(
+            lostAfter({
+                status: 'succeeded',
+                paymentRef: 'pi_made',
+                amountCents: 5831,
+                currency: 'EUR',
+            }),
+        );
         await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
 
@@ -225,7 +253,14 @@ describe('a request whose answer was lost', () => {
     test('found by two runs after the lease is taken on by one: it asks, and the other sends nothing', async () => {
         quietLog();
         const { collect, gateway, collections } = await anInvoiceToCollect();
-        gateway.answers.push(lostAfter({ status: 'succeeded', paymentRef: 'pi_made' }));
+        gateway.answers.push(
+            lostAfter({
+                status: 'succeeded',
+                paymentRef: 'pi_made',
+                amountCents: 5831,
+                currency: 'EUR',
+            }),
+        );
         await collect(FIRST_RUN);
         const [submitted] = collections.attempts;
         const later = clockAt(sinceHeld(submitted, INVOICE_COLLECTION_LEASE_MS + 1));
@@ -310,7 +345,12 @@ describe('a direct debit on its way', () => {
         gateway.answers.push({ status: 'pending', paymentRef: 'pi_debit' });
         await collect(COLLECTED);
         const [pending] = collections.attempts;
-        gateway.held.set(pending.attemptKey, { status: 'succeeded', paymentRef: 'pi_debit' });
+        gateway.held.set(pending.attemptKey, {
+            status: 'succeeded',
+            paymentRef: 'pi_debit',
+            amountCents: 5831,
+            currency: 'EUR',
+        });
 
         await collect(clockAt(sinceHeld(pending, INVOICE_COLLECTION_ASK_EVERY_MS)));
         assert.deepEqual(gateway.asked, [], 'asked before the hour was over');

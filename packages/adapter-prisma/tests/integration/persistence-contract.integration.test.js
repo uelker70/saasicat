@@ -50,6 +50,7 @@ import {
     PrismaSubscriptionInvoiceRepository,
     PrismaInvoiceArchive,
     PrismaInvoiceCollectionRepository,
+    PrismaSubscriberPaymentRepository,
     PrismaSubscriberRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
@@ -71,6 +72,11 @@ const prisma = new PrismaClient();
 await rebuildFromReferenceSchema(prisma);
 
 const PLATFORM_TABLES = [
+    'subscriber_credit_entries',
+    'subscriber_refunds',
+    'subscriber_credits',
+    'subscription_invoice_settlements',
+    'subscriber_payments',
     'subscription_invoice_collections',
     'subscription_invoice_archive',
     'subscription_invoice_documents',
@@ -141,6 +147,7 @@ function createHarness() {
             subscriptionInvoiceRepository: new PrismaSubscriptionInvoiceRepository(prisma),
             invoiceArchive: new PrismaInvoiceArchive(prisma),
             invoiceCollectionRepository: new PrismaInvoiceCollectionRepository(prisma),
+            subscriberPaymentRepository: new PrismaSubscriberPaymentRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
             maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
             subscriptionNotices: new PrismaSubscriptionNoticeRepository(prisma),

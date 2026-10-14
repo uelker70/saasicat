@@ -56,6 +56,7 @@ import {
     DrizzleSubscriptionInvoiceRepository,
     DrizzleInvoiceArchive,
     DrizzleInvoiceCollectionRepository,
+    DrizzleSubscriberPaymentRepository,
     DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
@@ -65,6 +66,11 @@ import { openDisposableDatabase } from './support/disposable-database.mjs';
 const { pool, db } = await openDisposableDatabase();
 
 const PLATFORM_TABLES = [
+    'subscriber_credit_entries',
+    'subscriber_refunds',
+    'subscriber_credits',
+    'subscription_invoice_settlements',
+    'subscriber_payments',
     'subscription_invoice_collections',
     'subscription_invoice_archive',
     'subscription_invoice_documents',
@@ -132,6 +138,7 @@ function createHarness() {
             subscriptionInvoiceRepository: new DrizzleSubscriptionInvoiceRepository(db),
             invoiceArchive: new DrizzleInvoiceArchive(db),
             invoiceCollectionRepository: new DrizzleInvoiceCollectionRepository(db),
+            subscriberPaymentRepository: new DrizzleSubscriberPaymentRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
             maintenanceWindows: new DrizzleMaintenanceWindowRepository(db),
             subscriptionNotices: new DrizzleSubscriptionNoticeRepository(db),

@@ -1,9 +1,17 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    Inject,
+    Injectable,
+    Logger,
+    NotFoundException,
+    Optional,
+} from '@nestjs/common';
 import type {
     PaymentEventLog,
     PaymentGatewayCallback,
     PaymentGatewayEvent,
     PaymentMethodSetupSubject,
+    RlsBypassPort,
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/core';
@@ -13,12 +21,30 @@ import {
     isPaymentCallbackRejectedError,
 } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
+import { readAcrossTenants } from '../admin/read-across-tenants.js';
 import { codedError } from '../errors/coded-error.js';
 import { gatewayFailure } from './gateway-failure.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
 import { PAYMENT_EVENT_LOG_TOKEN, PAYMENT_TRANSACTION_RUNNER_TOKEN } from './payments.tokens.js';
 
-type SetupEvent = Exclude<PaymentGatewayEvent, { kind: 'unhandled' }>;
+type SetupEvent = Extract<
+    PaymentGatewayEvent,
+    { kind: 'payment-method-confirmed' | 'payment-method-setup-failed' }
+>;
+
+/** What became of a collection, as the gateway reports it on its own. */
+export type CollectionReportedEvent = Extract<PaymentGatewayEvent, { kind: 'collection-reported' }>;
+
+/** A refund the operator made in the gateway, as the gateway reports it. */
+export type RefundReportedEvent = Extract<PaymentGatewayEvent, { kind: 'refund-reported' }>;
+
+type MoneyEvent = CollectionReportedEvent | RefundReportedEvent;
+
+/** A claimed event with the handler it goes to. */
+type Route =
+    | { kind: 'setup'; handler: PaymentSetupEventHandler; event: SetupEvent }
+    | { kind: 'money'; handler: PaymentMoneyEventHandler; event: MoneyEvent };
 
 /** A confirmation of a payment method, as its handler receives it. */
 export type PaymentMethodConfirmedEvent = Extract<
@@ -63,6 +89,22 @@ export interface PaymentSetupEventHandler {
     failed(event: PaymentMethodSetupFailedEvent, context: PaymentEventContext): Promise<void>;
 }
 
+/**
+ * What the invoices do with the events about money: a collection's outcome and
+ * a refund. Each is handled on the transaction its claim is written on, so a
+ * handler that fails leaves the event to the gateway's retry.
+ */
+export interface PaymentMoneyEventHandler {
+    collectionReported(
+        event: CollectionReportedEvent,
+        context: PaymentEventContext,
+    ): Promise<PaymentEventEffect>;
+    refundReported(
+        event: RefundReportedEvent,
+        context: PaymentEventContext,
+    ): Promise<PaymentEventEffect>;
+}
+
 /** How a callback ended. A duplicate and an event nobody acts on are both answered as received. */
 export type PaymentCallbackOutcome = 'handled' | 'duplicate' | 'unhandled';
 
@@ -82,11 +124,17 @@ export class PaymentCallbackService {
         PaymentMethodSetupSubject['kind'],
         PaymentSetupEventHandler
     >();
+    private moneyHandler: PaymentMoneyEventHandler | null = null;
 
     constructor(
         private readonly registry: PaymentGatewayRegistry,
         @Inject(PAYMENT_EVENT_LOG_TOKEN) private readonly log: PaymentEventLog,
         @Inject(PAYMENT_TRANSACTION_RUNNER_TOKEN) private readonly transactions: TransactionRunner,
+        // An event about money is about an invoice of any tenant, and has none
+        // of its own: its transaction is opened inside the bypass.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /**
@@ -103,6 +151,18 @@ export class PaymentCallbackService {
             );
         }
         this.handlers.set(kind, handler);
+    }
+
+    /**
+     * Names who handles the events about money — the invoices, where they are
+     * collected. Without one such an event is answered as one nobody acts on:
+     * an installation that collects nothing has no attempt it could be about.
+     */
+    handleMoneyWith(handler: PaymentMoneyEventHandler): void {
+        if (this.moneyHandler) {
+            throw new Error('A handler for the events about money is registered twice.');
+        }
+        this.moneyHandler = handler;
     }
 
     async handle(
@@ -126,38 +186,36 @@ export class PaymentCallbackService {
             );
             return 'unhandled';
         }
-        const handler = this.handlerFor(event);
+        const route = this.routeOf(event, account);
+        if (!route) return 'unhandled';
         const afterCommit: Array<() => Promise<void>> = [];
 
-        const claimed = await this.transactions.run(async (tx) => {
-            const fresh = await this.log.claim(
-                {
+        const transact = <T>(work: () => Promise<T>): Promise<T> =>
+            route.kind === 'money' ? readAcrossTenants(this.rlsBypass, work) : work();
+        const claimed = await transact(() =>
+            this.transactions.run(async (tx) => {
+                const fresh = await this.log.claim(
+                    {
+                        gatewayAccount: account,
+                        eventId: event.eventId,
+                        provider: entry.provider,
+                        sessionId: route.kind === 'setup' ? route.event.sessionRef : null,
+                        kind: event.kind,
+                        summary: summaryOf(event),
+                    },
+                    tx,
+                );
+                if (!fresh) return false;
+                const context: PaymentEventContext = {
+                    tx,
                     gatewayAccount: account,
-                    eventId: event.eventId,
                     provider: entry.provider,
-                    sessionId: event.sessionRef,
-                    kind: event.kind,
-                    summary: summaryOf(event),
-                },
-                tx,
-            );
-            if (!fresh) return false;
-            const context: PaymentEventContext = {
-                tx,
-                gatewayAccount: account,
-                provider: entry.provider,
-                afterCommit: (step) => afterCommit.push(step),
-            };
-            if (event.kind === 'payment-method-confirmed') {
-                const effect = await this.confirm(handler, event, context);
-                if (effect === 'nothing-to-do') {
-                    await this.log.releaseSession(account, event.eventId, tx);
-                }
-            } else {
-                await handler.failed(event, context);
-            }
-            return true;
-        });
+                    afterCommit: (step) => afterCommit.push(step),
+                };
+                await this.dispatch(route, context);
+                return true;
+            }),
+        );
         if (!claimed) {
             this.logger.log(
                 `Payment event ${event.eventId} at '${account}' was handled before; duplicate ignored.`,
@@ -166,7 +224,7 @@ export class PaymentCallbackService {
         }
         for (const step of afterCommit) {
             try {
-                await step();
+                await transact(step);
             } catch (error) {
                 const reason = error instanceof Error ? error.message : String(error);
                 this.logger.error(
@@ -175,6 +233,44 @@ export class PaymentCallbackService {
             }
         }
         return 'handled';
+    }
+
+    /**
+     * Who handles `event`; `null` for an event about money where nothing
+     * collects invoices, which is answered as one nobody acts on.
+     */
+    private routeOf(event: SetupEvent | MoneyEvent, account: string): Route | null {
+        if (event.kind === 'collection-reported' || event.kind === 'refund-reported') {
+            if (this.moneyHandler) return { kind: 'money', handler: this.moneyHandler, event };
+            this.logger.warn(
+                `Payment event ${event.eventId} (${event.kind}) at '${account}' is about an ` +
+                    'invoice, and this installation collects none; nothing was recorded.',
+            );
+            return null;
+        }
+        return { kind: 'setup', handler: this.handlerFor(event), event };
+    }
+
+    /** Hands a claimed event to its handler, on the claim's transaction. */
+    private async dispatch(route: Route, context: PaymentEventContext): Promise<void> {
+        if (route.kind === 'money') {
+            const { handler, event } = route;
+            if (event.kind === 'collection-reported') {
+                await handler.collectionReported(event, context);
+            } else {
+                await handler.refundReported(event, context);
+            }
+            return;
+        }
+        const { handler, event } = route;
+        if (event.kind === 'payment-method-setup-failed') {
+            await handler.failed(event, context);
+            return;
+        }
+        const effect = await this.confirm(handler, event, context);
+        if (effect === 'nothing-to-do') {
+            await this.log.releaseSession(context.gatewayAccount, event.eventId, context.tx);
+        }
     }
 
     /**
@@ -266,9 +362,20 @@ function subjectOf(event: SetupEvent): string {
         : `subscriber ${event.subject.subscriberId}`;
 }
 
+/** What an event said, as the log keeps it: references and kinds, each a text or none. */
+type EventSummary = Readonly<Record<string, string | null>>;
+
 /** What an event said, for the log: its kind, whom it is about, which payment method — never a person. */
-function summaryOf(event: SetupEvent): Record<string, unknown> {
-    const subject =
+function summaryOf(event: SetupEvent | MoneyEvent): EventSummary {
+    if (event.kind === 'collection-reported') {
+        const { status, paymentRef } = event.outcome;
+        return { attempt: event.attemptKey, status, paymentRef };
+    }
+    if (event.kind === 'refund-reported') {
+        const { refundRef, paymentRef, status } = event.refund;
+        return { attempt: event.attemptKey, refund: refundRef, paymentRef, status };
+    }
+    const subject: EventSummary =
         event.subject.kind === 'registration'
             ? { registration: event.subject.pendingRegistrationId }
             : { subscriber: event.subject.subscriberId };

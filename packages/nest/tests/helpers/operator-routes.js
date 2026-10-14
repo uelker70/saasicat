@@ -31,8 +31,12 @@ export class SignedInGuard {
 const REPO = {};
 const PORT = {};
 
-/** The options behind `everythingOn`, for a test that needs to change one of them. */
-export function everythingOnOptions(guards = [SignedInGuard]) {
+/**
+ * The options behind `everythingOn`, for a test that needs to change one of
+ * them. `collecting` adds the collection of invoices and what it brings, for a
+ * test that only reads the routes: started, it would need the payments too.
+ */
+export function everythingOnOptions(guards = [SignedInGuard], { collecting = false } = {}) {
     const persistence = {
         capabilities: {
             transactions: true,
@@ -124,6 +128,8 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                     archive: anArchive(),
                     mail: aMailbox(),
                     includeCron: false,
+                    collections: collecting ? REPO : undefined,
+                    payments: collecting ? REPO : undefined,
                 },
             },
             versionNotices: { port: PORT, includeCron: false },

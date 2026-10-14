@@ -37,6 +37,17 @@ import type {
     SubmittedInvoiceCollection,
 } from '../invoice-collection.types.js';
 import type { CollectionOutcome } from '../payment-gateway.types.js';
+import type {
+    NewSubscriberPayment,
+    NewSubscriberPayout,
+    RecordedSubscriberPayment,
+    RecordedSubscriberPayout,
+    RecordedSubscriberRefund,
+    ReportedSubscriberRefund,
+    SubscriberCreditRecord,
+    SubscriberCreditStanding,
+    SubscriberPaymentRecord,
+} from '../subscriber-payment.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
     NewSubscriptionInvoice,
@@ -821,6 +832,12 @@ export interface InvoiceCollectionRepository {
      * `PENDING` — and returns `true`; `false`, writing nothing, where it is
      * settled already. `PENDING` stays open; `SUCCEEDED` and `FAILED` settle it
      * at `at`.
+     *
+     * A success reported for an attempt recorded as `FAILED` is the money
+     * arriving after all: in the invoice's turn, an attempt planned after it
+     * is withdrawn, and the attempt succeeds and `true` is returned — unless
+     * another attempt of the invoice is on its way or succeeded, which leaves
+     * it failed and returns `false`.
      */
     recordOutcome(
         id: string,
@@ -849,6 +866,9 @@ export interface InvoiceCollectionRepository {
 
     findById(id: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null>;
 
+    /** The attempt `attemptKey` names — the key the gateway keeps with what it created — or `null`. */
+    findByKey(attemptKey: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null>;
+
     /** Every attempt of one invoice, the first first. */
     listByInvoice(invoiceId: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord[]>;
 
@@ -860,6 +880,98 @@ export interface InvoiceCollectionRepository {
      * served, through `RlsBypassPort`.
      */
     accountsInUse(tx?: TransactionContext): Promise<string[]>;
+}
+
+/**
+ * What money moved between a subscriber and the operator: the payments the
+ * gateway confirmed, what each settles of its invoice, the credits the
+ * subscriber is owed, and the refunds and payouts that pay them out
+ * (`SC-PRIC-029`, `SC-PRIC-031`, `SC-PRIC-083`). Nothing is edited once
+ * written; every change is an entry of its own.
+ *
+ * Platform-wide: the gateway's callbacks and the run read across tenants
+ * inside `RlsBypassPort`.
+ */
+export interface SubscriberPaymentRepository {
+    /**
+     * Records a payment the gateway confirmed for an invoice, in the invoice's
+     * turn (`SC-PRIC-036`): it settles what the invoice still owes, and what it
+     * brought beyond that is a credit on the subscriber's account. Returns what
+     * it did; `null`, writing nothing, where a payment is recorded under the
+     * same gateway account and reference already, however it was reported
+     * then (`SC-PRIC-029`). Throws for an invoice that does not exist, and for
+     * a payment in another currency than its invoice's.
+     */
+    recordPayment(
+        payment: NewSubscriberPayment,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberPayment | null>;
+
+    /**
+     * Credits an invoice whose total is negative to its subscriber, at `at`,
+     * and returns the credit; `null`, writing nothing, where it is credited
+     * already or its total is not negative.
+     */
+    creditInvoice(
+        invoiceId: string,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<SubscriberCreditRecord | null>;
+
+    /**
+     * The invoices whose total is negative and that are not credited yet, by
+     * id, at most `limit`, after `after` where it is given.
+     */
+    listUncredited(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * Records a refund the gateway reported against the payment it pays back.
+     * Seen for the first time, it is divided across the subscriber's open
+     * credits in its currency — the credit that payment left first, then the
+     * oldest — and what none takes matches nothing. Seen again as failed or
+     * canceled, it gives back what it paid out of each credit, once. Every
+     * credit it reads is held for the transaction, so a payout or another
+     * refund at the same moment waits for it.
+     */
+    recordRefund(
+        refund: ReportedSubscriberRefund,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberRefund>;
+
+    /**
+     * Records a payout the operator made outside the gateway against one
+     * credit, holding the credit for the transaction; nothing is written where
+     * the credit does not exist or owes less than the payout.
+     */
+    recordPayout(
+        payout: NewSubscriberPayout,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberPayout>;
+
+    /** The subscriber's credits, the oldest first, each with its entries and what it still owes. */
+    listCredits(subscriberId: string, tx?: TransactionContext): Promise<SubscriberCreditStanding[]>;
+
+    /** The payment recorded under `id`, or `null`. */
+    findPaymentById(id: string, tx?: TransactionContext): Promise<SubscriberPaymentRecord | null>;
+
+    /** The payment recorded under a gateway account and reference, or `null`. */
+    findPaymentByRef(
+        gatewayAccount: string,
+        gatewayRef: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberPaymentRecord | null>;
+
+    /** The payments recorded for an invoice, the first first. */
+    listPaymentsByInvoice(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberPaymentRecord[]>;
+
+    /** What an invoice still owes after what is settled against it; `null` where it does not exist. */
+    owedBy(invoiceId: string, tx?: TransactionContext): Promise<number | null>;
 }
 
 // -----------------------------------------------------------------------------

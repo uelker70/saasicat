@@ -63,7 +63,8 @@ model SubscriptionInvoiceCollection {
     announcedAt  DateTime?
     followedUpAt DateTime?
 
-    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    invoice  SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    payments SubscriberPayment[] // see 24-subscriber-payments.prisma
 
     @@unique([invoiceId, attempt])
     @@index([status, heldAt])

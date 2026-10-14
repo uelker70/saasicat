@@ -16,17 +16,20 @@ import {
     refusesPlannedAttempt,
 } from '@saasicat/core';
 
-import { InvoiceCollectionService } from '../../dist/billing/index.js';
-import { PaymentGatewayRegistry } from '../../dist/payments/index.js';
+import { InvoiceCollectionService, InvoicePaymentService } from '../../dist/billing/index.js';
+import { PaymentCallbackService, PaymentGatewayRegistry } from '../../dist/payments/index.js';
 import { auditLogFailing } from './audit-log.js';
 import { aMailbox } from './invoice-documents.js';
 import { INVOICING_SETTINGS, anInvoicingInstallation, berlin } from './invoice-run.js';
 import {
     MAIN_ACCOUNT,
+    MemoryPaymentEventLog,
     MemoryPaymentMethods,
+    RollbackRunner,
     ScriptedGateway,
     paymentsCatalog,
 } from './payments.js';
+import { MemorySubscriberPayments } from './subscriber-payments.js';
 import { noticeRecord } from './version-notices.js';
 
 /** 06:15 in Berlin on 1 February, when the invoices of February are issued. */
@@ -234,7 +237,26 @@ export function collectionStore(store, paymentMethods) {
         async recordOutcome(id, outcome, at) {
             throwOnce('failNextRecord');
             const attempt = attempts.find((each) => each.id === id);
-            if (!attempt || !UNSETTLED_COLLECTION_STATUSES.includes(attempt.status)) return false;
+            if (!attempt) return false;
+            if (UNSETTLED_COLLECTION_STATUSES.includes(attempt.status)) {
+                Object.assign(attempt, collectionOutcomeColumns(outcome, at));
+                return true;
+            }
+            // A success for an attempt recorded as failed: what was planned
+            // after it is withdrawn, and it succeeds where nothing else of its
+            // invoice is on its way or succeeded.
+            if (outcome.status !== 'succeeded' || attempt.status !== 'FAILED') return false;
+            const ofInvoice = attempts.filter((each) => each.invoiceId === attempt.invoiceId);
+            for (const planned of ofInvoice.filter((each) => each.status === 'SCHEDULED')) {
+                Object.assign(planned, { status: 'WITHDRAWN', resolvedAt: at });
+            }
+            const blocked = ofInvoice.some(
+                (each) =>
+                    each.id !== id &&
+                    (UNSETTLED_COLLECTION_STATUSES.includes(each.status) ||
+                        each.status === 'SUCCEEDED'),
+            );
+            if (blocked) return false;
             Object.assign(attempt, collectionOutcomeColumns(outcome, at));
             return true;
         },
@@ -255,6 +277,10 @@ export function collectionStore(store, paymentMethods) {
                 open.map((each) => each.id),
                 page,
             );
+        },
+        async findByKey(attemptKey) {
+            const attempt = attempts.find((each) => each.attemptKey === attemptKey);
+            return attempt ? structuredClone(attempt) : null;
         },
         async findById(id) {
             return structuredClone(attempts.find((each) => each.id === id) ?? null);
@@ -291,6 +317,19 @@ export function aCollectingInstallation({
     const gateway = new ScriptedGateway('stripe');
     const gateways = new PaymentGatewayRegistry(settings, { [MAIN_ACCOUNT]: gateway });
     const audits = [];
+    const payments = new MemorySubscriberPayments(installation.store.invoices);
+    const eventLog = new MemoryPaymentEventLog();
+    const transactions = new RollbackRunner([payments, eventLog]);
+    const callbacks = new PaymentCallbackService(gateways, eventLog, transactions);
+    const money = new InvoicePaymentService(
+        collections,
+        payments,
+        gateways,
+        callbacks,
+        null,
+        auditLogFailing(audits, failingAuditWrites),
+    );
+    money.onModuleInit();
     const collection = new InvoiceCollectionService(
         collections,
         installation.store,
@@ -302,10 +341,16 @@ export function aCollectingInstallation({
         notices,
         installation.mail,
         installation.subscribers,
+        money,
+        transactions,
     );
     return {
         ...installation,
         paymentMethods,
+        payments,
+        eventLog,
+        callbacks,
+        money,
         collections,
         notices,
         gateway,

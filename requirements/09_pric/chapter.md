@@ -1266,6 +1266,7 @@ _Tested by:_
     - the payment methods invoices are collected with
         - are read where the file names payment accounts and the platform composes the payments
         - refuse the start where the file names payment accounts and nothing reads them
+        - refuse the start where the invoices are collected and nothing records what they brought
         - refuse the start where the invoices are collected and nothing records what the subscriber
           is told
         - refuse the start where the file names payment accounts and nothing collects the invoices
@@ -1274,7 +1275,7 @@ _Tested by:_
 
 ### SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
 
-🟡 _(Decided, not yet delivered.)_ 💰 A confirmation that arrives twice records one payment, as
+🟢 💰 A confirmation that arrives twice records one payment, as
 `SC-REG-019` already holds for sign-up. Claiming a gateway event and recording what it changes
 happen in one transaction, so an attempt that fails leaves the event unclaimed and the gateway's
 retry is processed rather than discarded as a duplicate. A payment is recorded once by its gateway
@@ -1286,6 +1287,46 @@ by side (`SC-PRIC-030`) never take one another's event for a duplicate or a paym
 sign-up.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-payment-is-recorded-and-a-credit-paid-out.test.js`
+    - a payment the gateway confirmed
+        - is recorded against its invoice by the run that collected it, settling what it owes, and
+          audited once
+        - reported by the gateway's callback settles the attempt at once, and the run that asks
+          later records nothing more
+        - reported again is a duplicate, and reported under another event changes nothing
+        - for an attempt this installation does not hold, or one another account reports, records
+          nothing
+        - under another reference than the attempt recorded records nothing
+        - whose recording fails leaves the event unclaimed, and the redelivery records it
+        - whose audit entry cannot be written stays recorded
+        - reported after the attempt was recorded as failed is recorded all the same, and what was
+          planned after it is not sent
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the payment methods invoices are collected with
+        - refuse the start where the invoices are collected and nothing records what they brought
+- `packages/payment-stripe/tests/a-payment-and-a-refund-are-reported.test.js`
+    - what became of a payment intent
+        - a success is reported with what Stripe received, for the attempt its key names
+        - an event delivered late reports the intent as it stands now
+        - a debit on its way, and a failure with its reason, are reported as they stand
+        - an intent SaaSiCat did not create is not its to act on
+    - a refund made in the Dashboard
+        - ${status} is reported as ${reported}, with the payment it pays back
+        - is read again from Stripe with its payment intent, whatever the event carried
+        - of a payment SaaSiCat did not collect, or of none, is not its to act on
+        - in a state Stripe does not document is refused, so Stripe delivers it again
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a payment is recorded, and a credit paid out
+        - a database from before ends up with the schema the fragments declare, twice
+        - a payment is taken once under its gateway account and reference, and another account may
+          reuse the reference
+
+<!-- END proof -->
 
 ### SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
 
@@ -1389,6 +1430,116 @@ its reference against the credit; SaaSiCat still initiates nothing. What follows
 `SC-PRIC-081`'s: the invoice it reopens is unpaid like any other.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-083 — A credit is paid out by the operator, and never offset against a later invoice
+
+🟢 💰 A credit arises where a payment brings more than its invoice
+still owes, and where an invoice's total is negative, such as one carrying the unused rest a
+withdrawal credits (`SC-PRIC-075`); either is recorded on the subscriber's account once. It is
+never offset against a later invoice, so every invoice is collected for the amount it states. The
+operator pays it out: by a refund in the gateway, recorded against the credit when the gateway
+reports it — the credit the refunded payment left first, then the oldest —, or, where the gateway
+can no longer refund, by a transfer the operator records with its reference (`SC-PRIC-031`). A
+refund that fails or is canceled gives back what it paid out. SaaSiCat initiates neither
+(`SC-PRIC-076`), and nothing is paid out beyond what a credit still owes: a payout over it is
+refused, and the part of a refund that no credit takes is recorded as matching none.
+
+_Source:_ #333 (decided 2026-10-14) · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-payment-settles-its-invoice-and-a-credit-is-paid-out.test.js`
+    - what an invoice still owes
+        - is its total less what is settled against it, to the cent
+        - is negative for an invoice whose total is negative
+    - a payment against what its invoice owes
+        - ${why}
+    - what a credit still owes
+        - is its amount less what refunds and payouts paid out
+        - takes back what a failed refund gave back
+        - never goes below nothing
+    - a refund divided across the open credits
+        - takes the credit the refunded payment left first, then the oldest
+        - takes the oldest first where the payment left none
+        - leaves what no credit takes as matching nothing, one cent included
+        - skips a credit that owes nothing
+        - orders credits of one moment by id, so both adapters divide alike
+    - a payment row
+        - is written for the subscriber its invoice names, with the amount as written
+        - reads back from either adapter’s amount
+        - refuses an amount that is none
+    - a settlement row
+        - takes its amount off what the invoice owes
+        - of a kind this release does not know stops the read
+    - a credit row
+        - reads back with the one place it comes from
+        - naming both places or neither stops the read
+    - a credit entry row
+        - of a payout carries its reference, its day and who recorded it, and no refund
+        - reads the day back from a Prisma date
+        - of a refund names the refund and its reference at the gateway, and its failure gives the
+          same amount back
+        - a payout naming a refund, or a refund entry naming none, stops the read
+        - of a kind this release does not know stops the read
+    - a refund row
+        - is written against the payment it pays back, for that payment’s subscriber
+        - first seen as failed or canceled is written as ended
+        - reads back, and an end that does not fit its status stops the read
+- `packages/nest/tests/a-payment-is-recorded-and-a-credit-paid-out.test.js`
+    - a refund the operator made in the gateway
+        - is recorded against the credit its payment left, once, and audited
+        - beyond what the subscriber is owed is recorded, and what matches nothing audited for the
+          operator
+        - that fails gives back what it paid out, once
+        - of a payment not recorded yet is refused, so the gateway delivers it again once it is
+    - an invoice whose total is negative
+        - is credited to its subscriber once, by the run after it was issued
+- `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
+    - the operator reads a subscriber's credits
+        - the oldest first, each named by the invoice it comes from, with what is open
+        - a tenant without a subscriber has none
+        - a refund paid out of a credit is shown with its reference at the gateway
+    - a payout the operator records
+        - is written against the credit, with its reference and who recorded it, up to what is open
+        - beyond what the credit still owes is refused, naming what is open, and nothing is written
+        - of another subscriber's credit is refused as one that does not exist
+        - on a day still to come in the installation’s zone is refused, and today is not
+- `packages/payment-stripe/tests/a-payment-and-a-refund-are-reported.test.js`
+    - a refund made in the Dashboard
+        - ${status} is reported as ${reported}, with the payment it pays back
+        - is read again from Stripe with its payment intent, whatever the event carried
+        - of a payment SaaSiCat did not collect, or of none, is not its to act on
+        - in a state Stripe does not document is refused, so Stripe delivers it again
+- `packages/ui-vue/tests/component/an-operator-pays-out-a-credit.test.ts`
+    - the tenant detail shows the subscriber's credits
+        - where each comes from, what was paid out and what is open, the oldest first
+        - offers a payout only for a credit with something open
+        - without the capabilities, shows nothing and reads nothing, and offers no payout with the
+          view alone
+    - a payout the operator records on the tenant page
+        - opens with what is open, is sent once a reference names it, with the second factor
+        - more than is open cannot be sent
+    - the payout the form describes
+        - is what is open, a reference and a note trimmed, an empty note as none
+- `packages/ui-vue/tests/tenant-credits-resource.test.js`
+    - tenantsResource.credits
+        - asks for the tenant's credits, with its slug escaped
+        - an answer with no credits is an error, not a tenant with none
+    - tenantsResource.recordPayout
+        - posts the payout against the credit, both escaped, with the second factor
+- `packages/ui-vue/tests/use-tenant-credits.test.js`
+    - the credits of a tenant
+        - are read where the platform serves them
+        - are neither read nor offered where it does not, and a payout only with both
+    - a payout
+        - is recorded behind the second factor, announced, and the credits read again
+        - where the operator steps back from the second factor records nothing and answers null
+        - that fails rejects, so the dialog keeps the form, and announces nothing
+        - belongs to the tenant it was asked on, even if the page moved on meanwhile
+
+<!-- END proof -->
 
 ### SC-PRIC-032 — No contract is frozen and no invoice issued before the subscriber's identity is complete
 

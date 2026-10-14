@@ -80,6 +80,7 @@ import {
     type SubscriptionNoticeDelivery,
     type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
+    type TransactionRunner,
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
@@ -90,7 +91,10 @@ import {
     PaymentGatewayRegistry,
     type PaymentGatewayAccount,
 } from '../../payments/payment-gateway-registry.js';
-import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../../payments/payments.tokens.js';
+import {
+    PAYMENT_TRANSACTION_RUNNER_TOKEN,
+    SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN,
+} from '../../payments/payments.tokens.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import {
     NOTICE_CLAIM_LEASE_MS,
@@ -104,6 +108,7 @@ import {
     INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
 } from './invoice-collection.tokens.js';
+import { InvoicePaymentService } from './invoice-payment.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
 /** The name the run writes its audit entries under: `job:platform:subscription-invoices`. */
@@ -165,15 +170,6 @@ type PlannedBecause =
 
 /** What an audit entry about a collection records. */
 type CollectionAudit =
-    | {
-          action: 'SUBSCRIPTION_INVOICE_COLLECTION_FAILED';
-          changes: {
-              number: string;
-              attempt: number;
-              reason: CollectionFailureReason;
-              gatewayCode: string | null;
-          };
-      }
     | {
           action: 'SUBSCRIPTION_INVOICE_COLLECTION_PLANNED';
           changes: {
@@ -237,6 +233,14 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         @Optional()
         @Inject(SubscriberService)
         private readonly subscribers: SubscriberService | null = null,
+        // What a collection brought is recorded with its outcome, on one
+        // transaction; both are required to start, like the gateways.
+        @Optional()
+        @Inject(InvoicePaymentService)
+        private readonly payments: InvoicePaymentService | null = null,
+        @Optional()
+        @Inject(PAYMENT_TRANSACTION_RUNNER_TOKEN)
+        private readonly transactions: TransactionRunner | null = null,
     ) {
         this.sender = notices
             ? new NoticeSender<InvoiceCollectionNotice>(notices, {
@@ -253,11 +257,23 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      */
     onModuleInit(): void {
         const problems: string[] = [];
-        if (!this.gateways || !this.paymentMethods || !this.settings.payments) {
+        if (
+            !this.gateways ||
+            !this.paymentMethods ||
+            !this.transactions ||
+            !this.settings.payments
+        ) {
             problems.push(
                 'collecting invoices needs the payment accounts under payments in ' +
                     'config/saas.yaml and PaymentsModule, wired globally as it is by default, ' +
                     'which binds a gateway for each account.',
+            );
+        }
+        if (!this.payments) {
+            problems.push(
+                'collecting invoices records what each collection brought: pass ' +
+                    'chargeJournal.invoices.payments, such as ' +
+                    'persistence.entitlement.subscriberPaymentRepository.',
             );
         }
         if (!this.notices || !this.mail || !this.subscribers) {
@@ -815,9 +831,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     }
 
     /**
-     * Records what became of an attempt. Where another run settled it first,
-     * nothing is counted here; a failure this run records is written to the
-     * audit log, once, since only one run records it. What follows a failure
+     * Records what became of an attempt, with the payment a success brought,
+     * on one transaction. Where another run or the gateway's callback settled
+     * it first, nothing is counted here; what this run recorded is logged and
+     * audited once, since only one report records it. What follows a failure
      * is decided by the next run that follows the invoice up.
      */
     private async record(
@@ -825,32 +842,24 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         outcome: CollectionOutcome,
         run: InvoiceCollectionRun,
     ): Promise<void> {
-        if (!(await this.collections.recordOutcome(attempt.id, outcome, new Date()))) return;
-        if (outcome.status === 'succeeded') {
-            run.collected += 1;
-            this.logger.log(
-                `Invoice ${attempt.invoiceNumber} was collected (${attempt.attemptKey}).`,
-            );
-            return;
-        }
-        if (outcome.status === 'pending') {
-            run.pending += 1;
-            return;
-        }
-        run.failed += 1;
-        this.logger.warn(
-            `Invoice ${attempt.invoiceNumber} was not collected (${attempt.attemptKey}): ` +
-                `${outcome.reason}${outcome.gatewayCode ? ` (${outcome.gatewayCode})` : ''}.`,
+        const { payments, transactions } = this.recording();
+        const recorded = await transactions.run((tx) =>
+            payments.recordOutcome(attempt, outcome, tx),
         );
-        await this.writeAudit(attempt.invoiceId, {
-            action: 'SUBSCRIPTION_INVOICE_COLLECTION_FAILED',
-            changes: {
-                number: attempt.invoiceNumber,
-                attempt: attempt.attempt,
-                reason: outcome.reason,
-                gatewayCode: outcome.gatewayCode,
-            },
-        });
+        await payments.reportOutcome(attempt, outcome, recorded);
+        if (!recorded.settled) return;
+        if (outcome.status === 'succeeded') run.collected += 1;
+        else if (outcome.status === 'pending') run.pending += 1;
+        else run.failed += 1;
+    }
+
+    /** What records an outcome, which the start made sure of. */
+    private recording(): { payments: InvoicePaymentService; transactions: TransactionRunner } {
+        const { payments, transactions } = this;
+        if (!payments || !transactions) {
+            throw new Error('Collecting invoices started without what records its outcomes.');
+        }
+        return { payments, transactions };
     }
 
     /** Logs a request whose answer is unknown; a run after the lease asks the gateway about it. */

@@ -19,6 +19,7 @@ import {
     ScriptedGateway,
     paymentsCatalog,
 } from './payments.js';
+import { MemorySubscriberPayments } from './subscriber-payments.js';
 
 export const INVOICING = { numberPrefix: 'AHP', paymentTermDays: 14 };
 
@@ -46,7 +47,8 @@ export const wiredInvoices = (overrides = {}) => ({
  * `'uncollected'`, where they are composed and nothing collects the invoices,
  * or `'unread'`, where the file names the account and nothing composes them.
  * `notices: false` takes the record of subscriber notices out of the
- * persistence bundle the platform reads it from.
+ * persistence bundle the platform reads it from, and `recorded: false` the
+ * record of what the collections brought.
  */
 export function invoicingPlatform({
     invoicing = INVOICING,
@@ -56,6 +58,7 @@ export function invoicingPlatform({
     record = true,
     payments = 'none',
     notices = true,
+    recorded = true,
 } = {}) {
     const options = everythingOnOptions();
     const {
@@ -110,6 +113,8 @@ export function invoicingPlatform({
             paymentEventLog: new MemoryPaymentEventLog(),
             subscriberPaymentMethodRepository: new MemoryPaymentMethods(),
         };
+        composed.persistence.entitlement.subscriberPaymentRepository =
+            payments === 'wired' && recorded ? new MemorySubscriberPayments([]) : undefined;
     }
     return composed;
 }

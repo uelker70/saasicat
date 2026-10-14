@@ -32,11 +32,17 @@ const BY_CARD = {
 
 const BY_DEBIT = { ...BY_CARD, paymentMethodRef: 'pm_debit', type: 'sepa_debit' };
 
-/** A payment intent as Stripe answers it, carrying the attempt's key. */
+/**
+ * A payment intent as Stripe answers it, carrying the attempt's key. Only a
+ * succeeded one has received its amount.
+ */
 const intent = (status, overrides = {}) => ({
     id: 'pi_1',
     object: 'payment_intent',
     status,
+    amount: 5831,
+    amount_received: status === 'succeeded' ? 5831 : 0,
+    currency: 'eur',
     metadata: { saasicat_attempt: KEY, saasicat_invoice: 'invoice-1' },
     last_payment_error: null,
     latest_charge: null,
@@ -83,7 +89,12 @@ describe('an invoice is collected off session', () => {
 
         const outcome = await ctx.gateway.collect(BY_CARD);
 
-        assert.deepEqual(outcome, { status: 'succeeded', paymentRef: 'pi_1' });
+        assert.deepEqual(outcome, {
+            status: 'succeeded',
+            paymentRef: 'pi_1',
+            amountCents: 5831,
+            currency: 'EUR',
+        });
         const [request] = ctx.requests;
         assert.equal(request.headers['idempotency-key'], KEY);
         assert.deepEqual(request.body, {
