@@ -8599,18 +8599,26 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const holding = new Promise<void>((resolve) => {
                 release = resolve;
             });
+            let signalWritten = () => {};
+            const written = new Promise<void>((resolve) => {
+                signalWritten = resolve;
+            });
             const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
             // The gateway's failure is recorded — outside the invoice's turn,
             // as every answer but a success is — and its transaction kept
-            // open while the run decides.
+            // open, the attempt written and locked, while the run decides.
             const reported = harness.adapter.transactionRunner.run(async (tx) => {
                 const settled = await collections.recordOutcome(attempt!.id, FAILURE, PAID_AT, tx);
+                signalWritten();
                 await holding;
                 return settled;
             });
-            await pause(100);
+            // A failing recording rejects here rather than leave the wait open.
+            await Promise.race([written, reported]);
             const decided = collections.abandonPaid(attempt!.id, PAID_AT);
+            // Time for the decision to reach its write and wait on the lock;
+            // whenever it gets there, it finds the failure.
             await pause(200);
             release();
 
