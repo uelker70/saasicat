@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 86      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 87      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 641 entries: 🟢 555 stand today, 🟡 56 decided but not yet delivered, ⚪ 0 drafts,
+Of 642 entries: 🟢 556 stand today, 🟡 56 decided but not yet delivered, ⚪ 0 drafts,
 🔵 27 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -224,7 +224,7 @@ Of 641 entries: 🟢 555 stand today, 🟡 56 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 641 requirements. Do not edit by hand:
+Generated from `requirements/` — 642 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9706,6 +9706,7 @@ _Tested by:_
         - reported again unchanged, writes nothing but the row it skips
         - grown since the last report, writes only what grew
         - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
         - of a payment this installation does not hold, writes nothing
         - in another currency than its payment, is refused before anything is held
         - held under its reference against another payment, is refused
@@ -9791,6 +9792,11 @@ _Tested by:_
         - a direct debit that replaces the payment method waits until the subscriber heard of the
           reversal
         - a reversal given back before the run follows it up tells nobody
+    - a payment that arrived late beside another attempt, reversed
+        - is told once, and the invoice is collected with no payment method it was reversed on
+        - waits while the attempt beside it is on its way, and tells nobody once that one paid
+        - while the attempt beside it never left, that one is not sent with the reversed card, and
+          one notice tells the subscriber
 
 <!-- END proof -->
 
@@ -9817,6 +9823,7 @@ _Tested by:_
         - reported again unchanged, writes nothing but the row it skips
         - grown since the last report, writes only what grew
         - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
         - of a payment this installation does not hold, writes nothing
         - in another currency than its payment, is refused before anything is held
         - held under its reference against another payment, is refused
@@ -9849,6 +9856,64 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
     - the tenant page's payments
         - a credit a reversal given back left names the reversal
+
+<!-- END proof -->
+
+### SC-PRIC-087 — A credit left for the same invoice covers what a reversal would open again
+
+🟢 💰 Where a reversal would open an invoice again (`SC-PRIC-084`) and another payment collected
+for that invoice left a credit that is still open — a payment that arrived late, while a later
+attempt paid the invoice as well —, that credit covers what the reversal would open, the oldest
+such credit first and no more than the reversal would open: the invoice stays settled by money
+collected for it, and only what remains opens it again. The credit the reversed payment left still
+goes first; its part already paid out, and whatever goes beyond everything the payment brought,
+still match nothing. This is no offset against a later invoice, which a credit never is
+(`SC-PRIC-083`). What the gateway gives back of the reversal gives back what it took of those
+credits as well (`SC-PRIC-086`).
+
+_Source:_ #333 (decided 2026-10-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - what credits other payments for the same invoice left cover of a reversal
+        - they cover what would open the invoice again, the oldest first
+        - why
+        - come after the credit the payment itself left
+        - do not cover the part of that credit already paid out, nor what goes beyond the payment
+        - one with nothing open is passed over
+        - they cover the invoices in the order given
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - a payment that arrived late while the attempt beside it paid the invoice too, reversed
+        - is covered by the credit the other payment left, and nobody is told
 
 <!-- END proof -->
 
@@ -15536,6 +15601,7 @@ _Tested by:_
         - reported again unchanged, writes nothing but the row it skips
         - grown since the last report, writes only what grew
         - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
         - of a payment this installation does not hold, writes nothing
         - in another currency than its payment, is refused before anything is held
         - held under its reference against another payment, is refused
@@ -22352,6 +22418,7 @@ _Tested by:_
         - reported again unchanged, writes nothing but the row it skips
         - grown since the last report, writes only what grew
         - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
         - of a payment this installation does not hold, writes nothing
         - in another currency than its payment, is refused before anything is held
         - held under its reference against another payment, is refused

@@ -37,6 +37,8 @@ import {
     sentCollectionOf,
     collectionOutcomeColumns,
     UNSETTLED_COLLECTION_STATUSES,
+    FOLLOWED_UP_COLLECTION_STATUSES,
+    REVERSIBLE_COLLECTION_STATUSES,
     COLLECTION_NOT_SENT_PAID,
     isEndedRefund,
     openOfCredit,
@@ -2142,7 +2144,7 @@ export function createMemoryHarness() {
     // succeeded, decided in one synchronous step as the indexes decide it.
     const unsettled = new Set(UNSETTLED_COLLECTION_STATUSES);
     /** The attempts what follows is decided for: a failure, and a reversal. */
-    const followedUp = new Set(['FAILED', 'REVERSED']);
+    const followedUp = new Set(FOLLOWED_UP_COLLECTION_STATUSES);
     /** Whether the invoice still owes something after what is settled against it. */
     const stillOwes = (invoice) =>
         owedOn(
@@ -2255,6 +2257,12 @@ export function createMemoryHarness() {
                     (last.status === 'WITHDRAWN' ||
                         (followedUp.has(last.status) && last.followedUpAt !== null)) &&
                     inUse.id !== last.paymentMethodId &&
+                    !state.invoiceCollections.some(
+                        (row) =>
+                            row.invoiceId === invoice.id &&
+                            row.status === 'REVERSED' &&
+                            (row.followedUpAt === null || row.paymentMethodId === inUse.id),
+                    ) &&
                     stillOwes(invoice)
                 );
             });
@@ -2271,8 +2279,8 @@ export function createMemoryHarness() {
         },
         async markReversed(id, at) {
             const row = state.invoiceCollections.find((candidate) => candidate.id === id);
-            if (row?.status !== 'SUCCEEDED') return false;
-            Object.assign(row, { status: 'REVERSED', resolvedAt: at });
+            if (!row || !REVERSIBLE_COLLECTION_STATUSES.includes(row.status)) return false;
+            Object.assign(row, { status: 'REVERSED', resolvedAt: at, followedUpAt: null });
             return true;
         },
         async recordOutcome(id, outcome, at) {
@@ -2473,24 +2481,26 @@ export function createMemoryHarness() {
                 open: standing.open,
             };
         }
-        const parts = withdrawalParts(
-            amount,
-            credit,
-            netByInvoice(settlementsOf((row) => row.paymentId === payment.id)).map((net) => ({
-                invoiceId: net.invoiceId,
-                left: net.amount,
-            })),
+        const invoices = netByInvoice(settlementsOf((row) => row.paymentId === payment.id)).map(
+            (net) => ({ invoiceId: net.invoiceId, left: net.amount }),
         );
-        if (parts.credit) {
+        const others = new Set(
+            state.payments
+                .filter(
+                    (row) =>
+                        row.id !== payment.id &&
+                        invoices.some((each) => each.invoiceId === row.invoiceId),
+                )
+                .map((row) => row.id),
+        );
+        const covering = standingsOf(payment.subscriberId, null)
+            .filter((each) => others.has(each.credit.origin.paymentId))
+            .map((each) => ({ creditId: each.credit.id, open: each.open }));
+        const parts = withdrawalParts(amount, credit, invoices, covering);
+        for (const part of parts.credit ? [parts.credit, ...parts.covering] : parts.covering) {
             state.creditEntries.push({
                 id: nextId('credit-entry'),
-                ...reversalEntryColumns(
-                    parts.credit.creditId,
-                    reversal,
-                    'REVERSAL',
-                    parts.credit.amount,
-                    at,
-                ),
+                ...reversalEntryColumns(part.creditId, reversal, 'REVERSAL', part.amount, at),
             });
         }
         for (const part of parts.invoices) {
@@ -2511,6 +2521,7 @@ export function createMemoryHarness() {
             fromCredit: parts.fromCredit,
             withdrawal: {
                 credit: parts.credit,
+                covering: parts.covering,
                 invoices: parts.invoices,
                 unmatched: parts.unmatched,
                 case: opened,

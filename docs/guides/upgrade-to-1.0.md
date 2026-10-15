@@ -2153,14 +2153,19 @@ What the gateway reports and no credit matches is a case the operator closes wit
 
 - **A gateway of your own** reports reversals through `readCallback` as `reversal-reported`, with
   what the reversal withdrew and what was given back of it, each in total so far, in cents.
-- **A `SubscriberPaymentRepository` of your own** implements `recordReversal`, `listCases`,
+- **A `SubscriberPaymentRepository` of your own** implements `recordReversal` — taking an open
+  credit another payment for the same invoice left before it opens the invoice (`SC-PRIC-087`,
+  `withdrawalParts` in `@saasicat/core`) —, `listCases`,
   `closeCase`, `owedByInvoices`, `findReversalById` and `accountsHoldingCredits`, opens a case for
   the part of a refund no credit takes and closes it when the refund fails, and counts a
   `REVERSAL` settlement against what an invoice owes — `REOPENING_SETTLEMENT_KINDS` and
   `GIVING_BACK_CREDIT_ENTRY_KINDS` in `@saasicat/core` name the kinds that count the other way.
-- **An `InvoiceCollectionRepository` of your own** implements `markReversed`, follows up and
-  collects again an attempt in the new status `REVERSED` as it does a failed one, and counts a
-  `REVERSAL` settlement against what an invoice owes in every guard that asks whether it does.
+- **An `InvoiceCollectionRepository` of your own** implements `markReversed` — from `SUCCEEDED`
+  or `FAILED` (`REVERSIBLE_COLLECTION_STATUSES`), followed up again —, follows up and collects
+  again an attempt in the new status `REVERSED` as it does a failed one, lists no invoice as
+  collectable again while one of its reversed attempts is not followed up or its subscriber's
+  payment method in use is one a reversed attempt was made with, and counts a `REVERSAL`
+  settlement against what an invoice owes in every guard that asks whether it does.
 - **A persistence contract harness** runs the new scenarios with the gap it already declares or
   wires; empty the two new tables between scenarios with the payments.
 - **An application that words refusals itself** adds `SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND`

@@ -34,6 +34,7 @@ describe('what a reversal takes back of what its payment brought', () => {
         assert.deepEqual(withdrawalParts(99, null, [invoice('i-1', 60), invoice('i-2', 39)]), {
             fromCredit: 0,
             credit: null,
+            covering: [],
             invoices: [
                 { invoiceId: 'i-1', amount: 60 },
                 { invoiceId: 'i-2', amount: 39 },
@@ -46,6 +47,7 @@ describe('what a reversal takes back of what its payment brought', () => {
         assert.deepEqual(withdrawalParts(120, credit(20, 20), [invoice('i-1', 100)]), {
             fromCredit: 20,
             credit: { creditId: 'c-1', amount: 20 },
+            covering: [],
             invoices: [{ invoiceId: 'i-1', amount: 100 }],
             unmatched: 0,
         });
@@ -78,6 +80,7 @@ describe('what a reversal takes back of what its payment brought', () => {
         assert.deepEqual(withdrawalParts(120, credit(20, 5), [invoice('i-1', 100)]), {
             fromCredit: 20,
             credit: { creditId: 'c-1', amount: 5 },
+            covering: [],
             invoices: [{ invoiceId: 'i-1', amount: 100 }],
             unmatched: 15,
         });
@@ -112,6 +115,90 @@ describe('what a reversal takes back of what its payment brought', () => {
             [parts.credit?.amount, parts.invoices[0]?.amount, parts.unmatched],
             [0.1, 0.2, 0],
         );
+    });
+});
+
+// @requirement SC-PRIC-087 — A credit left for the same invoice covers what a reversal would open again
+describe('what credits other payments for the same invoice left cover of a reversal', () => {
+    const other = (creditId, open) => ({ creditId, open });
+
+    test('they cover what would open the invoice again, the oldest first', () => {
+        assert.deepEqual(
+            withdrawalParts(50, null, [invoice('i-1', 100)], [other('c-2', 30), other('c-3', 40)]),
+            {
+                fromCredit: 0,
+                credit: null,
+                covering: [
+                    { creditId: 'c-2', amount: 30 },
+                    { creditId: 'c-3', amount: 20 },
+                ],
+                invoices: [],
+                unmatched: 0,
+            },
+        );
+    });
+
+    for (const [open, covered, opened, why] of [
+        [29.99, 29.99, [{ invoiceId: 'i-1', amount: 0.01 }], 'a cent short leaves a cent to open'],
+        [30, 30, [], 'exactly what would open leaves the invoice settled'],
+        [30.01, 30, [], 'a cent beyond it is not taken'],
+    ]) {
+        test(why, () => {
+            const parts = withdrawalParts(30, null, [invoice('i-1', 100)], [other('c-2', open)]);
+            assert.deepEqual(
+                [parts.covering, parts.invoices],
+                [[{ creditId: 'c-2', amount: covered }], opened],
+            );
+        });
+    }
+
+    test('come after the credit the payment itself left', () => {
+        const parts = withdrawalParts(
+            60,
+            credit(20, 20),
+            [invoice('i-1', 100)],
+            [other('c-2', 50)],
+        );
+        assert.deepEqual(
+            [parts.credit, parts.covering, parts.invoices],
+            [{ creditId: 'c-1', amount: 20 }, [{ creditId: 'c-2', amount: 40 }], []],
+        );
+    });
+
+    test('do not cover the part of that credit already paid out, nor what goes beyond the payment', () => {
+        const paidOut = withdrawalParts(
+            30,
+            credit(20, 5),
+            [invoice('i-1', 100)],
+            [other('c-2', 50)],
+        );
+        assert.deepEqual(
+            [paidOut.covering, paidOut.invoices, paidOut.unmatched],
+            [[{ creditId: 'c-2', amount: 10 }], [], 15],
+        );
+        const beyond = withdrawalParts(150.01, null, [invoice('i-1', 100)], [other('c-2', 200)]);
+        assert.deepEqual(
+            [beyond.covering, beyond.unmatched],
+            [[{ creditId: 'c-2', amount: 100 }], 50.01],
+        );
+    });
+
+    test('one with nothing open is passed over', () => {
+        assert.deepEqual(
+            withdrawalParts(10, null, [invoice('i-1', 100)], [other('c-2', 0), other('c-3', 10)])
+                .covering,
+            [{ creditId: 'c-3', amount: 10 }],
+        );
+    });
+
+    test('they cover the invoices in the order given', () => {
+        const parts = withdrawalParts(
+            99,
+            null,
+            [invoice('i-1', 60), invoice('i-2', 39)],
+            [other('c-2', 70)],
+        );
+        assert.deepEqual(parts.invoices, [{ invoiceId: 'i-2', amount: 29 }]);
     });
 });
 

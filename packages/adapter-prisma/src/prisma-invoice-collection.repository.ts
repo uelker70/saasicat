@@ -16,7 +16,9 @@ import type {
 } from '@saasicat/core';
 import {
     COLLECTION_NOT_SENT_PAID,
+    FOLLOWED_UP_COLLECTION_STATUSES,
     REOPENING_SETTLEMENT_KINDS,
+    REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -42,11 +44,8 @@ interface CollectionRepositoryClient {
     $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 }
 
-/** The attempts what follows is decided for: a failure, and a reversal that opened the invoice again. */
-const FOLLOWED_UP_STATUSES = ['FAILED', 'REVERSED'] as const;
-
-/** The same, as a parameter of the query below. */
-const FOLLOWED_UP = [...FOLLOWED_UP_STATUSES];
+/** The attempts what follows is decided for, as a parameter of the query below. */
+const FOLLOWED_UP = [...FOLLOWED_UP_COLLECTION_STATUSES];
 
 /** The settlement kinds that add back to what an invoice owes, as a parameter of the sums below. */
 const REOPENING = [...REOPENING_SETTLEMENT_KINDS];
@@ -258,7 +257,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
             // An empty text sorts before every id, as in `listDue`.
             where: {
                 id: { gt: page.after ?? '' },
-                status: { in: [...FOLLOWED_UP_STATUSES] },
+                status: { in: [...FOLLOWED_UP_COLLECTION_STATUSES] },
                 followedUpAt: null,
             },
             select: { id: true },
@@ -291,6 +290,12 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                AND (c."status" = 'WITHDRAWN'
                     OR (c."status" = ANY(${FOLLOWED_UP}) AND c."followedUpAt" IS NOT NULL))
                AND m."id" <> c."paymentMethodId"
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_collections" r
+                        WHERE r."invoiceId" = i."id"
+                          AND r."status" = 'REVERSED'
+                          AND (r."followedUpAt" IS NULL OR r."paymentMethodId" = m."id")
+                   )
                AND i."totalGross" > COALESCE((
                        SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
                                        ELSE s."amount" END)
@@ -304,7 +309,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
 
     async markFollowedUp(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
         const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
-            where: { id, status: { in: [...FOLLOWED_UP_STATUSES] }, followedUpAt: null },
+            where: { id, status: { in: [...FOLLOWED_UP_COLLECTION_STATUSES] }, followedUpAt: null },
             data: { followedUpAt: at },
         });
         return count === 1;
@@ -312,8 +317,8 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
 
     async markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
         const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
-            where: { id, status: 'SUCCEEDED' },
-            data: { status: 'REVERSED', resolvedAt: at },
+            where: { id, status: { in: [...REVERSIBLE_COLLECTION_STATUSES] } },
+            data: { status: 'REVERSED', resolvedAt: at, followedUpAt: null },
         });
         return count === 1;
     }

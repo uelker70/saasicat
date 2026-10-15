@@ -15,6 +15,7 @@
 // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
 // @requirement SC-PRIC-086 — A dispute won takes its reversal back, and what was paid meanwhile becomes a credit
 // @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-PRIC-087 — A credit left for the same invoice covers what a reversal would open again
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -205,6 +206,31 @@ describe('a reversal', () => {
             [opened.paymentId, opened.reversalId, opened.refundId, opened.gatewayRef],
             [payment.id, recorded.reversal.id, null, 'du_1'],
         );
+    });
+
+    test('takes a credit another payment for the same invoice left before it opens the invoice', async () => {
+        const { client, repo, credit } = await paid();
+        const late = await repo.recordPayment(paymentOf('pi_2', 30, REVERSED_AT));
+        client.statements.length = 0;
+
+        const recorded = await repo.recordReversal(dispute(50));
+
+        assert.deepEqual(recorded.withdrawal.credit, { creditId: credit.id, amount: 20 });
+        assert.deepEqual(recorded.withdrawal.covering, [{ creditId: late.credit.id, amount: 30 }]);
+        assert.deepEqual(recorded.withdrawal.invoices, []);
+        assert.deepEqual(
+            writesTo(client, 'subscriberCreditEntry').map(([, { data }]) => [
+                data.creditId,
+                data.kind,
+                Number(data.amount),
+            ]),
+            [
+                [credit.id, 'REVERSAL', 20],
+                [late.credit.id, 'REVERSAL', 30],
+            ],
+        );
+        assert.deepEqual(writesTo(client, 'subscriptionInvoiceSettlement'), []);
+        assert.equal(await repo.owedBy('invoice-1'), 0);
     });
 
     test('of a payment this installation does not hold, writes nothing', async () => {

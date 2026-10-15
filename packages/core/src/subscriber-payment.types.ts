@@ -254,6 +254,11 @@ export interface ReportedSubscriberReversal {
 export interface ReversalWithdrawal {
     /** What it took of the credit the payment left that was still open. */
     credit: CreditPart | null;
+    /**
+     * What it took instead of opening an invoice again, of the credits other
+     * payments collected for that invoice left, the oldest first.
+     */
+    covering: CreditPart[];
     /** The invoices it opened again, each by how much, the oldest first. */
     invoices: InvoicePart[];
     /**

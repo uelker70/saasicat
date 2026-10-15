@@ -10,6 +10,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type {
+    CoveringCredit,
     RecordedSubscriberReversal,
     ReportedSubscriberReversal,
     ReversalReinstatement,
@@ -175,24 +176,25 @@ async function withdraw(
         where: { paymentId: payment.id },
         orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
     });
+    const invoices = netByInvoice(
+        settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
+    ).map((net) => ({ invoiceId: net.invoiceId, left: net.amount }));
     const parts = withdrawalParts(
         amount,
         await reversibleCredit(db, payment),
-        netByInvoice(
-            settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
-        ).map((net) => ({ invoiceId: net.invoiceId, left: net.amount })),
+        invoices,
+        await coveringCredits(
+            db,
+            payment,
+            invoices.map((each) => each.invoiceId),
+        ),
     );
-    if (parts.credit) {
+    const takenOfCredits = parts.credit ? [parts.credit, ...parts.covering] : parts.covering;
+    for (const part of takenOfCredits) {
         await db.subscriberCreditEntry.create({
             data: {
                 id: randomUUID(),
-                ...reversalEntryColumns(
-                    parts.credit.creditId,
-                    reversal,
-                    'REVERSAL',
-                    parts.credit.amount,
-                    at,
-                ),
+                ...reversalEntryColumns(part.creditId, reversal, 'REVERSAL', part.amount, at),
             },
         });
     }
@@ -224,6 +226,7 @@ async function withdraw(
         fromCredit: parts.fromCredit,
         withdrawal: {
             credit: parts.credit,
+            covering: parts.covering,
             invoices: parts.invoices,
             unmatched: parts.unmatched,
             case: opened,
@@ -251,6 +254,29 @@ async function reversibleCredit(
         left: (toCents(credit.amount) - taken) / 100,
         open: await openOf(db, credit.id),
     };
+}
+
+/**
+ * The open credits that other payments collected for `invoiceIds` left, the
+ * oldest first: what covers what the reversal would open again of them.
+ */
+async function coveringCredits(
+    db: PaymentPrisma,
+    payment: SubscriberPaymentRecord,
+    invoiceIds: readonly string[],
+): Promise<CoveringCredit[]> {
+    if (invoiceIds.length === 0) return [];
+    const others = await db.subscriberPayment.findMany({
+        where: { invoiceId: { in: [...invoiceIds] }, id: { not: payment.id } },
+    });
+    if (others.length === 0) return [];
+    const rows = await db.subscriberCredit.findMany({
+        where: { originPaymentId: { in: others.map((each) => each.id) } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    const covering: CoveringCredit[] = [];
+    for (const row of rows) covering.push({ creditId: row.id, open: await openOf(db, row.id) });
+    return covering;
 }
 
 /** Writes what `amount`, newly given back by the gateway, returns of what the reversal took. */

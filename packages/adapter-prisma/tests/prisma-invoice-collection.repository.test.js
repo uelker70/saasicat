@@ -226,10 +226,10 @@ describe('a write that names the state it expects', () => {
             true,
         ],
         [
-            'a reversal lands on a succeeded attempt',
+            'a reversal lands on a succeeded attempt, or a failed one its payment came late for, to be followed up again',
             (repo) => repo.markReversed('attempt-1', AT),
-            { id: 'attempt-1', status: 'SUCCEEDED' },
-            { status: 'REVERSED', resolvedAt: AT },
+            { id: 'attempt-1', status: { in: ['SUCCEEDED', 'FAILED'] } },
+            { status: 'REVERSED', resolvedAt: AT, followedUpAt: null },
             true,
         ],
     ]) {
@@ -319,6 +319,10 @@ describe('reading', () => {
         assert.match(again[1], /max\(o\."attempt"\)/);
         assert.match(again[1], /c\."followedUpAt" IS NOT NULL/);
         assert.match(again[1], /m\."id" <> c\."paymentMethodId"/);
+        assert.ok(
+            again[1].includes('AND (r."followedUpAt" IS NULL OR r."paymentMethodId" = m."id")'),
+            'a reversal not told, or the payment method it was reversed on, still lists it',
+        );
         assert.ok(again[2].includes('invoice-0'));
     });
 

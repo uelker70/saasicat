@@ -194,6 +194,19 @@ export const COLLECTION_NOT_SENT_PAID: CollectionOutcome = {
 };
 
 /**
+ * The same for an attempt whose payment method a payment of its invoice was
+ * reversed on meanwhile: sent now, it would collect with that payment method
+ * again (`SC-PRIC-085`). The reversal's notice tells the subscriber what
+ * follows.
+ */
+export const COLLECTION_NOT_SENT_REVERSED: CollectionOutcome = {
+    status: 'failed',
+    paymentRef: null,
+    reason: 'other',
+    gatewayCode: 'saasicat_payment_method_reversed',
+};
+
+/**
  * What `abandonPaid` found for an attempt whose request never reached the
  * gateway: `abandoned` — its invoice owes nothing, and it is settled as
  * `COLLECTION_NOT_SENT_PAID`; `resend` — it is still `SUBMITTED` and its

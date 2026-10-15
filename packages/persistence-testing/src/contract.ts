@@ -9387,6 +9387,43 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
+        // @requirement SC-PRIC-087
+        test('a credit another payment for the same invoice left covers what a reversal would open again, and is owed again when it is given back', async (t) => {
+            const account = await paidOnce(t, 'tenant-reversal-covered', 20);
+            if (!account) return;
+            const { payments, attempt, paymentOf, brought, gross, invoiceId, subscriberId } =
+                account;
+            const own = account.recorded.credit!.id;
+            // Later than the payment it covers for, so the two credits read in one order.
+            const late = await payments.recordPayment(
+                paymentOf(attempt, 'pi_late', 10, { at: new Date(PAID_AT.getTime() + 60_000) }),
+            );
+            const covering = late!.credit!.id;
+            const opened = (Math.round(gross * 100) - 1000) / 100;
+
+            const reversed = await payments.recordReversal(reversalOf('du_1', 'pi_paid', brought));
+
+            assert.ok(reversed.outcome === 'recorded' && reversed.withdrawal);
+            assert.deepEqual(reversed.withdrawal.credit, { creditId: own, amount: 20 });
+            assert.deepEqual(reversed.withdrawal.covering, [{ creditId: covering, amount: 10 }]);
+            assert.deepEqual(reversed.withdrawal.invoices, [{ invoiceId, amount: opened }]);
+            assert.equal(await payments.owedBy(invoiceId), opened);
+            assert.deepEqual(await openCredits(payments, subscriberId), [
+                { origin: 'payment', amount: 20, open: 0 },
+                { origin: 'payment', amount: 10, open: 0 },
+            ]);
+
+            await payments.recordReversal(
+                reversalOf('du_1', 'pi_paid', brought, brought, GIVEN_BACK_AT),
+            );
+
+            assert.equal(await payments.owedBy(invoiceId), 0);
+            assert.deepEqual(await openCredits(payments, subscriberId), [
+                { origin: 'payment', amount: 20, open: 20 },
+                { origin: 'payment', amount: 10, open: 10 },
+            ]);
+        });
+
         // @requirement SC-PRIC-085
         test('a reversed attempt frees its invoice for another payment method once it is followed up', async (t) => {
             const account = await paidOnce(t, 'tenant-reversal-again');
@@ -9419,15 +9456,86 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-085
-        test('only a succeeded attempt is marked reversed', async (t) => {
+        test('an attempt that failed before its payment arrived is marked reversed and followed up again, one on its way is not', async (t) => {
             const account = await payable(t, 'tenant-reversal-not-succeeded');
             if (!account) return;
             const { collections, attempts } = account;
+            const [first] = attempts;
 
-            assert.equal(await collections.markReversed(attempts[0]!.id, REVERSED_AT), false);
+            assert.equal(
+                await collections.markReversed(first!.id, REVERSED_AT),
+                false,
+                'on its way',
+            );
+            await collections.recordOutcome(first!.id, FAILURE, PAID_AT);
+            assert.equal(await collections.markFollowedUp(first!.id, PAID_AT), true);
+
+            assert.equal(await collections.markReversed(first!.id, REVERSED_AT), true);
+            const reversed = await collections.findById(first!.id);
+            assert.deepEqual([reversed?.status, reversed?.followedUpAt], ['REVERSED', null]);
+            assert.ok((await collections.listToFollowUp({ limit: 50 })).includes(first!.id));
+            assert.equal(await collections.markReversed(first!.id, REVERSED_AT), false, 'twice');
+        });
+
+        // @requirement SC-PRIC-085
+        test('an invoice is collected again with no payment method one of its payments was reversed on, once every reversal was followed up', async (t) => {
+            const account = await payable(t, 'tenant-reversal-late');
+            if (!account) return;
+            const { collections, payments, attempts, grosses, ids, subscriberId, paymentOf } =
+                account;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const invoiceId = ids[0]!;
+            const used = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_used', '2026-01-20T10:00:00.000Z'),
+            );
+            // The first attempt fails, and so does the second, made with the
+            // payment method in use; its payment arrives after all while a
+            // third is on its way, which fails as well.
             await collections.recordOutcome(attempts[0]!.id, FAILURE, PAID_AT);
-            assert.equal(await collections.markReversed(attempts[0]!.id, REVERSED_AT), false);
-            assert.equal((await collections.findById(attempts[0]!.id))?.status, 'FAILED');
+            await collections.markFollowedUp(attempts[0]!.id, PAID_AT);
+            const second = await collections.plan({
+                ...planOf(invoiceId, { after: 1 }),
+                paymentMethodId: used.method.id,
+            });
+            assert.ok(second && (await collections.submitPlanned(second.id, PAID_AT)));
+            await collections.recordOutcome(second.id, FAILURE, PAID_AT);
+            await collections.markFollowedUp(second.id, PAID_AT);
+            const third = await collections.plan(
+                planOf(invoiceId, { after: 2, paymentMethodType: 'sepa_debit' }),
+            );
+            assert.ok(third && (await collections.submitPlanned(third.id, PAID_AT)));
+            const success = {
+                status: 'succeeded' as const,
+                paymentRef: 'pi_late',
+                amountCents: Math.round(grosses[0]! * 100),
+                currency: 'EUR',
+            };
+            assert.equal(await collections.recordOutcome(second.id, success, PAID_AT), false);
+            await payments.recordPayment(paymentOf(second, 'pi_late', grosses[0]!));
+            await collections.recordOutcome(third.id, FAILURE, PAID_AT);
+            await collections.markFollowedUp(third.id, PAID_AT);
+
+            await payments.recordReversal(reversalOf('du_1', 'pi_late', grosses[0]!));
+            assert.equal(await collections.markReversed(second.id, REVERSED_AT), true);
+
+            const collectable = async () =>
+                (await collections.listCollectableAgain({ limit: 50 })).includes(invoiceId);
+            assert.equal(
+                await collectable(),
+                false,
+                'collected again before the subscriber is told',
+            );
+            assert.equal(await collections.markFollowedUp(second.id, REVERSED_AT), true);
+            assert.equal(
+                await collectable(),
+                false,
+                'collected again with the payment method a payment was reversed on',
+            );
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_new', '2026-03-21T10:00:00.000Z'),
+            );
+            assert.equal(await collectable(), true);
         });
 
         // @requirement SC-ADM-033

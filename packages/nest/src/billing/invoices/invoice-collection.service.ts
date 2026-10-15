@@ -16,11 +16,12 @@
 // It then follows each failure up, once: where the reason can pass the same
 // payment method is planned once more, where another payment method replaced
 // it that one is planned, and the subscriber's notice is recorded from what
-// was planned. A reversal that opened an invoice again is followed up as well:
-// the subscriber's notice is recorded, and nothing is planned with the payment
-// method the reversed payment came from. An invoice whose last attempt failed
-// or was reversed and was followed up, or was withdrawn, is planned again once
-// its subscriber uses another payment method.
+// was planned. A reversal that opened an invoice again is followed up as well,
+// once no other attempt of the invoice is on its way: the subscriber's notice
+// is recorded, and nothing of the invoice is planned again with a payment
+// method one of its payments was reversed on. An invoice whose last attempt
+// failed or was reversed and was followed up, or was withdrawn, is planned
+// again once its subscriber uses another payment method.
 //
 // It tells the subscriber of every failure and reversal not yet told, and last takes up
 // what is planned. A planned attempt whose payment method is no longer in use
@@ -47,9 +48,11 @@ import {
     Optional,
 } from '@nestjs/common';
 import {
+    COLLECTION_NOT_SENT_REVERSED,
     INVOICE_COLLECTION_ASK_EVERY_MS,
     INVOICE_COLLECTION_LEASE_MS,
     INVOICE_ERROR_CODES,
+    UNSETTLED_COLLECTION_STATUSES,
     addDaysToDay,
     announcedCollectionDay,
     chargedAgainOn,
@@ -472,6 +475,10 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             await this.collections.markFollowedUp(reversed.id, new Date());
             return;
         }
+        const attempts = await this.collections.listByInvoice(reversed.invoiceId);
+        // Another attempt on its way may still pay the invoice: the subscriber
+        // is told once it settled, so the notice says what follows.
+        if (attempts.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
         const invoice = await this.invoiceOf(reversed.invoiceId);
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
         const notice: CollectionReversedNotice = {
@@ -480,7 +487,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             paymentMethodType: reversed.paymentMethodType,
             owed,
             next:
-                method && method.id !== reversed.paymentMethodId
+                method && !reversedOn(attempts).has(method.id)
                     ? { action: 'collected-with-payment-method-in-use' }
                     : { action: 'replace-payment-method' },
         };
@@ -515,8 +522,15 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         const failed = await this.collections.findById(id);
         if (failed?.status !== 'FAILED' || failed.followedUpAt !== null) return;
         // A payment came for the invoice — a late one beside this attempt —
-        // so nothing follows, and there is no failure left to tell.
-        if (!(await this.recording().payments.owes(failed.invoiceId))) {
+        // so nothing follows, and there is no failure left to tell. Nor where
+        // a payment of the invoice was reversed on this payment method: the
+        // reversal's notice tells the subscriber what follows, once.
+        if (
+            !(await this.recording().payments.owes(failed.invoiceId)) ||
+            reversedOn(await this.collections.listByInvoice(failed.invoiceId)).has(
+                failed.paymentMethodId,
+            )
+        ) {
             await this.collections.markFollowedUp(failed.id, new Date());
             return;
         }
@@ -563,7 +577,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         const later = (attempts: readonly InvoiceCollectionRecord[]) =>
             attempts.filter((each) => each.attempt > failed.attempt);
         const attempts = await this.collections.listByInvoice(invoice.id);
-        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        const active = await this.paymentMethods!.findActive(invoice.subscriberId);
+        const method = active && !reversedOn(attempts).has(active.id) ? active : null;
         const after = later(attempts);
         const standing = after.find((each) => each.status !== 'WITHDRAWN');
         if (
@@ -599,15 +614,21 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         today: CalendarDay,
         run: InvoiceCollectionRun,
     ): Promise<void> {
-        const last = (await this.collections.listByInvoice(invoiceId)).at(-1);
+        const attempts = await this.collections.listByInvoice(invoiceId);
+        const last = attempts.at(-1);
         const ended =
             last?.status === 'WITHDRAWN' ||
             ((last?.status === 'FAILED' || last?.status === 'REVERSED') &&
                 last.followedUpAt !== null);
-        if (!last || !ended) return;
+        const untold = attempts.some(
+            (each) => each.status === 'REVERSED' && each.followedUpAt === null,
+        );
+        if (!last || !ended || untold) return;
         const invoice = await this.invoiceOf(invoiceId);
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
-        if (!method || method.id === last.paymentMethodId) return;
+        if (!method || method.id === last.paymentMethodId || reversedOn(attempts).has(method.id)) {
+            return;
+        }
         await this.planWith(invoice, last.attempt, method, today, 'payment-method-replaced', run);
     }
 
@@ -892,9 +913,24 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         // meantime; otherwise the same request, under the same key, cannot
         // charge twice. A report that arrives after the decision names a
         // request the gateway holds, and a repeat under its key creates
-        // nothing new (`PaymentGateway.collect`).
+        // nothing new (`PaymentGateway.collect`). Nor is it sent where a
+        // payment of the invoice was reversed on its payment method since:
+        // that would collect with it again.
         const decided = await this.collections.abandonPaid(attempt.id, new Date());
         if (decided === 'settled') return;
+        if (
+            decided === 'resend' &&
+            reversedOn(await this.collections.listByInvoice(attempt.invoiceId)).has(
+                attempt.paymentMethodId,
+            )
+        ) {
+            await this.collections.recordOutcome(
+                attempt.id,
+                COLLECTION_NOT_SENT_REVERSED,
+                new Date(),
+            );
+            return;
+        }
         if (decided === 'abandoned') {
             this.logger.log(
                 `Collection attempt ${attempt.attemptKey} is not sent again: invoice ` +
@@ -1076,6 +1112,16 @@ function unsettledBefore(at: Date): { submittedBefore: Date; pendingBefore: Date
 }
 
 /** The request an attempt makes, the same however often it is sent. */
+/**
+ * The payment methods a payment of the invoice was reversed on: none of them
+ * collects the invoice again (`SC-PRIC-085`).
+ */
+function reversedOn(attempts: readonly InvoiceCollectionRecord[]): Set<string> {
+    return new Set(
+        attempts.filter((each) => each.status === 'REVERSED').map((each) => each.paymentMethodId),
+    );
+}
+
 function requestOf(attempt: InvoiceCollectionRecord): CollectInvoiceInput {
     return {
         attemptKey: attempt.attemptKey,

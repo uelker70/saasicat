@@ -122,6 +122,16 @@ export interface ReversibleCredit {
     open: number;
 }
 
+/**
+ * A credit that another payment collected for an invoice the reversed payment
+ * settles left, as the reversal reads it.
+ */
+export interface CoveringCredit {
+    creditId: string;
+    /** What of the credit is still owed to the subscriber, from `openOfCredit`. */
+    open: number;
+}
+
 /** An invoice a payment settles, as a reversal of that payment reads it. */
 export interface ReversibleInvoice {
     invoiceId: string;
@@ -135,6 +145,8 @@ export interface WithdrawalParts {
     fromCredit: number;
     /** What it takes of the credit that is still open; `null` where nothing. */
     credit: CreditPart | null;
+    /** What it takes of the covering credits instead of opening their invoices again, in the order given. */
+    covering: CreditPart[];
     /** The invoices it opens again, in the order given, each by no more than the payment settles there. */
     invoices: InvoicePart[];
     /**
@@ -149,28 +161,53 @@ export interface WithdrawalParts {
  * the payment brought: the credit it left first, so the operator is not left
  * refunding what is owed again — its open part shrinks it, its part already
  * paid out matches nothing —, then the invoices it settles, in the order given,
- * the oldest first. Whatever exceeds both matches nothing as well.
+ * the oldest first. What the reversal would open again of them is covered
+ * first by `covering`, the open credits other payments collected for those
+ * invoices left, in the order given: that money was collected for the same
+ * invoices, so it settles them rather than waiting to be paid out while they
+ * are collected again. Whatever exceeds the credit and the invoices matches
+ * nothing; no covering credit takes it.
  */
 export function withdrawalParts(
     amount: number,
     credit: ReversibleCredit | null,
     invoices: readonly ReversibleInvoice[],
+    covering: readonly CoveringCredit[] = [],
 ): WithdrawalParts {
     let left = toCents(amount);
     const share = credit ? Math.min(left, Math.max(0, toCents(credit.left))) : 0;
     const open = credit ? Math.min(share, Math.max(0, toCents(credit.open))) : 0;
     left -= share;
-    const opened: InvoicePart[] = [];
+    const opening: { invoiceId: string; cents: number }[] = [];
     for (const invoice of invoices) {
         if (left === 0) break;
         const taken = Math.min(left, Math.max(0, toCents(invoice.left)));
         if (taken === 0) continue;
-        opened.push({ invoiceId: invoice.invoiceId, amount: taken / 100 });
+        opening.push({ invoiceId: invoice.invoiceId, cents: taken });
         left -= taken;
+    }
+    let toCover = opening.reduce((sum, each) => sum + each.cents, 0);
+    const covered: CreditPart[] = [];
+    for (const other of covering) {
+        if (toCover === 0) break;
+        const taken = Math.min(toCover, Math.max(0, toCents(other.open)));
+        if (taken === 0) continue;
+        covered.push({ creditId: other.creditId, amount: taken / 100 });
+        toCover -= taken;
+    }
+    let coveredCents = opening.reduce((sum, each) => sum + each.cents, 0) - toCover;
+    const opened: InvoicePart[] = [];
+    for (const each of opening) {
+        const kept = Math.min(each.cents, coveredCents);
+        coveredCents -= kept;
+        if (each.cents > kept) {
+            opened.push({ invoiceId: each.invoiceId, amount: (each.cents - kept) / 100 });
+        }
     }
     return {
         fromCredit: share / 100,
         credit: credit && open > 0 ? { creditId: credit.creditId, amount: open / 100 } : null,
+        covering: covered,
         invoices: opened,
         unmatched: (share - open + left) / 100,
     };

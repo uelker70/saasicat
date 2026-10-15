@@ -826,11 +826,12 @@ export interface InvoiceCollectionRepository {
     /**
      * The invoices, by id and page as above, that another payment method can
      * collect: their last attempt was withdrawn, or failed or was reversed and
-     * was followed up, and their subscriber has a payment method in use other
-     * than the one that attempt was made with (`subscriber_payment_methods`),
-     * and that still owe something. An invoice whose failed or reversed
-     * payment method is still in use, or whose subscriber has none, is not read
-     * until that changes.
+     * was followed up, every attempt of theirs that was reversed was followed
+     * up, and their subscriber has a payment method in use other than the one
+     * the last attempt was made with and than every one a reversed attempt was
+     * made with (`subscriber_payment_methods`), and they still owe something.
+     * An invoice whose failed or reversed payment method is still in use, or
+     * whose subscriber has none, is not read until that changes.
      */
     listCollectableAgain(
         page: { limit: number; after?: string },
@@ -845,11 +846,13 @@ export interface InvoiceCollectionRepository {
     markFollowedUp(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
 
     /**
-     * Marks a succeeded attempt as `REVERSED`, at `at`, where a reversal of its
-     * payment opened its invoice again, and returns `true`; `false`, writing
-     * nothing, where it is not `SUCCEEDED`. The invoice is then collected only
-     * by an attempt with another payment method, planned once the reversal is
-     * followed up.
+     * Marks the attempt whose payment a reversal took back as `REVERSED`, at
+     * `at`, where the reversal opened its invoice again, and returns `true`;
+     * `false`, writing nothing, where it is neither `SUCCEEDED` nor `FAILED`.
+     * A failed one brought its payment late, beside another attempt of its
+     * invoice (`recordOutcome`). Either is followed up again, as a reversal;
+     * the invoice is then collected only by an attempt with another payment
+     * method than every reversed one, planned once the reversal is followed up.
      */
     markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
 
@@ -1040,7 +1043,9 @@ export interface SubscriberPaymentRepository {
      * newly withdrew takes from the credit the payment left first — its open
      * part shrinks it, its part already paid out is a case to reconcile —, then
      * opens again the invoices the payment settles, the oldest first, and what
-     * exceeds both is a case as well (`SC-PRIC-084`). What the gateway newly
+     * exceeds both is a case as well (`SC-PRIC-084`). What it would open again
+     * is taken first of the open credits that other payments collected for
+     * those invoices left, the oldest first (`SC-PRIC-087`). What the gateway newly
      * gave back covers the reversal's cases first, closing each it covers, then
      * gives back what it took of the credit, then settles again what it opened
      * as far as the invoice still owes, and what an invoice no longer owes is a

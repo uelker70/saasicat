@@ -142,6 +142,7 @@ type MoneyAudit =
               withdrawn: number;
               currency: string;
               credit: CreditPart | null;
+              covering: CreditPart[];
               invoices: InvoicePart[];
               unmatched: number;
           };
@@ -564,6 +565,7 @@ export class InvoicePaymentService
                     ...about,
                     withdrawn: reversal.amount,
                     credit: withdrawal.credit,
+                    covering: withdrawal.covering,
                     invoices: withdrawal.invoices,
                     unmatched: withdrawal.unmatched,
                 },

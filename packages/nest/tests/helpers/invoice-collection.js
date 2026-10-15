@@ -9,6 +9,8 @@ import { afterEach, beforeEach, mock } from 'node:test';
 import { Logger } from '@nestjs/common';
 import {
     COLLECTION_NOT_SENT_PAID,
+    FOLLOWED_UP_COLLECTION_STATUSES,
+    REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionAttemptKey,
     collectionOutcomeColumns,
@@ -32,9 +34,6 @@ import {
 } from './payments.js';
 import { MemorySubscriberPayments } from './subscriber-payments.js';
 import { noticeRecord } from './version-notices.js';
-
-/** The attempts what follows is decided for: a failure, and a reversal. */
-const FOLLOWED_UP = ['FAILED', 'REVERSED'];
 
 /** 06:15 in Berlin on 1 February, when the invoices of February are issued. */
 export const ISSUED = new Date('2026-02-01T05:15:00.000Z');
@@ -209,7 +208,9 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
             return pageOf(
                 attempts
                     .filter(
-                        (each) => FOLLOWED_UP.includes(each.status) && each.followedUpAt === null,
+                        (each) =>
+                            FOLLOWED_UP_COLLECTION_STATUSES.includes(each.status) &&
+                            each.followedUpAt === null,
                     )
                     .map((each) => each.id),
                 page,
@@ -227,8 +228,15 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
                     last !== undefined &&
                     inUse !== undefined &&
                     (last.status === 'WITHDRAWN' ||
-                        (FOLLOWED_UP.includes(last.status) && last.followedUpAt !== null)) &&
+                        (FOLLOWED_UP_COLLECTION_STATUSES.includes(last.status) &&
+                            last.followedUpAt !== null)) &&
                     inUse.id !== last.paymentMethodId &&
+                    !attempts.some(
+                        (each) =>
+                            each.invoiceId === invoice.id &&
+                            each.status === 'REVERSED' &&
+                            (each.followedUpAt === null || each.paymentMethodId === inUse.id),
+                    ) &&
                     owes(invoice.id)
                 );
             });
@@ -239,7 +247,10 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         },
         async markFollowedUp(id, at) {
             const attempt = attempts.find((each) => each.id === id);
-            if (!FOLLOWED_UP.includes(attempt?.status) || attempt.followedUpAt !== null) {
+            if (
+                !FOLLOWED_UP_COLLECTION_STATUSES.includes(attempt?.status) ||
+                attempt.followedUpAt !== null
+            ) {
                 return false;
             }
             attempt.followedUpAt = at;
@@ -247,8 +258,8 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         },
         async markReversed(id, at) {
             const attempt = attempts.find((each) => each.id === id);
-            if (attempt?.status !== 'SUCCEEDED') return false;
-            Object.assign(attempt, { status: 'REVERSED', resolvedAt: at });
+            if (!attempt || !REVERSIBLE_COLLECTION_STATUSES.includes(attempt.status)) return false;
+            Object.assign(attempt, { status: 'REVERSED', resolvedAt: at, followedUpAt: null });
             return true;
         },
         async recordOutcome(id, outcome, at) {

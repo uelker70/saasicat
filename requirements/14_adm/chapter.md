@@ -1070,6 +1070,7 @@ _Tested by:_
         - reported again unchanged, writes nothing but the row it skips
         - grown since the last report, writes only what grew
         - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
         - of a payment this installation does not hold, writes nothing
         - in another currency than its payment, is refused before anything is held
         - held under its reference against another payment, is refused

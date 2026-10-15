@@ -32,7 +32,9 @@ import type {
 } from '@saasicat/core';
 import {
     COLLECTION_NOT_SENT_PAID,
+    FOLLOWED_UP_COLLECTION_STATUSES,
     REOPENING_SETTLEMENT_KINDS,
+    REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -55,6 +57,9 @@ import {
 /** The invoice's attempts again, beside the one a query lists. */
 const others = alias(subscriptionInvoiceCollections, 'others');
 
+/** The invoice's reversed attempts, beside the one a query lists. */
+const reversed = alias(subscriptionInvoiceCollections, 'reversed');
+
 /**
  * Whether the invoice a query reads still owes something: its total exceeds
  * what is settled against it. Exact in the database's numeric arithmetic.
@@ -67,8 +72,8 @@ const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
      WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
 ), 0)`;
 
-/** The attempts what follows is decided for: a failure, and a reversal that opened the invoice again. */
-const FOLLOWED_UP_STATUSES = ['FAILED', 'REVERSED'];
+/** The attempts what follows is decided for, as a parameter of the queries below. */
+const FOLLOWED_UP_STATUSES = [...FOLLOWED_UP_COLLECTION_STATUSES];
 
 /** Whether invoice `invoiceId` still owes something, read on `db`. */
 async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
@@ -362,6 +367,21 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                         ),
                     ),
                     ne(subscriberPaymentMethods.id, subscriptionInvoiceCollections.paymentMethodId),
+                    notExists(
+                        db
+                            .select({ id: reversed.id })
+                            .from(reversed)
+                            .where(
+                                and(
+                                    eq(reversed.invoiceId, subscriptionInvoices.id),
+                                    eq(reversed.status, 'REVERSED'),
+                                    or(
+                                        isNull(reversed.followedUpAt),
+                                        eq(reversed.paymentMethodId, subscriberPaymentMethods.id),
+                                    ),
+                                ),
+                            ),
+                    ),
                     stillOwes,
                 ),
             )
@@ -388,11 +408,13 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
     async markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
         const rows = await resolveDb(this.db, tx)
             .update(subscriptionInvoiceCollections)
-            .set({ status: 'REVERSED', resolvedAt: at })
+            .set({ status: 'REVERSED', resolvedAt: at, followedUpAt: null })
             .where(
                 and(
                     eq(subscriptionInvoiceCollections.id, id),
-                    eq(subscriptionInvoiceCollections.status, 'SUCCEEDED'),
+                    inArray(subscriptionInvoiceCollections.status, [
+                        ...REVERSIBLE_COLLECTION_STATUSES,
+                    ]),
                 ),
             )
             .returning({ id: subscriptionInvoiceCollections.id });

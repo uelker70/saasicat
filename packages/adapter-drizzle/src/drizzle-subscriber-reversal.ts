@@ -9,8 +9,9 @@
 // applies the change and the other finds it applied.
 
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 import type {
+    CoveringCredit,
     RecordedSubscriberReversal,
     ReportedSubscriberReversal,
     ReversalReinstatement,
@@ -184,23 +185,24 @@ async function withdraw(
             asc(subscriptionInvoiceSettlements.recordedAt),
             asc(subscriptionInvoiceSettlements.id),
         );
+    const invoices = netByInvoice(
+        settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
+    ).map((net) => ({ invoiceId: net.invoiceId, left: net.amount }));
     const parts = withdrawalParts(
         amount,
         await reversibleCredit(db, payment),
-        netByInvoice(
-            settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
-        ).map((net) => ({ invoiceId: net.invoiceId, left: net.amount })),
+        invoices,
+        await coveringCredits(
+            db,
+            payment,
+            invoices.map((each) => each.invoiceId),
+        ),
     );
-    if (parts.credit) {
+    const takenOfCredits = parts.credit ? [parts.credit, ...parts.covering] : parts.covering;
+    for (const part of takenOfCredits) {
         await db.insert(subscriberCreditEntries).values({
             id: randomUUID(),
-            ...reversalEntryColumns(
-                parts.credit.creditId,
-                reversal,
-                'REVERSAL',
-                parts.credit.amount,
-                at,
-            ),
+            ...reversalEntryColumns(part.creditId, reversal, 'REVERSAL', part.amount, at),
         });
     }
     for (const part of parts.invoices) {
@@ -229,11 +231,38 @@ async function withdraw(
         fromCredit: parts.fromCredit,
         withdrawal: {
             credit: parts.credit,
+            covering: parts.covering,
             invoices: parts.invoices,
             unmatched: parts.unmatched,
             case: opened,
         },
     };
+}
+
+/**
+ * The open credits that other payments collected for `invoiceIds` left, the
+ * oldest first: what covers what the reversal would open again of them.
+ */
+async function coveringCredits(
+    db: Db,
+    payment: SubscriberPaymentRecord,
+    invoiceIds: readonly string[],
+): Promise<CoveringCredit[]> {
+    if (invoiceIds.length === 0) return [];
+    const rows = await db
+        .select({ id: subscriberCredits.id })
+        .from(subscriberCredits)
+        .innerJoin(subscriberPayments, eq(subscriberPayments.id, subscriberCredits.originPaymentId))
+        .where(
+            and(
+                inArray(subscriberPayments.invoiceId, [...invoiceIds]),
+                ne(subscriberPayments.id, payment.id),
+            ),
+        )
+        .orderBy(asc(subscriberCredits.createdAt), asc(subscriberCredits.id));
+    const covering: CoveringCredit[] = [];
+    for (const row of rows) covering.push({ creditId: row.id, open: await openOf(db, row.id) });
+    return covering;
 }
 
 /**
