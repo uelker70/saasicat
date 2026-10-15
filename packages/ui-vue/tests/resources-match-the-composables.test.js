@@ -776,13 +776,16 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     featureWithdrawals: Object.keys(featureWithdrawalsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    // `charges` and the subscriber's operations are platform-served with no
-    // admin-client twin, like the settings: their requests are pinned in
-    // `tests/tenant-charges-resource.test.js` and
+    // `charges`, the credits and the subscriber's operations are
+    // platform-served with no admin-client twin, like the settings: their
+    // requests are pinned in `tests/tenant-charges-resource.test.js`,
+    // `tests/tenant-credits-resource.test.js` and
     // `tests/tenant-subscriber-resource.test.js`.
     tenants: [
         LIST_OP,
         'charges',
+        'credits',
+        'recordPayout',
         'subscriber',
         'subscriberAttention',
         'subscriberHistory',

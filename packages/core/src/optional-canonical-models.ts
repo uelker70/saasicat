@@ -25,7 +25,30 @@ export const OPTIONAL_CANONICAL_MODELS = {
     SubscriptionInvoiceNumber: ['entitlement.subscriptionInvoiceRepository'],
     SubscriptionInvoiceDocument: ['entitlement.subscriptionInvoiceRepository'],
     SubscriptionInvoiceArchive: ['entitlement.subscriptionInvoiceArchive'],
-    SubscriptionInvoiceCollection: ['entitlement.invoiceCollectionRepository'],
+    SubscriptionInvoiceCollection: [
+        'entitlement.invoiceCollectionRepository',
+        'entitlement.subscriberPaymentRepository',
+    ],
+    SubscriberPayment: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
+    SubscriptionInvoiceSettlement: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
+    SubscriberCredit: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
+    SubscriberCreditEntry: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
+    SubscriberRefund: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
     PromoCodeHold: ['promo.holdRepository'],
 } as const;
 

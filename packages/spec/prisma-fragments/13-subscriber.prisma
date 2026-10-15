@@ -76,6 +76,9 @@ model Subscriber {
     paymentMethodSetups SubscriberPaymentMethodSetup[]
     ledgerEntries       SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
     invoices            SubscriptionInvoice[]   // see 20-subscription-invoice.prisma
+    payments            SubscriberPayment[]     // see 24-subscriber-payments.prisma
+    credits             SubscriberCredit[]
+    refunds             SubscriberRefund[]
 
     @@map("subscribers")
 }

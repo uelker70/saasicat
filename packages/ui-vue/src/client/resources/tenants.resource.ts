@@ -11,16 +11,18 @@
 //
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
-// encoded on the way into the path there, so they are encoded here. `charges`
-// and the subscriber's operations have no twin there: the pages reach them
-// through this descriptor alone.
+// encoded on the way into the path there, so they are encoded here. `charges`,
+// `credits`, `recordPayout` and the subscriber's operations have no twin
+// there: the pages reach them through this descriptor alone.
 
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
     type AdminSubscriberAccount,
     type AdminSubscriberAttention,
     type AdminSubscriberCorrected,
+    type AdminSubscriberCredits,
     type AdminSubscriberHistoryEntry,
+    type AdminSubscriberPayout,
     type AdminTenantDetail,
     type AdminTenantSubscriber,
     type TenantDto,
@@ -106,6 +108,37 @@ export const tenantsResource = defineResource('tenants', {
             http,
             `${tenantUrl(ctx, slug)}/charges`,
             'The account returned no body',
+        ),
+
+    /**
+     * The credits of the tenant's subscriber, the oldest first. Served only
+     * where the manifest announces `credits.read`.
+     */
+    credits: async (http, ctx, slug: string): Promise<AdminSubscriberCredits> =>
+        requestJsonBody<AdminSubscriberCredits>(
+            http,
+            `${tenantUrl(ctx, slug)}/credits`,
+            'The credits returned no body',
+        ),
+
+    /**
+     * Records a payout made outside the gateway against one credit, and
+     * answers the credits as they stand after it. Requires the second factor;
+     * served where the manifest announces `credits.payout`.
+     */
+    recordPayout: async (
+        http,
+        ctx,
+        slug: string,
+        creditId: string,
+        payout: AdminSubscriberPayout,
+        mfaCode?: string,
+    ): Promise<AdminSubscriberCredits> =>
+        requestJsonBody<AdminSubscriberCredits>(
+            http,
+            `${tenantUrl(ctx, slug)}/credits/${encodeURIComponent(creditId)}/payouts`,
+            'The payout returned no body',
+            { method: 'POST', body: payout, headers: mfaHeader(mfaCode) },
         ),
 
     /**

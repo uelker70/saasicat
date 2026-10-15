@@ -83,6 +83,9 @@ model SubscriptionInvoice {
     document    SubscriptionInvoiceDocument?
     archive     SubscriptionInvoiceArchive?
     collections SubscriptionInvoiceCollection[]
+    payments    SubscriberPayment[]             // see 24-subscriber-payments.prisma
+    settlements SubscriptionInvoiceSettlement[]
+    credit      SubscriberCredit?
 
     @@unique([numberYear, numberSequence])
     @@index([subscriberId, issuedAt])

@@ -80,6 +80,8 @@ export class ScriptedGateway {
         const answer = this.answers.shift() ?? {
             status: 'succeeded',
             paymentRef: `pi_${this.collections.length}`,
+            amountCents: input.amountCents,
+            currency: input.currency,
         };
         if (answer === hanging) return new Promise(() => {});
         if (answer instanceof Error) throw answer;

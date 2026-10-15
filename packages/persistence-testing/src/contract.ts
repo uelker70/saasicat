@@ -31,7 +31,12 @@ import type {
     SubscriberChargeRecord,
     SubscriptionInvoicePayment,
     NewInvoiceCollection,
+    InvoiceCollectionRecord,
+    NewSubscriberPayment,
+    NewSubscriberPayout,
     PlannedInvoiceCollection,
+    ReportedSubscriberRefund,
+    SubscriberPaymentRepository,
     TaxTreatment,
     VatIdCheck,
     NewVersionRetirement,
@@ -52,6 +57,7 @@ import {
     PROMO_ERROR_CODES,
     collectionAttemptKey,
     isPersistenceRefusal,
+    sumToCents,
     taxPerRate,
 } from '@saasicat/core';
 import type {
@@ -506,12 +512,23 @@ const CONTRACT_GAPS: Record<
             ),
     },
     invoiceCollections: {
-        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice or a payment method needs before it',
+        reason: 'adapter provides no InvoiceCollectionRepository, or nothing an invoice, a payment method or a payment needs before it',
         present: (harness) =>
             Boolean(
                 harness.adapter.invoiceCollectionRepository &&
+                // An invoice that owes nothing is collected no further, which
+                // the attempts read off what the payments settle.
+                harness.adapter.subscriberPaymentRepository &&
                 CONTRACT_GAPS.subscriptionInvoices.present(harness) &&
                 CONTRACT_GAPS.subscriberPaymentMethods.present(harness),
+            ),
+    },
+    subscriberPayments: {
+        reason: 'adapter provides no SubscriberPaymentRepository, or nothing a collection attempt needs before it',
+        present: (harness) =>
+            Boolean(
+                harness.adapter.subscriberPaymentRepository &&
+                CONTRACT_GAPS.invoiceCollections.present(harness),
             ),
     },
     checkoutOffers: {
@@ -7751,7 +7768,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const second = await collections.submitPlanned(planned!.id, STARTED_AT);
             await collections.recordOutcome(
                 second!.id,
-                { status: 'succeeded', paymentRef: 'pi_2' },
+                { status: 'succeeded', paymentRef: 'pi_2', amountCents: 2368, currency: 'EUR' },
                 STARTED_AT,
             );
             assert.equal(await collections.plan(planOf(invoiceId!, { after: 2 })), null);
@@ -7879,7 +7896,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(
                 await collections.recordOutcome(
                     attempt!.id,
-                    { status: 'succeeded', paymentRef: 'pi_1' },
+                    { status: 'pending', paymentRef: 'pi_1' },
                     new Date('2026-02-08T05:00:00.000Z'),
                 ),
                 false,
@@ -7915,7 +7932,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             await collections.recordOutcome(
                 settled!.id,
-                { status: 'succeeded', paymentRef: 'pi_3' },
+                { status: 'succeeded', paymentRef: 'pi_3', amountCents: 2368, currency: 'EUR' },
                 STARTED_AT,
             );
 
@@ -7941,7 +7958,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             await collections.recordOutcome(
                 settled!.id,
-                { status: 'succeeded', paymentRef: 'pi_3' },
+                { status: 'succeeded', paymentRef: 'pi_3', amountCents: 2368, currency: 'EUR' },
                 STARTED_AT,
             );
             const later = new Date(STARTED_AT.getTime() + 1);
@@ -8339,6 +8356,706 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             await assert.rejects(account.archive.store(account.documentOf(NO_SUCH_VERSION)));
             assert.equal(await account.archive.read(NO_SUCH_VERSION), null);
+        });
+
+        // -------------------------------------------------------------
+        // Payments — recorded once, settling their invoice; credits paid out
+        // -------------------------------------------------------------
+
+        const PAID_AT = new Date('2026-02-01T05:30:00.000Z');
+
+        /** A treatment without tax, so an invoice totals what its lines do. */
+        const UNTAXED: TaxTreatment = {
+            kind: 'reverse-charge',
+            rate: 0,
+            note: 'Steuerschuldnerschaft des Leistungsempfängers',
+            adapter: { name: '@saasicat/tax-de', version: '1.0.0-rc.25' },
+        };
+
+        /**
+         * A subscriber's invoices to collect, each with its first attempt
+         * started as a run starts it, and what records the payments. Null where
+         * the adapter provides no payments.
+         */
+        async function payable(t: TestContext, tenantId: string, count = 1) {
+            const payments = harness.adapter.subscriberPaymentRepository;
+            if (!payments || !CONTRACT_GAPS.subscriberPayments.present(harness)) {
+                missing(t, 'subscriberPayments');
+                return null;
+            }
+            const account = await collectable(
+                t,
+                tenantId,
+                Array.from({ length: count }, () => ({})),
+            );
+            if (!account) return null;
+            const attempts: InvoiceCollectionRecord[] = [];
+            const grosses: number[] = [];
+            for (const id of account.ids) {
+                const attempt = await account.collections.startAttempt(attemptOf(id));
+                assert.ok(attempt, 'an attempt was not started');
+                attempts.push(attempt);
+                const invoice = await account.invoices.findById(id);
+                assert.ok(invoice, 'an invoice was not issued');
+                grosses.push(invoice.totalGross);
+            }
+            /** The payment the gateway confirmed for `attempt`, under `gatewayRef`. */
+            const paymentOf = (
+                attempt: InvoiceCollectionRecord,
+                gatewayRef: string,
+                amount: number,
+                overrides: Partial<NewSubscriberPayment> = {},
+            ): NewSubscriberPayment => ({
+                invoiceId: attempt.invoiceId,
+                collectionId: attempt.id,
+                gatewayAccount: 'stripe-main',
+                provider: 'stripe',
+                gatewayRef,
+                amount,
+                currency: 'EUR',
+                at: PAID_AT,
+                ...overrides,
+            });
+            return { ...account, payments, attempts, grosses, paymentOf };
+        }
+
+        /** A refund the gateway reports of payment `paymentRef`. */
+        const refundOf = (
+            gatewayRef: string,
+            paymentRef: string,
+            amount: number,
+            status: ReportedSubscriberRefund['status'] = 'PENDING',
+            at = new Date('2026-02-10T09:00:00.000Z'),
+        ): ReportedSubscriberRefund => ({
+            gatewayAccount: 'stripe-main',
+            gatewayRef,
+            paymentRef,
+            amount,
+            currency: 'EUR',
+            status,
+            at,
+        });
+
+        /** What each of the subscriber's credits still owes, the oldest first. */
+        async function openCredits(payments: SubscriberPaymentRepository, subscriberId: string) {
+            return (await payments.listCredits(subscriberId)).map(({ credit, open }) => ({
+                origin: credit.origin.kind,
+                amount: credit.amount,
+                open,
+            }));
+        }
+
+        // @requirement SC-PRIC-029
+        // @requirement SC-PRIC-036
+        test('a payment is recorded once under its gateway account and reference, and settles what its invoice owes', async (t) => {
+            const account = await payable(t, 'tenant-pay-once');
+            if (!account) return;
+            const { payments, attempts, grosses, paymentOf, ids } = account;
+
+            const first = await payments.recordPayment(
+                paymentOf(attempts[0]!, 'pi_1', grosses[0]!),
+            );
+            assert.ok(first, 'the payment was not recorded');
+            assert.equal(first.settled, grosses[0]);
+            assert.equal(first.credit, null);
+            assert.equal(first.payment.subscriberId, account.subscriberId);
+            assert.equal(await payments.owedBy(ids[0]!), 0);
+
+            assert.equal(
+                await payments.recordPayment(paymentOf(attempts[0]!, 'pi_1', grosses[0]!)),
+                null,
+                'a payment reported again under its reference was recorded twice',
+            );
+            assert.deepEqual(
+                (await payments.listPaymentsByInvoice(ids[0]!)).map((each) => each.gatewayRef),
+                ['pi_1'],
+            );
+            assert.equal(
+                (await payments.findPaymentByRef('stripe-main', 'pi_1'))?.id,
+                first.payment.id,
+            );
+            assert.deepEqual(await payments.findPaymentById(first.payment.id), first.payment);
+            assert.equal(await payments.findPaymentById(NO_SUCH_VERSION), null);
+            assert.equal(await payments.findPaymentByRef('stripe-other', 'pi_1'), null);
+        });
+
+        // @requirement SC-PRIC-029
+        test('two reports of one payment at the same moment record it once, and settle its invoice once', async (t) => {
+            const account = await payable(t, 'tenant-pay-race');
+            if (!account) return;
+            const { payments, attempts, grosses, paymentOf, ids } = account;
+            const payment = paymentOf(attempts[0]!, 'pi_race', grosses[0]!);
+
+            const outcomes = await Promise.all(
+                Array.from({ length: 4 }, () => payments.recordPayment(payment)),
+            );
+
+            assert.equal(outcomes.filter(Boolean).length, 1, 'not exactly one report recorded it');
+            assert.equal(await payments.owedBy(ids[0]!), 0);
+            assert.deepEqual(await openCredits(payments, account.subscriberId), []);
+        });
+
+        // @requirement SC-PRIC-036
+        test('two payments of one invoice at the same moment settle it once, and the other is a credit', async (t) => {
+            const account = await payable(t, 'tenant-pay-two');
+            if (!account) return;
+            const { payments, attempts, grosses, paymentOf, ids } = account;
+
+            const outcomes = await Promise.all([
+                payments.recordPayment(paymentOf(attempts[0]!, 'pi_a', grosses[0]!)),
+                payments.recordPayment(paymentOf(attempts[0]!, 'pi_b', grosses[0]!)),
+            ]);
+
+            assert.deepEqual(
+                outcomes.map((outcome) => outcome?.settled).sort((a, b) => (a ?? 0) - (b ?? 0)),
+                [0, grosses[0]],
+                'both payments settled the invoice',
+            );
+            assert.equal(await payments.owedBy(ids[0]!), 0);
+            assert.deepEqual(
+                (await openCredits(payments, account.subscriberId)).map((credit) => credit.amount),
+                [grosses[0]],
+            );
+        });
+
+        // @requirement SC-PRIC-029
+        test('an invoice a payment covers is collected no further: nothing planned or sent for it, and not listed to collect again', async (t) => {
+            const account = await payable(t, 'tenant-pay-covered', 2);
+            if (!account) return;
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods) return;
+            const { collections, payments, attempts, grosses, paymentOf, ids, subscriberId } =
+                account;
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_replaced', '2026-02-02T10:00:00.000Z'),
+            );
+            // Both first attempts failed: the first invoice is planned once
+            // more, the second followed up and waits for another payment method.
+            for (const attempt of attempts) {
+                await collections.recordOutcome(attempt.id, FAILURE, PAID_AT);
+            }
+            const planned = await collections.plan(planOf(ids[0]!, { after: 1 }));
+            assert.ok(planned, 'the premise: a retry is planned');
+            await collections.markFollowedUp(attempts[1]!.id, PAID_AT);
+            assert.ok(
+                (await collections.listCollectableAgain({ limit: 50 })).includes(ids[1]!),
+                'the premise: another payment method can collect the second',
+            );
+
+            for (const [index, attempt] of attempts.entries()) {
+                await payments.recordPayment(
+                    paymentOf(attempt, `pi_covered_${index}`, grosses[index]!),
+                );
+            }
+
+            assert.equal(await collections.submitPlanned(planned!.id, PAID_AT), null);
+            assert.equal((await collections.findById(planned!.id))?.status, 'SCHEDULED');
+            assert.equal(await collections.withdraw(planned!.id, PAID_AT), true);
+            assert.equal(await collections.plan(planOf(ids[0]!, { after: 2 })), null);
+            assert.ok(!(await collections.listCollectableAgain({ limit: 50 })).includes(ids[1]!));
+        });
+
+        // @requirement SC-PRIC-029
+        test('a request that never reached the gateway is settled rather than sent again, where its invoice was paid meanwhile', async (t) => {
+            const account = await payable(t, 'tenant-pay-abandon', 3);
+            if (!account) return;
+            const { collections, payments, attempts, grosses, paymentOf } = account;
+            const [paid, owing, reported] = attempts;
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), 'resend', 'it owes');
+
+            await payments.recordPayment(paymentOf(paid!, 'pi_elsewhere', grosses[0]!));
+            // A report settles the third while its invoice still owes.
+            await collections.recordOutcome(reported!.id, FAILURE, PAID_AT);
+
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), 'abandoned');
+            assert.equal(await collections.abandonPaid(paid!.id, PAID_AT), 'settled', 'twice');
+            assert.equal(await collections.abandonPaid(owing!.id, PAID_AT), 'resend');
+            assert.equal(await collections.abandonPaid(reported!.id, PAID_AT), 'settled');
+            assert.equal(
+                (await collections.findById(reported!.id))?.failureCode,
+                FAILURE.gatewayCode,
+            );
+            const settled = await collections.findById(paid!.id);
+            assert.deepEqual(
+                [
+                    settled?.status,
+                    settled?.failureReason,
+                    settled?.failureCode,
+                    settled?.paymentRef,
+                    settled?.resolvedAt?.getTime(),
+                ],
+                ['FAILED', 'other', 'saasicat_invoice_paid', null, PAID_AT.getTime()],
+            );
+            assert.equal((await collections.findById(owing!.id))?.status, 'SUBMITTED');
+        });
+
+        // @requirement SC-PRIC-029
+        test('a failure still being recorded while the run decides about a lost request is found, and the request is not sent again', async (t) => {
+            const account = await payable(t, 'tenant-pay-abandon-race', 1);
+            if (!account) return;
+            const { collections, attempts } = account;
+            const [attempt] = attempts;
+            let release = () => {};
+            const holding = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            let signalWritten = () => {};
+            const written = new Promise<void>((resolve) => {
+                signalWritten = resolve;
+            });
+            const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // The gateway's failure is recorded — outside the invoice's turn,
+            // as every answer but a success is — and its transaction kept
+            // open, the attempt written and locked, while the run decides.
+            const reported = harness.adapter.transactionRunner.run(async (tx) => {
+                const settled = await collections.recordOutcome(attempt!.id, FAILURE, PAID_AT, tx);
+                signalWritten();
+                await holding;
+                return settled;
+            });
+            // A failing recording rejects here rather than leave the wait open.
+            await Promise.race([written, reported]);
+            const decided = collections.abandonPaid(attempt!.id, PAID_AT);
+            // Time for the decision to reach its write and wait on the lock;
+            // whenever it gets there, it finds the failure.
+            await pause(200);
+            release();
+
+            assert.equal(await reported, true);
+            assert.equal(await decided, 'settled', 'a request the gateway answered was sent again');
+            assert.equal((await collections.findById(attempt!.id))?.status, 'FAILED');
+        });
+
+        // @requirement SC-PRIC-083
+        test('what a payment brings beyond what its invoice owes is a credit, one cent included', async (t) => {
+            const account = await payable(t, 'tenant-pay-beyond', 2);
+            if (!account) return;
+            const { payments, attempts, grosses, paymentOf, ids } = account;
+
+            const cent = await payments.recordPayment(
+                paymentOf(attempts[0]!, 'pi_cent', sumToCents(grosses[0]!, 0.01)),
+            );
+            assert.equal(cent?.settled, grosses[0]);
+            assert.equal(cent?.credit?.amount, 0.01);
+            assert.deepEqual(cent?.credit?.origin, {
+                kind: 'payment',
+                paymentId: cent?.payment.id,
+            });
+
+            const short = await payments.recordPayment(
+                paymentOf(attempts[1]!, 'pi_short', sumToCents(grosses[1]!, -0.01)),
+            );
+            assert.equal(short?.credit, null);
+            assert.equal(await payments.owedBy(ids[1]!), 0.01);
+
+            const second = await payments.recordPayment(paymentOf(attempts[1]!, 'pi_rest', 0.01));
+            assert.equal(second?.settled, 0.01);
+            const beyond = await payments.recordPayment(
+                paymentOf(attempts[1]!, 'pi_beyond', 5, {
+                    at: new Date('2026-02-02T05:30:00.000Z'),
+                }),
+            );
+            assert.equal(beyond?.settled, 0, 'an invoice that owes nothing was settled again');
+            assert.equal(beyond?.credit?.amount, 5);
+            assert.deepEqual(await openCredits(payments, account.subscriberId), [
+                { origin: 'payment', amount: 0.01, open: 0.01 },
+                { origin: 'payment', amount: 5, open: 5 },
+            ]);
+        });
+
+        test('a payment in another currency than its invoice, or for an invoice that does not exist, is refused', async (t) => {
+            const account = await payable(t, 'tenant-pay-refused');
+            if (!account) return;
+            const { payments, attempts, grosses, paymentOf, ids } = account;
+
+            await assert.rejects(
+                payments.recordPayment(
+                    paymentOf(attempts[0]!, 'pi_usd', grosses[0]!, { currency: 'USD' }),
+                ),
+            );
+            await assert.rejects(
+                payments.recordPayment(
+                    paymentOf(attempts[0]!, 'pi_none', grosses[0]!, { invoiceId: NO_SUCH_VERSION }),
+                ),
+            );
+            assert.equal(await payments.owedBy(ids[0]!), grosses[0]);
+            assert.equal(await payments.owedBy(NO_SUCH_VERSION), null);
+        });
+
+        // @requirement SC-PRIC-083
+        test('an invoice whose total is negative is credited to its subscriber once, and listed until it is', async (t) => {
+            const account = await payable(t, 'tenant-pay-negative');
+            if (!account) return;
+            const { payments, ids } = account;
+            const [credit] = await account.record({
+                ...monthly(5),
+                origin: 'credit',
+                amountNet: -40,
+            });
+            const negative = await account.invoices.issue(account.invoiceOf([credit!]));
+            assert.ok(negative.totalGross < 0, 'the invoice does not total below nothing');
+
+            const listed = await payments.listUncredited({ limit: 10 });
+            assert.ok(listed.includes(negative.id), 'the negative invoice is not listed');
+            assert.ok(!listed.includes(ids[0]!), 'an invoice that asks for money is listed');
+
+            const written = await payments.creditInvoice(negative.id, PAID_AT);
+            assert.equal(written?.amount, -negative.totalGross);
+            assert.deepEqual(written?.origin, { kind: 'invoice', invoiceId: negative.id });
+            assert.equal(await payments.creditInvoice(negative.id, PAID_AT), null);
+            assert.equal(await payments.creditInvoice(ids[0]!, PAID_AT), null);
+            assert.ok(!(await payments.listUncredited({ limit: 10 })).includes(negative.id));
+            await assert.rejects(payments.creditInvoice(NO_SUCH_VERSION, PAID_AT));
+        });
+
+        /**
+         * A subscriber with two credits — the older from an invoice totalling
+         * −40.00, the newer of 5.00 that payment `pi_over` left — and that
+         * payment, which a refund can pay back.
+         */
+        async function withTwoCredits(t: TestContext, tenantId: string) {
+            const account = await payable(t, tenantId);
+            if (!account) return null;
+            const { payments, attempts, grosses, paymentOf } = account;
+            const [credit] = await account.record({
+                ...monthly(5),
+                origin: 'credit',
+                amountNet: -40,
+            });
+            // Without tax, so the credit is 40.00 to the cent.
+            const negative = await account.invoices.issue(
+                account.invoiceOf([credit!], {}, UNTAXED),
+            );
+            const older = await payments.creditInvoice(
+                negative.id,
+                new Date('2026-01-20T00:00:00.000Z'),
+            );
+            assert.ok(older, 'the older credit was not written');
+            const over = await payments.recordPayment(
+                paymentOf(attempts[0]!, 'pi_over', sumToCents(grosses[0]!, 5)),
+            );
+            assert.equal(over?.credit?.amount, 5);
+            return { ...account, older, newer: over!.credit! };
+        }
+
+        // @requirement SC-PRIC-083
+        // @requirement SC-PRIC-031
+        test('a refund pays out the credit its payment left first, then the oldest, and what none owes matches nothing', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-order');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+
+            const recorded = await payments.recordRefund(refundOf('re_1', 'pi_over', 50.01));
+
+            assert.equal(recorded.outcome, 'recorded');
+            assert.ok(recorded.outcome === 'recorded');
+            assert.deepEqual(recorded.parts, [
+                { creditId: account.newer.id, amount: 5 },
+                { creditId: account.older.id, amount: 40 },
+            ]);
+            assert.equal(recorded.unmatched, 5.01);
+            assert.equal(recorded.refund.status, 'PENDING');
+            assert.deepEqual(await openCredits(payments, subscriberId), [
+                { origin: 'invoice', amount: 40, open: 0 },
+                { origin: 'payment', amount: 5, open: 0 },
+            ]);
+        });
+
+        // @requirement SC-PRIC-083
+        test('a refund reported again changes nothing paid out, and settling it only restates it', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-again');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+            await payments.recordRefund(refundOf('re_1', 'pi_over', 3));
+
+            const again = await payments.recordRefund(refundOf('re_1', 'pi_over', 3));
+            const settled = await payments.recordRefund(
+                refundOf('re_1', 'pi_over', 3, 'SUCCEEDED'),
+            );
+
+            assert.equal(again.outcome, 'unchanged');
+            assert.equal(settled.outcome, 'unchanged');
+            assert.ok(settled.outcome === 'unchanged');
+            assert.equal(settled.refund.status, 'SUCCEEDED');
+            assert.deepEqual(await openCredits(payments, subscriberId), [
+                { origin: 'invoice', amount: 40, open: 40 },
+                { origin: 'payment', amount: 5, open: 2 },
+            ]);
+        });
+
+        // @requirement SC-PRIC-083
+        test('a refund that fails or is canceled gives back what it paid out, once, and nothing after', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-fails');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+            await payments.recordRefund(refundOf('re_1', 'pi_over', 12));
+            const failedAt = new Date('2026-02-20T09:00:00.000Z');
+
+            const failed = await payments.recordRefund(
+                refundOf('re_1', 'pi_over', 12, 'FAILED', failedAt),
+            );
+            assert.equal(failed.outcome, 'given-back');
+            assert.ok(failed.outcome === 'given-back');
+            assert.deepEqual(
+                new Map(failed.parts.map((part) => [part.creditId, part.amount])),
+                new Map([
+                    [account.newer.id, 5],
+                    [account.older.id, 7],
+                ]),
+            );
+            assert.equal(failed.refund.endedAt?.getTime(), failedAt.getTime());
+            assert.equal(
+                (await payments.recordRefund(refundOf('re_1', 'pi_over', 12, 'FAILED'))).outcome,
+                'unchanged',
+            );
+            const afterTheEnd = await payments.recordRefund(
+                refundOf('re_1', 'pi_over', 12, 'SUCCEEDED'),
+            );
+            assert.equal(afterTheEnd.outcome, 'unchanged', 'a refund that ended paid out again');
+            assert.ok(afterTheEnd.outcome === 'unchanged');
+            assert.equal(afterTheEnd.refund.status, 'FAILED', 'a refund that ended was restated');
+            assert.deepEqual(await openCredits(payments, subscriberId), [
+                { origin: 'invoice', amount: 40, open: 40 },
+                { origin: 'payment', amount: 5, open: 5 },
+            ]);
+
+            await payments.recordRefund(refundOf('re_2', 'pi_over', 1));
+            const canceled = await payments.recordRefund(
+                refundOf('re_2', 'pi_over', 1, 'CANCELED'),
+            );
+            assert.equal(canceled.outcome, 'given-back');
+        });
+
+        // @requirement SC-PRIC-083
+        test('a refund in another currency than the payment it pays back is refused, and pays nothing out', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-currency');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+
+            await assert.rejects(
+                payments.recordRefund({ ...refundOf('re_usd', 'pi_over', 5), currency: 'USD' }),
+            );
+
+            assert.deepEqual(
+                (await openCredits(payments, subscriberId)).map((credit) => credit.open),
+                [40, 5],
+            );
+        });
+
+        // @requirement SC-PRIC-083
+        test('a refund first reported as failed pays nothing out, and one of an unknown payment writes nothing', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-ended');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+
+            const ended = await payments.recordRefund(refundOf('re_1', 'pi_over', 12, 'FAILED'));
+            assert.equal(ended.outcome, 'recorded');
+            assert.ok(ended.outcome === 'recorded');
+            assert.deepEqual(ended.parts, []);
+            assert.equal(ended.unmatched, 0);
+
+            assert.deepEqual(await payments.recordRefund(refundOf('re_2', 'pi_unknown', 12)), {
+                outcome: 'unknown-payment',
+            });
+            assert.deepEqual(
+                (await openCredits(payments, subscriberId)).map((credit) => credit.open),
+                [40, 5],
+            );
+        });
+
+        // @requirement SC-PRIC-083
+        test('two refunds at the same moment never pay one credit out twice', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-race');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+
+            const outcomes = await Promise.all([
+                payments.recordRefund(refundOf('re_a', 'pi_over', 45)),
+                payments.recordRefund(refundOf('re_b', 'pi_over', 45)),
+            ]);
+
+            const unmatched = outcomes.map((outcome) =>
+                outcome.outcome === 'recorded' ? outcome.unmatched : NaN,
+            );
+            assert.deepEqual(
+                [...unmatched].sort((a, b) => a - b),
+                [0, 45],
+                'one refund takes both credits and the other matches nothing',
+            );
+            assert.deepEqual(
+                (await openCredits(payments, subscriberId)).map((credit) => credit.open),
+                [0, 0],
+            );
+        });
+
+        // @requirement SC-PRIC-083
+        test('a refund waits for one still being recorded, and then finds the credits it took', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-refund-waits');
+            if (!account) return;
+            const { payments, subscriberId } = account;
+            let release = () => {};
+            const holding = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // The first refund is recorded and its transaction kept open, with
+            // whatever it holds, while the second is reported.
+            const first = harness.adapter.transactionRunner.run(async (tx) => {
+                const recorded = await payments.recordRefund(refundOf('re_a', 'pi_over', 45), tx);
+                await holding;
+                return recorded;
+            });
+            await pause(100);
+            const second = payments.recordRefund(refundOf('re_b', 'pi_over', 45));
+            await pause(200);
+            release();
+            const [a, b] = await Promise.all([first, second]);
+
+            assert.ok(a.outcome === 'recorded' && b.outcome === 'recorded');
+            assert.equal(a.unmatched, 0);
+            assert.equal(
+                b.unmatched,
+                45,
+                'the second refund paid out a credit the first had taken',
+            );
+            assert.deepEqual(
+                (await openCredits(payments, subscriberId)).map((credit) => credit.open),
+                [0, 0],
+            );
+        });
+
+        // @requirement SC-PRIC-083
+        test('a payout is recorded against a credit up to what it still owes, and no further', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-payout');
+            if (!account) return;
+            const { payments, subscriberId, older } = account;
+            const payout = (amount: number, creditId = older.id): NewSubscriberPayout => ({
+                creditId,
+                amount,
+                reference: 'TRF-2026-0042',
+                paidOn: '2026-03-03',
+                note: 'Account no longer at the gateway',
+                recordedBy: 'operator-1',
+                at: new Date('2026-03-03T10:00:00.000Z'),
+            });
+
+            assert.deepEqual(await payments.recordPayout(payout(40.01)), {
+                outcome: 'exceeds-open',
+                open: 40,
+            });
+            const recorded = await payments.recordPayout(payout(40));
+            assert.equal(recorded.outcome, 'recorded');
+            assert.ok(recorded.outcome === 'recorded');
+            assert.equal(recorded.open, 0);
+            assert.equal(recorded.entry.kind, 'PAYOUT');
+            assert.equal(recorded.entry.reference, 'TRF-2026-0042');
+            assert.equal(recorded.entry.paidOn, '2026-03-03');
+            assert.equal(recorded.entry.recordedBy, 'operator-1');
+            assert.equal(recorded.entry.note, 'Account no longer at the gateway');
+            assert.deepEqual(await payments.recordPayout(payout(0.01)), {
+                outcome: 'exceeds-open',
+                open: 0,
+            });
+            assert.deepEqual(await payments.recordPayout(payout(1, NO_SUCH_VERSION)), {
+                outcome: 'unknown-credit',
+            });
+
+            const [standing] = await payments.listCredits(subscriberId);
+            assert.equal(standing?.open, 0);
+            assert.deepEqual(
+                standing?.entries.map((entry) => [entry.kind, entry.amount]),
+                [['PAYOUT', 40]],
+            );
+        });
+
+        // @requirement SC-PRIC-083
+        test('two payouts at the same moment never pay one credit out twice', async (t) => {
+            const account = await withTwoCredits(t, 'tenant-payout-race');
+            if (!account) return;
+            const { payments, older } = account;
+            const payout = (reference: string): NewSubscriberPayout => ({
+                creditId: older.id,
+                amount: 40,
+                reference,
+                paidOn: '2026-03-03',
+                note: null,
+                recordedBy: 'operator-1',
+                at: new Date('2026-03-03T10:00:00.000Z'),
+            });
+
+            const outcomes = await Promise.all([
+                payments.recordPayout(payout('TRF-1')),
+                payments.recordPayout(payout('TRF-2')),
+            ]);
+
+            assert.deepEqual(outcomes.map((outcome) => outcome.outcome).sort(), [
+                'exceeds-open',
+                'recorded',
+            ]);
+        });
+
+        // @requirement SC-PRIC-029
+        test('an attempt is found by the key the gateway keeps with it', async (t) => {
+            const account = await payable(t, 'tenant-pay-key');
+            if (!account) return;
+            const { collections, attempts } = account;
+
+            assert.equal(
+                (await collections.findByKey(attempts[0]!.attemptKey))?.id,
+                attempts[0]!.id,
+            );
+            assert.equal(await collections.findByKey('saasicat:collect:nothing:1'), null);
+        });
+
+        // @requirement SC-PRIC-029
+        test('a success reported for an attempt recorded as failed settles it, and withdraws what was planned after it', async (t) => {
+            const account = await payable(t, 'tenant-pay-late');
+            if (!account) return;
+            const { collections, attempts, ids } = account;
+            const [first] = attempts;
+            await collections.recordOutcome(first!.id, FAILURE, PAID_AT);
+            const planned = await collections.plan(planOf(ids[0]!, { after: 1 }));
+            assert.ok(planned, 'the retry was not planned');
+
+            const success = {
+                status: 'succeeded' as const,
+                paymentRef: 'pi_1',
+                amountCents: 2368,
+                currency: 'EUR',
+            };
+            assert.equal(await collections.recordOutcome(first!.id, success, PAID_AT), true);
+            assert.equal(await collections.recordOutcome(first!.id, success, PAID_AT), false);
+
+            assert.deepEqual(
+                (await collections.listByInvoice(ids[0]!)).map((each) => each.status),
+                ['SUCCEEDED', 'WITHDRAWN'],
+            );
+        });
+
+        // @requirement SC-PRIC-029
+        test('a success reported for a failed attempt leaves it failed where a later one is on its way', async (t) => {
+            const account = await payable(t, 'tenant-pay-late-sent');
+            if (!account) return;
+            const { collections, attempts, ids } = account;
+            const [first] = attempts;
+            await collections.recordOutcome(first!.id, FAILURE, PAID_AT);
+            const planned = await collections.plan(planOf(ids[0]!, { after: 1 }));
+            assert.ok(await collections.submitPlanned(planned!.id, PAID_AT));
+
+            const success = {
+                status: 'succeeded' as const,
+                paymentRef: 'pi_1',
+                amountCents: 2368,
+                currency: 'EUR',
+            };
+            assert.equal(await collections.recordOutcome(first!.id, success, PAID_AT), false);
+
+            assert.deepEqual(
+                (await collections.listByInvoice(ids[0]!)).map((each) => each.status),
+                ['FAILED', 'SUBMITTED'],
+            );
         });
 
         // -------------------------------------------------------------

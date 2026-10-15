@@ -720,6 +720,71 @@ export const subscriptionInvoiceCollections = pgTable('subscription_invoice_coll
     followedUpAt: ts('followedUpAt'),
 });
 
+/** A payment the gateway confirmed for an invoice's collection attempt. */
+export const subscriberPayments = pgTable('subscriber_payments', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    tenantId: text('tenantId').notNull(),
+    invoiceId: text('invoiceId').notNull(),
+    collectionId: text('collectionId').notNull(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    provider: text('provider').notNull(),
+    gatewayRef: text('gatewayRef').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: text('currency').notNull(),
+    recordedAt: ts('recordedAt').notNull().defaultNow(),
+});
+
+/** What a payment settles of an invoice. */
+export const subscriptionInvoiceSettlements = pgTable('subscription_invoice_settlements', {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoiceId').notNull(),
+    paymentId: text('paymentId').notNull(),
+    kind: text('kind').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    recordedAt: ts('recordedAt').notNull().defaultNow(),
+});
+
+/** Money the operator owes a subscriber: a payment's surplus, or an invoice whose total is negative. */
+export const subscriberCredits = pgTable('subscriber_credits', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    tenantId: text('tenantId').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: text('currency').notNull(),
+    originPaymentId: text('originPaymentId'),
+    originInvoiceId: text('originInvoiceId'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+});
+
+/** What paid a credit out, or gave it back: a refund, its failure, a payout. */
+export const subscriberCreditEntries = pgTable('subscriber_credit_entries', {
+    id: text('id').primaryKey(),
+    creditId: text('creditId').notNull(),
+    kind: text('kind').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    refundId: text('refundId'),
+    reference: text('reference'),
+    paidOn: day('paidOn'),
+    recordedBy: text('recordedBy'),
+    note: text('note'),
+    recordedAt: ts('recordedAt').notNull().defaultNow(),
+});
+
+/** A refund the operator made in the gateway, against the payment it pays back. */
+export const subscriberRefunds = pgTable('subscriber_refunds', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    paymentId: text('paymentId').notNull(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    gatewayRef: text('gatewayRef').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: text('currency').notNull(),
+    status: text('status').notNull(),
+    recordedAt: ts('recordedAt').notNull().defaultNow(),
+    endedAt: ts('endedAt'),
+});
+
 /** A `bytea` column, read and written as bytes. */
 const bytes = customType<{ data: Uint8Array; driverData: Buffer }>({
     dataType: () => 'bytea',

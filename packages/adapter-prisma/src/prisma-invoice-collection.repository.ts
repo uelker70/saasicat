@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+    AbandonPaidOutcome,
     CalendarDay,
     CanonicalInvoiceCollectionRow,
     CollectionOutcome,
@@ -14,6 +15,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    COLLECTION_NOT_SENT_PAID,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -26,6 +28,7 @@ import {
     utcMidnightOf,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
+import { idsOf } from './raw-ids.js';
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface CollectionPrisma {
@@ -136,6 +139,9 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                    FOR UPDATE`,
         );
         if (locked.length === 0) throw new Error(`Invoice ${invoiceId} does not exist.`);
+        // An invoice that owes nothing — a payment came for it — is collected
+        // no further.
+        if (!(await owes(db, invoiceId))) return null;
         const earlier = await db.subscriptionInvoiceCollection.findMany({
             where: { invoiceId },
             select: { attempt: true, status: true },
@@ -178,6 +184,8 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         tx?: TransactionContext,
     ): Promise<SubmittedInvoiceCollection | null> {
         return this.inTurnOf(id, tx, async (db) => {
+            const planned = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            if (!planned || !(await owes(db, planned.invoiceId))) return null;
             const { count } = await db.subscriptionInvoiceCollection.updateMany({
                 where: { id, status: 'SCHEDULED' },
                 data: { status: 'SUBMITTED', submittedAt: at, heldAt: at },
@@ -269,6 +277,10 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                AND (c."status" = 'WITHDRAWN'
                     OR (c."status" = 'FAILED' AND c."followedUpAt" IS NOT NULL))
                AND m."id" <> c."paymentMethodId"
+               AND i."totalGross" > COALESCE((
+                       SELECT SUM(s."amount") FROM "subscription_invoice_settlements" s
+                        WHERE s."invoiceId" = i."id"
+                   ), 0)
              ORDER BY i."id"
              LIMIT ${page.limit}`;
         return idsOf(rows);
@@ -288,11 +300,59 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         at: Date,
         tx?: TransactionContext,
     ): Promise<boolean> {
-        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
-            where: { id, status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
-            data: collectionOutcomeColumns(outcome, at),
+        const settle = async (db: CollectionPrisma) => {
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
+                data: collectionOutcomeColumns(outcome, at),
+            });
+            return count === 1;
+        };
+        if (outcome.status !== 'succeeded') return settle(this.db(tx));
+        return this.inTurnOf(id, tx, async (db) => {
+            if (await settle(db)) return true;
+            const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            if (!row || row.status !== 'FAILED') return false;
+            // The money arrived after all: what was planned after the failure
+            // is not made, and the attempt succeeded — where no other attempt
+            // of its invoice is on its way or succeeded.
+            await db.subscriptionInvoiceCollection.updateMany({
+                where: { invoiceId: row.invoiceId, status: 'SCHEDULED' },
+                data: { status: 'WITHDRAWN', resolvedAt: at },
+            });
+            const others = await db.subscriptionInvoiceCollection.count({
+                where: {
+                    invoiceId: row.invoiceId,
+                    id: { not: id },
+                    status: { in: [...UNSETTLED_COLLECTION_STATUSES, 'SUCCEEDED'] },
+                },
+            });
+            if (others > 0) return false;
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: 'FAILED' },
+                data: collectionOutcomeColumns(outcome, at),
+            });
+            return count === 1;
         });
-        return count === 1;
+    }
+
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome> {
+        return this.inTurnOf(id, tx, async (db) => {
+            const row = await db.subscriptionInvoiceCollection.findUnique({ where: { id } });
+            if (row?.status !== 'SUBMITTED') return 'settled';
+            const resend = await owes(db, row.invoiceId);
+            // A failure or a pending answer is recorded outside the invoice's
+            // turn, so the status read above may be stale: the answer rests on
+            // a write conditioned on it, which waits for such a report still
+            // being recorded and then finds the attempt settled.
+            const { count } = await db.subscriptionInvoiceCollection.updateMany({
+                where: { id, status: 'SUBMITTED' },
+                data: resend
+                    ? { heldAt: at }
+                    : collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
+            });
+            if (count !== 1) return 'settled';
+            return resend ? 'resend' : 'abandoned';
+        });
     }
 
     async hold(id: string, heldBefore: Date, at: Date, tx?: TransactionContext): Promise<boolean> {
@@ -333,6 +393,16 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return row ? toInvoiceCollectionRecord(row) : null;
     }
 
+    async findByKey(
+        attemptKey: string,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null> {
+        const row = await this.db(tx).subscriptionInvoiceCollection.findUnique({
+            where: { attemptKey },
+        });
+        return row ? toInvoiceCollectionRecord(row) : null;
+    }
+
     async accountsInUse(tx?: TransactionContext): Promise<string[]> {
         const rows = await this.db(tx).subscriptionInvoiceCollection.findMany({
             where: { status: { in: [...UNSETTLED_COLLECTION_STATUSES] } },
@@ -355,14 +425,17 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
     }
 }
 
-/** The ids a raw query selected as `id`. */
-function idsOf(rows: unknown): string[] {
-    if (!Array.isArray(rows)) return [];
-    return rows.flatMap((row: unknown) => {
-        const id: unknown =
-            row !== null && typeof row === 'object'
-                ? Object.getOwnPropertyDescriptor(row, 'id')?.value
-                : undefined;
-        return typeof id === 'string' ? [id] : [];
-    });
+/**
+ * Whether invoice `invoiceId` still owes something: its total exceeds what is
+ * settled against it. Exact in the database's numeric arithmetic.
+ */
+async function owes(db: CollectionPrisma, invoiceId: string): Promise<boolean> {
+    const rows = await db.$queryRaw`
+        SELECT i."id" FROM "subscription_invoices" i
+         WHERE i."id" = ${invoiceId}
+           AND i."totalGross" > COALESCE((
+                   SELECT SUM(s."amount") FROM "subscription_invoice_settlements" s
+                    WHERE s."invoiceId" = i."id"
+               ), 0)`;
+    return idsOf(rows).length === 1;
 }

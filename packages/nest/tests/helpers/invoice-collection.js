@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, mock } from 'node:test';
 import { Logger } from '@nestjs/common';
 import {
+    COLLECTION_NOT_SENT_PAID,
     UNSETTLED_COLLECTION_STATUSES,
     collectionAttemptKey,
     collectionOutcomeColumns,
@@ -16,17 +17,20 @@ import {
     refusesPlannedAttempt,
 } from '@saasicat/core';
 
-import { InvoiceCollectionService } from '../../dist/billing/index.js';
-import { PaymentGatewayRegistry } from '../../dist/payments/index.js';
+import { InvoiceCollectionService, InvoicePaymentService } from '../../dist/billing/index.js';
+import { PaymentCallbackService, PaymentGatewayRegistry } from '../../dist/payments/index.js';
 import { auditLogFailing } from './audit-log.js';
 import { aMailbox } from './invoice-documents.js';
 import { INVOICING_SETTINGS, anInvoicingInstallation, berlin } from './invoice-run.js';
 import {
     MAIN_ACCOUNT,
+    MemoryPaymentEventLog,
     MemoryPaymentMethods,
+    RollbackRunner,
     ScriptedGateway,
     paymentsCatalog,
 } from './payments.js';
+import { MemorySubscriberPayments } from './subscriber-payments.js';
 import { noticeRecord } from './version-notices.js';
 
 /** 06:15 in Berlin on 1 February, when the invoices of February are issued. */
@@ -87,9 +91,10 @@ export const COLLECTING_SETTINGS = {
 
 /**
  * The attempts in memory, beside the invoices and documents of `store` and
- * the subscribers' payment methods.
+ * the subscribers' payment methods. `owes` says whether an invoice still owes
+ * something; one that owes nothing is collected no further.
  */
-export function collectionStore(store, paymentMethods) {
+export function collectionStore(store, paymentMethods, owes = () => true) {
     const attempts = [];
     const pageOf = (ids, { limit, after }) =>
         ids
@@ -103,6 +108,7 @@ export function collectionStore(store, paymentMethods) {
         if (!store.invoices.some((invoice) => invoice.id === request.invoiceId)) {
             throw new Error(`no invoice ${request.invoiceId}`);
         }
+        if (!owes(request.invoiceId)) return null;
         const earlier = attempts.filter((each) => each.invoiceId === request.invoiceId);
         if (refuses(earlier)) return null;
         const number = lastCollectionOf(earlier) + 1;
@@ -180,7 +186,7 @@ export function collectionStore(store, paymentMethods) {
         },
         async submitPlanned(id, at) {
             const attempt = attempts.find((each) => each.id === id);
-            if (attempt?.status !== 'SCHEDULED') return null;
+            if (attempt?.status !== 'SCHEDULED' || !owes(attempt.invoiceId)) return null;
             Object.assign(attempt, { status: 'SUBMITTED', submittedAt: at, heldAt: at });
             return structuredClone(attempt);
         },
@@ -217,7 +223,8 @@ export function collectionStore(store, paymentMethods) {
                     inUse !== undefined &&
                     (last.status === 'WITHDRAWN' ||
                         (last.status === 'FAILED' && last.followedUpAt !== null)) &&
-                    inUse.id !== last.paymentMethodId
+                    inUse.id !== last.paymentMethodId &&
+                    owes(invoice.id)
                 );
             });
             return pageOf(
@@ -234,9 +241,38 @@ export function collectionStore(store, paymentMethods) {
         async recordOutcome(id, outcome, at) {
             throwOnce('failNextRecord');
             const attempt = attempts.find((each) => each.id === id);
-            if (!attempt || !UNSETTLED_COLLECTION_STATUSES.includes(attempt.status)) return false;
+            if (!attempt) return false;
+            if (UNSETTLED_COLLECTION_STATUSES.includes(attempt.status)) {
+                Object.assign(attempt, collectionOutcomeColumns(outcome, at));
+                return true;
+            }
+            // A success for an attempt recorded as failed: what was planned
+            // after it is withdrawn, and it succeeds where nothing else of its
+            // invoice is on its way or succeeded.
+            if (outcome.status !== 'succeeded' || attempt.status !== 'FAILED') return false;
+            const ofInvoice = attempts.filter((each) => each.invoiceId === attempt.invoiceId);
+            for (const planned of ofInvoice.filter((each) => each.status === 'SCHEDULED')) {
+                Object.assign(planned, { status: 'WITHDRAWN', resolvedAt: at });
+            }
+            const blocked = ofInvoice.some(
+                (each) =>
+                    each.id !== id &&
+                    (UNSETTLED_COLLECTION_STATUSES.includes(each.status) ||
+                        each.status === 'SUCCEEDED'),
+            );
+            if (blocked) return false;
             Object.assign(attempt, collectionOutcomeColumns(outcome, at));
             return true;
+        },
+        async abandonPaid(id, at) {
+            const attempt = attempts.find((each) => each.id === id);
+            if (attempt?.status !== 'SUBMITTED') return 'settled';
+            if (owes(attempt.invoiceId)) {
+                attempt.heldAt = at;
+                return 'resend';
+            }
+            Object.assign(attempt, collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at));
+            return 'abandoned';
         },
         async hold(id, heldBefore, at) {
             const attempt = attempts.find((each) => each.id === id);
@@ -255,6 +291,10 @@ export function collectionStore(store, paymentMethods) {
                 open.map((each) => each.id),
                 page,
             );
+        },
+        async findByKey(attemptKey) {
+            const attempt = attempts.find((each) => each.attemptKey === attemptKey);
+            return attempt ? structuredClone(attempt) : null;
         },
         async findById(id) {
             return structuredClone(attempts.find((each) => each.id === id) ?? null);
@@ -286,11 +326,26 @@ export function aCollectingInstallation({
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
     const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
-    const collections = collectionStore(installation.store, paymentMethods);
+    const payments = new MemorySubscriberPayments(installation.store.invoices);
+    const collections = collectionStore(installation.store, paymentMethods, (invoiceId) =>
+        payments.stillOwes(invoiceId),
+    );
     const notices = noticeRecord();
     const gateway = new ScriptedGateway('stripe');
     const gateways = new PaymentGatewayRegistry(settings, { [MAIN_ACCOUNT]: gateway });
     const audits = [];
+    const eventLog = new MemoryPaymentEventLog();
+    const transactions = new RollbackRunner([payments, eventLog]);
+    const callbacks = new PaymentCallbackService(gateways, eventLog, transactions);
+    const money = new InvoicePaymentService(
+        collections,
+        payments,
+        gateways,
+        callbacks,
+        null,
+        auditLogFailing(audits, failingAuditWrites),
+    );
+    money.onModuleInit();
     const collection = new InvoiceCollectionService(
         collections,
         installation.store,
@@ -302,10 +357,16 @@ export function aCollectingInstallation({
         notices,
         installation.mail,
         installation.subscribers,
+        money,
+        transactions,
     );
     return {
         ...installation,
         paymentMethods,
+        payments,
+        eventLog,
+        callbacks,
+        money,
         collections,
         notices,
         gateway,

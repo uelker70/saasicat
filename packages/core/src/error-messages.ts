@@ -346,6 +346,11 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_NOT_FOUND: "No invoice '{invoiceId}'.",
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
         'Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.',
+    SUBSCRIBER_CREDIT_NOT_FOUND: "No credit '{creditId}' of this tenant's subscriber.",
+    SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT:
+        'The credit {creditId} still owes {open}; nothing beyond that is paid out, and nothing was recorded.',
+    SUBSCRIBER_PAYOUT_NOT_MADE_YET:
+        'A payout is recorded once it left: {paidOn} is after today, {today}.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'A checkout offer can yield only one contract, and only once its line items are frozen.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED: 'A checkout offer requires a frozen plan line item.',

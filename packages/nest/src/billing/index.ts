@@ -170,7 +170,23 @@ export {
     InvoiceCollectionService,
     type InvoiceCollectionRun,
 } from './invoices/invoice-collection.service.js';
-export { INVOICE_COLLECTION_REPOSITORY_TOKEN } from './invoices/invoice-collection.tokens.js';
+export {
+    INVOICE_COLLECTION_REPOSITORY_TOKEN,
+    SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN,
+} from './invoices/invoice-collection.tokens.js';
+export {
+    InvoicePaymentService,
+    type RecordedCollectionOutcome,
+} from './invoices/invoice-payment.service.js';
+export {
+    SubscriberCreditService,
+    type RecordedPayout,
+} from './invoices/subscriber-credit.service.js';
+export {
+    RecordSubscriberPayoutDto,
+    SubscriberCreditModule,
+    type SubscriberCreditModuleOptions,
+} from './invoices/subscriber-credit.module.js';
 export {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,

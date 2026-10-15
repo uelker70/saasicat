@@ -275,6 +275,11 @@ _Tested by:_
         - a planned attempt beside another open one is refused once the table was brought up
         - an invoice takes one attempt that is not settled, and none after one succeeded
         - an installation without invoices is left without the attempts, and runs through
+    - a payment is recorded, and a credit paid out
+        - a database from before ends up with the schema the fragments declare, twice
+        - a payment is taken once under its gateway account and reference, and another account may
+          reuse the reference
+        - an installation without collection attempts is left without the payments, and runs through
 
 <!-- END proof -->
 
@@ -413,6 +418,11 @@ _Tested by:_
         - a planned attempt beside another open one is refused once the table was brought up
         - an invoice takes one attempt that is not settled, and none after one succeeded
         - an installation without invoices is left without the attempts, and runs through
+    - a payment is recorded, and a credit paid out
+        - a database from before ends up with the schema the fragments declare, twice
+        - a payment is taken once under its gateway account and reference, and another account may
+          reuse the reference
+        - an installation without collection attempts is left without the payments, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

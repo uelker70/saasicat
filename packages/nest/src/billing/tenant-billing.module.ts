@@ -21,6 +21,7 @@ import type {
     SubscriptionInvoiceRepository,
     InvoiceArchivePort,
     InvoiceCollectionRepository,
+    SubscriberPaymentRepository,
     InvoiceMailPort,
     InvoiceRenderer,
     SubscriptionNoticePort,
@@ -84,9 +85,12 @@ import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
 import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
+import { InvoicePaymentService } from './invoices/invoice-payment.service.js';
+import { SubscriberCreditService } from './invoices/subscriber-credit.service.js';
 import {
     INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
+    SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN,
 } from './invoices/invoice-collection.tokens.js';
 import {
     INVOICE_ARCHIVE_TOKEN,
@@ -421,6 +425,15 @@ export interface TenantBillingModuleOptions {
              */
             notices?: ProviderSpec<SubscriptionNoticeRepository>;
             /**
+             * Where what the collections brought is recorded — each payment
+             * once, what it settles, the credits a subscriber is owed and the
+             * refunds and payouts that pay them out (`SC-PRIC-029`,
+             * `SC-PRIC-083`). Required with `collections`; `SaaSiCatModule`
+             * takes `persistence.entitlement.subscriberPaymentRepository`
+             * unless this names another.
+             */
+            payments?: ProviderSpec<SubscriberPaymentRepository>;
+            /**
              * `false` leaves out the quarter-hourly run — for a CLI boot, or an
              * application that calls `SubscriptionInvoiceService.issueDue`, then
              * `InvoiceDocumentService.archiveDue` and `deliverDue`, and
@@ -621,6 +634,13 @@ export class TenantBillingModule {
                 ...(invoices.notices
                     ? [asProvider(INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN, invoices.notices)]
                     : []),
+                ...(invoices.collections && invoices.payments
+                    ? [
+                          asProvider(SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN, invoices.payments),
+                          InvoicePaymentService,
+                          SubscriberCreditService,
+                      ]
+                    : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
             );
         }
@@ -780,6 +800,9 @@ export class TenantBillingModule {
                     ? [InvoiceDocumentService]
                     : []),
                 ...(invoices?.collections ? [InvoiceCollectionService] : []),
+                ...(invoices?.collections && invoices.payments
+                    ? [InvoicePaymentService, SubscriberCreditService]
+                    : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
                 ...(hasBookings ? [BundleVersionOfferService, BundleVersionSwitchService] : []),
                 ...(versionNotices && hasBookings

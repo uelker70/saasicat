@@ -129,6 +129,16 @@ describe('the payment methods invoices are collected with', () => {
         );
     });
 
+    // @requirement SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
+    test('refuse the start where the invoices are collected and nothing records what they brought', async () => {
+        const message = await refusal(installation({ payments: 'wired', recorded: false }));
+
+        assert.match(
+            message,
+            /collecting invoices records what each collection brought: pass chargeJournal\.invoices\.payments/,
+        );
+    });
+
     // @requirement SC-PRIC-080 — A failed collection is tried once more, and the subscriber is told of every failure
     test('refuse the start where the invoices are collected and nothing records what the subscriber is told', async () => {
         const message = await refusal(installation({ payments: 'wired', notices: false }));

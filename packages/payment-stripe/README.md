@@ -45,7 +45,20 @@ the masked details, and an invoice SaaSiCat issued is collected with it.
   cent. An invoice in another currency than the account's is refused without a
   request, as `saasicat_other_currency`. With Stripe's creditor identifier,
   Stripe sends its own notice of each direct debit when the intent is created;
-  the invoice is SaaSiCat's announcement, the lead time before.
+  the invoice is SaaSiCat's announcement, the lead time before. A success
+  carries what Stripe received (`amount_received`), which the platform records
+  as the payment, once, by the intent's id.
+- **`payment_intent.succeeded`, `.processing`, `.payment_failed` and
+  `.canceled`** report what became of a collection without waiting for the
+  platform to ask: the intent is read again from Stripe, so an event delivered
+  late or twice reports where it stands now, never a state it has left. An
+  intent that carries no attempt key is not SaaSiCat's, and needs nothing.
+- **`refund.created`, `.updated` and `.failed`** report a refund the operator
+  made in the Dashboard, read again from Stripe with its payment intent: pending
+  — or waiting for the customer's bank details — and succeeded pay the money
+  out, failed and canceled give it back. A refund of a payment SaaSiCat did not
+  collect needs nothing; one in a state Stripe does not document is raised, so
+  Stripe delivers it again. SaaSiCat makes no refund itself.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
@@ -91,9 +104,13 @@ SaaSiCatModule.forRoot({
 
 Point the account's webhook endpoint at `POST /webhooks/payment/stripe-main` —
 behind the application's `globalPrefix` where it sets one, as the notes app does —
-subscribe it to `checkout.session.completed` and `checkout.session.expired`,
-and create the application with `rawBody: true` — a signature is checked
-against the bytes that arrived, not against a re-serialised object.
+subscribe it to `checkout.session.completed` and `checkout.session.expired` —
+and, where invoices are collected, to `payment_intent.succeeded`,
+`payment_intent.processing`, `payment_intent.payment_failed`,
+`payment_intent.canceled`, `refund.created`, `refund.updated` and
+`refund.failed` — and create the application with `rawBody: true` — a
+signature is checked against the bytes that arrived, not against a
+re-serialised object.
 
 ### One Stripe account per installation
 
@@ -150,10 +167,12 @@ hand.
 `STRIPE_SECRET_KEY` does: no API creates an API key, so somebody reads it off
 Stripe's dashboard. Stripe recommends a **restricted key** (`rk_…`) over a secret
 one. What this adapter touches, so you can grant that and no more: customers
-(write), checkout sessions (write), setup intents (read), payment intents (write)
-— and the setup intent is read with `payment_method` and `mandate` expanded, and
-a payment intent with `latest_charge`, which Stripe lists as their own
-permissions (charges, read).
+(write), checkout sessions (write), setup intents (read), payment intents (write),
+refunds (read) — and the setup intent is read with `payment_method` and
+`mandate` expanded, and a payment intent with `latest_charge`, which Stripe
+lists as their own permissions (charges, read). A key that may not read
+refunds answers every refund event with an error, and Stripe delivers it again
+until it gives up; nothing is paid out meanwhile, and nothing recorded.
 
 A key that may not create or list payment intents fails every collection, each
 counted as unanswered and asked about again after the lease — which the key is

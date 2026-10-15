@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 269 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 272 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -269,6 +269,9 @@ Invoices issued from the charge journal.
 
 | Code                                         | Shipped English text                                                                                                                                                                            |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUBSCRIBER_CREDIT_NOT_FOUND`                | No credit '{creditId}' of this tenant's subscriber.                                                                                                                                             |
+| `SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`           | The credit {creditId} still owes {open}; nothing beyond that is paid out, and nothing was recorded.                                                                                             |
+| `SUBSCRIBER_PAYOUT_NOT_MADE_YET`             | A payout is recorded once it left: {paidOn} is after today, {today}.                                                                                                                            |
 | `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`       | Charge '{chargeId}' already stands on an invoice.                                                                                                                                               |
 | `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`    | The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.                                                                                 |
 | `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`      | The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps. |

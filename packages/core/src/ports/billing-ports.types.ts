@@ -31,12 +31,24 @@ import type {
 import type { VatIdCheck } from '../tax.types.js';
 import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
 import type {
+    AbandonPaidOutcome,
     InvoiceCollectionRecord,
     NewInvoiceCollection,
     PlannedInvoiceCollection,
     SubmittedInvoiceCollection,
 } from '../invoice-collection.types.js';
 import type { CollectionOutcome } from '../payment-gateway.types.js';
+import type {
+    NewSubscriberPayment,
+    NewSubscriberPayout,
+    RecordedSubscriberPayment,
+    RecordedSubscriberPayout,
+    RecordedSubscriberRefund,
+    ReportedSubscriberRefund,
+    SubscriberCreditRecord,
+    SubscriberCreditStanding,
+    SubscriberPaymentRecord,
+} from '../subscriber-payment.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
     NewSubscriptionInvoice,
@@ -727,7 +739,9 @@ export interface InvoiceCollectionRepository {
     /**
      * Starts the invoice's first attempt in its turn and returns it, written as
      * `SUBMITTED` before its request leaves; `null`, writing nothing, where the
-     * invoice has an attempt already — every later one is planned (`plan`), so
+     * invoice owes nothing — its total no more than what is settled against
+     * it in `subscription_invoice_settlements` — or has an attempt already —
+     * every later one is planned (`plan`), so
      * a run that found the invoice due before another run's attempt failed
      * does not charge it again at once. The turn is the invoice's
      * own row, locked for the transaction — the chain of one invoice, which a
@@ -744,9 +758,9 @@ export interface InvoiceCollectionRepository {
     /**
      * Plans the invoice's next attempt in its turn, as `startAttempt` starts
      * one, and returns it, written as `SCHEDULED` for `plan.collectOn` with
-     * nothing sent; `null`, writing nothing, where an attempt of it is open or
-     * one succeeded, or where its last attempt is not the one numbered
-     * `plan.after` any more.
+     * nothing sent; `null`, writing nothing, where the invoice owes nothing,
+     * where an attempt of it is open or one succeeded, or where its last
+     * attempt is not the one numbered `plan.after` any more.
      */
     plan(
         plan: PlannedInvoiceCollection,
@@ -769,7 +783,8 @@ export interface InvoiceCollectionRepository {
      * Takes a planned attempt up as sent — `SUBMITTED`, sent and held at `at` —
      * in its invoice's turn, as `startAttempt` writes one, before its request
      * leaves, and returns it; `null`, writing nothing, where it is not planned
-     * any more, so of two runs one sends it.
+     * any more, so of two runs one sends it, or where its invoice owes nothing,
+     * a payment having come for it meanwhile.
      */
     submitPlanned(
         id: string,
@@ -800,9 +815,9 @@ export interface InvoiceCollectionRepository {
      * The invoices, by id and page as above, that another payment method can
      * collect: their last attempt was withdrawn, or failed and was followed
      * up, and their subscriber has a payment method in use other than the one
-     * that attempt was made with (`subscriber_payment_methods`). An invoice
-     * whose failed payment method is still in use, or whose subscriber has
-     * none, is not read until that changes.
+     * that attempt was made with (`subscriber_payment_methods`), and that still
+     * owe something. An invoice whose failed payment method is still in use,
+     * or whose subscriber has none, is not read until that changes.
      */
     listCollectableAgain(
         page: { limit: number; after?: string },
@@ -821,6 +836,12 @@ export interface InvoiceCollectionRepository {
      * `PENDING` — and returns `true`; `false`, writing nothing, where it is
      * settled already. `PENDING` stays open; `SUCCEEDED` and `FAILED` settle it
      * at `at`.
+     *
+     * A success reported for an attempt recorded as `FAILED` is the money
+     * arriving after all: in the invoice's turn, an attempt planned after it
+     * is withdrawn, and the attempt succeeds and `true` is returned — unless
+     * another attempt of the invoice is on its way or succeeded, which leaves
+     * it failed and returns `false`.
      */
     recordOutcome(
         id: string,
@@ -828,6 +849,22 @@ export interface InvoiceCollectionRepository {
         at: Date,
         tx?: TransactionContext,
     ): Promise<boolean>;
+
+    /**
+     * Decides, in the invoice's turn — the one a payment is recorded in —,
+     * what becomes of a `SUBMITTED` attempt whose request never reached the
+     * gateway: where its invoice owes nothing it is settled as
+     * `COLLECTION_NOT_SENT_PAID` at `at` (`abandoned`); where it is still
+     * `SUBMITTED` and the invoice owes, it is to be sent again (`resend`),
+     * and is held from `at`; where a report settled it or put it on its way
+     * meanwhile, nothing is (`settled`). Both `abandoned` and `resend` rest on
+     * a write conditioned on the attempt still being `SUBMITTED`, so a report
+     * recorded outside the invoice's turn — a failure, an answer that it is on
+     * its way — while the run decides is found rather than overlooked. A run
+     * asks it before it sends such a request again, so a payment that arrived
+     * meanwhile is never charged a second time.
+     */
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome>;
 
     /**
      * Takes on an attempt that is not settled for the run calling it at `at`,
@@ -849,6 +886,9 @@ export interface InvoiceCollectionRepository {
 
     findById(id: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null>;
 
+    /** The attempt `attemptKey` names — the key the gateway keeps with what it created — or `null`. */
+    findByKey(attemptKey: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null>;
+
     /** Every attempt of one invoice, the first first. */
     listByInvoice(invoiceId: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord[]>;
 
@@ -860,6 +900,98 @@ export interface InvoiceCollectionRepository {
      * served, through `RlsBypassPort`.
      */
     accountsInUse(tx?: TransactionContext): Promise<string[]>;
+}
+
+/**
+ * What money moved between a subscriber and the operator: the payments the
+ * gateway confirmed, what each settles of its invoice, the credits the
+ * subscriber is owed, and the refunds and payouts that pay them out
+ * (`SC-PRIC-029`, `SC-PRIC-031`, `SC-PRIC-083`). Nothing is edited once
+ * written; every change is an entry of its own.
+ *
+ * Platform-wide: the gateway's callbacks and the run read across tenants
+ * inside `RlsBypassPort`.
+ */
+export interface SubscriberPaymentRepository {
+    /**
+     * Records a payment the gateway confirmed for an invoice, in the invoice's
+     * turn (`SC-PRIC-036`): it settles what the invoice still owes, and what it
+     * brought beyond that is a credit on the subscriber's account. Returns what
+     * it did; `null`, writing nothing, where a payment is recorded under the
+     * same gateway account and reference already, however it was reported
+     * then (`SC-PRIC-029`). Throws for an invoice that does not exist, and for
+     * a payment in another currency than its invoice's.
+     */
+    recordPayment(
+        payment: NewSubscriberPayment,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberPayment | null>;
+
+    /**
+     * Credits an invoice whose total is negative to its subscriber, at `at`,
+     * and returns the credit; `null`, writing nothing, where it is credited
+     * already or its total is not negative.
+     */
+    creditInvoice(
+        invoiceId: string,
+        at: Date,
+        tx?: TransactionContext,
+    ): Promise<SubscriberCreditRecord | null>;
+
+    /**
+     * The invoices whose total is negative and that are not credited yet, by
+     * id, at most `limit`, after `after` where it is given.
+     */
+    listUncredited(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * Records a refund the gateway reported against the payment it pays back.
+     * Seen for the first time, it is divided across the subscriber's open
+     * credits in its currency — the credit that payment left first, then the
+     * oldest — and what none takes matches nothing. Seen again as failed or
+     * canceled, it gives back what it paid out of each credit, once. Every
+     * credit it reads is held for the transaction, so a payout or another
+     * refund at the same moment waits for it.
+     */
+    recordRefund(
+        refund: ReportedSubscriberRefund,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberRefund>;
+
+    /**
+     * Records a payout the operator made outside the gateway against one
+     * credit, holding the credit for the transaction; nothing is written where
+     * the credit does not exist or owes less than the payout.
+     */
+    recordPayout(
+        payout: NewSubscriberPayout,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberPayout>;
+
+    /** The subscriber's credits, the oldest first, each with its entries and what it still owes. */
+    listCredits(subscriberId: string, tx?: TransactionContext): Promise<SubscriberCreditStanding[]>;
+
+    /** The payment recorded under `id`, or `null`. */
+    findPaymentById(id: string, tx?: TransactionContext): Promise<SubscriberPaymentRecord | null>;
+
+    /** The payment recorded under a gateway account and reference, or `null`. */
+    findPaymentByRef(
+        gatewayAccount: string,
+        gatewayRef: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberPaymentRecord | null>;
+
+    /** The payments recorded for an invoice, the first first. */
+    listPaymentsByInvoice(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberPaymentRecord[]>;
+
+    /** What an invoice still owes after what is settled against it; `null` where it does not exist. */
+    owedBy(invoiceId: string, tx?: TransactionContext): Promise<number | null>;
 }
 
 // -----------------------------------------------------------------------------

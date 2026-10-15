@@ -725,6 +725,18 @@ export const INVOICE_ERROR_CODES = {
      * entered.
      */
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL: 'SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL',
+    /** No credit under this id for the tenant's subscriber (`creditId`). */
+    SUBSCRIBER_CREDIT_NOT_FOUND: 'SUBSCRIBER_CREDIT_NOT_FOUND',
+    /**
+     * A payout of more than the credit still owes (`creditId`, `open`): nothing
+     * is paid out beyond it (`SC-PRIC-083`), and nothing is recorded.
+     */
+    SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT: 'SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT',
+    /**
+     * A payout on a day still to come (`paidOn`, `today` in the installation's
+     * zone): a payout is recorded once it left.
+     */
+    SUBSCRIBER_PAYOUT_NOT_MADE_YET: 'SUBSCRIBER_PAYOUT_NOT_MADE_YET',
 } as const;
 
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[keyof typeof INVOICE_ERROR_CODES];

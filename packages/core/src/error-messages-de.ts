@@ -350,6 +350,11 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_NOT_FOUND: "Keine Rechnung '{invoiceId}'.",
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL:
         'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Rechnung wird versendet, sobald eine eingetragen ist.',
+    SUBSCRIBER_CREDIT_NOT_FOUND: "Kein Guthaben '{creditId}' des Abonnenten dieses Mandanten.",
+    SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT:
+        'Vom Guthaben {creditId} sind noch {open} offen; mehr wird nicht ausgezahlt, und nichts wurde erfasst.',
+    SUBSCRIBER_PAYOUT_NOT_MADE_YET:
+        'Eine Auszahlung wird erfasst, wenn sie erfolgt ist: {paidOn} liegt nach heute, {today}.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'Aus einem Checkout-Angebot entsteht nur ein einziger Vertrag, und das erst, wenn seine Positionen eingefroren sind.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED:

@@ -5,6 +5,7 @@ import type {
     CollectionFailureReason,
     CollectionOutcome,
     FindCollectionInput,
+    GatewayRefund,
     MaskedPaymentMethod,
     PaymentGateway,
     PaymentGatewayCallback,
@@ -318,7 +319,80 @@ export class StripePaymentGateway implements PaymentGateway {
                 subject,
             };
         }
-        return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
+        switch (event.type) {
+            case 'payment_intent.succeeded':
+            case 'payment_intent.processing':
+            case 'payment_intent.payment_failed':
+            case 'payment_intent.canceled':
+                return this.collectionReportOf(event.data.object.id, event, occurredAt);
+            case 'refund.created':
+            case 'refund.updated':
+            case 'refund.failed':
+                return this.refundReportOf(event.data.object.id, event, occurredAt);
+            default:
+                return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
+        }
+    }
+
+    /**
+     * What became of the payment intent an event reports, as it stands now —
+     * read again rather than taken from the event, so an event delivered late
+     * never takes an attempt back to a state it has left. An intent SaaSiCat
+     * did not create carries no attempt key, and is not SaaSiCat's to act on.
+     */
+    private async collectionReportOf(
+        intentId: string,
+        event: Stripe.Event,
+        occurredAt: Date,
+    ): Promise<PaymentGatewayEvent> {
+        const intent = await this.stripe.paymentIntents.retrieve(intentId, {
+            expand: ['latest_charge'],
+        });
+        const attemptKey = intent.metadata?.[ATTEMPT_KEY];
+        if (!attemptKey) {
+            return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
+        }
+        return {
+            kind: 'collection-reported',
+            eventId: event.id,
+            occurredAt,
+            attemptKey,
+            outcome: outcomeOf(intent),
+        };
+    }
+
+    /**
+     * The refund an event reports, as it stands now, read again for the reason
+     * `collectionReportOf` gives. A refund of a payment SaaSiCat did not
+     * collect — no payment intent, or one without an attempt key — is not
+     * SaaSiCat's to act on.
+     */
+    private async refundReportOf(
+        refundId: string,
+        event: Stripe.Event,
+        occurredAt: Date,
+    ): Promise<PaymentGatewayEvent> {
+        const refund = await this.stripe.refunds.retrieve(refundId, {
+            expand: ['payment_intent'],
+        });
+        const intent = expanded<Stripe.PaymentIntent>(refund.payment_intent);
+        const attemptKey = intent?.metadata?.[ATTEMPT_KEY];
+        if (!intent || !attemptKey) {
+            return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
+        }
+        return {
+            kind: 'refund-reported',
+            eventId: event.id,
+            occurredAt,
+            attemptKey,
+            refund: {
+                refundRef: refund.id,
+                paymentRef: intent.id,
+                amountCents: refund.amount,
+                currency: refund.currency.toUpperCase(),
+                status: refundStatusOf(refund),
+            },
+        };
     }
 
     /**
@@ -550,7 +624,12 @@ export class StripePaymentGateway implements PaymentGateway {
 function outcomeOf(intent: Stripe.PaymentIntent): CollectionOutcome {
     switch (intent.status) {
         case 'succeeded':
-            return { status: 'succeeded', paymentRef: intent.id };
+            return {
+                status: 'succeeded',
+                paymentRef: intent.id,
+                amountCents: intent.amount_received,
+                currency: intent.currency.toUpperCase(),
+            };
         case 'processing':
             return { status: 'pending', paymentRef: intent.id };
         case 'requires_payment_method': {
@@ -581,6 +660,30 @@ function outcomeOf(intent: Stripe.PaymentIntent): CollectionOutcome {
             throw new Error(
                 `Payment intent ${intent.id} is '${intent.status}', which an intent confirmed off ` +
                     'session with automatic capture does not stand in.',
+            );
+    }
+}
+
+/**
+ * Where a refund stands: one that still waits — for Stripe's balance, or for
+ * the customer's bank details — pays out as long as it is not failed or
+ * canceled.
+ */
+function refundStatusOf(refund: Stripe.Refund): GatewayRefund['status'] {
+    switch (refund.status) {
+        case 'succeeded':
+            return 'succeeded';
+        case 'failed':
+            return 'failed';
+        case 'canceled':
+            return 'canceled';
+        case 'pending':
+        case 'requires_action':
+            return 'pending';
+        default:
+            throw new Error(
+                `Refund ${refund.id} is '${String(refund.status)}', which no refund Stripe ` +
+                    'documents stands in.',
             );
     }
 }

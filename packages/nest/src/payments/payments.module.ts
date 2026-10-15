@@ -147,6 +147,9 @@ export class PaymentsModule {
                 PaymentCallbackService,
                 SubscriberPaymentMethodService,
                 SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN,
+                // A collection's outcome and its payment are recorded on one
+                // transaction, as a callback's claim and its effect are.
+                PAYMENT_TRANSACTION_RUNNER_TOKEN,
             ],
         };
     }

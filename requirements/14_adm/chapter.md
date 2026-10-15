@@ -394,6 +394,9 @@ _Tested by:_
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
         - the corrections are announced beside the subscriber view, and only there
+- `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
+    - the manifest
+        - announces the credits and the payout where they are served, and neither where they are not
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - where the view is served
         - without ${without}, neither the routes nor the capabilities exist
@@ -429,6 +432,10 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
     - the operator corrects the subscriber on the tenant page
         - without the capability, nothing is offered and no history is shown
+- `packages/ui-vue/tests/component/an-operator-pays-out-a-credit.test.ts`
+    - the tenant detail shows the subscriber's credits
+        - without the capabilities, shows nothing and reads nothing, and offers no payout with the
+          view alone
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
     - retiring a version in the plan cockpit
         - is offered on the version no longer on sale, and on no other
@@ -609,6 +616,15 @@ _Tested by:_
         - another tenant is another account
         - without a tenant, nothing is asked
         - a read that fails leaves an error and no account
+- `packages/ui-vue/tests/use-tenant-credits.test.js`
+    - the credits of a tenant
+        - are read where the platform serves them
+        - are neither read nor offered where it does not, and a payout only with both
+    - a payout
+        - is recorded behind the second factor, announced, and the credits read again
+        - where the operator steps back from the second factor records nothing and answers null
+        - that fails rejects, so the dialog keeps the form, and announces nothing
+        - belongs to the tenant it was asked on, even if the page moved on meanwhile
 - `packages/ui-vue/tests/use-tenant-subscriber.test.js`
     - useTenantSubscriber
         - where the manifest announces the subscriber, it is read for the tenant

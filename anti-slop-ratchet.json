@@ -5,7 +5,7 @@
     "no-reflect-get": 1,
     "no-reflect-apply": 0,
     "no-module-mocking": 0,
-    "no-unsafe-dictionary-type": 271,
+    "no-unsafe-dictionary-type": 270,
     "no-conditional-empty-object-spread": 173,
     "disable-directive": 0
 }

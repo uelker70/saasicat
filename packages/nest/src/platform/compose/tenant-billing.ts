@@ -2,6 +2,7 @@ import type { DynamicModule } from '@nestjs/common';
 import type {
     BundleRepository,
     SubscriptionBundleRepository,
+    SubscriberPaymentRepository,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
@@ -82,13 +83,17 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         // on one transaction.
         // Collecting records what it tells a subscriber with the other
         // notices, in the bundle's record unless the application names one.
-        chargeJournal: withCollectionNotices(
-            tenantOptions.chargeJournal,
+        chargeJournal: withCollectionDefaults(tenantOptions.chargeJournal, {
             // SAFETY: the bundle's member is the provider of the record of
             // notices, as `versionNotices.notices` reads it below.
-            tenantSlice?.subscriptionNotices as
+            notices: tenantSlice?.subscriptionNotices as
                 ProviderSpec<SubscriptionNoticeRepository> | undefined,
-        ),
+            // SAFETY: the bundle's member is the provider of the payments
+            // repository, which `PersistenceProvider` types as the provider
+            // spec it is.
+            payments: ctx.persistence?.entitlement?.subscriberPaymentRepository as
+                ProviderSpec<SubscriberPaymentRepository> | undefined,
+        }),
         contractFreeze: tenantOptions.contractFreeze && {
             transactionRunner: ctx.adapters.transactionRunner as
                 ProviderSpec<TransactionRunner> | undefined,
@@ -111,18 +116,23 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
 }
 
 /**
- * The charge journal as the application configured it, with `notices` taken
- * from the bundle where invoices are collected and the application names none.
+ * The charge journal as the application configured it, with `notices` and
+ * `payments` taken from the bundle where invoices are collected and the
+ * application names none.
  */
-function withCollectionNotices(
+function withCollectionDefaults(
     chargeJournal: TenantBillingModuleOptions['chargeJournal'],
-    bundled: ProviderSpec<SubscriptionNoticeRepository> | undefined,
+    bundled: {
+        notices: ProviderSpec<SubscriptionNoticeRepository> | undefined;
+        payments: ProviderSpec<SubscriberPaymentRepository> | undefined;
+    },
 ): TenantBillingModuleOptions['chargeJournal'] {
     const invoices = chargeJournal?.invoices;
-    if (!chargeJournal || !invoices?.collections || invoices.notices || !bundled) {
-        return chargeJournal;
-    }
-    return { ...chargeJournal, invoices: { ...invoices, notices: bundled } };
+    if (!chargeJournal || !invoices?.collections) return chargeJournal;
+    const defaulted = { ...invoices };
+    if (!defaulted.notices && bundled.notices) defaulted.notices = bundled.notices;
+    if (!defaulted.payments && bundled.payments) defaulted.payments = bundled.payments;
+    return { ...chargeJournal, invoices: defaulted };
 }
 
 /**

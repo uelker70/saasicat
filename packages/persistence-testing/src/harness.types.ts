@@ -11,6 +11,7 @@ import type {
     BundleRepository,
     CheckoutOfferRepository,
     InvoiceCollectionRepository,
+    SubscriberPaymentRepository,
     MaintenanceWindowPort,
     MfaPort,
     PaymentEventLog,
@@ -119,6 +120,17 @@ export interface ContractAdapterInstances {
      * scenarios need, and `transactionRunner`.
      */
     invoiceCollectionRepository?: InvoiceCollectionRepository;
+    /**
+     * Enables the payment scenarios: a payment is recorded once under its
+     * gateway account and reference, in its invoice's turn, settles what the
+     * invoice owes and leaves the rest as a credit; an invoice whose total is
+     * negative is credited once; a refund pays out the credit its payment left
+     * first, then the oldest, and gives it back when it fails; a payout never
+     * exceeds what a credit owes; and two writes at once pay nothing out
+     * twice. A payment belongs to a collection attempt, so they also need
+     * everything the collection scenarios need.
+     */
+    subscriberPaymentRepository?: SubscriberPaymentRepository;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -346,6 +358,7 @@ export type ContractGap =
     | 'subscriptionInvoices'
     | 'invoiceArchive'
     | 'invoiceCollections'
+    | 'subscriberPayments'
     | 'checkoutOffers'
     | 'appliedSettings'
     | 'maintenanceWindows'

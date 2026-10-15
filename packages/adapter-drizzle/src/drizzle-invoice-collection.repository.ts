@@ -18,6 +18,7 @@ import {
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type {
+    AbandonPaidOutcome,
     CalendarDay,
     CollectionOutcome,
     EarlierCollection,
@@ -30,6 +31,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    COLLECTION_NOT_SENT_PAID,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -45,11 +47,31 @@ import {
     subscriberPaymentMethods,
     subscriptionInvoiceCollections,
     subscriptionInvoiceDocuments,
+    subscriptionInvoiceSettlements,
     subscriptionInvoices,
 } from './schema.js';
 
 /** The invoice's attempts again, beside the one a query lists. */
 const others = alias(subscriptionInvoiceCollections, 'others');
+
+/**
+ * Whether the invoice a query reads still owes something: its total exceeds
+ * what is settled against it. Exact in the database's numeric arithmetic.
+ */
+const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
+    SELECT SUM(${subscriptionInvoiceSettlements.amount})
+      FROM ${subscriptionInvoiceSettlements}
+     WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
+), 0)`;
+
+/** Whether invoice `invoiceId` still owes something, read on `db`. */
+async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
+    const rows = await db
+        .select({ id: subscriptionInvoices.id })
+        .from(subscriptionInvoices)
+        .where(and(eq(subscriptionInvoices.id, invoiceId), stillOwes));
+    return rows.length === 1;
+}
 
 /**
  * `InvoiceCollectionRepository` against `subscription_invoice_collections`.
@@ -145,6 +167,9 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 .where(eq(subscriptionInvoices.id, invoiceId))
                 .for('update');
             if (!invoice) throw new Error(`Invoice ${invoiceId} does not exist.`);
+            // An invoice that owes nothing — a payment came for it — is
+            // collected no further.
+            if (!(await owes(db, invoiceId))) return null;
             const earlier = await db
                 .select({
                     attempt: subscriptionInvoiceCollections.attempt,
@@ -191,6 +216,11 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         tx?: TransactionContext,
     ): Promise<SubmittedInvoiceCollection | null> {
         return this.inTurnOf(id, tx, async (db) => {
+            const [planned] = await db
+                .select({ invoiceId: subscriptionInvoiceCollections.invoiceId })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (!planned || !(await owes(db, planned.invoiceId))) return null;
             const [row] = await db
                 .update(subscriptionInvoiceCollections)
                 .set({ status: 'SUBMITTED', submittedAt: at, heldAt: at })
@@ -326,6 +356,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                         ),
                     ),
                     ne(subscriberPaymentMethods.id, subscriptionInvoiceCollections.paymentMethodId),
+                    stillOwes,
                 ),
             )
             .orderBy(asc(subscriptionInvoices.id))
@@ -354,19 +385,94 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         at: Date,
         tx?: TransactionContext,
     ): Promise<boolean> {
-        const rows = await resolveDb(this.db, tx)
-            .update(subscriptionInvoiceCollections)
-            .set(collectionOutcomeColumns(outcome, at))
-            .where(
-                and(
-                    eq(subscriptionInvoiceCollections.id, id),
-                    inArray(subscriptionInvoiceCollections.status, [
-                        ...UNSETTLED_COLLECTION_STATUSES,
-                    ]),
-                ),
-            )
-            .returning({ id: subscriptionInvoiceCollections.id });
-        return rows.length === 1;
+        const settle = async (db: ReturnType<typeof resolveDb>, from: readonly string[]) => {
+            const rows = await db
+                .update(subscriptionInvoiceCollections)
+                .set(collectionOutcomeColumns(outcome, at))
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.id, id),
+                        inArray(subscriptionInvoiceCollections.status, [...from]),
+                    ),
+                )
+                .returning({ id: subscriptionInvoiceCollections.id });
+            return rows.length === 1;
+        };
+        if (outcome.status !== 'succeeded') {
+            return settle(resolveDb(this.db, tx), UNSETTLED_COLLECTION_STATUSES);
+        }
+        return this.inTurnOf(id, tx, async (db) => {
+            if (await settle(db, UNSETTLED_COLLECTION_STATUSES)) return true;
+            const [row] = await db
+                .select({
+                    invoiceId: subscriptionInvoiceCollections.invoiceId,
+                    status: subscriptionInvoiceCollections.status,
+                })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (!row || row.status !== 'FAILED') return false;
+            // The money arrived after all: what was planned after the failure
+            // is not made, and the attempt succeeded — where no other attempt
+            // of its invoice is on its way or succeeded.
+            await db
+                .update(subscriptionInvoiceCollections)
+                .set({ status: 'WITHDRAWN', resolvedAt: at })
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.invoiceId, row.invoiceId),
+                        eq(subscriptionInvoiceCollections.status, 'SCHEDULED'),
+                    ),
+                );
+            const others = await db
+                .select({ id: subscriptionInvoiceCollections.id })
+                .from(subscriptionInvoiceCollections)
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.invoiceId, row.invoiceId),
+                        ne(subscriptionInvoiceCollections.id, id),
+                        inArray(subscriptionInvoiceCollections.status, [
+                            ...UNSETTLED_COLLECTION_STATUSES,
+                            'SUCCEEDED',
+                        ]),
+                    ),
+                );
+            if (others.length > 0) return false;
+            return settle(db, ['FAILED']);
+        });
+    }
+
+    abandonPaid(id: string, at: Date, tx?: TransactionContext): Promise<AbandonPaidOutcome> {
+        return this.inTurnOf(id, tx, async (db) => {
+            const [row] = await db
+                .select({
+                    invoiceId: subscriptionInvoiceCollections.invoiceId,
+                    status: subscriptionInvoiceCollections.status,
+                })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (row?.status !== 'SUBMITTED') return 'settled';
+            const resend = await owes(db, row.invoiceId);
+            // A failure or a pending answer is recorded outside the invoice's
+            // turn, so the status read above may be stale: the answer rests on
+            // a write conditioned on it, which waits for such a report still
+            // being recorded and then finds the attempt settled.
+            const claimed = await db
+                .update(subscriptionInvoiceCollections)
+                .set(
+                    resend
+                        ? { heldAt: at }
+                        : collectionOutcomeColumns(COLLECTION_NOT_SENT_PAID, at),
+                )
+                .where(
+                    and(
+                        eq(subscriptionInvoiceCollections.id, id),
+                        eq(subscriptionInvoiceCollections.status, 'SUBMITTED'),
+                    ),
+                )
+                .returning({ id: subscriptionInvoiceCollections.id });
+            if (claimed.length !== 1) return 'settled';
+            return resend ? 'resend' : 'abandoned';
+        });
     }
 
     async hold(id: string, heldBefore: Date, at: Date, tx?: TransactionContext): Promise<boolean> {
@@ -414,6 +520,17 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             .orderBy(asc(subscriptionInvoiceCollections.id))
             .limit(page.limit);
         return rows.map((row) => row.id);
+    }
+
+    async findByKey(
+        attemptKey: string,
+        tx?: TransactionContext,
+    ): Promise<InvoiceCollectionRecord | null> {
+        const [row] = await resolveDb(this.db, tx)
+            .select()
+            .from(subscriptionInvoiceCollections)
+            .where(eq(subscriptionInvoiceCollections.attemptKey, attemptKey));
+        return row ? toInvoiceCollectionRecord(row) : null;
     }
 
     async findById(id: string, tx?: TransactionContext): Promise<InvoiceCollectionRecord | null> {
