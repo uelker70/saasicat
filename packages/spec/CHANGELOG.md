@@ -1,5 +1,181 @@
 # @saasicat/spec
 
+## 1.0.0-rc.27
+
+### Minor Changes
+
+- 3ab58af: A failed collection is tried once more, and the subscriber is told
+
+    A collection that fails is told to the subscriber at their invoice email, with
+    the invoice, the amount, the reason and what follows (`SC-PRIC-080`). Where the
+    reason can pass — funds short, a refusal without a cause — the same payment
+    method is charged once more: a card seven days after the failure, a direct debit
+    on the day its new announcement names, seven days after at the earliest. A
+    second failure, and one for any other reason, is not tried again, and the
+    subscriber is asked to replace the payment method. `SC-PRIC-081` replaces
+    `SC-PRIC-035`, whose "the gateway retries" no gateway did.
+
+    A payment method that replaced the one an invoice named, or the one that failed,
+    collects the invoice: a card at once, a direct debit from the day a new
+    announcement names (`SC-PRIC-082`, replacing `SC-PRIC-079`). A direct debit
+    whose invoice reached the subscriber less than the lead time before its date is
+    announced again rather than left waiting. A new announcement names the amount,
+    the day and the mandate reference, its day is fixed when it goes out, and it
+    leaves the invoice as issued (`SC-PRIC-028`).
+
+    Every attempt after the first is planned first: `SCHEDULED` for its day in
+    `subscription_invoice_collections`, `WITHDRAWN` where its payment method was
+    replaced before that day. `InvoiceCollectionRepository.startAttempt` starts only
+    an invoice's first attempt now, so a run that found an invoice due before
+    another run's attempt failed no longer charges it again at once; `plan` writes a
+    later one only after the attempt the decision read. The repository gains
+    `plan`, `announce`, `submitPlanned`, `withdraw` — both in the invoice's turn —,
+    `listPlanned`, `listToFollowUp`, `listCollectableAgain` and `markFollowedUp`,
+    and a persistence contract harness runs their scenarios; `listCollectableAgain`
+    reads `subscriber_payment_methods`, so the collection scenarios need the
+    payment methods too.
+
+    `InvoiceMailPort` gains `tell({ notice, to })` for what the subscriber is told:
+    a `CollectionFailedNotice` or a `CollectionAnnouncedNotice`. Each is recorded in
+    `subscription_notices` under the kinds `collection-failed` and
+    `collection-announced`, and sent once. `SaaSiCatModule` takes
+    `persistence.tenantBilling.subscriptionNotices` for
+    `chargeJournal.invoices.notices`, which collecting now requires.
+    `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` replaces
+    `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`,
+    `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD` names a debit that waits for the failure
+    before it to be told, and
+    `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE` is gone: neither case waits any more.
+    `1.0-an-invoice-is-collected.postgres.sql` and fragment 23 carry the planned
+    attempts' columns; the migration adds them, and replaces the partial index, on
+    a table that exists without them.
+
+- 3cca4f4: A payment is recorded once, and a credit is paid out by the operator
+
+    What a collection brought is recorded with its outcome, on one transaction and
+    in the invoice's turn: the payment, once, by its gateway account and the
+    gateway's reference, whether the run asking or the gateway's callback reports
+    it first, and however often (`SC-PRIC-029`). It settles what its invoice still
+    owes; what it brought beyond that is a credit on the subscriber's account, and
+    so is an invoice whose total is negative, which the quarter-hourly run credits
+    right after issuing it. A credit is never offset against a later invoice: the
+    operator pays it out, by a refund in the gateway — recorded against the credit
+    its payment left first, then the oldest, and given back when it fails — or,
+    where the gateway can no longer refund, by a transfer recorded on the tenant's
+    page (`SC-PRIC-083`). SaaSiCat initiates neither.
+
+    `subscriber_payments`, `subscription_invoice_settlements`, `subscriber_credits`,
+    `subscriber_credit_entries` and `subscriber_refunds` come with fragment 24 and
+    `1.0-a-payment-is-recorded.postgres.sql`, behind the new
+    `SubscriberPaymentRepository`, which `SaaSiCatModule` takes from
+    `persistence.entitlement.subscriberPaymentRepository` for
+    `chargeJournal.invoices.payments`; collecting now requires it.
+
+    A success in `CollectionOutcome` names what the gateway received, as
+    `amountCents` and `currency`. `PaymentGatewayEvent` gains
+    `collection-reported` and `refund-reported`, and the Stripe adapter maps
+    `payment_intent.succeeded`, `.processing`, `.payment_failed`, `.canceled` and
+    `refund.created`, `.updated`, `.failed` to them, each read again from Stripe;
+    a restricted key needs refunds (read). A success reported for an attempt
+    recorded as failed is recorded too: the attempt succeeds and what was planned
+    after it is withdrawn. An invoice that owes nothing is collected no further:
+    no attempt is started, planned or sent for it, and a failure beside the payment
+    is followed up without a notice. A request that never reached the gateway is
+    settled rather than sent again where its invoice was paid meanwhile, audited as
+    `SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED`, and is not sent where a report
+    settled it meanwhile: `abandonPaid` answers `'abandoned'`, `'resend'` or
+    `'settled'`. `InvoiceCollectionRepository` gains `findByKey` and `abandonPaid`,
+    and a refund in another currency than its payment is refused.
+
+    The operator reads a subscriber's credits on the tenant's page
+    (`GET admin/tenants/:slug/credits`, `credits.read`) and records a payout
+    against one with the second factor
+    (`POST admin/tenants/:slug/credits/:creditId/payouts`, `credits.payout`),
+    refused beyond what the credit owes (`SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`), on a
+    day still to come (`SUBSCRIBER_PAYOUT_NOT_MADE_YET`) and for another
+    subscriber's credit (`SUBSCRIBER_CREDIT_NOT_FOUND`).
+
+- f453f75: An invoice is collected through its payment gateway
+
+    Where `config/saas.yaml` names `payments`, an invoice that announced how it is
+    paid is collected through the gateway account its payment method is held at, as
+    the fourth step of the quarter-hourly run, once it was mailed: by card at once,
+    by direct debit from the collection date it announced (`SC-PRIC-082`).
+
+    A collection never charges twice (`SC-PRIC-034`). Each attempt is started in
+    the invoice's turn and written as submitted, with everything its request
+    carries, before the request leaves; an invoice has one attempt not settled at a
+    time and none after one succeeded. Every request carries the key
+    `saasicat:collect:<invoice>:<attempt>`. A request whose answer was lost is asked
+    about at the gateway fifteen minutes later, and sent again as the same request
+    only where the gateway holds nothing under its key; a direct debit on its way is
+    asked about once an hour. A failure is recorded with its reason and the
+    gateway's code, and what follows it is `SC-PRIC-080`'s.
+
+    `PaymentGateway` gains `collect` and `findCollection`, which
+    `@saasicat/payment-stripe` implements with payment intents confirmed off
+    session under the attempt key, and `DevPaymentGateway` in memory. A restricted
+    Stripe key needs payment intents (write) and charges (read) beside what it had.
+    The Stripe gateway now refuses a currency Stripe does not take to the cent,
+    such as `JPY` or `ISK`, and answers an invoice in another currency than its
+    account's as failed with the code `saasicat_other_currency`, without sending
+    anything.
+
+    Adopt `23-subscription-invoice-collection.prisma`, run
+    `1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
+    `persistence.entitlement.invoiceCollectionRepository` as
+    `tenantBilling.chargeJournal.invoices.collections`; the start refuses invoices
+    without it where the file names `payments`, and refuses to start while a
+    collection not settled was sent to an account the file no longer names
+    (`SC-PRIC-030`). A persistence contract harness gains
+    `invoiceCollectionRepository`, or declares `gaps: ['invoiceCollections']`.
+
+- 9c9f624: An invoice says how it is paid
+
+    An invoice now records, when it is issued, the subscriber's payment method in
+    use that it is collected with (`SubscriptionInvoiceRecord.payment`), copied as
+    it stood then. An invoice collected by SEPA direct debit announces the amount,
+    the day it is collected from and the mandate reference, as SEPA asks of the
+    notice before a debit (`SC-PRIC-028`), and falls due on that day
+    (`SC-PRIC-046`): the issue date plus `invoicing.directDebitLeadDays` in
+    `config/saas.yaml`, fourteen calendar days unless set. Set it to what the
+    mandate your subscribers accepted provides for; the one Stripe shows provides
+    for two days. Any other invoice falls due the payment term after its issue date,
+    as before. Nothing is collected yet.
+
+    An invoice that asks for nothing and one of a subscriber without a payment
+    method record none and are not collected. One of a direct debit whose gateway
+    never named its mandate reference cannot be announced: it waits, draws no
+    number, and is issued with its announcement once the payment method is
+    replaced. The audit log records it as `SUBSCRIPTION_INVOICE_HELD` with the new
+    code `SUBSCRIPTION_INVOICE_MANDATE_MISSING`.
+
+    `zugferdInvoiceRenderer()` states it on the page, in German and English, and in
+    the XML: the payment means (`59` for a direct debit, `48` for a card named by
+    its last four digits), the payment terms' text and the mandate reference.
+
+    Run `1.0-an-invoice-says-how-it-is-paid.postgres.sql` once, before `db push`:
+    it adds the nullable `payment` and `collectionDate` to `subscription_invoices`,
+    which fragment 20 declares. An invoice issued before records no payment method
+    and stays due on the day it states. Where `config/saas.yaml` names `payments`,
+    the start refuses invoices that cannot read the payment methods, as with
+    `PaymentsModule` wired other than globally.
+
+### Patch Changes
+
+- 5396ab6: The backfill of `1.0-a-scheduled-change-keeps-its-quoted-version.postgres.sql`
+  gives a change scheduled before it the version on sale, as the platform reads
+  it
+
+    A change scheduled to another plan before the file ran is given the version the
+    platform would sell that day. The file chose it by other rules: it took a
+    version whose last day (`validUntil`) had passed, left out a superseded one
+    whose last day still ran, preferred the higher number to the later start, and
+    read the dates in the session's time zone rather than as the UTC they are
+    stored in. It now chooses as `buildActivePlanVersionWhere` does. The file
+    chooses only in the run that adds the column, so a database that ran an earlier
+    copy keeps what that run chose.
+
 ## 1.0.0-rc.26
 
 ### Minor Changes
