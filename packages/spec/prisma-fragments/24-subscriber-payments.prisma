@@ -1,6 +1,7 @@
 // =============================================================================
 // SaaSiCat platform Prisma fragment: SubscriberPayment, SubscriptionInvoiceSettlement,
-// SubscriberCredit, SubscriberCreditEntry, SubscriberRefund
+// SubscriberCredit, SubscriberCreditEntry, SubscriberRefund, SubscriberReversal,
+// SubscriberReconciliationCase
 // =============================================================================
 //
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
@@ -16,12 +17,20 @@
 // by a payout outside it, each an entry against the credit. A refund that
 // fails or is canceled gives back what it paid out, as an entry of its own.
 //
-// Nothing here is updated but a refund's status: every change is a new row.
+// A reversal — a direct debit the bank returned, a chargeback — takes back
+// what its payment brought, the credit first: entries against the credit for
+// its open part, and settlements that open the invoice again for the rest. The
+// gateway giving it back writes the same entries the other way. What matches
+// nothing — a refund no credit takes, a reversal that meets a credit already
+// paid out — is a case for the operator to reconcile, closed with a note.
+//
+// Nothing here is updated but a refund's status, what a reversal withdrew and
+// was given back, and a case's closing: every other change is a new row.
 // `kind` and `status` are text holding closed sets, checked when a row is read
 // (`toSubscriberCreditRecord` and the other readers in @saasicat/core), and so
-// is a credit's one origin — a payment or an invoice, never both.
+// is a credit's one origin — a payment, an invoice or a reversal, never two.
 //
-// Optional, as one: adopt all five where invoices are collected through a
+// Optional, as one: adopt all seven where invoices are collected through a
 // gateway — `tenantBilling.chargeJournal.invoices.payments` — beside the
 // collection attempts, which every payment points at.
 //
@@ -48,6 +57,8 @@ model SubscriberPayment {
     settlements SubscriptionInvoiceSettlement[]
     credit      SubscriberCredit?
     refunds     SubscriberRefund[]
+    reversals   SubscriberReversal[]
+    cases       SubscriberReconciliationCase[]
 
     @@unique([gatewayAccount, gatewayRef])
     @@index([invoiceId])
@@ -59,16 +70,21 @@ model SubscriptionInvoiceSettlement {
     id         String   @id @default(uuid())
     invoiceId  String
     paymentId  String
-    kind       String // PAYMENT
-    // What it takes off what the invoice owes, positive.
+    kind       String // PAYMENT | REVERSAL | REINSTATEMENT
+    // Positive: what a PAYMENT or a REINSTATEMENT takes off what the invoice
+    // owes, what a REVERSAL adds back to it.
     amount     Decimal  @db.Decimal(12, 2)
+    // The reversal, for a REVERSAL and its REINSTATEMENT.
+    reversalId String?
     recordedAt DateTime @default(now())
 
-    invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-    payment SubscriberPayment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    invoice  SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    payment  SubscriberPayment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    reversal SubscriberReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
 
     @@index([invoiceId])
     @@index([paymentId])
+    @@index([reversalId])
     @@map("subscription_invoice_settlements")
 }
 
@@ -80,29 +96,37 @@ model SubscriberCredit {
     // What the subscriber is owed, positive.
     amount          Decimal  @db.Decimal(12, 2)
     currency        String
-    // Exactly one of the two: the payment that brought more than its invoice
-    // owed, or the invoice whose total is negative.
-    originPaymentId String?  @unique
-    originInvoiceId String?  @unique
-    createdAt       DateTime @default(now())
+    // Exactly one of the three: the payment that brought more than its invoice
+    // owed, the invoice whose total is negative, or the reversal the gateway
+    // gave back beyond what the invoices it opened still owed — a reversal can
+    // be given back in parts, so it can leave more than one.
+    originPaymentId  String?  @unique
+    originInvoiceId  String?  @unique
+    originReversalId String?
+    createdAt        DateTime @default(now())
 
-    subscriber    Subscriber             @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
-    originPayment SubscriberPayment?     @relation(fields: [originPaymentId], references: [id], onDelete: Restrict)
-    originInvoice SubscriptionInvoice?   @relation(fields: [originInvoiceId], references: [id], onDelete: Restrict)
-    entries       SubscriberCreditEntry[]
+    subscriber     Subscriber             @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    originPayment  SubscriberPayment?     @relation(fields: [originPaymentId], references: [id], onDelete: Restrict)
+    originInvoice  SubscriptionInvoice?   @relation(fields: [originInvoiceId], references: [id], onDelete: Restrict)
+    originReversal SubscriberReversal?    @relation("ReversalCredits", fields: [originReversalId], references: [id], onDelete: Restrict)
+    entries        SubscriberCreditEntry[]
 
     @@index([subscriberId, createdAt])
+    @@index([originReversalId])
     @@map("subscriber_credits")
 }
 
 model SubscriberCreditEntry {
     id         String    @id @default(uuid())
     creditId   String
-    kind       String // REFUND | REFUND_FAILED | PAYOUT
-    // Positive: what a REFUND or a PAYOUT pays out, what a REFUND_FAILED gives back.
+    kind       String // REFUND | REFUND_FAILED | PAYOUT | REVERSAL | REVERSAL_TAKEN_BACK
+    // Positive: what a REFUND, a PAYOUT or a REVERSAL pays out, what a
+    // REFUND_FAILED or a REVERSAL_TAKEN_BACK gives back.
     amount     Decimal   @db.Decimal(12, 2)
     // The refund, for a REFUND and its REFUND_FAILED.
     refundId   String?
+    // The reversal, for a REVERSAL and its REVERSAL_TAKEN_BACK.
+    reversalId String?
     // A payout's: the transfer's reference, the day it left, who recorded it.
     reference  String?
     paidOn     DateTime? @db.Date
@@ -110,11 +134,13 @@ model SubscriberCreditEntry {
     note       String?
     recordedAt DateTime  @default(now())
 
-    credit SubscriberCredit  @relation(fields: [creditId], references: [id], onDelete: Restrict)
-    refund SubscriberRefund? @relation(fields: [refundId], references: [id], onDelete: Restrict)
+    credit   SubscriberCredit    @relation(fields: [creditId], references: [id], onDelete: Restrict)
+    refund   SubscriberRefund?   @relation(fields: [refundId], references: [id], onDelete: Restrict)
+    reversal SubscriberReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
 
     @@unique([refundId, creditId, kind])
     @@index([creditId])
+    @@index([reversalId])
     @@map("subscriber_credit_entries")
 }
 
@@ -132,11 +158,78 @@ model SubscriberRefund {
     // When it was recorded as failed or canceled.
     endedAt        DateTime?
 
-    subscriber Subscriber              @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
-    payment    SubscriberPayment       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    subscriber Subscriber                     @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment    SubscriberPayment              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
     entries    SubscriberCreditEntry[]
+    cases      SubscriberReconciliationCase[]
 
     @@unique([gatewayAccount, gatewayRef])
     @@index([paymentId])
     @@map("subscriber_refunds")
+}
+
+model SubscriberReversal {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    // The tenant the payment's invoice was for, as a trace; no relation to it.
+    tenantId       String
+    paymentId      String
+    gatewayAccount String
+    // The gateway's own reference to it, such as a dispute's, unique within its account.
+    gatewayRef     String
+    // What the gateway withdrew so far, positive.
+    amount         Decimal   @db.Decimal(12, 2)
+    currency       String
+    // The part of `amount` taken from the credit the payment left, open or paid out.
+    fromCredit     Decimal   @db.Decimal(12, 2)
+    // What the gateway gave back of `amount` so far, a dispute won.
+    reinstated     Decimal   @db.Decimal(12, 2)
+    recordedAt     DateTime  @default(now())
+    // When the gateway last gave something back.
+    reinstatedAt   DateTime?
+
+    subscriber  Subscriber                     @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment     SubscriberPayment              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    settlements SubscriptionInvoiceSettlement[]
+    entries     SubscriberCreditEntry[]
+    credits     SubscriberCredit[]             @relation("ReversalCredits")
+    cases       SubscriberReconciliationCase[]
+
+    @@unique([gatewayAccount, gatewayRef])
+    @@index([paymentId])
+    @@map("subscriber_reversals")
+}
+
+model SubscriberReconciliationCase {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    // The tenant the payment's invoice was for, as a trace; no relation to it.
+    tenantId       String
+    kind           String // REFUND_UNMATCHED | REVERSAL_UNMATCHED
+    // What matched nothing, positive.
+    amount         Decimal   @db.Decimal(12, 2)
+    currency       String
+    paymentId      String
+    // Exactly what its kind is about: the refund, or the reversal.
+    refundId       String?
+    reversalId     String?
+    gatewayAccount String
+    // The refund's or the reversal's reference at the gateway.
+    gatewayRef     String
+    recordedAt     DateTime  @default(now())
+    // Closed with a note; `closedBy` is empty where SaaSiCat closed it.
+    closedAt       DateTime?
+    closedBy       String?
+    note           String?
+
+    subscriber Subscriber          @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    payment    SubscriberPayment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    refund     SubscriberRefund?   @relation(fields: [refundId], references: [id], onDelete: Restrict)
+    reversal   SubscriberReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+
+    @@unique([refundId])
+    @@index([reversalId])
+    @@index([closedAt, recordedAt])
+    @@index([subscriberId, closedAt])
+    @@map("subscriber_reconciliation_cases")
 }

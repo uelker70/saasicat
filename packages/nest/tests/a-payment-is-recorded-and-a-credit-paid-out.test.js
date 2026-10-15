@@ -11,7 +11,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { INVOICE_COLLECTION_LEASE_MS, toCents } from '@saasicat/core';
+import { INVOICE_COLLECTION_LEASE_MS } from '@saasicat/core';
 
 import { InvoicePaymentService, SubscriptionInvoiceCron } from '../dist/billing/index.js';
 import { PaymentCallbackService } from '../dist/payments/index.js';
@@ -27,6 +27,7 @@ import {
     quietLog,
     sinceHeld,
 } from './helpers/invoice-collection.js';
+import { collectionReported, refundReported, succeeded } from './helpers/money-events.js';
 import {
     MAIN_ACCOUNT,
     MemoryPaymentEventLog,
@@ -34,32 +35,6 @@ import {
     lostAfter,
     signedCallback,
 } from './helpers/payments.js';
-
-/** The gateway's report of what became of the attempt `attemptKey`. */
-const collectionReported = (eventId, attemptKey, outcome) => ({
-    kind: 'collection-reported',
-    eventId,
-    occurredAt: ISSUED.toISOString(),
-    attemptKey,
-    outcome,
-});
-
-/** The gateway's report of a refund of the payment `paymentRef`, which `attemptKey` collected. */
-const refundReported = (eventId, attemptKey, refund) => ({
-    kind: 'refund-reported',
-    eventId,
-    occurredAt: ISSUED.toISOString(),
-    attemptKey,
-    refund: { currency: 'EUR', status: 'pending', ...refund },
-});
-
-/** A success for `invoice` under `paymentRef`, of its whole amount unless told otherwise. */
-const succeeded = (invoice, paymentRef, amount = invoice.totalGross) => ({
-    status: 'succeeded',
-    paymentRef,
-    amountCents: toCents(amount),
-    currency: 'EUR',
-});
 
 /**
  * An invoice whose first attempt left and whose answer was lost: it stands
@@ -601,9 +576,10 @@ describe('a refund the operator made in the gateway', () => {
         assert.deepEqual(entriesOf(audits, 'SUBSCRIBER_REFUND_UNMATCHED'), []);
     });
 
-    test('beyond what the subscriber is owed is recorded, and what matches nothing audited for the operator', async () => {
+    // @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+    test('beyond what the subscriber is owed is recorded, and what matches nothing is a case to reconcile, audited', async () => {
         quietLog();
-        const { deliver, audits, attempt } = await paidBeyond();
+        const { deliver, payments, audits, attempt } = await paidBeyond();
 
         await deliver(
             refundReported('evt_r1', attempt.attemptKey, {
@@ -613,8 +589,19 @@ describe('a refund the operator made in the gateway', () => {
             }),
         );
 
+        const [opened] = await payments.listCases({ state: 'open' }, { limit: 10 });
+        assert.deepEqual(
+            [opened?.kind, opened?.amount, opened?.gatewayRef],
+            ['REFUND_UNMATCHED', 30, 're_1'],
+        );
         assert.deepEqual(entriesOf(audits, 'SUBSCRIBER_REFUND_UNMATCHED'), [
-            { refundRef: 're_1', paymentRef: 'pi_made', unmatched: 30, currency: 'EUR' },
+            {
+                refundRef: 're_1',
+                paymentRef: 'pi_made',
+                unmatched: 30,
+                currency: 'EUR',
+                caseId: opened.id,
+            },
         ]);
     });
 

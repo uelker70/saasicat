@@ -128,6 +128,8 @@ export * from './invoice-collection-notice-mapping.js';
 export * from './subscriber-payment.types.js';
 export * from './subscriber-payment-mapping.js';
 export * from './subscriber-payment-rules.js';
+export * from './subscriber-reconciliation.types.js';
+export * from './subscriber-reconciliation-mapping.js';
 export { columnAmountOf } from './column-amount.js';
 export * from './e-invoice-format.js';
 export * from './subscriber-mapping.js';

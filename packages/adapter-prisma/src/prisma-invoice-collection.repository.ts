@@ -16,6 +16,9 @@ import type {
 } from '@saasicat/core';
 import {
     COLLECTION_NOT_SENT_PAID,
+    FOLLOWED_UP_COLLECTION_STATUSES,
+    REOPENING_SETTLEMENT_KINDS,
+    REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -40,6 +43,12 @@ interface CollectionPrisma {
 interface CollectionRepositoryClient {
     $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 }
+
+/** The attempts what follows is decided for, as a parameter of the query below. */
+const FOLLOWED_UP = [...FOLLOWED_UP_COLLECTION_STATUSES];
+
+/** The settlement kinds that add back to what an invoice owes, as a parameter of the sums below. */
+const REOPENING = [...REOPENING_SETTLEMENT_KINDS];
 
 /**
  * `InvoiceCollectionRepository` against `subscription_invoice_collections`.
@@ -246,7 +255,11 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
     ): Promise<string[]> {
         const rows = await this.db(tx).subscriptionInvoiceCollection.findMany({
             // An empty text sorts before every id, as in `listDue`.
-            where: { id: { gt: page.after ?? '' }, status: 'FAILED', followedUpAt: null },
+            where: {
+                id: { gt: page.after ?? '' },
+                status: { in: [...FOLLOWED_UP_COLLECTION_STATUSES] },
+                followedUpAt: null,
+            },
             select: { id: true },
             orderBy: { id: 'asc' },
             take: page.limit,
@@ -275,10 +288,18 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                         WHERE o."invoiceId" = i."id"
                    )
                AND (c."status" = 'WITHDRAWN'
-                    OR (c."status" = 'FAILED' AND c."followedUpAt" IS NOT NULL))
+                    OR (c."status" = ANY(${FOLLOWED_UP}) AND c."followedUpAt" IS NOT NULL))
                AND m."id" <> c."paymentMethodId"
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_collections" r
+                        WHERE r."invoiceId" = i."id"
+                          AND r."status" = 'REVERSED'
+                          AND (r."followedUpAt" IS NULL OR r."paymentMethodId" = m."id")
+                   )
                AND i."totalGross" > COALESCE((
-                       SELECT SUM(s."amount") FROM "subscription_invoice_settlements" s
+                       SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                       ELSE s."amount" END)
+                         FROM "subscription_invoice_settlements" s
                         WHERE s."invoiceId" = i."id"
                    ), 0)
              ORDER BY i."id"
@@ -288,8 +309,16 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
 
     async markFollowedUp(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
         const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
-            where: { id, status: 'FAILED', followedUpAt: null },
+            where: { id, status: { in: [...FOLLOWED_UP_COLLECTION_STATUSES] }, followedUpAt: null },
             data: { followedUpAt: at },
+        });
+        return count === 1;
+    }
+
+    async markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const { count } = await this.db(tx).subscriptionInvoiceCollection.updateMany({
+            where: { id, status: { in: [...REVERSIBLE_COLLECTION_STATUSES] } },
+            data: { status: 'REVERSED', resolvedAt: at, followedUpAt: null },
         });
         return count === 1;
     }
@@ -434,7 +463,9 @@ async function owes(db: CollectionPrisma, invoiceId: string): Promise<boolean> {
         SELECT i."id" FROM "subscription_invoices" i
          WHERE i."id" = ${invoiceId}
            AND i."totalGross" > COALESCE((
-                   SELECT SUM(s."amount") FROM "subscription_invoice_settlements" s
+                   SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                   ELSE s."amount" END)
+                     FROM "subscription_invoice_settlements" s
                     WHERE s."invoiceId" = i."id"
                ), 0)`;
     return idsOf(rows).length === 1;

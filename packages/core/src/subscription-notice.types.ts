@@ -34,7 +34,8 @@ export type SubscriptionNoticeKind =
     | 'feature-withdrawal-lifted'
     | 'ended-at-once'
     | 'collection-failed'
-    | 'collection-announced';
+    | 'collection-announced'
+    | 'collection-reversed';
 
 /** Which notice: there is one per subscription, kind and subject. */
 export interface SubscriptionNoticeKey {
@@ -58,7 +59,8 @@ export interface SubscriptionNoticeKey {
      * told of each once. For `ended-at-once`, the id of what ended — the
      * subscription, or the booking — which ends once. For `collection-failed`,
      * the key of the attempt that failed; for `collection-announced`, the key
-     * of the attempt announced: each is told once.
+     * of the attempt announced; for `collection-reversed`, the key of the
+     * attempt whose payment was reversed: each is told once.
      */
     readonly subject: string;
 }

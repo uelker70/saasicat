@@ -735,17 +735,21 @@ export const subscriberPayments = pgTable('subscriber_payments', {
     recordedAt: ts('recordedAt').notNull().defaultNow(),
 });
 
-/** What a payment settles of an invoice. */
+/** What a payment settles of an invoice, what a reversal opens of it again, and what a reinstatement settles again. */
 export const subscriptionInvoiceSettlements = pgTable('subscription_invoice_settlements', {
     id: text('id').primaryKey(),
     invoiceId: text('invoiceId').notNull(),
     paymentId: text('paymentId').notNull(),
     kind: text('kind').notNull(),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    reversalId: text('reversalId'),
     recordedAt: ts('recordedAt').notNull().defaultNow(),
 });
 
-/** Money the operator owes a subscriber: a payment's surplus, or an invoice whose total is negative. */
+/**
+ * Money the operator owes a subscriber: a payment's surplus, an invoice whose
+ * total is negative, or what a reversal given back brought beyond what was owed.
+ */
 export const subscriberCredits = pgTable('subscriber_credits', {
     id: text('id').primaryKey(),
     subscriberId: text('subscriberId').notNull(),
@@ -754,16 +758,18 @@ export const subscriberCredits = pgTable('subscriber_credits', {
     currency: text('currency').notNull(),
     originPaymentId: text('originPaymentId'),
     originInvoiceId: text('originInvoiceId'),
+    originReversalId: text('originReversalId'),
     createdAt: ts('createdAt').notNull().defaultNow(),
 });
 
-/** What paid a credit out, or gave it back: a refund, its failure, a payout. */
+/** What paid a credit out, or gave it back: a refund, its failure, a payout, a reversal, its give-back. */
 export const subscriberCreditEntries = pgTable('subscriber_credit_entries', {
     id: text('id').primaryKey(),
     creditId: text('creditId').notNull(),
     kind: text('kind').notNull(),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
     refundId: text('refundId'),
+    reversalId: text('reversalId'),
     reference: text('reference'),
     paidOn: day('paidOn'),
     recordedBy: text('recordedBy'),
@@ -783,6 +789,41 @@ export const subscriberRefunds = pgTable('subscriber_refunds', {
     status: text('status').notNull(),
     recordedAt: ts('recordedAt').notNull().defaultNow(),
     endedAt: ts('endedAt'),
+});
+
+/** What the gateway took back from the operator for a payment, and gave back of it. */
+export const subscriberReversals = pgTable('subscriber_reversals', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    tenantId: text('tenantId').notNull(),
+    paymentId: text('paymentId').notNull(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    gatewayRef: text('gatewayRef').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: text('currency').notNull(),
+    fromCredit: numeric('fromCredit', { precision: 12, scale: 2 }).notNull(),
+    reinstated: numeric('reinstated', { precision: 12, scale: 2 }).notNull(),
+    recordedAt: ts('recordedAt').notNull().defaultNow(),
+    reinstatedAt: ts('reinstatedAt'),
+});
+
+/** What the gateway reported and nothing matched, for the operator to reconcile. */
+export const subscriberReconciliationCases = pgTable('subscriber_reconciliation_cases', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    tenantId: text('tenantId').notNull(),
+    kind: text('kind').notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: text('currency').notNull(),
+    paymentId: text('paymentId').notNull(),
+    refundId: text('refundId'),
+    reversalId: text('reversalId'),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    gatewayRef: text('gatewayRef').notNull(),
+    recordedAt: ts('recordedAt').notNull().defaultNow(),
+    closedAt: ts('closedAt'),
+    closedBy: text('closedBy'),
+    note: text('note'),
 });
 
 /** A `bytea` column, read and written as bytes. */

@@ -24,6 +24,7 @@ const KINDS: Record<SubscriptionNoticeKind, true> = {
     'ended-at-once': true,
     'collection-failed': true,
     'collection-announced': true,
+    'collection-reversed': true,
 };
 
 /**

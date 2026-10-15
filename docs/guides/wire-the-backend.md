@@ -1191,10 +1191,12 @@ stamps every hold.
 
 **What the subscriber is told** goes through `InvoiceMailPort.tell({ notice, to })`, beside
 `deliver`: a `CollectionFailedNotice` — the invoice, the amount, the reason, and what follows, as
-`next.action` `charged-again` with the day, `announced-again`, or `replace-payment-method` — or a
+`next.action` `charged-again` with the day, `announced-again`, or `replace-payment-method` —, a
 `CollectionAnnouncedNotice` with the amount, `collectOn`, the mandate reference and the account's
-last four digits. Word them as you word the invoice; each is sent once, and one the port rejects is
-tried again by the next run.
+last four digits, or a `CollectionReversedNotice` — the invoice open again after a reversal, what it
+owes, and `next.action` `collected-with-payment-method-in-use` or `replace-payment-method`. Word
+them as you word the invoice; each is sent once, and one the port rejects is tried again by the next
+run.
 
 ### What a collection brings, and what the subscriber is owed
 
@@ -1219,17 +1221,38 @@ you name another. The start refuses collections without it.
   for the amount it states. The operator pays the credit out. A refund made in the gateway is
   recorded against it when the gateway reports it — the credit the refunded payment left first,
   then the oldest — and given back when the refund fails or is canceled; the part a credit does not
-  take is recorded as matching none (`SUBSCRIBER_REFUND_UNMATCHED`, for the operator to reconcile).
-  Where the gateway can no longer refund — its account no longer configured, or a direct debit past
-  the gateway's refund period — the operator records a transfer with its reference on the tenant's
-  page (`credits.payout`, behind the second factor). SaaSiCat initiates neither.
+  take is a case for the operator to reconcile (`SUBSCRIBER_REFUND_UNMATCHED`). Where the gateway
+  can no longer refund — a direct debit past the gateway's refund period, or an account at the
+  provider that refunds no more — the operator records a transfer with its reference on the tenant's
+  page (`credits.payout`, behind the second factor). SaaSiCat initiates neither. An account whose
+  payments left a credit not paid out stays in `config/saas.yaml`: the start refuses without it
+  (`SC-PRIC-030`).
+- **A reversal takes back what its payment brought** (`SC-PRIC-084`): a direct debit the bank
+  returned, or a chargeback. The credit the payment left goes first — its open part shrinks it, a
+  part already paid out is a case to reconcile —, then an open credit another payment for the
+  same invoice left (`SC-PRIC-087`), then what the payment settled of its invoice opens again —
+  two reversals of one invoice's payments end alike in either order (`SC-PRIC-088`). The
+  attempt that collected it is then `REVERSED`, also one that failed before its payment arrived
+  late: once no other attempt of the invoice is on its way the next run tells the subscriber, and
+  the invoice is collected again only with a payment method none of its payments was reversed on
+  (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well, since it would
+  keep every other attempt from being made. A dispute
+  won takes the reversal back part for part, and what the invoice no longer owes — the subscriber
+  paid it meanwhile — becomes a credit (`SC-PRIC-086`).
+- **What matched nothing** stands on the administration's reconciliation page and on the tenant's
+  page beside its invoices with what each still owes; the operator closes each case with a note,
+  behind the second factor (`reconciliation.read`, `reconciliation.close`, `payments.read`,
+  `SC-ADM-033`). A refund that fails and a reversal given back close the cases they opened.
 - **The audit log** records each payment (`SUBSCRIPTION_INVOICE_PAYMENT_RECORDED`), each credit
   (`SUBSCRIBER_CREDIT_RECORDED`), each refund (`SUBSCRIBER_REFUND_RECORDED`, and
-  `SUBSCRIBER_REFUND_GIVEN_BACK` when it fails) and each payout (`SUBSCRIBER_CREDIT_PAID_OUT`).
-- **The gateway's callbacks** carry the collections' outcomes and the refunds: subscribe the
-  account's webhook to the events its adapter names — for Stripe, the payment intent and refund
-  events in [its README](../../packages/payment-stripe/README.md). A refund of a payment not
-  recorded yet is answered with an error, so the gateway delivers it again once the payment is.
+  `SUBSCRIBER_REFUND_GIVEN_BACK` when it fails), each payout (`SUBSCRIBER_CREDIT_PAID_OUT`), each
+  reversal (`SUBSCRIBER_REVERSAL_RECORDED`, `SUBSCRIBER_REVERSAL_UNMATCHED`,
+  `SUBSCRIBER_REVERSAL_GIVEN_BACK`) and each case closed (`SUBSCRIBER_RECONCILIATION_CASE_CLOSED`).
+- **The gateway's callbacks** carry the collections' outcomes, the refunds and the reversals:
+  subscribe the account's webhook to the events its adapter names — for Stripe, the payment intent,
+  refund and dispute events in [its README](../../packages/payment-stripe/README.md). A refund or a
+  reversal of a payment not recorded yet is answered with an error, so the gateway delivers it again
+  once the payment is.
 
 **A gateway of your own** implements `collect(input)` and `findCollection(input)` of `PaymentGateway`:
 a refusal is a `failed` outcome with a reason of `CollectionFailureReason` and your provider's code,
@@ -1237,7 +1260,8 @@ and only an answer that says nothing about a charge is thrown. A success names w
 received, as `amountCents` of `currency`. The `attemptKey` is your provider's idempotency key, and
 kept with the payment so that `findCollection` finds it again — after the provider forgets the key,
 too. Its `readCallback` reports a collection's outcome as `collection-reported` with the attempt's
-key, and a refund as `refund-reported`, each read as it stands when it is translated. `DevPaymentGateway`
+key, a refund as `refund-reported`, and a reversal as `reversal-reported` with what it withdrew and
+what was given back, in total so far, each read as it stands when it is translated. `DevPaymentGateway`
 collects at once and keeps what it made in memory.
 
 The runs read and write across tenants inside `RlsBypassPort`. If the invoice tables, the journal,

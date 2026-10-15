@@ -79,6 +79,8 @@ model Subscriber {
     payments            SubscriberPayment[]     // see 24-subscriber-payments.prisma
     credits             SubscriberCredit[]
     refunds             SubscriberRefund[]
+    reversals           SubscriberReversal[]
+    reconciliationCases SubscriberReconciliationCase[]
 
     @@map("subscribers")
 }

@@ -351,6 +351,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The credit {creditId} still owes {open}; nothing beyond that is paid out, and nothing was recorded.',
     SUBSCRIBER_PAYOUT_NOT_MADE_YET:
         'A payout is recorded once it left: {paidOn} is after today, {today}.',
+    SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND: "No case to reconcile '{caseId}'.",
+    SUBSCRIBER_RECONCILIATION_CASE_CLOSED:
+        'The case {caseId} was closed on {closedAt}; its note stands, and nothing was recorded.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'A checkout offer can yield only one contract, and only once its line items are frozen.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED: 'A checkout offer requires a frozen plan line item.',

@@ -40,6 +40,7 @@ export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessage
             settings: 'Einstellungen',
             maintenance: 'Wartung',
             featureWithdrawals: 'Zurückgezogene Features',
+            reconciliation: 'Abgleich',
         },
         sections: {
             overview: 'Übersicht',
@@ -66,6 +67,7 @@ export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessage
             settings: 'Settings',
             maintenance: 'Maintenance',
             featureWithdrawals: 'Withdrawn features',
+            reconciliation: 'Reconciliation',
         },
         sections: {
             overview: 'Overview',

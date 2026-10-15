@@ -1,5 +1,6 @@
-// Canonical row -> record mapping for payments, credits and refunds, shared by
-// both adapters for the reason `subscription-contract-mapping.ts` gives.
+// Canonical row -> record mapping for payments, credits, refunds and reversals,
+// shared by both adapters for the reason `subscription-contract-mapping.ts`
+// gives.
 //
 // These rows are money, read by releases that did not write them: a kind, a
 // status or an amount of the wrong shape fails loudly here rather than
@@ -9,10 +10,12 @@ import { oneOf } from './closed-value.js';
 import { columnAmountOf } from './column-amount.js';
 import { dayOf } from './column-day.js';
 import { toDecimalString } from './decimal-string.js';
+import { toCents } from './money.js';
 import type {
     NewSubscriberPayment,
     NewSubscriberPayout,
     ReportedSubscriberRefund,
+    ReportedSubscriberReversal,
     SubscriberCreditEntryKind,
     SubscriberCreditEntryRecord,
     SubscriberCreditOrigin,
@@ -20,6 +23,7 @@ import type {
     SubscriberPaymentRecord,
     SubscriberRefundRecord,
     SubscriberRefundStatus,
+    SubscriberReversalRecord,
 } from './subscriber-payment.types.js';
 
 const PAYMENTS = 'subscriber_payments';
@@ -27,17 +31,47 @@ const CREDITS = 'subscriber_credits';
 const CREDIT_ENTRIES = 'subscriber_credit_entries';
 const REFUNDS = 'subscriber_refunds';
 const SETTLEMENTS = 'subscription_invoice_settlements';
+const REVERSALS = 'subscriber_reversals';
 
-/** What an entry against an invoice is: so far only a payment that settles it. */
-export type InvoiceSettlementKind = 'PAYMENT';
+/**
+ * What an entry against an invoice is: a payment that settles it, a reversal
+ * that opens it again by part of what a payment settled, and the same part
+ * settled again where the gateway gave the reversal back.
+ */
+export type InvoiceSettlementKind = 'PAYMENT' | 'REVERSAL' | 'REINSTATEMENT';
 
-export const INVOICE_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = ['PAYMENT'];
+export const INVOICE_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = [
+    'PAYMENT',
+    'REVERSAL',
+    'REINSTATEMENT',
+];
+
+/**
+ * The settlements that add back to what an invoice owes rather than take off
+ * it; an adapter that sums settlements in SQL passes it as a parameter, so the
+ * sign is decided here alone.
+ */
+export const REOPENING_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = ['REVERSAL'];
 
 export const SUBSCRIBER_CREDIT_ENTRY_KINDS: readonly SubscriberCreditEntryKind[] = [
     'REFUND',
     'REFUND_FAILED',
     'PAYOUT',
+    'REVERSAL',
+    'REVERSAL_TAKEN_BACK',
 ];
+
+/** The credit entries a refund writes, which name it. */
+const REFUND_ENTRY_KINDS: ReadonlySet<SubscriberCreditEntryKind> = new Set([
+    'REFUND',
+    'REFUND_FAILED',
+]);
+
+/** The credit entries a reversal writes, which name it. */
+const REVERSAL_ENTRY_KINDS: ReadonlySet<SubscriberCreditEntryKind> = new Set([
+    'REVERSAL',
+    'REVERSAL_TAKEN_BACK',
+]);
 
 export const SUBSCRIBER_REFUND_STATUSES: readonly SubscriberRefundStatus[] = [
     'PENDING',
@@ -114,13 +148,19 @@ export interface CanonicalInvoiceSettlementRow {
 }
 
 /**
- * The amount a settlement row takes off what its invoice owes. Its kind is
- * checked, so a kind a later release writes stops the read rather than being
- * counted as a payment.
+ * The amount a settlement row takes off what its invoice owes: positive for a
+ * payment and a reinstatement, negative for a reversal, which opens the invoice
+ * again. Its kind is checked, so a kind a later release writes stops the read
+ * rather than being counted as a payment.
  */
 export function settledAmountOf(row: CanonicalInvoiceSettlementRow): number {
-    oneOf(INVOICE_SETTLEMENT_KINDS, row.kind, { table: SETTLEMENTS, column: 'kind', id: row.id });
-    return columnAmountOf(row.amount, { table: SETTLEMENTS, column: 'amount', id: row.id });
+    const kind = oneOf(INVOICE_SETTLEMENT_KINDS, row.kind, {
+        table: SETTLEMENTS,
+        column: 'kind',
+        id: row.id,
+    });
+    const amount = columnAmountOf(row.amount, { table: SETTLEMENTS, column: 'amount', id: row.id });
+    return REOPENING_SETTLEMENT_KINDS.includes(kind) ? -amount : amount;
 }
 
 /** A `subscriber_credits` row as either adapter reads it back. */
@@ -132,13 +172,14 @@ export interface CanonicalSubscriberCreditRow {
     currency: string;
     originPaymentId: string | null;
     originInvoiceId: string | null;
+    originReversalId: string | null;
     createdAt: Date;
 }
 
 /**
- * Reads a credit back. It comes from exactly one place — a payment or an
- * invoice — which the database holds as well; a row that names both or neither
- * cannot be paid out against anything.
+ * Reads a credit back. It comes from exactly one place — a payment, an invoice
+ * or a reversal given back — which the database holds as well; a row that
+ * names several or none cannot be paid out against anything.
  */
 export function toSubscriberCreditRecord(
     row: CanonicalSubscriberCreditRow,
@@ -155,16 +196,21 @@ export function toSubscriberCreditRecord(
 }
 
 function creditOriginOf(row: CanonicalSubscriberCreditRow): SubscriberCreditOrigin {
-    const { originPaymentId, originInvoiceId } = row;
-    if (originPaymentId !== null && originInvoiceId === null) {
-        return { kind: 'payment', paymentId: originPaymentId };
+    const origins: SubscriberCreditOrigin[] = [];
+    if (row.originPaymentId !== null) {
+        origins.push({ kind: 'payment', paymentId: row.originPaymentId });
     }
-    if (originInvoiceId !== null && originPaymentId === null) {
-        return { kind: 'invoice', invoiceId: originInvoiceId };
+    if (row.originInvoiceId !== null) {
+        origins.push({ kind: 'invoice', invoiceId: row.originInvoiceId });
     }
+    if (row.originReversalId !== null) {
+        origins.push({ kind: 'reversal', reversalId: row.originReversalId });
+    }
+    const [origin] = origins;
+    if (origin && origins.length === 1) return origin;
     throw new Error(
-        `${CREDITS} row '${row.id}' names ${originPaymentId === null ? 'neither' : 'both'} ` +
-            'a payment and an invoice it comes from; a credit comes from exactly one.',
+        `${CREDITS} row '${row.id}' names ${origins.length === 0 ? 'none' : String(origins.length)} ` +
+            'of a payment, an invoice and a reversal it comes from; a credit comes from exactly one.',
     );
 }
 
@@ -175,6 +221,7 @@ export interface CanonicalSubscriberCreditEntryRow {
     kind: string;
     amount: unknown;
     refundId: string | null;
+    reversalId: string | null;
     reference: string | null;
     /** A `date` column: a `Date` from Prisma, the text from Drizzle. */
     paidOn: unknown;
@@ -190,11 +237,18 @@ export function toSubscriberCreditEntryRecord(
     const kind = oneOf(SUBSCRIBER_CREDIT_ENTRY_KINDS, row.kind, where('kind'));
     const paidOn =
         row.paidOn === null || row.paidOn === undefined ? null : dayOf(row.paidOn, where('paidOn'));
-    if ((kind === 'PAYOUT') !== (row.refundId === null)) {
+    if (REFUND_ENTRY_KINDS.has(kind) !== (row.refundId !== null)) {
         throw new Error(
             `${CREDIT_ENTRIES} row '${row.id}' is a ${kind} ` +
-                `${row.refundId === null ? 'without' : 'with'} a refund; a payout names none, ` +
-                'and the entries of a refund name it.',
+                `${row.refundId === null ? 'without' : 'with'} a refund; the entries of a refund ` +
+                'name it, and no other entry does.',
+        );
+    }
+    if (REVERSAL_ENTRY_KINDS.has(kind) !== (row.reversalId !== null)) {
+        throw new Error(
+            `${CREDIT_ENTRIES} row '${row.id}' is a ${kind} ` +
+                `${row.reversalId === null ? 'without' : 'with'} a reversal; the entries of a ` +
+                'reversal name it, and no other entry does.',
         );
     }
     return {
@@ -203,6 +257,7 @@ export function toSubscriberCreditEntryRecord(
         kind,
         amount: columnAmountOf(row.amount, where('amount')),
         refundId: row.refundId,
+        reversalId: row.reversalId,
         reference: row.reference,
         paidOn,
         recordedBy: row.recordedBy,
@@ -230,6 +285,7 @@ export function refundEntryColumns(
         kind,
         amount: toDecimalString(amount),
         refundId: refund.id,
+        reversalId: null,
         reference: refund.gatewayRef,
         paidOn: null,
         recordedBy: null,
@@ -251,6 +307,7 @@ export function payoutEntryColumns(payout: NewSubscriberPayout): Omit<
         kind: 'PAYOUT',
         amount: toDecimalString(payout.amount),
         refundId: null,
+        reversalId: null,
         reference: payout.reference,
         paidOn: payout.paidOn,
         recordedBy: payout.recordedBy,
@@ -313,5 +370,118 @@ export function subscriberRefundColumns(
         status: refund.status,
         recordedAt: refund.at,
         endedAt: isEndedRefund(refund.status) ? refund.at : null,
+    };
+}
+
+/**
+ * The columns of an entry a reversal writes against one credit: what it takes
+ * of it, or gives back, carrying the reversal's own reference at the gateway.
+ */
+export function reversalEntryColumns(
+    creditId: string,
+    reversal: { id: string; gatewayRef: string },
+    kind: 'REVERSAL' | 'REVERSAL_TAKEN_BACK',
+    amount: number,
+    at: Date,
+): Omit<CanonicalSubscriberCreditEntryRow, 'id' | 'amount' | 'paidOn'> & {
+    amount: string;
+    paidOn: null;
+} {
+    return {
+        creditId,
+        kind,
+        amount: toDecimalString(amount),
+        refundId: null,
+        reversalId: reversal.id,
+        reference: reversal.gatewayRef,
+        paidOn: null,
+        recordedBy: null,
+        note: null,
+        recordedAt: at,
+    };
+}
+
+/** A `subscriber_reversals` row as either adapter reads it back. */
+export interface CanonicalSubscriberReversalRow {
+    id: string;
+    subscriberId: string;
+    tenantId: string;
+    paymentId: string;
+    gatewayAccount: string;
+    gatewayRef: string;
+    amount: unknown;
+    currency: string;
+    fromCredit: unknown;
+    reinstated: unknown;
+    recordedAt: Date;
+    reinstatedAt: Date | null;
+}
+
+/**
+ * Reads a reversal back. What it took from the credit and what the gateway
+ * gave back are parts of what it withdrew, and a give-back carries when; a row
+ * that says otherwise stops the read.
+ */
+export function toSubscriberReversalRecord(
+    row: CanonicalSubscriberReversalRow,
+): SubscriberReversalRecord {
+    const where = (column: string) => ({ table: REVERSALS, column, id: row.id });
+    const amount = columnAmountOf(row.amount, where('amount'));
+    const fromCredit = columnAmountOf(row.fromCredit, where('fromCredit'));
+    const reinstated = columnAmountOf(row.reinstated, where('reinstated'));
+    const within = (part: number) => part >= 0 && toCents(part) <= toCents(amount);
+    if (!within(fromCredit) || !within(reinstated)) {
+        throw new Error(
+            `${REVERSALS} row '${row.id}' takes ${fromCredit} from the credit and is given back ` +
+                `${reinstated} of the ${amount} it withdrew; each is a part of it.`,
+        );
+    }
+    if (reinstated > 0 !== (row.reinstatedAt !== null)) {
+        throw new Error(
+            `${REVERSALS}.reinstatedAt of ${row.id} does not fit what was given back of it: ` +
+                'a reversal given something back carries when, and one given nothing does not.',
+        );
+    }
+    return {
+        id: row.id,
+        subscriberId: row.subscriberId,
+        tenantId: row.tenantId,
+        paymentId: row.paymentId,
+        gatewayAccount: row.gatewayAccount,
+        gatewayRef: row.gatewayRef,
+        amount,
+        currency: row.currency,
+        fromCredit,
+        reinstated,
+        recordedAt: row.recordedAt,
+        reinstatedAt: row.reinstatedAt,
+    };
+}
+
+/**
+ * The columns a reversal is first written with, against the payment it takes
+ * back: nothing withdrawn or given back yet, which the entries it writes next
+ * raise.
+ */
+export function subscriberReversalColumns(
+    reversal: ReportedSubscriberReversal,
+    payment: { id: string; subscriberId: string; tenantId: string },
+): Omit<CanonicalSubscriberReversalRow, 'id' | 'amount' | 'fromCredit' | 'reinstated'> & {
+    amount: string;
+    fromCredit: string;
+    reinstated: string;
+} {
+    return {
+        subscriberId: payment.subscriberId,
+        tenantId: payment.tenantId,
+        paymentId: payment.id,
+        gatewayAccount: reversal.gatewayAccount,
+        gatewayRef: reversal.gatewayRef,
+        amount: toDecimalString(0),
+        currency: reversal.currency,
+        fromCredit: toDecimalString(0),
+        reinstated: toDecimalString(0),
+        recordedAt: reversal.at,
+        reinstatedAt: null,
     };
 }

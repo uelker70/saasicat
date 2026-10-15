@@ -914,7 +914,8 @@ describe('every contract names the subscriber it is concluded with', () => {
         // Payment methods, the charge journal, the tax origin and the invoices
         // came later still, and point at the subscribers.
         await client.query(
-            'DROP TABLE "subscriber_credit_entries", "subscriber_refunds", "subscriber_credits", ' +
+            'DROP TABLE "subscriber_reconciliation_cases", "subscriber_credit_entries", ' +
+                '"subscriber_refunds", "subscriber_credits", "subscriber_reversals", ' +
                 '"subscription_invoice_settlements", "subscriber_payments", ' +
                 '"subscription_invoice_collections", "subscription_invoice_archive", ' +
                 '"subscription_invoice_documents", ' +
@@ -2559,7 +2560,8 @@ describe('an invoice is collected through its payment gateway', () => {
     async function beforeTheMigration() {
         await freshGround();
         await client.query(
-            'DROP TABLE "subscriber_credit_entries", "subscriber_refunds", "subscriber_credits", ' +
+            'DROP TABLE "subscriber_reconciliation_cases", "subscriber_credit_entries", ' +
+                '"subscriber_refunds", "subscriber_credits", "subscriber_reversals", ' +
                 '"subscription_invoice_settlements", "subscriber_payments"',
         );
         await client.query('DROP TABLE "subscription_invoice_collections"');
@@ -2727,18 +2729,20 @@ describe('an invoice is collected through its payment gateway', () => {
 
 describe('a payment is recorded, and a credit paid out', () => {
     // The migration creates the payments, what they settle, the credits and
-    // what pays them out. The second-run suite runs it on the reference
-    // schema, where the tables are already there; these start from the schema
-    // as it stood before.
+    // what pays them out, the reversals and the cases to reconcile. The
+    // second-run suite runs it on the reference schema, where the tables are
+    // already there; these start from the schema as it stood before.
 
     const MIGRATION = '1.0-a-payment-is-recorded.postgres.sql';
 
     /** The tables it creates, each before the ones it points at. */
     const TABLES = [
+        'subscriber_reconciliation_cases',
         'subscriber_credit_entries',
         'subscriber_refunds',
         'subscriber_credits',
         'subscription_invoice_settlements',
+        'subscriber_reversals',
         'subscriber_payments',
     ];
 
@@ -2746,6 +2750,21 @@ describe('a payment is recorded, and a credit paid out', () => {
     async function beforeTheMigration() {
         await freshGround();
         for (const table of TABLES) await client.query(`DROP TABLE "${table}"`);
+    }
+
+    /**
+     * The reference schema as an earlier version of the migration left it:
+     * the five tables of payments without what names a reversal.
+     */
+    async function asTheFirstVersionLeftIt() {
+        await freshGround();
+        await client.query('DROP TABLE "subscriber_reconciliation_cases"');
+        await client.query(
+            'ALTER TABLE "subscription_invoice_settlements" DROP COLUMN "reversalId"',
+        );
+        await client.query('ALTER TABLE "subscriber_credits" DROP COLUMN "originReversalId"');
+        await client.query('ALTER TABLE "subscriber_credit_entries" DROP COLUMN "reversalId"');
+        await client.query('DROP TABLE "subscriber_reversals"');
     }
 
     /** A payment of an invoice's first attempt, under `account` and `ref`. */
@@ -2809,7 +2828,42 @@ describe('a payment is recorded, and a credit paid out', () => {
             "SELECT count(*)::int AS keys FROM pg_constraint WHERE contype = 'f' " +
                 `AND conrelid::regclass::text IN (${TABLES.map((table) => `'${table}'`).join(', ')})`,
         );
-        assert.deepEqual(rows, [{ keys: 12 }], 'the foreign keys of the five tables');
+        assert.deepEqual(rows, [{ keys: 21 }], 'the foreign keys of the seven tables');
+    });
+
+    // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
+    test('a database the first version of it left gains the reversals and the cases, twice', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await asTheFirstVersionLeftIt();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+        assert.equal(await fingerprint(client), reference);
+        await apply(MIGRATION);
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
+    test('a reversal is taken once under its gateway account and reference', async () => {
+        await beforeTheMigration();
+        await apply(MIGRATION);
+        await anInvoiceWithAnAttempt();
+        await aPayment('p-1', 'stripe-main', 'pi_1');
+        const reversal = (id, account) =>
+            client.query(
+                'INSERT INTO "subscriber_reversals" ("id", "subscriberId", "tenantId", "paymentId", ' +
+                    '"gatewayAccount", "gatewayRef", "amount", "currency", "fromCredit", "reinstated") ' +
+                    `VALUES ('${id}', 's-1', 't-1', 'p-1', '${account}', 'du_1', 58.31, 'EUR', 0, 0)`,
+            );
+
+        await reversal('r-1', 'stripe-main');
+        await assert.rejects(reversal('r-2', 'stripe-main'), { code: '23505' });
+        await reversal('r-3', 'stripe-eu');
     });
 
     // @requirement SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it

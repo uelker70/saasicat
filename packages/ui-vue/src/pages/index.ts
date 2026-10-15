@@ -38,6 +38,7 @@ export const adminPages = {
     DiscoveryPage: () => import('./DiscoveryPage.vue'),
     EmailHistoryPage: () => import('./EmailHistoryPage.vue'),
     FeatureWithdrawalsPage: () => import('./FeatureWithdrawalsPage.vue'),
+    ReconciliationPage: () => import('./ReconciliationPage.vue'),
     MaintenancePage: () => import('./MaintenancePage.vue'),
     MarketingCatalogPage: () => import('./MarketingCatalogPage.vue'),
     PilotsPage: () => import('./PilotsPage.vue'),
@@ -102,6 +103,7 @@ export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
     { path: 'settings', page: 'SettingsPage' },
     { path: 'maintenance', page: 'MaintenancePage' },
     { path: 'feature-withdrawals', page: 'FeatureWithdrawalsPage' },
+    { path: 'reconciliation', page: 'ReconciliationPage' },
 ];
 
 /**

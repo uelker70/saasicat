@@ -109,6 +109,16 @@
                     :pay-out="credits.payOut"
                 />
 
+                <!-- Its invoices with what each owes, and what is open to reconcile -->
+                <TenantPayments
+                    v-if="payments.available.value"
+                    :payments="payments.data.value"
+                    :pending="payments.pending.value"
+                    :error="payments.error.value"
+                    :retry="payments.reload"
+                    :format-date="formatDateResolved"
+                />
+
                 <slot name="extra-cards" :data="data" :reload="load" />
             </template>
         </AdminBody>
@@ -150,6 +160,7 @@ import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
 import TenantCredits from '../internal/tenant-detail/TenantCredits.vue';
+import TenantPayments from '../internal/tenant-detail/TenantPayments.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantSubscriber from '../internal/tenant-detail/TenantSubscriber.vue';
 import TenantSubscriberHistory from '../internal/tenant-detail/TenantSubscriberHistory.vue';
@@ -161,6 +172,7 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantAccount } from '../vue/use-tenant-account.js';
 import { useTenantCredits } from '../vue/use-tenant-credits.js';
+import { useTenantPayments } from '../vue/use-tenant-payments.js';
 import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
@@ -303,6 +315,9 @@ const corrections = useSubscriberCorrections(tenantSlug, servedBy, tenants, {
 
 // The subscriber's credits, and a payout behind the same second-factor dialog.
 const credits = useTenantCredits(tenantSlug, servedBy, tenants, { notify, mfa });
+
+// Its invoices with what each still owes, and its cases open to reconcile.
+const payments = useTenantPayments(tenantSlug, servedBy, tenants);
 
 function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<string | null> {
     return mfa.prompt(

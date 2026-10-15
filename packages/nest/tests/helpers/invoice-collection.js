@@ -9,6 +9,8 @@ import { afterEach, beforeEach, mock } from 'node:test';
 import { Logger } from '@nestjs/common';
 import {
     COLLECTION_NOT_SENT_PAID,
+    FOLLOWED_UP_COLLECTION_STATUSES,
+    REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionAttemptKey,
     collectionOutcomeColumns,
@@ -205,7 +207,11 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         async listToFollowUp(page) {
             return pageOf(
                 attempts
-                    .filter((each) => each.status === 'FAILED' && each.followedUpAt === null)
+                    .filter(
+                        (each) =>
+                            FOLLOWED_UP_COLLECTION_STATUSES.includes(each.status) &&
+                            each.followedUpAt === null,
+                    )
                     .map((each) => each.id),
                 page,
             );
@@ -222,8 +228,15 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
                     last !== undefined &&
                     inUse !== undefined &&
                     (last.status === 'WITHDRAWN' ||
-                        (last.status === 'FAILED' && last.followedUpAt !== null)) &&
+                        (FOLLOWED_UP_COLLECTION_STATUSES.includes(last.status) &&
+                            last.followedUpAt !== null)) &&
                     inUse.id !== last.paymentMethodId &&
+                    !attempts.some(
+                        (each) =>
+                            each.invoiceId === invoice.id &&
+                            each.status === 'REVERSED' &&
+                            (each.followedUpAt === null || each.paymentMethodId === inUse.id),
+                    ) &&
                     owes(invoice.id)
                 );
             });
@@ -234,8 +247,19 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         },
         async markFollowedUp(id, at) {
             const attempt = attempts.find((each) => each.id === id);
-            if (attempt?.status !== 'FAILED' || attempt.followedUpAt !== null) return false;
+            if (
+                !FOLLOWED_UP_COLLECTION_STATUSES.includes(attempt?.status) ||
+                attempt.followedUpAt !== null
+            ) {
+                return false;
+            }
             attempt.followedUpAt = at;
+            return true;
+        },
+        async markReversed(id, at) {
+            const attempt = attempts.find((each) => each.id === id);
+            if (!attempt || !REVERSIBLE_COLLECTION_STATUSES.includes(attempt.status)) return false;
+            Object.assign(attempt, { status: 'REVERSED', resolvedAt: at, followedUpAt: null });
             return true;
         },
         async recordOutcome(id, outcome, at) {

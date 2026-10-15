@@ -78,7 +78,7 @@ export const tenantsMessages = defineMessages(
         credits: {
             title: 'Guthaben',
             subtitle:
-                'Was dem Kunden zusteht: eine Zahlung über die Rechnung hinaus oder eine Rechnung unter null. Es wird nie mit einer späteren Rechnung verrechnet, sondern erstattet oder ausgezahlt.',
+                'Was dem Kunden zusteht: eine Zahlung über die Rechnung hinaus, eine Rechnung unter null oder eine zurückgegebene Rückbuchung. Es wird nie mit einer späteren Rechnung verrechnet, sondern erstattet oder ausgezahlt.',
             empty: 'Kein Guthaben.',
             loadFailed: 'Die Guthaben konnten nicht geladen werden.',
             columnCreated: 'Entstanden am',
@@ -88,6 +88,7 @@ export const tenantsMessages = defineMessages(
             columnOpen: 'Offen',
             fromPayment: 'Zahlung {paymentRef} zu {invoiceNumber}',
             fromInvoice: 'Rechnung {invoiceNumber}',
+            fromReversal: 'Zurückgegebene Rückbuchung {reversalRef} zu {invoiceNumber}',
             unknownInvoice: 'unbekannte Rechnung',
             payOut: 'Auszahlung erfassen',
             mfaPayout: 'Auszahlung erfassen. TOTP-Code eingeben.',
@@ -104,6 +105,21 @@ export const tenantsMessages = defineMessages(
                 note: 'Notiz',
                 submit: 'Auszahlung erfassen',
             },
+        },
+        payments: {
+            title: 'Zahlungen',
+            subtitle:
+                'Die Rechnungen des Kunden mit dem, was jede noch schuldet, und was abzugleichen ist: eine Erstattung oder Rückbuchung, zu der kein Guthaben passt.',
+            loadFailed: 'Die Zahlungen konnten nicht geladen werden.',
+            invoicesTitle: 'Rechnungen',
+            invoicesEmpty: 'Keine Rechnung.',
+            columnNumber: 'Nummer',
+            columnIssued: 'Ausgestellt am',
+            columnDue: 'Fällig am',
+            columnTotal: 'Betrag',
+            columnOwed: 'Offen',
+            casesTitle: 'Offene Fälle',
+            casesEmpty: 'Nichts abzugleichen.',
         },
         subscriber: {
             title: 'Vertragspartner',
@@ -271,7 +287,7 @@ export const tenantsMessages = defineMessages(
         credits: {
             title: 'Credit',
             subtitle:
-                'What the customer is owed: a payment beyond its invoice, or an invoice below zero. It is never offset against a later invoice; it is refunded or paid out.',
+                'What the customer is owed: a payment beyond its invoice, an invoice below zero, or a reversal given back. It is never offset against a later invoice; it is refunded or paid out.',
             empty: 'No credit.',
             loadFailed: 'The credits could not be loaded.',
             columnCreated: 'Arose on',
@@ -281,6 +297,7 @@ export const tenantsMessages = defineMessages(
             columnOpen: 'Open',
             fromPayment: 'Payment {paymentRef} for {invoiceNumber}',
             fromInvoice: 'Invoice {invoiceNumber}',
+            fromReversal: 'Reversal {reversalRef} given back, for {invoiceNumber}',
             unknownInvoice: 'unknown invoice',
             payOut: 'Record payout',
             mfaPayout: 'Record a payout. Enter the TOTP code.',
@@ -297,6 +314,21 @@ export const tenantsMessages = defineMessages(
                 note: 'Note',
                 submit: 'Record payout',
             },
+        },
+        payments: {
+            title: 'Payments',
+            subtitle:
+                "The customer's invoices with what each still owes, and what is to reconcile: a refund or a reversal no credit matches.",
+            loadFailed: 'The payments could not be loaded.',
+            invoicesTitle: 'Invoices',
+            invoicesEmpty: 'No invoice.',
+            columnNumber: 'Number',
+            columnIssued: 'Issued on',
+            columnDue: 'Due on',
+            columnTotal: 'Amount',
+            columnOwed: 'Open',
+            casesTitle: 'Open cases',
+            casesEmpty: 'Nothing to reconcile.',
         },
         subscriber: {
             title: 'Subscriber',

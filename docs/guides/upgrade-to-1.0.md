@@ -2120,6 +2120,61 @@ gateway or a transfer recorded on the tenant's page (`SC-PRIC-083`).
   `SUBSCRIBER_REFUND_RECORDED`, `SUBSCRIBER_REFUND_GIVEN_BACK`, `SUBSCRIBER_REFUND_UNMATCHED`,
   `SUBSCRIBER_CREDIT_PAID_OUT` and `SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED`.
 
+### A reversal is recorded, and what matched nothing reconciled
+
+Where payments are [recorded](#a-payment-is-recorded-and-a-credit-paid-out): a direct debit the
+bank returned and a chargeback are recorded as reversals that take back what the payment brought,
+the credit it left first and then what it settled of its invoice (`SC-PRIC-084`); the subscriber
+is told, and the invoice is collected again only with another payment method (`SC-PRIC-085`); a
+dispute won takes its reversal back, and what was paid meanwhile becomes a credit (`SC-PRIC-086`).
+What the gateway reports and no credit matches is a case the operator closes with a note
+(`SC-ADM-033`).
+
+1. Take fragment 24 as it ships now — two more models, `SubscriberReversal` and
+   `SubscriberReconciliationCase`, and the columns that name a reversal on the settlements, the
+   credit entries and the credits — with the two back-relations fragment 13 names on
+   `Subscriber`. Where you leave the payments out with `notAdopted`, leave the two new models out
+   with them.
+2. Run `1.0-a-payment-is-recorded.postgres.sql` once more where its earlier version ran: it
+   creates the two tables and adds the three columns, and does nothing on a further run.
+3. Subscribe the gateway's webhook to the disputes as well — for Stripe, `charge.dispute.created`,
+   `.updated`, `.closed`, `.funds_withdrawn` and `.funds_reinstated`, as
+   [its README](../../packages/payment-stripe/README.md) lists them. A restricted Stripe key needs
+   disputes (read) beside what it had.
+4. Your `InvoiceMailPort.tell` sends a `CollectionReversedNotice` (`kind: 'collection-reversed'`)
+   beside the two notices it sent: the invoice open again, what it owes, and whether it is
+   collected with the payment method now in use or the subscriber is asked to replace it.
+5. Grant the operators who reconcile `reconciliation.read` and `reconciliation.close`, and
+   `payments.read` for a tenant's invoices with what each owes; closing a case asks for the second
+   factor. The administration gains a standard page, `reconciliation`.
+6. The start refuses while a credit not paid out is held at a gateway account
+   `config/saas.yaml` no longer names (`SC-PRIC-030`): list the account again until its credits
+   are paid out.
+
+- **A gateway of your own** reports reversals through `readCallback` as `reversal-reported`, with
+  what the reversal withdrew and what was given back of it, each in total so far, in cents.
+- **A `SubscriberPaymentRepository` of your own** implements `recordReversal` — taking an open
+  credit another payment for the same invoice left before it opens the invoice (`SC-PRIC-087`),
+  lifting the covers a reversed payment's credit gave first (`SC-PRIC-088`; `withdrawalParts`,
+  `coversOf`, `coversLifted` and `inWithdrawalOrder` in `@saasicat/core`) —, `listCases`,
+  `closeCase`, `owedByInvoices`, `findReversalById` and `accountsHoldingCredits`, opens a case for
+  the part of a refund no credit takes and closes it when the refund fails, and counts a
+  `REVERSAL` settlement against what an invoice owes — `REOPENING_SETTLEMENT_KINDS` and
+  `GIVING_BACK_CREDIT_ENTRY_KINDS` in `@saasicat/core` name the kinds that count the other way.
+- **An `InvoiceCollectionRepository` of your own** implements `markReversed` — from `SUCCEEDED`
+  or `FAILED` (`REVERSIBLE_COLLECTION_STATUSES`), followed up again —, follows up and collects
+  again an attempt in the new status `REVERSED` as it does a failed one, lists no invoice as
+  collectable again while one of its reversed attempts is not followed up or its subscriber's
+  payment method in use is one a reversed attempt was made with, and counts a `REVERSAL`
+  settlement against what an invoice owes in every guard that asks whether it does.
+- **A persistence contract harness** runs the new scenarios with the gap it already declares or
+  wires; empty the two new tables between scenarios with the payments.
+- **An application that words refusals itself** adds `SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND`
+  and `SUBSCRIBER_RECONCILIATION_CASE_CLOSED`. The audit log records
+  `SUBSCRIBER_REVERSAL_RECORDED`, `SUBSCRIBER_REVERSAL_UNMATCHED`, `SUBSCRIBER_REVERSAL_GIVEN_BACK`
+  and `SUBSCRIBER_RECONCILIATION_CASE_CLOSED`, and `SUBSCRIBER_REFUND_UNMATCHED` names the case it
+  opened.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

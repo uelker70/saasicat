@@ -32,6 +32,9 @@ import type {
 } from '@saasicat/core';
 import {
     COLLECTION_NOT_SENT_PAID,
+    FOLLOWED_UP_COLLECTION_STATUSES,
+    REOPENING_SETTLEMENT_KINDS,
+    REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -54,15 +57,23 @@ import {
 /** The invoice's attempts again, beside the one a query lists. */
 const others = alias(subscriptionInvoiceCollections, 'others');
 
+/** The invoice's reversed attempts, beside the one a query lists. */
+const reversed = alias(subscriptionInvoiceCollections, 'reversed');
+
 /**
  * Whether the invoice a query reads still owes something: its total exceeds
  * what is settled against it. Exact in the database's numeric arithmetic.
  */
 const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
-    SELECT SUM(${subscriptionInvoiceSettlements.amount})
+    SELECT SUM(CASE WHEN ${inArray(subscriptionInvoiceSettlements.kind, [...REOPENING_SETTLEMENT_KINDS])}
+                    THEN -${subscriptionInvoiceSettlements.amount}
+                    ELSE ${subscriptionInvoiceSettlements.amount} END)
       FROM ${subscriptionInvoiceSettlements}
      WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
 ), 0)`;
+
+/** The attempts what follows is decided for, as a parameter of the queries below. */
+const FOLLOWED_UP_STATUSES = [...FOLLOWED_UP_COLLECTION_STATUSES];
 
 /** Whether invoice `invoiceId` still owes something, read on `db`. */
 async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
@@ -309,7 +320,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                     page.after === undefined
                         ? undefined
                         : gt(subscriptionInvoiceCollections.id, page.after),
-                    eq(subscriptionInvoiceCollections.status, 'FAILED'),
+                    inArray(subscriptionInvoiceCollections.status, FOLLOWED_UP_STATUSES),
                     isNull(subscriptionInvoiceCollections.followedUpAt),
                 ),
             )
@@ -351,11 +362,26 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                     or(
                         eq(subscriptionInvoiceCollections.status, 'WITHDRAWN'),
                         and(
-                            eq(subscriptionInvoiceCollections.status, 'FAILED'),
+                            inArray(subscriptionInvoiceCollections.status, FOLLOWED_UP_STATUSES),
                             isNotNull(subscriptionInvoiceCollections.followedUpAt),
                         ),
                     ),
                     ne(subscriberPaymentMethods.id, subscriptionInvoiceCollections.paymentMethodId),
+                    notExists(
+                        db
+                            .select({ id: reversed.id })
+                            .from(reversed)
+                            .where(
+                                and(
+                                    eq(reversed.invoiceId, subscriptionInvoices.id),
+                                    eq(reversed.status, 'REVERSED'),
+                                    or(
+                                        isNull(reversed.followedUpAt),
+                                        eq(reversed.paymentMethodId, subscriberPaymentMethods.id),
+                                    ),
+                                ),
+                            ),
+                    ),
                     stillOwes,
                 ),
             )
@@ -371,8 +397,24 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             .where(
                 and(
                     eq(subscriptionInvoiceCollections.id, id),
-                    eq(subscriptionInvoiceCollections.status, 'FAILED'),
+                    inArray(subscriptionInvoiceCollections.status, FOLLOWED_UP_STATUSES),
                     isNull(subscriptionInvoiceCollections.followedUpAt),
+                ),
+            )
+            .returning({ id: subscriptionInvoiceCollections.id });
+        return rows.length === 1;
+    }
+
+    async markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const rows = await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceCollections)
+            .set({ status: 'REVERSED', resolvedAt: at, followedUpAt: null })
+            .where(
+                and(
+                    eq(subscriptionInvoiceCollections.id, id),
+                    inArray(subscriptionInvoiceCollections.status, [
+                        ...REVERSIBLE_COLLECTION_STATUSES,
+                    ]),
                 ),
             )
             .returning({ id: subscriptionInvoiceCollections.id });

@@ -81,6 +81,10 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             // capability is set where the stores can list everybody a
             // withdrawal reaches, which is where the routes are served.
             featureWithdrawals: { enabled: true, requiredCapability: 'features.withdraw' },
+            // What the gateway reported and nothing matched, to reconcile. The
+            // capability is set where what collections bring is recorded,
+            // which is where the routes are served.
+            reconciliation: { enabled: true, requiredCapability: 'reconciliation.read' },
         },
     },
     tenants: {
@@ -251,7 +255,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'SUBSCRIBER_CREDIT_RECORDED',
-                label: 'Credit recorded: a payment beyond its invoice, or an invoice below zero',
+                label: 'Credit recorded: a payment beyond its invoice, an invoice below zero, or a reversal given back beyond what was owed',
                 severity: 'medium',
             },
             {
@@ -272,6 +276,26 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             {
                 key: 'SUBSCRIBER_CREDIT_PAID_OUT',
                 label: 'Credit paid out outside the gateway, recorded with its reference',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIBER_REVERSAL_RECORDED',
+                label: 'Payment taken back by a returned direct debit or a chargeback: the credit first, then the invoice open again',
+                severity: 'high',
+            },
+            {
+                key: 'SUBSCRIBER_REVERSAL_UNMATCHED',
+                label: 'Reversal meets a credit already paid out, or goes beyond the payment, to reconcile',
+                severity: 'high',
+            },
+            {
+                key: 'SUBSCRIBER_REVERSAL_GIVEN_BACK',
+                label: 'Reversal given back by the gateway, a dispute won: what it took is owed and settled again',
+                severity: 'medium',
+            },
+            {
+                key: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED',
+                label: 'Case to reconcile closed with a note, by the operator or because the money came back',
                 severity: 'medium',
             },
             {

@@ -144,7 +144,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-026`,
 `SC-AUD-012`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
 while a credit is still to be refunded, and until the latest end of the reversal period among all
-its payments (`SC-PRIC-031`); until then the contact data and the gateway reference needed to
+its payments (`SC-PRIC-084`); until then the contact data and the gateway reference needed to
 collect or refund stay. How long a payment can be reversed depends on how it was made and is not
 something SaaSiCat can observe, so the installation names that period in `config/saas.yaml`,
 counted from each payment. Each payment keeps the end of its period as the setting stood when the

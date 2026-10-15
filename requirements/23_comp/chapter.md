@@ -677,6 +677,22 @@ _Source:_ ADR 0007
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - of a payment this installation does not hold, holds and writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+        - is found by its id, and none by another
+    - the cases to reconcile
+        - the open ones are read the oldest first, a page at a time, for one subscriber where named
+        - the closed ones are read without a cursor in one statement
+        - one is closed only where it is still open, and one closed before or unknown is answered as
+          such
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
     - schema table map
         - table names match the canonical @@map names
@@ -686,6 +702,32 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
     - PrismaMfaAdapter
         - secret roundtrip incl. enabledAt handling
@@ -765,7 +807,7 @@ _Tested by:_
         - nothing is written for an invoice that owes nothing, started, planned or sent
     - reading
         - the invoices due and the invoices another payment method can collect are raw queries
-        - the failed attempts not followed up are listed by id
+        - the failed and the reversed attempts not followed up are listed by id
         - the planned and the unsettled attempts are listed by id, page by page
         - an attempt, an invoice’s attempts and the accounts in use read back as records
 - `packages/adapter-prisma/tests/prisma-invoice-document.test.js`

@@ -188,6 +188,17 @@ export {
     type SubscriberCreditModuleOptions,
 } from './invoices/subscriber-credit.module.js';
 export {
+    RECONCILIATION_PAGE_SIZE,
+    SubscriberReconciliationService,
+    type ClosedCase,
+} from './invoices/subscriber-reconciliation.service.js';
+export {
+    CloseReconciliationCaseDto,
+    ReconciliationListQuery,
+    SubscriberReconciliationModule,
+    type SubscriberReconciliationModuleOptions,
+} from './invoices/subscriber-reconciliation.module.js';
+export {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,
     INVOICE_RENDERER_TOKEN,

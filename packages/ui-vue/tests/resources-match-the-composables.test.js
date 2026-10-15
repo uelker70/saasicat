@@ -27,6 +27,7 @@ import {
     createAdminResourceClient,
     discoveryResource,
     featureWithdrawalsResource,
+    reconciliationResource,
     emailHistoryResource,
     maintenanceResource,
     marketingResource,
@@ -774,17 +775,20 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     bundleVersionRetirements: Object.keys(bundleVersionRetirementsResource.ops),
     // And for withdrawing a feature: `tests/feature-withdrawals-resource.test.js`.
     featureWithdrawals: Object.keys(featureWithdrawalsResource.ops),
+    // And for the cases to reconcile: `tests/reconciliation.test.js`.
+    reconciliation: Object.keys(reconciliationResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    // `charges`, the credits and the subscriber's operations are
-    // platform-served with no admin-client twin, like the settings: their
+    // `charges`, the credits, the payments and the subscriber's operations
+    // are platform-served with no admin-client twin, like the settings: their
     // requests are pinned in `tests/tenant-charges-resource.test.js`,
-    // `tests/tenant-credits-resource.test.js` and
-    // `tests/tenant-subscriber-resource.test.js`.
+    // `tests/tenant-credits-resource.test.js`, `tests/reconciliation.test.js`
+    // and `tests/tenant-subscriber-resource.test.js`.
     tenants: [
         LIST_OP,
         'charges',
         'credits',
+        'payments',
         'recordPayout',
         'subscriber',
         'subscriberAttention',

@@ -1,8 +1,10 @@
 // What money moved between a subscriber and the operator, as the gateway
 // reports it: a payment collected for an invoice and what it settles there, a
-// credit where the subscriber is owed money, and what pays a credit out — a
-// refund the operator makes in the gateway, or a payout outside it
-// (`SC-PRIC-029`, `SC-PRIC-031`, `SC-PRIC-083`).
+// credit where the subscriber is owed money, what pays a credit out — a refund
+// the operator makes in the gateway, or a payout outside it —, and what the
+// gateway takes back from the operator — a returned direct debit or a
+// chargeback — and gives back again (`SC-PRIC-029`, `SC-PRIC-083`,
+// `SC-PRIC-084`, `SC-PRIC-086`).
 //
 // Nothing here is edited once written. A payment is recorded once, by its
 // gateway account and the gateway's reference, however often and in whatever
@@ -11,6 +13,7 @@
 // one. A credit is never offset against a later invoice: the operator pays it
 // out, and SaaSiCat initiates nothing (ADR 0012, `SC-PRIC-076`).
 
+import type { SubscriberReconciliationCaseRecord } from './subscriber-reconciliation.types.js';
 import type { CalendarDay } from './zoned-day.js';
 
 /** A payment the gateway confirmed for an invoice, as a store reads it back. */
@@ -60,7 +63,12 @@ export type SubscriberCreditOrigin =
     /** What a payment brought beyond what its invoice still owed. */
     | { kind: 'payment'; paymentId: string }
     /** An invoice whose total is negative: the subscriber is owed its amount. */
-    | { kind: 'invoice'; invoiceId: string };
+    | { kind: 'invoice'; invoiceId: string }
+    /**
+     * What a reversal the gateway gave back brought beyond what the invoices
+     * it had opened again still owed: the subscriber paid them meanwhile.
+     */
+    | { kind: 'reversal'; reversalId: string };
 
 /** Money the operator owes a subscriber, as a store reads it back. */
 export interface SubscriberCreditRecord {
@@ -77,10 +85,12 @@ export interface SubscriberCreditRecord {
 
 /**
  * What changed how much of a credit is paid out: a refund the gateway reported
- * against it, the same refund given back because it failed, or a payout the
- * operator recorded.
+ * against it, the same refund given back because it failed, a payout the
+ * operator recorded, a reversal that took the credit's open part back to the
+ * subscriber's bank, and the same reversal given back by the gateway.
  */
-export type SubscriberCreditEntryKind = 'REFUND' | 'REFUND_FAILED' | 'PAYOUT';
+export type SubscriberCreditEntryKind =
+    'REFUND' | 'REFUND_FAILED' | 'PAYOUT' | 'REVERSAL' | 'REVERSAL_TAKEN_BACK';
 
 /** One change to what a credit has paid out, as a store reads it back. */
 export interface SubscriberCreditEntryRecord {
@@ -88,15 +98,17 @@ export interface SubscriberCreditEntryRecord {
     creditId: string;
     kind: SubscriberCreditEntryKind;
     /**
-     * Positive. A `REFUND` and a `PAYOUT` pay this much of the credit out; a
-     * `REFUND_FAILED` gives it back.
+     * Positive. A `REFUND`, a `PAYOUT` and a `REVERSAL` pay this much of the
+     * credit out; a `REFUND_FAILED` and a `REVERSAL_TAKEN_BACK` give it back.
      */
     amount: number;
-    /** The refund, for a `REFUND` and its `REFUND_FAILED`; `null` for a `PAYOUT`. */
+    /** The refund, for a `REFUND` and its `REFUND_FAILED`; `null` otherwise. */
     refundId: string | null;
+    /** The reversal, for a `REVERSAL` and its `REVERSAL_TAKEN_BACK`; `null` otherwise. */
+    reversalId: string | null;
     /**
-     * Where the operator finds it: the refund's reference at the gateway, or
-     * the payout's, such as the transfer's.
+     * Where the operator finds it: the refund's or the reversal's reference
+     * at the gateway, or the payout's, such as the transfer's.
      */
     reference: string | null;
     /** The day the payout left; `null` for a refund's entries. */
@@ -155,15 +167,27 @@ export interface ReportedSubscriberRefund {
 export type RecordedSubscriberRefund =
     /** No payment of this installation's is under its reference. */
     | { outcome: 'unknown-payment' }
-    /** Recorded for the first time: the credits it pays out, and the part that matches none. */
+    /**
+     * Recorded for the first time: the credits it pays out, and the part that
+     * matches none, which is a case to reconcile.
+     */
     | {
           outcome: 'recorded';
           refund: SubscriberRefundRecord;
           parts: CreditPart[];
           unmatched: number;
+          case: SubscriberReconciliationCaseRecord | null;
       }
-    /** Recorded before; it failed or was canceled now, and gave back what it paid out. */
-    | { outcome: 'given-back'; refund: SubscriberRefundRecord; parts: CreditPart[] }
+    /**
+     * Recorded before; it failed or was canceled now, gave back what it paid
+     * out, and closed the case its unmatched part had opened.
+     */
+    | {
+          outcome: 'given-back';
+          refund: SubscriberRefundRecord;
+          parts: CreditPart[];
+          closedCases: SubscriberReconciliationCaseRecord[];
+      }
     /** Recorded before, and nothing it reports changes what is paid out. */
     | { outcome: 'unchanged'; refund: SubscriberRefundRecord };
 
@@ -172,6 +196,122 @@ export interface CreditPart {
     creditId: string;
     amount: number;
 }
+
+/** The part of an amount that one invoice takes. */
+export interface InvoicePart {
+    invoiceId: string;
+    amount: number;
+}
+
+/**
+ * Money the gateway took back from the operator for a payment — a returned
+ * direct debit or a chargeback — as a store reads it back. What it withdrew and
+ * what the gateway gave back of it only grow; each change is recorded as the
+ * entries it adds.
+ */
+export interface SubscriberReversalRecord {
+    id: string;
+    subscriberId: string;
+    /** The tenant the payment's invoice was for, as a trace. */
+    tenantId: string;
+    /** The payment it takes back. */
+    paymentId: string;
+    gatewayAccount: string;
+    /** The gateway's reference to it, such as a dispute's, unique within its account. */
+    gatewayRef: string;
+    /** What the gateway withdrew, positive, of `currency`. */
+    amount: number;
+    currency: string;
+    /**
+     * The part of `amount` taken from the credit the payment left — its open
+     * part and the part already paid out alike —, so a later reversal of the
+     * same payment takes from what of that credit is left.
+     */
+    fromCredit: number;
+    /** What the gateway gave back of `amount`, a dispute won; `0` until it gives anything back. */
+    reinstated: number;
+    recordedAt: Date;
+    /** When the gateway last gave something back; `null` until it does. */
+    reinstatedAt: Date | null;
+}
+
+/**
+ * A reversal as the gateway reports it, as it stands when it is reported: what
+ * it withdrew and what it gave back so far, each in total.
+ */
+export interface ReportedSubscriberReversal {
+    gatewayAccount: string;
+    gatewayRef: string;
+    /** The gateway's reference to the payment it takes back. */
+    paymentRef: string;
+    currency: string;
+    withdrawn: number;
+    reinstated: number;
+    at: Date;
+}
+
+/** What withdrawing part of a reversal's amount took back. */
+export interface ReversalWithdrawal {
+    /** What it took of the credit the payment left that was still open. */
+    credit: CreditPart | null;
+    /**
+     * What it took instead of opening an invoice again, of the credits other
+     * payments collected for that invoice left, the oldest first.
+     */
+    covering: CreditPart[];
+    /** The invoices it opened again, each by how much, the oldest first. */
+    invoices: InvoicePart[];
+    /**
+     * The covers the payment's own credit gave other reversals of its invoice,
+     * lifted before anything else: each of those reversals now opens the
+     * invoice by what it took (`SC-PRIC-088`).
+     */
+    uncovered: LiftedCover[];
+    /**
+     * What met the part of that credit already paid out, or went beyond what
+     * the payment brought: a case to reconcile.
+     */
+    unmatched: number;
+    case: SubscriberReconciliationCaseRecord | null;
+}
+
+/** A cover lifted: the reversal it was given to, that reversal's payment, and what it opens now. */
+export interface LiftedCover {
+    reversalId: string;
+    paymentId: string;
+    invoiceId: string;
+    amount: number;
+}
+
+/** What giving back part of a reversal's amount took back in turn. */
+export interface ReversalReinstatement {
+    /** The cases of the reversal it covered, closed. */
+    closedCases: SubscriberReconciliationCaseRecord[];
+    /** What it gave back to the credits the reversal had taken from. */
+    credits: CreditPart[];
+    /** The invoices it settled again, each by how much. */
+    invoices: InvoicePart[];
+    /** What the invoices no longer owed, as a credit; `null` where they owed all of it. */
+    credit: SubscriberCreditRecord | null;
+}
+
+/** What recording a reversal did. */
+export type RecordedSubscriberReversal =
+    /** No payment of this installation's is under its reference. */
+    | { outcome: 'unknown-payment' }
+    /**
+     * Recorded, or recorded before and changed now: what the newly withdrawn
+     * part took back, and what the newly given back part gave back, each
+     * `null` where nothing of it changed.
+     */
+    | {
+          outcome: 'recorded';
+          reversal: SubscriberReversalRecord;
+          withdrawal: ReversalWithdrawal | null;
+          reinstatement: ReversalReinstatement | null;
+      }
+    /** Recorded before, and nothing it reports changes it. */
+    | { outcome: 'unchanged'; reversal: SubscriberReversalRecord };
 
 /** A payout the operator made outside the gateway, to record against a credit. */
 export interface NewSubscriberPayout {
@@ -209,7 +349,7 @@ export const SUBSCRIBER_PAYOUT_CAPABILITY = 'credits.payout';
 export interface AdminSubscriberCreditEntry {
     kind: SubscriberCreditEntryKind;
     amount: number;
-    /** The refund's reference at the gateway, or the payout's. */
+    /** The refund's or the reversal's reference at the gateway, or the payout's. */
     reference: string | null;
     /** The day a payout left; `null` for a refund's entries. */
     paidOn: CalendarDay | null;
@@ -223,10 +363,14 @@ export interface AdminSubscriberCredit {
     id: string;
     amount: number;
     currency: string;
-    /** The payment that brought more than its invoice owed, or the invoice whose total is negative. */
+    /**
+     * The payment that brought more than its invoice owed, the invoice whose
+     * total is negative, or the reversal the gateway gave back.
+     */
     origin:
         | { kind: 'payment'; paymentRef: string; invoiceNumber: string | null }
-        | { kind: 'invoice'; invoiceNumber: string | null };
+        | { kind: 'invoice'; invoiceNumber: string | null }
+        | { kind: 'reversal'; reversalRef: string; invoiceNumber: string | null };
     /** ISO 8601. */
     createdAt: string;
     open: number;

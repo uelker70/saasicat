@@ -50,8 +50,9 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 import SubscriberPayoutDialog from './SubscriberPayoutDialog.vue';
 
 // The credits of the tenant's subscriber, the oldest first as the platform
-// orders them: where each comes from, what was paid out of it and what is
-// still open. A credit is never offset against a later invoice; one with
+// orders them: where each comes from — a payment beyond its invoice, an invoice
+// below zero, a reversal the gateway gave back —, what was paid out of it and
+// what is still open. A credit is never offset against a later invoice; one with
 // something open can be paid out here, where the gateway can no longer refund
 // it.
 const props = defineProps<{
@@ -95,10 +96,15 @@ function submitPayout(payout: AdminSubscriberPayout): Promise<unknown> {
 
 function originOf(credit: AdminSubscriberCredit): string {
     const m = msg.value.credits;
-    const invoiceNumber = credit.origin.invoiceNumber ?? m.unknownInvoice;
-    return credit.origin.kind === 'payment'
-        ? formatMessage(m.fromPayment, { paymentRef: credit.origin.paymentRef, invoiceNumber })
-        : formatMessage(m.fromInvoice, { invoiceNumber });
+    const { origin } = credit;
+    const invoiceNumber = origin.invoiceNumber ?? m.unknownInvoice;
+    if (origin.kind === 'payment') {
+        return formatMessage(m.fromPayment, { paymentRef: origin.paymentRef, invoiceNumber });
+    }
+    if (origin.kind === 'reversal') {
+        return formatMessage(m.fromReversal, { reversalRef: origin.reversalRef, invoiceNumber });
+    }
+    return formatMessage(m.fromInvoice, { invoiceNumber });
 }
 
 const rows = computed(() =>

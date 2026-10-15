@@ -21,6 +21,7 @@ import { planEditorMessages } from './messages/plan-editor.js';
 import { planVersionsMessages } from './messages/plan-versions.js';
 import { plansMessages } from './messages/plans.js';
 import { promosMessages } from './messages/promos.js';
+import { reconciliationMessages } from './messages/reconciliation.js';
 import { settingsMessages } from './messages/settings.js';
 import { shellMessages } from './messages/shell.js';
 import { tenantsMessages } from './messages/tenants.js';
@@ -49,6 +50,7 @@ export type SaMessages = {
     readonly settings: (typeof settingsMessages)['de'];
     readonly maintenance: (typeof maintenanceMessages)['de'];
     readonly featureWithdrawals: (typeof featureWithdrawalsMessages)['de'];
+    readonly reconciliation: (typeof reconciliationMessages)['de'];
 };
 
 /** Shape of app-side string overrides (deep partial of the catalog). */
@@ -77,6 +79,7 @@ function catalogFor(locale: SaBuiltinLocale): SaMessages {
         settings: settingsMessages[locale],
         maintenance: maintenanceMessages[locale],
         featureWithdrawals: featureWithdrawalsMessages[locale],
+        reconciliation: reconciliationMessages[locale],
     };
 }
 

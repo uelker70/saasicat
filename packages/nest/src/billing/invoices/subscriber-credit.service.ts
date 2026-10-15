@@ -1,9 +1,9 @@
 // A subscriber's credits as the operator reads them, and the payout the
-// operator records against one where the gateway can no longer refund it — its
-// account no longer configured, or the payment past the gateway's own refund
-// period (`SC-PRIC-031`, `SC-PRIC-083`). SaaSiCat pays nothing out itself: a
-// payout is recorded once it left, with the reference the operator's bank
-// statement names, and never beyond what the credit still owes.
+// operator records against one where the gateway can no longer refund it — the
+// payment past the gateway's own refund period, or the account at the provider
+// refunding no more (`SC-PRIC-083`, `SC-PRIC-084`). SaaSiCat pays nothing out
+// itself: a payout is recorded once it left, with the reference the operator's
+// bank statement names, and never beyond what the credit still owes.
 
 import {
     BadRequestException,
@@ -124,11 +124,21 @@ export class SubscriberCreditService {
             let shown: AdminSubscriberCredit['origin'];
             if (origin.kind === 'invoice') {
                 shown = { kind: 'invoice', invoiceNumber: await numberOf(origin.invoiceId) };
-            } else {
+            } else if (origin.kind === 'payment') {
                 const payment = await this.payments.findPaymentById(origin.paymentId);
                 shown = {
                     kind: 'payment',
                     paymentRef: payment?.gatewayRef ?? origin.paymentId,
+                    invoiceNumber: payment ? await numberOf(payment.invoiceId) : null,
+                };
+            } else {
+                const reversal = await this.payments.findReversalById(origin.reversalId);
+                const payment = reversal
+                    ? await this.payments.findPaymentById(reversal.paymentId)
+                    : null;
+                shown = {
+                    kind: 'reversal',
+                    reversalRef: reversal?.gatewayRef ?? origin.reversalId,
                     invoiceNumber: payment ? await numberOf(payment.invoiceId) : null,
                 };
             }

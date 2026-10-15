@@ -39,6 +39,8 @@ const LASTING = [
     // Every tenant locked out at once, and let back in (`SC-ADM-029`).
     'POST admin/maintenance/lock',
     'POST admin/maintenance/unlock',
+    // A mismatch of money declared reconciled, for good (`SC-ADM-033`).
+    'POST admin/reconciliation/:caseId/close',
     // Money the operator paid a subscriber, recorded for good (`SC-PRIC-083`).
     'POST admin/tenants/:slug/credits/:creditId/payouts',
     'POST admin/tenants/:slug/reactivate',
