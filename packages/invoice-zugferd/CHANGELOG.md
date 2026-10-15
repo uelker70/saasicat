@@ -1,5 +1,50 @@
 # @saasicat/invoice-zugferd
 
+## 1.0.0-rc.27
+
+### Minor Changes
+
+- 9c9f624: An invoice says how it is paid
+
+    An invoice now records, when it is issued, the subscriber's payment method in
+    use that it is collected with (`SubscriptionInvoiceRecord.payment`), copied as
+    it stood then. An invoice collected by SEPA direct debit announces the amount,
+    the day it is collected from and the mandate reference, as SEPA asks of the
+    notice before a debit (`SC-PRIC-028`), and falls due on that day
+    (`SC-PRIC-046`): the issue date plus `invoicing.directDebitLeadDays` in
+    `config/saas.yaml`, fourteen calendar days unless set. Set it to what the
+    mandate your subscribers accepted provides for; the one Stripe shows provides
+    for two days. Any other invoice falls due the payment term after its issue date,
+    as before. Nothing is collected yet.
+
+    An invoice that asks for nothing and one of a subscriber without a payment
+    method record none and are not collected. One of a direct debit whose gateway
+    never named its mandate reference cannot be announced: it waits, draws no
+    number, and is issued with its announcement once the payment method is
+    replaced. The audit log records it as `SUBSCRIPTION_INVOICE_HELD` with the new
+    code `SUBSCRIPTION_INVOICE_MANDATE_MISSING`.
+
+    `zugferdInvoiceRenderer()` states it on the page, in German and English, and in
+    the XML: the payment means (`59` for a direct debit, `48` for a card named by
+    its last four digits), the payment terms' text and the mandate reference.
+
+    Run `1.0-an-invoice-says-how-it-is-paid.postgres.sql` once, before `db push`:
+    it adds the nullable `payment` and `collectionDate` to `subscription_invoices`,
+    which fragment 20 declares. An invoice issued before records no payment method
+    and stays due on the day it states. Where `config/saas.yaml` names `payments`,
+    the start refuses invoices that cannot read the payment methods, as with
+    `PaymentsModule` wired other than globally.
+
+### Patch Changes
+
+- Updated dependencies [5396ab6]
+- Updated dependencies [3ab58af]
+- Updated dependencies [3cca4f4]
+- Updated dependencies [f453f75]
+- Updated dependencies [9c9f624]
+- Updated dependencies [e183f06]
+    - @saasicat/core@1.0.0-rc.27
+
 ## 1.0.0-rc.26
 
 ### Minor Changes
