@@ -355,6 +355,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Vom Guthaben {creditId} sind noch {open} offen; mehr wird nicht ausgezahlt, und nichts wurde erfasst.',
     SUBSCRIBER_PAYOUT_NOT_MADE_YET:
         'Eine Auszahlung wird erfasst, wenn sie erfolgt ist: {paidOn} liegt nach heute, {today}.',
+    SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND: "Kein abzugleichender Fall '{caseId}'.",
+    SUBSCRIBER_RECONCILIATION_CASE_CLOSED:
+        'Der Fall {caseId} wurde am {closedAt} geschlossen; seine Notiz bleibt, und nichts wurde erfasst.',
     CHECKOUT_OFFER_LINE_ITEMS_REQUIRED:
         'Aus einem Checkout-Angebot entsteht nur ein einziger Vertrag, und das erst, wenn seine Positionen eingefroren sind.',
     CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED:

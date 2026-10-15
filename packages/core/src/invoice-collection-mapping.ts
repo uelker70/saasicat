@@ -27,6 +27,7 @@ export const INVOICE_COLLECTION_STATUSES: readonly InvoiceCollectionStatus[] = [
     'SUCCEEDED',
     'FAILED',
     'WITHDRAWN',
+    'REVERSED',
 ];
 
 /**

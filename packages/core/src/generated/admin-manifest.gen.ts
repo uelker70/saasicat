@@ -90,6 +90,7 @@ export interface AdminManifest {
             settings?: StandardPageDef;
             maintenance?: StandardPageDef;
             featureWithdrawals?: StandardPageDef;
+            reconciliation?: StandardPageDef;
         };
         projectPages?: ProjectPageDef[];
     };

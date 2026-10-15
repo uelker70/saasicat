@@ -32,6 +32,7 @@ import type {
 } from '@saasicat/core';
 import {
     COLLECTION_NOT_SENT_PAID,
+    REOPENING_SETTLEMENT_KINDS,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
     invoiceCollectionColumns,
@@ -59,10 +60,15 @@ const others = alias(subscriptionInvoiceCollections, 'others');
  * what is settled against it. Exact in the database's numeric arithmetic.
  */
 const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
-    SELECT SUM(${subscriptionInvoiceSettlements.amount})
+    SELECT SUM(CASE WHEN ${inArray(subscriptionInvoiceSettlements.kind, [...REOPENING_SETTLEMENT_KINDS])}
+                    THEN -${subscriptionInvoiceSettlements.amount}
+                    ELSE ${subscriptionInvoiceSettlements.amount} END)
       FROM ${subscriptionInvoiceSettlements}
      WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
 ), 0)`;
+
+/** The attempts what follows is decided for: a failure, and a reversal that opened the invoice again. */
+const FOLLOWED_UP_STATUSES = ['FAILED', 'REVERSED'];
 
 /** Whether invoice `invoiceId` still owes something, read on `db`. */
 async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
@@ -309,7 +315,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                     page.after === undefined
                         ? undefined
                         : gt(subscriptionInvoiceCollections.id, page.after),
-                    eq(subscriptionInvoiceCollections.status, 'FAILED'),
+                    inArray(subscriptionInvoiceCollections.status, FOLLOWED_UP_STATUSES),
                     isNull(subscriptionInvoiceCollections.followedUpAt),
                 ),
             )
@@ -351,7 +357,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                     or(
                         eq(subscriptionInvoiceCollections.status, 'WITHDRAWN'),
                         and(
-                            eq(subscriptionInvoiceCollections.status, 'FAILED'),
+                            inArray(subscriptionInvoiceCollections.status, FOLLOWED_UP_STATUSES),
                             isNotNull(subscriptionInvoiceCollections.followedUpAt),
                         ),
                     ),
@@ -371,8 +377,22 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             .where(
                 and(
                     eq(subscriptionInvoiceCollections.id, id),
-                    eq(subscriptionInvoiceCollections.status, 'FAILED'),
+                    inArray(subscriptionInvoiceCollections.status, FOLLOWED_UP_STATUSES),
                     isNull(subscriptionInvoiceCollections.followedUpAt),
+                ),
+            )
+            .returning({ id: subscriptionInvoiceCollections.id });
+        return rows.length === 1;
+    }
+
+    async markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean> {
+        const rows = await resolveDb(this.db, tx)
+            .update(subscriptionInvoiceCollections)
+            .set({ status: 'REVERSED', resolvedAt: at })
+            .where(
+                and(
+                    eq(subscriptionInvoiceCollections.id, id),
+                    eq(subscriptionInvoiceCollections.status, 'SUCCEEDED'),
                 ),
             )
             .returning({ id: subscriptionInvoiceCollections.id });

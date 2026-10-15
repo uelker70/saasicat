@@ -33,6 +33,9 @@ import {
 import { MemorySubscriberPayments } from './subscriber-payments.js';
 import { noticeRecord } from './version-notices.js';
 
+/** The attempts what follows is decided for: a failure, and a reversal. */
+const FOLLOWED_UP = ['FAILED', 'REVERSED'];
+
 /** 06:15 in Berlin on 1 February, when the invoices of February are issued. */
 export const ISSUED = new Date('2026-02-01T05:15:00.000Z');
 
@@ -205,7 +208,9 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         async listToFollowUp(page) {
             return pageOf(
                 attempts
-                    .filter((each) => each.status === 'FAILED' && each.followedUpAt === null)
+                    .filter(
+                        (each) => FOLLOWED_UP.includes(each.status) && each.followedUpAt === null,
+                    )
                     .map((each) => each.id),
                 page,
             );
@@ -222,7 +227,7 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
                     last !== undefined &&
                     inUse !== undefined &&
                     (last.status === 'WITHDRAWN' ||
-                        (last.status === 'FAILED' && last.followedUpAt !== null)) &&
+                        (FOLLOWED_UP.includes(last.status) && last.followedUpAt !== null)) &&
                     inUse.id !== last.paymentMethodId &&
                     owes(invoice.id)
                 );
@@ -234,8 +239,16 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         },
         async markFollowedUp(id, at) {
             const attempt = attempts.find((each) => each.id === id);
-            if (attempt?.status !== 'FAILED' || attempt.followedUpAt !== null) return false;
+            if (!FOLLOWED_UP.includes(attempt?.status) || attempt.followedUpAt !== null) {
+                return false;
+            }
             attempt.followedUpAt = at;
+            return true;
+        },
+        async markReversed(id, at) {
+            const attempt = attempts.find((each) => each.id === id);
+            if (attempt?.status !== 'SUCCEEDED') return false;
+            Object.assign(attempt, { status: 'REVERSED', resolvedAt: at });
             return true;
         },
         async recordOutcome(id, outcome, at) {

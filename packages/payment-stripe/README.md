@@ -59,6 +59,15 @@ the masked details, and an invoice SaaSiCat issued is collected with it.
   out, failed and canceled give it back. A refund of a payment SaaSiCat did not
   collect needs nothing; one in a state Stripe does not document is raised, so
   Stripe delivers it again. SaaSiCat makes no refund itself.
+- **`charge.dispute.created`, `.updated`, `.closed`, `.funds_withdrawn` and
+  `.funds_reinstated`** report a reversal: a chargeback, or a direct debit the
+  bank returned after it succeeded, which Stripe reports as a dispute too. The
+  dispute is read again from Stripe with its payment intent — and, where it
+  names none, its charge's —, and what it withdrew and what Stripe gave back are
+  read from its balance transactions, each in total, the dispute fee left out.
+  A dispute that withdrew nothing yet, such as an inquiry, and one of a payment
+  SaaSiCat did not collect need nothing; one whose balance transactions are in
+  another currency than it disputes is raised, so Stripe delivers it again.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
@@ -107,8 +116,11 @@ behind the application's `globalPrefix` where it sets one, as the notes app does
 subscribe it to `checkout.session.completed` and `checkout.session.expired` —
 and, where invoices are collected, to `payment_intent.succeeded`,
 `payment_intent.processing`, `payment_intent.payment_failed`,
-`payment_intent.canceled`, `refund.created`, `refund.updated` and
-`refund.failed` — and create the application with `rawBody: true` — a
+`payment_intent.canceled`, `refund.created`, `refund.updated`,
+`refund.failed`, `charge.dispute.created`, `charge.dispute.updated`,
+`charge.dispute.closed`, `charge.dispute.funds_withdrawn` and
+`charge.dispute.funds_reinstated` — and create the application with
+`rawBody: true` — a
 signature is checked against the bytes that arrived, not against a
 re-serialised object.
 
@@ -168,11 +180,12 @@ hand.
 Stripe's dashboard. Stripe recommends a **restricted key** (`rk_…`) over a secret
 one. What this adapter touches, so you can grant that and no more: customers
 (write), checkout sessions (write), setup intents (read), payment intents (write),
-refunds (read) — and the setup intent is read with `payment_method` and
-`mandate` expanded, and a payment intent with `latest_charge`, which Stripe
-lists as their own permissions (charges, read). A key that may not read
-refunds answers every refund event with an error, and Stripe delivers it again
-until it gives up; nothing is paid out meanwhile, and nothing recorded.
+refunds (read), disputes (read) — and the setup intent is read with
+`payment_method` and `mandate` expanded, a payment intent with `latest_charge`
+and a dispute with its charge, which Stripe lists as their own permissions
+(charges, read). A key that may not read refunds or disputes answers every
+refund or dispute event with an error, and Stripe delivers it again until it
+gives up; nothing is paid out or taken back meanwhile, and nothing recorded.
 
 A key that may not create or list payment intents fails every collection, each
 counted as unanswered and asked about again after the lease — which the key is

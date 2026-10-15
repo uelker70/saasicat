@@ -1,27 +1,30 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type {
-    CanonicalInvoiceSettlementRow,
-    CanonicalSubscriberCreditEntryRow,
-    CanonicalSubscriberCreditRow,
-    CanonicalSubscriberPaymentRow,
-    CanonicalSubscriberRefundRow,
+    ClosedReconciliationCase,
+    CloseReconciliationCase,
     CreditPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
+    ReconciliationCaseState,
     RecordedSubscriberPayment,
     RecordedSubscriberPayout,
     RecordedSubscriberRefund,
+    RecordedSubscriberReversal,
     ReportedSubscriberRefund,
+    ReportedSubscriberReversal,
     SubscriberCreditRecord,
     SubscriberCreditStanding,
     SubscriberPaymentRecord,
     SubscriberPaymentRepository,
+    SubscriberReconciliationCaseRecord,
     SubscriberRefundRecord,
+    SubscriberReversalRecord,
     TransactionContext,
 } from '@saasicat/core';
 import {
-    columnAmountOf,
+    CASE_CLOSED_REFUND_ENDED,
+    GIVING_BACK_CREDIT_ENTRY_KINDS,
     isEndedRefund,
     openOfCredit,
     owedOn,
@@ -38,38 +41,34 @@ import {
     toSubscriberCreditRecord,
     toSubscriberPaymentRecord,
     toSubscriberRefundRecord,
+    toSubscriberReversalRecord,
     utcMidnightOf,
 } from '@saasicat/core';
-import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
-import { idsOf } from './raw-ids.js';
-
-/** Narrow view of the client and of a transaction client, which carry the same delegates. */
-interface PaymentPrisma {
-    subscriberPayment: PrismaModelDelegateLike<CanonicalSubscriberPaymentRow>;
-    subscriptionInvoiceSettlement: PrismaModelDelegateLike<CanonicalInvoiceSettlementRow>;
-    subscriberCredit: PrismaModelDelegateLike<CanonicalSubscriberCreditRow>;
-    subscriberCreditEntry: PrismaModelDelegateLike<CanonicalSubscriberCreditEntryRow>;
-    subscriberRefund: PrismaModelDelegateLike<CanonicalSubscriberRefundRow>;
-    subscriptionInvoice: PrismaModelDelegateLike<LockedInvoice>;
-    $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
-}
+import { PRISMA_CLIENT_TOKEN } from './prisma-client-token.js';
+import { closeCaseIn, closeCasesOf, listCasesIn, openCase } from './prisma-reconciliation-cases.js';
+import {
+    createCredit,
+    grossOf,
+    holdCredits,
+    lockInvoice,
+    openOf,
+    owedOf,
+    readInvoice,
+    type PaymentPrisma,
+} from './prisma-subscriber-payment-rows.js';
+import { recordReversalIn } from './prisma-subscriber-reversal.js';
+import { idsOf, textsOf } from './raw-ids.js';
 
 /** The root client's interactive transaction. */
 interface PaymentRepositoryClient {
     $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 }
 
-/** What the invoice's turn reads of it. */
-interface LockedInvoice {
-    id: string;
-    subscriberId: string;
-    tenantId: string;
-    totalGross: unknown;
-    currency: string;
-}
+/** The credit entry kinds that give back, as a parameter of the sum below. */
+const GIVING_BACK = [...GIVING_BACK_CREDIT_ENTRY_KINDS];
 
 /**
- * `SubscriberPaymentRepository` against the five tables of fragment 24.
+ * `SubscriberPaymentRepository` against the seven tables of fragment 24.
  *
  * A payment is written in its invoice's turn — the invoice's row, locked for
  * the transaction — and a refund or a payout holds the credits it reads, so
@@ -87,7 +86,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
 
     private db(tx?: TransactionContext): PaymentPrisma {
         // SAFETY: the root client and every transaction client it hands out
-        // carry the five delegates of fragment 24 wherever it is adopted, and
+        // carry the seven delegates of fragment 24 wherever it is adopted, and
         // `$queryRaw`; the generated-client test compiles this adapter against
         // a client generated from the fragments.
         return (tx ?? this.prisma) as PaymentPrisma;
@@ -120,11 +119,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             });
             if (!row) return null;
             const recorded = toSubscriberPaymentRecord(row);
-            const settled = await db.subscriptionInvoiceSettlement.findMany({
-                where: { invoiceId: invoice.id },
-                select: { id: true, kind: true, amount: true },
-            });
-            const owed = owedOn(grossOf(invoice), settled.map(settledAmountOf));
+            const owed = await owedOf(db, invoice);
             const { settles, credits } = paymentSettlement(recorded.amount, owed);
             if (settles > 0) {
                 await db.subscriptionInvoiceSettlement.createMany({
@@ -204,11 +199,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             refuseOtherCurrency(refund, payment);
             // The subscriber's credits are the refund's to divide: held, in
             // one order, before anything of them is read.
-            await db.$queryRaw`
-                SELECT "id" FROM "subscriber_credits"
-                 WHERE "subscriberId" = ${payment.subscriberId}
-                 ORDER BY "id"
-                   FOR UPDATE`;
+            await holdCredits(db, payment.subscriberId);
             const [inserted] = await db.subscriberRefund.createManyAndReturn({
                 data: [{ id: randomUUID(), ...subscriberRefundColumns(refund, payment) }],
                 skipDuplicates: true,
@@ -236,7 +227,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
         payment: SubscriberPaymentRecord,
     ): Promise<RecordedSubscriberRefund> {
         if (isEndedRefund(refund.status)) {
-            return { outcome: 'recorded', refund, parts: [], unmatched: 0 };
+            return { outcome: 'recorded', refund, parts: [], unmatched: 0, case: null };
         }
         const standings = await this.standingsOf(db, payment.subscriberId, refund.currency);
         const { parts, unmatched } = refundParts(
@@ -250,12 +241,24 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             })),
         );
         await writeRefundEntries(db, refund, 'REFUND', parts, refund.recordedAt);
-        return { outcome: 'recorded', refund, parts, unmatched };
+        const opened =
+            unmatched > 0
+                ? await openCase(db, {
+                      kind: 'REFUND_UNMATCHED',
+                      amount: unmatched,
+                      currency: refund.currency,
+                      payment,
+                      about: refund,
+                      at: refund.recordedAt,
+                  })
+                : null;
+        return { outcome: 'recorded', refund, parts, unmatched, case: opened };
     }
 
     /**
      * A refund seen again: a failure or a cancellation gives back what it paid
-     * out of each credit, once; anything else changes nothing paid out.
+     * out of each credit, once, and closes the case its unmatched part opened;
+     * anything else changes nothing paid out.
      */
     private async restate(
         db: PaymentPrisma,
@@ -281,7 +284,13 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             return { creditId: entry.creditId, amount: entry.amount };
         });
         await writeRefundEntries(db, refund, 'REFUND_FAILED', parts, reported.at);
-        return { outcome: 'given-back', refund: restated, parts };
+        const closedCases = await closeCasesOf(
+            db,
+            { refundId: refund.id },
+            CASE_CLOSED_REFUND_ENDED,
+            reported.at,
+        );
+        return { outcome: 'given-back', refund: restated, parts, closedCases };
     }
 
     recordPayout(
@@ -294,7 +303,7 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
                     SELECT "id" FROM "subscriber_credits" WHERE "id" = ${payout.creditId} FOR UPDATE`,
             );
             if (locked.length === 0) return { outcome: 'unknown-credit' };
-            const open = await this.openOf(db, payout.creditId);
+            const open = await openOf(db, payout.creditId);
             if (toCents(payout.amount) > toCents(open)) return { outcome: 'exceeds-open', open };
             const { paidOn, ...written } = payoutEntryColumns(payout);
             const row = await db.subscriberCreditEntry.create({
@@ -339,20 +348,20 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
         });
     }
 
-    private async openOf(db: PaymentPrisma, creditId: string): Promise<number> {
-        const row = await db.subscriberCredit.findUnique({ where: { id: creditId } });
-        if (!row) throw new Error(`Credit ${creditId} does not exist.`);
-        const credit = toSubscriberCreditRecord(row);
-        const entries = await db.subscriberCreditEntry.findMany({ where: { creditId } });
-        return openOfCredit(credit.amount, entries.map(toSubscriberCreditEntryRecord));
-    }
-
     async findPaymentById(
         id: string,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentRecord | null> {
         const row = await this.db(tx).subscriberPayment.findUnique({ where: { id } });
         return row ? toSubscriberPaymentRecord(row) : null;
+    }
+
+    async findReversalById(
+        id: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberReversalRecord | null> {
+        const row = await this.db(tx).subscriberReversal.findUnique({ where: { id } });
+        return row ? toSubscriberReversalRecord(row) : null;
     }
 
     async findPaymentByRef(
@@ -380,64 +389,77 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
     async owedBy(invoiceId: string, tx?: TransactionContext): Promise<number | null> {
         const db = this.db(tx);
         const invoice = await readInvoice(db, invoiceId);
-        if (!invoice) return null;
-        const gross = grossOf(invoice);
-        const settled = await db.subscriptionInvoiceSettlement.findMany({
-            where: { invoiceId },
-            select: { id: true, kind: true, amount: true },
-        });
-        return owedOn(gross, settled.map(settledAmountOf));
+        return invoice ? owedOf(db, invoice) : null;
     }
-}
 
-/** Takes the invoice's turn and reads what a payment against it needs; throws where it does not exist. */
-async function lockInvoice(db: PaymentPrisma, invoiceId: string): Promise<LockedInvoice> {
-    await db.$queryRaw`
-        SELECT "id" FROM "subscription_invoices" WHERE "id" = ${invoiceId} FOR UPDATE`;
-    const row = await readInvoice(db, invoiceId);
-    if (!row) throw new Error(`Invoice ${invoiceId} does not exist.`);
-    return row;
-}
-
-function readInvoice(db: PaymentPrisma, invoiceId: string): Promise<LockedInvoice | null> {
-    return db.subscriptionInvoice.findUnique({
-        where: { id: invoiceId },
-        select: { id: true, subscriberId: true, tenantId: true, totalGross: true, currency: true },
-    });
-}
-
-function grossOf(invoice: LockedInvoice): number {
-    return columnAmountOf(invoice.totalGross, {
-        table: 'subscription_invoices',
-        column: 'totalGross',
-        id: invoice.id,
-    });
-}
-
-/** Writes a credit for the subscriber `invoice` names, once for its origin. */
-async function createCredit(
-    db: PaymentPrisma,
-    invoice: LockedInvoice,
-    amount: number,
-    origin: { originPaymentId: string } | { originInvoiceId: string },
-    at: Date,
-): Promise<SubscriberCreditRecord | null> {
-    const [row] = await db.subscriberCredit.createManyAndReturn({
-        data: [
-            {
-                id: randomUUID(),
-                subscriberId: invoice.subscriberId,
-                tenantId: invoice.tenantId,
-                amount: toDecimalString(amount),
-                currency: invoice.currency,
-                originPaymentId: 'originPaymentId' in origin ? origin.originPaymentId : null,
-                originInvoiceId: 'originInvoiceId' in origin ? origin.originInvoiceId : null,
-                createdAt: at,
+    async owedByInvoices(
+        invoiceIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<{ invoiceId: string; owed: number }[]> {
+        if (invoiceIds.length === 0) return [];
+        const db = this.db(tx);
+        const invoices = await db.subscriptionInvoice.findMany({
+            where: { id: { in: [...invoiceIds] } },
+            select: {
+                id: true,
+                subscriberId: true,
+                tenantId: true,
+                totalGross: true,
+                currency: true,
             },
-        ],
-        skipDuplicates: true,
-    });
-    return row ? toSubscriberCreditRecord(row) : null;
+        });
+        const settled = await db.subscriptionInvoiceSettlement.findMany({
+            where: { invoiceId: { in: [...invoiceIds] } },
+            select: { id: true, invoiceId: true, kind: true, amount: true },
+        });
+        return invoices.map((invoice) => ({
+            invoiceId: invoice.id,
+            owed: owedOn(
+                grossOf(invoice),
+                settled.filter((row) => row.invoiceId === invoice.id).map(settledAmountOf),
+            ),
+        }));
+    }
+
+    recordReversal(
+        reversal: ReportedSubscriberReversal,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberReversal> {
+        return this.inTransaction(tx, (db) => recordReversalIn(db, reversal));
+    }
+
+    listCases(
+        filter: { state: ReconciliationCaseState; subscriberId?: string },
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<SubscriberReconciliationCaseRecord[]> {
+        return listCasesIn(this.db(tx), filter, page);
+    }
+
+    closeCase(
+        close: CloseReconciliationCase,
+        tx?: TransactionContext,
+    ): Promise<ClosedReconciliationCase> {
+        return closeCaseIn(this.db(tx), close);
+    }
+
+    async accountsHoldingCredits(tx?: TransactionContext): Promise<string[]> {
+        // A credit from a reversal given back is held at the account of the
+        // payment the reversal took back; one from an invoice at no account.
+        const rows = await this.db(tx).$queryRaw`
+            SELECT DISTINCT p."gatewayAccount" AS "account"
+              FROM "subscriber_credits" c
+              LEFT JOIN "subscriber_reversals" r ON r."id" = c."originReversalId"
+              JOIN "subscriber_payments" p ON p."id" = COALESCE(c."originPaymentId", r."paymentId")
+             WHERE c."amount" > COALESCE((
+                       SELECT SUM(CASE WHEN e."kind" = ANY(${GIVING_BACK}) THEN -e."amount"
+                                       ELSE e."amount" END)
+                         FROM "subscriber_credit_entries" e
+                        WHERE e."creditId" = c."id"
+                   ), 0)
+             ORDER BY 1`;
+        return textsOf(rows, 'account');
+    }
 }
 
 /** Writes one entry of a refund's per credit it pays out or gives back, once each. */

@@ -277,6 +277,8 @@ _Tested by:_
         - an installation without invoices is left without the attempts, and runs through
     - a payment is recorded, and a credit paid out
         - a database from before ends up with the schema the fragments declare, twice
+        - a database the first version of it left gains the reversals and the cases, twice
+        - a reversal is taken once under its gateway account and reference
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
@@ -420,6 +422,8 @@ _Tested by:_
         - an installation without invoices is left without the attempts, and runs through
     - a payment is recorded, and a credit paid out
         - a database from before ends up with the schema the fragments declare, twice
+        - a database the first version of it left gains the reversals and the cases, twice
+        - a reversal is taken once under its gateway account and reference
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through

@@ -115,12 +115,12 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 83      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 86      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 32      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 33      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 637 entries: 🟢 551 stand today, 🟡 57 decided but not yet delivered, ⚪ 0 drafts,
-🔵 26 superseded, 🔴 3 withdrawn.
+Of 641 entries: 🟢 555 stand today, 🟡 56 decided but not yet delivered, ⚪ 0 drafts,
+🔵 27 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -151,7 +151,6 @@ Of 637 entries: 🟢 551 stand today, 🟡 57 decided but not yet delivered, ⚪
 [SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
-[SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
 [SC-PRIC-033](#sc-pric-033--an-invoice-interrupted-in-archiving-keeps-its-number-and-is-never-issued-twice),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-036](#sc-pric-036--what-an-invoice-owes-and-how-it-is-paid-changes-one-step-at-a-time),
@@ -208,6 +207,7 @@ Of 637 entries: 🟢 551 stand today, 🟡 57 decided but not yet delivered, ⚪
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
 [SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
+[SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
@@ -224,7 +224,7 @@ Of 637 entries: 🟢 551 stand today, 🟡 57 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 637 requirements. Do not edit by hand:
+Generated from `requirements/` — 641 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9024,13 +9024,13 @@ longer counts for them (`SC-PRIC-022`), and a charge no longer owed is on no inv
 What a payment for the cancelled invoice settles moves with the charges, whether it was paid before
 the cancellation or confirmed by the gateway after it: it is applied to the replacement as a new
 entry rather than collected again, and where there is no replacement, or the payment exceeds it, the
-rest is a credit on the subscriber's account for the operator to refund (`SC-PRIC-031`). A
+rest is a credit on the subscriber's account for the operator to refund (`SC-PRIC-083`). A
 collection for the cancelled invoice not yet submitted to the gateway is not submitted, and no
 invoice of its chain is collected while one already submitted for any of them is unresolved
 (`SC-PRIC-036`). Where several payments settled the cancelled invoice, they settle the replacement
 in the order they were confirmed, the oldest first, and what remains of the most recent ones becomes
 the credit; each payment's share is recorded, so a later reversal takes back exactly that payment's
-part (`SC-PRIC-031`). The cancellation invoice, its replacement and the movement of what was paid
+part (`SC-PRIC-084`). The cancellation invoice, its replacement and the movement of what was paid
 onto the replacement or into a credit are written in one transaction, so an interruption leaves all
 of them or none, and it takes its turn with everything else that changes the invoice
 (`SC-PRIC-036`), so an invoice is cancelled once and a payment event that commits after the
@@ -9424,6 +9424,13 @@ _Tested by:_
         - is read again from Stripe with its payment intent, whatever the event carried
         - of a payment SaaSiCat did not collect, or of none, is not its to act on
         - in a state Stripe does not document is refused, so Stripe delivers it again
+    - a dispute of a payment
+        - ${type} reports what Stripe withdrew and gave back so far, the fee left out
+        - is read again from Stripe with its payment intent, and its charge's
+        - naming no payment intent of its own is found through its charge
+        - that withdrew nothing yet, an inquiry, is no reversal
+        - of a payment SaaSiCat did not collect, or of none, is not its to act on
+        - moving money in another currency than it disputes is refused, so Stripe delivers it again
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a payment is recorded, and a credit paid out
         - a database from before ends up with the schema the fragments declare, twice
@@ -9463,6 +9470,10 @@ _Tested by:_
         - are the confirmation, and nothing a caller put beside it
     - a callback a gateway adapter cannot verify
         - is recognised by its code, also from another copy of the class
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - the start
+        - is refused while a credit not paid out is held at an account the file no longer names,
+          which it names
 - `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
     - an open sign-up keeps its account configured
         - the start refuses while a sign-up waits at an account the configuration no longer names
@@ -9517,18 +9528,18 @@ _Tested by:_
 
 ### SC-PRIC-031 — A returned debit or a chargeback is recorded, and what the payment settled opens again
 
-🟡 _(Decided, not yet delivered.)_ 💰 Either is recorded as a counter-entry rather than an edit of
-the payment, and a report that arrives twice records one reversal. A reversal takes back everything
-the payment settles when it arrives, divided across all of it: the invoice it was collected for, or
-the replacement its settlement moved to under `SC-PRIC-025`, opens again by the part the payment
-settled there, and the credit it became shrinks by its part; never an invoice already cancelled. A
-partial reversal reduces the credit first and reopens invoices only with what remains, so the
-operator is not left refunding what is owed again. Where the credit's part was already refunded,
-that part is shown to the operator to reconcile. A refund is different: SaaSiCat never initiates
-one (`SC-PRIC-076`), and one the operator makes in the gateway is recorded against the credit it
-pays out, reopening nothing; a refund that matches no credit is shown to the operator to reconcile.
-A credit the gateway can no longer refund, because the payment's gateway account is no longer
-configured (`SC-PRIC-030`) or the gateway's own refund period has passed, is paid out by the
+🔵 _(Superseded on 2026-10-15 by `SC-PRIC-084`.)_ 💰 Either is recorded as a counter-entry rather than
+an edit of the payment, and a report that arrives twice records one reversal. A reversal takes back
+everything the payment settles when it arrives, divided across all of it: the invoice it was
+collected for, or the replacement its settlement moved to under `SC-PRIC-025`, opens again by the
+part the payment settled there, and the credit it became shrinks by its part; never an invoice
+already cancelled. A partial reversal reduces the credit first and reopens invoices only with what
+remains, so the operator is not left refunding what is owed again. Where the credit's part was
+already refunded, that part is shown to the operator to reconcile. A refund is different: SaaSiCat
+never initiates one (`SC-PRIC-076`), and one the operator makes in the gateway is recorded against
+the credit it pays out, reopening nothing; a refund that matches no credit is shown to the operator
+to reconcile. A credit the gateway can no longer refund, because the payment's gateway account is no
+longer configured (`SC-PRIC-030`) or the gateway's own refund period has passed, is paid out by the
 operator outside the gateway, such as by bank transfer, and the operator records that payout with
 its reference against the credit; SaaSiCat still initiates nothing. What follows a reversal is
 `SC-PRIC-081`'s: the invoice it reopens is unpaid like any other.
@@ -9543,7 +9554,7 @@ withdrawal credits (`SC-PRIC-075`); either is recorded on the subscriber's accou
 never offset against a later invoice, so every invoice is collected for the amount it states. The
 operator pays it out: by a refund in the gateway, recorded against the credit when the gateway
 reports it — the credit the refunded payment left first, then the oldest —, or, where the gateway
-can no longer refund, by a transfer the operator records with its reference (`SC-PRIC-031`). A
+can no longer refund, by a transfer the operator records with its reference (`SC-PRIC-084`). A
 refund that fails or is canceled gives back what it paid out. SaaSiCat initiates neither
 (`SC-PRIC-076`), and nothing is paid out beyond what a credit still owes: a payout over it is
 refused, and the part of a refund that no credit takes is recorded as matching none.
@@ -9575,11 +9586,12 @@ _Tested by:_
         - reads back from either adapter’s amount
         - refuses an amount that is none
     - a settlement row
-        - takes its amount off what the invoice owes
+        - a payment and a reinstatement take their amount off what the invoice owes
+        - a reversal adds its amount back to what the invoice owes
         - of a kind this release does not know stops the read
     - a credit row
         - reads back with the one place it comes from
-        - naming both places or neither stops the read
+        - naming two places or none stops the read
     - a credit entry row
         - of a payout carries its reference, its day and who recorded it, and no refund
         - reads the day back from a Prisma date
@@ -9594,8 +9606,8 @@ _Tested by:_
 - `packages/nest/tests/a-payment-is-recorded-and-a-credit-paid-out.test.js`
     - a refund the operator made in the gateway
         - is recorded against the credit its payment left, once, and audited
-        - beyond what the subscriber is owed is recorded, and what matches nothing audited for the
-          operator
+        - beyond what the subscriber is owed is recorded, and what matches nothing is a case to
+          reconcile, audited
         - that fails gives back what it paid out, once
         - of an attempt this installation does not hold, or another account sent, records nothing
           and is not refused
@@ -9645,6 +9657,198 @@ _Tested by:_
         - where the operator steps back from the second factor records nothing and answers null
         - that fails rejects, so the dialog keeps the form, and announces nothing
         - belongs to the tenant it was asked on, even if the page moved on meanwhile
+
+<!-- END proof -->
+
+### SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
+
+🟢 💰 Either is recorded as a counter-entry rather than an edit of the payment, and a report that
+arrives twice records one reversal. A reversal takes back what the payment brought, the credit
+first, so the operator is not left refunding what is owed again: the credit the payment left
+shrinks by what is still open of it; the part of that credit already refunded or paid out is shown
+to the operator to reconcile (`SC-ADM-033`); and only what remains opens again the invoices the
+payment settles, each by no more than the payment settles there. A refund is different: SaaSiCat
+never initiates one (`SC-PRIC-076`), and one the operator makes in the gateway is recorded against
+the credit it pays out, reopening nothing; the part of a refund that no credit takes is shown to the
+operator to reconcile. A credit the gateway can no longer refund — its own refund period has
+passed, or the account at the provider refunds no more — is paid out by the operator outside the
+gateway, such as by bank transfer, and the operator records that payout with its reference against
+the credit (`SC-PRIC-083`); SaaSiCat still initiates nothing. What follows a reversal is
+`SC-PRIC-085`'s, and a reversal the gateway takes back is `SC-PRIC-086`'s.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #333
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - of a payment this installation does not hold, holds and writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+        - is found by its id, and none by another
+    - the cases to reconcile
+        - the open ones are read the oldest first, a page at a time, for one subscriber where named
+        - the closed ones are read without a cursor in one statement
+        - one is closed only where it is still open, and one closed before or unknown is answered as
+          such
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - the accounts holding credits are asked with the kinds that give back
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
+- `packages/core/tests/a-payment-settles-its-invoice-and-a-credit-is-paid-out.test.js`
+    - a settlement row
+        - a reversal adds its amount back to what the invoice owes
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - what a reversal takes back of what its payment brought
+        - without a credit, the invoices it settles, the oldest first
+        - the credit first: its open part, then the invoice with the rest
+        - a partial reversal no larger than the credit shrinks the credit alone
+        - why
+        - the part of the credit already paid out matches nothing
+        - takes from what of the credit an earlier reversal left
+        - what goes beyond everything the payment brought matches nothing
+        - passes over an invoice it already opened in full
+        - counts in cents, not in binary fractions
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - a reversal the gateway reports
+        - opens the invoice again, marks the attempt reversed, and is recorded and audited once
+        - that only shrinks a credit leaves the attempt and the invoice as they were
+        - of an attempt this installation does not hold records nothing
+        - of a payment not recorded yet is refused, and recorded when the gateway delivers it again
+        - that meets a credit already refunded opens a case, audited for the operator
+- `packages/payment-stripe/tests/a-payment-and-a-refund-are-reported.test.js`
+    - a dispute of a payment
+        - ${type} reports what Stripe withdrew and gave back so far, the fee left out
+        - is read again from Stripe with its payment intent, and its charge's
+        - naming no payment intent of its own is found through its charge
+        - that withdrew nothing yet, an inquiry, is no reversal
+        - of a payment SaaSiCat did not collect, or of none, is not its to act on
+        - moving money in another currency than it disputes is refused, so Stripe delivers it again
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a payment is recorded, and a credit paid out
+        - a database the first version of it left gains the reversals and the cases, twice
+        - a reversal is taken once under its gateway account and reference
+
+<!-- END proof -->
+
+(decided 2026-10-14 and 2026-10-15)
+
+### SC-PRIC-085 — A reversal is told, and the payment method it reversed collects nothing again
+
+🟢 💰 A reversal that opens an invoice again is told to the subscriber at the invoice email, once:
+which invoice is open again and by how much, and what follows. Nothing is collected again with the
+payment method the reversed payment was made with — a direct debit collected again within the
+weeks a bank honours a return without question comes back the same way, and charging a card again
+after a chargeback counts against the operator —, so the notice asks the subscriber to replace it;
+where another payment method is already in use, the invoice is collected with that one, as after
+a failure that asks for a replacement (`SC-PRIC-080`). A reversal that only shrinks a credit opens
+nothing and tells nobody. An invoice left open is unpaid like any other (`SC-PRIC-081`).
+
+_Source:_ #333 (decided 2026-10-14)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - a recorded collection-reversed notice
+        - reads back as it was recorded
+        - with what follows unknown, or without what it owes, stops the read
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - after a reversal opened an invoice again
+        - the subscriber is told once, asked to replace the payment method, and nothing is collected
+          from it again
+        - with another payment method in use, the subscriber is told so and the invoice is collected
+          with it
+        - a direct debit that replaces the payment method waits until the subscriber heard of the
+          reversal
+        - a reversal given back before the run follows it up tells nobody
+
+<!-- END proof -->
+
+### SC-PRIC-086 — A dispute won takes its reversal back, and what was paid meanwhile becomes a credit
+
+🟢 💰 Where the gateway gives back what a reversal withdrew — a card dispute decided for the
+operator —, the reversal is taken back part for part, once however often it is reported: the
+credit it shrank is owed again, the cases it opened to reconcile are closed, saying why, and the
+invoices it opened again are settled again as far as they still owe. What one of them no longer
+owes, because the subscriber paid it meanwhile, becomes a credit on the subscriber's account
+(`SC-PRIC-083`). A returned direct debit and a dispute lost are final, and nothing takes them back.
+
+_Source:_ #333 (decided 2026-10-14)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - what the gateway gives back of a reversal
+        - in full: the unmatched part, the credit, and the invoice settled again
+        - in part: the unmatched part first, as Stripe gives back a refunded part
+        - what an invoice paid meanwhile no longer owes becomes a credit
+        - an invoice paid in part is settled as far as it owes, and the rest is a credit
+        - an invoice owing the subscriber is settled by nothing
+        - what goes beyond everything the reversal took is taken by nothing
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - a reversal the gateway gives back
+        - after the invoice was paid again leaves that payment as a credit, audited
+        - closes the cases it opened, audited as closed because the money came back
+- `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
+    - the tenant page's payments
+        - a credit a reversal given back left names the reversal
 
 <!-- END proof -->
 
@@ -9902,7 +10106,7 @@ _Tested by:_
         - nothing is written for an invoice that owes nothing, started, planned or sent
     - reading
         - the invoices due and the invoices another payment method can collect are raw queries
-        - the failed attempts not followed up are listed by id
+        - the failed and the reversed attempts not followed up are listed by id
         - the planned and the unsettled attempts are listed by id, page by page
         - an attempt, an invoice’s attempts and the accounts in use read back as records
 - `packages/core/tests/a-collection-notice-reads-back.test.js`
@@ -10060,7 +10264,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-081 — An invoice left unpaid past its grace period makes the tenant read-only
 
 🟡 _(Decided, not yet delivered.)_ 💰 A collection that fails, the first one after sign-up included,
-and a reversal (`SC-PRIC-031`) leave the invoice open; it is collected again and the subscriber told
+and a reversal (`SC-PRIC-084`) leave the invoice open; it is collected again and the subscriber told
 as `SC-PRIC-080` says. An invoice still open when the grace period named in `config/saas.yaml` has
 passed, counted from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`),
 where a user holding the billing permission (`SC-UI-023`) can still replace the payment method.
@@ -10076,7 +10280,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 
 🟡 _(Decided, not yet delivered.)_ 💰 Cancelling an invoice (`SC-PRIC-025`), recording a payment event
-(`SC-PRIC-029`) or a reversal (`SC-PRIC-031`) against it, and marking a collection for it as
+(`SC-PRIC-029`) or a reversal (`SC-PRIC-084`) against it, and marking a collection for it as
 submitted to the gateway (`SC-PRIC-034`) take turns, and the turn belongs to the invoice's chain:
 the invoice and every replacement that follows it, however many cancellations deep, share one. Each
 reads the chain's state only once it holds the turn, so a payment event for a cancelled invoice and
@@ -14659,6 +14863,10 @@ _Tested by:_
 - `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
     - the manifest
         - announces the credits and the payout where they are served, and neither where they are not
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - the manifest
+        - announces the cases, their closing and the payments where they are served, and none where
+          they are not
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - where the view is served
         - without ${without}, neither the routes nor the capabilities exist
@@ -15283,6 +15491,117 @@ _Tested by:_
         - the history lists each correction and check with what it changed, why and by whom
     - the subscriber section on its own
         - closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown
+
+<!-- END proof -->
+
+### SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+
+🟢 💰 The part of a refund that no credit takes, and the part of a reversal that meets a credit
+already refunded or paid out (`SC-PRIC-084`), each become a case to reconcile, once however often
+the gateway reports it. The cases stand on a list of their own in the administration — with the
+subscriber, the payment and the gateway's reference, the amount and when it was recorded — and on
+the subscriber's tenant page among its open cases, beside its invoices with what each still owes
+and its credits. The operator closes a case with a note, behind the second factor, and the audit
+log records who closed it, when and why; a closed case stays readable. A refund that fails or is
+canceled, and a reversal the gateway takes back (`SC-PRIC-086`), close the cases they opened, saying
+so.
+
+_Source:_ #333 (decided 2026-10-14)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - of a payment this installation does not hold, holds and writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+        - is found by its id, and none by another
+    - the cases to reconcile
+        - the open ones are read the oldest first, a page at a time, for one subscriber where named
+        - the closed ones are read without a cursor in one statement
+        - one is closed only where it is still open, and one closed before or unknown is answered as
+          such
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - the accounts holding credits are asked with the kinds that give back
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - a case to reconcile
+        - is opened about exactly what its kind says, open and without a note
+        - reads back closed with a note, by the operator or by SaaSiCat
+        - ${why} stops the read
+- `packages/nest/tests/a-payment-is-recorded-and-a-credit-paid-out.test.js`
+    - a refund the operator made in the gateway
+        - beyond what the subscriber is owed is recorded, and what matches nothing is a case to
+          reconcile, audited
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - a reversal the gateway reports
+        - that meets a credit already refunded opens a case, audited for the operator
+    - a reversal the gateway gives back
+        - closes the cases it opened, audited as closed because the money came back
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - the cases to reconcile
+        - are listed open, the oldest first, with whom and what each is about
+        - are read a page at a time, the next one named
+        - are closed with the note, trimmed, by the operator who closed it
+        - closed once: a second close is refused, and nothing is written
+    - a tenant's payments
+        - are its invoices, the latest first, with what each still owes, and its open cases alone
+        - of a tenant without a subscriber are none
+- `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
+    - the reconciliation page
+        - lists the open cases with whom and what each is about
+        - with nothing open, says so
+        - closes a case with its note behind the second factor
+        - offers no closing without the capability to close
+        - the closed cases show the note, and who closed one where SaaSiCat did
+    - the tenant page's payments
+        - shows the invoices with what each still owes, and the open cases
+        - are not asked for where the platform does not serve them
+        - a credit a reversal given back left names the reversal
+- `packages/ui-vue/tests/reconciliation.test.js`
+    - reconciliationResource
+        - has the two operations the cases below drive, and no other
+        - cases asks for the state, and continues after a case where one is named
+        - close posts the note against the case, escaped, with the second factor
+    - tenantsResource.payments
+        - asks for the tenant's payments, with its slug escaped
+    - the list of cases
+        - reads the open cases when the page opens, and the next page when asked
+        - switching to the closed cases reads them from the first page, dropping what was added
+        - a page that fails to load is shown as the list's error, not thrown
+        - closes a case with its note behind the second factor, and reads the list again
+        - a cancelled code closes nothing
+    - a tenant's payments
+        - are read where the manifest announces them, and not otherwise
 
 <!-- END proof -->
 
@@ -20114,7 +20433,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-026`,
 `SC-AUD-012`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
 while a credit is still to be refunded, and until the latest end of the reversal period among all
-its payments (`SC-PRIC-031`); until then the contact data and the gateway reference needed to
+its payments (`SC-PRIC-084`); until then the contact data and the gateway reference needed to
 collect or refund stay. How long a payment can be reversed depends on how it was made and is not
 something SaaSiCat can observe, so the installation names that period in `config/saas.yaml`,
 counted from each payment. Each payment keeps the end of its period as the setting stood when the
@@ -20830,6 +21149,8 @@ _Tested by:_
         - an installation without invoices is left without the attempts, and runs through
     - a payment is recorded, and a credit paid out
         - a database from before ends up with the schema the fragments declare, twice
+        - a database the first version of it left gains the reversals and the cases, twice
+        - a reversal is taken once under its gateway account and reference
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
@@ -20973,6 +21294,8 @@ _Tested by:_
         - an installation without invoices is left without the attempts, and runs through
     - a payment is recorded, and a credit paid out
         - a database from before ends up with the schema the fragments declare, twice
+        - a database the first version of it left gains the reversals and the cases, twice
+        - a reversal is taken once under its gateway account and reference
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
@@ -21996,6 +22319,22 @@ _Source:_ ADR 0007
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - of a payment this installation does not hold, holds and writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+        - is found by its id, and none by another
+    - the cases to reconcile
+        - the open ones are read the oldest first, a page at a time, for one subscriber where named
+        - the closed ones are read without a cursor in one statement
+        - one is closed only where it is still open, and one closed before or unknown is answered as
+          such
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
     - schema table map
         - table names match the canonical @@map names
@@ -22005,6 +22344,31 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
     - PrismaMfaAdapter
         - secret roundtrip incl. enabledAt handling
@@ -22084,7 +22448,7 @@ _Tested by:_
         - nothing is written for an invoice that owes nothing, started, planned or sent
     - reading
         - the invoices due and the invoices another payment method can collect are raw queries
-        - the failed attempts not followed up are listed by id
+        - the failed and the reversed attempts not followed up are listed by id
         - the planned and the unsettled attempts are listed by id, page by page
         - an attempt, an invoice’s attempts and the accounts in use read back as records
 - `packages/adapter-prisma/tests/prisma-invoice-document.test.js`

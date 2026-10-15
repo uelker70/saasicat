@@ -158,14 +158,27 @@ describe('a payment row', () => {
 });
 
 describe('a settlement row', () => {
-    test('takes its amount off what the invoice owes', () => {
+    test('a payment and a reinstatement take their amount off what the invoice owes', () => {
         assert.equal(settledAmountOf({ id: 's-1', kind: 'PAYMENT', amount: '58.31' }), 58.31);
+        assert.equal(settledAmountOf({ id: 's-1', kind: 'REINSTATEMENT', amount: '58.31' }), 58.31);
+    });
+
+    // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
+    test('a reversal adds its amount back to what the invoice owes', () => {
+        assert.equal(settledAmountOf({ id: 's-1', kind: 'REVERSAL', amount: '58.31' }), -58.31);
+        assert.equal(
+            owedOn(58.31, [
+                58.31,
+                settledAmountOf({ id: 's-2', kind: 'REVERSAL', amount: '20.00' }),
+            ]),
+            20,
+        );
     });
 
     test('of a kind this release does not know stops the read', () => {
         assert.throws(
-            () => settledAmountOf({ id: 's-1', kind: 'REVERSAL', amount: '58.31' }),
-            /kind 'REVERSAL', which is none of PAYMENT/,
+            () => settledAmountOf({ id: 's-1', kind: 'REFUND', amount: '58.31' }),
+            /kind 'REFUND', which is none of PAYMENT, REVERSAL, REINSTATEMENT/,
         );
     });
 });
@@ -179,6 +192,7 @@ describe('a credit row', () => {
         currency: 'EUR',
         originPaymentId: null,
         originInvoiceId: 'invoice-1',
+        originReversalId: null,
         createdAt: AT,
     };
 
@@ -192,17 +206,26 @@ describe('a credit row', () => {
                 .origin,
             { kind: 'payment', paymentId: 'p-1' },
         );
+        assert.deepEqual(
+            toSubscriberCreditRecord({ ...row, originInvoiceId: null, originReversalId: 'r-1' })
+                .origin,
+            { kind: 'reversal', reversalId: 'r-1' },
+        );
         assert.equal(toSubscriberCreditRecord(row).amount, 40);
     });
 
-    test('naming both places or neither stops the read', () => {
+    test('naming two places or none stops the read', () => {
         assert.throws(
             () => toSubscriberCreditRecord({ ...row, originPaymentId: 'p-1' }),
-            /names both a payment and an invoice/,
+            /names 2 of a payment, an invoice and a reversal/,
+        );
+        assert.throws(
+            () => toSubscriberCreditRecord({ ...row, originReversalId: 'r-1' }),
+            /names 2 of a payment, an invoice and a reversal/,
         );
         assert.throws(
             () => toSubscriberCreditRecord({ ...row, originInvoiceId: null }),
-            /names neither a payment and an invoice/,
+            /names none of a payment, an invoice and a reversal/,
         );
     });
 });

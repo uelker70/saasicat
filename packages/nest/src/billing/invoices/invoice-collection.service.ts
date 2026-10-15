@@ -1,5 +1,6 @@
 // The run that collects the invoices that announced how they are paid, and
-// decides what follows when a collection fails (`SC-PRIC-080`, `SC-PRIC-082`).
+// decides what follows when a collection fails or its payment is reversed
+// (`SC-PRIC-080`, `SC-PRIC-082`, `SC-PRIC-085`).
 //
 // It first takes on the attempts that are not settled: one whose answer was
 // lost is asked about at the gateway, and sent again as the same request under
@@ -15,11 +16,13 @@
 // It then follows each failure up, once: where the reason can pass the same
 // payment method is planned once more, where another payment method replaced
 // it that one is planned, and the subscriber's notice is recorded from what
-// was planned. An invoice whose last attempt failed and was followed up, or
-// was withdrawn, is planned again once its subscriber uses another payment
-// method.
+// was planned. A reversal that opened an invoice again is followed up as well:
+// the subscriber's notice is recorded, and nothing is planned with the payment
+// method the reversed payment came from. An invoice whose last attempt failed
+// or was reversed and was followed up, or was withdrawn, is planned again once
+// its subscriber uses another payment method.
 //
-// It tells the subscriber of every failure not yet told, and last takes up
+// It tells the subscriber of every failure and reversal not yet told, and last takes up
 // what is planned. A planned attempt whose payment method is no longer in use
 // is withdrawn; a planned direct debit is announced to the subscriber first —
 // after the failure before it reached them — and its day is fixed when the
@@ -57,10 +60,12 @@ import {
     toCents,
     toCollectionAnnouncedNotice,
     toCollectionFailedNotice,
+    toCollectionReversedNotice,
     type CalendarDay,
     type CollectInvoiceInput,
     type CollectionAnnouncedNotice,
     type CollectionFailedNotice,
+    type CollectionReversedNotice,
     type CollectionFailureNext,
     type CollectionFailureReason,
     type CollectionOutcome,
@@ -360,7 +365,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             // and what follows it planned, in the same run.
             await this.eachPage(
                 (page) => this.collections.listToFollowUp(page),
-                (id) => this.followUpFailure(id, today, run),
+                (id) => this.followUp(id, today, run),
             );
             // Before what is planned, so the subscriber hears of a failure
             // before the direct debit announced again after it.
@@ -434,6 +439,64 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         if (invoice.collectionDate === null || !document.deliveredAt) return false;
         const deliveredOn = dayInZone(document.deliveredAt, this.timeZone());
         return addDaysToDay(deliveredOn, this.leadDays()) > invoice.collectionDate;
+    }
+
+    /** Decides what follows a failed or a reversed attempt, once. */
+    private async followUp(
+        id: string,
+        today: CalendarDay,
+        run: InvoiceCollectionRun,
+    ): Promise<void> {
+        const attempt = await this.collections.findById(id);
+        if (attempt?.status === 'REVERSED') {
+            await this.followUpReversal(attempt);
+            return;
+        }
+        await this.followUpFailure(id, today, run);
+    }
+
+    /**
+     * Decides what follows a reversal that opened the attempt's invoice again,
+     * once: records what the subscriber is told — the invoice open again, and
+     * that it is collected with the payment method now in use where another
+     * replaced the reversed one, or otherwise asked for a replacement — and
+     * marks the attempt. Nothing is planned here: the invoice is planned again,
+     * with another payment method only, once it is followed up. Where the
+     * invoice owes nothing by now — the gateway gave the reversal back, or the
+     * subscriber paid —, nobody is told.
+     */
+    private async followUpReversal(reversed: InvoiceCollectionRecord): Promise<void> {
+        if (reversed.followedUpAt !== null) return;
+        const owed = await this.recording().payments.owed(reversed.invoiceId);
+        if (owed <= 0) {
+            await this.collections.markFollowedUp(reversed.id, new Date());
+            return;
+        }
+        const invoice = await this.invoiceOf(reversed.invoiceId);
+        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        const notice: CollectionReversedNotice = {
+            kind: 'collection-reversed',
+            ...aboutInvoice(invoice),
+            paymentMethodType: reversed.paymentMethodType,
+            owed,
+            next:
+                method && method.id !== reversed.paymentMethodId
+                    ? { action: 'collected-with-payment-method-in-use' }
+                    : { action: 'replace-payment-method' },
+        };
+        await this.notices!.record(
+            [
+                {
+                    tenantId: invoice.tenantId,
+                    subscriptionId: invoice.subscriptionId,
+                    kind: 'collection-reversed',
+                    subject: reversed.attemptKey,
+                    content: notice,
+                },
+            ],
+            new Date(),
+        );
+        await this.collections.markFollowedUp(reversed.id, new Date());
     }
 
     /**
@@ -539,7 +602,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         const last = (await this.collections.listByInvoice(invoiceId)).at(-1);
         const ended =
             last?.status === 'WITHDRAWN' ||
-            (last?.status === 'FAILED' && last.followedUpAt !== null);
+            ((last?.status === 'FAILED' || last?.status === 'REVERSED') &&
+                last.followedUpAt !== null);
         if (!last || !ended) return;
         const invoice = await this.invoiceOf(invoiceId);
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
@@ -673,14 +737,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             );
             return;
         }
-        // The failures first, then what was told: a failure is recorded before
-        // the plan this announces, so every one is read, and a notice recorded
-        // between the two reads is among what was told.
-        const failures = (await this.collections.listByInvoice(invoice.id)).filter(
-            (each) => each.status === 'FAILED',
-        );
+        // The failures and reversals first, then what was told: each is
+        // recorded before the plan this announces, so every one is read, and a
+        // notice recorded between the two reads is among what was told.
+        const attempts = await this.collections.listByInvoice(invoice.id);
         const told = await this.notices!.listForSubscription(invoice.subscriptionId);
-        const untold = untoldFailure(failures, told);
+        const untold = untoldFailure(attempts, told);
         if (untold) {
             await this.recordWaiting(
                 invoice,
@@ -736,28 +798,29 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     }
 
     /**
-     * Sends the failures not told yet: recorded, and not sent, or sent and not
-     * answered. One that cannot be read or sent is said in the log and left
-     * for the next run, and the others go on.
+     * Sends the failures and reversals not told yet: recorded, and not sent,
+     * or sent and not answered. One that cannot be read or sent is said in the
+     * log and left for the next run, and the others go on.
      */
     private async tellUntold(run: InvoiceCollectionRun): Promise<void> {
         const staleBefore = new Date(Date.now() - NOTICE_CLAIM_LEASE_MS);
-        const untold = await this.notices!.listUndelivered('collection-failed', staleBefore);
-        for (const record of untold) {
-            try {
-                const notice = toCollectionFailedNotice(record.content, record.id);
-                const outcome = await this.sender!.tell(
-                    notice,
-                    record.subject,
-                    NOTICE_DELIVERY_TIMEOUT_MS,
-                );
-                if (outcome === 'told') run.told += 1;
-            } catch (error) {
-                this.logger.error(
-                    `The notice ${record.id} of a failed collection could not be sent; the next ` +
-                        'run tries again.',
-                    error instanceof Error ? error.stack : String(error),
-                );
+        for (const { kind, read, about } of TOLD_BY_THE_RUN) {
+            const untold = await this.notices!.listUndelivered(kind, staleBefore);
+            for (const record of untold) {
+                try {
+                    const outcome = await this.sender!.tell(
+                        read(record.content, record.id),
+                        record.subject,
+                        NOTICE_DELIVERY_TIMEOUT_MS,
+                    );
+                    if (outcome === 'told') run.told += 1;
+                } catch (error) {
+                    this.logger.error(
+                        `The notice ${record.id} of ${about} could not be sent; the next run ` +
+                            'tries again.',
+                        error instanceof Error ? error.stack : String(error),
+                    );
+                }
             }
         }
     }
@@ -1039,22 +1102,44 @@ function aboutInvoice(invoice: SubscriptionInvoiceRecord) {
     };
 }
 
+/** The notices the run sends once it recorded them, each with its reader. */
+const TOLD_BY_THE_RUN = [
+    { kind: 'collection-failed', read: toCollectionFailedNotice, about: 'a failed collection' },
+    { kind: 'collection-reversed', read: toCollectionReversedNotice, about: 'a reversed payment' },
+] as const;
+
 /**
- * The first of `failures` the subscriber has not been told of: one whose
- * notice is not delivered, or not recorded at all. A direct debit announced
- * again waits for it, so the subscriber hears of the failure before of the
- * debit that follows it.
+ * The first of the invoice's `attempts` the subscriber has not been told of: a
+ * failure whose notice is not delivered, or not recorded at all, and a
+ * reversal whose notice is recorded and not delivered — one that opened
+ * nothing that still owes is told nothing, and holds nothing. A direct debit
+ * announced again waits for it, so the subscriber hears of the failure or the
+ * reversal before of the debit that follows it.
  */
 function untoldFailure(
-    failures: readonly InvoiceCollectionRecord[],
+    attempts: readonly InvoiceCollectionRecord[],
     told: readonly SubscriptionNoticeRecord[],
 ): InvoiceCollectionRecord | null {
-    const delivered = new Set(
-        told
-            .filter((record) => record.kind === 'collection-failed' && record.deliveredAt !== null)
-            .map((record) => record.subject),
+    const of = (kind: SubscriptionNoticeRecord['kind'], delivered: boolean) =>
+        new Set(
+            told
+                .filter(
+                    (record) => record.kind === kind && (!delivered || record.deliveredAt !== null),
+                )
+                .map((record) => record.subject),
+        );
+    const failedTold = of('collection-failed', true);
+    const reversedRecorded = of('collection-reversed', false);
+    const reversedTold = of('collection-reversed', true);
+    return (
+        attempts.find(
+            (each) =>
+                (each.status === 'FAILED' && !failedTold.has(each.attemptKey)) ||
+                (each.status === 'REVERSED' &&
+                    reversedRecorded.has(each.attemptKey) &&
+                    !reversedTold.has(each.attemptKey)),
+        ) ?? null
     );
-    return failures.find((each) => !delivered.has(each.attemptKey)) ?? null;
 }
 
 /** The day a planned attempt is collected from, which its read refuses to be without. */

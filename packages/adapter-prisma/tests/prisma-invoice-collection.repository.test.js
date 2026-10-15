@@ -219,10 +219,17 @@ describe('a write that names the state it expects', () => {
             true,
         ],
         [
-            'a follow-up lands on a failure not followed up',
+            'a follow-up lands on a failure or a reversal not followed up',
             (repo) => repo.markFollowedUp('attempt-1', AT),
-            { id: 'attempt-1', status: 'FAILED', followedUpAt: null },
+            { id: 'attempt-1', status: { in: ['FAILED', 'REVERSED'] }, followedUpAt: null },
             { followedUpAt: AT },
+            true,
+        ],
+        [
+            'a reversal lands on a succeeded attempt',
+            (repo) => repo.markReversed('attempt-1', AT),
+            { id: 'attempt-1', status: 'SUCCEEDED' },
+            { status: 'REVERSED', resolvedAt: AT },
             true,
         ],
     ]) {
@@ -315,7 +322,7 @@ describe('reading', () => {
         assert.ok(again[2].includes('invoice-0'));
     });
 
-    test('the failed attempts not followed up are listed by id', async () => {
+    test('the failed and the reversed attempts not followed up are listed by id', async () => {
         const client = fakeClient();
 
         await new PrismaInvoiceCollectionRepository(client).listToFollowUp({
@@ -326,7 +333,7 @@ describe('reading', () => {
         const [[, listed]] = callsOf(client, 'findMany');
         assert.deepEqual(listed.where, {
             id: { gt: 'attempt-0' },
-            status: 'FAILED',
+            status: { in: ['FAILED', 'REVERSED'] },
             followedUpAt: null,
         });
     });

@@ -44,11 +44,20 @@ import type {
     RecordedSubscriberPayment,
     RecordedSubscriberPayout,
     RecordedSubscriberRefund,
+    RecordedSubscriberReversal,
     ReportedSubscriberRefund,
+    ReportedSubscriberReversal,
+    SubscriberReversalRecord,
     SubscriberCreditRecord,
     SubscriberCreditStanding,
     SubscriberPaymentRecord,
 } from '../subscriber-payment.types.js';
+import type {
+    ClosedReconciliationCase,
+    CloseReconciliationCase,
+    ReconciliationCaseState,
+    SubscriberReconciliationCaseRecord,
+} from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
     NewSubscriptionInvoice,
@@ -805,7 +814,10 @@ export interface InvoiceCollectionRepository {
         tx?: TransactionContext,
     ): Promise<string[]>;
 
-    /** The failed attempts, by id and page as above, whose follow-up is not recorded yet. */
+    /**
+     * The failed and the reversed attempts, by id and page as above, whose
+     * follow-up is not recorded yet.
+     */
     listToFollowUp(
         page: { limit: number; after?: string },
         tx?: TransactionContext,
@@ -813,11 +825,12 @@ export interface InvoiceCollectionRepository {
 
     /**
      * The invoices, by id and page as above, that another payment method can
-     * collect: their last attempt was withdrawn, or failed and was followed
-     * up, and their subscriber has a payment method in use other than the one
-     * that attempt was made with (`subscriber_payment_methods`), and that still
-     * owe something. An invoice whose failed payment method is still in use,
-     * or whose subscriber has none, is not read until that changes.
+     * collect: their last attempt was withdrawn, or failed or was reversed and
+     * was followed up, and their subscriber has a payment method in use other
+     * than the one that attempt was made with (`subscriber_payment_methods`),
+     * and that still owe something. An invoice whose failed or reversed
+     * payment method is still in use, or whose subscriber has none, is not read
+     * until that changes.
      */
     listCollectableAgain(
         page: { limit: number; after?: string },
@@ -825,11 +838,20 @@ export interface InvoiceCollectionRepository {
     ): Promise<string[]>;
 
     /**
-     * Records that what follows a failed attempt was decided, at `at`, and
-     * returns `true`; `false`, writing nothing, where it did not fail or was
-     * followed up already.
+     * Records that what follows a failed or a reversed attempt was decided, at
+     * `at`, and returns `true`; `false`, writing nothing, where it neither
+     * failed nor was reversed, or was followed up already.
      */
     markFollowedUp(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
+
+    /**
+     * Marks a succeeded attempt as `REVERSED`, at `at`, where a reversal of its
+     * payment opened its invoice again, and returns `true`; `false`, writing
+     * nothing, where it is not `SUCCEEDED`. The invoice is then collected only
+     * by an attempt with another payment method, planned once the reversal is
+     * followed up.
+     */
+    markReversed(id: string, at: Date, tx?: TransactionContext): Promise<boolean>;
 
     /**
      * Records what became of an attempt that is not settled — `SUBMITTED` or
@@ -905,9 +927,12 @@ export interface InvoiceCollectionRepository {
 /**
  * What money moved between a subscriber and the operator: the payments the
  * gateway confirmed, what each settles of its invoice, the credits the
- * subscriber is owed, and the refunds and payouts that pay them out
- * (`SC-PRIC-029`, `SC-PRIC-031`, `SC-PRIC-083`). Nothing is edited once
- * written; every change is an entry of its own.
+ * subscriber is owed, the refunds and payouts that pay them out, the reversals
+ * that take a payment back and give it back again, and the cases nothing
+ * matched (`SC-PRIC-029`, `SC-PRIC-083`, `SC-PRIC-084`, `SC-PRIC-086`,
+ * `SC-ADM-033`). Nothing is edited once written but a refund's status, what a
+ * reversal withdrew and gave back, and a case's closing; every other change is
+ * an entry of its own.
  *
  * Platform-wide: the gateway's callbacks and the run read across tenants
  * inside `RlsBypassPort`.
@@ -951,10 +976,11 @@ export interface SubscriberPaymentRepository {
      * Records a refund the gateway reported against the payment it pays back.
      * Seen for the first time, it is divided across the subscriber's open
      * credits in its currency — the credit that payment left first, then the
-     * oldest — and what none takes matches nothing. Seen again as failed or
-     * canceled, it gives back what it paid out of each credit, once. Every
-     * credit it reads is held for the transaction, so a payout or another
-     * refund at the same moment waits for it.
+     * oldest — and what none takes matches nothing, a case to reconcile. Seen
+     * again as failed or canceled, it gives back what it paid out of each
+     * credit, once, and closes its case. Every credit it reads is held for the
+     * transaction, so a payout or another refund at the same moment waits for
+     * it.
      */
     recordRefund(
         refund: ReportedSubscriberRefund,
@@ -977,6 +1003,9 @@ export interface SubscriberPaymentRepository {
     /** The payment recorded under `id`, or `null`. */
     findPaymentById(id: string, tx?: TransactionContext): Promise<SubscriberPaymentRecord | null>;
 
+    /** The reversal recorded under `id`, or `null`. */
+    findReversalById(id: string, tx?: TransactionContext): Promise<SubscriberReversalRecord | null>;
+
     /** The payment recorded under a gateway account and reference, or `null`. */
     findPaymentByRef(
         gatewayAccount: string,
@@ -992,6 +1021,62 @@ export interface SubscriberPaymentRepository {
 
     /** What an invoice still owes after what is settled against it; `null` where it does not exist. */
     owedBy(invoiceId: string, tx?: TransactionContext): Promise<number | null>;
+
+    /**
+     * What each of `invoiceIds` still owes, for every one that exists, in one
+     * read.
+     */
+    owedByInvoices(
+        invoiceIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<{ invoiceId: string; owed: number }[]>;
+
+    /**
+     * Records a reversal the gateway reported against the payment it takes
+     * back, in the turn of that payment's invoice (`SC-PRIC-036`), with every
+     * credit of its subscriber held. What it withdrew and what the gateway gave
+     * back of it are reported in total; what grew since it was last recorded is
+     * applied, once however often and in whatever order it is reported. What it
+     * newly withdrew takes from the credit the payment left first — its open
+     * part shrinks it, its part already paid out is a case to reconcile —, then
+     * opens again the invoices the payment settles, the oldest first, and what
+     * exceeds both is a case as well (`SC-PRIC-084`). What the gateway newly
+     * gave back covers the reversal's cases first, closing each it covers, then
+     * gives back what it took of the credit, then settles again what it opened
+     * as far as the invoice still owes, and what an invoice no longer owes is a
+     * credit (`SC-PRIC-086`). Throws for a reversal in another currency than
+     * its payment.
+     */
+    recordReversal(
+        reversal: ReportedSubscriberReversal,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberReversal>;
+
+    /**
+     * The cases to reconcile in `state`, the oldest first — of one subscriber
+     * where `subscriberId` is given —, at most `limit`, after the case `after`
+     * names where it is given.
+     */
+    listCases(
+        filter: { state: ReconciliationCaseState; subscriberId?: string },
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<SubscriberReconciliationCaseRecord[]>;
+
+    /** Closes an open case with the operator's note, once. */
+    closeCase(
+        close: CloseReconciliationCase,
+        tx?: TransactionContext,
+    ): Promise<ClosedReconciliationCase>;
+
+    /**
+     * Every gateway account a payment was collected at whose credit is still
+     * owed, in part or whole, each once — the accounts that have to stay
+     * configured, so a refund made there is recorded against the credit
+     * (`SC-PRIC-030`). Platform-wide, asked at the start through
+     * `RlsBypassPort`.
+     */
+    accountsHoldingCredits(tx?: TransactionContext): Promise<string[]>;
 }
 
 // -----------------------------------------------------------------------------
