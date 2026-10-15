@@ -2154,8 +2154,9 @@ What the gateway reports and no credit matches is a case the operator closes wit
 - **A gateway of your own** reports reversals through `readCallback` as `reversal-reported`, with
   what the reversal withdrew and what was given back of it, each in total so far, in cents.
 - **A `SubscriberPaymentRepository` of your own** implements `recordReversal` — taking an open
-  credit another payment for the same invoice left before it opens the invoice (`SC-PRIC-087`,
-  `withdrawalParts` in `@saasicat/core`) —, `listCases`,
+  credit another payment for the same invoice left before it opens the invoice (`SC-PRIC-087`),
+  lifting the covers a reversed payment's credit gave first (`SC-PRIC-088`; `withdrawalParts`,
+  `coversOf`, `coversLifted` and `inWithdrawalOrder` in `@saasicat/core`) —, `listCases`,
   `closeCase`, `owedByInvoices`, `findReversalById` and `accountsHoldingCredits`, opens a case for
   the part of a refund no credit takes and closes it when the refund fails, and counts a
   `REVERSAL` settlement against what an invoice owes — `REOPENING_SETTLEMENT_KINDS` and

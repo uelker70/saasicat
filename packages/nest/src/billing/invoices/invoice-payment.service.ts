@@ -33,14 +33,17 @@ import type {
     InvoiceCollectionRecord,
     InvoiceCollectionRepository,
     InvoicePart,
+    LiftedCover,
     ReconciliationCaseKind,
     RecordedSubscriberPayment,
     RecordedSubscriberRefund,
     RecordedSubscriberReversal,
+    ReversalWithdrawal,
     RlsBypassPort,
     SubscriberCreditRecord,
     SubscriberPaymentRepository,
     SubscriberReconciliationCaseRecord,
+    SubscriberReversalRecord,
     TransactionContext,
 } from '@saasicat/core';
 
@@ -144,6 +147,7 @@ type MoneyAudit =
               credit: CreditPart | null;
               covering: CreditPart[];
               invoices: InvoicePart[];
+              uncovered: LiftedCover[];
               unmatched: number;
           };
       }
@@ -451,18 +455,50 @@ export class InvoicePaymentService
             );
         }
         if (recorded.outcome === 'unchanged') return 'nothing-to-do';
-        if (recorded.withdrawal && recorded.withdrawal.invoices.length > 0) {
-            const payment = await this.payments.findPaymentById(
-                recorded.reversal.paymentId,
-                context.tx,
-            );
-            if (payment) await this.collections.markReversed(payment.collectionId, at, context.tx);
+        if (recorded.withdrawal) {
+            await this.markWhatOpened(recorded.reversal, recorded.withdrawal, at, context.tx);
         }
         context.afterCommit(() => this.reportReversal(recorded, reversal.paymentRef));
         return 'took-effect';
     }
 
     /**
+     * Marks reversed, where a withdrawal opened an invoice again — itself, or
+     * through a cover it lifted —, the attempt whose payment it took back, the
+     * attempts whose payments the lifted covers stood for, and every attempt of
+     * that invoice that succeeded: none of them settles it any more, and one
+     * that succeeded would keep every other attempt from being made
+     * (`SC-PRIC-085`, `SC-PRIC-088`).
+     */
+    private async markWhatOpened(
+        reversal: SubscriberReversalRecord,
+        withdrawal: ReversalWithdrawal,
+        at: Date,
+        tx: TransactionContext,
+    ): Promise<void> {
+        const opened = new Set(
+            [...withdrawal.invoices, ...withdrawal.uncovered].map((part) => part.invoiceId),
+        );
+        if (opened.size === 0) return;
+        const attempts = new Set<string>();
+        for (const paymentId of new Set([
+            reversal.paymentId,
+            ...withdrawal.uncovered.map((each) => each.paymentId),
+        ])) {
+            const payment = await this.payments.findPaymentById(paymentId, tx);
+            if (payment) attempts.add(payment.collectionId);
+        }
+        for (const invoiceId of opened) {
+            for (const attempt of await this.collections.listByInvoice(invoiceId, tx)) {
+                if (attempt.status === 'SUCCEEDED') attempts.add(attempt.id);
+            }
+        }
+        for (const id of attempts) await this.collections.markReversed(id, at, tx);
+    }
+
+    /**
+     * Whether the invoice still owes something after what is settled against
+     * it.    /**
      * Whether the invoice still owes something after what is settled against
      * it. One that owes nothing — a payment came for it, a late one included —
      * is collected no further.
@@ -567,6 +603,7 @@ export class InvoicePaymentService
                     credit: withdrawal.credit,
                     covering: withdrawal.covering,
                     invoices: withdrawal.invoices,
+                    uncovered: withdrawal.uncovered,
                     unmatched: withdrawal.unmatched,
                 },
             });

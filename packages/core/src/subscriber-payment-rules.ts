@@ -10,6 +10,7 @@ import type {
     InvoicePart,
     SubscriberCreditEntryKind,
     SubscriberCreditOrigin,
+    SubscriberCreditRecord,
 } from './subscriber-payment.types.js';
 
 /**
@@ -306,6 +307,79 @@ export function paidOutByCredit(
         paid.set(entry.creditId, (paid.get(entry.creditId) ?? 0) + paidOutBy(entry));
     }
     return [...paid].map(([creditId, cents]) => ({ creditId, amount: cents / 100 }));
+}
+
+/**
+ * What other reversals took of one credit to cover what they would have opened
+ * of its invoice (`SC-PRIC-087`) and still hold: the credit's `entries` of
+ * reversals not in `own`, net of what was given back, in whole cents, in the
+ * order the reversals first appear. Where the credit's own payment is reversed
+ * as well, these covers are lifted first (`SC-PRIC-088`).
+ */
+export function coversOf(
+    entries: readonly {
+        reversalId: string | null;
+        kind: SubscriberCreditEntryKind;
+        amount: number;
+    }[],
+    own: ReadonlySet<string>,
+): { reversalId: string; amount: number }[] {
+    const taken = new Map<string, number>();
+    for (const entry of entries) {
+        if (entry.reversalId === null || own.has(entry.reversalId)) continue;
+        taken.set(entry.reversalId, (taken.get(entry.reversalId) ?? 0) + paidOutBy(entry));
+    }
+    return [...taken]
+        .filter(([, cents]) => cents > 0)
+        .map(([reversalId, cents]) => ({ reversalId, amount: cents / 100 }));
+}
+
+/**
+ * The covers a withdrawal lifts: what it takes of its payment's credit beyond
+ * the open part — `parts.fromCredit` less `parts.credit` — reaches the covers
+ * that credit gave other reversals (`coversOf`) before it counts as paid out,
+ * in the order given. Each lifted cover opens its reversal's invoice again;
+ * what it reaches beyond them stays unmatched (`SC-PRIC-088`).
+ */
+export function coversLifted(
+    parts: Pick<WithdrawalParts, 'fromCredit' | 'credit' | 'unmatched'>,
+    covers: readonly { reversalId: string; amount: number }[],
+): { lifted: { reversalId: string; amount: number }[]; unmatched: number } {
+    let reach = toCents(parts.fromCredit) - toCents(parts.credit?.amount ?? 0);
+    const lifted: { reversalId: string; amount: number }[] = [];
+    for (const cover of covers) {
+        if (reach <= 0) break;
+        const taken = Math.min(reach, toCents(cover.amount));
+        if (taken <= 0) continue;
+        lifted.push({ reversalId: cover.reversalId, amount: taken / 100 });
+        reach -= taken;
+    }
+    const liftedCents = lifted.reduce((sum, each) => sum + toCents(each.amount), 0);
+    return { lifted, unmatched: (toCents(parts.unmatched) - liftedCents) / 100 };
+}
+
+/**
+ * `parts` in the order a reversal of payment `paymentId` takes credits: the
+ * credit that payment left first, then the covering ones, the oldest first —
+ * so what the gateway gives back returns to them in that order, whatever order
+ * a database reads their entries in.
+ */
+export function inWithdrawalOrder(
+    parts: readonly CreditPart[],
+    credits: readonly SubscriberCreditRecord[],
+    paymentId: string,
+): CreditPart[] {
+    const byId = new Map(credits.map((credit) => [credit.id, credit]));
+    const rank = (part: CreditPart): [number, number, string] => {
+        const credit = byId.get(part.creditId);
+        if (!credit) return [2, 0, part.creditId];
+        const own = credit.origin.kind === 'payment' && credit.origin.paymentId === paymentId;
+        return [own ? 0 : 1, credit.createdAt.getTime(), credit.id];
+    };
+    return [...parts].sort((a, b) => {
+        const [x, y] = [rank(a), rank(b)];
+        return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2], 'en');
+    });
 }
 
 /**

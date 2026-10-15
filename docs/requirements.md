@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 87      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 88      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 642 entries: 🟢 556 stand today, 🟡 56 decided but not yet delivered, ⚪ 0 drafts,
+Of 643 entries: 🟢 557 stand today, 🟡 56 decided but not yet delivered, ⚪ 0 drafts,
 🔵 27 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -224,7 +224,7 @@ Of 642 entries: 🟢 556 stand today, 🟡 56 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 642 requirements. Do not edit by hand:
+Generated from `requirements/` — 643 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9914,6 +9914,41 @@ _Tested by:_
 - `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
     - a payment that arrived late while the attempt beside it paid the invoice too, reversed
         - is covered by the credit the other payment left, and nobody is told
+
+<!-- END proof -->
+
+### SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
+
+🟢 💰 Where a payment whose credit covered another reversal of its invoice (`SC-PRIC-087`) is
+reversed itself, the cover is lifted before anything else: the earlier reversal opens the invoice
+by what the credit covered, as it would have without the credit, and the later one takes the
+credit as its own. Two reversals of one invoice's payments therefore end alike whatever order the
+gateway reports them in. Where a reversal leaves an invoice owing — itself, or through a cover it
+lifted —, every attempt of that invoice that succeeded is marked reversed beside the attempt
+whose payment was taken back: none of them settles the invoice any more, and one that succeeded
+would keep every other attempt from being made. Its payment method collects that invoice no more
+either, even where its payment was paid out rather than reversed (`SC-PRIC-085`), and the
+subscriber is told once.
+
+_Source:_ #333 (decided 2026-10-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - the covers a credit gave other reversals
+        - are what reversals other than its own payment's took of it and still hold, in the order
+          given
+        - why
+        - are reached only by what the withdrawal takes of the credit beyond its open part, the
+          first first
+        - given back, return to the payment's own credit first, then the others, the oldest first
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - two payments of one invoice, both no longer there
+        - ${what}: both attempts reversed, told once, collected with a new card only
+        - a failure followed up before the reversal holds no later direct debit back
+        - a failure on the reversed card holds no direct debit back once the reversal was told
 
 <!-- END proof -->
 

@@ -1820,6 +1820,41 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
+
+🟢 💰 Where a payment whose credit covered another reversal of its invoice (`SC-PRIC-087`) is
+reversed itself, the cover is lifted before anything else: the earlier reversal opens the invoice
+by what the credit covered, as it would have without the credit, and the later one takes the
+credit as its own. Two reversals of one invoice's payments therefore end alike whatever order the
+gateway reports them in. Where a reversal leaves an invoice owing — itself, or through a cover it
+lifted —, every attempt of that invoice that succeeded is marked reversed beside the attempt
+whose payment was taken back: none of them settles the invoice any more, and one that succeeded
+would keep every other attempt from being made. Its payment method collects that invoice no more
+either, even where its payment was paid out rather than reversed (`SC-PRIC-085`), and the
+subscriber is told once.
+
+_Source:_ #333 (decided 2026-10-15)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - the covers a credit gave other reversals
+        - are what reversals other than its own payment's took of it and still hold, in the order
+          given
+        - why
+        - are reached only by what the withdrawal takes of the credit beyond its open part, the
+          first first
+        - given back, return to the payment's own credit first, then the others, the oldest first
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - two payments of one invoice, both no longer there
+        - ${what}: both attempts reversed, told once, collected with a new card only
+        - a failure followed up before the reversal holds no later direct debit back
+        - a failure on the reversed card holds no direct debit back once the reversal was told
+
+<!-- END proof -->
+
 ### SC-PRIC-032 — No contract is frozen and no invoice issued before the subscriber's identity is complete
 
 🟢 💰 The identity is the legal name, the billing address and the

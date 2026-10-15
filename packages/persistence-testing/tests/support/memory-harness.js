@@ -45,6 +45,9 @@ import {
     owedOn,
     settledAmountOf,
     withdrawalParts,
+    coversLifted,
+    coversOf,
+    inWithdrawalOrder,
     reinstatementParts,
     netByInvoice,
     paidOutByCredit,
@@ -2497,7 +2500,55 @@ export function createMemoryHarness() {
             .filter((each) => others.has(each.credit.origin.paymentId))
             .map((each) => ({ creditId: each.credit.id, open: each.open }));
         const parts = withdrawalParts(amount, credit, invoices, covering);
-        for (const part of parts.credit ? [parts.credit, ...parts.covering] : parts.covering) {
+        const ownIds = new Set(
+            state.reversals.filter((row) => row.paymentId === payment.id).map((row) => row.id),
+        );
+        const covers = creditRow
+            ? coversOf(
+                  state.creditEntries
+                      .filter((row) => row.creditId === creditRow.id)
+                      .map((row) => toSubscriberCreditEntryRecord(structuredClone(row))),
+                  ownIds,
+              )
+            : [];
+        const { lifted, unmatched } = coversLifted(parts, covers);
+        const uncovered = lifted.map((cover) => {
+            const covered = toSubscriberReversalRecord(
+                structuredClone(state.reversals.find((row) => row.id === cover.reversalId)),
+            );
+            state.creditEntries.push({
+                id: nextId('credit-entry'),
+                ...reversalEntryColumns(
+                    creditRow.id,
+                    covered,
+                    'REVERSAL_TAKEN_BACK',
+                    cover.amount,
+                    at,
+                ),
+            });
+            writeSettlement(
+                payment.invoiceId,
+                { id: covered.paymentId },
+                'REVERSAL',
+                cover.amount,
+                covered,
+                at,
+            );
+            return {
+                reversalId: covered.id,
+                paymentId: covered.paymentId,
+                invoiceId: payment.invoiceId,
+                amount: cover.amount,
+            };
+        });
+        const takenOfOwn =
+            centsOf(parts.credit?.amount ?? 0) +
+            lifted.reduce((sum, each) => sum + centsOf(each.amount), 0);
+        const ownPart =
+            creditRow && takenOfOwn > 0
+                ? { creditId: creditRow.id, amount: takenOfOwn / 100 }
+                : null;
+        for (const part of ownPart ? [ownPart, ...parts.covering] : parts.covering) {
             state.creditEntries.push({
                 id: nextId('credit-entry'),
                 ...reversalEntryColumns(part.creditId, reversal, 'REVERSAL', part.amount, at),
@@ -2507,10 +2558,10 @@ export function createMemoryHarness() {
             writeSettlement(part.invoiceId, payment, 'REVERSAL', part.amount, reversal, at);
         }
         const opened =
-            parts.unmatched > 0
+            unmatched > 0
                 ? openCase({
                       kind: 'REVERSAL_UNMATCHED',
-                      amount: parts.unmatched,
+                      amount: unmatched,
                       currency: payment.currency,
                       payment,
                       about: reversal,
@@ -2520,10 +2571,11 @@ export function createMemoryHarness() {
         return {
             fromCredit: parts.fromCredit,
             withdrawal: {
-                credit: parts.credit,
+                credit: ownPart,
                 covering: parts.covering,
                 invoices: parts.invoices,
-                unmatched: parts.unmatched,
+                uncovered,
+                unmatched,
                 case: opened,
             },
         };
@@ -2540,7 +2592,11 @@ export function createMemoryHarness() {
             .map((row) => toSubscriberCreditEntryRecord(structuredClone(row)));
         const parts = reinstatementParts(amount, {
             unmatched: (unmatched - coveredBefore) / 100,
-            credits: paidOutByCredit(entries).map((part) => ({
+            credits: inWithdrawalOrder(
+                paidOutByCredit(entries),
+                state.credits.map((row) => toSubscriberCreditRecord(structuredClone(row))),
+                payment.id,
+            ).map((part) => ({
                 creditId: part.creditId,
                 left: part.amount,
             })),

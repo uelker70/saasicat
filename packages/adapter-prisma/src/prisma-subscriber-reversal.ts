@@ -11,6 +11,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
     CoveringCredit,
+    LiftedCover,
     RecordedSubscriberReversal,
     ReportedSubscriberReversal,
     ReversalReinstatement,
@@ -22,6 +23,9 @@ import type {
 import {
     CASE_CLOSED_REVERSAL_GIVEN_BACK,
     casesCovered,
+    coversLifted,
+    coversOf,
+    inWithdrawalOrder,
     netByInvoice,
     paidOutByCredit,
     reinstatementParts,
@@ -179,9 +183,10 @@ async function withdraw(
     const invoices = netByInvoice(
         settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
     ).map((net) => ({ invoiceId: net.invoiceId, left: net.amount }));
+    const own = await reversibleCredit(db, payment);
     const parts = withdrawalParts(
         amount,
-        await reversibleCredit(db, payment),
+        own,
         invoices,
         await coveringCredits(
             db,
@@ -189,8 +194,22 @@ async function withdraw(
             invoices.map((each) => each.invoiceId),
         ),
     );
-    const takenOfCredits = parts.credit ? [parts.credit, ...parts.covering] : parts.covering;
-    for (const part of takenOfCredits) {
+    const { lifted, unmatched } = coversLifted(
+        parts,
+        own ? await coversGivenBy(db, own.creditId, payment) : [],
+    );
+    const uncovered: LiftedCover[] = [];
+    if (own) {
+        for (const cover of lifted) {
+            uncovered.push(await liftCover(db, own.creditId, cover, payment, at));
+        }
+    }
+    const takenOfOwn =
+        toCents(parts.credit?.amount ?? 0) +
+        lifted.reduce((sum, each) => sum + toCents(each.amount), 0);
+    const credit =
+        own && takenOfOwn > 0 ? { creditId: own.creditId, amount: takenOfOwn / 100 } : null;
+    for (const part of credit ? [credit, ...parts.covering] : parts.covering) {
         await db.subscriberCreditEntry.create({
             data: {
                 id: randomUUID(),
@@ -212,10 +231,10 @@ async function withdraw(
         });
     }
     const opened =
-        parts.unmatched > 0
+        unmatched > 0
             ? await openCase(db, {
                   kind: 'REVERSAL_UNMATCHED',
-                  amount: parts.unmatched,
+                  amount: unmatched,
                   currency: payment.currency,
                   payment,
                   about: reversal,
@@ -225,12 +244,74 @@ async function withdraw(
     return {
         fromCredit: parts.fromCredit,
         withdrawal: {
-            credit: parts.credit,
+            credit,
             covering: parts.covering,
             invoices: parts.invoices,
-            unmatched: parts.unmatched,
+            uncovered,
+            unmatched,
             case: opened,
         },
+    };
+}
+
+/**
+ * The covers the credit `creditId`, which `payment` left, gave other reversals
+ * of its invoice and still holds, in the order they were given.
+ */
+async function coversGivenBy(
+    db: PaymentPrisma,
+    creditId: string,
+    payment: SubscriberPaymentRecord,
+): Promise<{ reversalId: string; amount: number }[]> {
+    const own = await db.subscriberReversal.findMany({ where: { paymentId: payment.id } });
+    const entries = (
+        await db.subscriberCreditEntry.findMany({
+            where: { creditId },
+            orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
+        })
+    ).map(toSubscriberCreditEntryRecord);
+    return coversOf(entries, new Set(own.map((each) => each.id)));
+}
+
+/**
+ * Lifts what the reversal `cover` names took of the credit `creditId`: it is
+ * given back to the credit, and that reversal opens the payment's invoice by
+ * it, as it would have without the credit (`SC-PRIC-088`).
+ */
+async function liftCover(
+    db: PaymentPrisma,
+    creditId: string,
+    cover: { reversalId: string; amount: number },
+    payment: SubscriberPaymentRecord,
+    at: Date,
+): Promise<LiftedCover> {
+    const row = await db.subscriberReversal.findUnique({ where: { id: cover.reversalId } });
+    if (!row) {
+        throw new Error(`Reversal ${cover.reversalId} took credit ${creditId} and does not exist.`);
+    }
+    const covered = toSubscriberReversalRecord(row);
+    await db.subscriberCreditEntry.create({
+        data: {
+            id: randomUUID(),
+            ...reversalEntryColumns(creditId, covered, 'REVERSAL_TAKEN_BACK', cover.amount, at),
+        },
+    });
+    await db.subscriptionInvoiceSettlement.create({
+        data: {
+            id: randomUUID(),
+            invoiceId: payment.invoiceId,
+            paymentId: covered.paymentId,
+            kind: 'REVERSAL',
+            amount: toDecimalString(cover.amount),
+            reversalId: covered.id,
+            recordedAt: at,
+        },
+    });
+    return {
+        reversalId: covered.id,
+        paymentId: covered.paymentId,
+        invoiceId: payment.invoiceId,
+        amount: cover.amount,
     };
 }
 
@@ -297,8 +378,17 @@ async function reinstate(
     // What the gateway gave back before covered the unmatched part first.
     const coveredBefore = Math.min(toCents(reversal.reinstated), unmatched);
     const entries = (
-        await db.subscriberCreditEntry.findMany({ where: { reversalId: reversal.id } })
+        await db.subscriberCreditEntry.findMany({
+            where: { reversalId: reversal.id },
+            orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
+        })
     ).map(toSubscriberCreditEntryRecord);
+    const took = paidOutByCredit(entries);
+    const credits = (
+        await db.subscriberCredit.findMany({
+            where: { id: { in: took.map((part) => part.creditId) } },
+        })
+    ).map(toSubscriberCreditRecord);
     const settlements = await db.subscriptionInvoiceSettlement.findMany({
         where: { reversalId: reversal.id },
         orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
@@ -312,7 +402,7 @@ async function reinstate(
     }
     const parts = reinstatementParts(amount, {
         unmatched: (unmatched - coveredBefore) / 100,
-        credits: paidOutByCredit(entries).map((part) => ({
+        credits: inWithdrawalOrder(took, credits, payment.id).map((part) => ({
             creditId: part.creditId,
             left: part.amount,
         })),

@@ -734,12 +734,6 @@ function refundStatusOf(refund: Stripe.Refund): GatewayRefund['status'] {
 }
 
 /**
- * The code of the last failure: a card's decline code, which names why the
- * bank refused it — a charge's own code is `card_declined` for every one of
- * them —, else the charge's code, which is what names a direct debit's
- * failure, else the error's.
- */
-/**
  * What a dispute withdrew from the account and what Stripe gave back, each in
  * total, from its balance transactions: a withdrawal is negative, a give-back
  * positive, and the dispute fee stands beside the amount rather than in it.
@@ -762,6 +756,12 @@ function movedBy(dispute: Stripe.Dispute): { withdrawnCents: number; reinstatedC
     return { withdrawnCents, reinstatedCents };
 }
 
+/**
+ * The code of the last failure: a card's decline code, which names why the
+ * bank refused it — a charge's own code is `card_declined` for every one of
+ * them —, else the charge's code, which is what names a direct debit's
+ * failure, else the error's.
+ */
 function failureCodeOf(intent: Stripe.PaymentIntent): string | null {
     const charge = expanded<Stripe.Charge>(intent.latest_charge);
     const error = intent.last_payment_error;

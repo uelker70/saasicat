@@ -9,6 +9,9 @@ import assert from 'node:assert/strict';
 
 import {
     casesCovered,
+    coversLifted,
+    coversOf,
+    inWithdrawalOrder,
     netByInvoice,
     openOfCredit,
     paidOutByCredit,
@@ -199,6 +202,98 @@ describe('what credits other payments for the same invoice left cover of a rever
             [other('c-2', 70)],
         );
         assert.deepEqual(parts.invoices, [{ invoiceId: 'i-2', amount: 29 }]);
+    });
+});
+
+// @requirement SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
+describe('the covers a credit gave other reversals', () => {
+    const entry = (reversalId, kind, amount) => ({ reversalId, kind, amount });
+
+    test("are what reversals other than its own payment's took of it and still hold, in the order given", () => {
+        assert.deepEqual(
+            coversOf(
+                [
+                    entry('r-own', 'REVERSAL', 5),
+                    entry('r-a', 'REVERSAL', 30),
+                    entry('r-b', 'REVERSAL', 10),
+                    entry('r-a', 'REVERSAL_TAKEN_BACK', 12.5),
+                    entry('r-c', 'REVERSAL', 4),
+                    entry('r-c', 'REVERSAL_TAKEN_BACK', 4),
+                    entry(null, 'PAYOUT', 7),
+                ],
+                new Set(['r-own']),
+            ),
+            [
+                { reversalId: 'r-a', amount: 17.5 },
+                { reversalId: 'r-b', amount: 10 },
+            ],
+        );
+    });
+
+    const parts = (fromCredit, credit, unmatched) => ({
+        fromCredit,
+        credit: credit === null ? null : { creditId: 'c-1', amount: credit },
+        unmatched,
+    });
+
+    for (const [reach, lifted, unmatched, why] of [
+        [29.99, [29.99], 0, 'a cent short of the cover lifts what it reaches'],
+        [30, [30], 0, 'exactly the cover lifts it whole'],
+        [30.01, [30], 0.01, 'a cent beyond it stays unmatched'],
+    ]) {
+        test(why, () => {
+            const result = coversLifted(parts(reach, null, reach), [
+                { reversalId: 'r-a', amount: 30 },
+            ]);
+            assert.deepEqual(
+                [result.lifted.map((each) => each.amount), result.unmatched],
+                [lifted, unmatched],
+            );
+        });
+    }
+
+    test('are reached only by what the withdrawal takes of the credit beyond its open part, the first first', () => {
+        const result = coversLifted(parts(50, 20, 30), [
+            { reversalId: 'r-a', amount: 25 },
+            { reversalId: 'r-b', amount: 25 },
+        ]);
+        assert.deepEqual(result, {
+            lifted: [
+                { reversalId: 'r-a', amount: 25 },
+                { reversalId: 'r-b', amount: 5 },
+            ],
+            unmatched: 0,
+        });
+        assert.deepEqual(coversLifted(parts(20, 20, 0), [{ reversalId: 'r-a', amount: 25 }]), {
+            lifted: [],
+            unmatched: 0,
+        });
+    });
+
+    test("given back, return to the payment's own credit first, then the others, the oldest first", () => {
+        const credit = (id, paymentId, at) => ({
+            id,
+            origin: { kind: 'payment', paymentId },
+            createdAt: new Date(at),
+        });
+        const credits = [
+            credit('c-late', 'p-3', '2026-03-02T00:00:00.000Z'),
+            credit('c-own', 'p-1', '2026-03-03T00:00:00.000Z'),
+            credit('c-early', 'p-2', '2026-03-01T00:00:00.000Z'),
+        ];
+
+        assert.deepEqual(
+            inWithdrawalOrder(
+                [
+                    { creditId: 'c-late', amount: 1 },
+                    { creditId: 'c-early', amount: 2 },
+                    { creditId: 'c-own', amount: 3 },
+                ],
+                credits,
+                'p-1',
+            ).map((part) => part.creditId),
+            ['c-own', 'c-early', 'c-late'],
+        );
     });
 });
 

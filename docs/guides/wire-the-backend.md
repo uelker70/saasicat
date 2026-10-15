@@ -1230,11 +1230,13 @@ you name another. The start refuses collections without it.
 - **A reversal takes back what its payment brought** (`SC-PRIC-084`): a direct debit the bank
   returned, or a chargeback. The credit the payment left goes first — its open part shrinks it, a
   part already paid out is a case to reconcile —, then an open credit another payment for the
-  same invoice left (`SC-PRIC-087`), then what the payment settled of its invoice opens again. The
+  same invoice left (`SC-PRIC-087`), then what the payment settled of its invoice opens again —
+  two reversals of one invoice's payments end alike in either order (`SC-PRIC-088`). The
   attempt that collected it is then `REVERSED`, also one that failed before its payment arrived
   late: once no other attempt of the invoice is on its way the next run tells the subscriber, and
   the invoice is collected again only with a payment method none of its payments was reversed on
-  (`SC-PRIC-085`). A dispute
+  (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well, since it would
+  keep every other attempt from being made. A dispute
   won takes the reversal back part for part, and what the invoice no longer owes — the subscriber
   paid it meanwhile — becomes a credit (`SC-PRIC-086`).
 - **What matched nothing** stands on the administration's reconciliation page and on the tenant's

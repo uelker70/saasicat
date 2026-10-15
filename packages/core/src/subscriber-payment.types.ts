@@ -262,11 +262,25 @@ export interface ReversalWithdrawal {
     /** The invoices it opened again, each by how much, the oldest first. */
     invoices: InvoicePart[];
     /**
+     * The covers the payment's own credit gave other reversals of its invoice,
+     * lifted before anything else: each of those reversals now opens the
+     * invoice by what it took (`SC-PRIC-088`).
+     */
+    uncovered: LiftedCover[];
+    /**
      * What met the part of that credit already paid out, or went beyond what
      * the payment brought: a case to reconcile.
      */
     unmatched: number;
     case: SubscriberReconciliationCaseRecord | null;
+}
+
+/** A cover lifted: the reversal it was given to, that reversal's payment, and what it opens now. */
+export interface LiftedCover {
+    reversalId: string;
+    paymentId: string;
+    invoiceId: string;
+    amount: number;
 }
 
 /** What giving back part of a reversal's amount took back in turn. */

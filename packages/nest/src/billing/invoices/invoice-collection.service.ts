@@ -476,6 +476,20 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             return;
         }
         const attempts = await this.collections.listByInvoice(reversed.invoiceId);
+        // Attempts reversed together — the one whose payment was taken back,
+        // and one that succeeded beside it — tell the subscriber once, from the
+        // latest of them.
+        const reversedAt = reversed.resolvedAt?.getTime() ?? 0;
+        const toldByALater = attempts.some(
+            (each) =>
+                each.status === 'REVERSED' &&
+                each.attempt > reversed.attempt &&
+                (each.followedUpAt === null || each.followedUpAt.getTime() >= reversedAt),
+        );
+        if (toldByALater) {
+            await this.collections.markFollowedUp(reversed.id, new Date());
+            return;
+        }
         // Another attempt on its way may still pay the invoice: the subscriber
         // is told once it settled, so the notice says what follows.
         if (attempts.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
@@ -486,8 +500,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             ...aboutInvoice(invoice),
             paymentMethodType: reversed.paymentMethodType,
             owed,
+            // What `planAgain` will do: collect with the payment method in use
+            // where neither the last attempt nor a reversal was made with it.
             next:
-                method && !reversedOn(attempts).has(method.id)
+                method &&
+                method.id !== attempts.at(-1)?.paymentMethodId &&
+                !reversedOn(attempts).has(method.id)
                     ? { action: 'collected-with-payment-method-in-use' }
                     : { action: 'replace-payment-method' },
         };
@@ -1111,7 +1129,6 @@ function unsettledBefore(at: Date): { submittedBefore: Date; pendingBefore: Date
     };
 }
 
-/** The request an attempt makes, the same however often it is sent. */
 /**
  * The payment methods a payment of the invoice was reversed on: none of them
  * collects the invoice again (`SC-PRIC-085`).
@@ -1122,6 +1139,7 @@ function reversedOn(attempts: readonly InvoiceCollectionRecord[]): Set<string> {
     );
 }
 
+/** The request an attempt makes, the same however often it is sent. */
 function requestOf(attempt: InvoiceCollectionRecord): CollectInvoiceInput {
     return {
         attemptKey: attempt.attemptKey,
@@ -1158,9 +1176,12 @@ const TOLD_BY_THE_RUN = [
  * The first of the invoice's `attempts` the subscriber has not been told of: a
  * failure whose notice is not delivered, or not recorded at all, and a
  * reversal whose notice is recorded and not delivered — one that opened
- * nothing that still owes is told nothing, and holds nothing. A direct debit
- * announced again waits for it, so the subscriber hears of the failure or the
- * reversal before of the debit that follows it.
+ * nothing that still owes is told nothing, and holds nothing. A failure on a
+ * payment method a payment of the invoice was reversed on, and one followed up
+ * before a reversal of the invoice, is the reversal's to tell, and holds what
+ * the reversal holds. A direct debit announced again waits for it, so the
+ * subscriber hears of the failure or the reversal before of the debit that
+ * follows it.
  */
 function untoldFailure(
     attempts: readonly InvoiceCollectionRecord[],
@@ -1177,10 +1198,22 @@ function untoldFailure(
     const failedTold = of('collection-failed', true);
     const reversedRecorded = of('collection-reversed', false);
     const reversedTold = of('collection-reversed', true);
+    const reversedMethods = reversedOn(attempts);
+    const lastReversedAt = Math.max(
+        0,
+        ...attempts
+            .filter((each) => each.status === 'REVERSED')
+            .map((each) => each.resolvedAt?.getTime() ?? 0),
+    );
+    const theReversalsToTell = (failed: InvoiceCollectionRecord) =>
+        reversedMethods.has(failed.paymentMethodId) ||
+        (failed.followedUpAt !== null && failed.followedUpAt.getTime() <= lastReversedAt);
     return (
         attempts.find(
             (each) =>
-                (each.status === 'FAILED' && !failedTold.has(each.attemptKey)) ||
+                (each.status === 'FAILED' &&
+                    !failedTold.has(each.attemptKey) &&
+                    !theReversalsToTell(each)) ||
                 (each.status === 'REVERSED' &&
                     reversedRecorded.has(each.attemptKey) &&
                     !reversedTold.has(each.attemptKey)),

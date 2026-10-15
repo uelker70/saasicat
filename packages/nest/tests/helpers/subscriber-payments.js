@@ -12,6 +12,9 @@ import {
     CASE_CLOSED_REVERSAL_GIVEN_BACK,
     REOPENING_SETTLEMENT_KINDS,
     casesCovered,
+    coversLifted,
+    coversOf,
+    inWithdrawalOrder,
     isEndedRefund,
     netByInvoice,
     openOfCredit,
@@ -455,7 +458,44 @@ export class MemorySubscriberPayments {
             invoices,
             covering,
         );
-        for (const part of parts.credit ? [parts.credit, ...parts.covering] : parts.covering) {
+        const own = new Set(
+            this.reversals.filter((each) => each.paymentId === payment.id).map((each) => each.id),
+        );
+        const covers = credit
+            ? coversOf(
+                  this.entries.filter((each) => each.creditId === credit.id),
+                  own,
+              )
+            : [];
+        const { lifted, unmatched } = coversLifted(parts, covers);
+        const uncovered = lifted.map((cover) => {
+            const covered = this.reversals.find((each) => each.id === cover.reversalId);
+            this.#reversalEntry(
+                covered,
+                'REVERSAL_TAKEN_BACK',
+                { creditId: credit.id, amount: cover.amount },
+                at,
+            );
+            this.settlements.push({
+                invoiceId: payment.invoiceId,
+                paymentId: covered.paymentId,
+                kind: 'REVERSAL',
+                amount: cover.amount,
+                reversalId: covered.id,
+            });
+            return {
+                reversalId: covered.id,
+                paymentId: covered.paymentId,
+                invoiceId: payment.invoiceId,
+                amount: cover.amount,
+            };
+        });
+        const takenOfOwn =
+            toCents(parts.credit?.amount ?? 0) +
+            lifted.reduce((sum, each) => sum + toCents(each.amount), 0);
+        const ownPart =
+            credit && takenOfOwn > 0 ? { creditId: credit.id, amount: takenOfOwn / 100 } : null;
+        for (const part of ownPart ? [ownPart, ...parts.covering] : parts.covering) {
             this.#reversalEntry(reversal, 'REVERSAL', part, at);
         }
         for (const part of parts.invoices) {
@@ -468,16 +508,17 @@ export class MemorySubscriberPayments {
             });
         }
         const opened =
-            parts.unmatched > 0
-                ? this.#openCase('REVERSAL_UNMATCHED', parts.unmatched, payment, reversal, at)
+            unmatched > 0
+                ? this.#openCase('REVERSAL_UNMATCHED', unmatched, payment, reversal, at)
                 : null;
         return {
             fromCredit: parts.fromCredit,
             withdrawal: {
-                credit: parts.credit,
+                credit: ownPart,
                 covering: parts.covering,
                 invoices: parts.invoices,
-                unmatched: parts.unmatched,
+                uncovered,
+                unmatched,
                 case: opened,
             },
         };
@@ -489,8 +530,10 @@ export class MemorySubscriberPayments {
         const coveredBefore = Math.min(toCents(reversal.reinstated), unmatched);
         const parts = reinstatementParts(amount, {
             unmatched: (unmatched - coveredBefore) / 100,
-            credits: paidOutByCredit(
-                this.entries.filter((each) => each.reversalId === reversal.id),
+            credits: inWithdrawalOrder(
+                paidOutByCredit(this.entries.filter((each) => each.reversalId === reversal.id)),
+                this.credits,
+                payment.id,
             ).map((part) => ({ creditId: part.creditId, left: part.amount })),
             invoices: netByInvoice(
                 this.settlements
