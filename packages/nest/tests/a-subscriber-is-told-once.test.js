@@ -323,10 +323,13 @@ describe('a notice the application could not send', () => {
     // @requirement SC-SUB-023 — Every notice to a subscriber is recorded: once, with when and to whom it went
     test('held by another run is left to it', async () => {
         const notices = noticeRecord();
+        // Taken by another run a moment ago. A run stamps its claims with the
+        // real clock, so a claim at the fixture's moment reads as abandoned
+        // once that moment lies more than a lease in the past.
         await notices.claim(
             { tenantId: 't1', subscriptionId: 'sub-t1', kind: 'version-offered', subject: 'pv-2' },
             {},
-            NOW,
+            new Date(),
             new Date(0),
         );
         const { service, port } = runOver({ notices });
