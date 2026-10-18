@@ -1855,8 +1855,35 @@ Nothing else is required of you unless you change that identity — but three th
 One limit worth stating: the comparison needs the `core.appliedSettings` port, which both shipped
 persistence bundles provide. Without it the boot log says once that the issuer is compared with
 nothing, and the identity is not guarded. A contract whose party copy the subscriber migration made
-names no issuer at all; those neither block a change nor are blocked by one, and are confirmed
-against the contract before they are invoiced.
+names no issuer at all; those neither block a change nor are blocked by one, and are not invoiced
+(see the next section).
+
+### A contract is not concluded without an issuer
+
+`config/saas.yaml#issuer` is required wherever your application concludes contracts —
+`tenantBilling.contractFreeze`, a checkout offer's `conclusion` or `SubscriptionContractModule` —
+and a start without it is refused:
+
+```text
+config/saas.yaml names no issuer, and this application concludes contracts: a contract names the
+legal entity on your side of it from the day it is concluded. Name it under issuer — its legalName,
+and the address and tax identifiers an invoice will carry.
+```
+
+Name the block as
+[your own side of every contract](wire-the-backend.md#your-own-side-of-every-contract) shows it. An
+application that concludes no contracts may still leave it out.
+
+A contract concluded while the file named no issuer keeps naming none, and like one whose parties
+the subscriber migration copied it is not invoiced: nothing says who its parties were the day it was
+concluded, so its charges stay held with `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`, and no step
+confirms them later. Every successor frozen afresh — such as after a change of plan or of its
+billing rhythm, an add-on booked or ended, a move to another version, or
+`<app> contracts refresh --full` — copies both parties as they stand that day, and that one is
+invoiced, whether the subscriber or the operator made the change. A refresh of its features and a
+withdrawn feature carry the contract forward and keep its copy.
+
+`contractPartiesOf` in `@saasicat/core` takes the issuer as required and always copies one.
 
 ### An invoice is issued from the charge journal
 
@@ -1915,8 +1942,8 @@ then a wrong one cannot be corrected. To adopt it ([wire the backend](wire-the-b
 
 A contract whose parties a migration copied — `1.0-a-contract-names-its-subscriber.postgres.sql`
 marks them `partiesMigrated` — or that names no issuer is not invoiced: its charges wait, and the
-audit log records `SUBSCRIPTION_INVOICE_HELD` with `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`.
-Confirming such parties is not part of this release.
+audit log records `SUBSCRIPTION_INVOICE_HELD` with `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`
+(see [a contract is not concluded without an issuer](#a-contract-is-not-concluded-without-an-issuer)).
 
 One installation is the range of exactly one issuer, and an issuer keeps one range: a second
 application issuing for the same issuer is not supported. This replaces `SC-PRIC-023`, under which

@@ -369,6 +369,7 @@ describe('carrying the features over', () => {
         assert.equal(successor.effectiveUntil, contract.effectiveUntil);
     });
 
+    // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
     test('the parties are the ones agreed, not a correction made since — and a migrated copy stays marked', async () => {
         const t = installation();
         const frozen = await t.freeze();
@@ -382,7 +383,8 @@ describe('carrying the features over', () => {
             ...t.contracts.dataOf(frozen),
             status: 'active',
             effectiveFrom: new Date(FROZEN.getTime() + 1),
-            parties: partiesNamed('Tenant One GmbH'),
+            // The migration copies the subscriber and no issuer.
+            parties: partiesNamed('Tenant One GmbH', { issuer: null }),
             partiesMigrated: true,
         });
         t.rename();
@@ -393,6 +395,7 @@ describe('carrying the features over', () => {
         const successor = await t.repo.findActiveByTenantId('t1', NOW);
         assert.notEqual(successor.id, migrated.id);
         assert.equal(successor.subscriber.legalName, 'Tenant One GmbH');
+        assert.equal(successor.issuer, null, 'no issuer the copy did not name');
         assert.equal(successor.partiesMigrated, true);
     });
 

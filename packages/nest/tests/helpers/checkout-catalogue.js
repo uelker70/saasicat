@@ -7,8 +7,10 @@
 
 import { CheckoutOfferPricing, CheckoutOfferService } from '../../dist/checkout-offer/index.js';
 import { PromoCodesService } from '../../dist/promo/index.js';
+import { ISSUER } from './invoice-run.js';
 
-export const CATALOG = { vatRate: 19, currency: 'EUR' };
+/** Concluding an offer writes a contract, which names the issuer. */
+export const CATALOG = { vatRate: 19, currency: 'EUR', issuer: ISSUER };
 
 export const PLAN = { id: 'plan-standard', planKey: 'STANDARD', label: 'Standard' };
 

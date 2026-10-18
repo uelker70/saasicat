@@ -9,6 +9,8 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
 
 import { subscriberFromRegistration } from '@saasicat/core';
 import {
@@ -18,12 +20,19 @@ import {
     buildTenantSubscriptionBundlesController,
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
-import { SubscriberService } from '../dist/subscriber/index.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../dist/billing/index.js';
+import { CheckoutOfferModule } from '../dist/checkout-offer/index.js';
+import { SubscriberModule, SubscriberService } from '../dist/subscriber/index.js';
 import {
     SubscriptionContractModule,
     SubscriptionContractService,
 } from '../dist/subscription-contract/index.js';
-import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
+import {
+    FakeSubscriberRepository,
+    FakeSubscriptionContractRepository,
+    FakeTransactionRunner,
+} from '../dist/testing/index.js';
+import { invoicingPlatform, refusal } from './helpers/invoicing-platform.js';
 import { SUBSCRIBER_CATALOG, subscribersFor } from './helpers/subscribers.js';
 import { boundPlanVersion } from './helpers/subscription-fixtures.js';
 
@@ -43,6 +52,8 @@ const CATALOG_WITH_ISSUER = {
     issuer: ISSUER,
     subscribers: { customerNumberPrefix: 'K-' },
 };
+
+const { issuer: _none, ...CATALOG_WITHOUT_ISSUER } = SUBSCRIBER_CATALOG;
 
 /** A contract as a caller asks for it: one plan line, and no word about parties. */
 function contractFor(tenantId) {
@@ -111,7 +122,7 @@ async function contractsWith({ tenants = [], catalog = CATALOG_WITH_ISSUER } = {
 }
 
 describe('a contract names the parties it is concluded with', () => {
-    // @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
+    // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
     test("it copies the tenant's subscriber and the issuer the configuration names", async () => {
         const { contracts, subscribers } = await contractsWith({ tenants: ['tenant-meier'] });
         const subscriber = await subscribers.requireForTenant('tenant-meier');
@@ -146,20 +157,21 @@ describe('a contract names the parties it is concluded with', () => {
         assert.equal(contract.partiesMigrated, false);
     });
 
-    // @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
-    test('where the configuration names no issuer, the contract says none was named', async () => {
-        const { contracts } = await contractsWith({
+    // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
+    test('where the configuration names no issuer, none is concluded, and nothing is written', async () => {
+        const { contracts, repo } = await contractsWith({
             tenants: ['tenant-meier'],
-            catalog: SUBSCRIBER_CATALOG,
+            catalog: CATALOG_WITHOUT_ISSUER,
         });
 
-        const contract = await contracts.create(contractFor('tenant-meier'));
-
-        assert.equal(contract.issuer, null);
-        assert.equal(contract.subscriber.customerNumber, '10001', 'no prefix, the number alone');
+        await assert.rejects(
+            () => contracts.create(contractFor('tenant-meier')),
+            /names no issuer, and this application concludes contracts/,
+        );
+        assert.deepEqual(await repo.list({ tenantId: 'tenant-meier' }), []);
     });
 
-    // @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
+    // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
     test('a party a caller names itself is not the one written', async () => {
         const { contracts, subscribers } = await contractsWith({ tenants: ['tenant-meier'] });
         const forged = {
@@ -477,5 +489,81 @@ describe('a module that writes contracts does not start without the subscribers'
         // The counter-check: the same options with it start.
         options.contractFreeze.subscriberRepository = {};
         assert.ok(TenantBillingModule.forRoot(options));
+    });
+});
+
+// @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
+describe('a module that writes contracts does not start without an issuer', () => {
+    // Every contract names the legal entity on the operator's side from the day
+    // it is concluded. Found out at the first sign-up, a missing `issuer` would
+    // refuse a customer; found out at the start, it refuses a deploy.
+
+    /** The module compiled and initialised, as an application starts it. */
+    async function startedWith(module) {
+        const moduleRef = await Test.createTestingModule({ imports: [module] }).compile();
+        await moduleRef.init();
+        return moduleRef;
+    }
+
+    const settingsAre = (catalog) => [{ provide: PLAN_CATALOG_SETTINGS_TOKEN, useValue: catalog }];
+
+    const contractModule = (catalog) =>
+        SubscriptionContractModule.forRoot({
+            subscriptionContractRepository: new FakeSubscriptionContractRepository(),
+            subscriberRepository: new FakeSubscriberRepository(),
+            extraProviders: settingsAre(catalog),
+        });
+
+    test('the contract module, which starts once the file names one', async () => {
+        await assert.rejects(
+            () => startedWith(contractModule(CATALOG_WITHOUT_ISSUER)),
+            /names no issuer, and this application concludes contracts/,
+        );
+
+        const moduleRef = await startedWith(contractModule(CATALOG_WITH_ISSUER));
+        await moduleRef.close();
+    });
+
+    test('the checkout offer module, where it concludes offers', async () => {
+        const offerModule = (catalog) =>
+            CheckoutOfferModule.forRoot({
+                checkoutOfferRepository: {},
+                // Pricing asks for the version on sale; this test prices nothing.
+                planRepository: { findActivePlanVersion: async () => null },
+                conclusion: {
+                    subscriptionContractRepository: new FakeSubscriptionContractRepository(),
+                    subscriberRepository: new FakeSubscriberRepository(),
+                    transactionRunner: new FakeTransactionRunner(),
+                },
+                extraProviders: settingsAre(catalog),
+            });
+
+        await assert.rejects(
+            () => startedWith(offerModule(CATALOG_WITHOUT_ISSUER)),
+            /names no issuer, and this application concludes contracts/,
+        );
+
+        const moduleRef = await startedWith(offerModule(CATALOG_WITH_ISSUER));
+        await moduleRef.close();
+    });
+
+    test('the platform, whose tenant billing freezes contracts', async () => {
+        // Without invoices or a tax adapter, whose own starts ask for an issuer
+        // as well.
+        const message = await refusal(
+            invoicingPlatform({ issuer: null, invoicing: null, invoices: null, tax: false }),
+        );
+
+        assert.match(message, /names no issuer, and this application concludes contracts/);
+    });
+
+    test('while a module that only keeps the subscribers starts without one', async () => {
+        const moduleRef = await startedWith(
+            SubscriberModule.forRoot({
+                subscriberRepository: new FakeSubscriberRepository(),
+                extraProviders: settingsAre(CATALOG_WITHOUT_ISSUER),
+            }),
+        );
+        await moduleRef.close();
     });
 });

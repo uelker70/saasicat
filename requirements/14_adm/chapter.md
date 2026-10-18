@@ -834,7 +834,7 @@ collected (`SC-PRIC-032`): the billing address and the invoice email replace wha
 kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
 (`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
 (`SC-PRIC-026`), and the contract keeps the party copy it was concluded with, which names the same
-legal entity (`SC-AUD-012`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
+legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
 and the record created at
 sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
 whole history. A subscriber with a live tenant is not joined to a second one.

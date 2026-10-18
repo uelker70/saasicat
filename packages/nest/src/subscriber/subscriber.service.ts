@@ -53,6 +53,12 @@ import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
  */
 const KEPT_BY_A_TENANT = [...SUBSCRIBER_INVOICE_ADDRESS_FIELDS, 'invoiceEmail'] as const;
 
+/** Why nothing is concluded, and what to write, where `config/saas.yaml` names no issuer. */
+const ISSUER_REQUIRED =
+    'config/saas.yaml names no issuer, and this application concludes contracts: a contract ' +
+    'names the legal entity on your side of it from the day it is concluded. Name it under ' +
+    'issuer — its legalName, and the address and tax identifiers an invoice will carry.';
+
 /** What a contract copies of its parties, and the tax origin of the same read. */
 export interface ContractParty {
     parties: SubscriptionContractParties;
@@ -177,12 +183,24 @@ export class SubscriberService {
         tx?: TransactionContext,
     ): Promise<ContractParty> {
         const subscriber = await this.requireForTenant(tenantId, tx);
-        const parties = contractPartiesOf(subscriber, this.settings.issuer);
+        const parties = contractPartiesOf(subscriber, this.issuerNamed());
         if (!options.forTaxAdapter) return { parties, origin: null };
         const missing = invoiceAddressGapsOf(subscriber);
         if (missing.length > 0) throw identityIncomplete(missing);
         const check = await this.repo.findCurrentVatIdCheck(subscriber.id, tx);
         return { parties, origin: taxOriginOf(subscriber, check) };
+    }
+
+    /**
+     * The issuer `config/saas.yaml` names, which every contract is concluded
+     * with (`SC-AUD-020`) and every invoice names. The start of each module that
+     * writes contracts refuses a file that names none, and so does the start of
+     * invoicing, so this refuses only for a service built outside them.
+     */
+    issuerNamed(): NonNullable<PlanCatalogSettings['issuer']> {
+        const issuer = this.settings.issuer;
+        if (!issuer) throw new Error(ISSUER_REQUIRED);
+        return issuer;
     }
 
     /**
@@ -202,7 +220,7 @@ export class SubscriberService {
         if (missing.length > 0) throw identityIncomplete(missing);
         const check = await this.repo.findCurrentVatIdCheck(subscriber.id, tx);
         return {
-            parties: contractPartiesOf(subscriber, this.settings.issuer),
+            parties: contractPartiesOf(subscriber, this.issuerNamed()),
             origin: taxOriginOf(subscriber, check),
         };
     }

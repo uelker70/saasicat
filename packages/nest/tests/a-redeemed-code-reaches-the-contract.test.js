@@ -21,6 +21,7 @@ import {
     FakeSubscriberRepository,
     FakeSubscriptionContractRepository,
 } from '../dist/testing/index.js';
+import { ISSUER } from './helpers/invoice-run.js';
 import { boundPlanVersion } from './helpers/subscription-fixtures.js';
 
 const STANDARD = {
@@ -42,6 +43,7 @@ const CATALOG = {
         selfServiceBlockedPlans: { asTarget: [], asSource: [] },
     },
     plans: [STANDARD],
+    issuer: ISSUER,
 };
 
 const FROM = new Date('2026-06-09T00:00:00.000Z');

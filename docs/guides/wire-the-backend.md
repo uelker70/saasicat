@@ -271,11 +271,13 @@ issuer:
     taxNumber: 12/345/67890
 ```
 
-Everything here is optional except `legalName`, and the block itself is optional
-until you invoice: a contract concluded while it is absent records that no issuer
-was named. Optional to add, that is — once a start has recorded an identity,
-taking the block away again is refused, for the same reason changing it is. The
-next section says what to do about both.
+Everything here is optional except `legalName`. The block itself is required as
+soon as your application concludes contracts — `tenantBilling.contractFreeze`, a
+checkout offer's `conclusion` or `SubscriptionContractModule` — and a start
+without it is refused, because no contract is concluded with nobody on your side.
+An application that concludes none may leave it out. Once a start has recorded an
+identity, taking the block away again is refused, for the same reason changing it
+is. The next section says what to do about both.
 
 ### Moving, and being renamed
 

@@ -285,7 +285,7 @@ Invoices issued from the charge journal.
 | `SUBSCRIPTION_INVOICE_NOT_FOUND`             | No invoice '{invoiceId}'.                                                                                                                                                                       |
 | `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`      | Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.                                                                                  |
 | `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD`     | The subscriber {subscriberId} has no payment method in use. The invoice is collected once one is.                                                                                               |
-| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`   | Contract {contractId} names no confirmed issuer and subscriber — a migration copied its parties, or it names no issuer — so its charges are not invoiced.                                       |
+| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`   | Contract {contractId} does not say who its parties were when it was concluded — a migration copied them, or it names no issuer — so its charges are not invoiced.                               |
 
 ## Subscribers
 

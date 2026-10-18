@@ -299,6 +299,30 @@ describe('writing a successor', () => {
         assert.equal(kept.subscriber.legalName, 'Tenant One AG');
         assert.equal(kept.partiesMigrated, false);
     });
+
+    // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
+    test('a successor of a contract the migration copied copies both parties afresh', async () => {
+        // The migration copied the subscriber and could name no issuer; a plan
+        // change concludes its successor with both parties as they stand now,
+        // so that one is invoiced and the copy it replaces is not passed on.
+        const t = contractsWith();
+        const migrated = await t.repo.create({
+            ...contractData(),
+            parties: partiesNamed('Tenant One', { issuer: null }),
+            partiesMigrated: true,
+        });
+        t.subscriber.parties = partiesNamed('Tenant One GmbH');
+
+        const fresh = await t.service.writeSuccessor(
+            migrated,
+            contractData({ effectiveFrom: LATER }),
+            LATER,
+        );
+
+        assert.equal(fresh.partiesMigrated, false);
+        assert.equal(fresh.subscriber.legalName, 'Tenant One GmbH');
+        assert.equal(fresh.issuer.legalName, 'Example Software GmbH');
+    });
 });
 
 describe('replacing the contract in force', () => {

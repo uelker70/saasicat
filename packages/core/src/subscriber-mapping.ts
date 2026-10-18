@@ -153,12 +153,14 @@ export function identityCorrectionDelta(
 
 /**
  * Who a new contract is between: the subscriber as it stands, and the issuer as
- * the running configuration names it — or no issuer, where it names none.
+ * the running configuration names it. A contract is not concluded without an
+ * issuer (`SC-AUD-020`), so there is no copy for a configuration that names
+ * none.
  */
 export function contractPartiesOf(
     subscriber: SubscriberRecord,
-    issuer: PlanCatalog['issuer'],
-): SubscriptionContractParties {
+    issuer: NonNullable<PlanCatalog['issuer']>,
+): SubscriptionContractParties & { issuer: ContractIssuerParty } {
     const party: ContractSubscriberParty = {
         customerNumber: subscriber.customerNumber,
         legalName: subscriber.legalName,
@@ -173,7 +175,7 @@ export function contractPartiesOf(
     return {
         subscriberId: subscriber.id,
         subscriber: party,
-        issuer: issuer ? issuerPartyOf(issuer) : null,
+        issuer: issuerPartyOf(issuer),
     };
 }
 

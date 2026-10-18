@@ -1016,7 +1016,7 @@ describe('every contract names the subscriber it is concluded with', () => {
         ]);
     });
 
-    // @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
+    // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
     test("each contract names its tenant's subscriber, with a copy that says the migration made it", async () => {
         await beforeTheMigration();
         await threeCustomers();

@@ -5,13 +5,17 @@
 import { SubscriberService } from '../../dist/subscriber/index.js';
 import { FakeSubscriberRepository } from '../../dist/testing/index.js';
 
-/** The catalogue a subscriber service reads its prefix and the issuer from. */
+/**
+ * The catalogue a subscriber service reads its prefix and the issuer from. It
+ * names an issuer, because no contract is concluded without one.
+ */
 export const SUBSCRIBER_CATALOG = {
     schemaVersion: 1,
     app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [],
+    issuer: { legalName: 'Test App GmbH', country: 'DE' },
 };
 
 /**
