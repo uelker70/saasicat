@@ -13,7 +13,13 @@ import type {
 } from '@saasicat/core';
 
 import { taxStatementOf, type TaxStatement } from './categories.js';
-import { correctionNoteOf, isCancellation, lineCorrectionOf, xmlSignOf } from './correction.js';
+import {
+    correctionNoteOf,
+    isCancellation,
+    lineCorrectionOf,
+    namedPaymentOf,
+    xmlSignOf,
+} from './correction.js';
 import { xmlAmount, xmlDay, xmlRate, xmlText } from './format.js';
 import type { Label } from './labels.js';
 import { paymentNoteOf } from './payment-note.js';
@@ -155,10 +161,11 @@ function line(
 /**
  * How the invoice is paid (BG-16): a SEPA direct debit, or a bank card named
  * by the last four digits of its number (BT-87), never more. Nothing where
- * the invoice is not collected — EN 16931 asks for no payment means.
+ * the invoice is not collected — EN 16931 asks for no payment means — and
+ * nothing on a cancellation invoice, which asks for nothing.
  */
 function paymentMeans(invoice: SubscriptionInvoiceRecord): string {
-    const { payment } = invoice;
+    const payment = namedPaymentOf(invoice);
     if (!payment) return '';
     const card =
         payment.type === 'card'
@@ -185,7 +192,7 @@ function paymentTerms(invoice: SubscriptionInvoiceRecord): string {
         '<ram:SpecifiedTradePaymentTerms>' +
         element('ram:Description', paymentNote && `${paymentNote.de} / ${paymentNote.en}`) +
         (isCancellation(invoice) ? '' : day('ram:DueDateDateTime', invoice.dueDate)) +
-        element('ram:DirectDebitMandateID', invoice.payment?.mandateReference) +
+        element('ram:DirectDebitMandateID', namedPaymentOf(invoice)?.mandateReference) +
         '</ram:SpecifiedTradePaymentTerms>'
     );
 }

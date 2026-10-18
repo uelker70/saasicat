@@ -17,7 +17,7 @@ import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib'
 import { GermanTaxAdapter } from '@saasicat/tax-de';
 
 import { ZugferdInvoiceRenderer, zugferdInvoiceRenderer } from '../dist/index.js';
-import { SAMPLES } from './support/invoices.js';
+import { CARD, DIRECT_DEBIT, SAMPLES } from './support/invoices.js';
 import { pageRuns, pageTexts } from './support/page-text.js';
 
 const renderer = zugferdInvoiceRenderer();
@@ -498,6 +498,24 @@ describe('a cancellation invoice', () => {
             ),
         );
         assert.ok(!page.includes('Fällig am / Due date'), 'a cancellation names a day it is due');
+    });
+
+    test('names no way of paying, whatever payment method its record still carries', async () => {
+        for (const payment of [CARD, DIRECT_DEBIT]) {
+            const invoice = {
+                ...sample('cancellation'),
+                payment,
+                collectionDate: payment.type === 'sepa_debit' ? '2026-03-06' : null,
+            };
+            const document = await renderer.render(invoice);
+            const said = (await pageTexts(document.content)).flat().join(' ');
+            const xml = await embeddedXml(document.content);
+
+            assert.ok(!xml.includes('SpecifiedTradeSettlementPaymentMeans'), payment.type);
+            assert.ok(!xml.includes('DirectDebitMandateID'), payment.type);
+            assert.ok(!said.includes(payment.last4) && !xml.includes(payment.last4), payment.type);
+            assert.deepEqual(await adapter.invoiceDocumentGaps(document, invoice), []);
+        }
     });
 
     test('under the reverse charge states its tax as nothing, not as minus nothing', async () => {

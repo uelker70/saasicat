@@ -72,7 +72,7 @@ it is (`SC-PRIC-089`):
 - a **cancellation** is titled "Stornorechnung / Cancellation invoice" — never
   "Gutschrift", which German VAT law reads as self-billing by the recipient. Its
   page states the cancelled amounts reversed, as the invoice records them, names
-  no due date and says that nothing is to be paid. Its XML is a credit note
+  no due date and no payment method, and says that nothing is to be paid. Its XML is a credit note
   (type `381`), stating those amounts as the cancelled invoice did;
 - a **replacement** is an invoice (type `380`) like any other.
 

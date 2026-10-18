@@ -6,7 +6,11 @@
 // and the XML states it: which invoice that is, why it was cancelled, and which
 // of its lines each line cancels or replaces.
 
-import type { SubscriptionInvoiceLineRecord, SubscriptionInvoiceRecord } from '@saasicat/core';
+import type {
+    SubscriptionInvoiceLineRecord,
+    SubscriptionInvoicePayment,
+    SubscriptionInvoiceRecord,
+} from '@saasicat/core';
 
 import { pageDay } from './format.js';
 import { LABELS, type Label } from './labels.js';
@@ -24,6 +28,16 @@ export function xmlSignOf(invoice: SubscriptionInvoiceRecord): 1 | -1 {
 /** Whether the invoice is a cancellation invoice. */
 export function isCancellation(invoice: SubscriptionInvoiceRecord): boolean {
     return invoice.correction?.kind === 'cancellation';
+}
+
+/**
+ * The payment method the document names: none on a cancellation invoice,
+ * which asks for nothing, whatever its record carries.
+ */
+export function namedPaymentOf(
+    invoice: SubscriptionInvoiceRecord,
+): SubscriptionInvoicePayment | null {
+    return isCancellation(invoice) ? null : invoice.payment;
 }
 
 /** What the document is called: a cancellation invoice is "Stornorechnung" (`SC-PRIC-089`). */
