@@ -498,8 +498,6 @@ export class InvoicePaymentService
 
     /**
      * Whether the invoice still owes something after what is settled against
-     * it.    /**
-     * Whether the invoice still owes something after what is settled against
      * it. One that owes nothing — a payment came for it, a late one included —
      * is collected no further.
      */

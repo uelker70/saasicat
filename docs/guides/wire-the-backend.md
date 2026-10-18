@@ -1236,7 +1236,8 @@ you name another. The start refuses collections without it.
   late: once no other attempt of the invoice is on its way the next run tells the subscriber, and
   the invoice is collected again only with a payment method none of its payments was reversed on
   (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well, since it would
-  keep every other attempt from being made. A dispute
+  keep every other attempt from being made, and its payment method then collects that invoice no
+  more either, even where its own payment was not reversed (`SC-PRIC-088`). A dispute
   won takes the reversal back part for part, and what the invoice no longer owes — the subscriber
   paid it meanwhile — becomes a credit (`SC-PRIC-086`).
 - **What matched nothing** stands on the administration's reconciliation page and on the tenant's

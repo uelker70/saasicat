@@ -24,10 +24,11 @@ way, the next run tells the subscriber at the invoice email, as a
 `CollectionReversedNotice` through `InvoiceMailPort.tell`, and the invoice is
 collected again only with a payment method none of its payments was reversed on
 (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well,
-so it keeps no other from being made. A dispute won takes its reversal back part
-for part — the cases it opened first, then the credit, then the invoice —, and
-what the invoice no longer owes because it was paid meanwhile becomes a credit
-(`SC-PRIC-086`).
+so it keeps no other from being made, and its payment method then collects that
+invoice no more either, even where its own payment was not reversed
+(`SC-PRIC-088`). A dispute won takes its reversal back part for part — the cases
+it opened first, then the credit, then the invoice —, and what the invoice no
+longer owes because it was paid meanwhile becomes a credit (`SC-PRIC-086`).
 
 What the gateway reports and no credit matches — the part of a refund no credit
 takes, the part of a reversal that meets a credit already paid out — is a case
