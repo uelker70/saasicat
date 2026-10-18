@@ -2294,10 +2294,15 @@ export function createMemoryHarness() {
         if (!invoice) {
             throw new Error(`invoice '${invoiceId}' does not exist`);
         }
-        if (!stillOwes(invoice)) return null;
+        const owed = owedByInvoice(
+            Number(invoice.totalGross),
+            state.settlements.filter((row) => row.invoiceId === invoice.id).map(settledAmountOf),
+            correctedStateOf(invoice.id),
+        );
+        if (owed <= 0) return null;
         const earlier = state.invoiceCollections.filter((row) => row.invoiceId === invoiceId);
         if (refuses(earlier)) return null;
-        const written = columns(lastCollectionOf(earlier) + 1);
+        const written = columns(lastCollectionOf(earlier) + 1, owed);
         if (heldBackByItsChain(invoiceId, written.paymentMethodId)) return null;
         const row = {
             id: nextId('collection'),
@@ -2339,15 +2344,15 @@ export function createMemoryHarness() {
             );
         },
         async startAttempt(attempt) {
-            return writeNextCollection(attempt.invoiceId, refusesFirstAttempt, (number) =>
-                invoiceCollectionColumns(attempt, number),
+            return writeNextCollection(attempt.invoiceId, refusesFirstAttempt, (number, amount) =>
+                invoiceCollectionColumns(attempt, number, amount),
             );
         },
         async plan(plan) {
             return writeNextCollection(
                 plan.invoiceId,
                 (earlier) => refusesPlannedAttempt(earlier, plan.after),
-                (number) => plannedCollectionColumns(plan, number),
+                (number, amount) => plannedCollectionColumns(plan, number, amount),
             );
         },
         async announce(id, collectOn, at) {

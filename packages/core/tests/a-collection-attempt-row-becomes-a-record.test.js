@@ -34,10 +34,12 @@ const ATTEMPT = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     at: AT,
 };
+
+/** What the invoice owes as the store reads it in its turn. */
+const OWED = 58.31;
 
 /** An attempt as a run plans it, after the invoice's first. */
 const PLAN = {
@@ -49,7 +51,6 @@ const PLAN = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     collectOn: '2026-03-01',
 };
@@ -67,7 +68,7 @@ const UNSETTLED = {
 /** The row either adapter reads back for `ATTEMPT`, numbered 1. */
 const row = (overrides = {}) => ({
     id: 'attempt-1',
-    ...invoiceCollectionColumns(ATTEMPT, 1),
+    ...invoiceCollectionColumns(ATTEMPT, 1, OWED),
     ...UNSETTLED,
     ...overrides,
 });
@@ -75,7 +76,7 @@ const row = (overrides = {}) => ({
 /** The row either adapter reads back for `PLAN`, numbered 2. */
 const plannedRow = (overrides = {}) => ({
     id: 'attempt-2',
-    ...plannedCollectionColumns(PLAN, 2),
+    ...plannedCollectionColumns(PLAN, 2, OWED),
     ...UNSETTLED,
     ...overrides,
 });
@@ -105,7 +106,7 @@ describe('a second try', () => {
 
 describe('an attempt row', () => {
     test('is written as submitted, under its key, with the amount as two-place text', () => {
-        const columns = invoiceCollectionColumns(ATTEMPT, 2);
+        const columns = invoiceCollectionColumns(ATTEMPT, 2, OWED);
 
         assert.deepEqual(columns, {
             invoiceId: 'invoice-1',
@@ -127,7 +128,7 @@ describe('an attempt row', () => {
     });
 
     test('planned is written for its day, with nothing sent and nothing held', () => {
-        const columns = plannedCollectionColumns(PLAN, 2);
+        const columns = plannedCollectionColumns(PLAN, 2, OWED);
 
         assert.deepEqual(
             [

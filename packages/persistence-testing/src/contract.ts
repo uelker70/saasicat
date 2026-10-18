@@ -7571,7 +7571,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             customerRef: 'cus_1',
             paymentMethodRef: 'pm_1',
             invoiceNumber: 'EX-2026-000001',
-            amount: 99_999_999.99,
             currency: 'EUR',
             at,
         });
@@ -7597,7 +7596,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             customerRef: 'cus_1',
             paymentMethodRef: 'pm_1',
             invoiceNumber: 'EX-2026-000001',
-            amount: 99_999_999.99,
             currency: 'EUR',
             collectOn,
         });
@@ -7706,8 +7704,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('an attempt is numbered from 1 under its key and written as submitted with what its request carries', async (t) => {
             const account = await collectable(t, 'tenant-collect-start');
             if (!account) return;
-            const { collections, ids } = account;
+            const { collections, ids, invoices } = account;
             const [invoiceId] = ids;
+            const gross = (await invoices.findById(invoiceId!))!.totalGross;
 
             const started = await collections.startAttempt(attemptOf(invoiceId!));
 
@@ -7723,7 +7722,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 customerRef: 'cus_1',
                 paymentMethodRef: 'pm_1',
                 invoiceNumber: 'EX-2026-000001',
-                amount: 99_999_999.99,
+                // What the invoice owes, which the store reads in its turn.
+                amount: gross,
                 currency: 'EUR',
                 status: 'SUBMITTED',
                 paymentRef: null,
@@ -8031,8 +8031,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('an attempt is planned for its day with nothing sent, keeps the invoice from another, and is taken up as sent by one run', async (t) => {
             const account = await collectable(t, 'tenant-collect-plan');
             if (!account) return;
-            const { collections, ids } = account;
+            const { collections, ids, invoices } = account;
             const [invoiceId] = ids;
+            const gross = (await invoices.findById(invoiceId!))!.totalGross;
 
             const planned = await collections.plan(planOf(invoiceId!));
 
@@ -8048,7 +8049,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 customerRef: 'cus_1',
                 paymentMethodRef: 'pm_1',
                 invoiceNumber: 'EX-2026-000001',
-                amount: 99_999_999.99,
+                amount: gross,
                 currency: 'EUR',
                 status: 'SCHEDULED',
                 paymentRef: null,
@@ -9787,6 +9788,20 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ],
             );
             assert.deepEqual(await payments.owedByInvoices([]), []);
+        });
+
+        // @requirement SC-PRIC-036
+        test('an attempt is planned for what the invoice owes when it is planned, a payment arrived since counted', async (t) => {
+            const account = await payable(t, 'tenant-plan-what-is-owed');
+            if (!account) return;
+            const { collections, payments, attempts, grosses, paymentOf, ids } = account;
+            await collections.recordOutcome(attempts[0]!.id, FAILURE, STARTED_AT);
+            // A late payment of part of it, for the attempt that failed.
+            await payments.recordPayment(paymentOf(attempts[0]!, 'pi_late', 10));
+
+            const planned = await collections.plan(planOf(ids[0]!, { after: 1 }));
+
+            assert.equal(planned?.amount, sumToCents(grosses[0]!, -10));
         });
 
         // -------------------------------------------------------------

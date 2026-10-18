@@ -37,6 +37,7 @@ import {
     REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
+    columnAmountOf,
     invoiceCollectionColumns,
     lastCollectionOf,
     plannedCollectionColumns,
@@ -73,13 +74,14 @@ const chainInvoices = alias(subscriptionInvoices, 'chain_invoices');
  * what is settled against it, and it is neither cancelled nor a cancellation
  * invoice. Exact in the database's numeric arithmetic.
  */
-const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
+const settledOnIt = sql`COALESCE((
     SELECT SUM(CASE WHEN ${inArray(subscriptionInvoiceSettlements.kind, [...REOPENING_SETTLEMENT_KINDS])}
                     THEN -${subscriptionInvoiceSettlements.amount}
                     ELSE ${subscriptionInvoiceSettlements.amount} END)
       FROM ${subscriptionInvoiceSettlements}
      WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
-), 0)
+), 0)`;
+const stillOwes = sql`${subscriptionInvoices.totalGross} > ${settledOnIt}
 AND NOT EXISTS (
     SELECT 1 FROM ${subscriptionInvoiceCancellations}
      WHERE ${subscriptionInvoiceCancellations.cancelledInvoiceId} = ${subscriptionInvoices.id}
@@ -97,11 +99,26 @@ const OPEN_IN_CHAIN = [...UNSETTLED_COLLECTION_STATUSES];
 
 /** Whether invoice `invoiceId` still owes something, read on `db`. */
 async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
-    const rows = await db
-        .select({ id: subscriptionInvoices.id })
+    return (await owedIn(db, invoiceId)) > 0;
+}
+
+/**
+ * What invoice `invoiceId` still owes, read on `db`: its total less what is
+ * settled against it, in the database's numeric arithmetic; nothing where it
+ * owes nothing by `stillOwes`.
+ */
+async function owedIn(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<number> {
+    const [row] = await db
+        .select({ owed: sql<string>`(${subscriptionInvoices.totalGross} - ${settledOnIt})::text` })
         .from(subscriptionInvoices)
         .where(and(eq(subscriptionInvoices.id, invoiceId), stillOwes));
-    return rows.length === 1;
+    return row
+        ? columnAmountOf(row.owed, {
+              table: 'subscription_invoices',
+              column: 'totalGross',
+              id: invoiceId,
+          })
+        : 0;
 }
 
 /**
@@ -223,7 +240,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         return this.writeNext(
             attempt.invoiceId,
             refusesFirstAttempt,
-            (number) => invoiceCollectionColumns(attempt, number),
+            (number, amount) => invoiceCollectionColumns(attempt, number, amount),
             tx,
         );
     }
@@ -235,7 +252,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         return this.writeNext(
             plan.invoiceId,
             (earlier) => refusesPlannedAttempt(earlier, plan.after),
-            (number) => plannedCollectionColumns(plan, number),
+            (number, amount) => plannedCollectionColumns(plan, number, amount),
             tx,
         );
     }
@@ -244,7 +261,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
     private async writeNext(
         invoiceId: string,
         refuses: (earlier: readonly EarlierCollection[]) => boolean,
-        columns: (number: number) => InvoiceCollectionColumns,
+        columns: (number: number, amount: number) => InvoiceCollectionColumns,
         tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null> {
         // On the caller's transaction this is a savepoint.
@@ -255,8 +272,10 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
             const chainId = await lockChainOf(db, invoiceId);
             if (chainId === null) throw new Error(`Invoice ${invoiceId} does not exist.`);
             // An invoice that owes nothing — a payment came for it, or it was
-            // cancelled — is collected no further.
-            if (!(await owes(db, invoiceId))) return null;
+            // cancelled — is collected no further; one that owes is collected
+            // for what it owes now, in the turn no payment or reversal moves it in.
+            const owed = await owedIn(db, invoiceId);
+            if (owed <= 0) return null;
             const earlier = await db
                 .select({
                     attempt: subscriptionInvoiceCollections.attempt,
@@ -265,7 +284,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 .from(subscriptionInvoiceCollections)
                 .where(eq(subscriptionInvoiceCollections.invoiceId, invoiceId));
             if (refuses(earlier)) return null;
-            const written = columns(lastCollectionOf(earlier) + 1);
+            const written = columns(lastCollectionOf(earlier) + 1, owed);
             if (await heldBackByItsChain(db, chainId, invoiceId, written.paymentMethodId)) {
                 return null;
             }

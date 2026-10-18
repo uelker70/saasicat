@@ -60,6 +60,7 @@ import {
     directDebitLeadDaysOf,
     isChargedAgain,
     sentCollectionOf,
+    standingInvoiceOf,
     toCents,
     toCollectionAnnouncedNotice,
     toCollectionFailedNotice,
@@ -421,7 +422,6 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             customerRef: method.customerRef,
             paymentMethodRef: method.paymentMethodRef,
             invoiceNumber: invoice.number,
-            amount: await this.recording().payments.owed(invoice.id),
             currency: invoice.currency,
             at: new Date(),
         });
@@ -475,17 +475,23 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      */
     private async followUpReversal(reversed: InvoiceCollectionRecord): Promise<void> {
         if (reversed.followedUpAt !== null) return;
-        const standingId = await this.standingIdOf(reversed.invoiceId);
-        const owed = standingId === null ? 0 : await this.recording().payments.owed(standingId);
-        if (standingId === null || owed <= 0) {
+        // The chain as it stands in its turn: what every invoice of it is
+        // collected with decides whether, and how, the subscriber is told.
+        const chain = await this.recording().transactions.run((tx) =>
+            this.invoices.holdChain(reversed.invoiceId, tx),
+        );
+        if (!chain) throw new Error(`Invoice ${reversed.invoiceId} does not exist.`);
+        const standing = standingInvoiceOf(chain);
+        const owed = standing ? await this.recording().payments.owed(standing.id) : 0;
+        if (!standing || owed <= 0) {
             await this.collections.markFollowedUp(reversed.id, new Date());
             return;
         }
         const attempts = await this.collections.listByInvoice(reversed.invoiceId);
-        const ofStanding =
-            standingId === reversed.invoiceId
-                ? []
-                : await this.collections.listByInvoice(standingId);
+        const ofChain: InvoiceCollectionRecord[] = [];
+        for (const invoice of chain.invoices) {
+            ofChain.push(...(await this.collections.listByInvoice(invoice.id)));
+        }
         // Attempts reversed together — the one whose payment was taken back,
         // and one that succeeded beside it — tell the subscriber once, from the
         // latest of them.
@@ -500,16 +506,11 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             await this.collections.markFollowedUp(reversed.id, new Date());
             return;
         }
-        // Another attempt on its way may still pay the invoice: the subscriber
-        // is told once it settled, so the notice says what follows.
-        if (
-            [...attempts, ...ofStanding].some((each) =>
-                UNSETTLED_COLLECTION_STATUSES.includes(each.status),
-            )
-        ) {
-            return;
-        }
-        const invoice = await this.invoiceOf(standingId);
+        // Another attempt of the chain on its way may still pay the invoice
+        // that stands: the subscriber is told once it settled, so the notice
+        // says what follows.
+        if (ofChain.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
+        const invoice = standing;
         const method = await this.paymentMethods!.findActive(invoice.subscriberId);
         const notice: CollectionReversedNotice = {
             kind: 'collection-reversed',
@@ -520,8 +521,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             // where neither the last attempt nor a reversal was made with it.
             next:
                 method &&
-                method.id !== [...attempts, ...ofStanding].at(-1)?.paymentMethodId &&
-                !reversedOn([...attempts, ...ofStanding]).has(method.id)
+                method.id !== ofChain.at(-1)?.paymentMethodId &&
+                !reversedOn(ofChain).has(method.id)
                     ? { action: 'collected-with-payment-method-in-use' }
                     : { action: 'replace-payment-method' },
         };
@@ -538,22 +539,6 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             new Date(),
         );
         await this.collections.markFollowedUp(reversed.id, new Date());
-    }
-
-    /**
-     * The invoice that stands in the chain of `invoiceId`: itself where it is
-     * not cancelled, otherwise the replacement of its cancellation, followed on
-     * where that is cancelled as well; `null` where a cancellation left none
-     * (`SC-PRIC-036`).
-     */
-    private async standingIdOf(invoiceId: string): Promise<string | null> {
-        let standing = invoiceId;
-        for (;;) {
-            const cancellation = await this.invoices.findCancellation(standing);
-            if (!cancellation || cancellation.cancelledInvoiceId !== standing) return standing;
-            if (cancellation.replacementInvoiceId === null) return null;
-            standing = cancellation.replacementInvoiceId;
-        }
     }
 
     /**
@@ -730,7 +715,6 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             customerRef: method.customerRef,
             paymentMethodRef: method.paymentMethodRef,
             invoiceNumber: invoice.number,
-            amount: await this.recording().payments.owed(invoice.id),
             currency: invoice.currency,
             collectOn,
         });

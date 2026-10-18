@@ -466,6 +466,71 @@ describe('the collections of a cancelled invoice’s chain', () => {
         );
     });
 
+    test('a reversal is told only once no attempt of any invoice of the chain is on its way, about the invoice that stands', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { cancellation, invoice, gateway, collections, mail } = installation;
+        // pi_1 pays 20 of it; the rest stands on each replacement in turn.
+        gateway.answers.push(succeeded(invoice, 'pi_1', 20));
+        await installation.collect(FIRST_RUN);
+        const [paid] = collections.attempts;
+        const first = await cancellation.cancel(
+            't1',
+            invoice.id,
+            REQUEST,
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        mailed(installation, first.replacement.id);
+        gateway.answers.push({ status: 'pending', paymentRef: 'pi_r1' });
+        await runAt(installation, after(CANCELLED_AT, { minutes: 15 }));
+        const onItsWay = collections.attempts.find(
+            (each) => each.invoiceId === first.replacement.id,
+        );
+        assert.equal(
+            onItsWay?.status,
+            'PENDING',
+            'the premise: the first replacement is collected',
+        );
+        const second = await cancellation.cancel(
+            't1',
+            first.replacement.id,
+            REQUEST,
+            'operator:anna',
+            after(CANCELLED_AT, { days: 1 }),
+        );
+
+        await delivering(installation)(
+            reversalReported('evt_r1', paid.attemptKey, {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_1',
+                withdrawnCents: 2000,
+            }),
+        );
+        await runAt(installation, after(CANCELLED_AT, { days: 2 }));
+        const toldOfTheReversal = () =>
+            mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            toldOfTheReversal(),
+            [],
+            'told while an attempt of the chain could still pay the invoice that stands',
+        );
+
+        await delivering(installation)(
+            collectionReported('evt_f1', onItsWay.attemptKey, {
+                status: 'failed',
+                paymentRef: 'pi_r1',
+                reason: 'insufficient-funds',
+                gatewayCode: 'insufficient_funds',
+            }),
+        );
+        await runAt(installation, after(CANCELLED_AT, { days: 2, minutes: 15 }));
+
+        const told = toldOfTheReversal();
+        assert.equal(told.length, 1);
+        assert.equal(told[0].notice.invoiceNumber, second.replacement.number);
+    });
+
     test('a reversal of a payment that moved tells the subscriber the replacement is open again', async () => {
         quietLog();
         const installation = await anInvoiceToCollect();

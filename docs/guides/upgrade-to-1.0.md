@@ -2264,7 +2264,10 @@ a cancellation; the operator's route and command follow in the next release cand
   takes a list; `ReversalWithdrawal.credit` is `credits`).
 - **An `InvoiceCollectionRepository` of your own** takes the chain's turn wherever it took the
   invoice's, collects no invoice of a chain while an attempt for one of them is unresolved, and
-  none with a payment method one of the chain's payments was reversed on.
+  none with a payment method one of the chain's payments was reversed on. It writes an attempt
+  for what the invoice still owes, read in that turn: `NewInvoiceCollection` and
+  `PlannedInvoiceCollection` no longer carry `amount`, and `invoiceCollectionColumns` and
+  `plannedCollectionColumns` take it as their third argument.
 - **A persistence contract harness** runs the cancellation scenarios with the gaps it declares;
   empty `subscription_invoice_cancellations` between scenarios with the invoices.
 - **A renderer of your own** states `paidOnIssue` on a replacement: what was paid (BT-113) and the

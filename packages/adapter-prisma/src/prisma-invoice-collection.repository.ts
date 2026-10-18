@@ -21,6 +21,7 @@ import {
     REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
+    columnAmountOf,
     invoiceCollectionColumns,
     lastCollectionOf,
     plannedCollectionColumns,
@@ -32,7 +33,7 @@ import {
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import { lockChainOf } from './prisma-invoice-chain.js';
-import { idsOf } from './raw-ids.js';
+import { idsOf, textsOf } from './raw-ids.js';
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface CollectionPrisma {
@@ -122,7 +123,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return this.writeNext(
             attempt.invoiceId,
             refusesFirstAttempt,
-            (number) => invoiceCollectionColumns(attempt, number),
+            (number, amount) => invoiceCollectionColumns(attempt, number, amount),
             tx,
         );
     }
@@ -134,7 +135,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return this.writeNext(
             plan.invoiceId,
             (earlier) => refusesPlannedAttempt(earlier, plan.after),
-            (number) => plannedCollectionColumns(plan, number),
+            (number, amount) => plannedCollectionColumns(plan, number, amount),
             tx,
         );
     }
@@ -143,7 +144,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
     private writeNext(
         invoiceId: string,
         refuses: (earlier: readonly EarlierCollection[]) => boolean,
-        columns: (number: number) => InvoiceCollectionColumns,
+        columns: (number: number, amount: number) => InvoiceCollectionColumns,
         tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null> {
         const write = (db: CollectionPrisma) => this.writeNextIn(db, invoiceId, refuses, columns);
@@ -155,22 +156,24 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         db: CollectionPrisma,
         invoiceId: string,
         refuses: (earlier: readonly EarlierCollection[]) => boolean,
-        columns: (number: number) => InvoiceCollectionColumns,
+        columns: (number: number, amount: number) => InvoiceCollectionColumns,
     ): Promise<InvoiceCollectionRecord | null> {
         // The turn of the invoice's chain: a second run writing an attempt for
         // it waits here, and then reads the attempt the first one wrote.
         const chainId = await lockChainOf(db, invoiceId);
         if (chainId === null) throw new Error(`Invoice ${invoiceId} does not exist.`);
         // An invoice that owes nothing — a payment came for it, or it was
-        // cancelled — is collected no further.
-        if (!(await owes(db, invoiceId))) return null;
+        // cancelled — is collected no further; one that owes is collected for
+        // what it owes now, in the turn no payment or reversal moves it in.
+        const owed = await owedIn(db, invoiceId);
+        if (owed <= 0) return null;
         const earlier = await db.subscriptionInvoiceCollection.findMany({
             where: { invoiceId },
             select: { attempt: true, status: true },
         });
         if (refuses(earlier)) return null;
         const number = lastCollectionOf(earlier) + 1;
-        const { collectOn, ...written } = columns(number);
+        const { collectOn, ...written } = columns(number, owed);
         if (await heldBackByItsChain(db, chainId, invoiceId, written.paymentMethodId)) return null;
         // `ON CONFLICT DO NOTHING` without a target, so any of the unique
         // indexes turns a second attempt into no row rather than an error that
@@ -508,8 +511,23 @@ async function heldBackByItsChain(
  * Exact in the database's numeric arithmetic.
  */
 async function owes(db: CollectionPrisma, invoiceId: string): Promise<boolean> {
+    return (await owedIn(db, invoiceId)) > 0;
+}
+
+/**
+ * What invoice `invoiceId` still owes: its total less what is settled against
+ * it, computed in the database's numeric arithmetic; nothing where it is
+ * cancelled, is a cancellation invoice, or is settled.
+ */
+async function owedIn(db: CollectionPrisma, invoiceId: string): Promise<number> {
     const rows = await db.$queryRaw`
-        SELECT i."id" FROM "subscription_invoices" i
+        SELECT (i."totalGross" - COALESCE((
+                   SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                   ELSE s."amount" END)
+                     FROM "subscription_invoice_settlements" s
+                    WHERE s."invoiceId" = i."id"
+               ), 0))::text AS "owed"
+          FROM "subscription_invoices" i
          WHERE i."id" = ${invoiceId}
            AND NOT EXISTS (
                    SELECT 1 FROM "subscription_invoice_cancellations" x
@@ -521,5 +539,12 @@ async function owes(db: CollectionPrisma, invoiceId: string): Promise<boolean> {
                      FROM "subscription_invoice_settlements" s
                     WHERE s."invoiceId" = i."id"
                ), 0)`;
-    return idsOf(rows).length === 1;
+    const [owed] = textsOf(rows, 'owed');
+    return owed === undefined
+        ? 0
+        : columnAmountOf(owed, {
+              table: 'subscription_invoices',
+              column: 'totalGross',
+              id: invoiceId,
+          });
 }

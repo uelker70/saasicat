@@ -101,9 +101,16 @@ export const COLLECTING_SETTINGS = {
 /**
  * The attempts in memory, beside the invoices and documents of `store` and
  * the subscribers' payment methods. `owes` says whether an invoice still owes
- * something; one that owes nothing is collected no further.
+ * something; one that owes nothing is collected no further. `owedOf` is what
+ * it owes, which an attempt is written for in its turn — its total unless a
+ * test says otherwise.
  */
-export function collectionStore(store, paymentMethods, owes = () => true) {
+export function collectionStore(
+    store,
+    paymentMethods,
+    owes = () => true,
+    owedOf = (invoiceId) => store.invoices.find((invoice) => invoice.id === invoiceId).totalGross,
+) {
     const attempts = [];
     const chainOf = (invoiceId) => {
         const chainId = store.invoices.find((invoice) => invoice.id === invoiceId)?.chainId;
@@ -142,6 +149,7 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         const written = {
             id: `attempt-${attempts.length + 1}`,
             ...request,
+            amount: await owedOf(request.invoiceId),
             attempt: number,
             attemptKey: collectionAttemptKey(request.invoiceId, number),
             paymentRef: null,
@@ -386,8 +394,11 @@ export function aCollectingInstallation({
         installation.store.invoices,
         installation.store.cancellations,
     );
-    const collections = collectionStore(installation.store, paymentMethods, (invoiceId) =>
-        payments.stillOwes(invoiceId),
+    const collections = collectionStore(
+        installation.store,
+        paymentMethods,
+        (invoiceId) => payments.stillOwes(invoiceId),
+        (invoiceId) => payments.owedBy(invoiceId),
     );
     const notices = noticeRecord();
     const gateway = new ScriptedGateway('stripe');

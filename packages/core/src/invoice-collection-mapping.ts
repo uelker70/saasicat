@@ -230,10 +230,14 @@ export interface InvoiceCollectionColumns {
     collectOn: string | null;
 }
 
-/** The columns of `attempt`, numbered `number`, written as submitted at its `at`. */
+/**
+ * The columns of `attempt`, numbered `number`, written as submitted at its
+ * `at`, for `amount`: what the invoice owes as the store reads it in its turn.
+ */
 export function invoiceCollectionColumns(
     attempt: NewInvoiceCollection,
     number: number,
+    amount: number,
 ): InvoiceCollectionColumns {
     return {
         invoiceId: attempt.invoiceId,
@@ -245,7 +249,7 @@ export function invoiceCollectionColumns(
         customerRef: attempt.customerRef,
         paymentMethodRef: attempt.paymentMethodRef,
         invoiceNumber: attempt.invoiceNumber,
-        amount: attempt.amount.toFixed(2),
+        amount: amount.toFixed(2),
         currency: attempt.currency,
         status: 'SUBMITTED',
         submittedAt: attempt.at,
@@ -254,10 +258,11 @@ export function invoiceCollectionColumns(
     };
 }
 
-/** The columns of `plan`, numbered `number`, written as planned for its day. */
+/** The columns of `plan`, numbered `number`, written as planned for its day, for `amount`. */
 export function plannedCollectionColumns(
     plan: PlannedInvoiceCollection,
     number: number,
+    amount: number,
 ): InvoiceCollectionColumns {
     return {
         invoiceId: plan.invoiceId,
@@ -269,7 +274,7 @@ export function plannedCollectionColumns(
         customerRef: plan.customerRef,
         paymentMethodRef: plan.paymentMethodRef,
         invoiceNumber: plan.invoiceNumber,
-        amount: plan.amount.toFixed(2),
+        amount: amount.toFixed(2),
         currency: plan.currency,
         status: 'SCHEDULED',
         submittedAt: null,

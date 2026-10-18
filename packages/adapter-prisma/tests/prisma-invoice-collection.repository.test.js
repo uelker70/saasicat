@@ -29,7 +29,6 @@ const ATTEMPT = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     at: AT,
 };
@@ -44,7 +43,6 @@ const PLAN = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     collectOn: '2026-03-01',
 };
@@ -109,9 +107,9 @@ function fakeClient({
             const sql = strings.join('?');
             calls.push(['$queryRaw', sql, values]);
             if (sql.includes(CHAIN_ATTEMPTS)) return heldBack;
-            // What the invoice owes is read against its settlements.
-            const owes = sql.includes('"subscription_invoice_settlements"');
-            return owes && !owing ? [] : raw;
+            // What the invoice owes is read against its settlements, as text.
+            if (sql.includes('AS "owed"')) return owing ? [{ owed: OWED }] : [];
+            return raw;
         },
         async $transaction(work) {
             calls.push(['$transaction']);
@@ -122,6 +120,9 @@ function fakeClient({
 }
 
 const callsOf = (client, name) => client.calls.filter(([called]) => called === name);
+
+/** What the invoice owes, as the database reads it out in the invoice's turn. */
+const OWED = '23.68';
 
 /** How the attempts of the other invoices of a chain are read: all but the invoice's own. */
 const CHAIN_ATTEMPTS = 'c."invoiceId" <> ';
@@ -152,8 +153,14 @@ describe('writing an invoice’s next attempt', () => {
         const [[, insert]] = callsOf(client, 'createManyAndReturn');
         assert.equal(insert.skipDuplicates, true);
         assert.deepEqual(
-            [insert.data[0].attempt, insert.data[0].status, insert.data[0].collectOn],
-            [1, 'SUBMITTED', null],
+            [
+                insert.data[0].attempt,
+                insert.data[0].status,
+                insert.data[0].collectOn,
+                insert.data[0].amount,
+            ],
+            [1, 'SUBMITTED', null, OWED],
+            'written for what the invoice owes in its turn',
         );
         assert.equal(started.status, 'SUBMITTED');
     });

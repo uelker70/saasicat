@@ -31,7 +31,6 @@ const ATTEMPT = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     at: AT,
 };
@@ -46,7 +45,6 @@ const PLAN = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     collectOn: '2026-03-01',
 };
@@ -95,8 +93,11 @@ function recordingDb(script = []) {
 
 const kindOf = ({ sql }) => sql.trim().split(/\s/, 1)[0].toLowerCase();
 
-/** The invoice's turn reads that it still owes something: its total exceeds what is settled. */
-const owing = [/coalesce\(\(/i, [['invoice-1']]];
+/**
+ * The invoice's turn reads what it still owes — its total less what is
+ * settled, as text —, which the attempt is written for.
+ */
+const owing = [/coalesce\(\(/i, [['23.68']]];
 
 /** The chain the invoice belongs to: its own, as an invoice nothing corrected begins one. */
 const chainOf = [/^select "chainId" from "subscription_invoices"/i, [['invoice-1']]];
@@ -138,7 +139,10 @@ describe('starting an attempt', () => {
         const insert = statements[5];
         assert.match(insert.sql, /on conflict do nothing/i);
         assert.ok(insert.params.includes('saasicat:collect:invoice-1:1'), insert.params.join());
-        assert.ok(insert.params.includes('58.31'), 'the amount as two-place text');
+        assert.ok(
+            insert.params.includes('23.68'),
+            'for what the invoice owes in its turn, as two-place text',
+        );
     });
 
     for (const status of [

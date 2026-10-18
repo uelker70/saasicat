@@ -9954,6 +9954,8 @@ _Tested by:_
     - the collections of a cancelled invoice’s chain
         - a failure of the cancelled invoice’s attempt is recorded and told to nobody, and the
           replacement is collected once it is resolved
+        - a reversal is told only once no attempt of any invoice of the chain is on its way, about
+          the invoice that stands
         - a reversal of a payment that moved tells the subscriber the replacement is open again
 
 <!-- END proof -->
@@ -10607,6 +10609,8 @@ _Tested by:_
     - the collections of a cancelled invoice’s chain
         - a failure of the cancelled invoice’s attempt is recorded and told to nobody, and the
           replacement is collected once it is resolved
+        - a reversal is told only once no attempt of any invoice of the chain is on its way, about
+          the invoice that stands
         - a reversal of a payment that moved tells the subscriber the replacement is open again
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - an invoice is corrected by a cancellation invoice

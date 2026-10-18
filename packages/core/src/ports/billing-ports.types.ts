@@ -797,12 +797,15 @@ export interface InvoiceCollectionRepository {
      * it in `subscription_invoice_settlements` — or has an attempt already —
      * every later one is planned (`plan`), so
      * a run that found the invoice due before another run's attempt failed
-     * does not charge it again at once. The turn is the invoice's
-     * own row, locked for the transaction — the chain of one invoice, which a
-     * cancellation's replacement joins — so a cancellation never meets an
+     * does not charge it again at once —, or where an attempt of another
+     * invoice of its chain is on its way, or a payment of the chain was
+     * reversed on its payment method. The turn is the row of the chain's first
+     * invoice, locked for the transaction, so a cancellation never meets an
      * attempt about to be sent without knowing it (`SC-PRIC-036`). The attempt
-     * is numbered after the invoice's last, and its key is
-     * `collectionAttemptKey(invoiceId, attempt)`.
+     * is for what the invoice still owes, read in that turn, so a payment or a
+     * reversal recorded meanwhile is not collected past; it is numbered after
+     * the invoice's last, and its key is `collectionAttemptKey(invoiceId,
+     * attempt)`.
      */
     startAttempt(
         attempt: NewInvoiceCollection,
@@ -811,8 +814,9 @@ export interface InvoiceCollectionRepository {
 
     /**
      * Plans the invoice's next attempt in its turn, as `startAttempt` starts
-     * one, and returns it, written as `SCHEDULED` for `plan.collectOn` with
-     * nothing sent; `null`, writing nothing, where the invoice owes nothing,
+     * one — for what the invoice still owes then —, and returns it, written as
+     * `SCHEDULED` for `plan.collectOn` with nothing sent; `null`, writing
+     * nothing, where the invoice owes nothing,
      * where an attempt of it is open or one succeeded, or where its last
      * attempt is not the one numbered `plan.after` any more.
      */

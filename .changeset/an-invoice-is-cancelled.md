@@ -30,8 +30,10 @@ a cancellation, a collection attempt — takes the chain's turn (`SC-PRIC-036`).
 A payment confirmed after a cancellation settles the replacement; no invoice of
 a chain is collected while an attempt for one of them is unresolved, nor with a
 payment method one of its payments was reversed on; a reversal of a payment
-that moved opens the replacement, and the subscriber is told about it. A
-collection takes what the invoice still owes rather than its total.
+that moved opens the replacement, and the subscriber is told about it once no
+attempt of the chain is on its way. An attempt is for what the invoice still
+owes, read by the store in the chain's turn rather than its total:
+`NewInvoiceCollection` and `PlannedInvoiceCollection` no longer carry `amount`.
 
 Run `sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push`, after
 the invoice and payment migrations: it gives every invoice a chain of its own
