@@ -967,6 +967,7 @@ _Tested by:_
         - names the invoice it cancels and why, beside its facts and under its title
         - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
           nothing
+        - names no way of paying, whatever payment method its record still carries
         - under the reverse charge states its tax as nothing, not as minus nothing
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
@@ -1275,6 +1276,7 @@ _Tested by:_
         - names the invoice it cancels and why, beside its facts and under its title
         - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
           nothing
+        - names no way of paying, whatever payment method its record still carries
         - under the reverse charge states its tax as nothing, not as minus nothing
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
@@ -2573,6 +2575,7 @@ _Tested by:_
         - names the invoice it cancels and why, beside its facts and under its title
         - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
           nothing
+        - names no way of paying, whatever payment method its record still carries
         - under the reverse charge states its tax as nothing, not as minus nothing
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
@@ -2722,6 +2725,7 @@ _Tested by:_
         - names the invoice it cancels and why, beside its facts and under its title
         - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
           nothing
+        - names no way of paying, whatever payment method its record still carries
         - under the reverse charge states its tax as nothing, not as minus nothing
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
