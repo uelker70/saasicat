@@ -187,9 +187,16 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
         'xml.taxes',
         sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice, category, outsideVat, sign),
     );
+    // The sum of the lines (BT-106) is not a total the invoice records, but
+    // the sum of what it records line by line, so it cannot drift alone.
+    const lineTotal = invoice.lines.reduce(
+        (total, line) => total + cents(sign * line.amountNet),
+        0,
+    );
     check(
         'xml.totals',
-        centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(sign * invoice.totalNet) &&
+        centsOf(text(summation, 'LineTotalAmount')) === lineTotal &&
+            centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(sign * invoice.totalNet) &&
             centsOf(text(summation, 'TaxTotalAmount')) === cents(sign * invoice.totalTax) &&
             centsOf(text(summation, 'GrandTotalAmount')) === cents(sign * invoice.totalGross) &&
             centsOf(text(summation, 'DuePayableAmount')) === cents(sign * invoice.totalGross),

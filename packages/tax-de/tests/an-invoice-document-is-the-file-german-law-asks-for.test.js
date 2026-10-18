@@ -512,6 +512,7 @@ describe('a cancellation invoice', () => {
             {
                 lines: [-53.9, 4.9],
                 taxes: [{ rate: 19, net: -49, tax: -9.31 }],
+                lineTotal: -49,
                 totalNet: -49,
                 totalTax: -9.31,
                 totalGross: -58.31,
@@ -519,6 +520,7 @@ describe('a cancellation invoice', () => {
             },
             ['xml.taxes', 'xml.totals', 'xml.lines'],
         ],
+        ['stating the sum of its lines reversed alone', { lineTotal: -49 }, ['xml.totals']],
         ['naming no invoice it cancels', { corrected: null }, ['xml.correctedInvoice']],
         [
             'naming another invoice',

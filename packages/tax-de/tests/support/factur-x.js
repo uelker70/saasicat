@@ -201,7 +201,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
         ${dueDate === null ? '' : `<ram:DueDateDateTime><udt:DateTimeString format="102">${dueDate}</udt:DateTimeString></ram:DueDateDateTime>`}
       </ram:SpecifiedTradePaymentTerms>
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-        <ram:LineTotalAmount>${amount(invoice.totalNet)}</ram:LineTotalAmount>
+        <ram:LineTotalAmount>${amount(field('lineTotal', invoice.totalNet))}</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>${amount(field('totalNet', invoice.totalNet))}</ram:TaxBasisTotalAmount>
         <ram:TaxTotalAmount currencyID="${invoice.currency}">${amount(field('totalTax', invoice.totalTax))}</ram:TaxTotalAmount>
         <ram:GrandTotalAmount>${amount(field('totalGross', invoice.totalGross))}</ram:GrandTotalAmount>
