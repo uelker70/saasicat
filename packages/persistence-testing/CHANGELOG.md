@@ -1,5 +1,250 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.27
+
+### Minor Changes
+
+- 3ab58af: A failed collection is tried once more, and the subscriber is told
+
+    A collection that fails is told to the subscriber at their invoice email, with
+    the invoice, the amount, the reason and what follows (`SC-PRIC-080`). Where the
+    reason can pass — funds short, a refusal without a cause — the same payment
+    method is charged once more: a card seven days after the failure, a direct debit
+    on the day its new announcement names, seven days after at the earliest. A
+    second failure, and one for any other reason, is not tried again, and the
+    subscriber is asked to replace the payment method. `SC-PRIC-081` replaces
+    `SC-PRIC-035`, whose "the gateway retries" no gateway did.
+
+    A payment method that replaced the one an invoice named, or the one that failed,
+    collects the invoice: a card at once, a direct debit from the day a new
+    announcement names (`SC-PRIC-082`, replacing `SC-PRIC-079`). A direct debit
+    whose invoice reached the subscriber less than the lead time before its date is
+    announced again rather than left waiting. A new announcement names the amount,
+    the day and the mandate reference, its day is fixed when it goes out, and it
+    leaves the invoice as issued (`SC-PRIC-028`).
+
+    Every attempt after the first is planned first: `SCHEDULED` for its day in
+    `subscription_invoice_collections`, `WITHDRAWN` where its payment method was
+    replaced before that day. `InvoiceCollectionRepository.startAttempt` starts only
+    an invoice's first attempt now, so a run that found an invoice due before
+    another run's attempt failed no longer charges it again at once; `plan` writes a
+    later one only after the attempt the decision read. The repository gains
+    `plan`, `announce`, `submitPlanned`, `withdraw` — both in the invoice's turn —,
+    `listPlanned`, `listToFollowUp`, `listCollectableAgain` and `markFollowedUp`,
+    and a persistence contract harness runs their scenarios; `listCollectableAgain`
+    reads `subscriber_payment_methods`, so the collection scenarios need the
+    payment methods too.
+
+    `InvoiceMailPort` gains `tell({ notice, to })` for what the subscriber is told:
+    a `CollectionFailedNotice` or a `CollectionAnnouncedNotice`. Each is recorded in
+    `subscription_notices` under the kinds `collection-failed` and
+    `collection-announced`, and sent once. `SaaSiCatModule` takes
+    `persistence.tenantBilling.subscriptionNotices` for
+    `chargeJournal.invoices.notices`, which collecting now requires.
+    `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD` replaces
+    `SUBSCRIPTION_INVOICE_PAYMENT_METHOD_CHANGED`,
+    `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD` names a debit that waits for the failure
+    before it to be told, and
+    `SUBSCRIPTION_INVOICE_ANNOUNCED_TOO_LATE` is gone: neither case waits any more.
+    `1.0-an-invoice-is-collected.postgres.sql` and fragment 23 carry the planned
+    attempts' columns; the migration adds them, and replaces the partial index, on
+    a table that exists without them.
+
+- 3cca4f4: A payment is recorded once, and a credit is paid out by the operator
+
+    What a collection brought is recorded with its outcome, on one transaction and
+    in the invoice's turn: the payment, once, by its gateway account and the
+    gateway's reference, whether the run asking or the gateway's callback reports
+    it first, and however often (`SC-PRIC-029`). It settles what its invoice still
+    owes; what it brought beyond that is a credit on the subscriber's account, and
+    so is an invoice whose total is negative, which the quarter-hourly run credits
+    right after issuing it. A credit is never offset against a later invoice: the
+    operator pays it out, by a refund in the gateway — recorded against the credit
+    its payment left first, then the oldest, and given back when it fails — or,
+    where the gateway can no longer refund, by a transfer recorded on the tenant's
+    page (`SC-PRIC-083`). SaaSiCat initiates neither.
+
+    `subscriber_payments`, `subscription_invoice_settlements`, `subscriber_credits`,
+    `subscriber_credit_entries` and `subscriber_refunds` come with fragment 24 and
+    `1.0-a-payment-is-recorded.postgres.sql`, behind the new
+    `SubscriberPaymentRepository`, which `SaaSiCatModule` takes from
+    `persistence.entitlement.subscriberPaymentRepository` for
+    `chargeJournal.invoices.payments`; collecting now requires it.
+
+    A success in `CollectionOutcome` names what the gateway received, as
+    `amountCents` and `currency`. `PaymentGatewayEvent` gains
+    `collection-reported` and `refund-reported`, and the Stripe adapter maps
+    `payment_intent.succeeded`, `.processing`, `.payment_failed`, `.canceled` and
+    `refund.created`, `.updated`, `.failed` to them, each read again from Stripe;
+    a restricted key needs refunds (read). A success reported for an attempt
+    recorded as failed is recorded too: the attempt succeeds and what was planned
+    after it is withdrawn. An invoice that owes nothing is collected no further:
+    no attempt is started, planned or sent for it, and a failure beside the payment
+    is followed up without a notice. A request that never reached the gateway is
+    settled rather than sent again where its invoice was paid meanwhile, audited as
+    `SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED`, and is not sent where a report
+    settled it meanwhile: `abandonPaid` answers `'abandoned'`, `'resend'` or
+    `'settled'`. `InvoiceCollectionRepository` gains `findByKey` and `abandonPaid`,
+    and a refund in another currency than its payment is refused.
+
+    The operator reads a subscriber's credits on the tenant's page
+    (`GET admin/tenants/:slug/credits`, `credits.read`) and records a payout
+    against one with the second factor
+    (`POST admin/tenants/:slug/credits/:creditId/payouts`, `credits.payout`),
+    refused beyond what the credit owes (`SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`), on a
+    day still to come (`SUBSCRIBER_PAYOUT_NOT_MADE_YET`) and for another
+    subscriber's credit (`SUBSCRIBER_CREDIT_NOT_FOUND`).
+
+- 20c3991: A reversal takes a payment back, and what matched nothing is reconciled
+
+    A direct debit the bank returned and a chargeback are recorded as reversals of
+    the payment they take back, once however often and in whatever order they are
+    reported (`SC-PRIC-084`, superseding `SC-PRIC-031`): the credit the payment left
+    goes first — its open part shrinks it, a part already paid out is a case to
+    reconcile —, then an open credit another payment collected for the same invoice
+    left (`SC-PRIC-087`), and only what remains opens the invoice again; reversals
+    of two payments of one invoice end alike in either order (`SC-PRIC-088`). The
+    attempt that collected the payment is then `REVERSED`, also one that had failed
+    before its payment arrived late: once no other attempt of the invoice is on its
+    way, the next run tells the subscriber at the invoice email, as a
+    `CollectionReversedNotice` through `InvoiceMailPort.tell`, and the invoice is
+    collected again only with a payment method none of its payments was reversed on
+    (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well,
+    so it keeps no other from being made, and its payment method then collects that
+    invoice no more either, even where its own payment was not reversed
+    (`SC-PRIC-088`). A dispute won takes its reversal back part for part — the cases
+    it opened first, then the credit, then the invoice —, and what the invoice no
+    longer owes because it was paid meanwhile becomes a credit (`SC-PRIC-086`).
+
+    What the gateway reports and no credit matches — the part of a refund no credit
+    takes, the part of a reversal that meets a credit already paid out — is a case
+    to reconcile: on the administration's new reconciliation page and on the
+    tenant's page beside its invoices with what each still owes, closed by the
+    operator with a note behind the second factor (`SC-ADM-033`). A refund that
+    fails and a reversal given back close the cases they opened.
+
+    Fragment 24 gains `SubscriberReversal` and `SubscriberReconciliationCase`, and
+    the columns that name a reversal on the settlements, the credit entries and the
+    credits; `1.0-a-payment-is-recorded.postgres.sql` creates and adds them where
+    its earlier version ran. `SubscriberPaymentRepository` gains `recordReversal`,
+    `listCases`, `closeCase`, `owedByInvoices`, `findReversalById` and
+    `accountsHoldingCredits`; `InvoiceCollectionRepository` gains `markReversed`.
+    `PaymentGatewayEvent` gains `reversal-reported`, which the Stripe adapter maps
+    from `charge.dispute.*`; a restricted key needs disputes (read). The routes
+    `GET admin/reconciliation`, `POST admin/reconciliation/:caseId/close` and
+    `GET admin/tenants/:slug/payments` come with the capabilities
+    `reconciliation.read`, `reconciliation.close` and `payments.read`; the codes
+    `SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND` and
+    `SUBSCRIBER_RECONCILIATION_CASE_CLOSED` are new. The start refuses while a
+    credit not paid out is held at an account `config/saas.yaml` no longer names
+    (`SC-PRIC-030`).
+
+- f453f75: An invoice is collected through its payment gateway
+
+    Where `config/saas.yaml` names `payments`, an invoice that announced how it is
+    paid is collected through the gateway account its payment method is held at, as
+    the fourth step of the quarter-hourly run, once it was mailed: by card at once,
+    by direct debit from the collection date it announced (`SC-PRIC-082`).
+
+    A collection never charges twice (`SC-PRIC-034`). Each attempt is started in
+    the invoice's turn and written as submitted, with everything its request
+    carries, before the request leaves; an invoice has one attempt not settled at a
+    time and none after one succeeded. Every request carries the key
+    `saasicat:collect:<invoice>:<attempt>`. A request whose answer was lost is asked
+    about at the gateway fifteen minutes later, and sent again as the same request
+    only where the gateway holds nothing under its key; a direct debit on its way is
+    asked about once an hour. A failure is recorded with its reason and the
+    gateway's code, and what follows it is `SC-PRIC-080`'s.
+
+    `PaymentGateway` gains `collect` and `findCollection`, which
+    `@saasicat/payment-stripe` implements with payment intents confirmed off
+    session under the attempt key, and `DevPaymentGateway` in memory. A restricted
+    Stripe key needs payment intents (write) and charges (read) beside what it had.
+    The Stripe gateway now refuses a currency Stripe does not take to the cent,
+    such as `JPY` or `ISK`, and answers an invoice in another currency than its
+    account's as failed with the code `saasicat_other_currency`, without sending
+    anything.
+
+    Adopt `23-subscription-invoice-collection.prisma`, run
+    `1.0-an-invoice-is-collected.postgres.sql` once before `db push`, and pass
+    `persistence.entitlement.invoiceCollectionRepository` as
+    `tenantBilling.chargeJournal.invoices.collections`; the start refuses invoices
+    without it where the file names `payments`, and refuses to start while a
+    collection not settled was sent to an account the file no longer names
+    (`SC-PRIC-030`). A persistence contract harness gains
+    `invoiceCollectionRepository`, or declares `gaps: ['invoiceCollections']`.
+
+- 9c9f624: An invoice says how it is paid
+
+    An invoice now records, when it is issued, the subscriber's payment method in
+    use that it is collected with (`SubscriptionInvoiceRecord.payment`), copied as
+    it stood then. An invoice collected by SEPA direct debit announces the amount,
+    the day it is collected from and the mandate reference, as SEPA asks of the
+    notice before a debit (`SC-PRIC-028`), and falls due on that day
+    (`SC-PRIC-046`): the issue date plus `invoicing.directDebitLeadDays` in
+    `config/saas.yaml`, fourteen calendar days unless set. Set it to what the
+    mandate your subscribers accepted provides for; the one Stripe shows provides
+    for two days. Any other invoice falls due the payment term after its issue date,
+    as before. Nothing is collected yet.
+
+    An invoice that asks for nothing and one of a subscriber without a payment
+    method record none and are not collected. One of a direct debit whose gateway
+    never named its mandate reference cannot be announced: it waits, draws no
+    number, and is issued with its announcement once the payment method is
+    replaced. The audit log records it as `SUBSCRIPTION_INVOICE_HELD` with the new
+    code `SUBSCRIPTION_INVOICE_MANDATE_MISSING`.
+
+    `zugferdInvoiceRenderer()` states it on the page, in German and English, and in
+    the XML: the payment means (`59` for a direct debit, `48` for a card named by
+    its last four digits), the payment terms' text and the mandate reference.
+
+    Run `1.0-an-invoice-says-how-it-is-paid.postgres.sql` once, before `db push`:
+    it adds the nullable `payment` and `collectionDate` to `subscription_invoices`,
+    which fragment 20 declares. An invoice issued before records no payment method
+    and stays due on the day it states. Where `config/saas.yaml` names `payments`,
+    the start refuses invoices that cannot read the payment methods, as with
+    `PaymentsModule` wired other than globally.
+
+### Patch Changes
+
+- 5396ab6: A deleted promo code is changed and deleted no further
+
+    `PromoCodesService.update` changed a code the operator had deleted, and
+    `softDelete` deleted it again, moving the day it was deleted; a code that never
+    existed failed in the store rather than as a missing code. Both now answer
+    `404 PROMO_CODE_NOT_FOUND` for a deleted or unknown code, as `findOne` already
+    did (`SC-PROMO-032`) — also where the code is deleted between the platform's
+    read and its write. For that, `PromoCodeRepository.update` answers `null` and
+    `softDelete` answers `false` where no live code is under the id, and both
+    shipped adapters write only to a code that is not deleted. A `softDelete` of
+    your own that answers nothing no longer compiles; the persistence contract
+    checks the rest.
+
+- e183f06: No value without a text of its own reads "[object Object]" any more
+
+    `formatErrorMessage` turned an object passed as a parameter into
+    "[object Object]" in the message the user reads. It now leaves the placeholder
+    visible, as it already did for a missing value; text, numbers, booleans,
+    dates and lists of them read as before. A header the HTTP client reads that is neither text, a
+    number, a boolean nor a list now reads as absent, and a tax reason that is not
+    text reads as empty.
+
+    The persistence contract suite took seed functions out of `harness.seed` and
+    called them without their object. A harness whose seed is a class instance
+    using `this` failed there; the suite now keeps the receiver.
+
+    `saasicat manifest check` names an unexpected `schemaVersion` as JSON, so a
+    version sent as text shows its quotes.
+
+- Updated dependencies [5396ab6]
+- Updated dependencies [3ab58af]
+- Updated dependencies [3cca4f4]
+- Updated dependencies [20c3991]
+- Updated dependencies [f453f75]
+- Updated dependencies [9c9f624]
+- Updated dependencies [e183f06]
+    - @saasicat/core@1.0.0-rc.27
+
 ## 1.0.0-rc.26
 
 ### Minor Changes
