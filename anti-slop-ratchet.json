@@ -1,6 +1,6 @@
 {
-    "require-safety-comment-for-type-assertion": 1131,
-    "no-chained-type-assertions": 131,
+    "require-safety-comment-for-type-assertion": 1129,
+    "no-chained-type-assertions": 130,
     "no-widen-then-assert": 0,
     "no-reflect-get": 1,
     "no-reflect-apply": 0,

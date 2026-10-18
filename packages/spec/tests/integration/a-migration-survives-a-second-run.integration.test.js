@@ -109,6 +109,44 @@ async function freshGround() {
 }
 
 /** Applies one file the way a consumer does: whole, in one go. */
+/**
+ * The migration that gives the settlements and the credits what a cancellation
+ * names. A test that rebuilds the payments with their own migration and then
+ * compares the whole schema runs it after them, as a deploy would.
+ */
+const CANCELLATION_MIGRATION = '1.0-an-invoice-is-cancelled.postgres.sql';
+
+/**
+ * An issued invoice — `invoice-1`, `AHP-2026-000001`, 58.31 — with the
+ * subscriber and the contract it names, as the migrations under test find one.
+ * Where the table gives invoices their chain, it begins its own.
+ */
+async function anIssuedInvoice() {
+    await client.query(
+        `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+    );
+    await client.query(
+        'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+            ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+            `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+    );
+    const { rows } = await client.query(
+        'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
+            "AND table_name = 'subscription_invoices' AND column_name = 'chainId'",
+    );
+    const chain = rows.length > 0 ? ['"chainId", ', "'invoice-1', "] : ['', ''];
+    await client.query(
+        `INSERT INTO "subscription_invoices" ("id", ${chain[0]}"number", "numberPrefix", ` +
+            '"numberYear", "numberSequence", "tenantId", "subscriberId", "subscriptionId", ' +
+            '"contractId", "issuedAt", "issueDate", "dueDate", "servicePeriodFrom", ' +
+            '"servicePeriodUntil", "currency", "issuerParty", "subscriberParty", ' +
+            '"taxTreatment", "taxes", "totalNet", "totalTax", "totalGross") ' +
+            `VALUES ('invoice-1', ${chain[1]}'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', ` +
+            "'sub-1', 'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', " +
+            "'EUR', '{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
+    );
+}
+
 async function apply(name) {
     await client.query(readFileSync(join(SQL_DIR, name), 'utf8'));
 }
@@ -918,7 +956,7 @@ describe('every contract names the subscriber it is concluded with', () => {
                 '"subscriber_refunds", "subscriber_credits", "subscriber_reversals", ' +
                 '"subscription_invoice_settlements", "subscriber_payments", ' +
                 '"subscription_invoice_collections", "subscription_invoice_archive", ' +
-                '"subscription_invoice_documents", ' +
+                '"subscription_invoice_documents", "subscription_invoice_cancellations", ' +
                 '"subscription_invoice_lines", "subscription_invoices", ' +
                 '"subscription_invoice_numbers", ' +
                 '"subscriber_ledger_entries", "subscriber_payment_method_setups", ' +
@@ -2446,25 +2484,7 @@ describe('an invoice says how it is paid', () => {
 
     /** An invoice as rc.26 issued it, with the subscriber and contract it names. */
     async function anInvoiceFromBefore() {
-        await client.query(
-            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") ` +
-                `VALUES ('s-1', 'Vorher GmbH', NOW())`,
-        );
-        await client.query(
-            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
-        );
-        await client.query(
-            'INSERT INTO "subscription_invoices" ("id", "number", "numberPrefix", "numberYear", ' +
-                '"numberSequence", "tenantId", "subscriberId", "subscriptionId", "contractId", ' +
-                '"issuedAt", "issueDate", "dueDate", "servicePeriodFrom", "servicePeriodUntil", ' +
-                '"currency", "issuerParty", "subscriberParty", "taxTreatment", "taxes", ' +
-                '"totalNet", "totalTax", "totalGross") ' +
-                "VALUES ('invoice-1', 'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', 'sub-1', " +
-                "'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', 'EUR', " +
-                "'{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
-        );
+        await anIssuedInvoice();
     }
 
     test('a database from before ends up with the schema the fragments declare', async () => {
@@ -2569,24 +2589,7 @@ describe('an invoice is collected through its payment gateway', () => {
 
     /** An invoice issued before, with the subscriber and contract it names. */
     async function anInvoice() {
-        await client.query(
-            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
-        );
-        await client.query(
-            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
-        );
-        await client.query(
-            'INSERT INTO "subscription_invoices" ("id", "number", "numberPrefix", "numberYear", ' +
-                '"numberSequence", "tenantId", "subscriberId", "subscriptionId", "contractId", ' +
-                '"issuedAt", "issueDate", "dueDate", "servicePeriodFrom", "servicePeriodUntil", ' +
-                '"currency", "issuerParty", "subscriberParty", "taxTreatment", "taxes", ' +
-                '"totalNet", "totalTax", "totalGross") ' +
-                "VALUES ('invoice-1', 'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', 'sub-1', " +
-                "'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', 'EUR', " +
-                "'{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
-        );
+        await anIssuedInvoice();
     }
 
     /** An attempt of invoice-1, numbered `attempt`, in `status`. */
@@ -2613,6 +2616,7 @@ describe('an invoice is collected through its payment gateway', () => {
 
         await apply(MIGRATION);
         await apply(PAYMENTS_MIGRATION);
+        await apply(CANCELLATION_MIGRATION);
 
         assert.equal(await fingerprint(client), reference);
         const { rows } = await client.query(
@@ -2657,6 +2661,7 @@ describe('an invoice is collected through its payment gateway', () => {
         await apply(MIGRATION);
         await apply(MIGRATION);
         await apply(PAYMENTS_MIGRATION);
+        await apply(CANCELLATION_MIGRATION);
 
         assert.equal(await fingerprint(client), reference);
         const { rows: required } = await client.query(
@@ -2779,24 +2784,7 @@ describe('a payment is recorded, and a credit paid out', () => {
 
     /** An invoice issued before with its first attempt, and the subscriber and contract it names. */
     async function anInvoiceWithAnAttempt() {
-        await client.query(
-            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
-        );
-        await client.query(
-            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
-        );
-        await client.query(
-            'INSERT INTO "subscription_invoices" ("id", "number", "numberPrefix", "numberYear", ' +
-                '"numberSequence", "tenantId", "subscriberId", "subscriptionId", "contractId", ' +
-                '"issuedAt", "issueDate", "dueDate", "servicePeriodFrom", "servicePeriodUntil", ' +
-                '"currency", "issuerParty", "subscriberParty", "taxTreatment", "taxes", ' +
-                '"totalNet", "totalTax", "totalGross") ' +
-                "VALUES ('invoice-1', 'AHP-2026-000001', 'AHP', 2026, 1, 't-1', 's-1', 'sub-1', " +
-                "'c-1', NOW(), '2026-10-01', '2026-10-15', '2026-10-01', '2026-10-31', 'EUR', " +
-                "'{}', '{}', '{}', '[]', 49.00, 9.31, 58.31)",
-        );
+        await anIssuedInvoice();
         await client.query(
             'INSERT INTO "subscription_invoice_collections" ("id", "invoiceId", "attempt", ' +
                 '"attemptKey", "gatewayAccount", "paymentMethodId", "paymentMethodType", ' +
@@ -2820,7 +2808,9 @@ describe('a payment is recorded, and a credit paid out', () => {
         );
 
         await apply(MIGRATION);
+        await apply(CANCELLATION_MIGRATION);
         assert.equal(await fingerprint(client), reference);
+        // Run again after the cancellation's, it leaves what that one put in place.
         await apply(MIGRATION);
         assert.equal(await fingerprint(client), reference);
 
@@ -2828,7 +2818,8 @@ describe('a payment is recorded, and a credit paid out', () => {
             "SELECT count(*)::int AS keys FROM pg_constraint WHERE contype = 'f' " +
                 `AND conrelid::regclass::text IN (${TABLES.map((table) => `'${table}'`).join(', ')})`,
         );
-        assert.deepEqual(rows, [{ keys: 21 }], 'the foreign keys of the seven tables');
+        // Two of them name a cancellation, on a settlement and on a credit.
+        assert.deepEqual(rows, [{ keys: 23 }], 'the foreign keys of the seven tables');
     });
 
     // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
@@ -2888,5 +2879,122 @@ describe('a payment is recorded, and a credit paid out', () => {
             `SELECT to_regclass('subscriber_payments') AS payments`,
         );
         assert.deepEqual(rows, [{ payments: null }]);
+    });
+});
+
+// @requirement SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
+describe('an invoice is corrected by a cancellation invoice', () => {
+    // The migration makes an invoice and the invoices that correct it a chain,
+    // records a cancellation, and lets what was paid move onto a replacement.
+    // The second-run suite runs it on the reference schema, where everything is
+    // in place already; these start from the schema as rc.27 left it.
+
+    const MIGRATION = '1.0-an-invoice-is-cancelled.postgres.sql';
+
+    /** The reference schema as rc.27 left it: no chain, no cancellation, one credit per payment. */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query(
+            'ALTER TABLE "subscriber_credits" DROP COLUMN "originCancellationId"; ' +
+                'DROP INDEX "subscriber_credits_originPaymentId_idx"; ' +
+                'CREATE UNIQUE INDEX "subscriber_credits_originPaymentId_key" ' +
+                '    ON "subscriber_credits"("originPaymentId"); ' +
+                'ALTER TABLE "subscription_invoice_settlements" DROP COLUMN "cancellationId"; ' +
+                'DROP TABLE "subscription_invoice_cancellations"; ' +
+                'ALTER TABLE "subscription_invoice_lines" DROP COLUMN "chainStep", ' +
+                '    DROP COLUMN "correctedPosition"; ' +
+                'CREATE UNIQUE INDEX "subscription_invoice_lines_chargeId_key" ' +
+                '    ON "subscription_invoice_lines"("chargeId"); ' +
+                'ALTER TABLE "subscription_invoices" DROP COLUMN "chainId", ' +
+                '    DROP COLUMN "chainStep", DROP COLUMN "paidOnIssue"',
+        );
+    }
+
+    /** An invoice as rc.27 issued it, with the subscriber and contract it names. */
+    async function anInvoiceFromBefore() {
+        await anIssuedInvoice();
+    }
+
+    test('a database from before ends up with the schema the fragments declare, twice', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+        assert.equal(await fingerprint(client), reference);
+        await apply(MIGRATION);
+        assert.equal(await fingerprint(client), reference);
+    });
+
+    test('an invoice issued before begins a chain of its own, paid on issue by nothing', async () => {
+        await beforeTheMigration();
+        await anInvoiceFromBefore();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "id", "chainId", "chainStep", "paidOnIssue"::text AS "paidOnIssue" ' +
+                'FROM "subscription_invoices"',
+        );
+        assert.deepEqual(rows, [
+            { id: 'invoice-1', chainId: 'invoice-1', chainStep: 0, paidOnIssue: '0.00' },
+        ]);
+    });
+
+    test('the files that created the invoices and the payments, run again, leave the chain in place', async () => {
+        // No ledger records what ran: a deploy runs every file again, the older
+        // ones too, and they must not put the unique `chargeId` or the unique
+        // `originPaymentId` back over what cancelling an invoice needs.
+        await beforeTheMigration();
+        await apply(MIGRATION);
+        const corrected = await fingerprint(client);
+
+        await apply('1.0-an-invoice-is-issued.postgres.sql');
+        await apply('1.0-a-payment-is-recorded.postgres.sql');
+
+        assert.equal(await fingerprint(client), corrected);
+    });
+
+    test('an installation whose invoices are not collected gains the chain, and runs through', async () => {
+        await beforeTheMigration();
+        await client.query(
+            'DROP TABLE "subscriber_reconciliation_cases", "subscriber_credit_entries", ' +
+                '"subscriber_refunds", "subscriber_credits", "subscription_invoice_settlements", ' +
+                '"subscriber_reversals", "subscriber_payments" CASCADE',
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_invoice_cancellations') AS cancellations, ` +
+                `to_regclass('subscriber_credits') AS credits`,
+        );
+        assert.deepEqual(rows, [
+            { cancellations: 'subscription_invoice_cancellations', credits: null },
+        ]);
+    });
+
+    test('an installation without invoices is left without them, and runs through', async () => {
+        await freshGround();
+        await client.query(
+            'DROP TABLE "subscription_invoice_cancellations", "subscription_invoice_lines", ' +
+                '"subscription_invoices" CASCADE',
+        );
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscription_invoices') AS invoices, ` +
+                `to_regclass('subscription_invoice_cancellations') AS cancellations`,
+        );
+        assert.deepEqual(rows, [{ invoices: null, cancellations: null }]);
     });
 });

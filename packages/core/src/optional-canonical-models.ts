@@ -24,6 +24,13 @@ export const OPTIONAL_CANONICAL_MODELS = {
     SubscriptionInvoiceLine: ['entitlement.subscriptionInvoiceRepository'],
     SubscriptionInvoiceNumber: ['entitlement.subscriptionInvoiceRepository'],
     SubscriptionInvoiceDocument: ['entitlement.subscriptionInvoiceRepository'],
+    // What a cancelled invoice owes, and whether it is collected, is read off
+    // its cancellation by the payments and the collections as well.
+    SubscriptionInvoiceCancellation: [
+        'entitlement.subscriptionInvoiceRepository',
+        'entitlement.invoiceCollectionRepository',
+        'entitlement.subscriberPaymentRepository',
+    ],
     SubscriptionInvoiceArchive: ['entitlement.subscriptionInvoiceArchive'],
     SubscriptionInvoiceCollection: [
         'entitlement.invoiceCollectionRepository',

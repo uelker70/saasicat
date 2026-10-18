@@ -320,3 +320,56 @@ describe('checking the number held, again', () => {
         );
     });
 });
+
+// @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+describe('the tax origin of a party an invoice names', () => {
+    const party = (vatId, country = 'AT') => ({ country, vatId });
+
+    test('counts its number as validated where the record holds that same number with a valid check', async () => {
+        const { subscribers, id } = await aBusinessInAustria();
+        await correctAndCheck(subscribers, id, { vatId: 'ATU12345678' });
+
+        assert.deepEqual(await subscribers.taxOriginOfParty(id, party('ATU12345678')), {
+            country: 'AT',
+            business: true,
+            vatId: 'ATU12345678',
+            validatedVatId: 'ATU12345678',
+        });
+    });
+
+    test('counts a number the record does not hold as not validated, and takes the party’s country', async () => {
+        const { subscribers, id } = await aBusinessInAustria();
+        await correctAndCheck(subscribers, id, { vatId: 'ATU12345678' });
+
+        assert.deepEqual(await subscribers.taxOriginOfParty(id, party('ATU87654321', 'DE')), {
+            country: 'DE',
+            business: true,
+            vatId: 'ATU87654321',
+            validatedVatId: null,
+        });
+    });
+
+    test('counts a number the record held and no longer holds as not validated, however its check went', async () => {
+        const answered = [answers.valid, answers.unreachable];
+        const { subscribers, id } = await aBusinessInAustria({
+            answer: (number) => answered.shift()(number),
+        });
+        await correctAndCheck(subscribers, id, { vatId: 'ATU87654321' });
+        await correctAndCheck(subscribers, id, { vatId: 'ATU12345678' });
+
+        assert.equal(
+            (await subscribers.taxOriginOfParty(id, party('ATU87654321'))).validatedVatId,
+            null,
+        );
+    });
+
+    test('counts the record’s own number as not validated where its check found it invalid', async () => {
+        const { subscribers, id } = await aBusinessInAustria({ answer: answers.invalid });
+        await correctAndCheck(subscribers, id, { vatId: 'ATU12345678' });
+
+        assert.equal(
+            (await subscribers.taxOriginOfParty(id, party('ATU12345678'))).validatedVatId,
+            null,
+        );
+    });
+});

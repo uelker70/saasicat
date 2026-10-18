@@ -1060,7 +1060,7 @@ _Tested by:_
         - one is closed only where it is still open, and one closed before or unknown is answered as
           such
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
     - a reversal
@@ -1084,7 +1084,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once

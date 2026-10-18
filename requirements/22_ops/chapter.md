@@ -282,6 +282,12 @@ _Tested by:_
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
+    - an invoice is corrected by a cancellation invoice
+        - a database from before ends up with the schema the fragments declare, twice
+        - an invoice issued before begins a chain of its own, paid on issue by nothing
+        - the files that created the invoices and the payments, run again, leave the chain in place
+        - an installation whose invoices are not collected gains the chain, and runs through
+        - an installation without invoices is left without them, and runs through
 
 <!-- END proof -->
 
@@ -427,6 +433,12 @@ _Tested by:_
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
+    - an invoice is corrected by a cancellation invoice
+        - a database from before ends up with the schema the fragments declare, twice
+        - an invoice issued before begins a chain of its own, paid on issue by nothing
+        - the files that created the invoices and the payments, run again, leave the chain in place
+        - an installation whose invoices are not collected gains the chain, and runs through
+        - an installation without invoices is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

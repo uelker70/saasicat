@@ -989,10 +989,13 @@ of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only ag
 does a start refuse another legal entity named as the issuer, which would otherwise number on in
 the range of the one before, and the record keeps the corrections of the issuer an invoice
 follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
-`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql` and
-`sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` once and
-`sql/1.0-an-invoice-document-is-archived.postgres.sql` after `db push`, name the range and the
-payment term, and wire the repository, the renderer, the archive and the mail beside the journal:
+`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql`,
+`sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` and
+`sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push` and
+`sql/1.0-an-invoice-document-is-archived.postgres.sql` after it, name the range and the payment
+term, and wire the repository, the renderer, the archive and the mail beside the journal. An issued
+invoice is corrected by cancelling it (`InvoiceCancellationService`), on the transaction
+`contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the start requires:
 
 ```yaml
 # config/saas.yaml
@@ -1207,7 +1210,9 @@ turn: the payment, once, by its gateway account and the gateway's reference, how
 first — the run asking, or the gateway's callback — and however often (`SC-PRIC-029`,
 `SC-PRIC-036`). Adopt `prisma-fragments/24-subscriber-payments.prisma` with the back-relations it
 names on `Subscriber`, `SubscriptionInvoice` and `SubscriptionInvoiceCollection`, run
-`sql/1.0-a-payment-is-recorded.postgres.sql` once before `db push`, and `SaaSiCatModule` takes
+`sql/1.0-a-payment-is-recorded.postgres.sql` once before `db push` — and
+`sql/1.0-an-invoice-is-cancelled.postgres.sql` after it, which gives the payments the moves a
+cancellation makes —, and `SaaSiCatModule` takes
 `persistence.entitlement.subscriberPaymentRepository` for `chargeJournal.invoices.payments` unless
 you name another. The start refuses collections without it.
 

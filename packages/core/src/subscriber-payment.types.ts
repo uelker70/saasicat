@@ -68,7 +68,13 @@ export type SubscriberCreditOrigin =
      * What a reversal the gateway gave back brought beyond what the invoices
      * it had opened again still owed: the subscriber paid them meanwhile.
      */
-    | { kind: 'reversal'; reversalId: string };
+    | { kind: 'reversal'; reversalId: string }
+    /**
+     * What a payment settled of an invoice that was cancelled, which the
+     * replacement did not take (`SC-PRIC-025`); a reversal of the payment takes
+     * it back as the payment's own (`SC-PRIC-084`).
+     */
+    | { kind: 'cancellation'; cancellationId: string; paymentId: string };
 
 /** Money the operator owes a subscriber, as a store reads it back. */
 export interface SubscriberCreditRecord {
@@ -252,8 +258,12 @@ export interface ReportedSubscriberReversal {
 
 /** What withdrawing part of a reversal's amount took back. */
 export interface ReversalWithdrawal {
-    /** What it took of the credit the payment left that was still open. */
-    credit: CreditPart | null;
+    /**
+     * What it took of the credits the payment left that was still open: what it
+     * brought beyond its invoice, then its share of a cancelled invoice the
+     * replacement did not take.
+     */
+    credits: CreditPart[];
     /**
      * What it took instead of opening an invoice again, of the credits other
      * payments collected for that invoice left, the oldest first.
@@ -365,12 +375,15 @@ export interface AdminSubscriberCredit {
     currency: string;
     /**
      * The payment that brought more than its invoice owed, the invoice whose
-     * total is negative, or the reversal the gateway gave back.
+     * total is negative, the reversal the gateway gave back, or the payment
+     * whose share of a cancelled invoice the replacement did not take — with
+     * the cancelled invoice's number.
      */
     origin:
         | { kind: 'payment'; paymentRef: string; invoiceNumber: string | null }
         | { kind: 'invoice'; invoiceNumber: string | null }
-        | { kind: 'reversal'; reversalRef: string; invoiceNumber: string | null };
+        | { kind: 'reversal'; reversalRef: string; invoiceNumber: string | null }
+        | { kind: 'cancellation'; paymentRef: string; invoiceNumber: string | null };
     /** ISO 8601. */
     createdAt: string;
     open: number;

@@ -820,6 +820,8 @@ CREATE TABLE "subscription_invoices" (
     "subscriberId" TEXT NOT NULL,
     "subscriptionId" TEXT NOT NULL,
     "contractId" TEXT NOT NULL,
+    "chainId" TEXT NOT NULL,
+    "chainStep" INTEGER NOT NULL DEFAULT 0,
     "issuedAt" TIMESTAMP(3) NOT NULL,
     "issueDate" DATE NOT NULL,
     "dueDate" DATE NOT NULL,
@@ -836,6 +838,7 @@ CREATE TABLE "subscription_invoices" (
     "totalNet" DECIMAL(12,2) NOT NULL,
     "totalTax" DECIMAL(12,2) NOT NULL,
     "totalGross" DECIMAL(12,2) NOT NULL,
+    "paidOnIssue" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscription_invoices_pkey" PRIMARY KEY ("id")
@@ -848,6 +851,8 @@ CREATE TABLE "subscription_invoice_lines" (
     "position" INTEGER NOT NULL,
     "chargeId" TEXT NOT NULL,
     "contractLineItemId" TEXT NOT NULL,
+    "chainStep" INTEGER NOT NULL DEFAULT 0,
+    "correctedPosition" INTEGER,
     "title" TEXT NOT NULL,
     "origin" TEXT NOT NULL,
     "source" TEXT NOT NULL,
@@ -857,6 +862,21 @@ CREATE TABLE "subscription_invoice_lines" (
     "taxRate" DECIMAL(5,2) NOT NULL,
 
     CONSTRAINT "subscription_invoice_lines_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscription_invoice_cancellations" (
+    "id" TEXT NOT NULL,
+    "cancelledInvoiceId" TEXT NOT NULL,
+    "cancellationInvoiceId" TEXT NOT NULL,
+    "replacementInvoiceId" TEXT,
+    "reason" TEXT NOT NULL,
+    "correctedSubscriber" JSONB,
+    "deliverTo" TEXT,
+    "cancelledBy" TEXT NOT NULL,
+    "cancelledAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscription_invoice_cancellations_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -965,6 +985,7 @@ CREATE TABLE "subscription_invoice_settlements" (
     "kind" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "reversalId" TEXT,
+    "cancellationId" TEXT,
     "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscription_invoice_settlements_pkey" PRIMARY KEY ("id")
@@ -980,6 +1001,7 @@ CREATE TABLE "subscriber_credits" (
     "originPaymentId" TEXT,
     "originInvoiceId" TEXT,
     "originReversalId" TEXT,
+    "originCancellationId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscriber_credits_pkey" PRIMARY KEY ("id")
@@ -1331,16 +1353,28 @@ CREATE INDEX "subscription_invoices_subscriberId_issuedAt_idx" ON "subscription_
 CREATE INDEX "subscription_invoices_subscriptionId_idx" ON "subscription_invoices"("subscriptionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "subscription_invoices_numberYear_numberSequence_key" ON "subscription_invoices"("numberYear", "numberSequence");
+CREATE INDEX "subscription_invoices_chainId_idx" ON "subscription_invoices"("chainId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "subscription_invoice_lines_chargeId_key" ON "subscription_invoice_lines"("chargeId");
+CREATE UNIQUE INDEX "subscription_invoices_numberYear_numberSequence_key" ON "subscription_invoices"("numberYear", "numberSequence");
 
 -- CreateIndex
 CREATE INDEX "subscription_invoice_lines_contractLineItemId_idx" ON "subscription_invoice_lines"("contractLineItemId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_lines_chargeId_chainStep_key" ON "subscription_invoice_lines"("chargeId", "chainStep");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "subscription_invoice_lines_invoiceId_position_key" ON "subscription_invoice_lines"("invoiceId", "position");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_cancellations_cancelledInvoiceId_key" ON "subscription_invoice_cancellations"("cancelledInvoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_cancellations_cancellationInvoiceId_key" ON "subscription_invoice_cancellations"("cancellationInvoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_invoice_cancellations_replacementInvoiceId_key" ON "subscription_invoice_cancellations"("replacementInvoiceId");
 
 -- CreateIndex
 CREATE INDEX "subscription_invoice_documents_archivedAt_idx" ON "subscription_invoice_documents"("archivedAt");
@@ -1376,7 +1410,7 @@ CREATE INDEX "subscription_invoice_settlements_paymentId_idx" ON "subscription_i
 CREATE INDEX "subscription_invoice_settlements_reversalId_idx" ON "subscription_invoice_settlements"("reversalId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "subscriber_credits_originPaymentId_key" ON "subscriber_credits"("originPaymentId");
+CREATE INDEX "subscription_invoice_settlements_cancellationId_idx" ON "subscription_invoice_settlements"("cancellationId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriber_credits_originInvoiceId_key" ON "subscriber_credits"("originInvoiceId");
@@ -1385,7 +1419,13 @@ CREATE UNIQUE INDEX "subscriber_credits_originInvoiceId_key" ON "subscriber_cred
 CREATE INDEX "subscriber_credits_subscriberId_createdAt_idx" ON "subscriber_credits"("subscriberId", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "subscriber_credits_originPaymentId_idx" ON "subscriber_credits"("originPaymentId");
+
+-- CreateIndex
 CREATE INDEX "subscriber_credits_originReversalId_idx" ON "subscriber_credits"("originReversalId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_credits_originCancellationId_originPaymentId_key" ON "subscriber_credits"("originCancellationId", "originPaymentId");
 
 -- CreateIndex
 CREATE INDEX "subscriber_credit_entries_creditId_idx" ON "subscriber_credit_entries"("creditId");
@@ -1496,6 +1536,9 @@ ALTER TABLE "subscription_invoices" ADD CONSTRAINT "subscription_invoices_subscr
 ALTER TABLE "subscription_invoices" ADD CONSTRAINT "subscription_invoices_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscription_invoices" ADD CONSTRAINT "subscription_invoices_chainId_fkey" FOREIGN KEY ("chainId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1503,6 +1546,15 @@ ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_li
 
 -- AddForeignKey
 ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_cancellations" ADD CONSTRAINT "subscription_invoice_cancellations_cancelledInvoiceId_fkey" FOREIGN KEY ("cancelledInvoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_cancellations" ADD CONSTRAINT "subscription_invoice_cancellations_cancellationInvoiceId_fkey" FOREIGN KEY ("cancellationInvoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_invoice_cancellations" ADD CONSTRAINT "subscription_invoice_cancellations_replacementInvoiceId_fkey" FOREIGN KEY ("replacementInvoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscription_invoice_documents" ADD CONSTRAINT "subscription_invoice_documents_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1532,6 +1584,9 @@ ALTER TABLE "subscription_invoice_settlements" ADD CONSTRAINT "subscription_invo
 ALTER TABLE "subscription_invoice_settlements" ADD CONSTRAINT "subscription_invoice_settlements_reversalId_fkey" FOREIGN KEY ("reversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscription_invoice_settlements" ADD CONSTRAINT "subscription_invoice_settlements_cancellationId_fkey" FOREIGN KEY ("cancellationId") REFERENCES "subscription_invoice_cancellations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1542,6 +1597,9 @@ ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_originInvoic
 
 -- AddForeignKey
 ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_originReversalId_fkey" FOREIGN KEY ("originReversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_originCancellationId_fkey" FOREIGN KEY ("originCancellationId") REFERENCES "subscription_invoice_cancellations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriber_credit_entries" ADD CONSTRAINT "subscriber_credit_entries_creditId_fkey" FOREIGN KEY ("creditId") REFERENCES "subscriber_credits"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1674,6 +1732,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscrib
 CREATE UNIQUE INDEX IF NOT EXISTS subscription_invoice_collections_one_open_per_invoice
     ON subscription_invoice_collections ("invoiceId")
     WHERE "status" IN ('SCHEDULED', 'SUBMITTED', 'PENDING', 'SUCCEEDED');
+
+-- A payment leaves at most ONE credit of its own — what it brought beyond what
+-- its invoice still owed. A cancellation can leave it one more, for the part the
+-- replacement did not take. That one names the cancellation as well, and the
+-- unique (originCancellationId, originPaymentId) of the fragment holds it to one
+-- per cancellation. Of two reports of the same payment, one writes the credit.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_credits_one_per_payment
+    ON subscriber_credits ("originPaymentId")
+    WHERE "originCancellationId" IS NULL;
 
 -- A gateway session is confirmed ONCE.
 --

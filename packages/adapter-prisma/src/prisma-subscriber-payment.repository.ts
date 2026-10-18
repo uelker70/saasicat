@@ -4,6 +4,8 @@ import type {
     ClosedReconciliationCase,
     CloseReconciliationCase,
     CreditPart,
+    InvoicePaymentShare,
+    MovedPaymentPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
     ReconciliationCaseState,
@@ -27,8 +29,9 @@ import {
     GIVING_BACK_CREDIT_ENTRY_KINDS,
     isEndedRefund,
     openOfCredit,
-    owedOn,
+    owedByInvoice,
     paymentSettlement,
+    paymentSharesOf,
     payoutEntryColumns,
     refundEntryColumns,
     refundParts,
@@ -45,6 +48,7 @@ import {
     utcMidnightOf,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN } from './prisma-client-token.js';
+import { correctedStateOf, standingInvoiceIdOf } from './prisma-invoice-chain.js';
 import { closeCaseIn, closeCasesOf, listCasesIn, openCase } from './prisma-reconciliation-cases.js';
 import {
     createCredit,
@@ -70,8 +74,8 @@ const GIVING_BACK = [...GIVING_BACK_CREDIT_ENTRY_KINDS];
 /**
  * `SubscriberPaymentRepository` against the seven tables of fragment 24.
  *
- * A payment is written in its invoice's turn — the invoice's row, locked for
- * the transaction — and a refund or a payout holds the credits it reads, so
+ * A payment is written in the turn of its invoice's chain — the row of the
+ * chain's first invoice, locked for the transaction — and a refund or a payout holds the credits it reads, so
  * two writes at the same moment never pay the same credit out twice. Every
  * write that must happen once is an insert the database refuses a second
  * time, which `ON CONFLICT DO NOTHING` turns into no row rather than an error
@@ -119,14 +123,25 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             });
             if (!row) return null;
             const recorded = toSubscriberPaymentRecord(row);
-            const owed = await owedOf(db, invoice);
+            // It settles the invoice that stands in the chain when it holds the
+            // turn: a replacement, where the invoice it was collected for was
+            // cancelled meanwhile, or none, where nothing is owed any more
+            // (`SC-PRIC-036`).
+            const standingId = await standingInvoiceIdOf(db, invoice.id);
+            const standing =
+                standingId === null
+                    ? null
+                    : standingId === invoice.id
+                      ? invoice
+                      : await readInvoice(db, standingId);
+            const owed = standing ? await owedOf(db, standing) : 0;
             const { settles, credits } = paymentSettlement(recorded.amount, owed);
-            if (settles > 0) {
+            if (standing && settles > 0) {
                 await db.subscriptionInvoiceSettlement.createMany({
                     data: [
                         {
                             id: randomUUID(),
-                            invoiceId: invoice.id,
+                            invoiceId: standing.id,
                             paymentId: recorded.id,
                             kind: 'PAYMENT',
                             amount: toDecimalString(settles),
@@ -158,8 +173,75 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
             const invoice = await lockInvoice(db, invoiceId);
             const gross = grossOf(invoice);
             if (gross >= 0) return null;
+            // The invoice a cancellation invoice cancels takes its total back.
+            if ((await correctedStateOf(db, invoice.id)).isCancellation) return null;
             return createCredit(db, invoice, -gross, { originInvoiceId: invoice.id }, at);
         });
+    }
+
+    async sharesOf(invoiceId: string, tx: TransactionContext): Promise<InvoicePaymentShare[]> {
+        const db = this.db(tx);
+        const settlements = await db.subscriptionInvoiceSettlement.findMany({
+            where: { invoiceId },
+            select: { id: true, kind: true, amount: true, paymentId: true },
+        });
+        const payments = await db.subscriberPayment.findMany({
+            where: { id: { in: [...new Set(settlements.map((row) => row.paymentId))] } },
+            select: { id: true, recordedAt: true },
+        });
+        return paymentSharesOf(
+            settlements.map((row) => ({ paymentId: row.paymentId, amount: settledAmountOf(row) })),
+            new Map(payments.map((payment) => [payment.id, payment.recordedAt])),
+        );
+    }
+
+    async moveShares(
+        move: {
+            cancellationId: string;
+            cancelledInvoiceId: string;
+            replacementInvoiceId: string | null;
+            parts: readonly MovedPaymentPart[];
+            at: Date;
+        },
+        tx: TransactionContext,
+    ): Promise<SubscriberCreditRecord[]> {
+        const db = this.db(tx);
+        const cancelled = await readInvoice(db, move.cancelledInvoiceId);
+        if (!cancelled) throw new Error(`Invoice ${move.cancelledInvoiceId} does not exist.`);
+        const settlement = (
+            kind: 'MOVED_OUT' | 'MOVED_IN',
+            invoiceId: string,
+            paymentId: string,
+            amount: number,
+        ) => ({
+            id: randomUUID(),
+            invoiceId,
+            paymentId,
+            kind,
+            amount: toDecimalString(amount),
+            cancellationId: move.cancellationId,
+            recordedAt: move.at,
+        });
+        const rows = move.parts.flatMap((part) => [
+            settlement('MOVED_OUT', cancelled.id, part.paymentId, part.movedOut),
+            ...(move.replacementInvoiceId && part.movedIn > 0
+                ? [settlement('MOVED_IN', move.replacementInvoiceId, part.paymentId, part.movedIn)]
+                : []),
+        ]);
+        if (rows.length > 0) await db.subscriptionInvoiceSettlement.createMany({ data: rows });
+        const credits: SubscriberCreditRecord[] = [];
+        for (const part of move.parts) {
+            if (part.credited <= 0) continue;
+            const credit = await createCredit(
+                db,
+                cancelled,
+                part.credited,
+                { originPaymentId: part.paymentId, originCancellationId: move.cancellationId },
+                move.at,
+            );
+            if (credit) credits.push(credit);
+        }
+        return credits;
     }
 
     async listUncredited(
@@ -175,6 +257,10 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
                AND i."totalGross" < 0
                AND NOT EXISTS (
                        SELECT 1 FROM "subscriber_credits" c WHERE c."originInvoiceId" = i."id"
+                   )
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_cancellations" x
+                        WHERE x."cancellationInvoiceId" = i."id"
                    )
              ORDER BY i."id"
              LIMIT ${page.limit}`;
@@ -406,17 +492,33 @@ export class PrismaSubscriberPaymentRepository implements SubscriberPaymentRepos
                 tenantId: true,
                 totalGross: true,
                 currency: true,
+                chainId: true,
             },
         });
         const settled = await db.subscriptionInvoiceSettlement.findMany({
             where: { invoiceId: { in: [...invoiceIds] } },
             select: { id: true, invoiceId: true, kind: true, amount: true },
         });
+        const corrections = await db.subscriptionInvoiceCancellation.findMany({
+            where: {
+                OR: [
+                    { cancelledInvoiceId: { in: [...invoiceIds] } },
+                    { cancellationInvoiceId: { in: [...invoiceIds] } },
+                ],
+            },
+            select: { cancelledInvoiceId: true, cancellationInvoiceId: true },
+        });
+        const cancelled = new Set(corrections.map((row) => row.cancelledInvoiceId));
+        const cancellations = new Set(corrections.map((row) => row.cancellationInvoiceId));
         return invoices.map((invoice) => ({
             invoiceId: invoice.id,
-            owed: owedOn(
+            owed: owedByInvoice(
                 grossOf(invoice),
                 settled.filter((row) => row.invoiceId === invoice.id).map(settledAmountOf),
+                {
+                    cancelled: cancelled.has(invoice.id),
+                    isCancellation: cancellations.has(invoice.id),
+                },
             ),
         }));
     }

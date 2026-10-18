@@ -199,7 +199,11 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
             centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(sign * invoice.totalNet) &&
             centsOf(text(summation, 'TaxTotalAmount')) === cents(sign * invoice.totalTax) &&
             centsOf(text(summation, 'GrandTotalAmount')) === cents(sign * invoice.totalGross) &&
-            centsOf(text(summation, 'DuePayableAmount')) === cents(sign * invoice.totalGross),
+            // What was paid for the invoice a replacement replaces (BT-113),
+            // stated only where something was, and the amount due less it.
+            prepaidHolds(text(summation, 'TotalPrepaidAmount'), invoice) &&
+            centsOf(text(summation, 'DuePayableAmount')) ===
+                cents(sign * invoice.totalGross) - cents(invoice.paidOnIssue),
     );
     check(
         'xml.lines',
@@ -324,6 +328,15 @@ function dayOf(dateTime: Element | undefined): string | null {
 /** An amount in whole cents, as the invoice records it. */
 function cents(amount: number): number {
     return Math.round(amount * 100);
+}
+
+/**
+ * Whether the XML states what was paid on issue as the invoice records it: the
+ * amount where something was, and nothing where nothing was.
+ */
+function prepaidHolds(stated: string | null, invoice: { paidOnIssue: number }): boolean {
+    if (invoice.paidOnIssue === 0) return stated === null;
+    return centsOf(stated) === cents(invoice.paidOnIssue);
 }
 
 /** A decimal the XML states, in whole cents; `null` where it states none that reads as one. */

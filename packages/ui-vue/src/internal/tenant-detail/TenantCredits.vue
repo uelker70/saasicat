@@ -51,7 +51,8 @@ import SubscriberPayoutDialog from './SubscriberPayoutDialog.vue';
 
 // The credits of the tenant's subscriber, the oldest first as the platform
 // orders them: where each comes from — a payment beyond its invoice, an invoice
-// below zero, a reversal the gateway gave back —, what was paid out of it and
+// below zero, a reversal the gateway gave back, a payment's share of a cancelled
+// invoice its replacement did not take —, what was paid out of it and
 // what is still open. A credit is never offset against a later invoice; one with
 // something open can be paid out here, where the gateway can no longer refund
 // it.
@@ -103,6 +104,9 @@ function originOf(credit: AdminSubscriberCredit): string {
     }
     if (origin.kind === 'reversal') {
         return formatMessage(m.fromReversal, { reversalRef: origin.reversalRef, invoiceNumber });
+    }
+    if (origin.kind === 'cancellation') {
+        return formatMessage(m.fromCancellation, { paymentRef: origin.paymentRef, invoiceNumber });
     }
     return formatMessage(m.fromInvoice, { invoiceNumber });
 }

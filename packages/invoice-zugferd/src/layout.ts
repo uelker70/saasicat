@@ -8,7 +8,13 @@ import { PDFName, grayscale, type PDFDocument, type PDFFont, type PDFPage } from
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
 
 import { taxStatementOf } from './categories.js';
-import { correctionNoteOf, isCancellation, lineCorrectionOf, titleOf } from './correction.js';
+import {
+    amountDueOf,
+    correctionNoteOf,
+    isCancellation,
+    lineCorrectionOf,
+    titleOf,
+} from './correction.js';
 import { pageAmount, pageDay, pageRate } from './format.js';
 import { LABELS, bilingual, type Label } from './labels.js';
 import { paymentNoteOf } from './payment-note.js';
@@ -390,11 +396,24 @@ function closingLines(
             });
         }
     }
+    // A replacement states what was paid for the invoice it replaces, and
+    // what is left to pay (`SC-PRIC-025`).
+    const prepaid = invoice.paidOnIssue > 0;
     rows.push({
         label: `${bilingual(LABELS.grandTotal)} (${invoice.currency})`,
         amount: invoice.totalGross,
-        bold: true,
+        bold: !prepaid,
     });
+    if (prepaid) {
+        rows.push(
+            { label: bilingual(LABELS.alreadyPaid), amount: -invoice.paidOnIssue },
+            {
+                label: `${bilingual(LABELS.amountDue)} (${invoice.currency})`,
+                amount: amountDueOf(invoice),
+                bold: true,
+            },
+        );
+    }
     const note = invoice.taxTreatment.note
         ? pen.wrap(invoice.taxTreatment.note, RIGHT - LEFT, 8.5)
         : [];

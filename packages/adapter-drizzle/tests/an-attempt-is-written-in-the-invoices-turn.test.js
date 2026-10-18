@@ -4,10 +4,11 @@
 //
 // Whether the statements hold under concurrency is the persistence contract's
 // to prove against PostgreSQL. These cases pin what can be read off the
-// statements without one: that an attempt is started or planned after the
-// invoice's row is locked and its attempts read, that nothing is written where
-// they refuse it, and that every write that settles, takes on, announces or
-// withdraws an attempt names the state it expects.
+// statements without one: that an attempt is started or planned after the row
+// of its invoice's chain's first invoice is locked and its attempts read, that
+// nothing is written where they or another invoice of the chain refuse it, and
+// that every write that settles, takes on, announces or withdraws an attempt
+// names the state it expects.
 
 // @requirement SC-PRIC-034 — A collection retried after an unanswered request never charges twice
 // @requirement SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
@@ -97,11 +98,22 @@ const kindOf = ({ sql }) => sql.trim().split(/\s/, 1)[0].toLowerCase();
 /** The invoice's turn reads that it still owes something: its total exceeds what is settled. */
 const owing = [/coalesce\(\(/i, [['invoice-1']]];
 
-describe('starting an attempt', () => {
-    const locked = [/for update/i, [['invoice-1']]];
+/** The chain the invoice belongs to: its own, as an invoice nothing corrected begins one. */
+const chainOf = [/^select "chainId" from "subscription_invoices"/i, [['invoice-1']]];
 
+/** The turn of the invoice's chain: its first invoice's row, locked. */
+const locked = [/from "subscription_invoices".*for update/is, [['invoice-1']]];
+
+/** The invoice's own attempts, as its turn reads them. */
+const attemptsRead = /^select "attempt", "status" from "subscription_invoice_collections"/i;
+
+/** The attempts of the other invoices of its chain that would hold it back. */
+const chainAttemptsRead = /from "subscription_invoice_collections" "chain_attempts"/i;
+
+describe('starting an attempt', () => {
     test('locks the invoice, reads its attempts, then writes the first one as submitted, without a conflict raised', async () => {
         const { repo, statements } = recordingDb([
+            chainOf,
             locked,
             owing,
             [/^insert into "subscription_invoice_collections"/i, [attemptRow(1)]],
@@ -110,10 +122,20 @@ describe('starting an attempt', () => {
         const started = await repo.startAttempt(ATTEMPT);
 
         assert.deepEqual([started.attempt, started.status], [1, 'SUBMITTED']);
-        assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select', 'insert']);
-        assert.match(statements[0].sql, /from "subscription_invoices".*for update/is);
-        assert.match(statements[1].sql, /"subscription_invoice_settlements"/i, 'what it owes');
-        const insert = statements[3];
+        assert.deepEqual(statements.map(kindOf), [
+            'select',
+            'select',
+            'select',
+            'select',
+            'select',
+            'insert',
+        ]);
+        assert.match(statements[1].sql, /from "subscription_invoices".*for update/is);
+        assert.match(statements[2].sql, /"subscription_invoice_settlements"/i, 'what it owes');
+        assert.match(statements[2].sql, /"subscription_invoice_cancellations"/i, 'cancelled');
+        assert.match(statements[3].sql, attemptsRead);
+        assert.match(statements[4].sql, chainAttemptsRead);
+        const insert = statements[5];
         assert.match(insert.sql, /on conflict do nothing/i);
         assert.ok(insert.params.includes('saasicat:collect:invoice-1:1'), insert.params.join());
         assert.ok(insert.params.includes('58.31'), 'the amount as two-place text');
@@ -129,18 +151,36 @@ describe('starting an attempt', () => {
     ]) {
         test(`writes no first attempt where one is ${status.toLowerCase()}`, async () => {
             const { repo, statements } = recordingDb([
+                chainOf,
                 locked,
                 owing,
-                [/^select .*from "subscription_invoice_collections"/i, [[1, status]]],
+                [attemptsRead, [[1, status]]],
             ]);
 
             assert.equal(await repo.startAttempt(ATTEMPT), null);
-            assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select']);
+            assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select', 'select']);
         });
     }
 
+    test('writes none where another invoice of its chain holds it back', async () => {
+        const { repo, statements } = recordingDb([
+            chainOf,
+            locked,
+            owing,
+            [chainAttemptsRead, [['attempt-9']]],
+        ]);
+
+        assert.equal(await repo.startAttempt(ATTEMPT), null);
+        assert.equal(statements.map(kindOf).at(-1), 'select', 'nothing written');
+        const held = statements.at(-1);
+        assert.match(held.sql, chainAttemptsRead);
+        for (const value of ['invoice-1', 'payment-method-1', 'REVERSED', 'SUBMITTED', 'PENDING']) {
+            assert.ok(held.params.includes(value), `${value} in ${held.params.join()}`);
+        }
+    });
+
     test('answers no attempt where the insert met one, and refuses an invoice that does not exist', async () => {
-        const conflicted = recordingDb([locked, owing]);
+        const conflicted = recordingDb([chainOf, locked, owing]);
         assert.equal(await conflicted.repo.startAttempt(ATTEMPT), null);
         assert.equal(conflicted.statements.map(kindOf).at(-1), 'insert');
 
@@ -150,21 +190,20 @@ describe('starting an attempt', () => {
     });
 
     test('writes none for an invoice that owes nothing, reading no attempt', async () => {
-        const { repo, statements } = recordingDb([locked]);
+        const { repo, statements } = recordingDb([chainOf, locked]);
 
         assert.equal(await repo.startAttempt(ATTEMPT), null);
-        assert.deepEqual(statements.map(kindOf), ['select', 'select']);
+        assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select']);
     });
 });
 
 describe('planning an attempt', () => {
-    const locked = [/for update/i, [['invoice-1']]];
-
     test('locks the invoice, reads its attempts, then writes the next one as planned for its day', async () => {
         const { repo, statements } = recordingDb([
+            chainOf,
             locked,
             owing,
-            [/^select .*from "subscription_invoice_collections"/i, [[1, 'FAILED']]],
+            [attemptsRead, [[1, 'FAILED']]],
             [/^insert into "subscription_invoice_collections"/i, [attemptRow(2, 'SCHEDULED')]],
         ]);
 
@@ -174,18 +213,26 @@ describe('planning an attempt', () => {
             [planned.attempt, planned.status, planned.collectOn, planned.submittedAt],
             [2, 'SCHEDULED', '2026-03-01', null],
         );
-        assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select', 'insert']);
-        assert.match(statements[0].sql, /for update/i);
-        assert.ok(statements[3].params.includes('SCHEDULED'));
-        assert.ok(statements[3].params.includes('2026-03-01'));
+        assert.deepEqual(statements.map(kindOf), [
+            'select',
+            'select',
+            'select',
+            'select',
+            'select',
+            'insert',
+        ]);
+        assert.match(statements[1].sql, /for update/i);
+        assert.ok(statements[5].params.includes('SCHEDULED'));
+        assert.ok(statements[5].params.includes('2026-03-01'));
     });
 
     test('writes nothing where another attempt came after the one it follows', async () => {
         const { repo, statements } = recordingDb([
+            chainOf,
             locked,
             owing,
             [
-                /^select .*from "subscription_invoice_collections"/i,
+                attemptsRead,
                 [
                     [1, 'FAILED'],
                     [2, 'FAILED'],
@@ -194,7 +241,7 @@ describe('planning an attempt', () => {
         ]);
 
         assert.equal(await repo.plan(PLAN), null);
-        assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select']);
+        assert.deepEqual(statements.map(kindOf), ['select', 'select', 'select', 'select']);
     });
 
     test('an announcement is written only to a planned attempt not announced yet', async () => {
@@ -211,10 +258,16 @@ describe('planning an attempt', () => {
             /^select "invoiceId" from "subscription_invoice_collections"/i,
             [['invoice-1']],
         ];
-        const taken = recordingDb([ofInvoice, owing, [/^update/i, [attemptRow(2, 'SUBMITTED')]]]);
+        const taken = recordingDb([
+            ofInvoice,
+            chainOf,
+            locked,
+            owing,
+            [/^update/i, [attemptRow(2, 'SUBMITTED')]],
+        ]);
         const paid = recordingDb([ofInvoice, [/^update/i, [attemptRow(2, 'SUBMITTED')]]]);
         const gone = recordingDb([]);
-        const withdrawn = recordingDb([[/^update/i, [['attempt-2']]]]);
+        const withdrawn = recordingDb([ofInvoice, chainOf, locked, [/^update/i, [['attempt-2']]]]);
 
         const sent = await taken.repo.submitPlanned('attempt-2', AT);
         assert.deepEqual([sent.status, sent.submittedAt], ['SUBMITTED', AT]);
@@ -228,13 +281,21 @@ describe('planning an attempt', () => {
         assert.equal(await withdrawn.repo.withdraw('attempt-2', AT), true);
         assert.equal(await gone.repo.withdraw('attempt-2', AT), false);
         for (const { statements } of [taken, withdrawn]) {
-            const [turn, update] = [statements[0], statements.at(-1)];
+            const [ofAttempt, turn, update] = [statements[0], statements[2], statements.at(-1)];
+            assert.ok(ofAttempt.params.includes('attempt-2'));
             assert.match(turn.sql, /from "subscription_invoices".*for update/is);
-            assert.ok(turn.params.includes('attempt-2'));
+            assert.ok(turn.params.includes('invoice-1'), 'the chain of the attempt’s invoice');
             assert.match(update.sql, /^update .*"status" = \$\d+/is);
             assert.ok(update.params.includes('SCHEDULED'));
         }
-        assert.deepEqual(taken.statements.map(kindOf), ['select', 'select', 'select', 'update']);
+        assert.deepEqual(taken.statements.map(kindOf), [
+            'select',
+            'select',
+            'select',
+            'select',
+            'select',
+            'update',
+        ]);
     });
 
     test('what follows a failure is recorded only once, and only for a failure', async () => {
@@ -250,7 +311,12 @@ describe('planning an attempt', () => {
 
 describe('settling and taking on an attempt', () => {
     test('an outcome is written only to an attempt not settled, and says whether it was', async () => {
-        const settled = recordingDb([[/^update/i, [['attempt-1']]]]);
+        const settled = recordingDb([
+            [/^select "invoiceId" from "subscription_invoice_collections"/i, [['invoice-1']]],
+            chainOf,
+            locked,
+            [/^update/i, [['attempt-1']]],
+        ]);
         const already = recordingDb([]);
 
         assert.equal(
@@ -269,9 +335,9 @@ describe('settling and taking on an attempt', () => {
             ),
             false,
         );
-        // A success is the money arriving: it takes the invoice's turn first,
-        // as a late success for a failed attempt has to.
-        const [turn, update] = settled.statements;
+        // A success is the money arriving: it takes the turn of the invoice's
+        // chain first, as a late success for a failed attempt has to.
+        const [turn, update] = settled.statements.slice(2);
         assert.match(turn.sql, /for update/i);
         assert.match(update.sql, /"status" in \(\$\d+, \$\d+\)/i);
         assert.ok(update.params.includes('SUBMITTED') && update.params.includes('PENDING'));

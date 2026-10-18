@@ -82,6 +82,7 @@ import { SubscriberChargeService } from './charges/subscriber-charge.service.js'
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 import { InvoiceNumberPrefixCheck, invoicingStartProblems } from './invoices/invoicing-start.js';
 import { SubscriptionInvoiceCron } from './invoices/subscription-invoice.cron.js';
+import { InvoiceCancellationService } from './invoices/invoice-cancellation.service.js';
 import { SubscriptionInvoiceService } from './invoices/subscription-invoice.service.js';
 import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
 import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
@@ -396,6 +397,9 @@ export interface TenantBillingModuleOptions {
          * under a contract, numbered without gaps in the range
          * `config/saas.yaml#invoicing` names. Needs that block, a tax adapter
          * and the issuer in the file; the start refuses one without the other.
+         * An issued invoice is corrected by cancelling it
+         * (`InvoiceCancellationService`), on the transaction
+         * `contractFreeze.transactionRunner` names, which the start requires.
          */
         invoices?: {
             invoiceRepository: ProviderSpec<SubscriptionInvoiceRepository>;
@@ -615,6 +619,7 @@ export class TenantBillingModule {
             providers.push(
                 asProvider(SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN, invoices.invoiceRepository),
                 SubscriptionInvoiceService,
+                InvoiceCancellationService,
                 InvoiceNumberPrefixCheck,
                 // Each port only where it is given: the start check below names
                 // what is missing, rather than Nest an unresolved provider.
@@ -797,7 +802,7 @@ export class TenantBillingModule {
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
-                ...(invoices ? [SubscriptionInvoiceService] : []),
+                ...(invoices ? [SubscriptionInvoiceService, InvoiceCancellationService] : []),
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [InvoiceDocumentService]
                     : []),

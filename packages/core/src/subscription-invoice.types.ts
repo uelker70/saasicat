@@ -123,6 +123,17 @@ export interface SubscriptionInvoiceRecord {
     subscriptionId: string;
     /** The contract the invoiced charges belong to. */
     contractId: string;
+    /**
+     * The invoice its chain began with (`SC-PRIC-036`): its own id for an
+     * invoice issued on the journal's charges, the cancelled invoice's chain
+     * for a cancellation invoice and a replacement.
+     */
+    chainId: string;
+    /**
+     * Its step in the chain: 0 the invoice the chain began with, 1 its
+     * cancellation, 2 the replacement, 3 the replacement's cancellation and so on.
+     */
+    chainStep: number;
     issuedAt: Date;
     /** The day it was issued, in the installation's time zone. */
     issueDate: CalendarDay;
@@ -163,6 +174,12 @@ export interface SubscriptionInvoiceRecord {
     totalNet: number;
     totalTax: number;
     totalGross: number;
+    /**
+     * What a replacement took over, when it was issued, of what was paid for
+     * the invoice it replaces (`SC-PRIC-025`), and states as paid; `0` on every
+     * other invoice.
+     */
+    paidOnIssue: number;
     lines: SubscriptionInvoiceLineRecord[];
     /**
      * What it corrects, on a cancellation invoice or a replacement; `null` on
@@ -173,15 +190,124 @@ export interface SubscriptionInvoiceRecord {
 }
 
 /**
- * An invoice to issue: everything but what the store assigns — the id, and
- * the number, which the store draws when it writes the invoice. What an
- * invoice corrects is not among it until a store can keep it.
+ * An invoice to issue on the journal's charges: everything but what the store
+ * assigns — the id, the number, which the store draws when it writes the
+ * invoice, and the chain, which the invoice begins. It corrects nothing, and
+ * nothing was paid for it before.
  */
 export interface NewSubscriptionInvoice extends Omit<
     SubscriptionInvoiceRecord,
-    'id' | 'number' | 'numberSequence' | 'lines' | 'correction' | 'createdAt'
+    | 'id'
+    | 'number'
+    | 'numberSequence'
+    | 'chainId'
+    | 'chainStep'
+    | 'paidOnIssue'
+    | 'lines'
+    | 'correction'
+    | 'createdAt'
 > {
     lines: NewSubscriptionInvoiceLine[];
+}
+
+/** The details of the subscriber an invoice names, which a cancellation may correct. */
+export type InvoiceSubscriberDetail = Exclude<
+    keyof SubscriptionInvoiceSubscriber,
+    'customerNumber'
+>;
+
+/** Those details, in the order an invoice names them. */
+export const INVOICE_SUBSCRIBER_DETAILS: readonly InvoiceSubscriberDetail[] = [
+    'legalName',
+    'vatId',
+    'taxNumber',
+    'addressLine1',
+    'addressLine2',
+    'postalCode',
+    'city',
+    'country',
+];
+
+/**
+ * The details of the subscriber the operator corrected for a replacement
+ * (`SC-PRIC-025`), each with the value it replaced on the cancelled invoice.
+ */
+export type CorrectedInvoiceSubscriber = Partial<
+    Record<InvoiceSubscriberDetail, { previous: string | null; corrected: string | null }>
+>;
+
+/** A cancellation as a store reads it back (`SC-PRIC-025`). */
+export interface SubscriptionInvoiceCancellationRecord {
+    id: string;
+    /** The invoice it cancels. */
+    cancelledInvoiceId: string;
+    /** The cancellation invoice that cancels it. */
+    cancellationInvoiceId: string;
+    /** The replacement for what is still owed; `null` where nothing is. */
+    replacementInvoiceId: string | null;
+    /** The reason the operator gave (`SC-ADM-020`). */
+    reason: string;
+    /** What the operator corrected for the replacement; `null` where nothing. */
+    correctedSubscriber: CorrectedInvoiceSubscriber | null;
+    /**
+     * The address both invoices are delivered to where the subscriber's record
+     * holds no invoice email (`SC-PRIC-047`); `null` otherwise.
+     */
+    deliverTo: string | null;
+    /** Who cancelled it, as an actor tag the audit log writes. */
+    cancelledBy: string;
+    cancelledAt: Date;
+}
+
+/** An invoice of a chain, cancelled or standing, and what corrects what (`SC-PRIC-036`). */
+export interface SubscriptionInvoiceChain {
+    /** Every invoice of the chain, by its step: the first invoice first. */
+    invoices: SubscriptionInvoiceRecord[];
+    /** Every cancellation within it, in the order of the invoices they cancel. */
+    cancellations: SubscriptionInvoiceCancellationRecord[];
+}
+
+/** A line of a cancellation or a replacement to write, naming the line it corrects. */
+export type NewCorrectionInvoiceLine = Omit<SubscriptionInvoiceLineRecord, 'id' | 'invoiceId'>;
+
+/**
+ * A cancellation invoice or a replacement to write. The store draws its
+ * number, and places it in the chain of the invoice it corrects, a step after
+ * it — the replacement a step after the cancellation.
+ */
+export interface NewCorrectionInvoice extends Omit<
+    SubscriptionInvoiceRecord,
+    | 'id'
+    | 'number'
+    | 'numberSequence'
+    | 'chainId'
+    | 'chainStep'
+    | 'lines'
+    | 'correction'
+    | 'createdAt'
+> {
+    lines: NewCorrectionInvoiceLine[];
+}
+
+/** A cancellation to write, with both invoices, in the chain's turn (`SC-PRIC-025`, `SC-PRIC-036`). */
+export interface NewSubscriptionInvoiceCancellation {
+    /** The invoice cancelled, which still stands in its chain. */
+    cancelledInvoiceId: string;
+    cancellation: NewCorrectionInvoice;
+    /** `null` where nothing the cancelled invoice invoiced is still owed. */
+    replacement: NewCorrectionInvoice | null;
+    reason: string;
+    correctedSubscriber: CorrectedInvoiceSubscriber | null;
+    deliverTo: string | null;
+    cancelledBy: string;
+    cancelledAt: Date;
+}
+
+/** What writing a cancellation wrote. */
+export interface IssuedSubscriptionInvoiceCancellation {
+    cancellation: SubscriptionInvoiceCancellationRecord;
+    cancellationInvoice: SubscriptionInvoiceRecord;
+    replacement: SubscriptionInvoiceRecord | null;
 }
 
 /** How many digits an invoice number's sequence is written with, at least. */

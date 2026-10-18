@@ -144,7 +144,8 @@ type MoneyAudit =
               paymentRef: string;
               withdrawn: number;
               currency: string;
-              credit: CreditPart | null;
+              /** What it took of each credit the payment left. */
+              credits: CreditPart[];
               covering: CreditPart[];
               invoices: InvoicePart[];
               uncovered: LiftedCover[];
@@ -598,7 +599,7 @@ export class InvoicePaymentService
                 changes: {
                     ...about,
                     withdrawn: reversal.amount,
-                    credit: withdrawal.credit,
+                    credits: withdrawal.credits,
                     covering: withdrawal.covering,
                     invoices: withdrawal.invoices,
                     uncovered: withdrawal.uncovered,

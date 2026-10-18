@@ -131,6 +131,18 @@ export class SubscriberCreditService {
                     paymentRef: payment?.gatewayRef ?? origin.paymentId,
                     invoiceNumber: payment ? await numberOf(payment.invoiceId) : null,
                 };
+            } else if (origin.kind === 'cancellation') {
+                const payment = await this.payments.findPaymentById(origin.paymentId);
+                const cancellation = await this.invoices.findCancellationById(
+                    origin.cancellationId,
+                );
+                shown = {
+                    kind: 'cancellation',
+                    paymentRef: payment?.gatewayRef ?? origin.paymentId,
+                    invoiceNumber: cancellation
+                        ? await numberOf(cancellation.cancelledInvoiceId)
+                        : null,
+                };
             } else {
                 const reversal = await this.payments.findReversalById(origin.reversalId);
                 const payment = reversal

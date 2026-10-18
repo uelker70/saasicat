@@ -10,11 +10,21 @@
 // it is issued — the issuer, the subscriber, the tax treatment the adapter
 // decided, the tax per rate — so a later change leaves it as it was. Nothing
 // updates or deletes an invoice; a correction is a cancellation invoice and its
-// replacement.
+// replacement (`SubscriptionInvoiceCancellation`), written together.
 //
-// A line invoices one charge, and a charge stands on one line: the unique
-// `chargeId` is what makes a second run issuing the same charges write
-// nothing, however many run at the same time.
+// An invoice and the invoices that correct it are one chain (`SC-PRIC-036`):
+// `chainId` names the invoice it began with — its own id for an invoice issued
+// on the journal's charges — and `chainStep` its step there: 0 that invoice, 1
+// its cancellation, 2 the replacement, 3 the replacement's cancellation and so
+// on. Whatever changes what an invoice of a chain owes or how it is collected —
+// a payment, a reversal, a cancellation, a collection attempt — takes the turn
+// of the chain's first invoice, so two of them never read the same replacement
+// at once.
+//
+// A line invoices one charge, and a charge stands on one line per step of a
+// chain — the invoice it was first issued on, its cancellation, the
+// replacement: the unique (`chargeId`, `chainStep`) is what makes a second run
+// issuing the same charges write nothing, however many run at the same time.
 //
 // The number range is the table `subscription_invoice_numbers`, one row per
 // year holding the last number drawn. An invoice draws its number by raising
@@ -31,7 +41,7 @@
 // `origin` and `source` on a line are text holding the charge's closed sets,
 // checked when a row is read (`toSubscriptionInvoiceRecord` in @saasicat/core).
 //
-// Optional: adopt it, all four models together, where
+// Optional: adopt it, all five models together, where
 // `tenantBilling.chargeJournal.invoices` is configured, which needs the charge
 // journal.
 //
@@ -48,6 +58,9 @@ model SubscriptionInvoice {
     subscriberId   String
     subscriptionId String
     contractId     String
+
+    chainId   String
+    chainStep Int    @default(0)
 
     issuedAt           DateTime
     issueDate          DateTime @db.Date
@@ -74,6 +87,10 @@ model SubscriptionInvoice {
     totalNet        Decimal @db.Decimal(12, 2)
     totalTax        Decimal @db.Decimal(12, 2)
     totalGross      Decimal @db.Decimal(12, 2)
+    // What a replacement took over, when it was issued, of what was paid for
+    // the invoice it replaces (`SC-PRIC-025`); its document states it as paid.
+    // Zero on every other invoice.
+    paidOnIssue     Decimal @default(0) @db.Decimal(12, 2)
 
     createdAt DateTime @default(now())
 
@@ -87,9 +104,16 @@ model SubscriptionInvoice {
     settlements SubscriptionInvoiceSettlement[]
     credit      SubscriberCredit?
 
+    chainStart    SubscriptionInvoice              @relation("SubscriptionInvoiceChain", fields: [chainId], references: [id], onDelete: Restrict)
+    chainInvoices SubscriptionInvoice[]            @relation("SubscriptionInvoiceChain")
+    cancelledBy   SubscriptionInvoiceCancellation? @relation("CancelledInvoice")
+    cancels       SubscriptionInvoiceCancellation? @relation("CancellationInvoice")
+    replaces      SubscriptionInvoiceCancellation? @relation("ReplacementInvoice")
+
     @@unique([numberYear, numberSequence])
     @@index([subscriberId, issuedAt])
     @@index([subscriptionId])
+    @@index([chainId])
     @@map("subscription_invoices")
 }
 
@@ -97,8 +121,14 @@ model SubscriptionInvoiceLine {
     id                 String @id @default(uuid())
     invoiceId          String
     position           Int
-    chargeId           String @unique
+    chargeId           String
     contractLineItemId String
+    // The step of its invoice in the chain.
+    chainStep          Int    @default(0)
+    // On a cancellation, the position of the line it cancels; on a replacement,
+    // of the line it replaces, on the invoice the cancellation names
+    // (`SC-AUD-013`). Null on an invoice's own line.
+    correctedPosition  Int?
 
     title  String
     origin String
@@ -114,9 +144,38 @@ model SubscriptionInvoiceLine {
     charge           SubscriberLedgerEntry @relation(fields: [chargeId], references: [id], onDelete: Restrict)
     contractLineItem ContractLineItem      @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
 
+    @@unique([chargeId, chainStep])
     @@unique([invoiceId, position])
     @@index([contractLineItemId])
     @@map("subscription_invoice_lines")
+}
+
+// A cancellation (`SC-PRIC-025`): the invoice it cancels, the cancellation
+// invoice that does, and the replacement for what is still owed — none where
+// nothing is —, written in one transaction with both invoices and the moving
+// of what was paid (24-subscriber-payments.prisma). The operator's reason, the
+// subscriber's details corrected for the replacement — each with the value it
+// replaces —, an address to deliver to where the subscriber's record holds no
+// invoice email (`SC-PRIC-047`), who cancelled and when. An invoice is
+// cancelled once: the unique `cancelledInvoiceId` refuses a second.
+model SubscriptionInvoiceCancellation {
+    id                    String   @id @default(uuid())
+    cancelledInvoiceId    String   @unique
+    cancellationInvoiceId String   @unique
+    replacementInvoiceId  String?  @unique
+    reason                String
+    correctedSubscriber   Json?
+    deliverTo             String?
+    cancelledBy           String
+    cancelledAt           DateTime
+
+    cancelledInvoice    SubscriptionInvoice             @relation("CancelledInvoice", fields: [cancelledInvoiceId], references: [id], onDelete: Restrict)
+    cancellationInvoice SubscriptionInvoice             @relation("CancellationInvoice", fields: [cancellationInvoiceId], references: [id], onDelete: Restrict)
+    replacementInvoice  SubscriptionInvoice?            @relation("ReplacementInvoice", fields: [replacementInvoiceId], references: [id], onDelete: Restrict)
+    settlements         SubscriptionInvoiceSettlement[]
+    credits             SubscriberCredit[]
+
+    @@map("subscription_invoice_cancellations")
 }
 
 // Where an invoice's document stands. The checksum is recorded once, before

@@ -117,6 +117,7 @@ export * from './subscription-invoice.types.js';
 export * from './subscription-invoice-mapping.js';
 export * from './subscription-invoice-refusals.js';
 export * from './subscription-invoice-draft.js';
+export * from './subscription-invoice-correction.js';
 export * from './invoice-issuer.js';
 export * from './invoice-document.types.js';
 export * from './invoice-document-mapping.js';

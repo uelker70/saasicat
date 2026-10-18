@@ -25,6 +25,21 @@ export function owedOn(gross: number, settled: readonly number[]): number {
 }
 
 /**
+ * What an invoice owes, as `owedOn` reads its settlements, unless it is
+ * cancelled or is a cancellation invoice: those owe nothing. The cancellation
+ * invoice and the invoice it cancels add up to nothing, and what is still owed
+ * stands on the replacement (`SC-PRIC-025`).
+ */
+export function owedByInvoice(
+    gross: number,
+    settled: readonly number[],
+    corrected: { cancelled: boolean; isCancellation: boolean },
+): number {
+    if (corrected.cancelled || corrected.isCancellation) return 0;
+    return owedOn(gross, settled);
+}
+
+/**
  * How a payment of `amount` divides against an invoice that still owes
  * `owed`: it settles what is owed, and what it brought beyond that is a credit.
  * An invoice that owes nothing, or owes the subscriber, is settled by nothing.
@@ -111,16 +126,62 @@ export function refundParts(
 }
 
 function rankFor(credit: OpenCredit, paymentId: string): number {
-    return credit.origin.kind === 'payment' && credit.origin.paymentId === paymentId ? 0 : 1;
+    return isOwnCreditOf(credit, paymentId) ? 0 : 1;
 }
 
-/** The credit a payment left, as a reversal of that payment reads it. */
+/**
+ * Whether a credit is what payment `paymentId` left: what it brought beyond its
+ * invoice, or its share of a cancelled invoice the replacement did not take
+ * (`SC-PRIC-025`). A refund of the payment, and a reversal of it, take these
+ * first (`SC-PRIC-083`, `SC-PRIC-084`).
+ */
+export function isOwnCreditOf(
+    credit: { origin: SubscriberCreditOrigin },
+    paymentId: string,
+): boolean {
+    const { origin } = credit;
+    return (
+        (origin.kind === 'payment' || origin.kind === 'cancellation') &&
+        origin.paymentId === paymentId
+    );
+}
+
+/** A credit a payment left, as a reversal of that payment reads it. */
 export interface ReversibleCredit {
     creditId: string;
     /** What of the credit no reversal of the payment took yet, open or paid out. */
     left: number;
     /** What of the credit is still owed to the subscriber, from `openOfCredit`. */
     open: number;
+}
+
+/**
+ * The credits a payment left, as a reversal of it reads them: in the order a
+ * reversal takes them, the earliest first, with what of each no reversal of the
+ * payment took yet — `takenFromCredits`, what its reversals took of them in
+ * all, counted against them in that same order — and what is still open of it.
+ */
+export function reversibleCreditsOf(
+    credits: readonly { creditId: string; amount: number; createdAt: Date; open: number }[],
+    takenFromCredits: number,
+): ReversibleCredit[] {
+    let taken = Math.max(0, toCents(takenFromCredits));
+    return [...credits]
+        .sort(
+            (a, b) =>
+                a.createdAt.getTime() - b.createdAt.getTime() ||
+                a.creditId.localeCompare(b.creditId, 'en'),
+        )
+        .map((credit) => {
+            const amount = toCents(credit.amount);
+            const takenHere = Math.min(amount, taken);
+            taken -= takenHere;
+            return {
+                creditId: credit.creditId,
+                left: (amount - takenHere) / 100,
+                open: credit.open,
+            };
+        });
 }
 
 /**
@@ -142,10 +203,15 @@ export interface ReversibleInvoice {
 
 /** How a withdrawn amount divides across what its payment brought. */
 export interface WithdrawalParts {
-    /** What it takes of the credit, open or paid out alike. */
+    /** What it takes of the credits the payment left, open or paid out alike. */
     fromCredit: number;
-    /** What it takes of the credit that is still open; `null` where nothing. */
-    credit: CreditPart | null;
+    /** What it takes of each of those credits that is still open, in the order given. */
+    credits: CreditPart[];
+    /**
+     * What it takes of each of those credits beyond its open part, in the
+     * order given: paid out, or lent to another reversal as a cover.
+     */
+    beyondOpen: CreditPart[];
     /** What it takes of the covering credits instead of opening their invoices again, in the order given. */
     covering: CreditPart[];
     /** The invoices it opens again, in the order given, each by no more than the payment settles there. */
@@ -159,26 +225,42 @@ export interface WithdrawalParts {
 
 /**
  * How `amount`, newly withdrawn by a reversal of a payment, divides across what
- * the payment brought: the credit it left first, so the operator is not left
- * refunding what is owed again — its open part shrinks it, its part already
- * paid out matches nothing —, then the invoices it settles, in the order given,
- * the oldest first. What the reversal would open again of them is covered
- * first by `covering`, the open credits other payments collected for those
- * invoices left, in the order given: that money was collected for the same
- * invoices, so it settles them rather than waiting to be paid out while they
- * are collected again. Whatever exceeds the credit and the invoices matches
- * nothing; no covering credit takes it.
+ * the payment brought: the credits it left first, in the order given — what it
+ * brought beyond its invoice, then its share of a cancelled invoice the
+ * replacement did not take —, so the operator is not left refunding what is
+ * owed again: their open part shrinks them, their part already paid out matches
+ * nothing. Then the invoices it settles, in the order given, the oldest first.
+ * What the reversal would open again of them is covered first by `covering`,
+ * the open credits other payments collected for those invoices left, in the
+ * order given: that money was collected for the same invoices, so it settles
+ * them rather than waiting to be paid out while they are collected again.
+ * Whatever exceeds the credits and the invoices matches nothing; no covering
+ * credit takes it.
  */
 export function withdrawalParts(
     amount: number,
-    credit: ReversibleCredit | null,
+    credits: readonly ReversibleCredit[],
     invoices: readonly ReversibleInvoice[],
     covering: readonly CoveringCredit[] = [],
 ): WithdrawalParts {
     let left = toCents(amount);
-    const share = credit ? Math.min(left, Math.max(0, toCents(credit.left))) : 0;
-    const open = credit ? Math.min(share, Math.max(0, toCents(credit.open))) : 0;
-    left -= share;
+    let share = 0;
+    let unmatchedFromCredits = 0;
+    const takenOfCredits: CreditPart[] = [];
+    const beyondOpen: CreditPart[] = [];
+    for (const credit of credits) {
+        if (left === 0) break;
+        const taken = Math.min(left, Math.max(0, toCents(credit.left)));
+        if (taken === 0) continue;
+        const open = Math.min(taken, Math.max(0, toCents(credit.open)));
+        if (open > 0) takenOfCredits.push({ creditId: credit.creditId, amount: open / 100 });
+        if (taken > open) {
+            beyondOpen.push({ creditId: credit.creditId, amount: (taken - open) / 100 });
+        }
+        unmatchedFromCredits += taken - open;
+        share += taken;
+        left -= taken;
+    }
     const opening: { invoiceId: string; cents: number }[] = [];
     for (const invoice of invoices) {
         if (left === 0) break;
@@ -207,10 +289,11 @@ export function withdrawalParts(
     }
     return {
         fromCredit: share / 100,
-        credit: credit && open > 0 ? { creditId: credit.creditId, amount: open / 100 } : null,
+        credits: takenOfCredits,
+        beyondOpen,
         covering: covered,
         invoices: opened,
-        unmatched: (share - open + left) / 100,
+        unmatched: (unmatchedFromCredits + left) / 100,
     };
 }
 
@@ -295,6 +378,28 @@ export function netByInvoice(entries: readonly InvoicePart[]): InvoicePart[] {
 }
 
 /**
+ * What a reversal opened again and has not settled again, gathered on the
+ * invoice that stands in each chain now (`SC-PRIC-025`): what the gateway
+ * gives back settles that invoice, whichever invoice of the chain the reversal
+ * opened, so a dispute won after a cancellation settles the replacement rather
+ * than becoming a credit beside it. `nets` is `netByInvoice` over the
+ * reversal's settlements; `standing` names the invoice that stands in the
+ * chain of each, or `null` where a cancellation left none — the invoice is
+ * kept then, owing nothing. In the order the invoices first appear.
+ */
+export function reopenedByStanding(
+    nets: readonly InvoicePart[],
+    standing: ReadonlyMap<string, string | null>,
+): { invoiceId: string; left: number }[] {
+    const left = new Map<string, number>();
+    for (const net of nets) {
+        const invoiceId = standing.get(net.invoiceId) ?? net.invoiceId;
+        left.set(invoiceId, (left.get(invoiceId) ?? 0) - toCents(net.amount));
+    }
+    return [...left].map(([invoiceId, cents]) => ({ invoiceId, left: cents / 100 }));
+}
+
+/**
  * What `entries` paid out of each credit, net of what they gave back, in whole
  * cents, in the order the credits first appear. Read over a reversal's
  * entries, it is what the reversal took of each credit and has not given back.
@@ -335,24 +440,30 @@ export function coversOf(
 }
 
 /**
- * The covers a withdrawal lifts: what it takes of its payment's credit beyond
- * the open part — `parts.fromCredit` less `parts.credit` — reaches the covers
- * that credit gave other reversals (`coversOf`) before it counts as paid out,
- * in the order given. Each lifted cover opens its reversal's invoice again;
- * what it reaches beyond them stays unmatched (`SC-PRIC-088`).
+ * The covers a withdrawal lifts: what it takes of each of its payment's
+ * credits beyond the open part (`parts.beyondOpen`) reaches the covers that
+ * credit gave other reversals (`coversOf`) before it counts as paid out, in
+ * the order given — and only that credit's: what one credit paid out lifts
+ * nothing another one lent. Each lifted cover opens its reversal's invoice
+ * again; what it reaches beyond them stays unmatched (`SC-PRIC-088`).
  */
-export function coversLifted(
-    parts: Pick<WithdrawalParts, 'fromCredit' | 'credit' | 'unmatched'>,
-    covers: readonly { reversalId: string; amount: number }[],
-): { lifted: { reversalId: string; amount: number }[]; unmatched: number } {
-    let reach = toCents(parts.fromCredit) - toCents(parts.credit?.amount ?? 0);
-    const lifted: { reversalId: string; amount: number }[] = [];
-    for (const cover of covers) {
-        if (reach <= 0) break;
-        const taken = Math.min(reach, toCents(cover.amount));
-        if (taken <= 0) continue;
-        lifted.push({ reversalId: cover.reversalId, amount: taken / 100 });
-        reach -= taken;
+export function coversLifted<
+    Cover extends { creditId: string; reversalId: string; amount: number },
+>(
+    parts: Pick<WithdrawalParts, 'beyondOpen' | 'unmatched'>,
+    covers: readonly Cover[],
+): { lifted: Cover[]; unmatched: number } {
+    const lifted: Cover[] = [];
+    for (const part of parts.beyondOpen) {
+        let reach = toCents(part.amount);
+        for (const cover of covers) {
+            if (reach <= 0) break;
+            if (cover.creditId !== part.creditId) continue;
+            const taken = Math.min(reach, toCents(cover.amount));
+            if (taken <= 0) continue;
+            lifted.push({ ...cover, amount: taken / 100 });
+            reach -= taken;
+        }
     }
     const liftedCents = lifted.reduce((sum, each) => sum + toCents(each.amount), 0);
     return { lifted, unmatched: (toCents(parts.unmatched) - liftedCents) / 100 };
@@ -373,8 +484,7 @@ export function inWithdrawalOrder(
     const rank = (part: CreditPart): [number, number, string] => {
         const credit = byId.get(part.creditId);
         if (!credit) return [2, 0, part.creditId];
-        const own = credit.origin.kind === 'payment' && credit.origin.paymentId === paymentId;
-        return [own ? 0 : 1, credit.createdAt.getTime(), credit.id];
+        return [isOwnCreditOf(credit, paymentId) ? 0 : 1, credit.createdAt.getTime(), credit.id];
     };
     return [...parts].sort((a, b) => {
         const [x, y] = [rank(a), rank(b)];

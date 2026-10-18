@@ -44,6 +44,19 @@ const CREDITS = {
             open: 32.5,
             entries: [],
         },
+        {
+            id: 'credit-3',
+            amount: 12.16,
+            currency: 'EUR',
+            origin: {
+                kind: 'cancellation',
+                paymentRef: 'pi_2',
+                invoiceNumber: 'AHP-2026-000003',
+            },
+            createdAt: '2026-02-03T00:00:00.000Z',
+            open: 0,
+            entries: [],
+        },
     ],
     // Fourteen hours ahead of UTC: its day turns long before the browser's.
     timeZone: 'Pacific/Kiritimati',
@@ -173,6 +186,13 @@ describe("the tenant detail shows the subscriber's credits", () => {
         expect(creditRows(wrapper).map((row) => row.slice(0, 5))).toEqual([
             ['2026-02-01', 'Payment pi_1 for AHP-2026-000001', '€5', '€5', '€0'],
             ['2026-02-02', 'Invoice AHP-2026-000002', '€40', '€7.50', '€32.50'],
+            [
+                '2026-02-03',
+                'Cancellation of AHP-2026-000003: payment pi_2, not taken by its replacement',
+                '€12.16',
+                '€12.16',
+                '€0',
+            ],
         ]);
     });
 
@@ -189,7 +209,7 @@ describe("the tenant detail shows the subscriber's credits", () => {
         expect(without.wrapper.text()).not.toContain('Credit');
 
         const readOnly = await mountPage({ capabilities: { 'credits.read': true } });
-        expect(creditRows(readOnly.wrapper)).toHaveLength(2);
+        expect(creditRows(readOnly.wrapper)).toHaveLength(3);
         expect(buttonsNamed(readOnly.wrapper, 'Record payout')).toHaveLength(0);
     });
 });

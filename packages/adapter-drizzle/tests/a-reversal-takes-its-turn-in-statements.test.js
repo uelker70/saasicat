@@ -5,8 +5,9 @@
 // What a reversal writes and gives back, and that two reports at once apply it
 // once, is the persistence contract's to prove against PostgreSQL. These cases
 // pin what can be read off the statements without one: the turn a reversal
-// takes — every invoice its payment settles in one order, then the
-// subscriber's credits, then its own row — before it reads what to take; that
+// takes — the chain of every invoice its payment settles, by the chains' first
+// invoices in one order, then the subscriber's credits, then its own row —
+// before it reads what to take; that
 // nothing is held for a payment it does not know or a currency it does not
 // share; and that a case is closed only where it is still open.
 
@@ -119,6 +120,8 @@ describe('a reversal', () => {
                 /^select "invoiceId" from "subscription_invoice_settlements"/i,
                 [['invoice-1'], ['invoice-0']],
             ],
+            // Each invoice begins its own chain.
+            [/^select "chainId" from "subscription_invoices"/i, [['invoice-1'], ['invoice-0']]],
             [
                 /from "subscription_invoices"/i,
                 [['invoice-x', 'subscriber-1', 'tenant-1', '80.00', 'EUR']],
@@ -133,6 +136,7 @@ describe('a reversal', () => {
         assert.deepEqual(statements.map(shapeOf), [
             'select subscriber_payments',
             'select subscription_invoice_settlements',
+            'select subscription_invoices',
             'select subscription_invoices held',
             'select subscription_invoices held',
             'select subscriber_credits held',
@@ -140,11 +144,11 @@ describe('a reversal', () => {
             'select subscriber_reversals held',
         ]);
         assert.deepEqual(
-            [statements[2].params[0], statements[3].params[0]],
+            [statements[3].params[0], statements[4].params[0]],
             ['invoice-0', 'invoice-1'],
         );
-        assert.ok(statements[4].sql.includes('order by "subscriber_credits"."id"'));
-        assert.match(statements[5].sql, /on conflict do nothing/i);
+        assert.ok(statements[5].sql.includes('order by "subscriber_credits"."id"'));
+        assert.match(statements[6].sql, /on conflict do nothing/i);
     });
 
     test('of a payment this installation does not hold, holds and writes nothing', async () => {
@@ -256,8 +260,8 @@ describe('the cases to reconcile', () => {
 });
 
 describe('what the credits and invoices read', () => {
-    test('what each invoice owes is read in two statements, and nothing is asked for none', async () => {
-        const { repo, statements } = recordingDb([
+    test('what each invoice owes is read in three statements, and nothing is asked for none', async () => {
+        const script = [
             [
                 /from "subscription_invoices"/i,
                 [
@@ -269,6 +273,12 @@ describe('what the credits and invoices read', () => {
                 /from "subscription_invoice_settlements"/i,
                 [['settlement-1', 'invoice-1', 'PAYMENT', '80.00']],
             ],
+        ];
+        const { repo, statements } = recordingDb(script);
+        // The cancellation of invoice-2: a cancelled invoice owes nothing.
+        const cancelled = recordingDb([
+            [/from "subscription_invoice_cancellations"/i, [['invoice-2', 'invoice-3']]],
+            ...script,
         ]);
 
         assert.deepEqual(await repo.owedByInvoices([]), []);
@@ -277,7 +287,12 @@ describe('what the credits and invoices read', () => {
             { invoiceId: 'invoice-1', owed: 0 },
             { invoiceId: 'invoice-2', owed: 58.31 },
         ]);
-        assert.equal(statements.length, 2);
+        assert.equal(statements.length, 3);
+        assert.match(statements[2].sql, /from "subscription_invoice_cancellations"/i);
+        assert.deepEqual(await cancelled.repo.owedByInvoices(['invoice-1', 'invoice-2']), [
+            { invoiceId: 'invoice-1', owed: 0 },
+            { invoiceId: 'invoice-2', owed: 0 },
+        ]);
     });
 
     test('the accounts holding credits are asked with the kinds that give back', async () => {

@@ -329,6 +329,16 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Der Vertrag nennt in {field} {stated} %, der Steueradapter entscheidet {decided} %.',
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED:
         "Die Forderung '{chargeId}' steht bereits auf einer Rechnung.",
+    SUBSCRIPTION_INVOICE_ALREADY_CANCELLED:
+        'Die Rechnung {number} ist bereits storniert. Ein Fehler in ihrer Ersatzrechnung wird korrigiert, indem die Ersatzrechnung storniert wird.',
+    SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED:
+        'Die Rechnung {number} kann erst storniert werden, wenn ihr Dokument archiviert ist.',
+    SUBSCRIPTION_INVOICE_IS_CANCELLATION:
+        'Die Rechnung {number} ist eine Stornorechnung und wird selbst nicht storniert.',
+    SUBSCRIPTION_INVOICE_STATES_A_CREDIT:
+        'Die Rechnung {number} weist ein Guthaben aus, das dem Vertragspartner bei ihrer Ausstellung gutgeschrieben wurde; sie wird nicht storniert.',
+    SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS:
+        'Die Akte des Vertragspartners nennt keine Rechnungs-E-Mail: Nennen Sie eine Adresse, an die die Stornierung der Rechnung {number} und ihre Ersatzrechnung gehen.',
     SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
         'Der Rechnung fehlt, was der Steueradapter {adapter} verlangt: {missing}. Sie wird ausgestellt, sobald es ergänzt ist.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:

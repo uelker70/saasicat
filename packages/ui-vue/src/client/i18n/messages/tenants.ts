@@ -89,6 +89,8 @@ export const tenantsMessages = defineMessages(
             fromPayment: 'Zahlung {paymentRef} zu {invoiceNumber}',
             fromInvoice: 'Rechnung {invoiceNumber}',
             fromReversal: 'Zurückgegebene Rückbuchung {reversalRef} zu {invoiceNumber}',
+            fromCancellation:
+                'Storno von {invoiceNumber}: Zahlung {paymentRef}, von der Ersatzrechnung nicht übernommen',
             unknownInvoice: 'unbekannte Rechnung',
             payOut: 'Auszahlung erfassen',
             mfaPayout: 'Auszahlung erfassen. TOTP-Code eingeben.',
@@ -298,6 +300,8 @@ export const tenantsMessages = defineMessages(
             fromPayment: 'Payment {paymentRef} for {invoiceNumber}',
             fromInvoice: 'Invoice {invoiceNumber}',
             fromReversal: 'Reversal {reversalRef} given back, for {invoiceNumber}',
+            fromCancellation:
+                'Cancellation of {invoiceNumber}: payment {paymentRef}, not taken by its replacement',
             unknownInvoice: 'unknown invoice',
             payOut: 'Record payout',
             mfaPayout: 'Record a payout. Enter the TOTP code.',

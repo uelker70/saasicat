@@ -60,9 +60,14 @@ import type {
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
+    IssuedSubscriptionInvoiceCancellation,
     NewSubscriptionInvoice,
+    NewSubscriptionInvoiceCancellation,
+    SubscriptionInvoiceCancellationRecord,
+    SubscriptionInvoiceChain,
     SubscriptionInvoiceRecord,
 } from '../subscription-invoice.types.js';
+import type { InvoicePaymentShare, MovedPaymentPart } from '../subscription-invoice-correction.js';
 import type {
     NewInvoiceRendering,
     SubscriptionInvoiceDocumentRecord,
@@ -610,6 +615,46 @@ export interface SubscriptionInvoiceRepository {
 
     findById(id: string, tx?: TransactionContext): Promise<SubscriptionInvoiceRecord | null>;
 
+    /**
+     * Takes the turn of the chain `invoiceId` belongs to on `tx` — the turn of
+     * the chain's first invoice, held until `tx` ends — and answers the chain
+     * as it stands then; `null` where the invoice does not exist. Whatever
+     * changes what an invoice of a chain owes or how it is collected takes the
+     * same turn first, so a payment event, a cancellation and a collection
+     * attempt never read one replacement at once (`SC-PRIC-036`).
+     */
+    holdChain(invoiceId: string, tx: TransactionContext): Promise<SubscriptionInvoiceChain | null>;
+
+    /**
+     * Writes a cancellation in the turn of its chain, which the caller holds
+     * on `tx` (`SC-PRIC-025`): the cancellation invoice and the replacement,
+     * each with the next number of its year, the cancellation a step after the
+     * cancelled invoice in its chain and the replacement a step after that,
+     * and the cancellation with its reason. Refused with
+     * `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED` (`moved`) where the invoice is
+     * cancelled already; nothing is written, and no number drawn.
+     */
+    issueCancellation(
+        write: NewSubscriptionInvoiceCancellation,
+        tx: TransactionContext,
+    ): Promise<IssuedSubscriptionInvoiceCancellation>;
+
+    /**
+     * The cancellation an invoice takes part in — as the invoice it cancels,
+     * the cancellation invoice or the replacement —, or `null`. A replacement
+     * cancelled in turn takes part in two: its own cancellation is answered.
+     */
+    findCancellation(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceCancellationRecord | null>;
+
+    /** The cancellation `cancellationId`, or `null`. */
+    findCancellationById(
+        cancellationId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceCancellationRecord | null>;
+
     /** Every invoice of one subscriber, the latest number first. */
     listBySubscriber(
         subscriberId: string,
@@ -956,9 +1001,37 @@ export interface SubscriberPaymentRepository {
     ): Promise<RecordedSubscriberPayment | null>;
 
     /**
+     * What each payment still settles of `invoiceId` — its settlements, less
+     * what reversals and an earlier cancellation took back —, with when it was
+     * recorded: what a cancellation of the invoice moves (`SC-PRIC-025`). Read
+     * in the turn of the invoice's chain, which the caller holds on `tx`.
+     */
+    sharesOf(invoiceId: string, tx: TransactionContext): Promise<InvoicePaymentShare[]>;
+
+    /**
+     * Moves each payment's share of a cancelled invoice as `move.parts` say,
+     * in the turn the caller holds on `tx`: a `MOVED_OUT` of the whole share
+     * on the cancelled invoice, a `MOVED_IN` on the replacement for what it
+     * takes, and for what it does not take a credit that names the payment and
+     * the cancellation. Returns the credits written.
+     */
+    moveShares(
+        move: {
+            cancellationId: string;
+            cancelledInvoiceId: string;
+            replacementInvoiceId: string | null;
+            parts: readonly MovedPaymentPart[];
+            at: Date;
+        },
+        tx: TransactionContext,
+    ): Promise<SubscriberCreditRecord[]>;
+
+    /**
      * Credits an invoice whose total is negative to its subscriber, at `at`,
      * and returns the credit; `null`, writing nothing, where it is credited
-     * already or its total is not negative.
+     * already, its total is not negative, or it is a cancellation invoice,
+     * whose total the invoice it cancels takes back rather than the subscriber
+     * is owed (`SC-PRIC-025`).
      */
     creditInvoice(
         invoiceId: string,
@@ -968,7 +1041,8 @@ export interface SubscriberPaymentRepository {
 
     /**
      * The invoices whose total is negative and that are not credited yet, by
-     * id, at most `limit`, after `after` where it is given.
+     * id, at most `limit`, after `after` where it is given — a cancellation
+     * invoice never among them.
      */
     listUncredited(
         page: { limit: number; after?: string },

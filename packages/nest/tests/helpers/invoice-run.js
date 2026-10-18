@@ -3,12 +3,16 @@
 // `SubscriptionInvoiceService` reads, with the test tax adapter deciding.
 //
 // The invoice store holds what the persistence contract holds both adapters
-// to: numbers per year without a gap, a charge on one invoice, and nothing
-// written — no number drawn — for an invoice that is refused.
+// to: numbers per year without a gap, a charge on one invoice of a chain step,
+// nothing written — no number drawn — for an invoice that is refused, and an
+// invoice cancelled once, its cancellation and replacement following it in its
+// chain.
 
 import {
     contractPartiesOf,
     formatInvoiceNumber,
+    subscriptionInvoiceAlreadyCancelled,
+    subscriptionInvoiceChainOf,
     subscriptionInvoiceChargeInvoiced,
     subscriptionInvoiceDocumentChanged,
     taxPerRate,
@@ -107,15 +111,42 @@ export function line(kind, sourceKey, priceNet, title = sourceKey) {
 /** Invoices in memory, as the persistence contract holds an adapter to keep them. */
 function invoiceStore(journal) {
     const invoices = [];
+    const cancellations = [];
     const documents = new Map();
     const lastOfYear = new Map();
     const onInvoice = () => new Set(invoices.flatMap((inv) => inv.lines.map((l) => l.chargeId)));
+    /** Draws the invoice's number and writes it where `placed` puts it in its chain. */
+    const write = (invoice, placed, correction) => {
+        const numberSequence = (lastOfYear.get(invoice.numberYear) ?? 0) + 1;
+        lastOfYear.set(invoice.numberYear, numberSequence);
+        const id = `invoice-${invoices.length + 1}`;
+        const issued = {
+            paidOnIssue: 0,
+            ...structuredClone(invoice),
+            id,
+            number: formatInvoiceNumber(invoice.numberPrefix, invoice.numberYear, numberSequence),
+            numberSequence,
+            chainId: placed.chainId ?? id,
+            chainStep: placed.chainStep,
+            lines: invoice.lines.map((l, index) => ({
+                correctedPosition: null,
+                ...l,
+                id: `${id}-line-${index + 1}`,
+                invoiceId: id,
+            })),
+            correction,
+            createdAt: invoice.issuedAt,
+        };
+        invoices.push(issued);
+        return issued;
+    };
     const uninvoiced = () => {
         const taken = onInvoice();
         return journal.filter((charge) => !taken.has(charge.id));
     };
     const store = {
         invoices,
+        cancellations,
         /** An error the next `issue` throws instead of writing, once. */
         failNextIssue: null,
         /** Charge ids another instance takes just before the next `issue` writes. */
@@ -147,30 +178,82 @@ function invoiceStore(journal) {
             const taken = new Set([...onInvoice(), ...store.takenByAnother]);
             const clash = invoice.lines.find((l) => taken.has(l.chargeId));
             if (clash) throw subscriptionInvoiceChargeInvoiced(clash.chargeId);
-            const numberSequence = (lastOfYear.get(invoice.numberYear) ?? 0) + 1;
-            lastOfYear.set(invoice.numberYear, numberSequence);
-            const id = `invoice-${invoices.length + 1}`;
-            const issued = {
-                ...structuredClone(invoice),
-                id,
-                number: formatInvoiceNumber(
-                    invoice.numberPrefix,
-                    invoice.numberYear,
-                    numberSequence,
+            // As a store reads an issued invoice back: one the run issues
+            // begins its chain and corrects none.
+            return structuredClone(write(invoice, { chainStep: 0 }, null));
+        },
+        async holdChain(invoiceId) {
+            const head = invoices.find((inv) => inv.id === invoiceId);
+            if (!head) return null;
+            const chain = invoices.filter((inv) => inv.chainId === head.chainId);
+            const ids = new Set(chain.map((inv) => inv.id));
+            return structuredClone(
+                subscriptionInvoiceChainOf(
+                    chain,
+                    cancellations.filter((each) => ids.has(each.cancelledInvoiceId)),
                 ),
-                numberSequence,
-                lines: invoice.lines.map((l, index) => ({
-                    ...l,
-                    id: `${id}-line-${index + 1}`,
-                    invoiceId: id,
-                    correctedPosition: null,
-                })),
-                // As a store reads an issued invoice back: one the run issues corrects none.
-                correction: null,
-                createdAt: invoice.issuedAt,
+            );
+        },
+        async issueCancellation(write_) {
+            const cancelled = invoices.find((inv) => inv.id === write_.cancelledInvoiceId);
+            if (!cancelled) throw new Error(`no invoice ${write_.cancelledInvoiceId}`);
+            if (cancellations.some((each) => each.cancelledInvoiceId === cancelled.id)) {
+                throw subscriptionInvoiceAlreadyCancelled(cancelled.number);
+            }
+            const id = `cancellation-${cancellations.length + 1}`;
+            const of = {
+                invoiceId: cancelled.id,
+                number: cancelled.number,
+                issueDate: cancelled.issueDate,
             };
-            invoices.push(issued);
-            return structuredClone(issued);
+            const placed = (step) => ({
+                chainId: cancelled.chainId,
+                chainStep: cancelled.chainStep + step,
+            });
+            const cancellationInvoice = write(write_.cancellation, placed(1), {
+                kind: 'cancellation',
+                of,
+                reason: write_.reason,
+            });
+            const replacement =
+                write_.replacement &&
+                write(write_.replacement, placed(2), {
+                    kind: 'replacement',
+                    of,
+                    reason: write_.reason,
+                });
+            const cancellation = {
+                id,
+                cancelledInvoiceId: cancelled.id,
+                cancellationInvoiceId: cancellationInvoice.id,
+                replacementInvoiceId: replacement?.id ?? null,
+                reason: write_.reason,
+                correctedSubscriber: write_.correctedSubscriber,
+                deliverTo: write_.deliverTo,
+                cancelledBy: write_.cancelledBy,
+                cancelledAt: write_.cancelledAt,
+            };
+            cancellations.push(cancellation);
+            return structuredClone({
+                cancellation,
+                cancellationInvoice,
+                replacement: replacement ?? null,
+            });
+        },
+        async findCancellation(invoiceId) {
+            const found =
+                cancellations.find((each) => each.cancelledInvoiceId === invoiceId) ??
+                cancellations.find(
+                    (each) =>
+                        each.cancellationInvoiceId === invoiceId ||
+                        each.replacementInvoiceId === invoiceId,
+                );
+            return structuredClone(found ?? null);
+        },
+        async findCancellationById(cancellationId) {
+            return structuredClone(
+                cancellations.find((each) => each.id === cancellationId) ?? null,
+            );
         },
         async findById(id) {
             return structuredClone(invoices.find((inv) => inv.id === id) ?? null);
@@ -326,6 +409,7 @@ export function anInvoicingInstallation({
         journal,
         contracts,
         subscribers,
+        taxes,
         audits,
         /** The audit log both services write to. */
         auditLog: audit,

@@ -11,8 +11,10 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    subscriptionInvoiceCancellationColumns,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
+    toSubscriptionInvoiceCancellationRecord,
     toSubscriptionInvoiceRecord,
     utcMidnightOf,
 } from '../dist/index.js';
@@ -118,23 +120,28 @@ const BY_DEBIT = {
 /** A Prisma `Decimal`: an object that is read through its text. */
 const decimal = (text) => ({ toString: () => text });
 
+/** Where a store places an invoice of the journal's charges: the first of a chain of its own. */
+const PLACED = {
+    id: 'invoice-1',
+    number: 'AHP-2026-000001',
+    numberSequence: 1,
+    chainId: 'invoice-1',
+    chainStep: 0,
+};
+
 /** The invoice as Drizzle writes and reads it: the columns as they are, days and amounts as text. */
-function drizzleRows(invoice = INVOICE) {
-    const columns = subscriptionInvoiceColumns(invoice, {
-        number: 'AHP-2026-000001',
-        numberSequence: 1,
-    });
-    const row = { id: 'invoice-1', ...columns, createdAt: ISSUED_AT };
+function drizzleRows(invoice = INVOICE, placed = PLACED) {
+    const row = { ...subscriptionInvoiceColumns(invoice, placed), createdAt: ISSUED_AT };
     const lines = invoice.lines.map((line, index) => ({
         id: `line-${index + 1}`,
-        ...subscriptionInvoiceLineColumns(line, 'invoice-1'),
+        ...subscriptionInvoiceLineColumns(line, placed.id, placed.chainStep),
     }));
     return { row, lines };
 }
 
 /** The same invoice as Prisma reads it: days as `Date`s at midnight UTC, amounts as `Decimal`s. */
-function prismaRows(invoice = INVOICE) {
-    const { row, lines } = drizzleRows(invoice);
+function prismaRows(invoice = INVOICE, placed = PLACED) {
+    const { row, lines } = drizzleRows(invoice, placed);
     return {
         row: {
             ...row,
@@ -146,6 +153,7 @@ function prismaRows(invoice = INVOICE) {
             totalNet: decimal(row.totalNet),
             totalTax: decimal(row.totalTax),
             totalGross: decimal(row.totalGross),
+            paidOnIssue: decimal(row.paidOnIssue),
         },
         lines: lines.map((line) => ({
             ...line,
@@ -162,6 +170,8 @@ function withoutStoreFields(record) {
         id: _id,
         number: _number,
         numberSequence: _numberSequence,
+        chainId: _chainId,
+        chainStep: _chainStep,
         createdAt: _createdAt,
         lines,
         ...rest
@@ -172,12 +182,34 @@ function withoutStoreFields(record) {
     };
 }
 
+/** The invoice `PLACED` as a cancellation invoice cancels it, and its cancellation row. */
+const CANCELLED = { id: 'invoice-0', number: 'AHP-2026-000000', issueDate: '2026-01-31' };
+const cancellationRow = (overrides = {}) => ({
+    ...subscriptionInvoiceCancellationColumns(
+        {
+            cancelledInvoiceId: 'invoice-0',
+            reason: 'Wrong address',
+            correctedSubscriber: { city: { previous: 'Hamburg', corrected: 'Bremen' } },
+            deliverTo: null,
+            cancelledBy: 'operator-1',
+            cancelledAt: ISSUED_AT,
+        },
+        {
+            id: 'cancellation-1',
+            cancellationInvoiceId: 'invoice-1',
+            replacementInvoiceId: 'invoice-2',
+        },
+    ),
+    ...overrides,
+});
+
 describe('an invoice row becomes a record', () => {
     test('that says what the invoice drafted said, and corrects nothing, from either adapter’s row', () => {
-        // The tables keep no correction, so a row reads back as an invoice of
-        // the journal's charges, none of its lines standing for another's.
+        // An invoice of the journal's charges: paid nothing on issue, none of
+        // its lines standing for another's.
         const drafted = {
             ...INVOICE,
+            paidOnIssue: 0,
             correction: null,
             lines: INVOICE.lines.map((line) => ({ ...line, correctedPosition: null })),
         };
@@ -186,8 +218,8 @@ describe('an invoice row becomes a record', () => {
 
             assert.deepEqual(withoutStoreFields(record), drafted);
             assert.deepEqual(
-                [record.id, record.number, record.numberSequence],
-                ['invoice-1', 'AHP-2026-000001', 1],
+                [record.id, record.number, record.numberSequence, record.chainId, record.chainStep],
+                ['invoice-1', 'AHP-2026-000001', 1, 'invoice-1', 0],
             );
             assert.ok(record.lines.every((line) => line.invoiceId === 'invoice-1'));
         }
@@ -204,6 +236,71 @@ describe('an invoice row becomes a record', () => {
                     [invoice.payment, invoice.collectionDate],
                 );
             }
+        }
+    });
+
+    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    test('that says what it corrects, as a cancellation invoice or a replacement, from either adapter’s row', () => {
+        const correction = (kind, issueDate) => ({
+            kind,
+            of: { invoiceId: 'invoice-0', number: 'AHP-2026-000000', issueDate: '2026-01-31' },
+            reason: 'Wrong address',
+            issueDate,
+        });
+        for (const [placed, kind] of [
+            [{ ...PLACED, chainId: 'invoice-0', chainStep: 1 }, 'cancellation'],
+            [{ ...PLACED, chainId: 'invoice-0', chainStep: 2 }, 'replacement'],
+        ]) {
+            const drafted = {
+                ...INVOICE,
+                paidOnIssue: kind === 'replacement' ? 20 : 0,
+                lines: INVOICE.lines.map((line) => ({ ...line, correctedPosition: line.position })),
+            };
+            const cancellation =
+                kind === 'cancellation'
+                    ? cancellationRow()
+                    : cancellationRow({
+                          cancellationInvoiceId: 'invoice-9',
+                          replacementInvoiceId: 'invoice-1',
+                      });
+            for (const [{ row, lines }, issueDate] of [
+                [drizzleRows(drafted, placed), CANCELLED.issueDate],
+                [prismaRows(drafted, placed), utcMidnightOf(CANCELLED.issueDate)],
+            ]) {
+                const record = toSubscriptionInvoiceRecord(row, lines, {
+                    cancellation,
+                    cancelled: { ...CANCELLED, issueDate },
+                });
+                const { issueDate: _issueDate, ...expected } = correction(kind, null);
+                assert.deepEqual(record.correction, expected);
+                assert.deepEqual(
+                    [record.chainId, record.chainStep, record.paidOnIssue],
+                    ['invoice-0', placed.chainStep, drafted.paidOnIssue],
+                );
+                assert.deepEqual(
+                    record.lines.map((line) => line.correctedPosition),
+                    [1, 2],
+                );
+            }
+        }
+    });
+
+    test('refuses a cancellation it neither cancels with nor replaces with, or naming another invoice', () => {
+        const { row, lines } = drizzleRows();
+        for (const [cancellation, cancelled] of [
+            [
+                cancellationRow({
+                    cancellationInvoiceId: 'invoice-8',
+                    replacementInvoiceId: 'invoice-9',
+                }),
+                CANCELLED,
+            ],
+            [cancellationRow(), { ...CANCELLED, id: 'invoice-7' }],
+        ]) {
+            assert.throws(
+                () => toSubscriptionInvoiceRecord(row, lines, { cancellation, cancelled }),
+                /cancellation-1 was read for invoice invoice-1, which it neither cancels with nor replaces with/,
+            );
         }
     });
 
@@ -329,6 +426,11 @@ describe('an invoice row becomes a record', () => {
             { collectionDate: undefined },
             /invoice-1 was read without its payment or its collection date/,
         ],
+        [
+            'what was paid on issue that is not an amount',
+            { paidOnIssue: null },
+            /paidOnIssue of invoice-1 is not an amount/,
+        ],
     ];
     for (const [what, overrides, message] of broken) {
         test(`refuses ${what}`, () => {
@@ -348,6 +450,62 @@ describe('an invoice row becomes a record', () => {
             );
         }
     });
+});
+
+describe('a cancellation row becomes a record', () => {
+    test('with what was corrected, each detail with the value it replaced', () => {
+        const record = toSubscriptionInvoiceCancellationRecord(cancellationRow());
+
+        assert.deepEqual(record, {
+            id: 'cancellation-1',
+            cancelledInvoiceId: 'invoice-0',
+            cancellationInvoiceId: 'invoice-1',
+            replacementInvoiceId: 'invoice-2',
+            reason: 'Wrong address',
+            correctedSubscriber: { city: { previous: 'Hamburg', corrected: 'Bremen' } },
+            deliverTo: null,
+            cancelledBy: 'operator-1',
+            cancelledAt: ISSUED_AT,
+        });
+        assert.equal(
+            toSubscriptionInvoiceCancellationRecord(cancellationRow({ correctedSubscriber: null }))
+                .correctedSubscriber,
+            null,
+        );
+    });
+
+    for (const [what, correctedSubscriber, message] of [
+        [
+            'corrections that are not a set',
+            ['city'],
+            /correctedSubscriber of cancellation-1 is not a set of corrections/,
+        ],
+        [
+            'a detail a subscriber does not have',
+            { iban: { previous: null, corrected: 'DE00' } },
+            /iban/,
+        ],
+        [
+            'a correction that is not one',
+            { city: 'Bremen' },
+            /correctedSubscriber.city of cancellation-1 is not a correction/,
+        ],
+        [
+            'a corrected value that is not text',
+            { city: { previous: 'Hamburg', corrected: 42 } },
+            /corrected/,
+        ],
+    ]) {
+        test(`refuses ${what}`, () => {
+            assert.throws(
+                () =>
+                    toSubscriptionInvoiceCancellationRecord(
+                        cancellationRow({ correctedSubscriber }),
+                    ),
+                message,
+            );
+        });
+    }
 });
 
 describe('an invoice is written', () => {

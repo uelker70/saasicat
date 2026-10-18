@@ -17,6 +17,13 @@
 // by a payout outside it, each an entry against the credit. A refund that
 // fails or is canceled gives back what it paid out, as an entry of its own.
 //
+// A cancellation (20-subscription-invoice.prisma) moves what each payment
+// settled of the cancelled invoice onto the replacement, as two settlements of
+// that payment — `MOVED_OUT` of the one, `MOVED_IN` of the other —, the oldest
+// payment first; what the replacement does not take is a credit that names both
+// the payment and the cancellation, so a later reversal of the payment finds
+// it as its own (`SC-PRIC-025`, `SC-PRIC-084`).
+//
 // A reversal — a direct debit the bank returned, a chargeback — takes back
 // what its payment brought, the credit first: entries against the credit for
 // its open part, and settlements that open the invoice again for the rest. The
@@ -28,7 +35,10 @@
 // was given back, and a case's closing: every other change is a new row.
 // `kind` and `status` are text holding closed sets, checked when a row is read
 // (`toSubscriberCreditRecord` and the other readers in @saasicat/core), and so
-// is a credit's one origin — a payment, an invoice or a reversal, never two.
+// is a credit's origin — a payment, an invoice, a reversal, or a payment and
+// the cancellation that moved it. A payment leaves at most one credit of its
+// own and one per cancellation: two partial unique indexes in
+// sql/constraints.postgres.sql, which the Prisma DSL cannot express.
 //
 // Optional, as one: adopt all seven where invoices are collected through a
 // gateway — `tenantBilling.chargeJournal.invoices.payments` — beside the
@@ -55,7 +65,7 @@ model SubscriberPayment {
     invoice     SubscriptionInvoice           @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
     collection  SubscriptionInvoiceCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict)
     settlements SubscriptionInvoiceSettlement[]
-    credit      SubscriberCredit?
+    credits     SubscriberCredit[]
     refunds     SubscriberRefund[]
     reversals   SubscriberReversal[]
     cases       SubscriberReconciliationCase[]
@@ -70,21 +80,25 @@ model SubscriptionInvoiceSettlement {
     id         String   @id @default(uuid())
     invoiceId  String
     paymentId  String
-    kind       String // PAYMENT | REVERSAL | REINSTATEMENT
-    // Positive: what a PAYMENT or a REINSTATEMENT takes off what the invoice
-    // owes, what a REVERSAL adds back to it.
+    kind       String // PAYMENT | REVERSAL | REINSTATEMENT | MOVED_OUT | MOVED_IN
+    // Positive: what a PAYMENT, a REINSTATEMENT or a MOVED_IN takes off what
+    // the invoice owes, what a REVERSAL or a MOVED_OUT adds back to it.
     amount     Decimal  @db.Decimal(12, 2)
     // The reversal, for a REVERSAL and its REINSTATEMENT.
     reversalId String?
+    // The cancellation that moved it, for a MOVED_OUT and a MOVED_IN.
+    cancellationId String?
     recordedAt DateTime @default(now())
 
-    invoice  SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-    payment  SubscriberPayment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-    reversal SubscriberReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+    invoice      SubscriptionInvoice              @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+    payment      SubscriberPayment                @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+    reversal     SubscriberReversal?              @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+    cancellation SubscriptionInvoiceCancellation? @relation(fields: [cancellationId], references: [id], onDelete: Restrict)
 
     @@index([invoiceId])
     @@index([paymentId])
     @@index([reversalId])
+    @@index([cancellationId])
     @@map("subscription_invoice_settlements")
 }
 
@@ -96,23 +110,28 @@ model SubscriberCredit {
     // What the subscriber is owed, positive.
     amount          Decimal  @db.Decimal(12, 2)
     currency        String
-    // Exactly one of the three: the payment that brought more than its invoice
-    // owed, the invoice whose total is negative, or the reversal the gateway
-    // gave back beyond what the invoices it opened still owed — a reversal can
-    // be given back in parts, so it can leave more than one.
-    originPaymentId  String?  @unique
-    originInvoiceId  String?  @unique
-    originReversalId String?
-    createdAt        DateTime @default(now())
+    // The payment that brought more than its invoice owed, the invoice whose
+    // total is negative, or the reversal the gateway gave back beyond what the
+    // invoices it opened still owed — a reversal can be given back in parts,
+    // so it can leave more than one. A credit a cancellation left names the
+    // payment whose share the replacement did not take, and the cancellation.
+    originPaymentId      String?
+    originInvoiceId      String?  @unique
+    originReversalId     String?
+    originCancellationId String?
+    createdAt            DateTime @default(now())
 
-    subscriber     Subscriber             @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
-    originPayment  SubscriberPayment?     @relation(fields: [originPaymentId], references: [id], onDelete: Restrict)
-    originInvoice  SubscriptionInvoice?   @relation(fields: [originInvoiceId], references: [id], onDelete: Restrict)
-    originReversal SubscriberReversal?    @relation("ReversalCredits", fields: [originReversalId], references: [id], onDelete: Restrict)
-    entries        SubscriberCreditEntry[]
+    subscriber         Subscriber                       @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    originPayment      SubscriberPayment?               @relation(fields: [originPaymentId], references: [id], onDelete: Restrict)
+    originInvoice      SubscriptionInvoice?             @relation(fields: [originInvoiceId], references: [id], onDelete: Restrict)
+    originReversal     SubscriberReversal?              @relation("ReversalCredits", fields: [originReversalId], references: [id], onDelete: Restrict)
+    originCancellation SubscriptionInvoiceCancellation? @relation(fields: [originCancellationId], references: [id], onDelete: Restrict)
+    entries            SubscriberCreditEntry[]
 
     @@index([subscriberId, createdAt])
+    @@index([originPaymentId])
     @@index([originReversalId])
+    @@unique([originCancellationId, originPaymentId])
     @@map("subscriber_credits")
 }
 

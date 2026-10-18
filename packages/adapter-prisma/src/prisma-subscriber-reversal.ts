@@ -3,8 +3,9 @@
 //
 // What a reversal withdrew and what the gateway gave back of it are reported in
 // total, so a report arriving twice or out of order applies only what grew
-// since the reversal was last recorded. That is decided in the turn of every
-// invoice the payment settles, with every credit of its subscriber held, and
+// since the reversal was last recorded. That is decided in the turn of the
+// chain of every invoice the payment settles, with every credit of its
+// subscriber held, and
 // the reversal's own row held as well: of two reports at the same moment one
 // applies the change and the other finds it applied.
 
@@ -29,7 +30,9 @@ import {
     netByInvoice,
     paidOutByCredit,
     reinstatementParts,
+    reopenedByStanding,
     reversalEntryColumns,
+    reversibleCreditsOf,
     settledAmountOf,
     subscriberReversalColumns,
     toCents,
@@ -41,6 +44,7 @@ import {
     toSubscriberReversalRecord,
     withdrawalParts,
 } from '@saasicat/core';
+import { lockChain, standingInvoiceIdOf } from './prisma-invoice-chain.js';
 import { closeCasesOf, openCase } from './prisma-reconciliation-cases.js';
 import {
     createCredit,
@@ -119,19 +123,25 @@ export async function recordReversalIn(
 }
 
 /**
- * Takes the turn of every invoice the payment settles, in one order, then
- * holds the subscriber's credits — the order a payment and a refund take them
- * in, so none of them waits on another in a circle.
+ * Takes the turn of the chain of every invoice the payment settles — the
+ * chains' first invoices, in one order —, then holds the subscriber's credits:
+ * the order a payment and a refund take them in, so none of them waits on
+ * another in a circle.
  */
 async function takeTurns(db: PaymentPrisma, payment: SubscriberPaymentRecord): Promise<void> {
     const settled = await db.subscriptionInvoiceSettlement.findMany({
         where: { paymentId: payment.id },
         select: { invoiceId: true },
     });
-    const invoiceIds = [
-        ...new Set([payment.invoiceId, ...settled.map((row) => row.invoiceId)]),
-    ].sort((a, b) => a.localeCompare(b, 'en'));
-    for (const invoiceId of invoiceIds) await lockInvoice(db, invoiceId);
+    const invoiceIds = [...new Set([payment.invoiceId, ...settled.map((row) => row.invoiceId)])];
+    const chains = await db.subscriptionInvoice.findMany({
+        where: { id: { in: invoiceIds } },
+        select: { chainId: true },
+    });
+    const firsts = [...new Set(chains.map((row) => row.chainId))].sort((a, b) =>
+        a.localeCompare(b, 'en'),
+    );
+    for (const first of firsts) await lockChain(db, first);
     await holdCredits(db, payment.subscriberId);
 }
 
@@ -183,7 +193,7 @@ async function withdraw(
     const invoices = netByInvoice(
         settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
     ).map((net) => ({ invoiceId: net.invoiceId, left: net.amount }));
-    const own = await reversibleCredit(db, payment);
+    const own = await reversibleCredits(db, payment);
     const parts = withdrawalParts(
         amount,
         own,
@@ -194,22 +204,30 @@ async function withdraw(
             invoices.map((each) => each.invoiceId),
         ),
     );
-    const { lifted, unmatched } = coversLifted(
-        parts,
-        own ? await coversGivenBy(db, own.creditId, payment) : [],
-    );
-    const uncovered: LiftedCover[] = [];
-    if (own) {
-        for (const cover of lifted) {
-            uncovered.push(await liftCover(db, own.creditId, cover, payment, at));
+    const covers: { creditId: string; reversalId: string; amount: number }[] = [];
+    for (const credit of own) {
+        for (const cover of await coversGivenBy(db, credit.creditId, payment)) {
+            covers.push({ creditId: credit.creditId, ...cover });
         }
     }
-    const takenOfOwn =
-        toCents(parts.credit?.amount ?? 0) +
-        lifted.reduce((sum, each) => sum + toCents(each.amount), 0);
-    const credit =
-        own && takenOfOwn > 0 ? { creditId: own.creditId, amount: takenOfOwn / 100 } : null;
-    for (const part of credit ? [credit, ...parts.covering] : parts.covering) {
+    const { lifted, unmatched } = coversLifted(parts, covers);
+    const uncovered: LiftedCover[] = [];
+    for (const cover of lifted) {
+        uncovered.push(await liftCover(db, cover.creditId, cover, payment, at));
+    }
+    // What the withdrawal took of each own credit: its open part, and what it
+    // lifted of the covers that credit gave.
+    const takenOfOwn = new Map<string, number>();
+    for (const part of [...parts.credits, ...lifted]) {
+        takenOfOwn.set(part.creditId, (takenOfOwn.get(part.creditId) ?? 0) + toCents(part.amount));
+    }
+    const credits = own
+        .filter((credit) => (takenOfOwn.get(credit.creditId) ?? 0) > 0)
+        .map((credit) => ({
+            creditId: credit.creditId,
+            amount: (takenOfOwn.get(credit.creditId) ?? 0) / 100,
+        }));
+    for (const part of [...credits, ...parts.covering]) {
         await db.subscriberCreditEntry.create({
             data: {
                 id: randomUUID(),
@@ -244,7 +262,7 @@ async function withdraw(
     return {
         fromCredit: parts.fromCredit,
         withdrawal: {
-            credit,
+            credits,
             covering: parts.covering,
             invoices: parts.invoices,
             uncovered,
@@ -296,10 +314,13 @@ async function liftCover(
             ...reversalEntryColumns(creditId, covered, 'REVERSAL_TAKEN_BACK', cover.amount, at),
         },
     });
+    // The invoice that stands in the payment's chain: the payment's own, or
+    // the replacement of it where it was cancelled.
+    const invoiceId = (await standingInvoiceIdOf(db, payment.invoiceId)) ?? payment.invoiceId;
     await db.subscriptionInvoiceSettlement.create({
         data: {
             id: randomUUID(),
-            invoiceId: payment.invoiceId,
+            invoiceId,
             paymentId: covered.paymentId,
             kind: 'REVERSAL',
             amount: toDecimalString(cover.amount),
@@ -310,31 +331,36 @@ async function liftCover(
     return {
         reversalId: covered.id,
         paymentId: covered.paymentId,
-        invoiceId: payment.invoiceId,
+        invoiceId,
         amount: cover.amount,
     };
 }
 
 /**
- * The credit the payment left, with what of it no reversal of the payment
- * took yet and what is still open of it; `null` where it left none.
+ * The credits the payment left — what it brought beyond its invoice, and its
+ * share of a cancelled invoice the replacement did not take —, each with what
+ * of it no reversal of the payment took yet and what is still open of it.
  */
-async function reversibleCredit(
+async function reversibleCredits(
     db: PaymentPrisma,
     payment: SubscriberPaymentRecord,
-): Promise<ReversibleCredit | null> {
-    const row = await db.subscriberCredit.findUnique({ where: { originPaymentId: payment.id } });
-    if (!row) return null;
-    const credit = toSubscriberCreditRecord(row);
+): Promise<ReversibleCredit[]> {
+    const rows = await db.subscriberCredit.findMany({ where: { originPaymentId: payment.id } });
+    const credits = [];
+    for (const row of rows) {
+        const credit = toSubscriberCreditRecord(row);
+        credits.push({
+            creditId: credit.id,
+            amount: credit.amount,
+            createdAt: credit.createdAt,
+            open: await openOf(db, credit.id),
+        });
+    }
     const reversals = await db.subscriberReversal.findMany({ where: { paymentId: payment.id } });
     const taken = reversals
         .map(toSubscriberReversalRecord)
         .reduce((sum, each) => sum + toCents(each.fromCredit), 0);
-    return {
-        creditId: credit.id,
-        left: (toCents(credit.amount) - taken) / 100,
-        open: await openOf(db, credit.id),
-    };
+    return reversibleCreditsOf(credits, taken / 100);
 }
 
 /**
@@ -347,8 +373,21 @@ async function coveringCredits(
     invoiceIds: readonly string[],
 ): Promise<CoveringCredit[]> {
     if (invoiceIds.length === 0) return [];
+    // Collected for an invoice of the same chain: a payment of the invoice a
+    // replacement replaces settles the replacement as well (`SC-PRIC-025`).
+    const chains = await db.subscriptionInvoice.findMany({
+        where: { id: { in: [...invoiceIds] } },
+        select: { chainId: true },
+    });
+    const chainInvoices = await db.subscriptionInvoice.findMany({
+        where: { chainId: { in: [...new Set(chains.map((row) => row.chainId))] } },
+        select: { id: true },
+    });
     const others = await db.subscriberPayment.findMany({
-        where: { invoiceId: { in: [...invoiceIds] }, id: { not: payment.id } },
+        where: {
+            invoiceId: { in: chainInvoices.map((row) => row.id) },
+            id: { not: payment.id },
+        },
     });
     if (others.length === 0) return [];
     const rows = await db.subscriberCredit.findMany({
@@ -393,12 +432,16 @@ async function reinstate(
         where: { reversalId: reversal.id },
         orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
     });
-    const invoices: { invoiceId: string; left: number; owed: number }[] = [];
-    for (const net of netByInvoice(
+    const nets = netByInvoice(
         settlements.map((row) => ({ invoiceId: row.invoiceId, amount: settledAmountOf(row) })),
-    )) {
-        const owed = await owedOf(db, await lockInvoice(db, net.invoiceId));
-        invoices.push({ invoiceId: net.invoiceId, left: -net.amount, owed });
+    );
+    const standing = new Map<string, string | null>();
+    for (const net of nets)
+        standing.set(net.invoiceId, await standingInvoiceIdOf(db, net.invoiceId));
+    const invoices: { invoiceId: string; left: number; owed: number }[] = [];
+    for (const reopened of reopenedByStanding(nets, standing)) {
+        const owed = await owedOf(db, await lockInvoice(db, reopened.invoiceId));
+        invoices.push({ ...reopened, owed });
     }
     const parts = reinstatementParts(amount, {
         unmatched: (unmatched - coveredBefore) / 100,

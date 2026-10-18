@@ -8,13 +8,14 @@ import type { SubscriberCreditRecord } from '@saasicat/core';
 import {
     columnAmountOf,
     openOfCredit,
-    owedOn,
+    owedByInvoice,
     settledAmountOf,
     toDecimalString,
     toSubscriberCreditEntryRecord,
     toSubscriberCreditRecord,
 } from '@saasicat/core';
 import type { resolveDb } from './client.js';
+import { correctedStateOf, lockChainOf } from './drizzle-invoice-chain.js';
 import {
     subscriberCreditEntries,
     subscriberCredits,
@@ -24,18 +25,23 @@ import {
 
 export type Db = ReturnType<typeof resolveDb>;
 
-/** What the invoice's turn reads of it. */
+/** What the turn reads of an invoice. */
 export interface LockedInvoice {
     id: string;
     subscriberId: string;
     tenantId: string;
     totalGross: string;
     currency: string;
+    chainId: string;
 }
 
-/** Takes the invoice's turn and reads what a payment against it needs; throws where it does not exist. */
+/**
+ * Takes the turn of the invoice's chain and reads what a payment against it
+ * needs; throws where it does not exist.
+ */
 export async function lockInvoice(db: Db, invoiceId: string): Promise<LockedInvoice> {
-    const [row] = await invoiceQuery(db, invoiceId).for('update');
+    await lockChainOf(db, invoiceId);
+    const row = await readInvoice(db, invoiceId);
     if (!row) throw new Error(`Invoice ${invoiceId} does not exist.`);
     return row;
 }
@@ -53,6 +59,7 @@ function invoiceQuery(db: Db, invoiceId: string) {
             tenantId: subscriptionInvoices.tenantId,
             totalGross: subscriptionInvoices.totalGross,
             currency: subscriptionInvoices.currency,
+            chainId: subscriptionInvoices.chainId,
         })
         .from(subscriptionInvoices)
         .where(eq(subscriptionInvoices.id, invoiceId));
@@ -66,7 +73,10 @@ export function grossOf(invoice: Pick<LockedInvoice, 'id' | 'totalGross'>): numb
     });
 }
 
-/** What `invoice` still owes after every settlement against it. */
+/**
+ * What `invoice` still owes after every settlement against it: nothing where
+ * it is cancelled or is a cancellation invoice (`owedByInvoice`).
+ */
 export async function owedIn(db: Db, invoice: LockedInvoice): Promise<number> {
     const settled = await db
         .select({
@@ -76,7 +86,11 @@ export async function owedIn(db: Db, invoice: LockedInvoice): Promise<number> {
         })
         .from(subscriptionInvoiceSettlements)
         .where(eq(subscriptionInvoiceSettlements.invoiceId, invoice.id));
-    return owedOn(grossOf(invoice), settled.map(settledAmountOf));
+    return owedByInvoice(
+        grossOf(invoice),
+        settled.map(settledAmountOf),
+        await correctedStateOf(db, invoice.id),
+    );
 }
 
 /** Holds every credit of the subscriber, in one order, before anything of them is read. */
@@ -108,7 +122,10 @@ export async function openOf(db: Db, creditId: string): Promise<number> {
 
 /** Where a credit comes from, as its columns name it. */
 export type CreditOriginColumns =
-    { originPaymentId: string } | { originInvoiceId: string } | { originReversalId: string };
+    | { originPaymentId: string }
+    | { originInvoiceId: string }
+    | { originReversalId: string }
+    | { originPaymentId: string; originCancellationId: string };
 
 /**
  * Writes a credit for the subscriber `invoice` names. One from a payment or an
@@ -133,6 +150,8 @@ export async function createCredit(
             originPaymentId: 'originPaymentId' in origin ? origin.originPaymentId : null,
             originInvoiceId: 'originInvoiceId' in origin ? origin.originInvoiceId : null,
             originReversalId: 'originReversalId' in origin ? origin.originReversalId : null,
+            originCancellationId:
+                'originCancellationId' in origin ? origin.originCancellationId : null,
             createdAt: at,
         })
         .onConflictDoNothing()

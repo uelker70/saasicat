@@ -269,17 +269,17 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
         assert.deepEqual(second.slice(2), ['sub-0', 5]);
     });
 
-    test('the charges left to invoice are those with no invoice line, in the journal’s order', async () => {
+    test('the charges left to invoice are those on no invoice line, in the journal’s order', async () => {
         const client = fakeClient();
 
         await new PrismaSubscriptionInvoiceRepository(client).listUninvoicedCharges('sub-1');
 
         const [[, query]] = callsNamed(client, 'ledger.findMany');
-        assert.deepEqual(query.where, { subscriptionId: 'sub-1', invoiceLine: { is: null } });
+        assert.deepEqual(query.where, { subscriptionId: 'sub-1', invoiceLines: { none: {} } });
         assert.deepEqual(query.orderBy[0], { periodStart: 'asc' });
     });
 
-    test('reads ask for the lines in their order, and the prefixes two at most', async () => {
+    test('reads ask for the lines in their order and what the invoice corrects, and the prefixes two at most', async () => {
         const client = fakeClient({ prefixes: ['AHP'] });
         const repository = new PrismaSubscriptionInvoiceRepository(client);
 
@@ -288,7 +288,16 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
         assert.deepEqual(await repository.listIssuedNumberPrefixes(), ['AHP']);
 
         const [[, byId]] = callsNamed(client, 'findUnique');
-        assert.deepEqual(byId.include, { lines: { orderBy: { position: 'asc' } } });
+        // The cancellation it is the cancellation invoice or the replacement
+        // of, with the invoice that cancels.
+        const corrected = {
+            include: { cancelledInvoice: { select: { id: true, number: true, issueDate: true } } },
+        };
+        assert.deepEqual(byId.include, {
+            lines: { orderBy: { position: 'asc' } },
+            cancels: corrected,
+            replaces: corrected,
+        });
         const [[, bySubscriber], [, prefixes]] = callsNamed(client, 'findMany');
         assert.deepEqual(bySubscriber.orderBy, [
             { numberYear: 'desc' },

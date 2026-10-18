@@ -97,6 +97,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscription_invoice_collections_one_open_per_
     ON subscription_invoice_collections ("invoiceId")
     WHERE "status" IN ('SCHEDULED', 'SUBMITTED', 'PENDING', 'SUCCEEDED');
 
+-- A payment leaves at most ONE credit of its own — what it brought beyond what
+-- its invoice still owed. A cancellation can leave it one more, for the part the
+-- replacement did not take. That one names the cancellation as well, and the
+-- unique (originCancellationId, originPaymentId) of the fragment holds it to one
+-- per cancellation. Of two reports of the same payment, one writes the credit.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_credits_one_per_payment
+    ON subscriber_credits ("originPaymentId")
+    WHERE "originCancellationId" IS NULL;
+
 -- A gateway session is confirmed ONCE.
 --
 -- A gateway delivers every event at least once, and it may report one session

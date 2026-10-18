@@ -84,7 +84,7 @@ describe('a reversal the gateway reports', () => {
                 paymentRef: 'pi_1',
                 currency: 'EUR',
                 withdrawn: invoice.totalGross,
-                credit: null,
+                credits: [],
                 covering: [],
                 invoices: [{ invoiceId: invoice.id, amount: invoice.totalGross }],
                 uncovered: [],

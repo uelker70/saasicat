@@ -2,9 +2,15 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type {
+    CanonicalInvoiceCorrection,
+    IssuedSubscriptionInvoiceCancellation,
+    NewCorrectionInvoice,
     NewInvoiceRendering,
     NewSubscriptionInvoice,
+    NewSubscriptionInvoiceCancellation,
     SubscriberChargeRecord,
+    SubscriptionInvoiceCancellationRecord,
+    SubscriptionInvoiceChain,
     SubscriptionInvoiceDocumentRecord,
     SubscriptionInvoiceRecord,
     SubscriptionInvoiceRepository,
@@ -12,8 +18,12 @@ import type {
 } from '@saasicat/core';
 import {
     formatInvoiceNumber,
+    subscriptionInvoiceAlreadyCancelled,
+    subscriptionInvoiceCancellationColumns,
+    subscriptionInvoiceChainOf,
     subscriptionInvoiceChargeInvoiced,
     subscriptionInvoiceDocumentChanged,
+    toSubscriptionInvoiceCancellationRecord,
     toSubscriptionInvoiceDocumentRecord,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
@@ -21,13 +31,19 @@ import {
     toSubscriptionInvoiceRecord,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
+import { lockChainOf } from './drizzle-invoice-chain.js';
 import {
     subscriberLedgerEntries,
+    subscriptionInvoiceCancellations,
     subscriptionInvoiceDocuments,
     subscriptionInvoiceLines,
     subscriptionInvoiceNumbers,
     subscriptionInvoices,
 } from './schema.js';
+
+type Db = ReturnType<typeof resolveDb>;
+type InvoiceRow = typeof subscriptionInvoices.$inferSelect;
+type LineRow = typeof subscriptionInvoiceLines.$inferSelect;
 
 /**
  * `SubscriptionInvoiceRepository` against `subscription_invoices`,
@@ -113,37 +129,15 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
         // On the caller's transaction this is a savepoint, so a refusal rolls
         // back the number it drew and keeps whatever the caller wrote before.
         return resolveDb(this.db, tx).transaction(async (transaction) => {
-            const db = transaction as unknown as DrizzleClient;
-            const numberSequence = await drawNumber(db, invoice.numberYear);
-            const number = formatInvoiceNumber(
-                invoice.numberPrefix,
-                invoice.numberYear,
-                numberSequence,
-            );
+            const db = resolveDb(this.db, transaction);
             const id = randomUUID();
-            const [row] = await db
-                .insert(subscriptionInvoices)
-                .values({ id, ...subscriptionInvoiceColumns(invoice, { number, numberSequence }) })
-                .returning();
-            // `ON CONFLICT DO NOTHING` on the unique `chargeId`: a charge another
-            // invoice took first is waited for and skipped, and the line that
-            // did not come back names it.
-            const lines = await db
-                .insert(subscriptionInvoiceLines)
-                .values(
-                    invoice.lines.map((line) => ({
-                        id: randomUUID(),
-                        ...subscriptionInvoiceLineColumns(line, id),
-                    })),
-                )
-                .onConflictDoNothing({ target: subscriptionInvoiceLines.chargeId })
-                .returning();
-            if (lines.length < invoice.lines.length) {
-                const written = new Set(lines.map((line) => line.chargeId));
-                const taken = invoice.lines.find((line) => !written.has(line.chargeId));
-                throw subscriptionInvoiceChargeInvoiced(taken?.chargeId ?? '');
-            }
-            return toSubscriptionInvoiceRecord(row!, lines);
+            // An invoice issued on the journal's charges begins a chain of its own.
+            const { row, lines } = await writeInvoice(db, invoice, {
+                id,
+                chainId: id,
+                chainStep: 0,
+            });
+            return toSubscriptionInvoiceRecord(row, lines);
         });
     }
 
@@ -155,12 +149,134 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
             .where(eq(subscriptionInvoices.id, id))
             .limit(1);
         if (!row) return null;
-        const lines = await db
+        const [record] = await recordsOf(db, [row]);
+        return record ?? null;
+    }
+
+    async holdChain(
+        invoiceId: string,
+        tx: TransactionContext,
+    ): Promise<SubscriptionInvoiceChain | null> {
+        const db = resolveDb(this.db, tx);
+        const chainId = await lockChainOf(db, invoiceId);
+        if (chainId === null) return null;
+        const rows = await db
             .select()
-            .from(subscriptionInvoiceLines)
-            .where(eq(subscriptionInvoiceLines.invoiceId, id))
-            .orderBy(asc(subscriptionInvoiceLines.position));
-        return toSubscriptionInvoiceRecord(row, lines);
+            .from(subscriptionInvoices)
+            .where(eq(subscriptionInvoices.chainId, chainId))
+            .orderBy(asc(subscriptionInvoices.chainStep));
+        const cancellations = await db
+            .select()
+            .from(subscriptionInvoiceCancellations)
+            .where(
+                inArray(
+                    subscriptionInvoiceCancellations.cancelledInvoiceId,
+                    rows.map((row) => row.id),
+                ),
+            );
+        return subscriptionInvoiceChainOf(
+            await recordsOf(db, rows),
+            cancellations.map(toSubscriptionInvoiceCancellationRecord),
+        );
+    }
+
+    issueCancellation(
+        write: NewSubscriptionInvoiceCancellation,
+        tx: TransactionContext,
+    ): Promise<IssuedSubscriptionInvoiceCancellation> {
+        // A savepoint of the caller's transaction: a refusal takes back the
+        // numbers it drew and keeps whatever the caller wrote before.
+        return resolveDb(this.db, tx).transaction(async (transaction) => {
+            const db = resolveDb(this.db, transaction);
+            const [cancelled] = await db
+                .select({
+                    id: subscriptionInvoices.id,
+                    number: subscriptionInvoices.number,
+                    issueDate: subscriptionInvoices.issueDate,
+                    chainId: subscriptionInvoices.chainId,
+                    chainStep: subscriptionInvoices.chainStep,
+                })
+                .from(subscriptionInvoices)
+                .where(eq(subscriptionInvoices.id, write.cancelledInvoiceId));
+            if (!cancelled) throw new Error(`Invoice ${write.cancelledInvoiceId} does not exist.`);
+            const [earlier] = await db
+                .select({ id: subscriptionInvoiceCancellations.id })
+                .from(subscriptionInvoiceCancellations)
+                .where(eq(subscriptionInvoiceCancellations.cancelledInvoiceId, cancelled.id));
+            if (earlier) throw subscriptionInvoiceAlreadyCancelled(cancelled.number);
+            const cancellation = await writeInvoice(db, write.cancellation, {
+                id: randomUUID(),
+                chainId: cancelled.chainId,
+                chainStep: cancelled.chainStep + 1,
+            });
+            const replacement =
+                write.replacement &&
+                (await writeInvoice(db, write.replacement, {
+                    id: randomUUID(),
+                    chainId: cancelled.chainId,
+                    chainStep: cancelled.chainStep + 2,
+                }));
+            const [row] = await db
+                .insert(subscriptionInvoiceCancellations)
+                .values(
+                    subscriptionInvoiceCancellationColumns(write, {
+                        id: randomUUID(),
+                        cancellationInvoiceId: cancellation.row.id,
+                        replacementInvoiceId: replacement?.row.id ?? null,
+                    }),
+                )
+                .onConflictDoNothing({
+                    target: subscriptionInvoiceCancellations.cancelledInvoiceId,
+                })
+                .returning();
+            // The unique invoice cancelled holds a second cancellation off,
+            // even one that did not take the chain's turn first.
+            if (!row) throw subscriptionInvoiceAlreadyCancelled(cancelled.number);
+            const correction = { cancellation: row, cancelled };
+            return {
+                cancellation: toSubscriptionInvoiceCancellationRecord(row),
+                cancellationInvoice: toSubscriptionInvoiceRecord(
+                    cancellation.row,
+                    cancellation.lines,
+                    correction,
+                ),
+                replacement:
+                    replacement &&
+                    toSubscriptionInvoiceRecord(replacement.row, replacement.lines, correction),
+            };
+        });
+    }
+
+    async findCancellation(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceCancellationRecord | null> {
+        const rows = await resolveDb(this.db, tx)
+            .select()
+            .from(subscriptionInvoiceCancellations)
+            .where(
+                or(
+                    eq(subscriptionInvoiceCancellations.cancelledInvoiceId, invoiceId),
+                    eq(subscriptionInvoiceCancellations.cancellationInvoiceId, invoiceId),
+                    eq(subscriptionInvoiceCancellations.replacementInvoiceId, invoiceId),
+                ),
+            );
+        // Its own cancellation first: a replacement cancelled in turn is named
+        // by two.
+        const row = rows.find((each) => each.cancelledInvoiceId === invoiceId) ?? rows[0];
+        return row ? toSubscriptionInvoiceCancellationRecord(row) : null;
+    }
+
+    async findCancellationById(
+        cancellationId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceCancellationRecord | null> {
+        const [row] = await resolveDb(this.db, tx)
+            .select()
+            .from(subscriptionInvoiceCancellations)
+            .where(eq(subscriptionInvoiceCancellations.id, cancellationId))
+            .limit(1);
+        return row ? toSubscriptionInvoiceCancellationRecord(row) : null;
     }
 
     async listBySubscriber(
@@ -176,23 +292,7 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
                 desc(subscriptionInvoices.numberYear),
                 desc(subscriptionInvoices.numberSequence),
             );
-        if (rows.length === 0) return [];
-        const lines = await db
-            .select()
-            .from(subscriptionInvoiceLines)
-            .where(
-                inArray(
-                    subscriptionInvoiceLines.invoiceId,
-                    rows.map((row) => row.id),
-                ),
-            )
-            .orderBy(asc(subscriptionInvoiceLines.position));
-        return rows.map((row) =>
-            toSubscriptionInvoiceRecord(
-                row,
-                lines.filter((line) => line.invoiceId === row.id),
-            ),
-        );
+        return recordsOf(db, rows);
     }
 
     async listIssuedNumberPrefixes(tx?: TransactionContext): Promise<string[]> {
@@ -397,10 +497,101 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
 }
 
 /**
+ * Invoice rows as records, each with its lines in their order and, for a
+ * cancellation invoice or a replacement, the cancellation and the invoice it
+ * cancels.
+ */
+async function recordsOf(
+    db: Db,
+    rows: readonly InvoiceRow[],
+): Promise<SubscriptionInvoiceRecord[]> {
+    if (rows.length === 0) return [];
+    const ids = rows.map((row) => row.id);
+    const lines = await db
+        .select()
+        .from(subscriptionInvoiceLines)
+        .where(inArray(subscriptionInvoiceLines.invoiceId, ids))
+        .orderBy(asc(subscriptionInvoiceLines.position));
+    const cancellations = await db
+        .select({
+            cancellation: subscriptionInvoiceCancellations,
+            cancelled: {
+                id: subscriptionInvoices.id,
+                number: subscriptionInvoices.number,
+                issueDate: subscriptionInvoices.issueDate,
+            },
+        })
+        .from(subscriptionInvoiceCancellations)
+        .innerJoin(
+            subscriptionInvoices,
+            eq(subscriptionInvoices.id, subscriptionInvoiceCancellations.cancelledInvoiceId),
+        )
+        .where(
+            or(
+                inArray(subscriptionInvoiceCancellations.cancellationInvoiceId, ids),
+                inArray(subscriptionInvoiceCancellations.replacementInvoiceId, ids),
+            ),
+        );
+    const correctionOf = (id: string): CanonicalInvoiceCorrection | null =>
+        cancellations.find(
+            ({ cancellation }) =>
+                cancellation.cancellationInvoiceId === id ||
+                cancellation.replacementInvoiceId === id,
+        ) ?? null;
+    return rows.map((row) =>
+        toSubscriptionInvoiceRecord(
+            row,
+            lines.filter((line) => line.invoiceId === row.id),
+            correctionOf(row.id),
+        ),
+    );
+}
+
+/**
+ * Draws the invoice's number and writes it with its lines where `placed` puts
+ * it in its chain. Refused, by a throw that takes its savepoint back, where a
+ * charge stands on a line at the same step of a chain already.
+ */
+async function writeInvoice(
+    db: Db,
+    invoice: NewSubscriptionInvoice | NewCorrectionInvoice,
+    placed: { id: string; chainId: string; chainStep: number },
+): Promise<{ row: InvoiceRow; lines: LineRow[] }> {
+    const numberSequence = await drawNumber(db, invoice.numberYear);
+    const number = formatInvoiceNumber(invoice.numberPrefix, invoice.numberYear, numberSequence);
+    const [row] = await db
+        .insert(subscriptionInvoices)
+        .values(subscriptionInvoiceColumns(invoice, { ...placed, number, numberSequence }))
+        .returning();
+    if (!row) throw new Error(`Invoice ${number} was not written.`);
+    // `ON CONFLICT DO NOTHING` on the unique (`chargeId`, `chainStep`): a charge
+    // another invoice took first is waited for and skipped, and the line that
+    // did not come back names it.
+    const lines = await db
+        .insert(subscriptionInvoiceLines)
+        .values(
+            invoice.lines.map((line) => ({
+                id: randomUUID(),
+                ...subscriptionInvoiceLineColumns(line, placed.id, placed.chainStep),
+            })),
+        )
+        .onConflictDoNothing({
+            target: [subscriptionInvoiceLines.chargeId, subscriptionInvoiceLines.chainStep],
+        })
+        .returning();
+    if (lines.length < invoice.lines.length) {
+        const kept = new Set(lines.map((line) => line.chargeId));
+        const taken = invoice.lines.find((line) => !kept.has(line.chargeId));
+        throw subscriptionInvoiceChargeInvoiced(taken?.chargeId ?? '');
+    }
+    return { row, lines };
+}
+
+/**
  * The next number of `year`: the year's row is made where it is missing, then
  * raised, and the `UPDATE` keeps it locked until the transaction ends.
  */
-async function drawNumber(db: DrizzleClient, year: number): Promise<number> {
+async function drawNumber(db: Db, year: number): Promise<number> {
     await db
         .insert(subscriptionInvoiceNumbers)
         .values({ year, last: 0 })

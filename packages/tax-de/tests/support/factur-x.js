@@ -54,6 +54,7 @@ export const INVOICE = {
     totalNet: 49,
     totalTax: 9.31,
     totalGross: 58.31,
+    paidOnIssue: 0,
     lines: [
         {
             position: 1,
@@ -159,6 +160,10 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     const referenced = corrected
         ? `<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>${corrected.number}</ram:IssuerAssignedID><ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${corrected.issueDate}</qdt:DateTimeString></ram:FormattedIssueDateTime></ram:InvoiceReferencedDocument>`
         : '';
+    // What was paid on issue (BT-113), stated only where something was, and the
+    // amount due less it, unless a test names others.
+    const prepaid = field('prepaid', invoice.paidOnIssue > 0 ? invoice.paidOnIssue : null);
+    const due = Math.round(invoice.totalGross * 100 - invoice.paidOnIssue * 100) / 100;
     const taxes = field('taxes', invoice.taxes)
         .map(
             (tax) => `<ram:ApplicableTradeTax>
@@ -205,7 +210,8 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
         <ram:TaxBasisTotalAmount>${amount(field('totalNet', invoice.totalNet))}</ram:TaxBasisTotalAmount>
         <ram:TaxTotalAmount currencyID="${invoice.currency}">${amount(field('totalTax', invoice.totalTax))}</ram:TaxTotalAmount>
         <ram:GrandTotalAmount>${amount(field('totalGross', invoice.totalGross))}</ram:GrandTotalAmount>
-        <ram:DuePayableAmount>${amount(field('duePayable', invoice.totalGross))}</ram:DuePayableAmount>
+        ${prepaid === null ? '' : `<ram:TotalPrepaidAmount>${amount(prepaid)}</ram:TotalPrepaidAmount>`}
+        <ram:DuePayableAmount>${amount(field('duePayable', due))}</ram:DuePayableAmount>
       </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
       ${referenced}
     </ram:ApplicableHeaderTradeSettlement>

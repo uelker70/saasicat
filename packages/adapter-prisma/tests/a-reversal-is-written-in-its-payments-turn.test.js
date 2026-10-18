@@ -4,9 +4,9 @@
 // The database semantics — two reports of one reversal at once applying it
 // once, a refund's case opened once however often the refund is reported — are
 // the contract's, and run against PostgreSQL in tests/integration/. What this
-// holds is the translation: that a reversal takes the turn of every invoice its
-// payment settles, in one order, then the subscriber's credits, then its own
-// row; that a report writes only what grew since the one before; that what it
+// holds is the translation: that a reversal takes the turn of the chain of
+// every invoice its payment settles, by the chains' first invoices in one
+// order, then the subscriber's credits, then its own row; that a report writes only what grew since the one before; that what it
 // takes and gives back reaches the credit entries, the settlements and its own
 // row with the reversal named; and that a give-back, a refund's failure and the
 // operator each close exactly the cases they name.
@@ -32,12 +32,15 @@ const PAID_AT = new Date('2026-02-01T05:20:00.000Z');
 const REVERSED_AT = new Date('2026-02-20T09:00:00.000Z');
 const GIVEN_BACK_AT = new Date('2026-04-02T09:00:00.000Z');
 
+/** An invoice nothing corrected: the first of a chain of its own. */
 const invoiceRow = (id, totalGross) => ({
     id,
     subscriberId: 'subscriber-1',
     tenantId: 'tenant-1',
     totalGross,
     currency: 'EUR',
+    chainId: id,
+    chainStep: 0,
 });
 
 const paymentOf = (gatewayRef, amount, at = PAID_AT) => ({
@@ -134,7 +137,7 @@ describe('a reversal', () => {
         const recorded = await repo.recordReversal(dispute(50));
 
         assert.equal(recorded.outcome, 'recorded');
-        assert.deepEqual(recorded.withdrawal.credit, { creditId: credit.id, amount: 20 });
+        assert.deepEqual(recorded.withdrawal.credits, [{ creditId: credit.id, amount: 20 }]);
         assert.deepEqual(recorded.withdrawal.invoices, [{ invoiceId: 'invoice-1', amount: 30 }]);
         assert.equal(recorded.withdrawal.unmatched, 0);
         assert.equal(recorded.reinstatement, null);
@@ -179,7 +182,7 @@ describe('a reversal', () => {
 
         const grown = await repo.recordReversal(dispute(25));
 
-        assert.deepEqual(grown.withdrawal.credit, { creditId: credit.id, amount: 5 });
+        assert.deepEqual(grown.withdrawal.credits, [{ creditId: credit.id, amount: 5 }]);
         assert.deepEqual(grown.withdrawal.invoices, [{ invoiceId: 'invoice-1', amount: 5 }]);
         assert.deepEqual(kindsWritten(client, 'subscriberCreditEntry'), [['REVERSAL', 5]]);
         const [reversal] = client.rows('subscriberReversal');
@@ -192,7 +195,7 @@ describe('a reversal', () => {
 
         const recorded = await repo.recordReversal(dispute(110));
 
-        assert.equal(recorded.withdrawal.credit, null);
+        assert.deepEqual(recorded.withdrawal.credits, []);
         assert.deepEqual(recorded.withdrawal.invoices, [{ invoiceId: 'invoice-1', amount: 80 }]);
         assert.equal(recorded.withdrawal.unmatched, 30);
         const [opened] = client.rows('subscriberReconciliationCase');
@@ -215,7 +218,7 @@ describe('a reversal', () => {
 
         const recorded = await repo.recordReversal(dispute(50));
 
-        assert.deepEqual(recorded.withdrawal.credit, { creditId: credit.id, amount: 20 });
+        assert.deepEqual(recorded.withdrawal.credits, [{ creditId: credit.id, amount: 20 }]);
         assert.deepEqual(recorded.withdrawal.covering, [{ creditId: late.credit.id, amount: 30 }]);
         assert.deepEqual(recorded.withdrawal.invoices, []);
         assert.deepEqual(
@@ -476,7 +479,7 @@ describe('the cases to reconcile', () => {
 });
 
 describe('what the credits and invoices read', () => {
-    test('what each invoice owes is read in two statements, and nothing is asked for none', async () => {
+    test('what each invoice owes is read in three statements, and nothing is asked for none', async () => {
         const { client, repo } = await paid();
         client.rows('subscriptionInvoice').push(invoiceRow('invoice-2', '58.31'));
 
@@ -486,7 +489,17 @@ describe('what the credits and invoices read', () => {
             { invoiceId: 'invoice-1', owed: 0 },
             { invoiceId: 'invoice-2', owed: 58.31 },
         ]);
-        assert.equal(client.statements.length, 2);
+        assert.equal(client.statements.length, 3);
+        // A cancelled invoice owes nothing, whatever it states.
+        client.rows('subscriptionInvoiceCancellation').push({
+            id: 'cancellation-1',
+            cancelledInvoiceId: 'invoice-2',
+            cancellationInvoiceId: 'invoice-3',
+            replacementInvoiceId: null,
+        });
+        assert.deepEqual(await repo.owedByInvoices(['invoice-2']), [
+            { invoiceId: 'invoice-2', owed: 0 },
+        ]);
     });
 
     test('a reversal is found by its id, and none by another', async () => {
