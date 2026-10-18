@@ -66,6 +66,7 @@ export const INVOICE = {
             periodUntil: '2026-02-28',
             amountNet: 53.9,
             taxRate: 19,
+            correctedPosition: null,
             id: 'il-1',
             invoiceId: 'invoice-1',
         },
@@ -80,10 +81,12 @@ export const INVOICE = {
             periodUntil: '2026-02-28',
             amountNet: -4.9,
             taxRate: 19,
+            correctedPosition: null,
             id: 'il-2',
             invoiceId: 'invoice-1',
         },
     ],
+    correction: null,
     createdAt: new Date('2026-02-01T05:15:00.000Z'),
 };
 
@@ -143,6 +146,19 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
         </ram:IncludedSupplyChainTradeLineItem>`,
         )
         .join('');
+    // A due date `null` leaves out; the invoice a correction corrects, as its
+    // number and its day, unless a test names another or none (`null`).
+    const dueDate = field('dueDate', day(invoice.dueDate));
+    const corrected = field(
+        'corrected',
+        invoice.correction && {
+            number: invoice.correction.of.number,
+            issueDate: day(invoice.correction.of.issueDate),
+        },
+    );
+    const referenced = corrected
+        ? `<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>${corrected.number}</ram:IssuerAssignedID><ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${corrected.issueDate}</qdt:DateTimeString></ram:FormattedIssueDateTime></ram:InvoiceReferencedDocument>`
+        : '';
     const taxes = field('taxes', invoice.taxes)
         .map(
             (tax) => `<ram:ApplicableTradeTax>
@@ -157,6 +173,7 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
     xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+    xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
     xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
   <rsm:ExchangedDocumentContext>
     <ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>${field('profile', 'urn:cen.eu:en16931:2017')}</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter>
@@ -181,15 +198,16 @@ export function ciiOf(invoice = INVOICE, overrides = {}) {
         <ram:EndDateTime><udt:DateTimeString format="102">${field('periodUntil', day(invoice.servicePeriodUntil))}</udt:DateTimeString></ram:EndDateTime>
       </ram:BillingSpecifiedPeriod>
       <ram:SpecifiedTradePaymentTerms>
-        <ram:DueDateDateTime><udt:DateTimeString format="102">${field('dueDate', day(invoice.dueDate))}</udt:DateTimeString></ram:DueDateDateTime>
+        ${dueDate === null ? '' : `<ram:DueDateDateTime><udt:DateTimeString format="102">${dueDate}</udt:DateTimeString></ram:DueDateDateTime>`}
       </ram:SpecifiedTradePaymentTerms>
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-        <ram:LineTotalAmount>${amount(invoice.totalNet)}</ram:LineTotalAmount>
+        <ram:LineTotalAmount>${amount(field('lineTotal', invoice.totalNet))}</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>${amount(field('totalNet', invoice.totalNet))}</ram:TaxBasisTotalAmount>
         <ram:TaxTotalAmount currencyID="${invoice.currency}">${amount(field('totalTax', invoice.totalTax))}</ram:TaxTotalAmount>
         <ram:GrandTotalAmount>${amount(field('totalGross', invoice.totalGross))}</ram:GrandTotalAmount>
         <ram:DuePayableAmount>${amount(field('duePayable', invoice.totalGross))}</ram:DuePayableAmount>
       </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+      ${referenced}
     </ram:ApplicableHeaderTradeSettlement>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;

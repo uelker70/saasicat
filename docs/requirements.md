@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 88      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 89      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 644 entries: 🟢 558 stand today, 🟡 55 decided but not yet delivered, ⚪ 0 drafts,
+Of 645 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪ 0 drafts,
 🔵 28 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -224,7 +224,7 @@ Of 644 entries: 🟢 558 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 644 requirements. Do not edit by hand:
+Generated from `requirements/` — 645 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9039,6 +9039,46 @@ invoice then follows `SC-PRIC-033`.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+### SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
+
+🟢 💰 The shipped renderer gives a cancellation invoice the title "Stornorechnung", never
+"Gutschrift", which German VAT law reads as a statement of self-billing by the recipient, and the
+EN 16931 type of a credit note. Its page states the amounts of the invoice it cancels reversed, so
+that the two add up to nothing, and asks for nothing; its XML states them as a credit note does, as
+they stood on that invoice. A replacement is an invoice. Each names the invoice it corrects by number
+and issue date, on the page and as the document reference a program reads, together with the reason
+given for the cancellation, and each of its lines names the line it cancels or replaces
+(`SC-AUD-013`). The format's own validators check both in CI, as they check every invoice
+(`SC-PRIC-078`), and the German adapter's check of a document refuses one whose type, figures or
+reference are not what the invoice records.
+
+_Source:_ #334 (decided 2026-10-18) · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - a cancellation invoice
+        - is titled Stornorechnung on its page and in its metadata, and no document is a Gutschrift
+        - names the invoice it cancels and why, beside its facts and under its title
+        - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
+          nothing
+        - names no way of paying, whatever payment method its record still carries
+        - under the reverse charge states its tax as nothing, not as minus nothing
+        - carries a credit note stating the cancelled invoice’s amounts, naming it and why
+    - a replacement
+        - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+- `packages/tax-de/tests/an-invoice-document-is-the-file-german-law-asks-for.test.js`
+    - a cancellation invoice
+        - stating the cancelled figures as a credit note, naming the invoice it cancels, passes
+        - ${what} is refused
+    - a replacement
+        - naming the invoice it replaces passes
+        - naming none is refused, and so is one stated as a credit note
+
+<!-- END proof -->
+
 ### SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 
 🟡 _(Decided, not yet delivered.)_ 💰 The issuer's identity, its legal name and tax identifiers, is
@@ -9328,6 +9368,18 @@ _Tested by:_
         - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
         - of a small business with a tax number only, identifies the seller by it
         - under the reverse charge, names both VAT ids
+    - a cancellation invoice
+        - is titled Stornorechnung on its page and in its metadata, and no document is a Gutschrift
+        - names the invoice it cancels and why, beside its facts and under its title
+        - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
+          nothing
+        - names no way of paying, whatever payment method its record still carries
+        - under the reverse charge states its tax as nothing, not as minus nothing
+        - carries a credit note stating the cancelled invoice’s amounts, naming it and why
+    - a replacement
+        - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+    - an invoice that corrects none
+        - names no invoice it corrects and no reason
     - a font the application passes
         - is the one the page is set in
 - `packages/nest/tests/a-failed-collection-is-tried-again.test.js`
@@ -10615,6 +10667,18 @@ _Tested by:_
         - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
         - of a small business with a tax number only, identifies the seller by it
         - under the reverse charge, names both VAT ids
+    - a cancellation invoice
+        - is titled Stornorechnung on its page and in its metadata, and no document is a Gutschrift
+        - names the invoice it cancels and why, beside its facts and under its title
+        - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
+          nothing
+        - names no way of paying, whatever payment method its record still carries
+        - under the reverse charge states its tax as nothing, not as minus nothing
+        - carries a credit note stating the cancelled invoice’s amounts, naming it and why
+    - a replacement
+        - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+    - an invoice that corrects none
+        - names no invoice it corrects and no reason
     - a font the application passes
         - is the one the page is set in
 - `packages/nest/tests/an-invoice-document-is-archived-and-mailed.test.js`
@@ -10670,6 +10734,14 @@ _Tested by:_
           (BR-O-05)
         - of an issuer without a tax number may leave the registration out
         - of an issuer with a tax number must carry it
+    - a cancellation invoice
+        - stating the cancelled figures as a credit note, naming the invoice it cancels, passes
+        - ${what} is refused
+    - a replacement
+        - naming the invoice it replaces passes
+        - naming none is refused, and so is one stated as a credit note
+    - an invoice that corrects none
+        - naming an invoice it corrects is refused
 
 <!-- END proof -->
 
@@ -10745,6 +10817,18 @@ _Tested by:_
         - outside the scope of VAT, names no VAT id and no rate, and identifies the seller otherwise
         - of a small business with a tax number only, identifies the seller by it
         - under the reverse charge, names both VAT ids
+    - a cancellation invoice
+        - is titled Stornorechnung on its page and in its metadata, and no document is a Gutschrift
+        - names the invoice it cancels and why, beside its facts and under its title
+        - states the cancelled amounts reversed, each line naming the line it cancels, and asks for
+          nothing
+        - names no way of paying, whatever payment method its record still carries
+        - under the reverse charge states its tax as nothing, not as minus nothing
+        - carries a credit note stating the cancelled invoice’s amounts, naming it and why
+    - a replacement
+        - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+    - an invoice that corrects none
+        - names no invoice it corrects and no reason
     - a font the application passes
         - is the one the page is set in
 

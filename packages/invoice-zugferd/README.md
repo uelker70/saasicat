@@ -64,6 +64,23 @@ identified by it or by its tax number as its own identifier, which EN 16931
 asks for (BR-CO-26). A line that takes something off, such as a discount, is
 one unit taken back at a price that is not negative (BR-27).
 
+### A cancellation invoice and its replacement
+
+An invoice whose `correction` names the invoice it corrects is rendered as what
+it is (`SC-PRIC-089`):
+
+- a **cancellation** is titled "Stornorechnung / Cancellation invoice" — never
+  "Gutschrift", which German VAT law reads as self-billing by the recipient. Its
+  page states the cancelled amounts reversed, as the invoice records them, names
+  no due date and no payment method, and says that nothing is to be paid. Its XML is a credit note
+  (type `381`), stating those amounts as the cancelled invoice did;
+- a **replacement** is an invoice (type `380`) like any other.
+
+Both name the invoice they correct by number and issue date, beside the facts
+and as the document reference of the XML (BT-25, BT-26), with the reason given
+for the cancellation under the title and as a note. Each line names the line it
+cancels or replaces, under its description and as the line's note (BT-127).
+
 ### The same file every time
 
 The renderer takes everything from the invoice as it was issued: the file's

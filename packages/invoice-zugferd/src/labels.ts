@@ -10,6 +10,11 @@ export interface Label {
 
 export const LABELS = {
     title: { de: 'Rechnung', en: 'Invoice' },
+    // A cancellation is "Stornorechnung": "Gutschrift" is the word German VAT
+    // law reads as self-billing by the recipient (`SC-PRIC-089`).
+    cancellationTitle: { de: 'Stornorechnung', en: 'Cancellation invoice' },
+    cancels: { de: 'Storniert Rechnung', en: 'Cancels invoice' },
+    replaces: { de: 'Ersetzt Rechnung', en: 'Replaces invoice' },
     number: { de: 'Rechnungsnummer', en: 'Invoice no.' },
     issueDate: { de: 'Rechnungsdatum', en: 'Invoice date' },
     servicePeriod: { de: 'Leistungszeitraum', en: 'Service period' },

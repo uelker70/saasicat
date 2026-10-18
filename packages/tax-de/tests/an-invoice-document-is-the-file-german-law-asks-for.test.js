@@ -441,3 +441,129 @@ describe('the embedded XML', () => {
         assert.deepEqual(await gapsOf({ xml: ciiOf(without) }, INVOICE), ['xml.seller.taxNumber']);
     });
 });
+
+/** `amount` taken the other way: nothing stays nothing, rather than minus nothing. */
+const reversed = (amount) => (amount === 0 ? 0 : -amount);
+
+/** The invoice the corrections below correct, as they name it. */
+const CORRECTED = { invoiceId: INVOICE.id, number: INVOICE.number, issueDate: INVOICE.issueDate };
+
+/** The cancellation of `INVOICE` as the store records it: its figures reversed. */
+const CANCELLATION = {
+    ...INVOICE,
+    id: 'invoice-140',
+    number: 'AHP-2026-000140',
+    numberSequence: 140,
+    issueDate: '2026-02-20',
+    dueDate: '2026-02-20',
+    taxes: INVOICE.taxes.map((entry) => ({
+        ...entry,
+        net: reversed(entry.net),
+        tax: reversed(entry.tax),
+    })),
+    totalNet: reversed(INVOICE.totalNet),
+    totalTax: reversed(INVOICE.totalTax),
+    totalGross: reversed(INVOICE.totalGross),
+    lines: INVOICE.lines.map((line) => ({
+        ...line,
+        amountNet: reversed(line.amountNet),
+        correctedPosition: line.position,
+    })),
+    correction: { kind: 'cancellation', of: CORRECTED, reason: 'Falsche Rechnungsanschrift' },
+};
+
+/**
+ * Its XML as a credit note states it: the cancelled invoice's figures, as they
+ * stood, under the cancellation's number and day, naming the invoice it cancels.
+ */
+const creditNote = (overrides = {}) => ({
+    xml: ciiOf(INVOICE, {
+        typeCode: '381',
+        number: CANCELLATION.number,
+        issueDate: '20260220',
+        dueDate: null,
+        corrected: { number: INVOICE.number, issueDate: '20260201' },
+        ...overrides,
+    }),
+});
+
+/** The replacement of `INVOICE`, which names it. */
+const REPLACEMENT = {
+    ...INVOICE,
+    id: 'invoice-141',
+    number: 'AHP-2026-000141',
+    numberSequence: 141,
+    issueDate: '2026-02-20',
+    dueDate: '2026-03-06',
+    lines: INVOICE.lines.map((line) => ({ ...line, correctedPosition: line.position })),
+    correction: { kind: 'replacement', of: CORRECTED, reason: 'Falsche Rechnungsanschrift' },
+};
+
+// @requirement SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
+describe('a cancellation invoice', () => {
+    test('stating the cancelled figures as a credit note, naming the invoice it cancels, passes', async () => {
+        assert.deepEqual(await gapsOf(creditNote(), CANCELLATION), []);
+    });
+
+    for (const [what, overrides, gaps] of [
+        ['stated as an invoice', { typeCode: '380' }, ['xml.typeCode']],
+        [
+            'stating its figures reversed, as the record holds them',
+            {
+                lines: [-53.9, 4.9],
+                taxes: [{ rate: 19, net: -49, tax: -9.31 }],
+                lineTotal: -49,
+                totalNet: -49,
+                totalTax: -9.31,
+                totalGross: -58.31,
+                duePayable: -58.31,
+            },
+            ['xml.taxes', 'xml.totals', 'xml.lines'],
+        ],
+        ['stating the sum of its lines reversed alone', { lineTotal: -49 }, ['xml.totals']],
+        ['naming no invoice it cancels', { corrected: null }, ['xml.correctedInvoice']],
+        [
+            'naming another invoice',
+            { corrected: { number: 'AHP-2026-000124', issueDate: '20260201' } },
+            ['xml.correctedInvoice'],
+        ],
+        [
+            'naming the invoice on another day',
+            { corrected: { number: INVOICE.number, issueDate: '20260202' } },
+            ['xml.correctedInvoice'],
+        ],
+        ['naming a day it is due', { dueDate: '20260220' }, ['xml.dueDate']],
+    ]) {
+        test(`${what} is refused`, async () => {
+            assert.deepEqual(await gapsOf(creditNote(overrides), CANCELLATION), gaps);
+        });
+    }
+});
+
+// @requirement SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
+describe('a replacement', () => {
+    test('naming the invoice it replaces passes', async () => {
+        assert.deepEqual(await gapsOf({ xml: ciiOf(REPLACEMENT) }, REPLACEMENT), []);
+    });
+
+    test('naming none is refused, and so is one stated as a credit note', async () => {
+        assert.deepEqual(
+            await gapsOf({ xml: ciiOf(REPLACEMENT, { corrected: null }) }, REPLACEMENT),
+            ['xml.correctedInvoice'],
+        );
+        assert.deepEqual(
+            await gapsOf({ xml: ciiOf(REPLACEMENT, { typeCode: '381' }) }, REPLACEMENT),
+            ['xml.typeCode'],
+        );
+    });
+});
+
+describe('an invoice that corrects none', () => {
+    test('naming an invoice it corrects is refused', async () => {
+        const corrected = { number: 'AHP-2026-000100', issueDate: '20260115' };
+
+        assert.deepEqual(await gapsOf({ xml: ciiOf(INVOICE, { corrected }) }), [
+            'xml.correctedInvoice',
+        ]);
+    });
+});

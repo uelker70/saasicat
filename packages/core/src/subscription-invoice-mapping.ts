@@ -124,6 +124,9 @@ export function toSubscriptionInvoiceRecord(
         lines: [...lines]
             .sort((a, b) => a.position - b.position)
             .map((line) => toSubscriptionInvoiceLineRecord(line)),
+        // The stores issue invoices for the journal's charges only, and the
+        // tables keep no correction.
+        correction: null,
         createdAt: row.createdAt,
     };
 }
@@ -145,6 +148,7 @@ function toSubscriptionInvoiceLineRecord(
         periodUntil: dayOf(row.periodUntil, where('periodUntil')),
         amountNet: amountOf(row.amountNet, where('amountNet')),
         taxRate: amountOf(row.taxRate, where('taxRate')),
+        correctedPosition: null,
     };
 }
 
