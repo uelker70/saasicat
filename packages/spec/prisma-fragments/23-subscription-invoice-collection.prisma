@@ -17,10 +17,13 @@
 // nothing sent and neither `submittedAt` nor `heldAt`. A planned direct debit
 // is announced to the subscriber before it is collected, and `announcedAt`
 // records when; a planned attempt whose payment method is no longer in use is
-// `WITHDRAWN`. `followedUpAt` records that what follows a failure was decided.
+// `WITHDRAWN`. A succeeded attempt whose payment a reversal took back, opening
+// its invoice again, is `REVERSED` (24-subscriber-payments.prisma), and the
+// invoice is collected anew only with another payment method. `followedUpAt`
+// records that what follows a failure or a reversal was decided.
 //
 // An invoice has at most one attempt that is open (`SCHEDULED`, `SUBMITTED`,
-// `PENDING`), and none after one succeeded: a partial unique index in
+// `PENDING`), and none after one succeeded and stands: a partial unique index in
 // sql/constraints.postgres.sql, which the Prisma DSL cannot express. `status`,
 // `paymentMethodType` and `failureReason` are text holding closed sets, checked
 // when a row is read (`toInvoiceCollectionRecord` in @saasicat/core).
@@ -48,7 +51,7 @@ model SubscriptionInvoiceCollection {
     amount            Decimal @db.Decimal(12, 2)
     currency          String
 
-    status        String // SCHEDULED | SUBMITTED | PENDING | SUCCEEDED | FAILED | WITHDRAWN
+    status        String // SCHEDULED | SUBMITTED | PENDING | SUCCEEDED | FAILED | WITHDRAWN | REVERSED
     // The gateway's reference to what it created for the attempt.
     paymentRef    String?
     failureReason String?

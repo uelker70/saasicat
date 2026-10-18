@@ -9,6 +9,7 @@
 import {
     QBanner,
     QBtn,
+    QBtnToggle,
     QCard,
     QCardActions,
     QCardSection,
@@ -36,6 +37,7 @@ import type { Component } from 'vue';
 const QUASAR_COMPONENTS = {
     QBanner,
     QBtn,
+    QBtnToggle,
     QCard,
     QCardActions,
     QCardSection,

@@ -219,10 +219,17 @@ describe('a write that names the state it expects', () => {
             true,
         ],
         [
-            'a follow-up lands on a failure not followed up',
+            'a follow-up lands on a failure or a reversal not followed up',
             (repo) => repo.markFollowedUp('attempt-1', AT),
-            { id: 'attempt-1', status: 'FAILED', followedUpAt: null },
+            { id: 'attempt-1', status: { in: ['FAILED', 'REVERSED'] }, followedUpAt: null },
             { followedUpAt: AT },
+            true,
+        ],
+        [
+            'a reversal lands on a succeeded attempt, or a failed one its payment came late for, to be followed up again',
+            (repo) => repo.markReversed('attempt-1', AT),
+            { id: 'attempt-1', status: { in: ['SUCCEEDED', 'FAILED'] } },
+            { status: 'REVERSED', resolvedAt: AT, followedUpAt: null },
             true,
         ],
     ]) {
@@ -312,10 +319,14 @@ describe('reading', () => {
         assert.match(again[1], /max\(o\."attempt"\)/);
         assert.match(again[1], /c\."followedUpAt" IS NOT NULL/);
         assert.match(again[1], /m\."id" <> c\."paymentMethodId"/);
+        assert.ok(
+            again[1].includes('AND (r."followedUpAt" IS NULL OR r."paymentMethodId" = m."id")'),
+            'a reversal not told, or the payment method it was reversed on, still lists it',
+        );
         assert.ok(again[2].includes('invoice-0'));
     });
 
-    test('the failed attempts not followed up are listed by id', async () => {
+    test('the failed and the reversed attempts not followed up are listed by id', async () => {
         const client = fakeClient();
 
         await new PrismaInvoiceCollectionRepository(client).listToFollowUp({
@@ -326,7 +337,7 @@ describe('reading', () => {
         const [[, listed]] = callsOf(client, 'findMany');
         assert.deepEqual(listed.where, {
             id: { gt: 'attempt-0' },
-            status: 'FAILED',
+            status: { in: ['FAILED', 'REVERSED'] },
             followedUpAt: null,
         });
     });

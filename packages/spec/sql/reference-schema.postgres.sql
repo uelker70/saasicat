@@ -964,6 +964,7 @@ CREATE TABLE "subscription_invoice_settlements" (
     "paymentId" TEXT NOT NULL,
     "kind" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
+    "reversalId" TEXT,
     "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscription_invoice_settlements_pkey" PRIMARY KEY ("id")
@@ -978,6 +979,7 @@ CREATE TABLE "subscriber_credits" (
     "currency" TEXT NOT NULL,
     "originPaymentId" TEXT,
     "originInvoiceId" TEXT,
+    "originReversalId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscriber_credits_pkey" PRIMARY KEY ("id")
@@ -990,6 +992,7 @@ CREATE TABLE "subscriber_credit_entries" (
     "kind" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "refundId" TEXT,
+    "reversalId" TEXT,
     "reference" TEXT,
     "paidOn" DATE,
     "recordedBy" TEXT,
@@ -1013,6 +1016,45 @@ CREATE TABLE "subscriber_refunds" (
     "endedAt" TIMESTAMP(3),
 
     CONSTRAINT "subscriber_refunds_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_reversals" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "paymentId" TEXT NOT NULL,
+    "gatewayAccount" TEXT NOT NULL,
+    "gatewayRef" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "currency" TEXT NOT NULL,
+    "fromCredit" DECIMAL(12,2) NOT NULL,
+    "reinstated" DECIMAL(12,2) NOT NULL,
+    "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reinstatedAt" TIMESTAMP(3),
+
+    CONSTRAINT "subscriber_reversals_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_reconciliation_cases" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "currency" TEXT NOT NULL,
+    "paymentId" TEXT NOT NULL,
+    "refundId" TEXT,
+    "reversalId" TEXT,
+    "gatewayAccount" TEXT NOT NULL,
+    "gatewayRef" TEXT NOT NULL,
+    "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "closedAt" TIMESTAMP(3),
+    "closedBy" TEXT,
+    "note" TEXT,
+
+    CONSTRAINT "subscriber_reconciliation_cases_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -1331,6 +1373,9 @@ CREATE INDEX "subscription_invoice_settlements_invoiceId_idx" ON "subscription_i
 CREATE INDEX "subscription_invoice_settlements_paymentId_idx" ON "subscription_invoice_settlements"("paymentId");
 
 -- CreateIndex
+CREATE INDEX "subscription_invoice_settlements_reversalId_idx" ON "subscription_invoice_settlements"("reversalId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "subscriber_credits_originPaymentId_key" ON "subscriber_credits"("originPaymentId");
 
 -- CreateIndex
@@ -1340,7 +1385,13 @@ CREATE UNIQUE INDEX "subscriber_credits_originInvoiceId_key" ON "subscriber_cred
 CREATE INDEX "subscriber_credits_subscriberId_createdAt_idx" ON "subscriber_credits"("subscriberId", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "subscriber_credits_originReversalId_idx" ON "subscriber_credits"("originReversalId");
+
+-- CreateIndex
 CREATE INDEX "subscriber_credit_entries_creditId_idx" ON "subscriber_credit_entries"("creditId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_credit_entries_reversalId_idx" ON "subscriber_credit_entries"("reversalId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriber_credit_entries_refundId_creditId_kind_key" ON "subscriber_credit_entries"("refundId", "creditId", "kind");
@@ -1350,6 +1401,24 @@ CREATE INDEX "subscriber_refunds_paymentId_idx" ON "subscriber_refunds"("payment
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriber_refunds_gatewayAccount_gatewayRef_key" ON "subscriber_refunds"("gatewayAccount", "gatewayRef");
+
+-- CreateIndex
+CREATE INDEX "subscriber_reversals_paymentId_idx" ON "subscriber_reversals"("paymentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_reversals_gatewayAccount_gatewayRef_key" ON "subscriber_reversals"("gatewayAccount", "gatewayRef");
+
+-- CreateIndex
+CREATE INDEX "subscriber_reconciliation_cases_reversalId_idx" ON "subscriber_reconciliation_cases"("reversalId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_reconciliation_cases_closedAt_recordedAt_idx" ON "subscriber_reconciliation_cases"("closedAt", "recordedAt");
+
+-- CreateIndex
+CREATE INDEX "subscriber_reconciliation_cases_subscriberId_closedAt_idx" ON "subscriber_reconciliation_cases"("subscriberId", "closedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_reconciliation_cases_refundId_key" ON "subscriber_reconciliation_cases"("refundId");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1460,6 +1529,9 @@ ALTER TABLE "subscription_invoice_settlements" ADD CONSTRAINT "subscription_invo
 ALTER TABLE "subscription_invoice_settlements" ADD CONSTRAINT "subscription_invoice_settlements_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "subscriber_payments"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscription_invoice_settlements" ADD CONSTRAINT "subscription_invoice_settlements_reversalId_fkey" FOREIGN KEY ("reversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1469,16 +1541,40 @@ ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_originPaymen
 ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_originInvoiceId_fkey" FOREIGN KEY ("originInvoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscriber_credits" ADD CONSTRAINT "subscriber_credits_originReversalId_fkey" FOREIGN KEY ("originReversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscriber_credit_entries" ADD CONSTRAINT "subscriber_credit_entries_creditId_fkey" FOREIGN KEY ("creditId") REFERENCES "subscriber_credits"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriber_credit_entries" ADD CONSTRAINT "subscriber_credit_entries_refundId_fkey" FOREIGN KEY ("refundId") REFERENCES "subscriber_refunds"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscriber_credit_entries" ADD CONSTRAINT "subscriber_credit_entries_reversalId_fkey" FOREIGN KEY ("reversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscriber_refunds" ADD CONSTRAINT "subscriber_refunds_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriber_refunds" ADD CONSTRAINT "subscriber_refunds_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "subscriber_payments"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_reversals" ADD CONSTRAINT "subscriber_reversals_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_reversals" ADD CONSTRAINT "subscriber_reversals_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "subscriber_payments"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_reconciliation_cases" ADD CONSTRAINT "subscriber_reconciliation_cases_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_reconciliation_cases" ADD CONSTRAINT "subscriber_reconciliation_cases_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "subscriber_payments"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_reconciliation_cases" ADD CONSTRAINT "subscriber_reconciliation_cases_refundId_fkey" FOREIGN KEY ("refundId") REFERENCES "subscriber_refunds"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_reconciliation_cases" ADD CONSTRAINT "subscriber_reconciliation_cases_reversalId_fkey" FOREIGN KEY ("reversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.

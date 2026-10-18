@@ -87,6 +87,7 @@ import { InvoiceDocumentService } from './invoices/invoice-document.service.js';
 import { InvoiceCollectionService } from './invoices/invoice-collection.service.js';
 import { InvoicePaymentService } from './invoices/invoice-payment.service.js';
 import { SubscriberCreditService } from './invoices/subscriber-credit.service.js';
+import { SubscriberReconciliationService } from './invoices/subscriber-reconciliation.service.js';
 import {
     INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
@@ -639,6 +640,7 @@ export class TenantBillingModule {
                           asProvider(SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN, invoices.payments),
                           InvoicePaymentService,
                           SubscriberCreditService,
+                          SubscriberReconciliationService,
                       ]
                     : []),
                 ...(invoices.includeCron === false ? [] : [SubscriptionInvoiceCron]),
@@ -801,7 +803,11 @@ export class TenantBillingModule {
                     : []),
                 ...(invoices?.collections ? [InvoiceCollectionService] : []),
                 ...(invoices?.collections && invoices.payments
-                    ? [InvoicePaymentService, SubscriberCreditService]
+                    ? [
+                          InvoicePaymentService,
+                          SubscriberCreditService,
+                          SubscriberReconciliationService,
+                      ]
                     : []),
                 ...(versionNotices ? [VersionNoticeService] : []),
                 ...(hasBookings ? [BundleVersionOfferService, BundleVersionSwitchService] : []),

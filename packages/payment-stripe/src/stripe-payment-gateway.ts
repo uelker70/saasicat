@@ -329,6 +329,12 @@ export class StripePaymentGateway implements PaymentGateway {
             case 'refund.updated':
             case 'refund.failed':
                 return this.refundReportOf(event.data.object.id, event, occurredAt);
+            case 'charge.dispute.created':
+            case 'charge.dispute.updated':
+            case 'charge.dispute.closed':
+            case 'charge.dispute.funds_withdrawn':
+            case 'charge.dispute.funds_reinstated':
+                return this.reversalReportOf(event.data.object.id, event, occurredAt);
             default:
                 return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
         }
@@ -391,6 +397,45 @@ export class StripePaymentGateway implements PaymentGateway {
                 amountCents: refund.amount,
                 currency: refund.currency.toUpperCase(),
                 status: refundStatusOf(refund),
+            },
+        };
+    }
+
+    /**
+     * The dispute an event reports — a chargeback, or a direct debit the bank
+     * returned, which Stripe reports as a dispute too — as it stands now, read
+     * again for the reason `collectionReportOf` gives, with what it withdrew
+     * and what Stripe gave back read from its balance transactions. A dispute
+     * of a payment SaaSiCat did not collect is not SaaSiCat's to act on, and
+     * one that withdrew nothing yet — an inquiry — is no reversal.
+     */
+    private async reversalReportOf(
+        disputeId: string,
+        event: Stripe.Event,
+        occurredAt: Date,
+    ): Promise<PaymentGatewayEvent> {
+        const dispute = await this.stripe.disputes.retrieve(disputeId, {
+            expand: ['payment_intent', 'charge.payment_intent'],
+        });
+        // Stripe does not promise the dispute names its intent; its charge does.
+        const intent =
+            expanded<Stripe.PaymentIntent>(dispute.payment_intent) ??
+            expanded<Stripe.PaymentIntent>(expanded<Stripe.Charge>(dispute.charge)?.payment_intent);
+        const attemptKey = intent?.metadata?.[ATTEMPT_KEY];
+        const moved = movedBy(dispute);
+        if (!intent || !attemptKey || moved.withdrawnCents === 0) {
+            return { kind: 'unhandled', eventId: event.id, occurredAt, type: event.type };
+        }
+        return {
+            kind: 'reversal-reported',
+            eventId: event.id,
+            occurredAt,
+            attemptKey,
+            reversal: {
+                reversalRef: dispute.id,
+                paymentRef: intent.id,
+                ...moved,
+                currency: dispute.currency.toUpperCase(),
             },
         };
     }
@@ -686,6 +731,29 @@ function refundStatusOf(refund: Stripe.Refund): GatewayRefund['status'] {
                     'documents stands in.',
             );
     }
+}
+
+/**
+ * What a dispute withdrew from the account and what Stripe gave back, each in
+ * total, from its balance transactions: a withdrawal is negative, a give-back
+ * positive, and the dispute fee stands beside the amount rather than in it.
+ * Refuses a transaction in another currency than the dispute's, which an
+ * account that settles in another currency than it charges would write.
+ */
+function movedBy(dispute: Stripe.Dispute): { withdrawnCents: number; reinstatedCents: number } {
+    let withdrawnCents = 0;
+    let reinstatedCents = 0;
+    for (const transaction of dispute.balance_transactions) {
+        if (transaction.currency !== dispute.currency) {
+            throw new Error(
+                `Dispute ${dispute.id} is in ${dispute.currency}, and its balance transaction ` +
+                    `${transaction.id} in ${transaction.currency}.`,
+            );
+        }
+        if (transaction.amount < 0) withdrawnCents -= transaction.amount;
+        else reinstatedCents += transaction.amount;
+    }
+    return { withdrawnCents, reinstatedCents };
 }
 
 /**

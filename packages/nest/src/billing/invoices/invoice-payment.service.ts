@@ -1,7 +1,8 @@
 // What the gateway reports about money, recorded against the invoices: a
 // collection's outcome with the payment it brought, a refund the operator made
-// in the gateway, and the credit an invoice whose total is negative leaves
-// (`SC-PRIC-029`, `SC-PRIC-083`).
+// in the gateway, a reversal that takes a payment back and the gateway giving
+// it back, and the credit an invoice whose total is negative leaves
+// (`SC-PRIC-029`, `SC-PRIC-083`, `SC-PRIC-084`, `SC-PRIC-086`).
 //
 // A collection's outcome arrives two ways — the gateway's callback, and the
 // run asking the gateway about an attempt — and both record it here, on one
@@ -17,18 +18,32 @@
 // Platform-wide: a callback has no tenant, and `PaymentCallbackService` opens
 // its transaction inside `RlsBypassPort`, as the run opens its own.
 
-import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
+import {
+    Inject,
+    Injectable,
+    Logger,
+    type OnApplicationBootstrap,
+    type OnModuleInit,
+    Optional,
+} from '@nestjs/common';
 import type {
     CollectionFailureReason,
     CollectionOutcome,
     CreditPart,
     InvoiceCollectionRecord,
     InvoiceCollectionRepository,
+    InvoicePart,
+    LiftedCover,
+    ReconciliationCaseKind,
     RecordedSubscriberPayment,
     RecordedSubscriberRefund,
+    RecordedSubscriberReversal,
+    ReversalWithdrawal,
     RlsBypassPort,
     SubscriberCreditRecord,
     SubscriberPaymentRepository,
+    SubscriberReconciliationCaseRecord,
+    SubscriberReversalRecord,
     TransactionContext,
 } from '@saasicat/core';
 
@@ -42,6 +57,7 @@ import {
     type PaymentEventEffect,
     type PaymentMoneyEventHandler,
     type RefundReportedEvent,
+    type ReversalReportedEvent,
 } from '../../payments/payment-callback.service.js';
 import { PaymentGatewayRegistry } from '../../payments/payment-gateway-registry.js';
 import {
@@ -112,11 +128,68 @@ type MoneyAudit =
     | {
           entity: 'Subscriber';
           action: 'SUBSCRIBER_REFUND_UNMATCHED';
-          changes: { refundRef: string; paymentRef: string; unmatched: number; currency: string };
+          changes: {
+              refundRef: string;
+              paymentRef: string;
+              unmatched: number;
+              currency: string;
+              caseId: string | null;
+          };
+      }
+    | {
+          entity: 'Subscriber';
+          action: 'SUBSCRIBER_REVERSAL_RECORDED';
+          changes: {
+              reversalRef: string;
+              paymentRef: string;
+              withdrawn: number;
+              currency: string;
+              credit: CreditPart | null;
+              covering: CreditPart[];
+              invoices: InvoicePart[];
+              uncovered: LiftedCover[];
+              unmatched: number;
+          };
+      }
+    | {
+          entity: 'Subscriber';
+          action: 'SUBSCRIBER_REVERSAL_UNMATCHED';
+          changes: {
+              reversalRef: string;
+              paymentRef: string;
+              unmatched: number;
+              currency: string;
+              caseId: string | null;
+          };
+      }
+    | {
+          entity: 'Subscriber';
+          action: 'SUBSCRIBER_REVERSAL_GIVEN_BACK';
+          changes: {
+              reversalRef: string;
+              paymentRef: string;
+              givenBack: number;
+              currency: string;
+              credits: CreditPart[];
+              invoices: InvoicePart[];
+          };
+      }
+    | {
+          entity: 'Subscriber';
+          action: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED';
+          changes: {
+              caseId: string;
+              kind: ReconciliationCaseKind;
+              amount: number;
+              currency: string;
+              note: string | null;
+          };
       };
 
 @Injectable()
-export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModuleInit {
+export class InvoicePaymentService
+    implements PaymentMoneyEventHandler, OnModuleInit, OnApplicationBootstrap
+{
     private readonly logger = new Logger(InvoicePaymentService.name);
 
     constructor(
@@ -149,6 +222,27 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
             );
         }
         this.callbacks.handleMoneyWith(this);
+    }
+
+    /**
+     * Refuses the start where a credit not paid out is held at an account the
+     * configuration no longer names: a refund the operator makes there would
+     * never reach the credit, which could then be paid out twice
+     * (`SC-PRIC-030`). Read platform-wide, at a boot with no tenant, through
+     * the RLS bypass.
+     */
+    async onApplicationBootstrap(): Promise<void> {
+        const held = await readAcrossTenants(this.rlsBypass, () =>
+            this.payments.accountsHoldingCredits(),
+        );
+        const unconfigured = this.gateways!.unconfigured(held);
+        if (unconfigured.length === 0) return;
+        throw new Error(
+            `Credits not paid out are held at ${unconfigured.map((name) => `'${name}'`).join(', ')}, ` +
+                'which config/saas.yaml#payments.accounts no longer names. List each account again, ' +
+                'with its gateway bound, until its credits are paid out — by a refund there, or a ' +
+                "payout recorded on the tenant's page.",
+        );
     }
 
     /**
@@ -316,6 +410,93 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
     }
 
     /**
+     * A reversal the gateway reported — a returned direct debit, a chargeback
+     * — or the gateway giving it back, recorded against the payment it takes
+     * back. Where it opens the payment's invoice again, the attempt that
+     * collected it is marked reversed in the same transaction, so the invoice
+     * is collected anew only with another payment method (`SC-PRIC-085`). A
+     * payment of SaaSiCat's that is not recorded yet is answered with an
+     * error, so the gateway delivers the reversal again once it is.
+     */
+    async reversalReported(
+        event: ReversalReportedEvent,
+        context: PaymentEventContext,
+    ): Promise<PaymentEventEffect> {
+        const { reversal } = event;
+        // Only a reversal of a payment this installation collected is its to
+        // record; another installation at the same account sees its own.
+        const attempt = await this.collections.findByKey(event.attemptKey, context.tx);
+        if (!attempt || attempt.gatewayAccount !== context.gatewayAccount) {
+            this.logger.warn(
+                `Payment event ${event.eventId} at '${context.gatewayAccount}' reports reversal ` +
+                    `${reversal.reversalRef} of collection attempt ${event.attemptKey}, which ` +
+                    `${attempt ? 'was sent to another account' : 'this installation does not hold'}; nothing was recorded.`,
+            );
+            return 'nothing-to-do';
+        }
+        const at = new Date();
+        const recorded = await this.payments.recordReversal(
+            {
+                gatewayAccount: context.gatewayAccount,
+                gatewayRef: reversal.reversalRef,
+                paymentRef: reversal.paymentRef,
+                currency: reversal.currency,
+                withdrawn: reversal.withdrawnCents / 100,
+                reinstated: reversal.reinstatedCents / 100,
+                at,
+            },
+            context.tx,
+        );
+        if (recorded.outcome === 'unknown-payment') {
+            throw new Error(
+                `Reversal ${reversal.reversalRef} at '${context.gatewayAccount}' takes back payment ` +
+                    `${reversal.paymentRef} of collection attempt ${event.attemptKey}, which is not ` +
+                    'recorded yet; the gateway delivers the reversal again.',
+            );
+        }
+        if (recorded.outcome === 'unchanged') return 'nothing-to-do';
+        if (recorded.withdrawal) {
+            await this.markWhatOpened(recorded.reversal, recorded.withdrawal, at, context.tx);
+        }
+        context.afterCommit(() => this.reportReversal(recorded, reversal.paymentRef));
+        return 'took-effect';
+    }
+
+    /**
+     * Marks reversed, where a withdrawal opened an invoice again — itself, or
+     * through a cover it lifted —, the attempt whose payment it took back, the
+     * attempts whose payments the lifted covers stood for, and every attempt of
+     * that invoice that succeeded: none of them settles it any more, and one
+     * that succeeded would keep every other attempt from being made
+     * (`SC-PRIC-085`, `SC-PRIC-088`).
+     */
+    private async markWhatOpened(
+        reversal: SubscriberReversalRecord,
+        withdrawal: ReversalWithdrawal,
+        at: Date,
+        tx: TransactionContext,
+    ): Promise<void> {
+        const opened = new Set(
+            [...withdrawal.invoices, ...withdrawal.uncovered].map((part) => part.invoiceId),
+        );
+        if (opened.size === 0) return;
+        const attempts = new Set<string>();
+        for (const paymentId of new Set([
+            reversal.paymentId,
+            ...withdrawal.uncovered.map((each) => each.paymentId),
+        ])) {
+            const payment = await this.payments.findPaymentById(paymentId, tx);
+            if (payment) attempts.add(payment.collectionId);
+        }
+        for (const invoiceId of opened) {
+            for (const attempt of await this.collections.listByInvoice(invoiceId, tx)) {
+                if (attempt.status === 'SUCCEEDED') attempts.add(attempt.id);
+            }
+        }
+        for (const id of attempts) await this.collections.markReversed(id, at, tx);
+    }
+
+    /**
      * Whether the invoice still owes something after what is settled against
      * it. One that owes nothing — a payment came for it, a late one included —
      * is collected no further.
@@ -323,6 +504,13 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
     async owes(invoiceId: string): Promise<boolean> {
         const owed = await this.payments.owedBy(invoiceId);
         return owed === null || owed > 0;
+    }
+
+    /** What the invoice still owes after what is settled against it; throws for one that does not exist. */
+    async owed(invoiceId: string): Promise<number> {
+        const owed = await this.payments.owedBy(invoiceId);
+        if (owed === null) throw new Error(`Invoice ${invoiceId} does not exist.`);
+        return owed;
     }
 
     /**
@@ -368,7 +556,11 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
                 parts: recorded.parts,
             },
         });
-        if (recorded.outcome !== 'recorded' || recorded.unmatched === 0) return;
+        if (recorded.outcome === 'given-back') {
+            await this.auditClosedCases(refund.subscriberId, recorded.closedCases);
+            return;
+        }
+        if (recorded.unmatched === 0) return;
         this.logger.warn(
             `Refund ${refund.gatewayRef} at '${refund.gatewayAccount}' pays out ` +
                 `${recorded.unmatched.toFixed(2)} ${refund.currency} that no credit of subscriber ` +
@@ -382,8 +574,86 @@ export class InvoicePaymentService implements PaymentMoneyEventHandler, OnModule
                 paymentRef,
                 unmatched: recorded.unmatched,
                 currency: refund.currency,
+                caseId: recorded.case?.id ?? null,
             },
         });
+    }
+
+    /** Logs and audits what a reversal took back and what the gateway gave back of it. */
+    private async reportReversal(
+        recorded: Extract<RecordedSubscriberReversal, { outcome: 'recorded' }>,
+        paymentRef: string,
+    ): Promise<void> {
+        const { reversal, withdrawal, reinstatement } = recorded;
+        const about = { reversalRef: reversal.gatewayRef, paymentRef, currency: reversal.currency };
+        if (withdrawal) {
+            this.logger.warn(
+                `Reversal ${reversal.gatewayRef} at '${reversal.gatewayAccount}' took back ` +
+                    `payment ${paymentRef}: ${reversal.amount.toFixed(2)} ${reversal.currency} ` +
+                    'withdrawn so far.',
+            );
+            await this.writeAudit(reversal.subscriberId, {
+                entity: 'Subscriber',
+                action: 'SUBSCRIBER_REVERSAL_RECORDED',
+                changes: {
+                    ...about,
+                    withdrawn: reversal.amount,
+                    credit: withdrawal.credit,
+                    covering: withdrawal.covering,
+                    invoices: withdrawal.invoices,
+                    uncovered: withdrawal.uncovered,
+                    unmatched: withdrawal.unmatched,
+                },
+            });
+            if (withdrawal.unmatched > 0) {
+                await this.writeAudit(reversal.subscriberId, {
+                    entity: 'Subscriber',
+                    action: 'SUBSCRIBER_REVERSAL_UNMATCHED',
+                    changes: {
+                        ...about,
+                        unmatched: withdrawal.unmatched,
+                        caseId: withdrawal.case?.id ?? null,
+                    },
+                });
+            }
+        }
+        if (!reinstatement) return;
+        this.logger.log(
+            `Reversal ${reversal.gatewayRef} at '${reversal.gatewayAccount}' was given back: ` +
+                `${reversal.reinstated.toFixed(2)} ${reversal.currency} so far.`,
+        );
+        await this.writeAudit(reversal.subscriberId, {
+            entity: 'Subscriber',
+            action: 'SUBSCRIBER_REVERSAL_GIVEN_BACK',
+            changes: {
+                ...about,
+                givenBack: reversal.reinstated,
+                credits: reinstatement.credits,
+                invoices: reinstatement.invoices,
+            },
+        });
+        await this.auditClosedCases(reversal.subscriberId, reinstatement.closedCases);
+        if (reinstatement.credit) await this.auditCredit(reinstatement.credit);
+    }
+
+    /** Audits the cases SaaSiCat closed because the money they were about came back. */
+    private async auditClosedCases(
+        subscriberId: string,
+        closed: readonly SubscriberReconciliationCaseRecord[],
+    ): Promise<void> {
+        for (const each of closed) {
+            await this.writeAudit(subscriberId, {
+                entity: 'Subscriber',
+                action: 'SUBSCRIBER_RECONCILIATION_CASE_CLOSED',
+                changes: {
+                    caseId: each.id,
+                    kind: each.kind,
+                    amount: each.amount,
+                    currency: each.currency,
+                    note: each.note,
+                },
+            });
+        }
     }
 
     private async auditCredit(credit: SubscriberCreditRecord): Promise<void> {

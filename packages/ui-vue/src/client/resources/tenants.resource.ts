@@ -12,8 +12,8 @@
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
 // encoded on the way into the path there, so they are encoded here. `charges`,
-// `credits`, `recordPayout` and the subscriber's operations have no twin
-// there: the pages reach them through this descriptor alone.
+// `credits`, `payments`, `recordPayout` and the subscriber's operations have
+// no twin there: the pages reach them through this descriptor alone.
 
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
@@ -24,6 +24,7 @@ import {
     type AdminSubscriberHistoryEntry,
     type AdminSubscriberPayout,
     type AdminTenantDetail,
+    type AdminTenantPayments,
     type AdminTenantSubscriber,
     type TenantDto,
     type TenantListFilter,
@@ -119,6 +120,18 @@ export const tenantsResource = defineResource('tenants', {
             http,
             `${tenantUrl(ctx, slug)}/credits`,
             'The credits returned no body',
+        ),
+
+    /**
+     * The tenant's invoices with what each still owes, and its cases still
+     * open to reconcile. Served only where the manifest announces
+     * `payments.read`.
+     */
+    payments: async (http, ctx, slug: string): Promise<AdminTenantPayments> =>
+        requestJsonBody<AdminTenantPayments>(
+            http,
+            `${tenantUrl(ctx, slug)}/payments`,
+            'The payments returned no body',
         ),
 
     /**

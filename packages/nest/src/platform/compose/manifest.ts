@@ -10,7 +10,10 @@
 import type { FactoryProvider } from '@nestjs/common';
 import {
     INVOICE_DOCUMENT_CAPABILITY,
+    RECONCILIATION_CLOSE_CAPABILITY,
+    RECONCILIATION_READ_CAPABILITY,
     SUBSCRIBER_CREDIT_CAPABILITY,
+    SUBSCRIBER_PAYMENTS_CAPABILITY,
     SUBSCRIBER_PAYOUT_CAPABILITY,
     SUBSCRIBER_ACCOUNT_CAPABILITY,
     SUBSCRIBER_ATTENTION_CAPABILITY,
@@ -101,9 +104,13 @@ export function buildStandardManifestContribution(
     if (served.subscriberAccounts) capabilities[SUBSCRIBER_ACCOUNT_CAPABILITY] = true;
     if (served.invoiceDocuments) capabilities[INVOICE_DOCUMENT_CAPABILITY] = true;
     if (served.subscriberCredits) {
-        // One module serves the view and the payout beside it.
+        // The same composition serves the credits with the payout beside
+        // them, and the cases to reconcile with a tenant's invoices.
         capabilities[SUBSCRIBER_CREDIT_CAPABILITY] = true;
         capabilities[SUBSCRIBER_PAYOUT_CAPABILITY] = true;
+        capabilities[SUBSCRIBER_PAYMENTS_CAPABILITY] = true;
+        capabilities[RECONCILIATION_READ_CAPABILITY] = true;
+        capabilities[RECONCILIATION_CLOSE_CAPABILITY] = true;
     }
     if (served.subscriberStanding) {
         // One module serves the view and the corrections beside it.

@@ -397,6 +397,10 @@ _Tested by:_
 - `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
     - the manifest
         - announces the credits and the payout where they are served, and neither where they are not
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - the manifest
+        - announces the cases, their closing and the payments where they are served, and none where
+          they are not
 - `packages/nest/tests/an-operator-sees-a-tenants-subscriber.test.js`
     - where the view is served
         - without ${without}, neither the routes nor the capabilities exist
@@ -1021,5 +1025,117 @@ _Tested by:_
         - the history lists each correction and check with what it changed, why and by whom
     - the subscriber section on its own
         - closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown
+
+<!-- END proof -->
+
+### SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+
+🟢 💰 The part of a refund that no credit takes, and the part of a reversal that meets a credit
+already refunded or paid out (`SC-PRIC-084`), each become a case to reconcile, once however often
+the gateway reports it. The cases stand on a list of their own in the administration — with the
+subscriber, the payment and the gateway's reference, the amount and when it was recorded — and on
+the subscriber's tenant page among its open cases, beside its invoices with what each still owes
+and its credits. The operator closes a case with a note, behind the second factor, and the audit
+log records who closed it, when and why; a closed case stays readable. A refund that fails or is
+canceled, and a reversal the gateway takes back (`SC-PRIC-086`), close the cases they opened, saying
+so.
+
+_Source:_ #333 (decided 2026-10-14)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - of a payment this installation does not hold, holds and writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+        - is found by its id, and none by another
+    - the cases to reconcile
+        - the open ones are read the oldest first, a page at a time, for one subscriber where named
+        - the closed ones are read without a cursor in one statement
+        - one is closed only where it is still open, and one closed before or unknown is answered as
+          such
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - the accounts holding credits are asked with the kinds that give back
+- `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
+    - a reversal
+        - takes the turn of every invoice its payment settles, in one order, then the credits, then
+          its own row
+        - takes the open credit first, then opens the invoice, and writes its totals on its row
+        - reported again unchanged, writes nothing but the row it skips
+        - grown since the last report, writes only what grew
+        - meeting a credit already paid out and going beyond the payment, opens one case
+        - takes a credit another payment for the same invoice left before it opens the invoice
+        - of a payment this installation does not hold, writes nothing
+        - in another currency than its payment, is refused before anything is held
+        - held under its reference against another payment, is refused
+    - a reversal given back
+        - in full, gives back what it took of the credit, settles the invoice again, and only once
+        - closes the case it opened first, as SaaSiCat and saying why
+        - after the invoice was paid again, leaves what it no longer owes as a credit from the
+          reversal
+    - the cases to reconcile
+        - are read open or closed, the oldest first, a page after the case it names
+        - one is closed with the operator’s note once, and an unknown one is answered as such
+        - a refund’s part no credit takes opens one, once, and its failure closes it
+    - what the credits and invoices read
+        - what each invoice owes is read in two statements, and nothing is asked for none
+        - a reversal is found by its id, and none by another
+        - the accounts holding credits are asked with the kinds that give back, and read as texts
+        - an invoice that owes less than nothing becomes a credit of its own, once
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - a case to reconcile
+        - is opened about exactly what its kind says, open and without a note
+        - reads back closed with a note, by the operator or by SaaSiCat
+        - ${why} stops the read
+- `packages/nest/tests/a-payment-is-recorded-and-a-credit-paid-out.test.js`
+    - a refund the operator made in the gateway
+        - beyond what the subscriber is owed is recorded, and what matches nothing is a case to
+          reconcile, audited
+- `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
+    - a reversal the gateway reports
+        - that meets a credit already refunded opens a case, audited for the operator
+    - a reversal the gateway gives back
+        - closes the cases it opened, audited as closed because the money came back
+- `packages/nest/tests/an-operator-reconciles-what-matched-nothing.test.js`
+    - the cases to reconcile
+        - are listed open, the oldest first, with whom and what each is about
+        - are read a page at a time, the next one named
+        - are closed with the note, trimmed, by the operator who closed it
+        - closed once: a second close is refused, and nothing is written
+    - a tenant's payments
+        - are its invoices, the latest first, with what each still owes, and its open cases alone
+        - of a tenant without a subscriber are none
+- `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
+    - the reconciliation page
+        - lists the open cases with whom and what each is about
+        - with nothing open, says so
+        - closes a case with its note behind the second factor
+        - offers no closing without the capability to close
+        - the closed cases show the note, and who closed one where SaaSiCat did
+    - the tenant page's payments
+        - shows the invoices with what each still owes, and the open cases
+        - are not asked for where the platform does not serve them
+        - a credit a reversal given back left names the reversal
+- `packages/ui-vue/tests/reconciliation.test.js`
+    - reconciliationResource
+        - has the two operations the cases below drive, and no other
+        - cases asks for the state, and continues after a case where one is named
+        - close posts the note against the case, escaped, with the second factor
+    - tenantsResource.payments
+        - asks for the tenant's payments, with its slug escaped
+    - the list of cases
+        - reads the open cases when the page opens, and the next page when asked
+        - switching to the closed cases reads them from the first page, dropping what was added
+        - a page that fails to load is shown as the list's error, not thrown
+        - closes a case with its note behind the second factor, and reads the list again
+        - a cancelled code closes nothing
+    - a tenant's payments
+        - are read where the manifest announces them, and not otherwise
 
 <!-- END proof -->

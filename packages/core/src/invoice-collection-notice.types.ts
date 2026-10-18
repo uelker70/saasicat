@@ -1,6 +1,7 @@
 // What a subscriber is told about collecting an invoice: that a collection
-// failed and what follows, and the day a direct debit is collected when it is
-// announced again (`SC-PRIC-028`, `SC-PRIC-080`).
+// failed and what follows, the day a direct debit is collected when it is
+// announced again, and that a payment was reversed and its invoice is open
+// again (`SC-PRIC-028`, `SC-PRIC-080`, `SC-PRIC-085`).
 //
 // Unlike a notice about a subscription's plan, which goes to the tenant's
 // administrators, these go to the subscriber's invoice email — where the
@@ -53,5 +54,27 @@ export interface CollectionAnnouncedNotice extends CollectionNoticeInvoice {
     readonly last4: string;
 }
 
+/** What follows a reversal that opened an invoice again. */
+export type CollectionReversedNext =
+    /** It is collected with the payment method now in use, which replaced the reversed one. */
+    | { readonly action: 'collected-with-payment-method-in-use' }
+    /** Nothing is collected until the subscriber replaces the payment method. */
+    | { readonly action: 'replace-payment-method' };
+
+/**
+ * A payment was reversed — a direct debit the bank returned, a chargeback —
+ * and its invoice is open again. Told once per reversed attempt; nothing is
+ * collected again with the payment method the payment was made with.
+ */
+export interface CollectionReversedNotice extends CollectionNoticeInvoice {
+    readonly kind: 'collection-reversed';
+    /** How the reversed payment was made. */
+    readonly paymentMethodType: PaymentMethodType;
+    /** What the invoice owes again, of `currency`. */
+    readonly owed: number;
+    readonly next: CollectionReversedNext;
+}
+
 /** A notice about collecting an invoice. */
-export type InvoiceCollectionNotice = CollectionFailedNotice | CollectionAnnouncedNotice;
+export type InvoiceCollectionNotice =
+    CollectionFailedNotice | CollectionAnnouncedNotice | CollectionReversedNotice;

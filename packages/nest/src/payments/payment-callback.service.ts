@@ -39,7 +39,10 @@ export type CollectionReportedEvent = Extract<PaymentGatewayEvent, { kind: 'coll
 /** A refund the operator made in the gateway, as the gateway reports it. */
 export type RefundReportedEvent = Extract<PaymentGatewayEvent, { kind: 'refund-reported' }>;
 
-type MoneyEvent = CollectionReportedEvent | RefundReportedEvent;
+/** A reversal the gateway reported, of a payment an attempt collected. */
+export type ReversalReportedEvent = Extract<PaymentGatewayEvent, { kind: 'reversal-reported' }>;
+
+type MoneyEvent = CollectionReportedEvent | RefundReportedEvent | ReversalReportedEvent;
 
 /** A claimed event with the handler it goes to. */
 type Route =
@@ -101,6 +104,10 @@ export interface PaymentMoneyEventHandler {
     ): Promise<PaymentEventEffect>;
     refundReported(
         event: RefundReportedEvent,
+        context: PaymentEventContext,
+    ): Promise<PaymentEventEffect>;
+    reversalReported(
+        event: ReversalReportedEvent,
         context: PaymentEventContext,
     ): Promise<PaymentEventEffect>;
 }
@@ -240,7 +247,11 @@ export class PaymentCallbackService {
      * collects invoices, which is answered as one nobody acts on.
      */
     private routeOf(event: SetupEvent | MoneyEvent, account: string): Route | null {
-        if (event.kind === 'collection-reported' || event.kind === 'refund-reported') {
+        if (
+            event.kind === 'collection-reported' ||
+            event.kind === 'refund-reported' ||
+            event.kind === 'reversal-reported'
+        ) {
             if (this.moneyHandler) return { kind: 'money', handler: this.moneyHandler, event };
             this.logger.warn(
                 `Payment event ${event.eventId} (${event.kind}) at '${account}' is about an ` +
@@ -257,8 +268,10 @@ export class PaymentCallbackService {
             const { handler, event } = route;
             if (event.kind === 'collection-reported') {
                 await handler.collectionReported(event, context);
-            } else {
+            } else if (event.kind === 'refund-reported') {
                 await handler.refundReported(event, context);
+            } else {
+                await handler.reversalReported(event, context);
             }
             return;
         }
@@ -374,6 +387,16 @@ function summaryOf(event: SetupEvent | MoneyEvent): EventSummary {
     if (event.kind === 'refund-reported') {
         const { refundRef, paymentRef, status } = event.refund;
         return { attempt: event.attemptKey, refund: refundRef, paymentRef, status };
+    }
+    if (event.kind === 'reversal-reported') {
+        const { reversalRef, paymentRef, withdrawnCents, reinstatedCents } = event.reversal;
+        return {
+            attempt: event.attemptKey,
+            reversal: reversalRef,
+            paymentRef,
+            withdrawn: String(withdrawnCents),
+            reinstated: String(reinstatedCents),
+        };
     }
     const subject: EventSummary =
         event.subject.kind === 'registration'

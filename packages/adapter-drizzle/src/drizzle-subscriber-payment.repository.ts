@@ -2,22 +2,30 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gt, inArray, lt, notExists, sql } from 'drizzle-orm';
 import type {
+    ClosedReconciliationCase,
+    CloseReconciliationCase,
     CreditPart,
     NewSubscriberPayment,
     NewSubscriberPayout,
+    ReconciliationCaseState,
     RecordedSubscriberPayment,
     RecordedSubscriberPayout,
     RecordedSubscriberRefund,
+    RecordedSubscriberReversal,
     ReportedSubscriberRefund,
+    ReportedSubscriberReversal,
     SubscriberCreditRecord,
     SubscriberCreditStanding,
     SubscriberPaymentRecord,
     SubscriberPaymentRepository,
+    SubscriberReconciliationCaseRecord,
     SubscriberRefundRecord,
+    SubscriberReversalRecord,
     TransactionContext,
 } from '@saasicat/core';
 import {
-    columnAmountOf,
+    CASE_CLOSED_REFUND_ENDED,
+    GIVING_BACK_CREDIT_ENTRY_KINDS,
     isEndedRefund,
     openOfCredit,
     owedOn,
@@ -34,30 +42,37 @@ import {
     toSubscriberCreditRecord,
     toSubscriberPaymentRecord,
     toSubscriberRefundRecord,
+    toSubscriberReversalRecord,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
+import {
+    closeCaseIn,
+    closeCasesOf,
+    listCasesIn,
+    openCase,
+} from './drizzle-reconciliation-cases.js';
+import {
+    createCredit,
+    type Db,
+    grossOf,
+    holdCredits,
+    lockInvoice,
+    owedIn,
+    readInvoice,
+} from './drizzle-subscriber-payment-rows.js';
+import { recordReversalIn } from './drizzle-subscriber-reversal.js';
 import {
     subscriberCreditEntries,
     subscriberCredits,
     subscriberPayments,
     subscriberRefunds,
+    subscriberReversals,
     subscriptionInvoiceSettlements,
     subscriptionInvoices,
 } from './schema.js';
 
-type Db = ReturnType<typeof resolveDb>;
-
-/** What the invoice's turn reads of it. */
-interface LockedInvoice {
-    id: string;
-    subscriberId: string;
-    tenantId: string;
-    totalGross: string;
-    currency: string;
-}
-
 /**
- * `SubscriberPaymentRepository` against the five tables of fragment 24.
+ * `SubscriberPaymentRepository` against the seven tables of fragment 24.
  *
  * A payment is written in its invoice's turn — the invoice's row, locked for
  * the transaction — and a refund or a payout holds the credits it reads, so
@@ -179,12 +194,7 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
             refuseOtherCurrency(refund, payment);
             // The subscriber's credits are the refund's to divide: held, in
             // one order, before anything of them is read.
-            await db
-                .select({ id: subscriberCredits.id })
-                .from(subscriberCredits)
-                .where(eq(subscriberCredits.subscriberId, payment.subscriberId))
-                .orderBy(asc(subscriberCredits.id))
-                .for('update');
+            await holdCredits(db, payment.subscriberId);
             const [inserted] = await db
                 .insert(subscriberRefunds)
                 .values({ id: randomUUID(), ...subscriberRefundColumns(refund, payment) })
@@ -214,7 +224,7 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
         payment: SubscriberPaymentRecord,
     ): Promise<RecordedSubscriberRefund> {
         if (isEndedRefund(refund.status)) {
-            return { outcome: 'recorded', refund, parts: [], unmatched: 0 };
+            return { outcome: 'recorded', refund, parts: [], unmatched: 0, case: null };
         }
         const standings = await standingsOf(db, payment.subscriberId, refund.currency);
         const { parts, unmatched } = refundParts(
@@ -228,12 +238,24 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
             })),
         );
         await writeRefundEntries(db, refund, 'REFUND', parts, refund.recordedAt);
-        return { outcome: 'recorded', refund, parts, unmatched };
+        const opened =
+            unmatched > 0
+                ? await openCase(db, {
+                      kind: 'REFUND_UNMATCHED',
+                      amount: unmatched,
+                      currency: refund.currency,
+                      payment,
+                      about: refund,
+                      at: refund.recordedAt,
+                  })
+                : null;
+        return { outcome: 'recorded', refund, parts, unmatched, case: opened };
     }
 
     /**
      * A refund seen again: a failure or a cancellation gives back what it paid
-     * out of each credit, once; anything else changes nothing paid out.
+     * out of each credit, once, and closes the case its unmatched part opened;
+     * anything else changes nothing paid out.
      */
     private async restate(
         db: Db,
@@ -271,7 +293,13 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
             return { creditId: entry.creditId, amount: entry.amount };
         });
         await writeRefundEntries(db, refund, 'REFUND_FAILED', parts, reported.at);
-        return { outcome: 'given-back', refund: restated, parts };
+        const closedCases = await closeCasesOf(
+            db,
+            { refundId: refund.id },
+            CASE_CLOSED_REFUND_ENDED,
+            reported.at,
+        );
+        return { outcome: 'given-back', refund: restated, parts, closedCases };
     }
 
     recordPayout(
@@ -326,6 +354,17 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
         return row ? toSubscriberPaymentRecord(row) : null;
     }
 
+    async findReversalById(
+        id: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberReversalRecord | null> {
+        const [row] = await resolveDb(this.db, tx)
+            .select()
+            .from(subscriberReversals)
+            .where(eq(subscriberReversals.id, id));
+        return row ? toSubscriberReversalRecord(row) : null;
+    }
+
     async findPaymentByRef(
         gatewayAccount: string,
         gatewayRef: string,
@@ -360,78 +399,89 @@ export class DrizzleSubscriberPaymentRepository implements SubscriberPaymentRepo
         const invoice = await readInvoice(db, invoiceId);
         return invoice ? owedIn(db, invoice) : null;
     }
+
+    async owedByInvoices(
+        invoiceIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<{ invoiceId: string; owed: number }[]> {
+        if (invoiceIds.length === 0) return [];
+        const db = resolveDb(this.db, tx);
+        const invoices = await db
+            .select({ id: subscriptionInvoices.id, totalGross: subscriptionInvoices.totalGross })
+            .from(subscriptionInvoices)
+            .where(inArray(subscriptionInvoices.id, [...invoiceIds]));
+        const settled = await db
+            .select({
+                id: subscriptionInvoiceSettlements.id,
+                invoiceId: subscriptionInvoiceSettlements.invoiceId,
+                kind: subscriptionInvoiceSettlements.kind,
+                amount: subscriptionInvoiceSettlements.amount,
+            })
+            .from(subscriptionInvoiceSettlements)
+            .where(inArray(subscriptionInvoiceSettlements.invoiceId, [...invoiceIds]));
+        return invoices.map((invoice) => ({
+            invoiceId: invoice.id,
+            owed: owedOn(
+                grossOf(invoice),
+                settled.filter((row) => row.invoiceId === invoice.id).map(settledAmountOf),
+            ),
+        }));
+    }
+
+    recordReversal(
+        reversal: ReportedSubscriberReversal,
+        tx?: TransactionContext,
+    ): Promise<RecordedSubscriberReversal> {
+        return this.inTransaction(tx, (db) => recordReversalIn(db, reversal));
+    }
+
+    listCases(
+        filter: { state: ReconciliationCaseState; subscriberId?: string },
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<SubscriberReconciliationCaseRecord[]> {
+        return listCasesIn(resolveDb(this.db, tx), filter, page);
+    }
+
+    closeCase(
+        close: CloseReconciliationCase,
+        tx?: TransactionContext,
+    ): Promise<ClosedReconciliationCase> {
+        return closeCaseIn(resolveDb(this.db, tx), close);
+    }
+
+    async accountsHoldingCredits(tx?: TransactionContext): Promise<string[]> {
+        // A credit from a reversal given back is held at the account of the
+        // payment the reversal took back; one from an invoice at no account.
+        const paidOut = sql<string>`COALESCE((
+            SELECT SUM(CASE WHEN ${inArray(subscriberCreditEntries.kind, GIVING_BACK)}
+                            THEN -${subscriberCreditEntries.amount}
+                            ELSE ${subscriberCreditEntries.amount} END)
+              FROM ${subscriberCreditEntries}
+             WHERE ${subscriberCreditEntries.creditId} = ${subscriberCredits.id}
+        ), 0)`;
+        const rows = await resolveDb(this.db, tx)
+            .selectDistinct({ account: subscriberPayments.gatewayAccount })
+            .from(subscriberCredits)
+            .leftJoin(
+                subscriberReversals,
+                eq(subscriberReversals.id, subscriberCredits.originReversalId),
+            )
+            .innerJoin(
+                subscriberPayments,
+                eq(
+                    subscriberPayments.id,
+                    sql`COALESCE(${subscriberCredits.originPaymentId}, ${subscriberReversals.paymentId})`,
+                ),
+            )
+            .where(gt(subscriberCredits.amount, paidOut))
+            .orderBy(asc(subscriberPayments.gatewayAccount));
+        return rows.map((row) => row.account);
+    }
 }
 
-/** Takes the invoice's turn and reads what a payment against it needs; throws where it does not exist. */
-async function lockInvoice(db: Db, invoiceId: string): Promise<LockedInvoice> {
-    const [row] = await invoiceQuery(db, invoiceId).for('update');
-    if (!row) throw new Error(`Invoice ${invoiceId} does not exist.`);
-    return row;
-}
-
-async function readInvoice(db: Db, invoiceId: string): Promise<LockedInvoice | null> {
-    const [row] = await invoiceQuery(db, invoiceId);
-    return row ?? null;
-}
-
-function invoiceQuery(db: Db, invoiceId: string) {
-    return db
-        .select({
-            id: subscriptionInvoices.id,
-            subscriberId: subscriptionInvoices.subscriberId,
-            tenantId: subscriptionInvoices.tenantId,
-            totalGross: subscriptionInvoices.totalGross,
-            currency: subscriptionInvoices.currency,
-        })
-        .from(subscriptionInvoices)
-        .where(eq(subscriptionInvoices.id, invoiceId));
-}
-
-function grossOf(invoice: LockedInvoice): number {
-    return columnAmountOf(invoice.totalGross, {
-        table: 'subscription_invoices',
-        column: 'totalGross',
-        id: invoice.id,
-    });
-}
-
-/** What `invoice` still owes after what is settled against it. */
-async function owedIn(db: Db, invoice: LockedInvoice): Promise<number> {
-    const settled = await db
-        .select({
-            id: subscriptionInvoiceSettlements.id,
-            kind: subscriptionInvoiceSettlements.kind,
-            amount: subscriptionInvoiceSettlements.amount,
-        })
-        .from(subscriptionInvoiceSettlements)
-        .where(eq(subscriptionInvoiceSettlements.invoiceId, invoice.id));
-    return owedOn(grossOf(invoice), settled.map(settledAmountOf));
-}
-
-/** Writes a credit for the subscriber `invoice` names, once for its origin. */
-async function createCredit(
-    db: Db,
-    invoice: LockedInvoice,
-    amount: number,
-    origin: { originPaymentId: string } | { originInvoiceId: string },
-    at: Date,
-): Promise<SubscriberCreditRecord | null> {
-    const [row] = await db
-        .insert(subscriberCredits)
-        .values({
-            id: randomUUID(),
-            subscriberId: invoice.subscriberId,
-            tenantId: invoice.tenantId,
-            amount: toDecimalString(amount),
-            currency: invoice.currency,
-            originPaymentId: 'originPaymentId' in origin ? origin.originPaymentId : null,
-            originInvoiceId: 'originInvoiceId' in origin ? origin.originInvoiceId : null,
-            createdAt: at,
-        })
-        .onConflictDoNothing()
-        .returning();
-    return row ? toSubscriberCreditRecord(row) : null;
-}
+/** The credit entry kinds that give back, as a parameter of the sum above. */
+const GIVING_BACK = [...GIVING_BACK_CREDIT_ENTRY_KINDS];
 
 /** The subscriber's credits, in `currency` where it is given, the oldest first. */
 async function standingsOf(

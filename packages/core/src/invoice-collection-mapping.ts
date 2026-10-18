@@ -27,6 +27,7 @@ export const INVOICE_COLLECTION_STATUSES: readonly InvoiceCollectionStatus[] = [
     'SUCCEEDED',
     'FAILED',
     'WITHDRAWN',
+    'REVERSED',
 ];
 
 /**
@@ -47,6 +48,22 @@ export const BLOCKING_COLLECTION_STATUSES: readonly InvoiceCollectionStatus[] = 
     'SCHEDULED',
     ...UNSETTLED_COLLECTION_STATUSES,
     'SUCCEEDED',
+];
+
+/** The attempts what follows is decided for: a failure, and a reversal that opened the invoice again. */
+export const FOLLOWED_UP_COLLECTION_STATUSES: readonly InvoiceCollectionStatus[] = [
+    'FAILED',
+    'REVERSED',
+];
+
+/**
+ * The statuses of an attempt whose payment a reversal can take back: one that
+ * succeeded, and one that failed before its payment arrived after all, beside
+ * another attempt of its invoice that was on its way or succeeded.
+ */
+export const REVERSIBLE_COLLECTION_STATUSES: readonly InvoiceCollectionStatus[] = [
+    'SUCCEEDED',
+    'FAILED',
 ];
 
 /** What the turn reads of an invoice's attempts before it writes the next one. */

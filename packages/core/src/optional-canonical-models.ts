@@ -49,6 +49,14 @@ export const OPTIONAL_CANONICAL_MODELS = {
         'entitlement.subscriberPaymentRepository',
         'entitlement.invoiceCollectionRepository',
     ],
+    SubscriberReversal: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
+    SubscriberReconciliationCase: [
+        'entitlement.subscriberPaymentRepository',
+        'entitlement.invoiceCollectionRepository',
+    ],
     PromoCodeHold: ['promo.holdRepository'],
 } as const;
 

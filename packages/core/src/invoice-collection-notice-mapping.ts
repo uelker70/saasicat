@@ -12,6 +12,8 @@ import type {
     CollectionAnnouncedNotice,
     CollectionFailedNotice,
     CollectionFailureNext,
+    CollectionReversedNext,
+    CollectionReversedNotice,
 } from './invoice-collection-notice.types.js';
 import { PAYMENT_METHOD_TYPES } from './subscriber-payment-method-mapping.js';
 
@@ -20,6 +22,11 @@ const TABLE = 'subscription_notices';
 const NEXT_ACTIONS: readonly CollectionFailureNext['action'][] = [
     'charged-again',
     'announced-again',
+    'replace-payment-method',
+];
+
+const AFTER_REVERSAL_ACTIONS: readonly CollectionReversedNext['action'][] = [
+    'collected-with-payment-method-in-use',
     'replace-payment-method',
 ];
 
@@ -108,5 +115,17 @@ export function toCollectionAnnouncedNotice(
         collectOn: fields.day('collectOn'),
         mandateReference: fields.text('mandateReference'),
         last4: fields.text('last4'),
+    };
+}
+
+/** A recorded `collection-reversed` notice, `id` being its record's. */
+export function toCollectionReversedNotice(content: unknown, id: string): CollectionReversedNotice {
+    const fields = new NoticeFields(content, id);
+    return {
+        kind: fields.oneOf(['collection-reversed'], 'kind'),
+        ...fields.invoice(),
+        paymentMethodType: fields.oneOf(PAYMENT_METHOD_TYPES, 'paymentMethodType'),
+        owed: fields.amount('owed'),
+        next: { action: fields.nested('next').oneOf(AFTER_REVERSAL_ACTIONS, 'action') },
     };
 }

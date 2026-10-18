@@ -165,6 +165,20 @@ export type PaymentGatewayEvent =
           refund: GatewayRefund;
       }
     | {
+          /**
+           * Money the gateway took back from the operator for a payment an
+           * attempt of SaaSiCat's collected — a direct debit the bank returned,
+           * a chargeback — and what it gave back of it, both as they stand
+           * when the adapter translates the report.
+           */
+          kind: 'reversal-reported';
+          eventId: string;
+          occurredAt: Date;
+          /** The attempt that collected the payment it takes back. */
+          attemptKey: string;
+          reversal: GatewayReversal;
+      }
+    | {
           /** Genuine, and nothing SaaSiCat acts on. */
           kind: 'unhandled';
           eventId: string;
@@ -255,6 +269,25 @@ export interface GatewayRefund {
     /** As `config/saas.yaml#currency` writes it, e.g. `EUR`. */
     currency: string;
     status: 'pending' | 'succeeded' | 'failed' | 'canceled';
+}
+
+/**
+ * A reversal as the gateway reports it: what it withdrew from the operator and
+ * what it gave back, each in total so far, so a report delivered late or twice
+ * says what stands rather than what changed. A dispute that withdraws nothing
+ * yet, such as an inquiry, is no reversal.
+ */
+export interface GatewayReversal {
+    /** The gateway's reference to it, such as a dispute's, unique within its account. */
+    reversalRef: string;
+    /** The gateway's reference to the payment it takes back. */
+    paymentRef: string;
+    /** What it withdrew so far, in cents of `currency`. */
+    withdrawnCents: number;
+    /** What the gateway gave back of it so far, in cents of `currency`: a dispute won. */
+    reinstatedCents: number;
+    /** As `config/saas.yaml#currency` writes it, e.g. `EUR`. */
+    currency: string;
 }
 
 /** Which attempt the gateway is asked about. */

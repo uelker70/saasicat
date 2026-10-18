@@ -27,10 +27,12 @@ import type { CalendarDay } from './zoned-day.js';
  * and until an answer is recorded; `PENDING` while a direct debit is on its
  * way; `SUCCEEDED` and `FAILED` once it is settled; `WITHDRAWN` where a planned
  * one will not be made, because the payment method it was planned with is no
- * longer in use.
+ * longer in use; `REVERSED` where it succeeded and a reversal of its payment —
+ * a returned direct debit, a chargeback — opened its invoice again, which is
+ * then collected only with another payment method (`SC-PRIC-085`).
  */
 export type InvoiceCollectionStatus =
-    'SCHEDULED' | 'SUBMITTED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'WITHDRAWN';
+    'SCHEDULED' | 'SUBMITTED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'WITHDRAWN' | 'REVERSED';
 
 /** An attempt as a store reads it back. */
 export interface InvoiceCollectionRecord {
@@ -83,9 +85,9 @@ export interface InvoiceCollectionRecord {
     /** When a planned direct debit's announcement reached the subscriber; `null` until it did. */
     announcedAt: Date | null;
     /**
-     * When what follows a failure was decided — the subscriber's notice
-     * recorded, and the next attempt planned where one is made; `null` until it
-     * was, and for an attempt that did not fail.
+     * When what follows a failure or a reversal was decided — the subscriber's
+     * notice recorded, and the next attempt planned where one is made; `null`
+     * until it was, and for an attempt that neither failed nor was reversed.
      */
     followedUpAt: Date | null;
 }
@@ -189,6 +191,19 @@ export const COLLECTION_NOT_SENT_PAID: CollectionOutcome = {
     paymentRef: null,
     reason: 'other',
     gatewayCode: 'saasicat_invoice_paid',
+};
+
+/**
+ * The same for an attempt whose payment method a payment of its invoice was
+ * reversed on meanwhile: sent now, it would collect with that payment method
+ * again (`SC-PRIC-085`). The reversal's notice tells the subscriber what
+ * follows.
+ */
+export const COLLECTION_NOT_SENT_REVERSED: CollectionOutcome = {
+    status: 'failed',
+    paymentRef: null,
+    reason: 'other',
+    gatewayCode: 'saasicat_payment_method_reversed',
 };
 
 /**

@@ -36,6 +36,7 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     settings: '/admin/settings',
     maintenance: '/admin/maintenance',
     featureWithdrawals: '/admin/feature-withdrawals',
+    reconciliation: '/admin/reconciliation',
 };
 
 function isSupportedStandardPageKey(key: string): key is StandardPageKey {
@@ -120,6 +121,7 @@ const DEFAULT_ICONS: Record<StandardPageKey, string> = {
     settings: 'tune',
     maintenance: 'construction',
     featureWithdrawals: 'block',
+    reconciliation: 'rule',
 };
 
 type SectionKey = keyof (typeof navMessages)['de']['sections'];
@@ -136,6 +138,7 @@ const PAGE_SECTIONS: Partial<Record<StandardPageKey, SectionKey>> = {
     subscriptions: 'customers',
     users: 'customers',
     pilots: 'customers',
+    reconciliation: 'customers',
     audit: 'system',
     platformEmail: 'system',
     platformEmailHistory: 'system',
