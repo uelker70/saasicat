@@ -163,7 +163,10 @@ function invoiceStore(journal) {
                     ...l,
                     id: `${id}-line-${index + 1}`,
                     invoiceId: id,
+                    correctedPosition: null,
                 })),
+                // As a store reads an issued invoice back: one the run issues corrects none.
+                correction: null,
                 createdAt: invoice.issuedAt,
             };
             invoices.push(issued);

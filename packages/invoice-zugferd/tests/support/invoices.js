@@ -1,9 +1,14 @@
 // Invoices as the store reads them back, one for each treatment the German
-// adapter decides, one for each way an invoice is collected, and one long
-// enough to run on to further pages. The tests render them, and CI hands the
-// files to the format's own validators (`scripts/write-samples.mjs`).
+// adapter decides, one for each way an invoice is collected, one long enough
+// to run on to further pages, and a cancellation invoice and its replacement.
+// The tests render them, and CI hands the files to the format's own validators
+// (`scripts/write-samples.mjs`).
 
 const ISSUED_AT = new Date('2026-02-01T05:15:00.000Z');
+
+/** When the samples that correct an invoice were issued, and the day. */
+const CORRECTED_AT = new Date('2026-02-20T09:30:00.000Z');
+const CORRECTED_ON = '2026-02-20';
 
 const ISSUER = {
     legalName: 'AutohausPro Software GmbH',
@@ -81,6 +86,7 @@ function line(position, title, amountNet, taxRate, overrides = {}) {
         periodUntil: '2026-02-28',
         amountNet,
         taxRate,
+        correctedPosition: null,
         ...overrides,
     };
 }
@@ -130,19 +136,138 @@ function invoice(
             totalTax: tax,
             totalGross: Math.round((net + tax) * 100) / 100,
             lines,
+            correction: null,
             createdAt: ISSUED_AT,
         },
     };
 }
 
+/** `amount` taken the other way: nothing stays nothing, rather than minus nothing. */
+function reversed(amount) {
+    return amount === 0 ? 0 : -amount;
+}
+
+/**
+ * The cancellation invoice of the sample `cancelled`: the same figures
+ * reversed, each line naming the line it cancels, and asking for nothing.
+ */
+function cancellationOf(name, cancelled, { number, sequence, reason }) {
+    const of = cancelled.invoice;
+    const id = `invoice-${name}`;
+    return {
+        name,
+        invoice: {
+            ...of,
+            id,
+            number,
+            numberSequence: sequence,
+            issuedAt: CORRECTED_AT,
+            issueDate: CORRECTED_ON,
+            dueDate: CORRECTED_ON,
+            payment: null,
+            collectionDate: null,
+            taxes: of.taxes.map((entry) => ({
+                ...entry,
+                net: reversed(entry.net),
+                tax: reversed(entry.tax),
+            })),
+            totalNet: reversed(of.totalNet),
+            totalTax: reversed(of.totalTax),
+            totalGross: reversed(of.totalGross),
+            lines: of.lines.map((entry) => ({
+                ...entry,
+                id: `${name}-${entry.id}`,
+                invoiceId: id,
+                amountNet: reversed(entry.amountNet),
+                correctedPosition: entry.position,
+            })),
+            correction: {
+                kind: 'cancellation',
+                of: { invoiceId: of.id, number: of.number, issueDate: of.issueDate },
+                reason,
+            },
+            createdAt: CORRECTED_AT,
+        },
+    };
+}
+
+/** The replacement of the sample `cancelled`, its lines naming the lines they replace. */
+function replacementOf(name, cancelled, { number, sequence, reason, subscriber, payment }) {
+    const of = cancelled.invoice;
+    const id = `invoice-${name}`;
+    return {
+        name,
+        invoice: {
+            ...of,
+            id,
+            number,
+            numberSequence: sequence,
+            issuedAt: CORRECTED_AT,
+            issueDate: CORRECTED_ON,
+            dueDate: '2026-03-06',
+            subscriber,
+            payment,
+            collectionDate: null,
+            lines: of.lines.map((entry) => ({
+                ...entry,
+                id: `${name}-${entry.id}`,
+                invoiceId: id,
+                correctedPosition: entry.position,
+            })),
+            correction: {
+                kind: 'replacement',
+                of: { invoiceId: of.id, number: of.number, issueDate: of.issueDate },
+                reason,
+            },
+            createdAt: CORRECTED_AT,
+        },
+    };
+}
+
+const STANDARD = invoice('standard', {
+    treatment: { kind: 'standard', rate: 19, note: null },
+    lines: [
+        line(1, 'Standard, monatlich', 49, 19),
+        line(2, 'Zusatzmodul Werkstattplanung', 19.9, 19),
+        line(3, 'Willkommensrabatt 10 %', -4.9, 19),
+    ],
+});
+
+const REVERSE_CHARGE = invoice('reverse-charge', {
+    treatment: {
+        kind: 'reverse-charge',
+        rate: 0,
+        note: 'Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG) / Reverse charge',
+    },
+    subscriber: {
+        ...SUBSCRIBER,
+        legalName: 'Autohaus Gruber GmbH',
+        vatId: 'ATU12345678',
+        addressLine1: 'Mariahilfer Straße 10',
+        addressLine2: null,
+        postalCode: '1070',
+        city: 'Wien',
+        country: 'AT',
+    },
+    lines: [line(1, 'Standard, monatlich', 49, 0)],
+});
+
+/** Why the samples that correct `standard` were cancelled. */
+const WRONG_ADDRESS = 'Falsche Rechnungsanschrift: Ringstraße 1 statt Ringstraße 11';
+
 export const SAMPLES = [
-    invoice('standard', {
-        treatment: { kind: 'standard', rate: 19, note: null },
-        lines: [
-            line(1, 'Standard, monatlich', 49, 19),
-            line(2, 'Zusatzmodul Werkstattplanung', 19.9, 19),
-            line(3, 'Willkommensrabatt 10 %', -4.9, 19),
-        ],
+    STANDARD,
+    cancellationOf('cancellation', STANDARD, {
+        number: 'AHP-2026-000140',
+        sequence: 140,
+        reason: WRONG_ADDRESS,
+    }),
+    replacementOf('replacement', STANDARD, {
+        number: 'AHP-2026-000141',
+        sequence: 141,
+        reason: WRONG_ADDRESS,
+        subscriber: { ...SUBSCRIBER, addressLine1: 'Ringstraße 11' },
+        payment: CARD,
     }),
     invoice('direct-debit', {
         treatment: { kind: 'standard', rate: 19, note: null },
@@ -182,23 +307,11 @@ export const SAMPLES = [
         issuer: { ...ISSUER, legalName: 'Erika Muster IT-Service', vatId: null },
         lines: [line(1, 'Standard, monatlich', 49, 0)],
     }),
-    invoice('reverse-charge', {
-        treatment: {
-            kind: 'reverse-charge',
-            rate: 0,
-            note: 'Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG) / Reverse charge',
-        },
-        subscriber: {
-            ...SUBSCRIBER,
-            legalName: 'Autohaus Gruber GmbH',
-            vatId: 'ATU12345678',
-            addressLine1: 'Mariahilfer Straße 10',
-            addressLine2: null,
-            postalCode: '1070',
-            city: 'Wien',
-            country: 'AT',
-        },
-        lines: [line(1, 'Standard, monatlich', 49, 0)],
+    REVERSE_CHARGE,
+    cancellationOf('cancellation-reverse-charge', REVERSE_CHARGE, {
+        number: 'AHP-2026-000142',
+        sequence: 142,
+        reason: 'USt-IdNr. des Leistungsempfängers fehlte',
     }),
     invoice('not-taxable', {
         treatment: {

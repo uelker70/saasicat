@@ -47,10 +47,47 @@ export interface SubscriptionInvoiceLineRecord {
     amountNet: number;
     /** In per cent: the rate of the invoice's treatment. */
     taxRate: number;
+    /**
+     * On a cancellation invoice, the position of the line it cancels; on a
+     * replacement, of the line it replaces — both on the invoice
+     * `correction.of` names (`SC-AUD-013`). `null` on an invoice's own line.
+     */
+    correctedPosition: number | null;
 }
 
-/** A line to write: everything but what the store assigns. */
-export type NewSubscriptionInvoiceLine = Omit<SubscriptionInvoiceLineRecord, 'id' | 'invoiceId'>;
+/**
+ * A line to write: everything but what the store assigns. What a line
+ * corrects is not among it until a store can keep it.
+ */
+export type NewSubscriptionInvoiceLine = Omit<
+    SubscriptionInvoiceLineRecord,
+    'id' | 'invoiceId' | 'correctedPosition'
+>;
+
+/** What a correction of an issued invoice is (`SC-PRIC-025`). */
+export type SubscriptionInvoiceCorrectionKind = 'cancellation' | 'replacement';
+
+/**
+ * What a cancellation invoice or a replacement says of the invoice it corrects
+ * (`SC-PRIC-025`, `SC-PRIC-089`): which invoice that is, as it was issued, and
+ * why it was cancelled.
+ */
+export interface SubscriptionInvoiceCorrection {
+    /**
+     * `cancellation` cancels the whole of the invoice `of` names, and states
+     * its amounts reversed; `replacement` takes its place for what is still
+     * owed.
+     */
+    kind: SubscriptionInvoiceCorrectionKind;
+    /** The invoice it corrects, as that invoice was issued. */
+    of: {
+        invoiceId: string;
+        number: string;
+        issueDate: CalendarDay;
+    };
+    /** The reason the operator gave for the cancellation (`SC-ADM-020`). */
+    reason: string;
+}
 
 /**
  * The payment method an invoice is collected with, copied from the
@@ -127,16 +164,22 @@ export interface SubscriptionInvoiceRecord {
     totalTax: number;
     totalGross: number;
     lines: SubscriptionInvoiceLineRecord[];
+    /**
+     * What it corrects, on a cancellation invoice or a replacement; `null` on
+     * an invoice issued for the charge journal's charges.
+     */
+    correction: SubscriptionInvoiceCorrection | null;
     createdAt: Date;
 }
 
 /**
  * An invoice to issue: everything but what the store assigns — the id, and
- * the number, which the store draws when it writes the invoice.
+ * the number, which the store draws when it writes the invoice. What an
+ * invoice corrects is not among it until a store can keep it.
  */
 export interface NewSubscriptionInvoice extends Omit<
     SubscriptionInvoiceRecord,
-    'id' | 'number' | 'numberSequence' | 'lines' | 'createdAt'
+    'id' | 'number' | 'numberSequence' | 'lines' | 'correction' | 'createdAt'
 > {
     lines: NewSubscriptionInvoiceLine[];
 }

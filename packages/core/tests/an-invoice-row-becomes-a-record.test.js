@@ -173,11 +173,18 @@ function withoutStoreFields(record) {
 }
 
 describe('an invoice row becomes a record', () => {
-    test('that says what the invoice drafted said, from either adapter’s row', () => {
+    test('that says what the invoice drafted said, and corrects nothing, from either adapter’s row', () => {
+        // The tables keep no correction, so a row reads back as an invoice of
+        // the journal's charges, none of its lines standing for another's.
+        const drafted = {
+            ...INVOICE,
+            correction: null,
+            lines: INVOICE.lines.map((line) => ({ ...line, correctedPosition: null })),
+        };
         for (const { row, lines } of [drizzleRows(), prismaRows()]) {
             const record = toSubscriptionInvoiceRecord(row, lines);
 
-            assert.deepEqual(withoutStoreFields(record), INVOICE);
+            assert.deepEqual(withoutStoreFields(record), drafted);
             assert.deepEqual(
                 [record.id, record.number, record.numberSequence],
                 ['invoice-1', 'AHP-2026-000001', 1],

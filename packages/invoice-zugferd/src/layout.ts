@@ -8,6 +8,7 @@ import { PDFName, grayscale, type PDFDocument, type PDFFont, type PDFPage } from
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
 
 import { taxStatementOf } from './categories.js';
+import { correctionNoteOf, isCancellation, lineCorrectionOf, titleOf } from './correction.js';
 import { pageAmount, pageDay, pageRate } from './format.js';
 import { LABELS, bilingual, type Label } from './labels.js';
 import { paymentNoteOf } from './payment-note.js';
@@ -34,6 +35,9 @@ const GREY = grayscale(0.35);
 /** The columns of the table of lines, as left edges; the net column ends at `RIGHT`. */
 const COLUMNS = { position: LEFT, description: LEFT + 17 * MM, period: 118 * MM, net: RIGHT };
 const DESCRIPTION_WIDTH = COLUMNS.period - COLUMNS.description - 3 * MM;
+/** The line under a line's description naming the line of the corrected invoice it stands for. */
+const REFERENCE_SIZE = 7.5;
+const REFERENCE_LEADING = 9;
 
 export interface Fonts {
     regular: PDFFont;
@@ -151,7 +155,11 @@ export function layOut(pdf: PDFDocument, invoice: SubscriptionInvoiceRecord, fon
     y = tableHeader(page, pen, invoice, y);
     for (const entry of invoice.lines) {
         const description = pen.wrap(entry.title, DESCRIPTION_WIDTH, 9);
-        const height = description.length * 11 + 4;
+        const corrected = lineCorrectionOf(invoice, entry);
+        const reference = corrected
+            ? pen.wrap(bilingual(corrected), DESCRIPTION_WIDTH, REFERENCE_SIZE)
+            : [];
+        const height = description.length * 11 + reference.length * REFERENCE_LEADING + 4;
         if (y - height < foot.top + 10 * MM) {
             page = newPage();
             y = followingPage(page, pen, invoice);
@@ -160,6 +168,17 @@ export function layOut(pdf: PDFDocument, invoice: SubscriptionInvoiceRecord, fon
         pen.write(page, String(entry.position), COLUMNS.position, y, 9);
         description.forEach((text, index) =>
             pen.write(page, text, COLUMNS.description, y - index * 11, 9),
+        );
+        const below = y - description.length * 11 + 2;
+        reference.forEach((text, index) =>
+            pen.write(
+                page,
+                text,
+                COLUMNS.description,
+                below - index * REFERENCE_LEADING,
+                REFERENCE_SIZE,
+                { grey: true },
+            ),
         );
         pen.write(
             page,
@@ -265,16 +284,7 @@ function firstPage(page: PDFPage, pen: Pen, invoice: SubscriptionInvoiceRecord):
     }
 
     let facts = Math.min(top - 55 * MM, y - 8 * MM);
-    for (const [label, value] of [
-        [LABELS.number, invoice.number],
-        [LABELS.issueDate, pageDay(invoice.issueDate)],
-        [
-            LABELS.servicePeriod,
-            `${pageDay(invoice.servicePeriodFrom)} – ${pageDay(invoice.servicePeriodUntil)}`,
-        ],
-        [LABELS.customerNumber, subscriber.customerNumber],
-        [LABELS.dueDate, pageDay(invoice.dueDate)],
-    ] as Array<[Label, string]>) {
+    for (const [label, value] of factsOf(invoice)) {
         pen.write(page, bilingual(label), SIDE, facts, 7.5, { grey: true });
         pen.write(page, value, SIDE, facts - 10, 9.5, { bold: true });
         facts -= 23;
@@ -282,16 +292,57 @@ function firstPage(page: PDFPage, pen: Pen, invoice: SubscriptionInvoiceRecord):
     const lastFact = facts + 23 - 10;
 
     const title = Math.min(top - 110 * MM, Math.min(below, lastFact) - 15 * MM);
-    pen.write(page, `${bilingual(LABELS.title)} ${invoice.number}`, LEFT, title, 15, {
+    pen.write(page, `${bilingual(titleOf(invoice))} ${invoice.number}`, LEFT, title, 15, {
         bold: true,
     });
-    return title - 12 * MM;
+    const correction = correctionNoteOf(invoice);
+    if (!correction) return title - 12 * MM;
+    // Which invoice it corrects and why, in German and then English, under the title.
+    let next = title - 8 * MM;
+    for (const text of [correction.de, correction.en]) {
+        next = pen.writeWrapped(page, text, {
+            x: LEFT,
+            y: next,
+            size: 9,
+            width: RIGHT - LEFT,
+            leading: 11,
+        });
+        next -= 13;
+    }
+    return next - 6 * MM;
+}
+
+/**
+ * The facts beside the address field. A cancellation invoice asks for nothing,
+ * so it is due on no day; a correction names the invoice it corrects.
+ */
+function factsOf(invoice: SubscriptionInvoiceRecord): Array<[Label, string]> {
+    const facts: Array<[Label, string]> = [
+        [LABELS.number, invoice.number],
+        [LABELS.issueDate, pageDay(invoice.issueDate)],
+        [
+            LABELS.servicePeriod,
+            `${pageDay(invoice.servicePeriodFrom)} – ${pageDay(invoice.servicePeriodUntil)}`,
+        ],
+        [LABELS.customerNumber, invoice.subscriber.customerNumber],
+    ];
+    const { correction } = invoice;
+    if (correction) {
+        facts.push([
+            correction.kind === 'cancellation' ? LABELS.cancels : LABELS.replaces,
+            `${correction.of.number} (${pageDay(correction.of.issueDate)})`,
+        ]);
+    }
+    if (!isCancellation(invoice)) facts.push([LABELS.dueDate, pageDay(invoice.dueDate)]);
+    return facts;
 }
 
 /** A page the table runs on to: the invoice named at its head. */
 function followingPage(page: PDFPage, pen: Pen, invoice: SubscriptionInvoiceRecord): number {
     const y = PAGE.height - 20 * MM;
-    pen.write(page, `${bilingual(LABELS.title)} ${invoice.number}`, LEFT, y, 10, { bold: true });
+    pen.write(page, `${bilingual(titleOf(invoice))} ${invoice.number}`, LEFT, y, 10, {
+        bold: true,
+    });
     return y - 12 * MM;
 }
 

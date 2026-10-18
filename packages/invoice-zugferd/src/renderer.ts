@@ -15,6 +15,7 @@ import { AFRelationship, PDFDocument, PDFHexString, PDFName } from 'pdf-lib';
 import type { InvoiceDocument, InvoiceRenderer, SubscriptionInvoiceRecord } from '@saasicat/core';
 
 import { ciiOf } from './cii.js';
+import { titleOf } from './correction.js';
 import { layOut, type Fonts } from './layout.js';
 import { withEvenGlyphs } from './truetype.js';
 import { xmpOf } from './xmp.js';
@@ -75,7 +76,7 @@ export class ZugferdInvoiceRenderer implements InvoiceRenderer {
 
         layOut(pdf, invoice, fonts);
 
-        const title = `Rechnung ${invoice.number}`;
+        const title = `${titleOf(invoice).de} ${invoice.number}`;
         pdf.setTitle(title);
         pdf.setProducer(PRODUCER);
         pdf.setCreator(CREATOR);

@@ -36,6 +36,9 @@ const EN_16931_LEVEL = 'EN 16931';
 /** UNTDID 1001: a commercial invoice. */
 const COMMERCIAL_INVOICE = '380';
 
+/** UNTDID 1001: a credit note, which a cancellation invoice is (`SC-PRIC-089`). */
+const CREDIT_NOTE = '381';
+
 /**
  * What the check reads where the XML does not say a thing exactly once that
  * EN 16931 has it say once: a second VAT id of a party, or a line with no VAT
@@ -116,6 +119,10 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
     const check = (gap: string, holds: boolean) => {
         if (!holds) gaps.push(gap);
     };
+    // A cancellation invoice records the amounts of the invoice it cancels
+    // reversed, and its XML states them as a credit note does, positive.
+    const cancellation = invoice.correction?.kind === 'cancellation';
+    const sign = cancellation ? -1 : 1;
     check(
         'xml.profile',
         text(
@@ -123,13 +130,26 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
             'ID',
         ) === EN_16931_PROFILE,
     );
-    check('xml.typeCode', text(header, 'TypeCode') === COMMERCIAL_INVOICE);
+    check(
+        'xml.typeCode',
+        text(header, 'TypeCode') === (cancellation ? CREDIT_NOTE : COMMERCIAL_INVOICE),
+    );
     check('xml.number', text(header, 'ID') === written(invoice.number));
     check('xml.issueDate', dayOf(path(header, 'IssueDateTime')) === invoice.issueDate);
+    // A cancellation invoice asks for nothing, so it names no day it is due.
     check(
         'xml.dueDate',
         dayOf(path(settlement, 'SpecifiedTradePaymentTerms', 'DueDateDateTime')) ===
-            invoice.dueDate,
+            (cancellation ? null : invoice.dueDate),
+    );
+    // The invoice a correction corrects, by number and issue date (BT-25,
+    // BT-26), which German law asks a correction to name; none on an invoice.
+    const referenced = path(settlement, 'InvoiceReferencedDocument');
+    check(
+        'xml.correctedInvoice',
+        text(referenced, 'IssuerAssignedID') === written(invoice.correction?.of.number ?? null) &&
+            dayOf(path(referenced, 'FormattedIssueDateTime')) ===
+                (invoice.correction?.of.issueDate ?? null),
     );
     check(
         'xml.servicePeriod',
@@ -165,14 +185,14 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
     );
     check(
         'xml.taxes',
-        sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice, category, outsideVat),
+        sameTaxes(list(settlement, 'ApplicableTradeTax'), invoice, category, outsideVat, sign),
     );
     check(
         'xml.totals',
-        centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(invoice.totalNet) &&
-            centsOf(text(summation, 'TaxTotalAmount')) === cents(invoice.totalTax) &&
-            centsOf(text(summation, 'GrandTotalAmount')) === cents(invoice.totalGross) &&
-            centsOf(text(summation, 'DuePayableAmount')) === cents(invoice.totalGross),
+        centsOf(text(summation, 'TaxBasisTotalAmount')) === cents(sign * invoice.totalNet) &&
+            centsOf(text(summation, 'TaxTotalAmount')) === cents(sign * invoice.totalTax) &&
+            centsOf(text(summation, 'GrandTotalAmount')) === cents(sign * invoice.totalGross) &&
+            centsOf(text(summation, 'DuePayableAmount')) === cents(sign * invoice.totalGross),
     );
     check(
         'xml.lines',
@@ -195,7 +215,11 @@ function xmlGaps(root: Element, invoice: SubscriptionInvoiceRecord): string[] {
                 );
             }),
             invoice.lines.map((line) =>
-                keyOf(category, outsideVat ? null : cents(line.taxRate), cents(line.amountNet)),
+                keyOf(
+                    category,
+                    outsideVat ? null : cents(line.taxRate),
+                    cents(sign * line.amountNet),
+                ),
             ),
         ),
     );
@@ -239,6 +263,7 @@ function sameTaxes(
     invoice: SubscriptionInvoiceRecord,
     category: string,
     outsideVat: boolean,
+    sign: 1 | -1,
 ): boolean {
     return sameAmounts(
         stated.map((entry) =>
@@ -253,8 +278,8 @@ function sameTaxes(
             keyOf(
                 category,
                 outsideVat ? null : cents(entry.rate),
-                cents(entry.net),
-                cents(entry.tax),
+                cents(sign * entry.net),
+                cents(sign * entry.tax),
             ),
         ),
     );

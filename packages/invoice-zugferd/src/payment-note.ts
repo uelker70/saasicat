@@ -12,11 +12,17 @@
 
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
 
+import { cancellationPaymentNoteOf } from './correction.js';
 import { pageAmount, pageDay } from './format.js';
 import type { Label } from './labels.js';
 
-/** How the invoice is paid, in both languages; `null` where it is not collected. */
+/**
+ * How the invoice is paid, in both languages: that nothing is, on a
+ * cancellation invoice; `null` where an invoice is not collected.
+ */
 export function paymentNoteOf(invoice: SubscriptionInvoiceRecord): Label | null {
+    const cancellation = cancellationPaymentNoteOf(invoice);
+    if (cancellation) return cancellation;
     const { payment, collectionDate } = invoice;
     if (!payment) return null;
     if (payment.type === 'card') {

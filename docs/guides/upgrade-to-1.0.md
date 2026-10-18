@@ -2202,6 +2202,24 @@ What the gateway reports and no credit matches is a case the operator closes wit
   and `SUBSCRIBER_RECONCILIATION_CASE_CLOSED`, and `SUBSCRIBER_REFUND_UNMATCHED` names the case it
   opened.
 
+### An invoice record says what it corrects
+
+`SubscriptionInvoiceRecord` gains `correction` — on a cancellation invoice or a replacement, which
+invoice it corrects (`of`: its id, number and issue date), whether it cancels or replaces it, and the
+reason given — and each of its lines `correctedPosition`, the position of the line it cancels or
+replaces. Both are `null` on an invoice issued for the charge journal's charges, which is every
+invoice a store holds until cancelling one arrives. `toSubscriptionInvoiceRecord` sets them, so both
+shipped adapters return them; a `SubscriptionInvoiceRepository` of your own that builds its records
+without it adds both as `null`.
+
+`zugferdInvoiceRenderer()` renders a correction as `SC-PRIC-089` asks: a cancellation as a
+"Stornorechnung", never a "Gutschrift", its page stating the cancelled amounts reversed and nothing
+to pay, its XML a credit note (type `381`) stating them as the cancelled invoice did; a replacement
+as an invoice; both naming the invoice they correct (BT-25, BT-26) and why, and each line the line
+it stands for. `@saasicat/tax-de`'s check of a document refuses one whose type, figures or reference
+are not what the invoice records. **A renderer of your own** does the same before invoices can be
+cancelled.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

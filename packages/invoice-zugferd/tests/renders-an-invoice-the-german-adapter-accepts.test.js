@@ -442,6 +442,134 @@ describe('the XML it carries', () => {
     });
 });
 
+// @requirement SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
+describe('a cancellation invoice', () => {
+    const unspaced = (text) => text.replaceAll(' ', '');
+
+    test('is titled Stornorechnung on its page and in its metadata, and no document is a Gutschrift', async () => {
+        const { content } = await render('cancellation');
+        const [page] = await pageTexts(content);
+        const pdf = await PDFDocument.load(content, { updateMetadata: false });
+
+        assert.ok(page.includes('Stornorechnung / Cancellation invoice AHP-2026-000140'));
+        assert.equal(pdf.getTitle(), 'Stornorechnung AHP-2026-000140');
+        for (const { name } of SAMPLES) {
+            const rendered = await render(name);
+            const said = (await pageTexts(rendered.content)).flat().join(' ');
+            const xml = await embeddedXml(rendered.content);
+            assert.ok(
+                !`${said} ${xml}`.includes('Gutschrift'),
+                `${name} calls itself a Gutschrift`,
+            );
+        }
+    });
+
+    test('names the invoice it cancels and why, beside its facts and under its title', async () => {
+        const [page] = await pageTexts((await render('cancellation')).content);
+        const said = unspaced(page.join(''));
+
+        assert.ok(page.includes('Storniert Rechnung / Cancels invoice'));
+        assert.ok(page.includes('AHP-2026-000123 (01.02.2026)'));
+        for (const text of [
+            'Storniert die Rechnung AHP-2026-000123 vom 01.02.2026. Grund: Falsche ' +
+                'Rechnungsanschrift: Ringstraße 1 statt Ringstraße 11',
+            'Cancels invoice AHP-2026-000123 of 01.02.2026. Reason: Falsche Rechnungsanschrift: ' +
+                'Ringstraße 1 statt Ringstraße 11',
+        ]) {
+            assert.ok(said.includes(unspaced(text)), text);
+        }
+    });
+
+    test('states the cancelled amounts reversed, each line naming the line it cancels, and asks for nothing', async () => {
+        const [page] = await pageTexts((await render('cancellation')).content);
+        const said = unspaced(page.join(''));
+
+        for (const text of ['-49,00', '-19,90', '4,90', '-64,00', '-12,16', '-76,16']) {
+            assert.ok(page.includes(text), `the page does not say "${text}"`);
+        }
+        for (const position of [1, 2, 3]) {
+            assert.ok(page.includes(`Storniert Pos. ${position} / Cancels item ${position}`));
+        }
+        assert.ok(
+            said.includes(
+                unspaced(
+                    'Nichts zu zahlen: Diese Stornorechnung hebt die Rechnung AHP-2026-000123 auf.',
+                ),
+            ),
+        );
+        assert.ok(!page.includes('Fällig am / Due date'), 'a cancellation names a day it is due');
+    });
+
+    test('under the reverse charge states its tax as nothing, not as minus nothing', async () => {
+        const [page] = await pageTexts((await render('cancellation-reverse-charge')).content);
+
+        assert.ok(page.includes('-49,00'));
+        assert.ok(!page.some((text) => text.includes('-0,00')));
+    });
+
+    test('carries a credit note stating the cancelled invoice’s amounts, naming it and why', async () => {
+        const xml = await embeddedXml((await render('cancellation')).content);
+
+        assert.ok(xml.includes('<ram:TypeCode>381</ram:TypeCode>'));
+        assert.ok(xml.includes('<ram:GrandTotalAmount>76.16</ram:GrandTotalAmount>'));
+        assert.ok(xml.includes('<ram:DuePayableAmount>76.16</ram:DuePayableAmount>'));
+        // The discount it reverses is taken back again, as on the invoice it cancels.
+        assert.ok(xml.includes('<ram:LineTotalAmount>-4.90</ram:LineTotalAmount>'));
+        assert.ok(
+            xml.includes(
+                '<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>AHP-2026-000123' +
+                    '</ram:IssuerAssignedID><ram:FormattedIssueDateTime><qdt:DateTimeString ' +
+                    'format="102">20260201</qdt:DateTimeString></ram:FormattedIssueDateTime>' +
+                    '</ram:InvoiceReferencedDocument>',
+            ),
+        );
+        assert.ok(xml.includes('Grund: Falsche Rechnungsanschrift'));
+        assert.ok(
+            xml.includes(
+                '<ram:LineID>1</ram:LineID><ram:IncludedNote><ram:Content>Storniert Pos. 1 / ' +
+                    'Cancels item 1</ram:Content></ram:IncludedNote>',
+            ),
+        );
+        assert.ok(!xml.includes('DueDateDateTime'), 'a cancellation is due on a day');
+        assert.ok(!xml.includes('SpecifiedTradeSettlementPaymentMeans'));
+        assert.ok(xml.includes('<ram:Description>Nichts zu zahlen: Diese Stornorechnung'));
+    });
+});
+
+// @requirement SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
+describe('a replacement', () => {
+    test('is an invoice naming the invoice it replaces and why, and each line the line it replaces', async () => {
+        const { content } = await render('replacement');
+        const [page] = await pageTexts(content);
+        const said = page.join(' ').replaceAll(' ', '');
+        const xml = await embeddedXml(content);
+
+        assert.ok(page.includes('Rechnung / Invoice AHP-2026-000141'));
+        assert.ok(page.includes('Ersetzt Rechnung / Replaces invoice'));
+        assert.ok(page.includes('AHP-2026-000123 (01.02.2026)'));
+        assert.ok(said.includes('ErsetztdieRechnungAHP-2026-000123vom01.02.2026.'));
+        assert.ok(page.includes('Ersetzt Pos. 1 / Replaces item 1'));
+        assert.ok(page.includes('Fällig am / Due date') && page.includes('06.03.2026'));
+        assert.ok(page.includes('76,16'));
+        assert.ok(xml.includes('<ram:TypeCode>380</ram:TypeCode>'));
+        assert.ok(xml.includes('<ram:IssuerAssignedID>AHP-2026-000123</ram:IssuerAssignedID>'));
+        assert.ok(xml.includes('<udt:DateTimeString format="102">20260306</udt:DateTimeString>'));
+    });
+});
+
+describe('an invoice that corrects none', () => {
+    test('names no invoice it corrects and no reason', async () => {
+        const { content } = await render('standard');
+        const said = (await pageTexts(content)).flat().join(' ');
+        const xml = await embeddedXml(content);
+
+        assert.ok(!xml.includes('InvoiceReferencedDocument'));
+        for (const text of ['Storniert', 'Ersetzt', 'Grund']) {
+            assert.ok(!said.includes(text) && !xml.includes(text), text);
+        }
+    });
+});
+
 describe('a font the application passes', () => {
     test('is the one the page is set in', async () => {
         const bold = await readFile(new URL('../fonts/Roboto-Bold.ttf', import.meta.url));

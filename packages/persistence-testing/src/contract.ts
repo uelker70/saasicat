@@ -7061,10 +7061,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(read, issued, 'the invoice issued is the invoice read');
             const { lines, ...head } = written;
             const { id, number, numberSequence, lines: readLines, createdAt, ...readHead } = read;
-            assert.deepEqual(readHead, head);
+            // An invoice the run issues corrects none, and none of its lines
+            // stands for another invoice's.
+            assert.deepEqual(readHead, { ...head, correction: null });
             assert.deepEqual(
                 readLines.map(({ id: _lineId, invoiceId: _invoiceId, ...line }) => line),
-                lines,
+                lines.map((line) => ({ ...line, correctedPosition: null })),
             );
             assert.ok(readLines.every((line) => line.invoiceId === id));
             assert.deepEqual([number, numberSequence], ['EX-2027-000001', 1]);
