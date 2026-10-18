@@ -945,7 +945,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 
 🟡 _(Decided, not yet delivered.)_ 💰 The issuer's identity, its legal name and tax identifiers, is
-the counterparty a contract names (`SC-AUD-012`), so an invoice takes that identity from the copy
+the counterparty a contract names (`SC-AUD-020`), so an invoice takes that identity from the copy
 on the contract its charges belong to, with a declared correction of that entity applied; its
 address and contact details come from `config/saas.yaml` on the issue date while the configuration
 names that same identity, and from the contract's copy otherwise. The subscriber's details are
@@ -1860,7 +1860,7 @@ _Tested by:_
 🟢 💰 The identity is the legal name, the billing address and the
 tax identifiers. Sign-up asks for it before the tenant is activated. A subscriber created
 another way is asked for what is missing before its subscription becomes a paid one, which is
-when its contract is frozen (`SC-SPEC-005`, `SC-AUD-012`); until then the operator sees the
+when its contract is frozen (`SC-SPEC-005`, `SC-AUD-020`); until then the operator sees the
 subscription waiting and why, because a party copied onto a contract incomplete cannot be
 completed afterwards.
 

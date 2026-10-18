@@ -127,13 +127,13 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 19      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 20      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 16      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 643 entries: 🟢 557 stand today, 🟡 56 decided but not yet delivered, ⚪ 0 drafts,
-🔵 27 superseded, 🔴 3 withdrawn.
+Of 644 entries: 🟢 558 stand today, 🟡 55 decided but not yet delivered, ⚪ 0 drafts,
+🔵 28 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -187,7 +187,6 @@ Of 643 entries: 🟢 557 stand today, 🟡 56 decided but not yet delivered, ⚪
 [SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
-[SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-014](#sc-aud-014--an-invoice-downloaded-later-is-the-document-that-was-issued-not-a-new-rendering),
 [SC-AUD-019](#sc-aud-019--an-archived-invoice-is-checked-against-the-checksum-of-the-file-it-was-issued-as),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
@@ -218,13 +217,14 @@ Of 643 entries: 🟢 557 stand today, 🟡 56 decided but not yet delivered, ⚪
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
 [SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
+[SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
 
 🔴 **Withdrawn** — [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 643 requirements. Do not edit by hand:
+Generated from `requirements/` — 644 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5291,7 +5291,7 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 Contact details, such as the address or the invoice email,
 can be changed at any time, and later invoices carry the new ones. The legal name and the tax
-identifiers are the party the contract was concluded with (`SC-AUD-012`). While a contract runs
+identifiers are the party the contract was concluded with (`SC-AUD-020`). While a contract runs
 they change only as a correction of that same party, such as a misspelt name, a wrong tax
 identifier or a change of name the same legal entity went through, which the operator records
 with the values it replaces and the reason (`SC-ADM-020`); later invoices carry the corrected
@@ -9042,7 +9042,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 
 🟡 _(Decided, not yet delivered.)_ 💰 The issuer's identity, its legal name and tax identifiers, is
-the counterparty a contract names (`SC-AUD-012`), so an invoice takes that identity from the copy
+the counterparty a contract names (`SC-AUD-020`), so an invoice takes that identity from the copy
 on the contract its charges belong to, with a declared correction of that entity applied; its
 address and contact details come from `config/saas.yaml` on the issue date while the configuration
 names that same identity, and from the contract's copy otherwise. The subscriber's details are
@@ -9957,7 +9957,7 @@ _Tested by:_
 🟢 💰 The identity is the legal name, the billing address and the
 tax identifiers. Sign-up asks for it before the tenant is activated. A subscriber created
 another way is asked for what is missing before its subscription becomes a paid one, which is
-when its contract is frozen (`SC-SPEC-005`, `SC-AUD-012`); until then the operator sees the
+when its contract is frozen (`SC-SPEC-005`, `SC-AUD-020`); until then the operator sees the
 subscription waiting and why, because a party copied onto a contract incomplete cannot be
 completed afterwards.
 
@@ -15400,7 +15400,7 @@ collected (`SC-PRIC-032`): the billing address and the invoice email replace wha
 kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
 (`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
 (`SC-PRIC-026`), and the contract keeps the party copy it was concluded with, which names the same
-legal entity (`SC-AUD-012`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
+legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
 and the record created at
 sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
 whole history. A subscriber with a live tenant is not joined to a second one.
@@ -20532,7 +20532,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🟡 _(Decided, not yet delivered.)_ 🔒 Its tenant was its only live one (`SC-SCOPE-012`), and every
 contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-026`,
-`SC-AUD-012`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
+`SC-AUD-020`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
 while a credit is still to be refunded, and until the latest end of the reversal period among all
 its payments (`SC-PRIC-084`); until then the contact data and the gateway reference needed to
 collect or refund stay. How long a payment can be reversed depends on how it was made and is not
@@ -20778,7 +20778,8 @@ _Tested by:_
 
 ### SC-AUD-012 — A contract carries both parties as they were when it was concluded
 
-🟡 _(Decided, not yet delivered.)_ 💰 The subscriber, and the issuer as `config/saas.yaml` named
+🔵 _(Superseded on 2026-10-18 by `SC-AUD-020`.)_
+💰 The subscriber, and the issuer as `config/saas.yaml` named
 it that day, so the contract still says which legal entity was the counterparty after either
 changes and after the tenant is gone. A copy made while an existing contract is migrated says
 so, and is never presented as what was true at conclusion. Either party may have changed since the
@@ -20787,6 +20788,22 @@ against the contract as concluded, correcting it where it differs, before that c
 invoiced; until then it is not.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
+
+🟢 💰 The subscriber, and the issuer as `config/saas.yaml` named it that day, so the contract still
+says which legal entity was the counterparty after either changes and after the tenant is gone. An
+installation that concludes contracts does not start while the file names no issuer, so no contract
+is concluded with nobody on the operator's side. A copy the migration to subscribers made of an
+existing contract's parties says so and is never presented as what was true at conclusion. Neither
+such a contract nor one concluded before a contract needed an issuer is invoiced: nothing SaaSiCat
+holds says who its parties were that day, so its charges stay held (`SC-PRIC-022`). Every
+successor frozen afresh, such as after a change of plan or of its billing rhythm, an add-on booked
+or ended, a move to another version, or a refresh in full, copies both parties as they stand that
+day, and that one is invoiced. One that only carries the contract forward, a refresh of its
+features (`SC-ENTL-023`) or a feature withdrawn (`SC-SUB-042`), keeps its copy as it was.
+
+_Source:_ #334 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 <!-- BEGIN proof -->
 
@@ -20800,8 +20817,23 @@ _Tested by:_
 - `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
     - a contract names the parties it is concluded with
         - it copies the tenant's subscriber and the issuer the configuration names
-        - where the configuration names no issuer, the contract says none was named
+        - where the configuration names no issuer, none is concluded, and nothing is written
         - a party a caller names itself is not the one written
+    - a module that writes contracts does not start without an issuer
+        - the contract module, which starts once the file names one
+        - the checkout offer module, where it concludes offers
+        - the platform, whose tenant billing freezes contracts
+        - while a module that only keeps the subscribers starts without one
+- `packages/nest/tests/a-successor-replaces-the-contract-in-force.test.js`
+    - writing a successor
+        - a successor of a contract the migration copied copies both parties afresh
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice that cannot be issued yet
+        - waits under a contract ${what}
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - carrying the features over
+        - the parties are the ones agreed, not a correction made since — and a migrated copy stays
+          marked
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - every contract names the subscriber it is concluded with
         - each contract names its tenant's subscriber, with a copy that says the migration made it

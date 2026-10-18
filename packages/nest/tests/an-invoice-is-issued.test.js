@@ -833,6 +833,7 @@ describe('an invoice that cannot be issued yet', () => {
         ['whose parties a migration copied', { partiesMigrated: true }],
         ['that names no issuer', { issuer: null }],
     ]) {
+        // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
         test(`waits under a contract ${what}`, async () => {
             const installation = anInvoicingInstallation();
             const contract = await installation.aContract(

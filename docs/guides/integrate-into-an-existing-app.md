@@ -22,7 +22,9 @@ bundles, promo codes and the standard admin resources. It also composes
 tenant's contracts are concluded with — in the same transaction, with
 `SubscriberService.createForTenant(tenantId, { legalName, … }, tx)` from
 `@saasicat/nest/subscriber`. SaaSiCat creates no tenants, so it cannot do this for you, and every
-way a contract arises refuses a tenant without one.
+way a contract arises refuses a tenant without one. The other party is yours: an application that
+concludes contracts does not start until `config/saas.yaml` names its `issuer`
+([your own side of every contract](wire-the-backend.md#your-own-side-of-every-contract)).
 
 Expect the savings to come from **wiring**, not from your domain code.
 Application-specific workflows, controllers and adapters stay in the consumer

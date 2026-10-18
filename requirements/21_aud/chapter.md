@@ -183,7 +183,8 @@ _Tested by:_
 
 ### SC-AUD-012 — A contract carries both parties as they were when it was concluded
 
-🟡 _(Decided, not yet delivered.)_ 💰 The subscriber, and the issuer as `config/saas.yaml` named
+🔵 _(Superseded on 2026-10-18 by `SC-AUD-020`.)_
+💰 The subscriber, and the issuer as `config/saas.yaml` named
 it that day, so the contract still says which legal entity was the counterparty after either
 changes and after the tenant is gone. A copy made while an existing contract is migrated says
 so, and is never presented as what was true at conclusion. Either party may have changed since the
@@ -192,6 +193,22 @@ against the contract as concluded, correcting it where it differs, before that c
 invoiced; until then it is not.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
+
+🟢 💰 The subscriber, and the issuer as `config/saas.yaml` named it that day, so the contract still
+says which legal entity was the counterparty after either changes and after the tenant is gone. An
+installation that concludes contracts does not start while the file names no issuer, so no contract
+is concluded with nobody on the operator's side. A copy the migration to subscribers made of an
+existing contract's parties says so and is never presented as what was true at conclusion. Neither
+such a contract nor one concluded before a contract needed an issuer is invoiced: nothing SaaSiCat
+holds says who its parties were that day, so its charges stay held (`SC-PRIC-022`). Every
+successor frozen afresh, such as after a change of plan or of its billing rhythm, an add-on booked
+or ended, a move to another version, or a refresh in full, copies both parties as they stand that
+day, and that one is invoiced. One that only carries the contract forward, a refresh of its
+features (`SC-ENTL-023`) or a feature withdrawn (`SC-SUB-042`), keeps its copy as it was.
+
+_Source:_ #334 · #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 <!-- BEGIN proof -->
 
@@ -205,8 +222,23 @@ _Tested by:_
 - `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
     - a contract names the parties it is concluded with
         - it copies the tenant's subscriber and the issuer the configuration names
-        - where the configuration names no issuer, the contract says none was named
+        - where the configuration names no issuer, none is concluded, and nothing is written
         - a party a caller names itself is not the one written
+    - a module that writes contracts does not start without an issuer
+        - the contract module, which starts once the file names one
+        - the checkout offer module, where it concludes offers
+        - the platform, whose tenant billing freezes contracts
+        - while a module that only keeps the subscribers starts without one
+- `packages/nest/tests/a-successor-replaces-the-contract-in-force.test.js`
+    - writing a successor
+        - a successor of a contract the migration copied copies both parties afresh
+- `packages/nest/tests/an-invoice-is-issued.test.js`
+    - an invoice that cannot be issued yet
+        - waits under a contract ${what}
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - carrying the features over
+        - the parties are the ones agreed, not a correction made since — and a migrated copy stays
+          marked
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - every contract names the subscriber it is concluded with
         - each contract names its tenant's subscriber, with a copy that says the migration made it

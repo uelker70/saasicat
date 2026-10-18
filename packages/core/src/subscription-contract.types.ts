@@ -109,7 +109,11 @@ export interface ContractIssuerParty extends LegalIdentity, PartyAddress {}
 export interface SubscriptionContractParties {
     subscriberId: string;
     subscriber: ContractSubscriberParty;
-    /** `null` where `config/saas.yaml` named no issuer that day. */
+    /**
+     * `null` on a contract whose parties the subscriber migration copied, and on
+     * one concluded before a contract needed an issuer; neither is invoiced
+     * (`SC-AUD-020`).
+     */
     issuer: ContractIssuerParty | null;
 }
 

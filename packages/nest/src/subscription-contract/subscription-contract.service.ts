@@ -3,6 +3,7 @@ import {
     Inject,
     Injectable,
     NotFoundException,
+    type OnModuleInit,
     Optional,
     UnprocessableEntityException,
 } from '@nestjs/common';
@@ -126,7 +127,7 @@ export interface IntendedContract {
 }
 
 @Injectable()
-export class SubscriptionContractService {
+export class SubscriptionContractService implements OnModuleInit {
     constructor(
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly repo: SubscriptionContractRepository,
@@ -140,6 +141,16 @@ export class SubscriptionContractService {
         @Inject(TAX_TREATMENTS_TOKEN)
         private readonly taxes: TaxTreatments | null = null,
     ) {}
+
+    /**
+     * Refuses the start while `config/saas.yaml` names no issuer. Every module
+     * that writes contracts provides this service, and every contract is
+     * concluded with an issuer (`SC-AUD-020`): found out at the first sign-up,
+     * the missing block would refuse a customer rather than a deploy.
+     */
+    onModuleInit(): void {
+        this.subscribers.issuerNamed();
+    }
 
     list(filter: Parameters<SubscriptionContractRepository['list']>[0]) {
         return this.repo.list(filter);

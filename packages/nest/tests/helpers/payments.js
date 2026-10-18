@@ -24,6 +24,7 @@ import {
 } from '../../dist/payments/index.js';
 import { SubscriberService } from '../../dist/subscriber/index.js';
 import { FakeSubscriberRepository } from '../../dist/testing/index.js';
+import { ISSUER } from './invoice-run.js';
 
 /** The account every test takes payment methods at, unless it names another. */
 export const MAIN_ACCOUNT = 'stripe-main';
@@ -44,6 +45,8 @@ export function paymentsCatalog(
         currency: 'EUR',
         vatRate: 19,
         plans: [],
+        // A sign-up concludes a contract, which names the issuer.
+        issuer: ISSUER,
         payments: { returnUrlOrigins: [APP_ORIGIN], ...payments },
     };
 }

@@ -672,9 +672,9 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE: 'SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE',
     /**
-     * The contract's parties were copied by a migration and the operator has
-     * not confirmed them yet; its charges are not invoiced until then
-     * (`SC-AUD-012`).
+     * Nothing says who the contract's parties were on the day it was concluded:
+     * the migration to subscribers copied them, or it was concluded before a
+     * contract needed an issuer. Its charges are not invoiced (`SC-AUD-020`).
      */
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED: 'SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED',
     /**

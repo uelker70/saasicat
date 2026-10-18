@@ -120,7 +120,7 @@ describe('the identity of an issuer', () => {
 });
 
 // @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
-// @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
+// @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
 describe('the copy a contract takes of the issuer', () => {
     test('carries the same three fields the start compares, and the address beside them', () => {
         // Every member settled the same way: one copy whose halves were settled

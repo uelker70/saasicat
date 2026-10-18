@@ -342,7 +342,7 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 Contact details, such as the address or the invoice email,
 can be changed at any time, and later invoices carry the new ones. The legal name and the tax
-identifiers are the party the contract was concluded with (`SC-AUD-012`). While a contract runs
+identifiers are the party the contract was concluded with (`SC-AUD-020`). While a contract runs
 they change only as a correction of that same party, such as a misspelt name, a wrong tax
 identifier or a change of name the same legal entity went through, which the operator records
 with the values it replaces and the reason (`SC-ADM-020`); later invoices carry the corrected

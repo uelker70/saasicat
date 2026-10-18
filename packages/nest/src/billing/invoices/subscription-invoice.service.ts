@@ -15,12 +15,14 @@
 //
 // A group that cannot be invoiced yet is held rather than guessed at: a
 // subscriber whose invoice address has gaps (`SC-PRIC-032`), one the adapter
-// supports no treatment for (`SC-PRIC-039`), a contract whose parties nobody
-// has confirmed (`SC-AUD-012`), content the law requires and the invoice
-// lacks, or a direct debit without the mandate reference the invoice has to
-// announce (`SC-PRIC-028`). Each is logged on every run and written to the
-// audit log once per process; the charges wait on no invoice, and the invoice
-// takes the next number on the first run after what held it is put right.
+// supports no treatment for (`SC-PRIC-039`), a contract that does not say who
+// its parties were when it was concluded (`SC-AUD-020`), content the law
+// requires and the invoice lacks, or a direct debit without the mandate
+// reference the invoice has to announce (`SC-PRIC-028`). Each is logged on
+// every run and written to the audit log once per process; the charges wait on
+// no invoice, and the invoice takes the next number on the first run after what
+// held it is put right — which, for a contract that does not say who its
+// parties were, never comes.
 //
 // Platform-wide, so inside `RlsBypassPort`. Several instances may run it at
 // once: a charge another one invoiced first is passed over.

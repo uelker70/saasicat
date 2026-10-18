@@ -211,10 +211,13 @@ the contract's link to the subscriber breaks the contract model, and 1.0.0 is wh
 Additive first: the subscriber and the contract's link to it arrive nullable, both applications
 create a subscriber per tenant from the tenant's master data and attach its contracts, and the link
 becomes required afterwards. A party copy made during that backfill says it was made then, is never
-presented as what was true when the contract was concluded, and is confirmed by the operator against
-the contract before that contract is invoiced. An existing tenant without a gateway payment method
-is asked to add one; its invoices are issued and stay open until it does. AutohausPro keeps its
-restricting foreign key on contracts until the subscriber link exists.
+presented as what was true when the contract was concluded, and its contract is not invoiced; nor is
+one concluded before a contract needed an issuer (`SC-AUD-020`). _Amended on 2026-10-18 (#334):_ the
+operator was to confirm such a copy before invoicing. That step was dropped, because every
+installation held test data only and the backfill runs once, so no contract a customer concluded
+would ever need it; a contract is concluded only with an issuer instead. An existing tenant without
+a gateway payment method is asked to add one; its invoices are issued and stay open until it does.
+AutohausPro keeps its restricting foreign key on contracts until the subscriber link exists.
 
 ## What breaks if you ignore this
 
