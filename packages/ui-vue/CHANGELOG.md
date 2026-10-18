@@ -1,5 +1,125 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.27
+
+### Minor Changes
+
+- 3cca4f4: A payment is recorded once, and a credit is paid out by the operator
+
+    What a collection brought is recorded with its outcome, on one transaction and
+    in the invoice's turn: the payment, once, by its gateway account and the
+    gateway's reference, whether the run asking or the gateway's callback reports
+    it first, and however often (`SC-PRIC-029`). It settles what its invoice still
+    owes; what it brought beyond that is a credit on the subscriber's account, and
+    so is an invoice whose total is negative, which the quarter-hourly run credits
+    right after issuing it. A credit is never offset against a later invoice: the
+    operator pays it out, by a refund in the gateway — recorded against the credit
+    its payment left first, then the oldest, and given back when it fails — or,
+    where the gateway can no longer refund, by a transfer recorded on the tenant's
+    page (`SC-PRIC-083`). SaaSiCat initiates neither.
+
+    `subscriber_payments`, `subscription_invoice_settlements`, `subscriber_credits`,
+    `subscriber_credit_entries` and `subscriber_refunds` come with fragment 24 and
+    `1.0-a-payment-is-recorded.postgres.sql`, behind the new
+    `SubscriberPaymentRepository`, which `SaaSiCatModule` takes from
+    `persistence.entitlement.subscriberPaymentRepository` for
+    `chargeJournal.invoices.payments`; collecting now requires it.
+
+    A success in `CollectionOutcome` names what the gateway received, as
+    `amountCents` and `currency`. `PaymentGatewayEvent` gains
+    `collection-reported` and `refund-reported`, and the Stripe adapter maps
+    `payment_intent.succeeded`, `.processing`, `.payment_failed`, `.canceled` and
+    `refund.created`, `.updated`, `.failed` to them, each read again from Stripe;
+    a restricted key needs refunds (read). A success reported for an attempt
+    recorded as failed is recorded too: the attempt succeeds and what was planned
+    after it is withdrawn. An invoice that owes nothing is collected no further:
+    no attempt is started, planned or sent for it, and a failure beside the payment
+    is followed up without a notice. A request that never reached the gateway is
+    settled rather than sent again where its invoice was paid meanwhile, audited as
+    `SUBSCRIPTION_INVOICE_COLLECTION_ABANDONED`, and is not sent where a report
+    settled it meanwhile: `abandonPaid` answers `'abandoned'`, `'resend'` or
+    `'settled'`. `InvoiceCollectionRepository` gains `findByKey` and `abandonPaid`,
+    and a refund in another currency than its payment is refused.
+
+    The operator reads a subscriber's credits on the tenant's page
+    (`GET admin/tenants/:slug/credits`, `credits.read`) and records a payout
+    against one with the second factor
+    (`POST admin/tenants/:slug/credits/:creditId/payouts`, `credits.payout`),
+    refused beyond what the credit owes (`SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`), on a
+    day still to come (`SUBSCRIBER_PAYOUT_NOT_MADE_YET`) and for another
+    subscriber's credit (`SUBSCRIBER_CREDIT_NOT_FOUND`).
+
+- 20c3991: A reversal takes a payment back, and what matched nothing is reconciled
+
+    A direct debit the bank returned and a chargeback are recorded as reversals of
+    the payment they take back, once however often and in whatever order they are
+    reported (`SC-PRIC-084`, superseding `SC-PRIC-031`): the credit the payment left
+    goes first — its open part shrinks it, a part already paid out is a case to
+    reconcile —, then an open credit another payment collected for the same invoice
+    left (`SC-PRIC-087`), and only what remains opens the invoice again; reversals
+    of two payments of one invoice end alike in either order (`SC-PRIC-088`). The
+    attempt that collected the payment is then `REVERSED`, also one that had failed
+    before its payment arrived late: once no other attempt of the invoice is on its
+    way, the next run tells the subscriber at the invoice email, as a
+    `CollectionReversedNotice` through `InvoiceMailPort.tell`, and the invoice is
+    collected again only with a payment method none of its payments was reversed on
+    (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well,
+    so it keeps no other from being made, and its payment method then collects that
+    invoice no more either, even where its own payment was not reversed
+    (`SC-PRIC-088`). A dispute won takes its reversal back part for part — the cases
+    it opened first, then the credit, then the invoice —, and what the invoice no
+    longer owes because it was paid meanwhile becomes a credit (`SC-PRIC-086`).
+
+    What the gateway reports and no credit matches — the part of a refund no credit
+    takes, the part of a reversal that meets a credit already paid out — is a case
+    to reconcile: on the administration's new reconciliation page and on the
+    tenant's page beside its invoices with what each still owes, closed by the
+    operator with a note behind the second factor (`SC-ADM-033`). A refund that
+    fails and a reversal given back close the cases they opened.
+
+    Fragment 24 gains `SubscriberReversal` and `SubscriberReconciliationCase`, and
+    the columns that name a reversal on the settlements, the credit entries and the
+    credits; `1.0-a-payment-is-recorded.postgres.sql` creates and adds them where
+    its earlier version ran. `SubscriberPaymentRepository` gains `recordReversal`,
+    `listCases`, `closeCase`, `owedByInvoices`, `findReversalById` and
+    `accountsHoldingCredits`; `InvoiceCollectionRepository` gains `markReversed`.
+    `PaymentGatewayEvent` gains `reversal-reported`, which the Stripe adapter maps
+    from `charge.dispute.*`; a restricted key needs disputes (read). The routes
+    `GET admin/reconciliation`, `POST admin/reconciliation/:caseId/close` and
+    `GET admin/tenants/:slug/payments` come with the capabilities
+    `reconciliation.read`, `reconciliation.close` and `payments.read`; the codes
+    `SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND` and
+    `SUBSCRIBER_RECONCILIATION_CASE_CLOSED` are new. The start refuses while a
+    credit not paid out is held at an account `config/saas.yaml` no longer names
+    (`SC-PRIC-030`).
+
+### Patch Changes
+
+- e183f06: No value without a text of its own reads "[object Object]" any more
+
+    `formatErrorMessage` turned an object passed as a parameter into
+    "[object Object]" in the message the user reads. It now leaves the placeholder
+    visible, as it already did for a missing value; text, numbers, booleans,
+    dates and lists of them read as before. A header the HTTP client reads that is neither text, a
+    number, a boolean nor a list now reads as absent, and a tax reason that is not
+    text reads as empty.
+
+    The persistence contract suite took seed functions out of `harness.seed` and
+    called them without their object. A harness whose seed is a class instance
+    using `this` failed there; the suite now keeps the receiver.
+
+    `saasicat manifest check` names an unexpected `schemaVersion` as JSON, so a
+    version sent as text shows its quotes.
+
+- Updated dependencies [5396ab6]
+- Updated dependencies [3ab58af]
+- Updated dependencies [3cca4f4]
+- Updated dependencies [20c3991]
+- Updated dependencies [f453f75]
+- Updated dependencies [9c9f624]
+- Updated dependencies [e183f06]
+    - @saasicat/core@1.0.0-rc.27
+
 ## 1.0.0-rc.26
 
 ### Minor Changes

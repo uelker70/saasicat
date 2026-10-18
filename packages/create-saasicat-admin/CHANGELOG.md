@@ -1,5 +1,7 @@
 # create-saasicat-admin
 
+## 1.0.0-rc.27
+
 ## 1.0.0-rc.26
 
 ### Patch Changes
