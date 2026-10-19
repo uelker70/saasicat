@@ -691,7 +691,7 @@ _Tested by:_
         - one is closed only where it is still open, and one closed before or unknown is answered as
           such
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
     - schema table map
@@ -724,7 +724,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once
@@ -796,6 +796,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read
+        - none is started where another invoice of its chain holds it back
         - no first attempt is started where the invoice has one, and nothing is written
         - a planned one is written for its day, the day as midnight UTC, on the caller’s transaction
         - no planned one is written after another attempt than the one it follows
@@ -847,8 +848,9 @@ _Tested by:_
         - on the caller’s transaction it opens none of its own, and writes inside a savepoint
         - a refusal on the caller’s transaction rolls back to the savepoint before it is thrown
         - the due subscriptions are asked for after the page given, or from the start
-        - the charges left to invoice are those with no invoice line, in the journal’s order
-        - reads ask for the lines in their order, and the prefixes two at most
+        - the charges left to invoice are those on no invoice line, in the journal’s order
+        - reads ask for the lines in their order and what the invoice corrects, and the prefixes two
+          at most
 - `packages/adapter-prisma/tests/prisma-subscription-notice.repository.test.js`
     - PrismaSubscriptionNoticeRepository
         - a claim records the notice where it is new, then takes it in one guarded update

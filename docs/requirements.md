@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 89      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 90      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 645 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪ 0 drafts,
-🔵 28 superseded, 🔴 3 withdrawn.
+Of 646 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪ 0 drafts,
+🔵 29 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -207,6 +207,7 @@ Of 645 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
+[SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
@@ -224,7 +225,7 @@ Of 645 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 645 requirements. Do not edit by hand:
+Generated from `requirements/` — 646 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9039,6 +9040,94 @@ invoice then follows `SC-PRIC-033`.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
+    - what a reversal opened, gathered on the invoice that stands in its chain
+        - a give-back settles the replacement of a cancelled invoice the reversal opened
+        - keeps the invoice where a cancellation left no replacement, and counts in cents
+- `packages/core/tests/an-invoice-is-corrected-by-a-cancellation.test.js`
+    - the cancellation invoice
+        - states the cancelled invoice reversed, each line naming the line it cancels
+        - carries the cancelled invoice’s parties, footer, treatment and period, not what holds
+          today
+        - asks for nothing: no payment, due on the day it is issued, nothing paid on issue
+        - is numbered in the year of its issue date in the installation’s zone: ${why}
+    - the replacement
+        - invoices the same charges, each line naming the line it replaces, under the treatment
+          decided now
+        - names the parties and the footer it is given, and keeps the cancelled invoice’s period
+        - runs its payment term from its own issue date
+        - collected by direct debit, falls due on the day it is announced to be collected
+        - takes over what was paid, as far as it owes it: ${why}
+        - without a payment method in use, is collected by nothing
+    - the subscriber a replacement names before the operator corrects it
+        - takes each correction of its legal identity recorded after the invoice, the oldest first
+        - leaves one recorded before the invoice, or at the same moment, to the invoice
+    - the operator’s corrections of the subscriber
+        - are applied, and recorded each with the value it replaced
+        - a detail given as it stands, or none given, corrects nothing
+        - a detail may be cleared, but a party is never named by nothing
+    - each payment’s share of a cancelled invoice
+        - is what its settlements there still come to, as each is signed
+        - counts in cents, not in binary fractions
+        - of a payment that was not read stops the cancellation
+        - moves onto the replacement the oldest first, and what it does not take is credited
+        - moves by what the replacement owes: ${why}
+        - confirmed at the same moment, move in the order of their ids
+        - state as paid on the replacement what moves onto it, a share below nothing counting for
+          nothing
+        - of nothing, or taken back in full, move nothing
+    - what a corrected invoice owes
+        - a cancelled invoice and its cancellation invoice owe nothing, whatever they state
+        - any other owes its total less what is settled
+- `packages/core/tests/an-invoice-row-becomes-a-record.test.js`
+    - an invoice row becomes a record
+        - that says what it corrects, as a cancellation invoice or a replacement, from either
+          adapter’s row
+- `packages/invoice-zugferd/tests/renders-an-invoice-the-german-adapter-accepts.test.js`
+    - a replacement
+        - paid already, states what was paid and that nothing is due, and names no way of paying
+        - paid in part, announces the debit of what is left alone
+- `packages/nest/tests/a-corrected-vat-id-is-checked-and-recorded.test.js`
+    - the tax origin of a party an invoice names
+        - counts its number as validated where the record holds that same number with a valid check
+        - counts a number the record does not hold as not validated, and takes the party’s country
+        - counts a number the record held and no longer holds as not validated, however its check
+          went
+        - counts the record’s own number as not validated where its check found it invalid
+- `packages/nest/tests/an-invoice-is-cancelled.test.js`
+    - an invoice cancelled by the operator
+        - is written as its preview showed it, and the preview writes nothing
+        - is reversed by its cancellation invoice, which asks for nothing, and replaced under a term
+          of its own
+        - collected by direct debit, the replacement announces its own day
+        - names the subscriber as the operator corrected it, and as its legal identity was corrected
+          since, not its contact details
+        - decides the replacement’s tax for the parties it names: a case the adapter does not treat
+          is refused, and nothing is written
+        - paid already, moves what was paid onto the replacement, which is then collected no further
+        - paid in part, the replacement is collected for the rest alone
+        - states as paid on the replacement what moves onto it, and no share below nothing
+        - withdraws a collection of it planned and not yet made
+    - a cancellation refused
+        - for an invoice the tenant does not have, or that does not exist
+        - for an invoice cancelled already, and for a cancellation invoice, drawing no number
+        - while the invoice’s document is not archived
+        - where the subscriber can be reached at no address, until one is given
+        - for an invoice that states a credit
+        - where the direct debit in use names no mandate the replacement could announce
+        - at every start without the transaction it is written on
+- `packages/tax-de/tests/an-invoice-document-is-the-file-german-law-asks-for.test.js`
+    - a replacement
+        - that took over what was paid for the invoice it replaces › stating it as paid, and the
+          amount due less it, passes
+        - that took over what was paid for the invoice it replaces › stating ${what} is refused
+
+<!-- END proof -->
+
 ### SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
 
 🟢 💰 The shipped renderer gives a cancellation invoice the title "Stornorechnung", never
@@ -9069,6 +9158,8 @@ _Tested by:_
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
         - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+        - paid already, states what was paid and that nothing is due, and names no way of paying
+        - paid in part, announces the debit of what is left alone
 - `packages/tax-de/tests/an-invoice-document-is-the-file-german-law-asks-for.test.js`
     - a cancellation invoice
         - stating the cancelled figures as a credit note, naming the invoice it cancels, passes
@@ -9076,6 +9167,9 @@ _Tested by:_
     - a replacement
         - naming the invoice it replaces passes
         - naming none is refused, and so is one stated as a credit note
+        - that took over what was paid for the invoice it replaces › stating it as paid, and the
+          amount due less it, passes
+        - that took over what was paid for the invoice it replaces › stating ${what} is refused
 
 <!-- END proof -->
 
@@ -9378,6 +9472,9 @@ _Tested by:_
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
         - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+        - paid already, states what was paid and that nothing is due, and names no way of paying
+        - paid in part, announces the debit of what is left alone
+        - paid in part, announces the debit of what is left alone
     - an invoice that corrects none
         - names no invoice it corrects and no reason
     - a font the application passes
@@ -9748,7 +9845,7 @@ _Tested by:_
         - one is closed only where it is still open, and one closed before or unknown is answered as
           such
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
     - a reversal
@@ -9772,7 +9869,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once
@@ -9784,12 +9881,20 @@ _Tested by:_
         - without a credit, the invoices it settles, the oldest first
         - the credit first: its open part, then the invoice with the rest
         - a partial reversal no larger than the credit shrinks the credit alone
+        - several credits of the payment are taken in the order given, each up to what of it is left
+        - what of each of them is paid out is told apart, and matches nothing
         - why
         - the part of the credit already paid out matches nothing
         - takes from what of the credit an earlier reversal left
         - what goes beyond everything the payment brought matches nothing
         - passes over an invoice it already opened in full
         - counts in cents, not in binary fractions
+- `packages/core/tests/an-invoice-is-corrected-by-a-cancellation.test.js`
+    - the credits a payment left, once a cancellation left one more
+        - are its own, its surplus and its share alike
+        - are taken by a reversal the earliest first, what its reversals took counted against them
+          in that order
+        - are what a refund of the payment pays back first, the oldest of them first
 - `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
     - a reversal the gateway reports
         - opens the invoice again, marks the attempt reversed, and is recorded and audited once
@@ -9849,6 +9954,15 @@ _Tested by:_
         - waits while the attempt beside it is on its way, and tells nobody once that one paid
         - while the attempt beside it never left, that one is not sent with the reversed card, and
           one notice tells the subscriber
+- `packages/nest/tests/an-invoice-is-cancelled.test.js`
+    - the collections of a cancelled invoice’s chain
+        - a failure of the cancelled invoice’s attempt is recorded and told to nobody, and the
+          replacement is collected once it is resolved
+        - a reversal is told only once no attempt of any invoice of the chain is on its way, about
+          the invoice that stands
+        - a reversal of a payment that moved tells the subscriber the replacement is open again
+        - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
+          that holds the chain
 
 <!-- END proof -->
 
@@ -9889,7 +10003,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once
@@ -9905,6 +10019,9 @@ _Tested by:_
     - a reversal the gateway gives back
         - after the invoice was paid again leaves that payment as a credit, audited
         - closes the cases it opened, audited as closed because the money came back
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an invoice is corrected by a cancellation invoice
+        - a reversal given back before records what of that covered its cases, once
 - `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
     - the tenant page's payments
         - a credit a reversal given back left names the reversal
@@ -9951,7 +10068,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once
@@ -9971,18 +10088,40 @@ _Tested by:_
 
 ### SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
 
-🟢 💰 Where a payment whose credit covered another reversal of its invoice (`SC-PRIC-087`) is
-reversed itself, the cover is lifted before anything else: the earlier reversal opens the invoice
-by what the credit covered, as it would have without the credit, and the later one takes the
-credit as its own. Two reversals of one invoice's payments therefore end alike whatever order the
-gateway reports them in. Where a reversal leaves an invoice owing — itself, or through a cover it
-lifted —, every attempt of that invoice that succeeded is marked reversed beside the attempt
-whose payment was taken back: none of them settles the invoice any more, and one that succeeded
-would keep every other attempt from being made. Its payment method collects that invoice no more
-either, even where its payment was paid out rather than reversed (`SC-PRIC-085`), and the
-subscriber is told once.
+🔵 _(Superseded on 2026-10-19 by `SC-PRIC-090`.)_ 💰 Where a payment whose credit covered another
+reversal of its invoice (`SC-PRIC-087`) is reversed itself, the cover is lifted before anything
+else: the earlier reversal opens the invoice by what the credit covered, as it would have without
+the credit, and the later one takes the credit as its own. Two reversals of one invoice's payments
+therefore end alike whatever order the gateway reports them in. Where a reversal leaves an invoice
+owing — itself, or through a cover it lifted —, every attempt of that invoice that succeeded is
+marked reversed beside the attempt whose payment was taken back: none of them settles the invoice
+any more, and one that succeeded would keep every other attempt from being made. Its payment method
+collects that invoice no more either, even where its payment was paid out rather than reversed
+(`SC-PRIC-085`), and the subscriber is told once.
 
 _Source:_ #333 (decided 2026-10-15)
+
+### SC-PRIC-090 — Reversals of an invoice end alike in any order, and it is collected again
+
+🟢 💰 Where a payment whose credit covered another reversal of its invoice (`SC-PRIC-087`) is
+reversed itself, the cover is lifted before anything else, and the later reversal takes the credit
+as its own. The earlier one then takes what the credit covered as it would have without that
+credit, as everything stands when the cover is lifted (`SC-PRIC-084`): the credits its own payment
+left first — its share of a cancelled invoice that the replacement did not take among them
+(`SC-PRIC-025`) —, then the open credits other payments left for its invoice, and only then the
+invoice of its chain that payment still settles — the replacement, where its invoice was cancelled
+—, which it opens again by no more than that. What goes beyond all of them, such as a credit of its
+payment already paid out, is a case to reconcile. Two reversals of one invoice's payments therefore
+end alike whatever order the gateway reports them in, and whether the invoice was cancelled between
+them. The one exception is a credit of the earlier payment that covered a third reversal in turn:
+the lift does not lift that cover again, and what reaches it is a case as well. Where a reversal
+leaves an invoice owing — itself, or through a cover it lifted —, every attempt of that invoice
+that succeeded is marked reversed beside the attempt whose payment was taken back: none of them
+settles the invoice any more, and one that succeeded would keep every other attempt from being
+made. Its payment method collects that invoice no more either, even where its payment was paid out
+rather than reversed (`SC-PRIC-085`), and the subscriber is told once.
+
+_Source:_ #333 (decided 2026-10-15) · #334
 
 <!-- BEGIN proof -->
 
@@ -9995,10 +10134,15 @@ _Tested by:_
         - why
         - are reached only by what the withdrawal takes of the credit beyond its open part, the
           first first
+        - are reached only by what was taken beyond the open part of the credit that gave them
         - given back, return to the payment's own credit first, then the others, the oldest first
 - `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
     - two payments of one invoice, both no longer there
         - ${what}: both attempts reversed, told once, collected with a new card only
+        - a cover lifted that a third payment’s credit takes again opens nothing, and leaves both
+          attempts standing
+        - a lifted cover that meets a credit of its payment already paid out is the covered
+          reversal’s case, and audited as its
         - a failure followed up before the reversal holds no later direct debit back
         - a failure on the reversed card holds no direct debit back once the reversal was told
 
@@ -10089,6 +10233,7 @@ _Tested by:_
         - locks the invoice, reads its attempts, then writes the first one as submitted, without a
           conflict raised
         - writes no first attempt where one is ${status.toLowerCase()}
+        - writes none where another invoice of its chain holds it back
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
         - writes none for an invoice that owes nothing, reading no attempt
     - planning an attempt
@@ -10221,6 +10366,7 @@ _Tested by:_
         - locks the invoice, reads its attempts, then writes the first one as submitted, without a
           conflict raised
         - writes no first attempt where one is ${status.toLowerCase()}
+        - writes none where another invoice of its chain holds it back
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
         - writes none for an invoice that owes nothing, reading no attempt
     - planning an attempt
@@ -10247,6 +10393,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read
+        - none is started where another invoice of its chain holds it back
         - no first attempt is started where the invoice has one, and nothing is written
         - a planned one is written for its day, the day as midnight UTC, on the caller’s transaction
         - no planned one is written after another attempt than the one it follows
@@ -10456,6 +10603,7 @@ _Tested by:_
         - locks the invoice, reads its attempts, then writes the first one as submitted, without a
           conflict raised
         - writes no first attempt where one is ${status.toLowerCase()}
+        - writes none where another invoice of its chain holds it back
         - answers no attempt where the insert met one, and refuses an invoice that does not exist
         - writes none for an invoice that owes nothing, reading no attempt
     - planning an attempt
@@ -10479,6 +10627,36 @@ _Tested by:_
           in use
         - the accounts in use are those of attempts not settled, each once
         - an attempt reads back as a record, by id and with its invoice’s others, the first first
+- `packages/core/tests/an-invoice-is-corrected-by-a-cancellation.test.js`
+    - the invoice that stands in a chain
+        - is the first invoice where nothing was cancelled
+        - is the last replacement, however many cancellations deep
+        - is none where the last cancellation left no replacement
+- `packages/nest/tests/an-invoice-is-cancelled.test.js`
+    - a cancellation refused
+        - for an invoice the tenant does not have, or that does not exist
+        - for an invoice cancelled already, and for a cancellation invoice, drawing no number
+        - while the invoice’s document is not archived
+        - where the subscriber can be reached at no address, until one is given
+        - for an invoice that states a credit
+        - where the direct debit in use names no mandate the replacement could announce
+        - at every start without the transaction it is written on
+    - the collections of a cancelled invoice’s chain
+        - a failure of the cancelled invoice’s attempt is recorded and told to nobody, and the
+          replacement is collected once it is resolved
+        - a reversal is told only once no attempt of any invoice of the chain is on its way, about
+          the invoice that stands
+        - a reversal of a payment that moved tells the subscriber the replacement is open again
+        - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
+          that holds the chain
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an invoice is corrected by a cancellation invoice
+        - a database from before ends up with the schema the fragments declare, twice
+        - an invoice issued before begins a chain of its own, paid on issue by nothing
+        - a reversal given back before records what of that covered its cases, once
+        - the files that created the invoices and the payments, run again, leave the chain in place
+        - an installation whose invoices are not collected gains the chain, and runs through
+        - an installation without invoices is left without them, and runs through
 
 <!-- END proof -->
 
@@ -10677,6 +10855,8 @@ _Tested by:_
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
         - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+        - paid already, states what was paid and that nothing is due, and names no way of paying
+        - paid in part, announces the debit of what is left alone
     - an invoice that corrects none
         - names no invoice it corrects and no reason
     - a font the application passes
@@ -10740,6 +10920,9 @@ _Tested by:_
     - a replacement
         - naming the invoice it replaces passes
         - naming none is refused, and so is one stated as a credit note
+        - that took over what was paid for the invoice it replaces › stating it as paid, and the
+          amount due less it, passes
+        - that took over what was paid for the invoice it replaces › stating ${what} is refused
     - an invoice that corrects none
         - naming an invoice it corrects is refused
 
@@ -10827,6 +11010,8 @@ _Tested by:_
         - carries a credit note stating the cancelled invoice’s amounts, naming it and why
     - a replacement
         - is an invoice naming the invoice it replaces and why, and each line the line it replaces
+        - paid already, states what was paid and that nothing is due, and names no way of paying
+        - paid in part, announces the debit of what is left alone
     - an invoice that corrects none
         - names no invoice it corrects and no reason
     - a font the application passes
@@ -15710,7 +15895,7 @@ _Tested by:_
         - one is closed only where it is still open, and one closed before or unknown is answered as
           such
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
     - a reversal
@@ -15734,7 +15919,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once
@@ -21371,6 +21556,13 @@ _Tested by:_
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
+    - an invoice is corrected by a cancellation invoice
+        - a database from before ends up with the schema the fragments declare, twice
+        - an invoice issued before begins a chain of its own, paid on issue by nothing
+        - a reversal given back before records what of that covered its cases, once
+        - the files that created the invoices and the payments, run again, leave the chain in place
+        - an installation whose invoices are not collected gains the chain, and runs through
+        - an installation without invoices is left without them, and runs through
 
 <!-- END proof -->
 
@@ -21516,6 +21708,13 @@ _Tested by:_
         - a payment is taken once under its gateway account and reference, and another account may
           reuse the reference
         - an installation without collection attempts is left without the payments, and runs through
+    - an invoice is corrected by a cancellation invoice
+        - a database from before ends up with the schema the fragments declare, twice
+        - an invoice issued before begins a chain of its own, paid on issue by nothing
+        - a reversal given back before records what of that covered its cases, once
+        - the files that created the invoices and the payments, run again, leave the chain in place
+        - an installation whose invoices are not collected gains the chain, and runs through
+        - an installation without invoices is left without them, and runs through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -22550,7 +22749,7 @@ _Tested by:_
         - one is closed only where it is still open, and one closed before or unknown is answered as
           such
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - the accounts holding credits are asked with the kinds that give back
 - `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
     - schema table map
@@ -22583,7 +22782,7 @@ _Tested by:_
         - one is closed with the operator’s note once, and an unknown one is answered as such
         - a refund’s part no credit takes opens one, once, and its failure closes it
     - what the credits and invoices read
-        - what each invoice owes is read in two statements, and nothing is asked for none
+        - what each invoice owes is read in three statements, and nothing is asked for none
         - a reversal is found by its id, and none by another
         - the accounts holding credits are asked with the kinds that give back, and read as texts
         - an invoice that owes less than nothing becomes a credit of its own, once
@@ -22655,6 +22854,7 @@ _Tested by:_
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read
+        - none is started where another invoice of its chain holds it back
         - no first attempt is started where the invoice has one, and nothing is written
         - a planned one is written for its day, the day as midnight UTC, on the caller’s transaction
         - no planned one is written after another attempt than the one it follows
@@ -22706,8 +22906,9 @@ _Tested by:_
         - on the caller’s transaction it opens none of its own, and writes inside a savepoint
         - a refusal on the caller’s transaction rolls back to the savepoint before it is thrown
         - the due subscriptions are asked for after the page given, or from the start
-        - the charges left to invoice are those with no invoice line, in the journal’s order
-        - reads ask for the lines in their order, and the prefixes two at most
+        - the charges left to invoice are those on no invoice line, in the journal’s order
+        - reads ask for the lines in their order and what the invoice corrects, and the prefixes two
+          at most
 - `packages/adapter-prisma/tests/prisma-subscription-notice.repository.test.js`
     - PrismaSubscriptionNoticeRepository
         - a claim records the notice where it is new, then takes it in one guarded update

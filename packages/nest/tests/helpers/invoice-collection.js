@@ -2,8 +2,10 @@
 // stores, the subscribers' payment methods, a scripted gateway at the one
 // account the file names, the record of what the subscriber is told, and the
 // attempts, kept as the persistence contract holds both adapters to keep them
-// — one open per invoice, none after one succeeded, an outcome recorded once,
-// a hold taken by one run, a planned attempt taken up by one.
+// — one open per invoice, none after one succeeded, none while an attempt of
+// another invoice of its chain is on its way or with a payment method one of
+// the chain's was reversed on, an outcome recorded once, a hold taken by one
+// run, a planned attempt taken up by one.
 
 import { afterEach, beforeEach, mock } from 'node:test';
 import { Logger } from '@nestjs/common';
@@ -19,8 +21,13 @@ import {
     refusesPlannedAttempt,
 } from '@saasicat/core';
 
-import { InvoiceCollectionService, InvoicePaymentService } from '../../dist/billing/index.js';
+import {
+    InvoiceCancellationService,
+    InvoiceCollectionService,
+    InvoicePaymentService,
+} from '../../dist/billing/index.js';
 import { PaymentCallbackService, PaymentGatewayRegistry } from '../../dist/payments/index.js';
+import { FakeTransactionRunner } from '../../dist/testing/index.js';
 import { auditLogFailing } from './audit-log.js';
 import { aMailbox } from './invoice-documents.js';
 import { INVOICING_SETTINGS, anInvoicingInstallation, berlin } from './invoice-run.js';
@@ -94,10 +101,34 @@ export const COLLECTING_SETTINGS = {
 /**
  * The attempts in memory, beside the invoices and documents of `store` and
  * the subscribers' payment methods. `owes` says whether an invoice still owes
- * something; one that owes nothing is collected no further.
+ * something; one that owes nothing is collected no further. `owedOf` is what
+ * it owes, which an attempt is written for in its turn — its total unless a
+ * test says otherwise.
  */
-export function collectionStore(store, paymentMethods, owes = () => true) {
+export function collectionStore(
+    store,
+    paymentMethods,
+    owes = () => true,
+    owedOf = (invoiceId) => store.invoices.find((invoice) => invoice.id === invoiceId).totalGross,
+) {
     const attempts = [];
+    const chainOf = (invoiceId) => {
+        const chainId = store.invoices.find((invoice) => invoice.id === invoiceId)?.chainId;
+        return new Set(
+            store.invoices.filter((invoice) => invoice.chainId === chainId).map((each) => each.id),
+        );
+    };
+    /** Whether another invoice of the chain holds an attempt of `invoiceId` with `paymentMethodId` back. */
+    const heldBack = (invoiceId, paymentMethodId) => {
+        const chain = chainOf(invoiceId);
+        return attempts.some(
+            (each) =>
+                each.invoiceId !== invoiceId &&
+                chain.has(each.invoiceId) &&
+                (UNSETTLED_COLLECTION_STATUSES.includes(each.status) ||
+                    (each.status === 'REVERSED' && each.paymentMethodId === paymentMethodId)),
+        );
+    };
     const pageOf = (ids, { limit, after }) =>
         ids
             .filter((id) => after === undefined || id > after)
@@ -113,10 +144,12 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         if (!owes(request.invoiceId)) return null;
         const earlier = attempts.filter((each) => each.invoiceId === request.invoiceId);
         if (refuses(earlier)) return null;
+        if (heldBack(request.invoiceId, request.paymentMethodId)) return null;
         const number = lastCollectionOf(earlier) + 1;
         const written = {
             id: `attempt-${attempts.length + 1}`,
             ...request,
+            amount: await owedOf(request.invoiceId),
             attempt: number,
             attemptKey: collectionAttemptKey(request.invoiceId, number),
             paymentRef: null,
@@ -148,11 +181,18 @@ export function collectionStore(store, paymentMethods, owes = () => true) {
         async listDue(today, page) {
             const due = store.invoices.filter((invoice) => {
                 const document = store.documents.get(invoice.id);
+                const chain = chainOf(invoice.id);
                 return (
                     invoice.payment !== null &&
                     document?.deliveredAt &&
                     (invoice.collectionDate === null || invoice.collectionDate <= today) &&
-                    !attempts.some((attempt) => attempt.invoiceId === invoice.id)
+                    !attempts.some((attempt) => attempt.invoiceId === invoice.id) &&
+                    !store.cancellations.some((each) => each.cancelledInvoiceId === invoice.id) &&
+                    !attempts.some(
+                        (attempt) =>
+                            chain.has(attempt.invoiceId) &&
+                            UNSETTLED_COLLECTION_STATUSES.includes(attempt.status),
+                    )
                 );
             });
             return pageOf(
@@ -350,9 +390,15 @@ export function aCollectingInstallation({
 } = {}) {
     const paymentMethods = new MemoryPaymentMethods();
     const installation = anInvoicingInstallation({ settings, paymentMethods, mail });
-    const payments = new MemorySubscriberPayments(installation.store.invoices);
-    const collections = collectionStore(installation.store, paymentMethods, (invoiceId) =>
-        payments.stillOwes(invoiceId),
+    const payments = new MemorySubscriberPayments(
+        installation.store.invoices,
+        installation.store.cancellations,
+    );
+    const collections = collectionStore(
+        installation.store,
+        paymentMethods,
+        (invoiceId) => payments.stillOwes(invoiceId),
+        (invoiceId) => payments.owedBy(invoiceId),
     );
     const notices = noticeRecord();
     const gateway = new ScriptedGateway('stripe');
@@ -384,10 +430,33 @@ export function aCollectingInstallation({
         money,
         transactions,
     );
+    // Corrects an issued invoice: the journal as the ledger reads it, and the
+    // platform's transaction, which the invoices in memory need none of.
+    const cancellation = new InvoiceCancellationService(
+        installation.store,
+        {
+            listBySubscription: async (subscriptionId) =>
+                structuredClone(
+                    installation.journal.filter(
+                        (charge) => charge.subscriptionId === subscriptionId,
+                    ),
+                ),
+        },
+        installation.subscribers,
+        installation.service,
+        installation.taxes,
+        settings,
+        new FakeTransactionRunner(),
+        payments,
+        collections,
+        paymentMethods,
+    );
+    cancellation.onModuleInit();
     return {
         ...installation,
         paymentMethods,
         payments,
+        cancellation,
         eventLog,
         callbacks,
         money,

@@ -572,6 +572,36 @@ describe('a replacement', () => {
         assert.ok(xml.includes('<ram:TypeCode>380</ram:TypeCode>'));
         assert.ok(xml.includes('<ram:IssuerAssignedID>AHP-2026-000123</ram:IssuerAssignedID>'));
         assert.ok(xml.includes('<udt:DateTimeString format="102">20260306</udt:DateTimeString>'));
+        assert.ok(!xml.includes('TotalPrepaidAmount'), 'nothing was paid on issue');
+    });
+
+    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    test('paid already, states what was paid and that nothing is due, and names no way of paying', async () => {
+        const { content } = await render('replacement-paid');
+        const [page] = await pageTexts(content);
+        const said = page.join(' ');
+        const xml = await embeddedXml(content);
+
+        assert.ok(page.includes('Bereits bezahlt / Already paid'));
+        assert.ok(page.includes('-76,16'));
+        assert.ok(page.includes('Zu zahlen / Amount due (EUR)'));
+        assert.ok(page.includes('0,00'));
+        assert.ok(!said.includes('eingezogen') && !said.includes('charged'), said);
+        assert.ok(xml.includes('<ram:GrandTotalAmount>76.16</ram:GrandTotalAmount>'));
+        assert.ok(xml.includes('<ram:TotalPrepaidAmount>76.16</ram:TotalPrepaidAmount>'));
+        assert.ok(xml.includes('<ram:DuePayableAmount>0.00</ram:DuePayableAmount>'));
+    });
+
+    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
+    test('paid in part, announces the debit of what is left alone', async () => {
+        const { content } = await render('replacement-paid-in-part');
+        const said = (await pageTexts(content)).flat().join(' ').replaceAll(' ', '');
+        const xml = await embeddedXml(content);
+
+        assert.ok(said.includes('DerBetragvon26,16EURwirdfrühestensam25.02.2026'), said);
+        assert.ok(xml.includes('<ram:TotalPrepaidAmount>50.00</ram:TotalPrepaidAmount>'));
+        assert.ok(xml.includes('<ram:DuePayableAmount>26.16</ram:DuePayableAmount>'));
     });
 });
 

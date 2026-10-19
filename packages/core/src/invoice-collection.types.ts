@@ -110,7 +110,11 @@ export function sentCollectionOf(attempt: InvoiceCollectionRecord): SubmittedInv
     return { ...attempt, submittedAt, heldAt };
 }
 
-/** An attempt to start: what its request carries, and the moment it is taken on. */
+/**
+ * An attempt to start: what its request carries, and the moment it is taken
+ * on. Its amount is what the invoice still owes, which the store reads in the
+ * turn it writes the attempt in (`SC-PRIC-036`).
+ */
 export interface NewInvoiceCollection {
     invoiceId: string;
     gatewayAccount: string;
@@ -119,13 +123,15 @@ export interface NewInvoiceCollection {
     customerRef: string;
     paymentMethodRef: string;
     invoiceNumber: string;
-    amount: number;
     currency: string;
     /** Written as both `submittedAt` and `heldAt`. */
     at: Date;
 }
 
-/** An attempt to plan for `collectOn`: what its request will carry. */
+/**
+ * An attempt to plan for `collectOn`: what its request will carry. Its amount
+ * is what the invoice still owes when it is planned, as `NewInvoiceCollection`'s.
+ */
 export interface PlannedInvoiceCollection {
     invoiceId: string;
     /**
@@ -140,7 +146,6 @@ export interface PlannedInvoiceCollection {
     customerRef: string;
     paymentMethodRef: string;
     invoiceNumber: string;
-    amount: number;
     currency: string;
     /** The day it is collected from; for a direct debit, the earliest such day. */
     collectOn: CalendarDay;

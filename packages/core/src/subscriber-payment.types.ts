@@ -68,7 +68,13 @@ export type SubscriberCreditOrigin =
      * What a reversal the gateway gave back brought beyond what the invoices
      * it had opened again still owed: the subscriber paid them meanwhile.
      */
-    | { kind: 'reversal'; reversalId: string };
+    | { kind: 'reversal'; reversalId: string }
+    /**
+     * What a payment settled of an invoice that was cancelled, which the
+     * replacement did not take (`SC-PRIC-025`); a reversal of the payment takes
+     * it back as the payment's own (`SC-PRIC-084`).
+     */
+    | { kind: 'cancellation'; cancellationId: string; paymentId: string };
 
 /** Money the operator owes a subscriber, as a store reads it back. */
 export interface SubscriberCreditRecord {
@@ -230,6 +236,14 @@ export interface SubscriberReversalRecord {
     fromCredit: number;
     /** What the gateway gave back of `amount`, a dispute won; `0` until it gives anything back. */
     reinstated: number;
+    /**
+     * The part of `reinstated` that covered the reversal's cases: what came
+     * back of what matched nothing. Recorded rather than inferred from
+     * `reinstated`, because a case can be opened after a give-back — the
+     * amount grew, or a cover was lifted —, and what was given back before it
+     * went elsewhere.
+     */
+    reinstatedToCases: number;
     recordedAt: Date;
     /** When the gateway last gave something back; `null` until it does. */
     reinstatedAt: Date | null;
@@ -252,8 +266,12 @@ export interface ReportedSubscriberReversal {
 
 /** What withdrawing part of a reversal's amount took back. */
 export interface ReversalWithdrawal {
-    /** What it took of the credit the payment left that was still open. */
-    credit: CreditPart | null;
+    /**
+     * What it took of the credits the payment left that was still open: what it
+     * brought beyond its invoice, then its share of a cancelled invoice the
+     * replacement did not take.
+     */
+    credits: CreditPart[];
     /**
      * What it took instead of opening an invoice again, of the credits other
      * payments collected for that invoice left, the oldest first.
@@ -263,8 +281,8 @@ export interface ReversalWithdrawal {
     invoices: InvoicePart[];
     /**
      * The covers the payment's own credit gave other reversals of its invoice,
-     * lifted before anything else: each of those reversals now opens the
-     * invoice by what it took (`SC-PRIC-088`).
+     * lifted before anything else: each of those reversals now takes what the
+     * cover held as a withdrawal of its payment would without it (`SC-PRIC-090`).
      */
     uncovered: LiftedCover[];
     /**
@@ -275,12 +293,30 @@ export interface ReversalWithdrawal {
     case: SubscriberReconciliationCaseRecord | null;
 }
 
-/** A cover lifted: the reversal it was given to, that reversal's payment, and what it opens now. */
+/**
+ * A cover lifted: the reversal it was given to, that reversal's payment, and
+ * how that reversal takes now what the cover held — as a withdrawal of its
+ * payment would without that credit, read as everything stands when the cover
+ * is lifted (`SC-PRIC-090`).
+ */
 export interface LiftedCover {
     reversalId: string;
     paymentId: string;
-    invoiceId: string;
+    /** What the cover held, given back to the credit that gave it. */
     amount: number;
+    /** What it takes of the open credits its payment left. */
+    credits: CreditPart[];
+    /** What it takes instead of opening an invoice again, of the open credits other payments left for it. */
+    covering: CreditPart[];
+    /** The invoices it opens again, each by how much. */
+    invoices: InvoicePart[];
+    /**
+     * What met the part of its payment's credits that is not open — paid out,
+     * or lent to a further reversal as a cover, which a lift does not lift in
+     * turn —, or went beyond what the payment brought: a case to reconcile.
+     */
+    unmatched: number;
+    case: SubscriberReconciliationCaseRecord | null;
 }
 
 /** What giving back part of a reversal's amount took back in turn. */
@@ -365,12 +401,15 @@ export interface AdminSubscriberCredit {
     currency: string;
     /**
      * The payment that brought more than its invoice owed, the invoice whose
-     * total is negative, or the reversal the gateway gave back.
+     * total is negative, the reversal the gateway gave back, or the payment
+     * whose share of a cancelled invoice the replacement did not take — with
+     * the cancelled invoice's number.
      */
     origin:
         | { kind: 'payment'; paymentRef: string; invoiceNumber: string | null }
         | { kind: 'invoice'; invoiceNumber: string | null }
-        | { kind: 'reversal'; reversalRef: string; invoiceNumber: string | null };
+        | { kind: 'reversal'; reversalRef: string; invoiceNumber: string | null }
+        | { kind: 'cancellation'; paymentRef: string; invoiceNumber: string | null };
     /** ISO 8601. */
     createdAt: string;
     open: number;

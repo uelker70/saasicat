@@ -2220,6 +2220,82 @@ it stands for. `@saasicat/tax-de`'s check of a document refuses one whose type, 
 are not what the invoice records. **A renderer of your own** does the same before invoices can be
 cancelled.
 
+### An invoice is cancelled by a cancellation invoice and its replacement
+
+An issued invoice is corrected by cancelling it (`SC-PRIC-025`): a cancellation invoice that states
+it reversed and asks for nothing, a replacement for its charges under a new number, and what was
+paid for it moved onto the replacement — each payment's share, the oldest first — or, where the
+replacement does not take it, a credit for the operator to refund. An invoice and the invoices that
+correct it are one chain, and whatever changes what an invoice of a chain owes or how it is
+collected takes the chain's turn (`SC-PRIC-036`). `InvoiceCancellationService` previews and writes
+a cancellation; the operator's route and command follow in the next release candidate.
+
+1. Take fragments 15, 20 and 24 as they ship now: `SubscriptionInvoice` gains `chainId`,
+   `chainStep` and `paidOnIssue`, a line `chainStep` and `correctedPosition` — a charge now stands
+   on one line per step of its chain, so `SubscriberLedgerEntry.invoiceLines` is a list —, the
+   model `SubscriptionInvoiceCancellation` is new, a settlement gains `cancellationId` and the
+   kinds `MOVED_OUT` and `MOVED_IN`, a credit `originCancellationId`, and a reversal
+   `reinstatedToCases`. Where `notAdopted` leaves the invoices out, name
+   `SubscriptionInvoiceCancellation` with them.
+2. Run the migration once, **before** `db push`, after the two it builds on:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-an-invoice-is-cancelled.postgres.sql
+    ```
+
+    It gives every invoice issued so far a chain of its own, creates the cancellations, moves the
+    unique charge of a line to the unique charge per chain step, and lets a payment leave a credit
+    of its own and one per cancellation (`subscriber_credits_one_per_payment`, which
+    `constraints.postgres.sql` holds as well), and gives each reversal `reinstatedToCases`, what of
+    its give-backs covered its cases, as far as what it was given back and what its cases hold
+    allow. That is what the release before counted, and the database keeps nothing it could be
+    corrected from: where a reversal grew after a give-back before the upgrade, a case it opened
+    then reads as covered by that give-back. Look at the open cases of such a reversal on the
+    reconciliation page. It does nothing on a second run, and the part about payments nothing
+    where invoices are not collected.
+
+3. The start refuses invoicing without `contractFreeze.transactionRunner`, the transaction a
+   cancellation is written on. `SaaSiCatModule` passes the persistence bundle's; an application
+   wiring `TenantBillingModule` itself passes its runner there.
+
+- **A `SubscriptionInvoiceRepository` of your own** writes `chainId` (the invoice's own id) and
+  `chainStep` `0` on `issue`, and implements `holdChain` — the lock on the chain's first invoice,
+  then the chain read (`subscriptionInvoiceChainOf`) —, `issueCancellation`, `findCancellation`
+  and `findCancellationById`; `toSubscriptionInvoiceRecord` takes the cancellation a row is the
+  cancellation invoice or the replacement of.
+- **A `SubscriberPaymentRepository` of your own** counts nothing as owed on a cancelled invoice or
+  a cancellation invoice (`owedByInvoice`), settles a payment on the invoice that stands in its
+  chain, leaves a cancellation invoice uncredited, implements `sharesOf` and `moveShares`, and
+  takes every credit a payment left before it opens an invoice on a reversal (`withdrawalParts`
+  takes a list; `ReversalWithdrawal.credit` is `credits`). A cover it lifts is taken as a withdrawal
+  of the covered payment would take it without that credit, as everything stands then
+  (`SC-PRIC-090`, which supersedes `SC-PRIC-088`): that payment's credits first, then the other open
+  credits for its invoices as the withdrawal lifting it left them — so that withdrawal is written
+  first —, then what it still settles of them, and a case for the rest, the covered reversal's
+  `fromCredit` growing by what it took of its payment's credits. `LiftedCover` says so: it names
+  `credits`, `covering`, `invoices`, `unmatched` and `case` where it named one `invoiceId`. A
+  give-back covers what a reversal's cases hold beyond its `reinstatedToCases` and adds what it
+  covered there, rather than counting every earlier give-back as having covered the cases: a case
+  can be opened after one (`subscriberReversalColumns` writes it as `0`).
+- **An `InvoiceCollectionRepository` of your own** takes the chain's turn wherever it took the
+  invoice's, collects no invoice of a chain while an attempt for one of them is unresolved, and
+  none with a payment method one of the chain's payments was reversed on. It writes an attempt
+  for what the invoice still owes, read in that turn: `NewInvoiceCollection` and
+  `PlannedInvoiceCollection` no longer carry `amount`, and `invoiceCollectionColumns` and
+  `plannedCollectionColumns` take it as their third argument.
+- **A persistence contract harness** runs the cancellation scenarios with the gaps it declares;
+  empty `subscription_invoice_cancellations` between scenarios with the invoices.
+- **A renderer of your own** states `paidOnIssue` on a replacement: what was paid (BT-113) and the
+  amount due less it, as `zugferdInvoiceRenderer()` does; `@saasicat/tax-de`'s check refuses a
+  document whose prepaid amount or amount due is not what the invoice records.
+- **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`,
+  `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`, `SUBSCRIPTION_INVOICE_IS_CANCELLATION`,
+  `SUBSCRIPTION_INVOICE_STATES_A_CREDIT` and `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`. The audit
+  entry `SUBSCRIBER_REVERSAL_RECORDED` names `credits`, every credit of the payment it took from,
+  where it named one `credit`, and each of its `uncovered` as `LiftedCover` does, the case by its
+  `caseId`; what a lifted cover met that matched nothing is a `SUBSCRIBER_REVERSAL_UNMATCHED` of
+  the reversal it covered.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

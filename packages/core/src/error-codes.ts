@@ -666,6 +666,32 @@ export const INVOICE_ERROR_CODES = {
      */
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED: 'SUBSCRIPTION_INVOICE_CHARGE_INVOICED',
     /**
+     * The invoice (`number`) is cancelled already (`SC-PRIC-036`): a mistake on
+     * its replacement is corrected by cancelling the replacement. Nothing is
+     * written and no number is drawn.
+     */
+    SUBSCRIPTION_INVOICE_ALREADY_CANCELLED: 'SUBSCRIPTION_INVOICE_ALREADY_CANCELLED',
+    /**
+     * The invoice (`number`) is cancelled only once its document is archived,
+     * so a cancellation never corrects a document the subscriber could not
+     * have received (`SC-PRIC-025`).
+     */
+    SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED: 'SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED',
+    /** The invoice (`number`) is a cancellation invoice, which is not cancelled itself. */
+    SUBSCRIPTION_INVOICE_IS_CANCELLATION: 'SUBSCRIPTION_INVOICE_IS_CANCELLATION',
+    /**
+     * The invoice (`number`) states a credit — its total is negative —, which
+     * the subscriber was credited when it was issued (`SC-PRIC-083`). A
+     * replacement would state it again, so it is not cancelled.
+     */
+    SUBSCRIPTION_INVOICE_STATES_A_CREDIT: 'SUBSCRIPTION_INVOICE_STATES_A_CREDIT',
+    /**
+     * The subscriber's record (`subscriberId`) holds no invoice email, and the
+     * cancellation of the invoice (`number`) names no address to deliver it
+     * and its replacement to (`SC-PRIC-047`).
+     */
+    SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS: 'SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS',
+    /**
      * The invoice lacks content the tax adapter requires of it — `missing`
      * names the fields, `adapter` the adapter. It draws no number and waits
      * until what is missing is supplied (`SC-PRIC-027`).

@@ -23,6 +23,11 @@
 -- gain the columns that name a reversal: `reversalId` on the settlements and
 -- the credit entries, `originReversalId` on the credits.
 --
+-- A credit table that `1.0-an-invoice-is-cancelled.postgres.sql` gave a
+-- cancellation to name keeps the unique indexes that file put in place of the
+-- unique `originPaymentId`, so this file run again does not take cancelling an
+-- invoice back.
+--
 -- Skipped, with a notice, where `subscription_invoice_collections` is
 -- missing. Nothing is backfilled: no payment was recorded before this file.
 --
@@ -123,6 +128,7 @@ BEGIN
         "currency" TEXT NOT NULL,
         "fromCredit" DECIMAL(12,2) NOT NULL,
         "reinstated" DECIMAL(12,2) NOT NULL,
+        "reinstatedToCases" DECIMAL(12,2) NOT NULL DEFAULT 0,
         "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "reinstatedAt" TIMESTAMP(3),
 
@@ -158,7 +164,14 @@ BEGIN
     CREATE UNIQUE INDEX IF NOT EXISTS "subscriber_payments_gatewayAccount_gatewayRef_key" ON "subscriber_payments"("gatewayAccount", "gatewayRef");
     CREATE INDEX IF NOT EXISTS "subscription_invoice_settlements_invoiceId_idx" ON "subscription_invoice_settlements"("invoiceId");
     CREATE INDEX IF NOT EXISTS "subscription_invoice_settlements_paymentId_idx" ON "subscription_invoice_settlements"("paymentId");
-    CREATE UNIQUE INDEX IF NOT EXISTS "subscriber_credits_originPaymentId_key" ON "subscriber_credits"("originPaymentId");
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'subscriber_credits'
+           AND column_name = 'originCancellationId'
+    ) THEN
+        CREATE UNIQUE INDEX IF NOT EXISTS "subscriber_credits_originPaymentId_key" ON "subscriber_credits"("originPaymentId");
+    END IF;
     CREATE UNIQUE INDEX IF NOT EXISTS "subscriber_credits_originInvoiceId_key" ON "subscriber_credits"("originInvoiceId");
     CREATE INDEX IF NOT EXISTS "subscriber_credits_subscriberId_createdAt_idx" ON "subscriber_credits"("subscriberId", "createdAt");
     CREATE INDEX IF NOT EXISTS "subscriber_credit_entries_creditId_idx" ON "subscriber_credit_entries"("creditId");

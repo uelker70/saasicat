@@ -12,7 +12,7 @@
 
 import type { SubscriptionInvoiceRecord } from '@saasicat/core';
 
-import { cancellationPaymentNoteOf } from './correction.js';
+import { amountDueOf, cancellationPaymentNoteOf } from './correction.js';
 import { pageAmount, pageDay } from './format.js';
 import type { Label } from './labels.js';
 
@@ -37,7 +37,7 @@ export function paymentNoteOf(invoice: SubscriptionInvoiceRecord): Label | null 
                 'mandate its announcement names.',
         );
     }
-    const amount = `${pageAmount(invoice.totalGross)} ${invoice.currency}`;
+    const amount = `${pageAmount(amountDueOf(invoice))} ${invoice.currency}`;
     const day = pageDay(collectionDate);
     const mandate = payment.mandateReference;
     return {

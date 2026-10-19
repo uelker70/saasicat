@@ -21,7 +21,10 @@
 --   `subscription_invoice_lines` — created with its indexes, among them the
 --   unique `chargeId` that puts a charge on one invoice only, and its foreign
 --   keys to `subscription_invoices`, `subscriber_ledger_entries` and
---   `contract_line_items`.
+--   `contract_line_items`. A table that
+--   `1.0-an-invoice-is-cancelled.postgres.sql` gave the step of its chain keeps
+--   the unique (`chargeId`, `chainStep`) that file put in its place, so this
+--   file run again does not take cancelling an invoice back.
 --
 --   `subscription_invoice_numbers` — created: one row per year, holding the last
 --   number drawn.
@@ -102,8 +105,15 @@ BEGIN
         "taxRate" DECIMAL(5,2) NOT NULL,
         CONSTRAINT "subscription_invoice_lines_pkey" PRIMARY KEY ("id")
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoice_lines_chargeId_key"
-        ON "subscription_invoice_lines"("chargeId");
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'subscription_invoice_lines'
+           AND column_name = 'chainStep'
+    ) THEN
+        CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoice_lines_chargeId_key"
+            ON "subscription_invoice_lines"("chargeId");
+    END IF;
     CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoice_lines_invoiceId_position_key"
         ON "subscription_invoice_lines"("invoiceId", "position");
     CREATE INDEX IF NOT EXISTS "subscription_invoice_lines_contractLineItemId_idx"

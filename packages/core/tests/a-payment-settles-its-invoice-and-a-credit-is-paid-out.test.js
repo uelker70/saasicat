@@ -193,6 +193,7 @@ describe('a credit row', () => {
         originPaymentId: null,
         originInvoiceId: 'invoice-1',
         originReversalId: null,
+        originCancellationId: null,
         createdAt: AT,
     };
 
@@ -211,21 +212,43 @@ describe('a credit row', () => {
                 .origin,
             { kind: 'reversal', reversalId: 'r-1' },
         );
+        // A payment's share of a cancelled invoice its replacement did not take.
+        assert.deepEqual(
+            toSubscriberCreditRecord({
+                ...row,
+                originInvoiceId: null,
+                originPaymentId: 'p-1',
+                originCancellationId: 'x-1',
+            }).origin,
+            { kind: 'cancellation', cancellationId: 'x-1', paymentId: 'p-1' },
+        );
         assert.equal(toSubscriberCreditRecord(row).amount, 40);
     });
 
     test('naming two places or none stops the read', () => {
+        const twice = /names 2 of a payment, an invoice, a reversal and a cancellation/;
+        const none = /names none of a payment, an invoice, a reversal and a cancellation/;
+        assert.throws(() => toSubscriberCreditRecord({ ...row, originPaymentId: 'p-1' }), twice);
+        assert.throws(() => toSubscriberCreditRecord({ ...row, originReversalId: 'r-1' }), twice);
         assert.throws(
-            () => toSubscriberCreditRecord({ ...row, originPaymentId: 'p-1' }),
-            /names 2 of a payment, an invoice and a reversal/,
+            () =>
+                toSubscriberCreditRecord({
+                    ...row,
+                    originPaymentId: 'p-1',
+                    originCancellationId: 'x-1',
+                }),
+            twice,
         );
+        assert.throws(() => toSubscriberCreditRecord({ ...row, originInvoiceId: null }), none);
+        // A cancellation's credit is of a payment's share, or it is none.
         assert.throws(
-            () => toSubscriberCreditRecord({ ...row, originReversalId: 'r-1' }),
-            /names 2 of a payment, an invoice and a reversal/,
-        );
-        assert.throws(
-            () => toSubscriberCreditRecord({ ...row, originInvoiceId: null }),
-            /names none of a payment, an invoice and a reversal/,
+            () =>
+                toSubscriberCreditRecord({
+                    ...row,
+                    originInvoiceId: null,
+                    originCancellationId: 'x-1',
+                }),
+            none,
         );
     });
 });

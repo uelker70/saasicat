@@ -14,6 +14,7 @@ import type {
 
 import { taxStatementOf, type TaxStatement } from './categories.js';
 import {
+    amountDueOf,
     correctionNoteOf,
     isCancellation,
     lineCorrectionOf,
@@ -280,7 +281,11 @@ export function ciiOf(invoice: SubscriptionInvoiceRecord): string {
             ` currencyID="${xmlText(invoice.currency)}"`,
         ) +
         element('ram:GrandTotalAmount', xmlAmount(sign * invoice.totalGross)) +
-        element('ram:DuePayableAmount', xmlAmount(sign * invoice.totalGross)) +
+        // BT-113: what was paid for the invoice a replacement replaces.
+        (invoice.paidOnIssue > 0
+            ? element('ram:TotalPrepaidAmount', xmlAmount(invoice.paidOnIssue))
+            : '') +
+        element('ram:DuePayableAmount', xmlAmount(sign * amountDueOf(invoice))) +
         '</ram:SpecifiedTradeSettlementHeaderMonetarySummation>' +
         correctedInvoice(invoice) +
         '</ram:ApplicableHeaderTradeSettlement>' +

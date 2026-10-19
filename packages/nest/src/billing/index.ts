@@ -175,6 +175,12 @@ export {
     SUBSCRIBER_PAYMENT_REPOSITORY_TOKEN,
 } from './invoices/invoice-collection.tokens.js';
 export {
+    InvoiceCancellationService,
+    type CancelledInvoice,
+    type InvoiceCancellationPlan,
+    type InvoiceCancellationRequest,
+} from './invoices/invoice-cancellation.service.js';
+export {
     InvoicePaymentService,
     type RecordedCollectionOutcome,
 } from './invoices/invoice-payment.service.js';

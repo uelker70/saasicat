@@ -96,4 +96,37 @@ describe('the models a bundle can be told are not adopted', () => {
             assert.ok(declared.has(model), `${model} is a canonical model`);
         }
     });
+
+    // A fragment that says it is optional is adopted as one, so a schema that
+    // leaves it out leaves out every model it declares — one the list missed
+    // could not be named in `notAdopted`, and the bundle would keep a member
+    // that reads its table.
+    test('are every model of a fragment that says it is optional', () => {
+        const fragments = join(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            'packages/spec/prisma-fragments',
+        );
+        const optional = readdirSync(fragments)
+            .filter((file) => file.endsWith('.prisma'))
+            .map((file) => readFileSync(join(fragments, file), 'utf8').split('\n'))
+            .filter((lines) => {
+                const head = lines.slice(
+                    0,
+                    lines.findIndex((line) => line.startsWith('model ')),
+                );
+                return head.some((line) => line.startsWith('// Optional'));
+            });
+
+        assert.ok(optional.length >= 5, 'the optional fragments were found');
+        for (const lines of optional) {
+            for (const line of lines.filter((each) => each.startsWith('model '))) {
+                const model = line.split(/\s+/)[1];
+                assert.ok(
+                    Object.hasOwn(OPTIONAL_CANONICAL_MODELS, model),
+                    `${model} is in a fragment that says it is optional, and cannot be left out`,
+                );
+            }
+        }
+    });
 });

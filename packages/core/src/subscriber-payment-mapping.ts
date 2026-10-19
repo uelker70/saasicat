@@ -36,14 +36,19 @@ const REVERSALS = 'subscriber_reversals';
 /**
  * What an entry against an invoice is: a payment that settles it, a reversal
  * that opens it again by part of what a payment settled, and the same part
- * settled again where the gateway gave the reversal back.
+ * settled again where the gateway gave the reversal back; and what a
+ * cancellation moved of a payment's share, out of the cancelled invoice and
+ * into its replacement (`SC-PRIC-025`).
  */
-export type InvoiceSettlementKind = 'PAYMENT' | 'REVERSAL' | 'REINSTATEMENT';
+export type InvoiceSettlementKind =
+    'PAYMENT' | 'REVERSAL' | 'REINSTATEMENT' | 'MOVED_OUT' | 'MOVED_IN';
 
 export const INVOICE_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = [
     'PAYMENT',
     'REVERSAL',
     'REINSTATEMENT',
+    'MOVED_OUT',
+    'MOVED_IN',
 ];
 
 /**
@@ -51,7 +56,10 @@ export const INVOICE_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = [
  * it; an adapter that sums settlements in SQL passes it as a parameter, so the
  * sign is decided here alone.
  */
-export const REOPENING_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = ['REVERSAL'];
+export const REOPENING_SETTLEMENT_KINDS: readonly InvoiceSettlementKind[] = [
+    'REVERSAL',
+    'MOVED_OUT',
+];
 
 export const SUBSCRIBER_CREDIT_ENTRY_KINDS: readonly SubscriberCreditEntryKind[] = [
     'REFUND',
@@ -173,13 +181,15 @@ export interface CanonicalSubscriberCreditRow {
     originPaymentId: string | null;
     originInvoiceId: string | null;
     originReversalId: string | null;
+    originCancellationId: string | null;
     createdAt: Date;
 }
 
 /**
- * Reads a credit back. It comes from exactly one place — a payment, an invoice
- * or a reversal given back — which the database holds as well; a row that
- * names several or none cannot be paid out against anything.
+ * Reads a credit back. It comes from exactly one place — a payment, an invoice,
+ * a reversal given back, or a payment's share a cancellation's replacement did
+ * not take, which names the payment and the cancellation; a row that names
+ * several or none cannot be paid out against anything.
  */
 export function toSubscriberCreditRecord(
     row: CanonicalSubscriberCreditRow,
@@ -197,7 +207,17 @@ export function toSubscriberCreditRecord(
 
 function creditOriginOf(row: CanonicalSubscriberCreditRow): SubscriberCreditOrigin {
     const origins: SubscriberCreditOrigin[] = [];
-    if (row.originPaymentId !== null) {
+    if (row.originCancellationId !== null) {
+        // A cancellation's credit is of a payment's share: without it, it is
+        // no origin, and the check below says so.
+        if (row.originPaymentId !== null) {
+            origins.push({
+                kind: 'cancellation',
+                cancellationId: row.originCancellationId,
+                paymentId: row.originPaymentId,
+            });
+        }
+    } else if (row.originPaymentId !== null) {
         origins.push({ kind: 'payment', paymentId: row.originPaymentId });
     }
     if (row.originInvoiceId !== null) {
@@ -210,7 +230,8 @@ function creditOriginOf(row: CanonicalSubscriberCreditRow): SubscriberCreditOrig
     if (origin && origins.length === 1) return origin;
     throw new Error(
         `${CREDITS} row '${row.id}' names ${origins.length === 0 ? 'none' : String(origins.length)} ` +
-            'of a payment, an invoice and a reversal it comes from; a credit comes from exactly one.',
+            'of a payment, an invoice, a reversal and a cancellation of a payment it comes from; ' +
+            'a credit comes from exactly one.',
     );
 }
 
@@ -413,6 +434,7 @@ export interface CanonicalSubscriberReversalRow {
     currency: string;
     fromCredit: unknown;
     reinstated: unknown;
+    reinstatedToCases: unknown;
     recordedAt: Date;
     reinstatedAt: Date | null;
 }
@@ -429,11 +451,18 @@ export function toSubscriberReversalRecord(
     const amount = columnAmountOf(row.amount, where('amount'));
     const fromCredit = columnAmountOf(row.fromCredit, where('fromCredit'));
     const reinstated = columnAmountOf(row.reinstated, where('reinstated'));
+    const toCases = columnAmountOf(row.reinstatedToCases, where('reinstatedToCases'));
     const within = (part: number) => part >= 0 && toCents(part) <= toCents(amount);
     if (!within(fromCredit) || !within(reinstated)) {
         throw new Error(
             `${REVERSALS} row '${row.id}' takes ${fromCredit} from the credit and is given back ` +
                 `${reinstated} of the ${amount} it withdrew; each is a part of it.`,
+        );
+    }
+    if (toCases < 0 || toCents(toCases) > toCents(reinstated)) {
+        throw new Error(
+            `${REVERSALS} row '${row.id}' covered ${toCases} of its cases with the ${reinstated} ` +
+                'given back of it; what covered them is a part of that.',
         );
     }
     if (reinstated > 0 !== (row.reinstatedAt !== null)) {
@@ -453,6 +482,7 @@ export function toSubscriberReversalRecord(
         currency: row.currency,
         fromCredit,
         reinstated,
+        reinstatedToCases: toCases,
         recordedAt: row.recordedAt,
         reinstatedAt: row.reinstatedAt,
     };
@@ -466,10 +496,14 @@ export function toSubscriberReversalRecord(
 export function subscriberReversalColumns(
     reversal: ReportedSubscriberReversal,
     payment: { id: string; subscriberId: string; tenantId: string },
-): Omit<CanonicalSubscriberReversalRow, 'id' | 'amount' | 'fromCredit' | 'reinstated'> & {
+): Omit<
+    CanonicalSubscriberReversalRow,
+    'id' | 'amount' | 'fromCredit' | 'reinstated' | 'reinstatedToCases'
+> & {
     amount: string;
     fromCredit: string;
     reinstated: string;
+    reinstatedToCases: string;
 } {
     return {
         subscriberId: payment.subscriberId,
@@ -481,6 +515,7 @@ export function subscriberReversalColumns(
         currency: reversal.currency,
         fromCredit: toDecimalString(0),
         reinstated: toDecimalString(0),
+        reinstatedToCases: toDecimalString(0),
         recordedAt: reversal.at,
         reinstatedAt: null,
     };

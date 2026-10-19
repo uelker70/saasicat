@@ -46,6 +46,7 @@ import {
     invoicePaymentOf,
     isPersistenceRefusal,
     type AppliedSettingsPort,
+    type ContractIssuerParty,
     type InvoiceGroup,
     type IssuerHistoryStep,
     type NewSubscriptionInvoice,
@@ -53,6 +54,7 @@ import {
     type RlsBypassPort,
     type SubscriberPaymentMethodRepository,
     type SubscriptionContractRepository,
+    type SubscriptionInvoiceIssuer,
     type SubscriptionInvoiceRepository,
     type TaxTreatment,
 } from '@saasicat/core';
@@ -295,6 +297,19 @@ export class SubscriptionInvoiceService implements OnModuleInit {
             });
         }
         return invoice;
+    }
+
+    /**
+     * The issuer an invoice names for a party copied as `copy` — a contract's,
+     * or the invoice a replacement replaces —: `configured`, the issuer the
+     * running configuration names, where a correction declared since connects
+     * the copy to it, otherwise the copy (`SC-PRIC-026`).
+     */
+    async issuerFor(
+        copy: ContractIssuerParty,
+        configured: ContractIssuerParty | null,
+    ): Promise<SubscriptionInvoiceIssuer> {
+        return invoiceIssuerOf(copy, configured, await this.issuerHistory());
     }
 
     /** The recorded settings changes, the oldest first; none without the record. */

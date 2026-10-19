@@ -1,3 +1,6 @@
+// translation-catalogue — the labels below are German on purpose, with English
+// beside them.
+//
 // What the page calls each part of an invoice: in German, with English beside
 // it, so that a subscriber abroad reads it too — the notes for the treatments
 // that reach one are bilingual already.
@@ -30,6 +33,8 @@ export const LABELS = {
     vat: { de: 'USt', en: 'VAT' },
     on: { de: 'auf', en: 'on' },
     grandTotal: { de: 'Gesamtbetrag', en: 'Total' },
+    alreadyPaid: { de: 'Bereits bezahlt', en: 'Already paid' },
+    amountDue: { de: 'Zu zahlen', en: 'Amount due' },
     page: { de: 'Seite', en: 'Page' },
     of: { de: 'von', en: 'of' },
 } as const satisfies Record<string, Label>;

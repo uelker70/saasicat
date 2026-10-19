@@ -16,6 +16,19 @@ export function subscriptionInvoiceChargeInvoiced(chargeId: string): Persistence
 }
 
 /**
+ * The invoice is cancelled already: of two cancellations at once, the second
+ * meets the first (`SC-PRIC-036`). Nothing is written and no number is drawn.
+ */
+export function subscriptionInvoiceAlreadyCancelled(number: string): PersistenceRefusal {
+    return new PersistenceRefusal(
+        INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_ALREADY_CANCELLED,
+        'moved',
+        `Invoice ${number} is cancelled already.`,
+        { number },
+    );
+}
+
+/**
  * A rendering of an invoice's document whose checksum is not the one recorded
  * or archived for it, refused: the first stays. Only the run replaces a
  * recorded rendering, and only while nothing is archived (`SC-AUD-019`).

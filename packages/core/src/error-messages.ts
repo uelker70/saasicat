@@ -325,6 +325,16 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
         'The contract states {stated} % in {field}, and the tax adapter decides {decided} %.',
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED: "Charge '{chargeId}' already stands on an invoice.",
+    SUBSCRIPTION_INVOICE_ALREADY_CANCELLED:
+        'Invoice {number} is cancelled already. A mistake on its replacement is corrected by cancelling the replacement.',
+    SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED:
+        'Invoice {number} is cancelled only once its document is archived.',
+    SUBSCRIPTION_INVOICE_IS_CANCELLATION:
+        'Invoice {number} is a cancellation invoice, which is not cancelled itself.',
+    SUBSCRIPTION_INVOICE_STATES_A_CREDIT:
+        'Invoice {number} states a credit, which the subscriber was credited when it was issued; it is not cancelled.',
+    SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS:
+        "The subscriber's record holds no invoice email: name an address to deliver the cancellation of invoice {number} and its replacement to.",
     SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
         'The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:

@@ -60,6 +60,7 @@ import {
     directDebitLeadDaysOf,
     isChargedAgain,
     sentCollectionOf,
+    standingInvoiceOf,
     toCents,
     toCollectionAnnouncedNotice,
     toCollectionFailedNotice,
@@ -88,6 +89,7 @@ import {
     type SubscriptionNoticeDelivery,
     type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
+    type TransactionContext,
     type TransactionRunner,
 } from '@saasicat/core';
 
@@ -421,7 +423,6 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             customerRef: method.customerRef,
             paymentMethodRef: method.paymentMethodRef,
             invoiceNumber: invoice.number,
-            amount: invoice.totalGross,
             currency: invoice.currency,
             at: new Date(),
         });
@@ -467,15 +468,37 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      * with another payment method only, once it is followed up. Where the
      * invoice owes nothing by now — the gateway gave the reversal back, or the
      * subscriber paid —, nobody is told.
+     *
+     * The invoice open again is the one that stands in the chain of the
+     * attempt's: the replacement, where the invoice it collected was cancelled
+     * since and the reversal opened the replacement by the payment's share
+     * (`SC-PRIC-085`).
      */
     private async followUpReversal(reversed: InvoiceCollectionRecord): Promise<void> {
         if (reversed.followedUpAt !== null) return;
-        const owed = await this.recording().payments.owed(reversed.invoiceId);
-        if (owed <= 0) {
-            await this.collections.markFollowedUp(reversed.id, new Date());
+        // From the hold to the mark in the chain's turn: what every invoice of
+        // it is collected with decides whether, and how, the subscriber is
+        // told, and nothing changes that before the notice is recorded.
+        await this.recording().transactions.run((tx) => this.followUpReversalIn(reversed, tx));
+    }
+
+    private async followUpReversalIn(
+        reversed: InvoiceCollectionRecord,
+        tx: TransactionContext,
+    ): Promise<void> {
+        const chain = await this.invoices.holdChain(reversed.invoiceId, tx);
+        if (!chain) throw new Error(`Invoice ${reversed.invoiceId} does not exist.`);
+        const standing = standingInvoiceOf(chain);
+        const owed = standing ? await this.recording().payments.owed(standing.id, tx) : 0;
+        if (!standing || owed <= 0) {
+            await this.collections.markFollowedUp(reversed.id, new Date(), tx);
             return;
         }
-        const attempts = await this.collections.listByInvoice(reversed.invoiceId);
+        const attempts = await this.collections.listByInvoice(reversed.invoiceId, tx);
+        const ofChain: InvoiceCollectionRecord[] = [];
+        for (const invoice of chain.invoices) {
+            ofChain.push(...(await this.collections.listByInvoice(invoice.id, tx)));
+        }
         // Attempts reversed together — the one whose payment was taken back,
         // and one that succeeded beside it — tell the subscriber once, from the
         // latest of them.
@@ -487,14 +510,15 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 (each.followedUpAt === null || each.followedUpAt.getTime() >= reversedAt),
         );
         if (toldByALater) {
-            await this.collections.markFollowedUp(reversed.id, new Date());
+            await this.collections.markFollowedUp(reversed.id, new Date(), tx);
             return;
         }
-        // Another attempt on its way may still pay the invoice: the subscriber
-        // is told once it settled, so the notice says what follows.
-        if (attempts.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
-        const invoice = await this.invoiceOf(reversed.invoiceId);
-        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        // Another attempt of the chain on its way may still pay the invoice
+        // that stands: the subscriber is told once it settled, so the notice
+        // says what follows.
+        if (ofChain.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
+        const invoice = standing;
+        const method = await this.paymentMethods!.findActive(invoice.subscriberId, tx);
         const notice: CollectionReversedNotice = {
             kind: 'collection-reversed',
             ...aboutInvoice(invoice),
@@ -504,8 +528,8 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             // where neither the last attempt nor a reversal was made with it.
             next:
                 method &&
-                method.id !== attempts.at(-1)?.paymentMethodId &&
-                !reversedOn(attempts).has(method.id)
+                method.id !== ofChain.at(-1)?.paymentMethodId &&
+                !reversedOn(ofChain).has(method.id)
                     ? { action: 'collected-with-payment-method-in-use' }
                     : { action: 'replace-payment-method' },
         };
@@ -520,8 +544,9 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 },
             ],
             new Date(),
+            tx,
         );
-        await this.collections.markFollowedUp(reversed.id, new Date());
+        await this.collections.markFollowedUp(reversed.id, new Date(), tx);
     }
 
     /**
@@ -539,10 +564,12 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     ): Promise<void> {
         const failed = await this.collections.findById(id);
         if (failed?.status !== 'FAILED' || failed.followedUpAt !== null) return;
-        // A payment came for the invoice — a late one beside this attempt —
-        // so nothing follows, and there is no failure left to tell. Nor where
-        // a payment of the invoice was reversed on this payment method: the
-        // reversal's notice tells the subscriber what follows, once.
+        // A payment came for the invoice — a late one beside this attempt —, or
+        // it was cancelled since and owes nothing: nothing follows, and there
+        // is no failure left to tell; a replacement is collected with an
+        // announcement of its own. Nor where a payment of the invoice was
+        // reversed on this payment method: the reversal's notice tells the
+        // subscriber what follows, once.
         if (
             !(await this.recording().payments.owes(failed.invoiceId)) ||
             reversedOn(await this.collections.listByInvoice(failed.invoiceId)).has(
@@ -696,7 +723,6 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
             customerRef: method.customerRef,
             paymentMethodRef: method.paymentMethodRef,
             invoiceNumber: invoice.number,
-            amount: invoice.totalGross,
             currency: invoice.currency,
             collectOn,
         });

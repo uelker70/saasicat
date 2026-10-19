@@ -11,7 +11,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toCents } from '@saasicat/core';
+import { movedPaymentParts, toCents } from '@saasicat/core';
 
 import {
     FIRST_RUN,
@@ -84,7 +84,7 @@ describe('a reversal the gateway reports', () => {
                 paymentRef: 'pi_1',
                 currency: 'EUR',
                 withdrawn: invoice.totalGross,
-                credit: null,
+                credits: [],
                 covering: [],
                 invoices: [{ invoiceId: invoice.id, amount: invoice.totalGross }],
                 uncovered: [],
@@ -421,7 +421,7 @@ describe('a payment that arrived late while the attempt beside it paid the invoi
     });
 });
 
-// @requirement SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
+// @requirement SC-PRIC-090 — Reversals of an invoice end alike in any order, and it is collected again
 describe('two payments of one invoice, both no longer there', () => {
     clockFrom(FIRST_RUN);
 
@@ -498,6 +498,86 @@ describe('two payments of one invoice, both no longer there', () => {
             assert.equal(gateway.collections.at(-1)?.paymentMethodRef, 'pm_card_new');
         });
     }
+
+    test('a cover lifted that a third payment’s credit takes again opens nothing, and leaves both attempts standing', async () => {
+        quietLog();
+        const installation = await paidTwiceLate();
+        const { mail, gateway, invoice, payments, collections } = installation;
+        // A third payment for the invoice, after the second one: its credit
+        // covers once the second one's is given back.
+        await payments.recordPayment({
+            invoiceId: invoice.id,
+            collectionId: collections.attempts[1].id,
+            gatewayAccount: MAIN_ACCOUNT,
+            provider: 'stripe',
+            gatewayRef: 'pi_3',
+            amount: invoice.totalGross,
+            currency: 'EUR',
+            at: after(RETRY_DAY, { days: 1, minutes: 30 }),
+        });
+        await installation.takeBackTheFirst();
+        await installation.takeBackTheSecond();
+
+        await aFortnightOfRuns(installation, after(RETRY_DAY, { days: 2 }));
+
+        assert.deepEqual(
+            collections.attempts.map((each) => each.status),
+            ['FAILED', 'SUCCEEDED'],
+        );
+        assert.equal(await payments.owedBy(invoice.id), 0);
+        assert.deepEqual(toldOf(mail, 'collection-reversed'), []);
+        assert.equal(gateway.collections.length, 2, 'collected again while nothing is owed');
+    });
+
+    test('a lifted cover that meets a credit of its payment already paid out is the covered reversal’s case, and audited as its', async () => {
+        quietLog();
+        const installation = await paidTwiceLate();
+        const { invoice, payments, audits, store } = installation;
+        await installation.takeBackTheFirst();
+        // Cancelled since without a replacement: the late payment's share is a
+        // credit, and the operator paid it out.
+        store.cancellations.push({
+            id: 'cancellation-1',
+            cancelledInvoiceId: invoice.id,
+            cancellationInvoiceId: 'invoice-cancelling',
+            replacementInvoiceId: null,
+        });
+        const moved = movedPaymentParts(await payments.sharesOf(invoice.id), 0);
+        const [credit] = await payments.moveShares({
+            cancellationId: 'cancellation-1',
+            cancelledInvoiceId: invoice.id,
+            replacementInvoiceId: null,
+            parts: moved,
+            at: after(RETRY_DAY, { days: 1, minutes: 30 }),
+        });
+        await payments.recordPayout({
+            creditId: credit.id,
+            amount: invoice.totalGross,
+            reference: 'TRF-2',
+            paidOn: '2026-02-11',
+            note: null,
+            recordedBy: 'operator-1',
+            at: after(RETRY_DAY, { days: 1, minutes: 45 }),
+        });
+
+        await installation.takeBackTheSecond();
+
+        const [opened] = await payments.listCases({ state: 'open' }, { limit: 10 });
+        assert.deepEqual(
+            [opened?.gatewayRef, opened?.amount],
+            ['du_1', invoice.totalGross],
+            'the premise: the lifted cover met the credit paid out',
+        );
+        assert.deepEqual(entriesOf(audits, 'SUBSCRIBER_REVERSAL_UNMATCHED'), [
+            {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_short',
+                currency: 'EUR',
+                unmatched: invoice.totalGross,
+                caseId: opened.id,
+            },
+        ]);
+    });
 
     test('a failure followed up before the reversal holds no later direct debit back', async () => {
         quietLog();

@@ -15,20 +15,29 @@ import {
     SUBSCRIBER_CHARGE_SOURCES,
 } from './subscriber-ledger-mapping.js';
 import { PAYMENT_METHOD_TYPES } from './subscriber-payment-method-mapping.js';
-import type {
-    NewSubscriptionInvoice,
-    NewSubscriptionInvoiceLine,
-    SubscriptionInvoiceIssuer,
-    SubscriptionInvoiceLineRecord,
-    SubscriptionInvoicePayment,
-    SubscriptionInvoiceRecord,
-    SubscriptionInvoiceSubscriber,
+import {
+    INVOICE_SUBSCRIBER_DETAILS,
+    type CorrectedInvoiceSubscriber,
+    type NewCorrectionInvoice,
+    type NewCorrectionInvoiceLine,
+    type NewSubscriptionInvoice,
+    type NewSubscriptionInvoiceCancellation,
+    type NewSubscriptionInvoiceLine,
+    type SubscriptionInvoiceCancellationRecord,
+    type SubscriptionInvoiceChain,
+    type SubscriptionInvoiceCorrection,
+    type SubscriptionInvoiceIssuer,
+    type SubscriptionInvoiceLineRecord,
+    type SubscriptionInvoicePayment,
+    type SubscriptionInvoiceRecord,
+    type SubscriptionInvoiceSubscriber,
 } from './subscription-invoice.types.js';
 import { taxTreatmentToJson, toTaxTreatment } from './tax-origin.js';
 import type { CalendarDay } from './zoned-day.js';
 
 const INVOICES = 'subscription_invoices';
 const LINES = 'subscription_invoice_lines';
+const CANCELLATIONS = 'subscription_invoice_cancellations';
 
 /** How far from a whole number of cents float arithmetic may leave a rounded amount. */
 const CENT_TOLERANCE = 1e-6;
@@ -49,6 +58,8 @@ export interface CanonicalSubscriptionInvoiceRow {
     subscriberId: string;
     subscriptionId: string;
     contractId: string;
+    chainId: string;
+    chainStep: number;
     issuedAt: Date;
     issueDate: unknown;
     dueDate: unknown;
@@ -66,6 +77,7 @@ export interface CanonicalSubscriptionInvoiceRow {
     totalNet: unknown;
     totalTax: unknown;
     totalGross: unknown;
+    paidOnIssue: unknown;
     createdAt: Date;
 }
 
@@ -83,12 +95,41 @@ export interface CanonicalSubscriptionInvoiceLineRow {
     periodUntil: unknown;
     amountNet: unknown;
     taxRate: unknown;
+    correctedPosition: number | null;
 }
 
-/** Reads an invoice row and its lines back as a record, the lines in their order. */
+/** A `subscription_invoice_cancellations` row as either adapter reads it back. */
+export interface CanonicalSubscriptionInvoiceCancellationRow {
+    id: string;
+    cancelledInvoiceId: string;
+    cancellationInvoiceId: string;
+    replacementInvoiceId: string | null;
+    reason: string;
+    correctedSubscriber: unknown;
+    deliverTo: string | null;
+    cancelledBy: string;
+    cancelledAt: Date;
+}
+
+/**
+ * The cancellation an invoice row takes part in as the cancellation invoice or
+ * the replacement, and the invoice it cancels as that row reads: what a store
+ * hands `toSubscriptionInvoiceRecord` for the row to say what it corrects.
+ */
+export interface CanonicalInvoiceCorrection {
+    cancellation: CanonicalSubscriptionInvoiceCancellationRow;
+    cancelled: { id: string; number: string; issueDate: unknown };
+}
+
+/**
+ * Reads an invoice row and its lines back as a record, the lines in their
+ * order. `correction` is the cancellation the row is the cancellation invoice
+ * or the replacement of, with the invoice it cancels; `null` for any other row.
+ */
 export function toSubscriptionInvoiceRecord(
     row: CanonicalSubscriptionInvoiceRow,
     lines: readonly CanonicalSubscriptionInvoiceLineRow[],
+    correction: CanonicalInvoiceCorrection | null = null,
 ): SubscriptionInvoiceRecord {
     const where = (column: string) => ({ table: INVOICES, column, id: row.id });
     const treatment = toTaxTreatment(row.taxTreatment);
@@ -106,6 +147,8 @@ export function toSubscriptionInvoiceRecord(
         subscriberId: row.subscriberId,
         subscriptionId: row.subscriptionId,
         contractId: row.contractId,
+        chainId: row.chainId,
+        chainStep: row.chainStep,
         issuedAt: row.issuedAt,
         issueDate: dayOf(row.issueDate, where('issueDate')),
         dueDate,
@@ -121,14 +164,115 @@ export function toSubscriptionInvoiceRecord(
         totalNet: amountOf(row.totalNet, where('totalNet')),
         totalTax: amountOf(row.totalTax, where('totalTax')),
         totalGross: amountOf(row.totalGross, where('totalGross')),
+        paidOnIssue: amountOf(row.paidOnIssue, where('paidOnIssue')),
         lines: [...lines]
             .sort((a, b) => a.position - b.position)
             .map((line) => toSubscriptionInvoiceLineRecord(line)),
-        // The stores issue invoices for the journal's charges only, and the
-        // tables keep no correction.
-        correction: null,
+        correction: correction && correctionOf(row.id, correction),
         createdAt: row.createdAt,
     };
+}
+
+/**
+ * What an invoice row corrects, read from the cancellation it takes part in. A
+ * cancellation the row is neither the cancellation invoice nor the replacement
+ * of was handed the wrong way, and is refused rather than read as one.
+ */
+function correctionOf(
+    invoiceId: string,
+    { cancellation, cancelled }: CanonicalInvoiceCorrection,
+): SubscriptionInvoiceCorrection {
+    const kind =
+        cancellation.cancellationInvoiceId === invoiceId
+            ? 'cancellation'
+            : cancellation.replacementInvoiceId === invoiceId
+              ? 'replacement'
+              : null;
+    if (kind === null || cancelled.id !== cancellation.cancelledInvoiceId) {
+        throw new Error(
+            `${CANCELLATIONS} row ${cancellation.id} was read for invoice ${invoiceId}, which it ` +
+                'neither cancels with nor replaces with.',
+        );
+    }
+    return {
+        kind,
+        of: {
+            invoiceId: cancelled.id,
+            number: cancelled.number,
+            issueDate: dayOf(cancelled.issueDate, {
+                table: INVOICES,
+                column: 'issueDate',
+                id: cancelled.id,
+            }),
+        },
+        reason: cancellation.reason,
+    };
+}
+
+/**
+ * A chain as a store hands it back (`SubscriptionInvoiceRepository.holdChain`):
+ * its invoices by their step, and each cancellation in the order of the invoice
+ * it cancels — the order they were written in, which no clock can tie.
+ */
+export function subscriptionInvoiceChainOf(
+    invoices: readonly SubscriptionInvoiceRecord[],
+    cancellations: readonly SubscriptionInvoiceCancellationRecord[],
+): SubscriptionInvoiceChain {
+    const ordered = [...invoices].sort((a, b) => a.chainStep - b.chainStep);
+    const stepOf = new Map(ordered.map((invoice) => [invoice.id, invoice.chainStep]));
+    const step = (cancellation: SubscriptionInvoiceCancellationRecord) => {
+        const found = stepOf.get(cancellation.cancelledInvoiceId);
+        if (found === undefined) {
+            throw new Error(
+                `${CANCELLATIONS} row ${cancellation.id} was read with a chain that does not hold ` +
+                    `invoice ${cancellation.cancelledInvoiceId}.`,
+            );
+        }
+        return found;
+    };
+    return {
+        invoices: ordered,
+        cancellations: [...cancellations].sort((a, b) => step(a) - step(b)),
+    };
+}
+
+/** Reads a cancellation back, with what it corrected checked to be details of a subscriber. */
+export function toSubscriptionInvoiceCancellationRecord(
+    row: CanonicalSubscriptionInvoiceCancellationRow,
+): SubscriptionInvoiceCancellationRecord {
+    return {
+        id: row.id,
+        cancelledInvoiceId: row.cancelledInvoiceId,
+        cancellationInvoiceId: row.cancellationInvoiceId,
+        replacementInvoiceId: row.replacementInvoiceId,
+        reason: row.reason,
+        correctedSubscriber: correctedSubscriberFrom(row.correctedSubscriber, row.id),
+        deliverTo: row.deliverTo,
+        cancelledBy: row.cancelledBy,
+        cancelledAt: row.cancelledAt,
+    };
+}
+
+function correctedSubscriberFrom(value: unknown, id: string): CorrectedInvoiceSubscriber | null {
+    if (value === null || value === undefined) return null;
+    const where = { table: CANCELLATIONS, column: 'correctedSubscriber', id };
+    if (typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error(`${where.table}.${where.column} of ${id} is not a set of corrections.`);
+    }
+    const corrected: CorrectedInvoiceSubscriber = {};
+    for (const [field, change] of Object.entries(value)) {
+        const detail = oneOf(INVOICE_SUBSCRIBER_DETAILS, field, where);
+        if (change === null || typeof change !== 'object' || Array.isArray(change)) {
+            throw new Error(
+                `${where.table}.${where.column}.${field} of ${id} is not a correction.`,
+            );
+        }
+        corrected[detail] = {
+            previous: textOrNull(change, 'previous', where),
+            corrected: textOrNull(change, 'corrected', where),
+        };
+    }
+    return corrected;
 }
 
 function toSubscriptionInvoiceLineRecord(
@@ -148,7 +292,7 @@ function toSubscriptionInvoiceLineRecord(
         periodUntil: dayOf(row.periodUntil, where('periodUntil')),
         amountNet: amountOf(row.amountNet, where('amountNet')),
         taxRate: amountOf(row.taxRate, where('taxRate')),
-        correctedPosition: null,
+        correctedPosition: row.correctedPosition,
     };
 }
 
@@ -158,6 +302,7 @@ function toSubscriptionInvoiceLineRecord(
  * into what its date column takes.
  */
 export interface SubscriptionInvoiceColumns {
+    id: string;
     number: string;
     numberPrefix: string;
     numberYear: number;
@@ -166,6 +311,8 @@ export interface SubscriptionInvoiceColumns {
     subscriberId: string;
     subscriptionId: string;
     contractId: string;
+    chainId: string;
+    chainStep: number;
     issuedAt: Date;
     issueDate: CalendarDay;
     dueDate: CalendarDay;
@@ -182,11 +329,14 @@ export interface SubscriptionInvoiceColumns {
     totalNet: string;
     totalTax: string;
     totalGross: string;
+    paidOnIssue: string;
 }
 
 /** The columns a line is written with, in the form `SubscriptionInvoiceColumns` describes. */
 export interface SubscriptionInvoiceLineColumns {
     invoiceId: string;
+    chainStep: number;
+    correctedPosition: number | null;
     position: number;
     chargeId: string;
     contractLineItemId: string;
@@ -199,20 +349,36 @@ export interface SubscriptionInvoiceLineColumns {
     taxRate: string;
 }
 
-/** The columns an invoice is written with, given the number the store drew. */
+/** Where the store places an invoice it writes: its id, the number it drew, its chain. */
+export interface PlacedInvoice {
+    id: string;
+    number: string;
+    numberSequence: number;
+    /** The invoice's own id for an invoice issued on the journal's charges. */
+    chainId: string;
+    chainStep: number;
+}
+
+/**
+ * The columns an invoice is written with, as the store placed it. An invoice
+ * issued on the journal's charges was paid nothing on issue.
+ */
 export function subscriptionInvoiceColumns(
-    invoice: NewSubscriptionInvoice,
-    drawn: { number: string; numberSequence: number },
+    invoice: NewSubscriptionInvoice | NewCorrectionInvoice,
+    placed: PlacedInvoice,
 ): SubscriptionInvoiceColumns {
     return {
-        number: drawn.number,
+        id: placed.id,
+        number: placed.number,
         numberPrefix: invoice.numberPrefix,
         numberYear: invoice.numberYear,
-        numberSequence: drawn.numberSequence,
+        numberSequence: placed.numberSequence,
         tenantId: invoice.tenantId,
         subscriberId: invoice.subscriberId,
         subscriptionId: invoice.subscriptionId,
         contractId: invoice.contractId,
+        chainId: placed.chainId,
+        chainStep: placed.chainStep,
         issuedAt: invoice.issuedAt,
         issueDate: invoice.issueDate,
         dueDate: invoice.dueDate,
@@ -229,16 +395,20 @@ export function subscriptionInvoiceColumns(
         totalNet: centsText(invoice.totalNet, 'totalNet'),
         totalTax: centsText(invoice.totalTax, 'totalTax'),
         totalGross: centsText(invoice.totalGross, 'totalGross'),
+        paidOnIssue: centsText('paidOnIssue' in invoice ? invoice.paidOnIssue : 0, 'paidOnIssue'),
     };
 }
 
-/** The columns a line is written with. */
+/** The columns a line is written with, at its invoice's step of the chain. */
 export function subscriptionInvoiceLineColumns(
-    line: NewSubscriptionInvoiceLine,
+    line: NewSubscriptionInvoiceLine | NewCorrectionInvoiceLine,
     invoiceId: string,
+    chainStep: number,
 ): SubscriptionInvoiceLineColumns {
     return {
         invoiceId,
+        chainStep,
+        correctedPosition: 'correctedPosition' in line ? line.correctedPosition : null,
         position: line.position,
         chargeId: line.chargeId,
         contractLineItemId: line.contractLineItemId,
@@ -249,6 +419,36 @@ export function subscriptionInvoiceLineColumns(
         periodUntil: line.periodUntil,
         amountNet: centsText(line.amountNet, 'amountNet'),
         taxRate: centsText(line.taxRate, 'taxRate'),
+    };
+}
+
+/** The columns a cancellation is written with, given the invoices the store wrote for it. */
+export interface SubscriptionInvoiceCancellationColumns {
+    id: string;
+    cancelledInvoiceId: string;
+    cancellationInvoiceId: string;
+    replacementInvoiceId: string | null;
+    reason: string;
+    correctedSubscriber: CorrectedInvoiceSubscriber | null;
+    deliverTo: string | null;
+    cancelledBy: string;
+    cancelledAt: Date;
+}
+
+export function subscriptionInvoiceCancellationColumns(
+    write: NewSubscriptionInvoiceCancellation,
+    written: { id: string; cancellationInvoiceId: string; replacementInvoiceId: string | null },
+): SubscriptionInvoiceCancellationColumns {
+    return {
+        id: written.id,
+        cancelledInvoiceId: write.cancelledInvoiceId,
+        cancellationInvoiceId: written.cancellationInvoiceId,
+        replacementInvoiceId: written.replacementInvoiceId,
+        reason: write.reason,
+        correctedSubscriber: write.correctedSubscriber && { ...write.correctedSubscriber },
+        deliverTo: write.deliverTo,
+        cancelledBy: write.cancelledBy,
+        cancelledAt: write.cancelledAt,
     };
 }
 

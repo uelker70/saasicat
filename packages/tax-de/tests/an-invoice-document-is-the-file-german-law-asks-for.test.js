@@ -556,6 +556,28 @@ describe('a replacement', () => {
             ['xml.typeCode'],
         );
     });
+
+    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    describe('that took over what was paid for the invoice it replaces', () => {
+        const PAID = { ...REPLACEMENT, paidOnIssue: 20 };
+
+        test('stating it as paid, and the amount due less it, passes', async () => {
+            assert.deepEqual(await gapsOf({ xml: ciiOf(PAID) }, PAID), []);
+        });
+
+        for (const [what, overrides, invoice] of [
+            ['another amount paid', { prepaid: 19.99 }, PAID],
+            ['nothing paid', { prepaid: null }, PAID],
+            ['the amount due not reduced', { duePayable: PAID.totalGross }, PAID],
+            ['an amount paid where nothing was', { prepaid: 0.01 }, REPLACEMENT],
+        ]) {
+            test(`stating ${what} is refused`, async () => {
+                assert.deepEqual(await gapsOf({ xml: ciiOf(invoice, overrides) }, invoice), [
+                    'xml.totals',
+                ]);
+            });
+        }
+    });
 });
 
 describe('an invoice that corrects none', () => {

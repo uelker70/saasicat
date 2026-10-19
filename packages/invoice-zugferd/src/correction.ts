@@ -6,10 +6,11 @@
 // and the XML states it: which invoice that is, why it was cancelled, and which
 // of its lines each line cancels or replaces.
 
-import type {
-    SubscriptionInvoiceLineRecord,
-    SubscriptionInvoicePayment,
-    SubscriptionInvoiceRecord,
+import {
+    sumToCents,
+    type SubscriptionInvoiceLineRecord,
+    type SubscriptionInvoicePayment,
+    type SubscriptionInvoiceRecord,
 } from '@saasicat/core';
 
 import { pageDay } from './format.js';
@@ -23,6 +24,14 @@ import { LABELS, type Label } from './labels.js';
  */
 export function xmlSignOf(invoice: SubscriptionInvoiceRecord): 1 | -1 {
     return isCancellation(invoice) ? -1 : 1;
+}
+
+/**
+ * What the invoice asks for: its total, less what was paid for the invoice a
+ * replacement replaces and moved onto it when it was issued (`SC-PRIC-025`).
+ */
+export function amountDueOf(invoice: SubscriptionInvoiceRecord): number {
+    return sumToCents(invoice.totalGross, -invoice.paidOnIssue);
 }
 
 /** Whether the invoice is a cancellation invoice. */

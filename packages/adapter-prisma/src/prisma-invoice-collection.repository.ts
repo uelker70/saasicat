@@ -21,6 +21,7 @@ import {
     REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
+    columnAmountOf,
     invoiceCollectionColumns,
     lastCollectionOf,
     plannedCollectionColumns,
@@ -31,7 +32,8 @@ import {
     utcMidnightOf,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
-import { idsOf } from './raw-ids.js';
+import { lockChainOf } from './prisma-invoice-chain.js';
+import { idsOf, textsOf } from './raw-ids.js';
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface CollectionPrisma {
@@ -51,10 +53,17 @@ const FOLLOWED_UP = [...FOLLOWED_UP_COLLECTION_STATUSES];
 const REOPENING = [...REOPENING_SETTLEMENT_KINDS];
 
 /**
+ * The attempts of a chain that hold every other invoice of it back: sent, and
+ * not settled (`SC-PRIC-036`).
+ */
+const OPEN_IN_CHAIN = [...UNSETTLED_COLLECTION_STATUSES];
+
+/**
  * `InvoiceCollectionRepository` against `subscription_invoice_collections`.
  *
- * An attempt is started in the invoice's turn — its row in
- * `subscription_invoices`, locked for the transaction — and every write that
+ * An attempt is started in the turn of the invoice's chain — the row of the
+ * chain's first invoice in `subscription_invoices`, locked for the
+ * transaction — and every write that
  * settles or takes on an attempt is one conditional `UPDATE` naming the state
  * it expects, so of two runs one wins and the other is told.
  */
@@ -92,6 +101,16 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                        SELECT 1 FROM "subscription_invoice_collections" c
                         WHERE c."invoiceId" = i."id"
                    )
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_cancellations" x
+                        WHERE x."cancelledInvoiceId" = i."id"
+                   )
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_collections" c
+                         JOIN "subscription_invoices" o ON o."id" = c."invoiceId"
+                        WHERE o."chainId" = i."chainId"
+                          AND c."status" = ANY(${OPEN_IN_CHAIN})
+                   )
              ORDER BY i."id"
              LIMIT ${page.limit}`;
         return idsOf(rows);
@@ -104,7 +123,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return this.writeNext(
             attempt.invoiceId,
             refusesFirstAttempt,
-            (number) => invoiceCollectionColumns(attempt, number),
+            (number, amount) => invoiceCollectionColumns(attempt, number, amount),
             tx,
         );
     }
@@ -116,7 +135,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         return this.writeNext(
             plan.invoiceId,
             (earlier) => refusesPlannedAttempt(earlier, plan.after),
-            (number) => plannedCollectionColumns(plan, number),
+            (number, amount) => plannedCollectionColumns(plan, number, amount),
             tx,
         );
     }
@@ -125,7 +144,7 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
     private writeNext(
         invoiceId: string,
         refuses: (earlier: readonly EarlierCollection[]) => boolean,
-        columns: (number: number) => InvoiceCollectionColumns,
+        columns: (number: number, amount: number) => InvoiceCollectionColumns,
         tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null> {
         const write = (db: CollectionPrisma) => this.writeNextIn(db, invoiceId, refuses, columns);
@@ -137,27 +156,25 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
         db: CollectionPrisma,
         invoiceId: string,
         refuses: (earlier: readonly EarlierCollection[]) => boolean,
-        columns: (number: number) => InvoiceCollectionColumns,
+        columns: (number: number, amount: number) => InvoiceCollectionColumns,
     ): Promise<InvoiceCollectionRecord | null> {
-        // The invoice's turn: a second run writing an attempt for it waits
-        // here, and then reads the attempt the first one wrote.
-        const locked = idsOf(
-            await db.$queryRaw`
-                SELECT "id" FROM "subscription_invoices"
-                 WHERE "id" = ${invoiceId}
-                   FOR UPDATE`,
-        );
-        if (locked.length === 0) throw new Error(`Invoice ${invoiceId} does not exist.`);
-        // An invoice that owes nothing — a payment came for it — is collected
-        // no further.
-        if (!(await owes(db, invoiceId))) return null;
+        // The turn of the invoice's chain: a second run writing an attempt for
+        // it waits here, and then reads the attempt the first one wrote.
+        const chainId = await lockChainOf(db, invoiceId);
+        if (chainId === null) throw new Error(`Invoice ${invoiceId} does not exist.`);
+        // An invoice that owes nothing — a payment came for it, or it was
+        // cancelled — is collected no further; one that owes is collected for
+        // what it owes now, in the turn no payment or reversal moves it in.
+        const owed = await owedIn(db, invoiceId);
+        if (owed <= 0) return null;
         const earlier = await db.subscriptionInvoiceCollection.findMany({
             where: { invoiceId },
             select: { attempt: true, status: true },
         });
         if (refuses(earlier)) return null;
         const number = lastCollectionOf(earlier) + 1;
-        const { collectOn, ...written } = columns(number);
+        const { collectOn, ...written } = columns(number, owed);
+        if (await heldBackByItsChain(db, chainId, invoiceId, written.paymentMethodId)) return null;
         // `ON CONFLICT DO NOTHING` without a target, so any of the unique
         // indexes turns a second attempt into no row rather than an error that
         // would end the caller's transaction.
@@ -225,8 +242,11 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
             await db.$queryRaw`
                 SELECT i."id" FROM "subscription_invoices" i
                  WHERE i."id" = (
-                           SELECT c."invoiceId" FROM "subscription_invoice_collections" c
-                            WHERE c."id" = ${id}
+                           SELECT o."chainId" FROM "subscription_invoices" o
+                            WHERE o."id" = (
+                                      SELECT c."invoiceId" FROM "subscription_invoice_collections" c
+                                       WHERE c."id" = ${id}
+                                  )
                        )
                    FOR UPDATE`;
             return work(db);
@@ -292,9 +312,14 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
                AND m."id" <> c."paymentMethodId"
                AND NOT EXISTS (
                        SELECT 1 FROM "subscription_invoice_collections" r
-                        WHERE r."invoiceId" = i."id"
+                         JOIN "subscription_invoices" o ON o."id" = r."invoiceId"
+                        WHERE o."chainId" = i."chainId"
                           AND r."status" = 'REVERSED'
                           AND (r."followedUpAt" IS NULL OR r."paymentMethodId" = m."id")
+                   )
+               AND NOT EXISTS (
+                       SELECT 1 FROM "subscription_invoice_cancellations" x
+                        WHERE x."cancelledInvoiceId" = i."id" OR x."cancellationInvoiceId" = i."id"
                    )
                AND i."totalGross" > COALESCE((
                        SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
@@ -455,18 +480,71 @@ export class PrismaInvoiceCollectionRepository implements InvoiceCollectionRepos
 }
 
 /**
+ * Whether another invoice of chain `chainId` holds this attempt of
+ * `invoiceId` back: one of its attempts is on its way and not settled — no
+ * invoice of a chain is collected while one submitted for any of them is
+ * unresolved —, or a reversal was made on `paymentMethodId` — nothing of a
+ * chain is collected again with a payment method one of its payments was
+ * reversed on (`SC-PRIC-036`, `SC-PRIC-085`). The invoice's own attempts are
+ * its own `refuses`'s.
+ */
+async function heldBackByItsChain(
+    db: CollectionPrisma,
+    chainId: string,
+    invoiceId: string,
+    paymentMethodId: string,
+): Promise<boolean> {
+    const rows = await db.$queryRaw`
+        SELECT c."id" FROM "subscription_invoice_collections" c
+          JOIN "subscription_invoices" o ON o."id" = c."invoiceId"
+         WHERE o."chainId" = ${chainId}
+           AND c."invoiceId" <> ${invoiceId}
+           AND (c."status" = ANY(${OPEN_IN_CHAIN})
+                OR (c."status" = 'REVERSED' AND c."paymentMethodId" = ${paymentMethodId}))
+         LIMIT 1`;
+    return idsOf(rows).length > 0;
+}
+
+/**
  * Whether invoice `invoiceId` still owes something: its total exceeds what is
- * settled against it. Exact in the database's numeric arithmetic.
+ * settled against it, and it is neither cancelled nor a cancellation invoice.
+ * Exact in the database's numeric arithmetic.
  */
 async function owes(db: CollectionPrisma, invoiceId: string): Promise<boolean> {
+    return (await owedIn(db, invoiceId)) > 0;
+}
+
+/**
+ * What invoice `invoiceId` still owes: its total less what is settled against
+ * it, computed in the database's numeric arithmetic; nothing where it is
+ * cancelled, is a cancellation invoice, or is settled.
+ */
+async function owedIn(db: CollectionPrisma, invoiceId: string): Promise<number> {
     const rows = await db.$queryRaw`
-        SELECT i."id" FROM "subscription_invoices" i
+        SELECT (i."totalGross" - COALESCE((
+                   SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
+                                   ELSE s."amount" END)
+                     FROM "subscription_invoice_settlements" s
+                    WHERE s."invoiceId" = i."id"
+               ), 0))::text AS "owed"
+          FROM "subscription_invoices" i
          WHERE i."id" = ${invoiceId}
+           AND NOT EXISTS (
+                   SELECT 1 FROM "subscription_invoice_cancellations" x
+                    WHERE x."cancelledInvoiceId" = i."id" OR x."cancellationInvoiceId" = i."id"
+               )
            AND i."totalGross" > COALESCE((
                    SELECT SUM(CASE WHEN s."kind" = ANY(${REOPENING}) THEN -s."amount"
                                    ELSE s."amount" END)
                      FROM "subscription_invoice_settlements" s
                     WHERE s."invoiceId" = i."id"
                ), 0)`;
-    return idsOf(rows).length === 1;
+    const [owed] = textsOf(rows, 'owed');
+    return owed === undefined
+        ? 0
+        : columnAmountOf(owed, {
+              table: 'subscription_invoices',
+              column: 'totalGross',
+              id: invoiceId,
+          });
 }

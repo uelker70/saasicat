@@ -5,7 +5,10 @@
 // oldest — and given back once when it fails, a payout never beyond what a
 // credit owes, a reversal that takes back the credit first and opens the
 // invoice with the rest, given back part for part, and the cases nothing
-// matched. Each method decides in one synchronous step, as the turn does.
+// matched; and, where an invoice is cancelled, a cancelled invoice and its
+// cancellation owing nothing, a payment settling the invoice that stands in the
+// chain, and each payment's share moving onto the replacement. Each method
+// decides in one synchronous step, as the turn does.
 
 import {
     CASE_CLOSED_REFUND_ENDED,
@@ -16,13 +19,17 @@ import {
     coversOf,
     inWithdrawalOrder,
     isEndedRefund,
+    isOwnCreditOf,
     netByInvoice,
     openOfCredit,
-    owedOn,
+    owedByInvoice,
     paidOutByCredit,
+    paymentSharesOf,
     paymentSettlement,
     refundParts,
     reinstatementParts,
+    reopenedByStanding,
+    reversibleCreditsOf,
     toCents,
     withdrawalParts,
 } from '@saasicat/core';
@@ -32,9 +39,13 @@ const signed = (each) =>
     REOPENING_SETTLEMENT_KINDS.includes(each.kind) ? -each.amount : each.amount;
 
 export class MemorySubscriberPayments {
-    /** `invoices` is the invoice store's list, which every payment is settled against. */
-    constructor(invoices) {
+    /**
+     * `invoices` is the invoice store's list, which every payment is settled
+     * against, and `cancellations` its cancellations.
+     */
+    constructor(invoices, cancellations = []) {
         this.invoices = invoices;
+        this.cancellations = cancellations;
         this.payments = [];
         this.settlements = [];
         this.credits = [];
@@ -74,10 +85,78 @@ export class MemorySubscriberPayments {
     }
 
     #owed(invoice) {
-        return owedOn(
+        return owedByInvoice(
             invoice.totalGross,
             this.settlements.filter((each) => each.invoiceId === invoice.id).map(signed),
+            {
+                cancelled: this.cancellations.some(
+                    (each) => each.cancelledInvoiceId === invoice.id,
+                ),
+                isCancellation: this.cancellations.some(
+                    (each) => each.cancellationInvoiceId === invoice.id,
+                ),
+            },
         );
+    }
+
+    /** The invoice that stands in the chain of `invoiceId`, or `null` where a cancellation left none. */
+    #standing(invoiceId) {
+        let standing = invoiceId;
+        for (;;) {
+            const cancellation = this.cancellations.find(
+                (each) => each.cancelledInvoiceId === standing,
+            );
+            if (!cancellation) return this.#invoice(standing);
+            if (cancellation.replacementInvoiceId === null) return null;
+            standing = cancellation.replacementInvoiceId;
+        }
+    }
+
+    async sharesOf(invoiceId) {
+        return paymentSharesOf(
+            this.settlements
+                .filter((each) => each.invoiceId === invoiceId)
+                .map((each) => ({ paymentId: each.paymentId, amount: signed(each) })),
+            new Map(this.payments.map((each) => [each.id, each.recordedAt])),
+        );
+    }
+
+    async moveShares(move) {
+        const cancelled = this.#invoice(move.cancelledInvoiceId);
+        for (const part of move.parts) {
+            this.settlements.push({
+                invoiceId: cancelled.id,
+                paymentId: part.paymentId,
+                kind: 'MOVED_OUT',
+                amount: part.movedOut,
+                cancellationId: move.cancellationId,
+            });
+            if (move.replacementInvoiceId && part.movedIn > 0) {
+                this.settlements.push({
+                    invoiceId: move.replacementInvoiceId,
+                    paymentId: part.paymentId,
+                    kind: 'MOVED_IN',
+                    amount: part.movedIn,
+                    cancellationId: move.cancellationId,
+                });
+            }
+        }
+        const credits = [];
+        for (const part of move.parts) {
+            if (part.credited <= 0) continue;
+            const credit = this.#credit(
+                cancelled,
+                part.credited,
+                {
+                    kind: 'cancellation',
+                    cancellationId: move.cancellationId,
+                    paymentId: part.paymentId,
+                },
+                move.at,
+            );
+            if (credit) credits.push(credit);
+        }
+        return credits;
     }
 
     #credit(invoice, amount, origin, createdAt) {
@@ -133,11 +212,17 @@ export class MemorySubscriberPayments {
             ...rest,
             recordedAt: at,
         };
-        const { settles, credits } = paymentSettlement(payment.amount, this.#owed(invoice));
+        // It settles the invoice that stands in the chain: a replacement, where
+        // the invoice it was collected for was cancelled, or none.
+        const standing = this.#standing(invoice.id);
+        const { settles, credits } = paymentSettlement(
+            payment.amount,
+            standing ? this.#owed(standing) : 0,
+        );
         this.payments.push(recorded);
-        if (settles > 0) {
+        if (standing && settles > 0) {
             this.settlements.push({
-                invoiceId: invoice.id,
+                invoiceId: standing.id,
                 paymentId: recorded.id,
                 kind: 'PAYMENT',
                 amount: settles,
@@ -151,9 +236,13 @@ export class MemorySubscriberPayments {
         return { payment: structuredClone(recorded), settled: settles, credit };
     }
 
+    #isCancellation(invoiceId) {
+        return this.cancellations.some((each) => each.cancellationInvoiceId === invoiceId);
+    }
+
     async creditInvoice(invoiceId, at) {
         const invoice = this.#invoice(invoiceId);
-        if (invoice.totalGross >= 0) return null;
+        if (invoice.totalGross >= 0 || this.#isCancellation(invoiceId)) return null;
         return this.#credit(invoice, -invoice.totalGross, { kind: 'invoice', invoiceId }, at);
     }
 
@@ -162,6 +251,7 @@ export class MemorySubscriberPayments {
             .filter(
                 (invoice) =>
                     invoice.totalGross < 0 &&
+                    !this.#isCancellation(invoice.id) &&
                     !this.credits.some((each) => each.originKey === invoice.id) &&
                     (after === undefined || invoice.id > after),
             )
@@ -385,6 +475,7 @@ export class MemorySubscriberPayments {
                 currency: reported.currency,
                 fromCredit: 0,
                 reinstated: 0,
+                reinstatedToCases: 0,
                 recordedAt: reported.at,
                 reinstatedAt: null,
             };
@@ -403,8 +494,11 @@ export class MemorySubscriberPayments {
             Math.min(toCents(reported.reinstated), toCents(reversal.amount)) -
             toCents(reversal.reinstated);
         if (given > 0) {
-            reinstatement = this.#reinstate(reversal, payment, given / 100, reported.at);
+            const givenBack = this.#reinstate(reversal, payment, given / 100, reported.at);
+            reinstatement = givenBack.reinstatement;
             reversal.reinstated = (toCents(reversal.reinstated) + given) / 100;
+            reversal.reinstatedToCases =
+                (toCents(reversal.reinstatedToCases) + toCents(givenBack.toCases)) / 100;
             reversal.reinstatedAt = reported.at;
         }
         if (!withdrawal && !reinstatement) {
@@ -418,16 +512,31 @@ export class MemorySubscriberPayments {
         };
     }
 
-    #withdraw(reversal, payment, amount, at) {
-        const credit = this.credits.find((each) => each.originKey === payment.id);
+    /**
+     * What `payment` brought, as a withdrawal of it reads it now: the credits it
+     * left, what it still settles on each invoice, and the open credits other
+     * payments for those invoices left.
+     */
+    #brought(payment) {
         const taken = this.reversals
             .filter((each) => each.paymentId === payment.id)
             .reduce((sum, each) => sum + toCents(each.fromCredit), 0);
-        const openOf = (creditId, amountOf) =>
+        const openOf = (credit) =>
             openOfCredit(
-                amountOf,
-                this.entries.filter((each) => each.creditId === creditId),
+                credit.amount,
+                this.entries.filter((each) => each.creditId === credit.id),
             );
+        const own = reversibleCreditsOf(
+            this.credits
+                .filter((each) => isOwnCreditOf(each, payment.id))
+                .map((each) => ({
+                    creditId: each.id,
+                    amount: each.amount,
+                    createdAt: each.createdAt,
+                    open: openOf(each),
+                })),
+            taken / 100,
+        );
         const invoices = netByInvoice(
             this.settlements
                 .filter((each) => each.paymentId === payment.id)
@@ -445,68 +554,51 @@ export class MemorySubscriberPayments {
         const covering = this.credits
             .filter((each) => others.has(each.originKey))
             .sort((a, b) => a.createdAt - b.createdAt)
-            .map((each) => ({ creditId: each.id, open: openOf(each.id, each.amount) }));
-        const parts = withdrawalParts(
-            amount,
-            credit
-                ? {
-                      creditId: credit.id,
-                      left: (toCents(credit.amount) - taken) / 100,
-                      open: openOf(credit.id, credit.amount),
-                  }
-                : null,
-            invoices,
-            covering,
-        );
-        const own = new Set(
-            this.reversals.filter((each) => each.paymentId === payment.id).map((each) => each.id),
-        );
-        const covers = credit
-            ? coversOf(
-                  this.entries.filter((each) => each.creditId === credit.id),
-                  own,
-              )
-            : [];
-        const { lifted, unmatched } = coversLifted(parts, covers);
-        const uncovered = lifted.map((cover) => {
-            const covered = this.reversals.find((each) => each.id === cover.reversalId);
-            this.#reversalEntry(
-                covered,
-                'REVERSAL_TAKEN_BACK',
-                { creditId: credit.id, amount: cover.amount },
-                at,
-            );
-            this.settlements.push({
-                invoiceId: payment.invoiceId,
-                paymentId: covered.paymentId,
-                kind: 'REVERSAL',
-                amount: cover.amount,
-                reversalId: covered.id,
-            });
-            return {
-                reversalId: covered.id,
-                paymentId: covered.paymentId,
-                invoiceId: payment.invoiceId,
-                amount: cover.amount,
-            };
-        });
-        const takenOfOwn =
-            toCents(parts.credit?.amount ?? 0) +
-            lifted.reduce((sum, each) => sum + toCents(each.amount), 0);
-        const ownPart =
-            credit && takenOfOwn > 0 ? { creditId: credit.id, amount: takenOfOwn / 100 } : null;
-        for (const part of ownPart ? [ownPart, ...parts.covering] : parts.covering) {
-            this.#reversalEntry(reversal, 'REVERSAL', part, at);
-        }
-        for (const part of parts.invoices) {
+            .map((each) => ({ creditId: each.id, open: openOf(each) }));
+        return { own, invoices, covering };
+    }
+
+    #writeTaken(reversal, credits, invoices, at) {
+        for (const part of credits) this.#reversalEntry(reversal, 'REVERSAL', part, at);
+        for (const part of invoices) {
             this.settlements.push({
                 invoiceId: part.invoiceId,
-                paymentId: payment.id,
+                paymentId: reversal.paymentId,
                 kind: 'REVERSAL',
                 amount: part.amount,
                 reversalId: reversal.id,
             });
         }
+    }
+
+    #withdraw(reversal, payment, amount, at) {
+        const brought = this.#brought(payment);
+        const parts = withdrawalParts(amount, brought.own, brought.invoices, brought.covering);
+        const own = new Set(
+            this.reversals.filter((each) => each.paymentId === payment.id).map((each) => each.id),
+        );
+        const covers = brought.own.flatMap((credit) =>
+            coversOf(
+                this.entries.filter((each) => each.creditId === credit.creditId),
+                own,
+            ).map((cover) => ({ creditId: credit.creditId, ...cover })),
+        );
+        const { lifted, unmatched } = coversLifted(parts, covers);
+        const takenOfOwn = new Map();
+        for (const part of [...parts.credits, ...lifted]) {
+            takenOfOwn.set(
+                part.creditId,
+                (takenOfOwn.get(part.creditId) ?? 0) + toCents(part.amount),
+            );
+        }
+        const credits = brought.own
+            .filter((credit) => (takenOfOwn.get(credit.creditId) ?? 0) > 0)
+            .map((credit) => ({
+                creditId: credit.creditId,
+                amount: takenOfOwn.get(credit.creditId) / 100,
+            }));
+        this.#writeTaken(reversal, [...credits, ...parts.covering], parts.invoices, at);
+        const uncovered = lifted.map((cover) => this.#lift(cover, at));
         const opened =
             unmatched > 0
                 ? this.#openCase('REVERSAL_UNMATCHED', unmatched, payment, reversal, at)
@@ -514,7 +606,7 @@ export class MemorySubscriberPayments {
         return {
             fromCredit: parts.fromCredit,
             withdrawal: {
-                credit: ownPart,
+                credits,
                 covering: parts.covering,
                 invoices: parts.invoices,
                 uncovered,
@@ -524,10 +616,47 @@ export class MemorySubscriberPayments {
         };
     }
 
+    /**
+     * The cover given back to the credit that gave it, and its reversal taking
+     * it as a withdrawal of its payment would without that credit.
+     */
+    #lift(cover, at) {
+        const covered = this.reversals.find((each) => each.id === cover.reversalId);
+        const payment = this.payments.find((each) => each.id === covered.paymentId);
+        this.#reversalEntry(
+            covered,
+            'REVERSAL_TAKEN_BACK',
+            { creditId: cover.creditId, amount: cover.amount },
+            at,
+        );
+        const brought = this.#brought(payment);
+        const parts = withdrawalParts(
+            cover.amount,
+            brought.own,
+            brought.invoices,
+            brought.covering,
+        );
+        this.#writeTaken(covered, [...parts.credits, ...parts.covering], parts.invoices, at);
+        covered.fromCredit = (toCents(covered.fromCredit) + toCents(parts.fromCredit)) / 100;
+        return {
+            reversalId: covered.id,
+            paymentId: covered.paymentId,
+            amount: cover.amount,
+            credits: parts.credits,
+            covering: parts.covering,
+            invoices: parts.invoices,
+            unmatched: parts.unmatched,
+            case:
+                parts.unmatched > 0
+                    ? this.#openCase('REVERSAL_UNMATCHED', parts.unmatched, payment, covered, at)
+                    : null,
+        };
+    }
+
     #reinstate(reversal, payment, amount, at) {
         const cases = this.cases.filter((each) => each.reversalId === reversal.id);
         const unmatched = cases.reduce((sum, each) => sum + toCents(each.amount), 0);
-        const coveredBefore = Math.min(toCents(reversal.reinstated), unmatched);
+        const coveredBefore = toCents(reversal.reinstatedToCases);
         const parts = reinstatementParts(amount, {
             unmatched: (unmatched - coveredBefore) / 100,
             credits: inWithdrawalOrder(
@@ -535,15 +664,20 @@ export class MemorySubscriberPayments {
                 this.credits,
                 payment.id,
             ).map((part) => ({ creditId: part.creditId, left: part.amount })),
-            invoices: netByInvoice(
-                this.settlements
-                    .filter((each) => each.reversalId === reversal.id)
-                    .map((each) => ({ invoiceId: each.invoiceId, amount: signed(each) })),
-            ).map((net) => ({
-                invoiceId: net.invoiceId,
-                left: -net.amount,
-                owed: this.#owed(this.#invoice(net.invoiceId)),
-            })),
+            invoices: (() => {
+                const nets = netByInvoice(
+                    this.settlements
+                        .filter((each) => each.reversalId === reversal.id)
+                        .map((each) => ({ invoiceId: each.invoiceId, amount: signed(each) })),
+                );
+                const standing = new Map(
+                    nets.map((net) => [net.invoiceId, this.#standing(net.invoiceId)?.id ?? null]),
+                );
+                return reopenedByStanding(nets, standing).map((reopened) => ({
+                    ...reopened,
+                    owed: this.#owed(this.#invoice(reopened.invoiceId)),
+                }));
+            })(),
         });
         const closedCases = this.#closeCases(
             (each) => each.reversalId === reversal.id,
@@ -571,7 +705,15 @@ export class MemorySubscriberPayments {
                       at,
                   )
                 : null;
-        return { closedCases, credits: parts.credits, invoices: parts.invoices, credit };
+        return {
+            reinstatement: {
+                closedCases,
+                credits: parts.credits,
+                invoices: parts.invoices,
+                credit,
+            },
+            toCases: parts.covered,
+        };
     }
 
     #reversalEntry(reversal, kind, part, recordedAt) {

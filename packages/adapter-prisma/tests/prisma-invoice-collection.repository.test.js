@@ -1,11 +1,12 @@
 // `PrismaInvoiceCollectionRepository` — what it asks the client for.
 //
 // The database semantics — one attempt open per invoice however many runs
-// start or plan one, the turn on the invoice's row, a write that lands only on
-// the state it names — are the contract's, and run against PostgreSQL in
-// tests/integration/. What this holds is the translation: that an attempt is
-// written in the invoice's turn after its attempts were read, and not where
-// they refuse it; that a planned day reaches its `date` column as midnight
+// start or plan one, the turn on the row of the invoice's chain's first
+// invoice, a write that lands only on the state it names — are the contract's,
+// and run against PostgreSQL in tests/integration/. What this holds is the
+// translation: that an attempt is written in the turn of the invoice's chain
+// after its attempts were read, and not where they or another invoice of the
+// chain refuse it; that a planned day reaches its `date` column as midnight
 // UTC; and that every write that settles, takes on, announces or withdraws an
 // attempt names the state it expects in its `WHERE`.
 
@@ -28,7 +29,6 @@ const ATTEMPT = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     at: AT,
 };
@@ -43,7 +43,6 @@ const PLAN = {
     customerRef: 'cus_1',
     paymentMethodRef: 'pm_1',
     invoiceNumber: 'AHP-2026-000123',
-    amount: 58.31,
     currency: 'EUR',
     collectOn: '2026-03-01',
 };
@@ -77,12 +76,14 @@ const rowOf = (overrides = {}) => ({
 
 /**
  * A client that records every call. `earlier` is what the turn reads of the
- * invoice's attempts, `raw` what a raw query answers, `updated` how many rows
- * a conditional update reaches.
+ * invoice's attempts, `raw` what a raw query answers, `heldBack` what the
+ * attempts of the chain's other invoices answer, `updated` how many rows a
+ * conditional update reaches.
  */
 function fakeClient({
     earlier = [],
     raw = [{ id: 'invoice-1' }],
+    heldBack = [],
     updated = 1,
     row = rowOf(),
     owing = true,
@@ -103,10 +104,12 @@ function fakeClient({
             updateMany: record('updateMany', { count: updated }),
         },
         async $queryRaw(strings, ...values) {
-            calls.push(['$queryRaw', strings.join('?'), values]);
-            // What the invoice owes is read against its settlements.
-            const owes = strings.join('?').includes('"subscription_invoice_settlements"');
-            return owes && !owing ? [] : raw;
+            const sql = strings.join('?');
+            calls.push(['$queryRaw', sql, values]);
+            if (sql.includes(CHAIN_ATTEMPTS)) return heldBack;
+            // What the invoice owes is read against its settlements, as text.
+            if (sql.includes('AS "owed"')) return owing ? [{ owed: OWED }] : [];
+            return raw;
         },
         async $transaction(work) {
             calls.push(['$transaction']);
@@ -118,6 +121,12 @@ function fakeClient({
 
 const callsOf = (client, name) => client.calls.filter(([called]) => called === name);
 
+/** What the invoice owes, as the database reads it out in the invoice's turn. */
+const OWED = '23.68';
+
+/** How the attempts of the other invoices of a chain are read: all but the invoice's own. */
+const CHAIN_ATTEMPTS = 'c."invoiceId" <> ';
+
 describe('writing an invoice’s next attempt', () => {
     test('the first is started in the invoice’s turn after its attempts were read', async () => {
         const client = fakeClient();
@@ -127,17 +136,52 @@ describe('writing an invoice’s next attempt', () => {
 
         assert.deepEqual(
             client.calls.map(([name]) => name),
-            ['$transaction', '$queryRaw', '$queryRaw', 'findMany', 'createManyAndReturn'],
+            [
+                '$transaction',
+                '$queryRaw',
+                '$queryRaw',
+                'findMany',
+                '$queryRaw',
+                'createManyAndReturn',
+            ],
         );
-        assert.match(callsOf(client, '$queryRaw')[0][1], /FOR UPDATE/);
-        assert.match(callsOf(client, '$queryRaw')[1][1], /"subscription_invoice_settlements"/);
+        const [turn, owes, chain] = callsOf(client, '$queryRaw');
+        assert.match(turn[1], /"chainId".*FOR UPDATE/s);
+        assert.match(owes[1], /"subscription_invoice_settlements"/);
+        assert.match(owes[1], /"subscription_invoice_cancellations"/, 'cancelled owes nothing');
+        assert.ok(chain[1].includes(CHAIN_ATTEMPTS));
         const [[, insert]] = callsOf(client, 'createManyAndReturn');
         assert.equal(insert.skipDuplicates, true);
         assert.deepEqual(
-            [insert.data[0].attempt, insert.data[0].status, insert.data[0].collectOn],
-            [1, 'SUBMITTED', null],
+            [
+                insert.data[0].attempt,
+                insert.data[0].status,
+                insert.data[0].collectOn,
+                insert.data[0].amount,
+            ],
+            [1, 'SUBMITTED', null, OWED],
+            'written for what the invoice owes in its turn',
         );
         assert.equal(started.status, 'SUBMITTED');
+    });
+
+    test('none is started where another invoice of its chain holds it back', async () => {
+        const client = fakeClient({ heldBack: [{ id: 'attempt-9' }] });
+
+        assert.equal(
+            await new PrismaInvoiceCollectionRepository(client).startAttempt(ATTEMPT),
+            null,
+        );
+        assert.equal(callsOf(client, 'createManyAndReturn').length, 0);
+        const [, sql, values] = callsOf(client, '$queryRaw').at(-1);
+        assert.ok(sql.includes(CHAIN_ATTEMPTS));
+        assert.match(sql, /'REVERSED'/);
+        assert.deepEqual(values, [
+            'invoice-1',
+            'invoice-1',
+            ['SUBMITTED', 'PENDING'],
+            'payment-method-1',
+        ]);
     });
 
     test('no first attempt is started where the invoice has one, and nothing is written', async () => {

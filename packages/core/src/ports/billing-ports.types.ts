@@ -60,9 +60,14 @@ import type {
 } from '../subscriber-reconciliation.types.js';
 import type { CalendarDay } from '../zoned-day.js';
 import type {
+    IssuedSubscriptionInvoiceCancellation,
     NewSubscriptionInvoice,
+    NewSubscriptionInvoiceCancellation,
+    SubscriptionInvoiceCancellationRecord,
+    SubscriptionInvoiceChain,
     SubscriptionInvoiceRecord,
 } from '../subscription-invoice.types.js';
+import type { InvoicePaymentShare, MovedPaymentPart } from '../subscription-invoice-correction.js';
 import type {
     NewInvoiceRendering,
     SubscriptionInvoiceDocumentRecord,
@@ -610,6 +615,46 @@ export interface SubscriptionInvoiceRepository {
 
     findById(id: string, tx?: TransactionContext): Promise<SubscriptionInvoiceRecord | null>;
 
+    /**
+     * Takes the turn of the chain `invoiceId` belongs to on `tx` — the turn of
+     * the chain's first invoice, held until `tx` ends — and answers the chain
+     * as it stands then; `null` where the invoice does not exist. Whatever
+     * changes what an invoice of a chain owes or how it is collected takes the
+     * same turn first, so a payment event, a cancellation and a collection
+     * attempt never read one replacement at once (`SC-PRIC-036`).
+     */
+    holdChain(invoiceId: string, tx: TransactionContext): Promise<SubscriptionInvoiceChain | null>;
+
+    /**
+     * Writes a cancellation in the turn of its chain, which the caller holds
+     * on `tx` (`SC-PRIC-025`): the cancellation invoice and the replacement,
+     * each with the next number of its year, the cancellation a step after the
+     * cancelled invoice in its chain and the replacement a step after that,
+     * and the cancellation with its reason. Refused with
+     * `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED` (`moved`) where the invoice is
+     * cancelled already; nothing is written, and no number drawn.
+     */
+    issueCancellation(
+        write: NewSubscriptionInvoiceCancellation,
+        tx: TransactionContext,
+    ): Promise<IssuedSubscriptionInvoiceCancellation>;
+
+    /**
+     * The cancellation an invoice takes part in — as the invoice it cancels,
+     * the cancellation invoice or the replacement —, or `null`. A replacement
+     * cancelled in turn takes part in two: its own cancellation is answered.
+     */
+    findCancellation(
+        invoiceId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceCancellationRecord | null>;
+
+    /** The cancellation `cancellationId`, or `null`. */
+    findCancellationById(
+        cancellationId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionInvoiceCancellationRecord | null>;
+
     /** Every invoice of one subscriber, the latest number first. */
     listBySubscriber(
         subscriberId: string,
@@ -752,12 +797,15 @@ export interface InvoiceCollectionRepository {
      * it in `subscription_invoice_settlements` — or has an attempt already —
      * every later one is planned (`plan`), so
      * a run that found the invoice due before another run's attempt failed
-     * does not charge it again at once. The turn is the invoice's
-     * own row, locked for the transaction — the chain of one invoice, which a
-     * cancellation's replacement joins — so a cancellation never meets an
+     * does not charge it again at once —, or where an attempt of another
+     * invoice of its chain is on its way, or a payment of the chain was
+     * reversed on its payment method. The turn is the row of the chain's first
+     * invoice, locked for the transaction, so a cancellation never meets an
      * attempt about to be sent without knowing it (`SC-PRIC-036`). The attempt
-     * is numbered after the invoice's last, and its key is
-     * `collectionAttemptKey(invoiceId, attempt)`.
+     * is for what the invoice still owes, read in that turn, so a payment or a
+     * reversal recorded meanwhile is not collected past; it is numbered after
+     * the invoice's last, and its key is `collectionAttemptKey(invoiceId,
+     * attempt)`.
      */
     startAttempt(
         attempt: NewInvoiceCollection,
@@ -766,8 +814,9 @@ export interface InvoiceCollectionRepository {
 
     /**
      * Plans the invoice's next attempt in its turn, as `startAttempt` starts
-     * one, and returns it, written as `SCHEDULED` for `plan.collectOn` with
-     * nothing sent; `null`, writing nothing, where the invoice owes nothing,
+     * one — for what the invoice still owes then —, and returns it, written as
+     * `SCHEDULED` for `plan.collectOn` with nothing sent; `null`, writing
+     * nothing, where the invoice owes nothing,
      * where an attempt of it is open or one succeeded, or where its last
      * attempt is not the one numbered `plan.after` any more.
      */
@@ -956,9 +1005,37 @@ export interface SubscriberPaymentRepository {
     ): Promise<RecordedSubscriberPayment | null>;
 
     /**
+     * What each payment still settles of `invoiceId` — its settlements, less
+     * what reversals and an earlier cancellation took back —, with when it was
+     * recorded: what a cancellation of the invoice moves (`SC-PRIC-025`). Read
+     * in the turn of the invoice's chain, which the caller holds on `tx`.
+     */
+    sharesOf(invoiceId: string, tx: TransactionContext): Promise<InvoicePaymentShare[]>;
+
+    /**
+     * Moves each payment's share of a cancelled invoice as `move.parts` say,
+     * in the turn the caller holds on `tx`: a `MOVED_OUT` of the whole share
+     * on the cancelled invoice, a `MOVED_IN` on the replacement for what it
+     * takes, and for what it does not take a credit that names the payment and
+     * the cancellation. Returns the credits written.
+     */
+    moveShares(
+        move: {
+            cancellationId: string;
+            cancelledInvoiceId: string;
+            replacementInvoiceId: string | null;
+            parts: readonly MovedPaymentPart[];
+            at: Date;
+        },
+        tx: TransactionContext,
+    ): Promise<SubscriberCreditRecord[]>;
+
+    /**
      * Credits an invoice whose total is negative to its subscriber, at `at`,
      * and returns the credit; `null`, writing nothing, where it is credited
-     * already or its total is not negative.
+     * already, its total is not negative, or it is a cancellation invoice,
+     * whose total the invoice it cancels takes back rather than the subscriber
+     * is owed (`SC-PRIC-025`).
      */
     creditInvoice(
         invoiceId: string,
@@ -968,7 +1045,8 @@ export interface SubscriberPaymentRepository {
 
     /**
      * The invoices whose total is negative and that are not credited yet, by
-     * id, at most `limit`, after `after` where it is given.
+     * id, at most `limit`, after `after` where it is given — a cancellation
+     * invoice never among them.
      */
     listUncredited(
         page: { limit: number; after?: string },
@@ -1048,14 +1126,20 @@ export interface SubscriberPaymentRepository {
      * those invoices left, the oldest first (`SC-PRIC-087`). What it takes of
      * the payment's own credit beyond the open part lifts the covers that
      * credit gave other reversals before it counts as paid out: each is given
-     * back to the credit, and its reversal opens the invoice by it
-     * (`SC-PRIC-088`, `ReversalWithdrawal.uncovered`). What the gateway gives
-     * back returns to the payment's own credit before the covering ones. What the gateway newly
-     * gave back covers the reversal's cases first, closing each it covers, then
-     * gives back what it took of the credit, then settles again what it opened
-     * as far as the invoice still owes, and what an invoice no longer owes is a
-     * credit (`SC-PRIC-086`). Throws for a reversal in another currency than
-     * its payment.
+     * back to the credit, and its reversal takes it as a withdrawal of its
+     * payment would without that credit, as everything stands then — the
+     * credits that payment left first, then the other open credits for its
+     * invoices as the withdrawal lifting it left them, then the invoices it
+     * still settles —, and what goes beyond is a case of that reversal
+     * (`SC-PRIC-090`, `ReversalWithdrawal.uncovered`). What the gateway gives
+     * back returns to the payment's own credit before the covering ones. What
+     * the gateway newly gave back covers first what the reversal's cases hold
+     * beyond what earlier give-backs covered of them, which the reversal
+     * records (`reinstatedToCases`) — a case can be opened after a give-back —,
+     * closing each it covers in full, then gives back what it took of the
+     * credit, then settles again what it opened as far as the invoice still
+     * owes, and what an invoice no longer owes is a credit (`SC-PRIC-086`).
+     * Throws for a reversal in another currency than its payment.
      */
     recordReversal(
         reversal: ReportedSubscriberReversal,

@@ -629,7 +629,7 @@ const day = (name: string) => date(name, { mode: 'string' });
 
 // The invoices issued from the charge journal. The DDL authority, the unique
 // keys a second issue of the same charges and a second draw of one number
-// collide with, are `subscription_invoice_lines_chargeId_key` and
+// collide with, are `subscription_invoice_lines_chargeId_chainStep_key` and
 // `subscription_invoices_numberYear_numberSequence_key`.
 export const subscriptionInvoices = pgTable('subscription_invoices', {
     id: text('id').primaryKey(),
@@ -641,6 +641,8 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
     subscriberId: text('subscriberId').notNull(),
     subscriptionId: text('subscriptionId').notNull(),
     contractId: text('contractId').notNull(),
+    chainId: text('chainId').notNull(),
+    chainStep: integer('chainStep').notNull().default(0),
     issuedAt: ts('issuedAt').notNull(),
     issueDate: day('issueDate').notNull(),
     dueDate: day('dueDate').notNull(),
@@ -657,6 +659,7 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
     totalNet: numeric('totalNet', { precision: 12, scale: 2 }).notNull(),
     totalTax: numeric('totalTax', { precision: 12, scale: 2 }).notNull(),
     totalGross: numeric('totalGross', { precision: 12, scale: 2 }).notNull(),
+    paidOnIssue: numeric('paidOnIssue', { precision: 12, scale: 2 }).notNull().default('0'),
     createdAt: writtenAt('createdAt'),
 });
 
@@ -666,6 +669,8 @@ export const subscriptionInvoiceLines = pgTable('subscription_invoice_lines', {
     position: integer('position').notNull(),
     chargeId: text('chargeId').notNull(),
     contractLineItemId: text('contractLineItemId').notNull(),
+    chainStep: integer('chainStep').notNull().default(0),
+    correctedPosition: integer('correctedPosition'),
     title: text('title').notNull(),
     origin: text('origin').notNull(),
     source: text('source').notNull(),
@@ -673,6 +678,24 @@ export const subscriptionInvoiceLines = pgTable('subscription_invoice_lines', {
     periodUntil: day('periodUntil').notNull(),
     amountNet: numeric('amountNet', { precision: 10, scale: 2 }).notNull(),
     taxRate: numeric('taxRate', { precision: 5, scale: 2 }).notNull(),
+});
+
+/**
+ * A cancellation: the invoice it cancels, the cancellation invoice, the
+ * replacement. The DDL authority, the unique key a second cancellation of the
+ * same invoice collides with, is
+ * `subscription_invoice_cancellations_cancelledInvoiceId_key`.
+ */
+export const subscriptionInvoiceCancellations = pgTable('subscription_invoice_cancellations', {
+    id: text('id').primaryKey(),
+    cancelledInvoiceId: text('cancelledInvoiceId').notNull(),
+    cancellationInvoiceId: text('cancellationInvoiceId').notNull(),
+    replacementInvoiceId: text('replacementInvoiceId'),
+    reason: text('reason').notNull(),
+    correctedSubscriber: jsonb('correctedSubscriber'),
+    deliverTo: text('deliverTo'),
+    cancelledBy: text('cancelledBy').notNull(),
+    cancelledAt: ts('cancelledAt').notNull(),
 });
 
 /** One row per year: the last invoice number drawn in it. */
@@ -735,7 +758,11 @@ export const subscriberPayments = pgTable('subscriber_payments', {
     recordedAt: ts('recordedAt').notNull().defaultNow(),
 });
 
-/** What a payment settles of an invoice, what a reversal opens of it again, and what a reinstatement settles again. */
+/**
+ * What a payment settles of an invoice, what a reversal opens of it again,
+ * what a reinstatement settles again, and what a cancellation moves of it onto
+ * the replacement.
+ */
 export const subscriptionInvoiceSettlements = pgTable('subscription_invoice_settlements', {
     id: text('id').primaryKey(),
     invoiceId: text('invoiceId').notNull(),
@@ -743,12 +770,14 @@ export const subscriptionInvoiceSettlements = pgTable('subscription_invoice_sett
     kind: text('kind').notNull(),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
     reversalId: text('reversalId'),
+    cancellationId: text('cancellationId'),
     recordedAt: ts('recordedAt').notNull().defaultNow(),
 });
 
 /**
  * Money the operator owes a subscriber: a payment's surplus, an invoice whose
- * total is negative, or what a reversal given back brought beyond what was owed.
+ * total is negative, what a reversal given back brought beyond what was owed,
+ * or a payment's share of a cancelled invoice its replacement did not take.
  */
 export const subscriberCredits = pgTable('subscriber_credits', {
     id: text('id').primaryKey(),
@@ -759,6 +788,7 @@ export const subscriberCredits = pgTable('subscriber_credits', {
     originPaymentId: text('originPaymentId'),
     originInvoiceId: text('originInvoiceId'),
     originReversalId: text('originReversalId'),
+    originCancellationId: text('originCancellationId'),
     createdAt: ts('createdAt').notNull().defaultNow(),
 });
 
@@ -803,6 +833,9 @@ export const subscriberReversals = pgTable('subscriber_reversals', {
     currency: text('currency').notNull(),
     fromCredit: numeric('fromCredit', { precision: 12, scale: 2 }).notNull(),
     reinstated: numeric('reinstated', { precision: 12, scale: 2 }).notNull(),
+    reinstatedToCases: numeric('reinstatedToCases', { precision: 12, scale: 2 })
+        .notNull()
+        .default('0'),
     recordedAt: ts('recordedAt').notNull().defaultNow(),
     reinstatedAt: ts('reinstatedAt'),
 });

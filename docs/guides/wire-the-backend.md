@@ -989,10 +989,13 @@ of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only ag
 does a start refuse another legal entity named as the issuer, which would otherwise number on in
 the range of the one before, and the record keeps the corrections of the issuer an invoice
 follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
-`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql` and
-`sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` once and
-`sql/1.0-an-invoice-document-is-archived.postgres.sql` after `db push`, name the range and the
-payment term, and wire the repository, the renderer, the archive and the mail beside the journal:
+`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql`,
+`sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` and
+`sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push` and
+`sql/1.0-an-invoice-document-is-archived.postgres.sql` after it, name the range and the payment
+term, and wire the repository, the renderer, the archive and the mail beside the journal. An issued
+invoice is corrected by cancelling it (`InvoiceCancellationService`), on the transaction
+`contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the start requires:
 
 ```yaml
 # config/saas.yaml
@@ -1207,7 +1210,9 @@ turn: the payment, once, by its gateway account and the gateway's reference, how
 first — the run asking, or the gateway's callback — and however often (`SC-PRIC-029`,
 `SC-PRIC-036`). Adopt `prisma-fragments/24-subscriber-payments.prisma` with the back-relations it
 names on `Subscriber`, `SubscriptionInvoice` and `SubscriptionInvoiceCollection`, run
-`sql/1.0-a-payment-is-recorded.postgres.sql` once before `db push`, and `SaaSiCatModule` takes
+`sql/1.0-a-payment-is-recorded.postgres.sql` once before `db push` — and
+`sql/1.0-an-invoice-is-cancelled.postgres.sql` after it, which gives the payments the moves a
+cancellation makes —, and `SaaSiCatModule` takes
 `persistence.entitlement.subscriberPaymentRepository` for `chargeJournal.invoices.payments` unless
 you name another. The start refuses collections without it.
 
@@ -1233,13 +1238,13 @@ you name another. The start refuses collections without it.
   returned, or a chargeback. The credit the payment left goes first — its open part shrinks it, a
   part already paid out is a case to reconcile —, then an open credit another payment for the
   same invoice left (`SC-PRIC-087`), then what the payment settled of its invoice opens again —
-  two reversals of one invoice's payments end alike in either order (`SC-PRIC-088`). The
+  two reversals of one invoice's payments end alike in either order (`SC-PRIC-090`). The
   attempt that collected it is then `REVERSED`, also one that failed before its payment arrived
   late: once no other attempt of the invoice is on its way the next run tells the subscriber, and
   the invoice is collected again only with a payment method none of its payments was reversed on
   (`SC-PRIC-085`); an attempt of it that succeeded is marked `REVERSED` as well, since it would
   keep every other attempt from being made, and its payment method then collects that invoice no
-  more either, even where its own payment was not reversed (`SC-PRIC-088`). A dispute
+  more either, even where its own payment was not reversed (`SC-PRIC-090`). A dispute
   won takes the reversal back part for part, and what the invoice no longer owes — the subscriber
   paid it meanwhile — becomes a credit (`SC-PRIC-086`).
 - **What matched nothing** stands on the administration's reconciliation page and on the tenant's

@@ -135,6 +135,7 @@ function invoice(
             totalNet: net,
             totalTax: tax,
             totalGross: Math.round((net + tax) * 100) / 100,
+            paidOnIssue: 0,
             lines,
             correction: null,
             createdAt: ISSUED_AT,
@@ -191,8 +192,15 @@ function cancellationOf(name, cancelled, { number, sequence, reason }) {
     };
 }
 
-/** The replacement of the sample `cancelled`, its lines naming the lines they replace. */
-function replacementOf(name, cancelled, { number, sequence, reason, subscriber, payment }) {
+/**
+ * The replacement of the sample `cancelled`, its lines naming the lines they
+ * replace; `paidOnIssue` is what was paid for `cancelled` and moved onto it.
+ */
+function replacementOf(
+    name,
+    cancelled,
+    { number, sequence, reason, subscriber, payment, paidOnIssue = 0, collectionDate = null },
+) {
     const of = cancelled.invoice;
     const id = `invoice-${name}`;
     return {
@@ -204,10 +212,11 @@ function replacementOf(name, cancelled, { number, sequence, reason, subscriber, 
             numberSequence: sequence,
             issuedAt: CORRECTED_AT,
             issueDate: CORRECTED_ON,
-            dueDate: '2026-03-06',
+            dueDate: collectionDate ?? '2026-03-06',
             subscriber,
             payment,
-            collectionDate: null,
+            collectionDate,
+            paidOnIssue,
             lines: of.lines.map((entry) => ({
                 ...entry,
                 id: `${name}-${entry.id}`,
@@ -268,6 +277,25 @@ export const SAMPLES = [
         reason: WRONG_ADDRESS,
         subscriber: { ...SUBSCRIBER, addressLine1: 'Ringstraße 11' },
         payment: CARD,
+    }),
+    // What was paid by card for the invoice it replaces covers it.
+    replacementOf('replacement-paid', STANDARD, {
+        number: 'AHP-2026-000143',
+        sequence: 143,
+        reason: WRONG_ADDRESS,
+        subscriber: { ...SUBSCRIBER, addressLine1: 'Ringstraße 11' },
+        payment: null,
+        paidOnIssue: 76.16,
+    }),
+    // Paid in part: the rest is collected by direct debit, and announced.
+    replacementOf('replacement-paid-in-part', STANDARD, {
+        number: 'AHP-2026-000144',
+        sequence: 144,
+        reason: WRONG_ADDRESS,
+        subscriber: { ...SUBSCRIBER, addressLine1: 'Ringstraße 11' },
+        payment: DIRECT_DEBIT,
+        collectionDate: '2026-02-25',
+        paidOnIssue: 50,
     }),
     invoice('direct-debit', {
         treatment: { kind: 'standard', rate: 19, note: null },

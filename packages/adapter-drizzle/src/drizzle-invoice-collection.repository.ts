@@ -37,6 +37,7 @@ import {
     REVERSIBLE_COLLECTION_STATUSES,
     UNSETTLED_COLLECTION_STATUSES,
     collectionOutcomeColumns,
+    columnAmountOf,
     invoiceCollectionColumns,
     lastCollectionOf,
     plannedCollectionColumns,
@@ -46,8 +47,10 @@ import {
     toInvoiceCollectionRecord,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
+import { lockChainOf } from './drizzle-invoice-chain.js';
 import {
     subscriberPaymentMethods,
+    subscriptionInvoiceCancellations,
     subscriptionInvoiceCollections,
     subscriptionInvoiceDocuments,
     subscriptionInvoiceSettlements,
@@ -57,38 +60,109 @@ import {
 /** The invoice's attempts again, beside the one a query lists. */
 const others = alias(subscriptionInvoiceCollections, 'others');
 
-/** The invoice's reversed attempts, beside the one a query lists. */
+/** The reversed attempts of the invoice's chain, beside the one a query lists. */
 const reversed = alias(subscriptionInvoiceCollections, 'reversed');
+
+/** The attempts of the invoice's chain, beside the invoice a query lists. */
+const chainAttempts = alias(subscriptionInvoiceCollections, 'chain_attempts');
+
+/** The invoices of the chain of the invoice a query lists. */
+const chainInvoices = alias(subscriptionInvoices, 'chain_invoices');
 
 /**
  * Whether the invoice a query reads still owes something: its total exceeds
- * what is settled against it. Exact in the database's numeric arithmetic.
+ * what is settled against it, and it is neither cancelled nor a cancellation
+ * invoice. Exact in the database's numeric arithmetic.
  */
-const stillOwes = sql`${subscriptionInvoices.totalGross} > COALESCE((
+const settledOnIt = sql`COALESCE((
     SELECT SUM(CASE WHEN ${inArray(subscriptionInvoiceSettlements.kind, [...REOPENING_SETTLEMENT_KINDS])}
                     THEN -${subscriptionInvoiceSettlements.amount}
                     ELSE ${subscriptionInvoiceSettlements.amount} END)
       FROM ${subscriptionInvoiceSettlements}
      WHERE ${subscriptionInvoiceSettlements.invoiceId} = ${subscriptionInvoices.id}
 ), 0)`;
+const stillOwes = sql`${subscriptionInvoices.totalGross} > ${settledOnIt}
+AND NOT EXISTS (
+    SELECT 1 FROM ${subscriptionInvoiceCancellations}
+     WHERE ${subscriptionInvoiceCancellations.cancelledInvoiceId} = ${subscriptionInvoices.id}
+        OR ${subscriptionInvoiceCancellations.cancellationInvoiceId} = ${subscriptionInvoices.id}
+)`;
 
 /** The attempts what follows is decided for, as a parameter of the queries below. */
 const FOLLOWED_UP_STATUSES = [...FOLLOWED_UP_COLLECTION_STATUSES];
 
+/**
+ * The attempts of a chain that hold every other invoice of it back: sent, and
+ * not settled (`SC-PRIC-036`).
+ */
+const OPEN_IN_CHAIN = [...UNSETTLED_COLLECTION_STATUSES];
+
 /** Whether invoice `invoiceId` still owes something, read on `db`. */
 async function owes(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<boolean> {
-    const rows = await db
-        .select({ id: subscriptionInvoices.id })
+    return (await owedIn(db, invoiceId)) > 0;
+}
+
+/**
+ * What invoice `invoiceId` still owes, read on `db`: its total less what is
+ * settled against it, in the database's numeric arithmetic; nothing where it
+ * owes nothing by `stillOwes`.
+ */
+async function owedIn(db: ReturnType<typeof resolveDb>, invoiceId: string): Promise<number> {
+    const [row] = await db
+        .select({ owed: sql<string>`(${subscriptionInvoices.totalGross} - ${settledOnIt})::text` })
         .from(subscriptionInvoices)
         .where(and(eq(subscriptionInvoices.id, invoiceId), stillOwes));
-    return rows.length === 1;
+    return row
+        ? columnAmountOf(row.owed, {
+              table: 'subscription_invoices',
+              column: 'totalGross',
+              id: invoiceId,
+          })
+        : 0;
+}
+
+/**
+ * Whether another invoice of chain `chainId` holds this attempt of
+ * `invoiceId` back: one of its attempts is on its way and not settled — no
+ * invoice of a chain is collected while one submitted for any of them is
+ * unresolved —, or a reversal was made on `paymentMethodId` — nothing of a
+ * chain is collected again with a payment method one of its payments was
+ * reversed on (`SC-PRIC-036`, `SC-PRIC-085`). The invoice's own attempts are
+ * its own `refuses`'s.
+ */
+async function heldBackByItsChain(
+    db: ReturnType<typeof resolveDb>,
+    chainId: string,
+    invoiceId: string,
+    paymentMethodId: string,
+): Promise<boolean> {
+    const rows = await db
+        .select({ id: chainAttempts.id })
+        .from(chainAttempts)
+        .innerJoin(chainInvoices, eq(chainInvoices.id, chainAttempts.invoiceId))
+        .where(
+            and(
+                eq(chainInvoices.chainId, chainId),
+                ne(chainAttempts.invoiceId, invoiceId),
+                or(
+                    inArray(chainAttempts.status, OPEN_IN_CHAIN),
+                    and(
+                        eq(chainAttempts.status, 'REVERSED'),
+                        eq(chainAttempts.paymentMethodId, paymentMethodId),
+                    ),
+                ),
+            ),
+        )
+        .limit(1);
+    return rows.length > 0;
 }
 
 /**
  * `InvoiceCollectionRepository` against `subscription_invoice_collections`.
  *
- * An attempt is started in the invoice's turn — its row in
- * `subscription_invoices`, locked for the transaction — and every write that
+ * An attempt is started in the turn of the invoice's chain — the row of the
+ * chain's first invoice in `subscription_invoices`, locked for the
+ * transaction — and every write that
  * settles or takes on an attempt is one conditional `UPDATE` naming the state
  * it expects, so of two runs one wins and the other is told.
  */
@@ -129,6 +203,29 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                                 ),
                             ),
                     ),
+                    notExists(
+                        db
+                            .select({ one: sql`1` })
+                            .from(subscriptionInvoiceCancellations)
+                            .where(
+                                eq(
+                                    subscriptionInvoiceCancellations.cancelledInvoiceId,
+                                    subscriptionInvoices.id,
+                                ),
+                            ),
+                    ),
+                    notExists(
+                        db
+                            .select({ one: sql`1` })
+                            .from(chainAttempts)
+                            .innerJoin(chainInvoices, eq(chainInvoices.id, chainAttempts.invoiceId))
+                            .where(
+                                and(
+                                    eq(chainInvoices.chainId, subscriptionInvoices.chainId),
+                                    inArray(chainAttempts.status, OPEN_IN_CHAIN),
+                                ),
+                            ),
+                    ),
                 ),
             )
             .orderBy(asc(subscriptionInvoices.id))
@@ -143,7 +240,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         return this.writeNext(
             attempt.invoiceId,
             refusesFirstAttempt,
-            (number) => invoiceCollectionColumns(attempt, number),
+            (number, amount) => invoiceCollectionColumns(attempt, number, amount),
             tx,
         );
     }
@@ -155,7 +252,7 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         return this.writeNext(
             plan.invoiceId,
             (earlier) => refusesPlannedAttempt(earlier, plan.after),
-            (number) => plannedCollectionColumns(plan, number),
+            (number, amount) => plannedCollectionColumns(plan, number, amount),
             tx,
         );
     }
@@ -164,23 +261,21 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
     private async writeNext(
         invoiceId: string,
         refuses: (earlier: readonly EarlierCollection[]) => boolean,
-        columns: (number: number) => InvoiceCollectionColumns,
+        columns: (number: number, amount: number) => InvoiceCollectionColumns,
         tx?: TransactionContext,
     ): Promise<InvoiceCollectionRecord | null> {
         // On the caller's transaction this is a savepoint.
         return resolveDb(this.db, tx).transaction(async (transaction) => {
             const db = resolveDb(this.db, transaction);
-            // The invoice's turn: a second run writing an attempt for it
-            // waits here, and then reads the attempt the first one wrote.
-            const [invoice] = await db
-                .select({ id: subscriptionInvoices.id })
-                .from(subscriptionInvoices)
-                .where(eq(subscriptionInvoices.id, invoiceId))
-                .for('update');
-            if (!invoice) throw new Error(`Invoice ${invoiceId} does not exist.`);
-            // An invoice that owes nothing — a payment came for it — is
-            // collected no further.
-            if (!(await owes(db, invoiceId))) return null;
+            // The turn of the invoice's chain: a second run writing an attempt
+            // for it waits here, and then reads the attempt the first one wrote.
+            const chainId = await lockChainOf(db, invoiceId);
+            if (chainId === null) throw new Error(`Invoice ${invoiceId} does not exist.`);
+            // An invoice that owes nothing — a payment came for it, or it was
+            // cancelled — is collected no further; one that owes is collected
+            // for what it owes now, in the turn no payment or reversal moves it in.
+            const owed = await owedIn(db, invoiceId);
+            if (owed <= 0) return null;
             const earlier = await db
                 .select({
                     attempt: subscriptionInvoiceCollections.attempt,
@@ -189,12 +284,15 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                 .from(subscriptionInvoiceCollections)
                 .where(eq(subscriptionInvoiceCollections.invoiceId, invoiceId));
             if (refuses(earlier)) return null;
-            const number = lastCollectionOf(earlier) + 1;
+            const written = columns(lastCollectionOf(earlier) + 1, owed);
+            if (await heldBackByItsChain(db, chainId, invoiceId, written.paymentMethodId)) {
+                return null;
+            }
             // Untargeted, so any of the unique indexes turns a second attempt
             // into no row rather than an error that would end the transaction.
             const [row] = await db
                 .insert(subscriptionInvoiceCollections)
-                .values({ id: randomUUID(), ...columns(number) })
+                .values({ id: randomUUID(), ...written })
                 .onConflictDoNothing()
                 .returning();
             return row ? toInvoiceCollectionRecord(row) : null;
@@ -262,7 +360,10 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         });
     }
 
-    /** Runs `work` in the turn of the invoice attempt `id` belongs to, as `writeNext` takes it. */
+    /**
+     * Runs `work` in the turn of the chain of the invoice attempt `id` belongs
+     * to, as `writeNext` takes it.
+     */
     private inTurnOf<T>(
         id: string,
         tx: TransactionContext,
@@ -271,19 +372,11 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
         // On the caller's transaction this is a savepoint.
         return resolveDb(this.db, tx).transaction(async (transaction) => {
             const db = resolveDb(this.db, transaction);
-            await db
-                .select({ id: subscriptionInvoices.id })
-                .from(subscriptionInvoices)
-                .where(
-                    inArray(
-                        subscriptionInvoices.id,
-                        db
-                            .select({ invoiceId: subscriptionInvoiceCollections.invoiceId })
-                            .from(subscriptionInvoiceCollections)
-                            .where(eq(subscriptionInvoiceCollections.id, id)),
-                    ),
-                )
-                .for('update');
+            const [attempt] = await db
+                .select({ invoiceId: subscriptionInvoiceCollections.invoiceId })
+                .from(subscriptionInvoiceCollections)
+                .where(eq(subscriptionInvoiceCollections.id, id));
+            if (attempt) await lockChainOf(db, attempt.invoiceId);
             return work(db);
         });
     }
@@ -373,7 +466,18 @@ export class DrizzleInvoiceCollectionRepository implements InvoiceCollectionRepo
                             .from(reversed)
                             .where(
                                 and(
-                                    eq(reversed.invoiceId, subscriptionInvoices.id),
+                                    inArray(
+                                        reversed.invoiceId,
+                                        db
+                                            .select({ id: chainInvoices.id })
+                                            .from(chainInvoices)
+                                            .where(
+                                                eq(
+                                                    chainInvoices.chainId,
+                                                    subscriptionInvoices.chainId,
+                                                ),
+                                            ),
+                                    ),
                                     eq(reversed.status, 'REVERSED'),
                                     or(
                                         isNull(reversed.followedUpAt),

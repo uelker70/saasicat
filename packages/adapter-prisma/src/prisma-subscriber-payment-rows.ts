@@ -16,19 +16,21 @@ import type {
 import {
     columnAmountOf,
     openOfCredit,
-    owedOn,
+    owedByInvoice,
     settledAmountOf,
     toDecimalString,
     toSubscriberCreditEntryRecord,
     toSubscriberCreditRecord,
 } from '@saasicat/core';
 import type { PrismaModelDelegateLike } from './prisma-client-token.js';
+import { type ChainPrisma, correctedStateOf, lockChainOf } from './prisma-invoice-chain.js';
 
 /** A settlement as the turn reads it: what it is, for which invoice and payment, and how much. */
 export interface SettlementRow extends CanonicalInvoiceSettlementRow {
     invoiceId: string;
     paymentId: string;
     reversalId: string | null;
+    cancellationId: string | null;
     recordedAt: Date;
 }
 
@@ -42,22 +44,26 @@ export interface PaymentPrisma {
     subscriberReversal: PrismaModelDelegateLike<CanonicalSubscriberReversalRow>;
     subscriberReconciliationCase: PrismaModelDelegateLike<CanonicalReconciliationCaseRow>;
     subscriptionInvoice: PrismaModelDelegateLike<LockedInvoice>;
+    subscriptionInvoiceCancellation: ChainPrisma['subscriptionInvoiceCancellation'];
     $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
 }
 
-/** What the invoice's turn reads of it. */
+/** What the turn reads of an invoice. */
 export interface LockedInvoice {
     id: string;
     subscriberId: string;
     tenantId: string;
     totalGross: unknown;
     currency: string;
+    chainId: string;
 }
 
-/** Takes the invoice's turn and reads what a payment against it needs; throws where it does not exist. */
+/**
+ * Takes the turn of the invoice's chain and reads what a payment against it
+ * needs; throws where it does not exist.
+ */
 export async function lockInvoice(db: PaymentPrisma, invoiceId: string): Promise<LockedInvoice> {
-    await db.$queryRaw`
-        SELECT "id" FROM "subscription_invoices" WHERE "id" = ${invoiceId} FOR UPDATE`;
+    await lockChainOf(db, invoiceId);
     const row = await readInvoice(db, invoiceId);
     if (!row) throw new Error(`Invoice ${invoiceId} does not exist.`);
     return row;
@@ -66,7 +72,14 @@ export async function lockInvoice(db: PaymentPrisma, invoiceId: string): Promise
 export function readInvoice(db: PaymentPrisma, invoiceId: string): Promise<LockedInvoice | null> {
     return db.subscriptionInvoice.findUnique({
         where: { id: invoiceId },
-        select: { id: true, subscriberId: true, tenantId: true, totalGross: true, currency: true },
+        select: {
+            id: true,
+            subscriberId: true,
+            tenantId: true,
+            totalGross: true,
+            currency: true,
+            chainId: true,
+        },
     });
 }
 
@@ -78,13 +91,20 @@ export function grossOf(invoice: LockedInvoice): number {
     });
 }
 
-/** What `invoice` owes after every settlement against it. */
+/**
+ * What `invoice` owes after every settlement against it: nothing where it is
+ * cancelled or is a cancellation invoice (`owedByInvoice`).
+ */
 export async function owedOf(db: PaymentPrisma, invoice: LockedInvoice): Promise<number> {
     const settled = await db.subscriptionInvoiceSettlement.findMany({
         where: { invoiceId: invoice.id },
         select: { id: true, kind: true, amount: true },
     });
-    return owedOn(grossOf(invoice), settled.map(settledAmountOf));
+    return owedByInvoice(
+        grossOf(invoice),
+        settled.map(settledAmountOf),
+        await correctedStateOf(db, invoice.id),
+    );
 }
 
 /** Holds every credit of the subscriber, in one order, before anything of them is read. */
@@ -107,7 +127,10 @@ export async function openOf(db: PaymentPrisma, creditId: string): Promise<numbe
 
 /** Where a credit comes from, as its columns name it. */
 export type CreditOriginColumns =
-    { originPaymentId: string } | { originInvoiceId: string } | { originReversalId: string };
+    | { originPaymentId: string }
+    | { originInvoiceId: string }
+    | { originReversalId: string }
+    | { originPaymentId: string; originCancellationId: string };
 
 /**
  * Writes a credit for the subscriber `invoice` names. One from a payment or an
@@ -132,6 +155,8 @@ export async function createCredit(
                 originPaymentId: 'originPaymentId' in origin ? origin.originPaymentId : null,
                 originInvoiceId: 'originInvoiceId' in origin ? origin.originInvoiceId : null,
                 originReversalId: 'originReversalId' in origin ? origin.originReversalId : null,
+                originCancellationId:
+                    'originCancellationId' in origin ? origin.originCancellationId : null,
                 createdAt: at,
             },
         ],
