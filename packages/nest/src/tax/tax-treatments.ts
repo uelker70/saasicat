@@ -125,7 +125,7 @@ export class TaxTreatments {
      * Refuses a case the adapter does not support with `422`, rather than
      * charging a guessed tax (`SC-PRIC-039`). `issuer` is the party the
      * document names where that is not the file's issuer: an invoice names the
-     * issuer of its contract (`SC-PRIC-026`), and its treatment is that
+     * issuer of its contract (`SC-PRIC-092`), and its treatment is that
      * party's.
      */
     decide(origin: SubscriberTaxOrigin, period: TaxPeriod, issuer?: TaxIssuer): AppliedTax {

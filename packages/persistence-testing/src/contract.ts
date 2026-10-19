@@ -7009,8 +7009,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-AUD-013
-        // @requirement SC-PRIC-026
-        // @requirement SC-PRIC-077
+        // @requirement SC-PRIC-092
+        // @requirement SC-PRIC-093
         test('an invoice reads back as it was written: its days, its cents, its parties, its footer and its treatment', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-exact');
             if (!account) return;
@@ -9968,7 +9968,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         };
 
         /**
-         * Cancels `invoiceId` as the platform does (`SC-PRIC-025`): in the turn of
+         * Cancels `invoiceId` as the platform does (`SC-PRIC-091`): in the turn of
          * its chain, the cancellation invoice and — unless `replace` is false — a
          * replacement under `treatment`, then what was paid for the invoice moved
          * onto the replacement, or into credits. `pause` holds the turn after the
@@ -10067,7 +10067,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         /** `amount` taken the other way, nothing staying nothing. */
         const reversedAmount = (amount: number) => (amount === 0 ? 0 : -amount);
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         test('an invoice is cancelled by a cancellation invoice and a replacement that follow it in its chain, each naming it', async (t) => {
             const account = await payable(t, 'tenant-cancel-once');
             if (!account) return;
@@ -10255,7 +10255,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         test('what was paid for a cancelled invoice moves onto the replacement, the oldest payment first, and what it does not take is a credit of the payment and the cancellation', async (t) => {
             const account = await payable(t, 'tenant-cancel-paid');
             if (!account) return;
@@ -10310,7 +10310,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         // @requirement SC-PRIC-036
         test('a payment confirmed after the cancellation settles the replacement, and is a credit where the cancellation left none', async (t) => {
             const account = await payable(t, 'tenant-cancel-then-paid', 2);
@@ -10343,7 +10343,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         // @requirement SC-PRIC-084
         test('a reversal of a payment whose share moved takes the credit the cancellation left first, then opens the replacement', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-reversed');
@@ -10376,7 +10376,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         // @requirement SC-PRIC-086
         test('a reversal given back after its invoice was cancelled settles the replacement, part by part, and leaves no credit', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-given-back');
@@ -10460,7 +10460,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         }
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         // @requirement SC-PRIC-090
         test("a cover lifted after its invoice was cancelled takes the credit the cancellation left first, and opens the replacement by no more than its payment's share", async (t) => {
             const account = await coveredThenCancelled(t, 'tenant-cancel-lift');
@@ -10585,7 +10585,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await payments.owedBy(replacement.id), sumToCents(net, -5));
         });
 
-        // @requirement SC-PRIC-025
+        // @requirement SC-PRIC-091
         test('a cancellation interrupted before it ends leaves none of it, and hands its numbers back', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-interrupted');
             if (!account) return;

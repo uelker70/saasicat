@@ -1,4 +1,4 @@
-// The correction of an issued invoice (`SC-PRIC-025`): a cancellation invoice
+// The correction of an issued invoice (`SC-PRIC-091`): a cancellation invoice
 // that states it reversed and asks for nothing, a replacement for its charges,
 // and what was paid for it moved onto the replacement — or, where the
 // replacement does not take it, into credits — written in one transaction, in
@@ -10,14 +10,14 @@
 // write and leaves nothing behind.
 //
 // The replacement names the cancelled invoice's issuer, with a correction of it
-// declared in `config/saas.yaml` since (`SC-PRIC-026`), and its subscriber, with
+// declared in `config/saas.yaml` since (`SC-PRIC-092`), and its subscriber, with
 // each correction of the subscriber's legal identity recorded since
 // (`SC-SUB-017`) and the details the operator corrects with the cancellation.
 // Its tax is decided again for the parties it names over the cancelled
 // invoice's charges' period, a VAT identification number counting as validated
 // only where the subscriber's record holds that same number with a valid check.
 // It is an invoice of its own issue date: the footer lines are those the file
-// names then (`SC-PRIC-077`), its payment term runs from it, and it is
+// names then (`SC-PRIC-093`), its payment term runs from it, and it is
 // collected with the payment method in use unless what was paid covers it.
 
 import {
@@ -30,6 +30,7 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+    INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_ERROR_CODES,
     contractPartiesOf,
     correctedSubscriberOf,
@@ -50,6 +51,7 @@ import {
     type MovedPaymentPart,
     type NewCorrectionInvoice,
     type PlanCatalogSettings,
+    type RlsBypassPort,
     type SubscriberCreditRecord,
     type SubscriberLedgerRepository,
     type SubscriberPaymentMethodRepository,
@@ -62,9 +64,16 @@ import {
     type TransactionRunner,
 } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
+import { readAcrossTenants } from '../../admin/read-across-tenants.js';
 import { codedError } from '../../errors/coded-error.js';
 import { answeringRefusals } from '../../errors/answering-refusals.js';
 import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../../payments/payments.tokens.js';
+import {
+    holdsAsSubscriberDetail,
+    isDeliverableAddress,
+    settleInvoiceCorrections,
+} from '../../subscriber/subscriber-details.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
 import { TAX_TREATMENTS_TOKEN } from '../../tax/tax.tokens.js';
@@ -78,15 +87,22 @@ import {
 import { SubscriptionInvoiceService } from './subscription-invoice.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
-/** What the operator gives a cancellation. */
+/**
+ * What the operator gives a cancellation. Each part is settled before
+ * anything is computed: the reason trimmed and held to one line of at most
+ * `INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters, each correction as the
+ * subscriber's record holds that detail, the address trimmed and shaped like
+ * an email address.
+ */
 export interface InvoiceCancellationRequest {
     /** Why the invoice is cancelled; both invoices name it (`SC-ADM-020`). */
     reason: string;
     /** Details of the subscriber the cancelled invoice named wrongly, as the replacement names them. */
     corrections?: Partial<Record<InvoiceSubscriberDetail, string | null>>;
     /**
-     * Where the subscriber's record holds no invoice email: the address both
-     * invoices are delivered to (`SC-PRIC-047`).
+     * The address both invoices are delivered to, and the replacement's
+     * collection notices where the subscriber's record holds no invoice email;
+     * required where it holds none (`SC-PRIC-047`).
      */
     deliverTo?: string | null;
 }
@@ -104,6 +120,56 @@ export interface InvoiceCancellationPlan {
     movedIn: number;
     /** What becomes a credit for the operator to refund. */
     credited: number;
+    /** The reason both invoices name, as it is recorded. */
+    reason: string;
+    /** The address both invoices are delivered to, as it is recorded; `null` where none was given. */
+    deliverTo: string | null;
+}
+
+/** The audit action a cancellation is recorded under (`SC-ADM-020`). */
+export const INVOICE_CANCELLED_AUDIT_ACTION = 'SUBSCRIPTION_INVOICE_CANCELLED';
+
+/**
+ * The audit entry of a cancellation, whoever made it — an operator's route or
+ * the command line. It names the invoices, the reason and which details were
+ * corrected, and whether an address to deliver to was given; the address and
+ * the corrected values stand on the cancellation itself.
+ */
+export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
+    entity: 'SubscriptionInvoice';
+    entityId: string;
+    action: typeof INVOICE_CANCELLED_AUDIT_ACTION;
+    changes: {
+        tenantId: string;
+        number: string | null;
+        cancellationNumber: string;
+        replacementNumber: string;
+        reason: string;
+        corrected: string[];
+        deliverToGiven: boolean;
+        paidOnIssue: number;
+        credited: number;
+        withdrawnCollections: number;
+    };
+} {
+    const { cancellation, cancellationInvoice, replacement } = cancelled;
+    return {
+        entity: 'SubscriptionInvoice',
+        entityId: cancellation.cancelledInvoiceId,
+        action: INVOICE_CANCELLED_AUDIT_ACTION,
+        changes: {
+            tenantId: cancellationInvoice.tenantId,
+            number: cancellationInvoice.correction?.of.number ?? null,
+            cancellationNumber: cancellationInvoice.number,
+            replacementNumber: replacement.number,
+            reason: cancellation.reason,
+            corrected: Object.keys(cancellation.correctedSubscriber ?? {}),
+            deliverToGiven: cancellation.deliverTo !== null,
+            paidOnIssue: replacement.paidOnIssue,
+            credited: cancelled.credits.reduce((sum, credit) => sumToCents(sum, credit.amount), 0),
+            withdrawnCollections: cancelled.withdrawnCollections,
+        },
+    };
 }
 
 /** What a cancellation wrote. */
@@ -147,6 +213,12 @@ export class InvoiceCancellationService implements OnModuleInit {
         @Optional()
         @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
         private readonly paymentMethods: SubscriberPaymentMethodRepository | null = null,
+        // An operator acts across tenants, from a route or from the command
+        // line; where row-level security is on, without it the invoice would
+        // read as none.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /**
@@ -175,7 +247,23 @@ export class InvoiceCancellationService implements OnModuleInit {
         request: InvoiceCancellationRequest,
         now: Date = new Date(),
     ): Promise<InvoiceCancellationPlan> {
-        return this.runner().run((tx) => this.planIn(tenantId, invoiceId, request, now, tx));
+        return readAcrossTenants(this.rlsBypass, () =>
+            this.runner().run((tx) => this.planIn(tenantId, invoiceId, request, now, tx)),
+        );
+    }
+
+    /**
+     * The id of the invoice of tenant `tenantId` numbered `number`, as an
+     * operator reads it off the document, or `null` where the tenant has none
+     * so numbered.
+     */
+    invoiceIdNumbered(tenantId: string, number: string): Promise<string | null> {
+        return readAcrossTenants(this.rlsBypass, async () => {
+            const subscriber = await this.subscribers.findByTenantId(tenantId);
+            if (!subscriber) return null;
+            const invoices = await this.invoices.listBySubscriber(subscriber.id);
+            return invoices.find((invoice) => invoice.number === number)?.id ?? null;
+        });
     }
 
     /**
@@ -183,8 +271,10 @@ export class InvoiceCancellationService implements OnModuleInit {
      * `cancelledBy`. Refused with `SUBSCRIPTION_INVOICE_NOT_FOUND` (404) for no
      * such invoice of the tenant, `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`
      * (409) for one cancelled already, `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`
-     * (409) while its document is not archived, and with `422` for a
-     * cancellation invoice, an invoice that states a credit, a subscriber
+     * (409) while its document is not archived, and with `422` for a reason
+     * that is blank, longer than one line allows or too long, a correction the
+     * subscriber's record would not hold, an address that is no email address,
+     * a cancellation invoice, an invoice that states a credit, a subscriber
      * reached by no address, and a replacement that could not be issued — its
      * content incomplete for the tax adapter, a direct debit without its
      * mandate, a treatment the adapter does not support. Nothing is written
@@ -197,6 +287,18 @@ export class InvoiceCancellationService implements OnModuleInit {
         cancelledBy: string,
         now: Date = new Date(),
     ): Promise<CancelledInvoice> {
+        return readAcrossTenants(this.rlsBypass, () =>
+            this.cancelIn(tenantId, invoiceId, request, cancelledBy, now),
+        );
+    }
+
+    private cancelIn(
+        tenantId: string,
+        invoiceId: string,
+        request: InvoiceCancellationRequest,
+        cancelledBy: string,
+        now: Date,
+    ): Promise<CancelledInvoice> {
         return this.runner().run(async (tx) => {
             const plan = await this.planIn(tenantId, invoiceId, request, now, tx);
             const issued = await answeringRefusals(
@@ -206,9 +308,9 @@ export class InvoiceCancellationService implements OnModuleInit {
                             cancelledInvoiceId: invoiceId,
                             cancellation: plan.cancellation,
                             replacement: plan.replacement,
-                            reason: request.reason,
+                            reason: plan.reason,
                             correctedSubscriber: plan.correctedSubscriber,
-                            deliverTo: request.deliverTo ?? null,
+                            deliverTo: plan.deliverTo,
                             cancelledBy,
                             cancelledAt: now,
                         },
@@ -263,14 +365,15 @@ export class InvoiceCancellationService implements OnModuleInit {
                 codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND, { invoiceId }),
             );
         }
-        await this.refuseUncancellable(cancelled, chain.cancellations, request);
+        const given = settledRequestOf(request, cancelled.number);
+        await this.refuseUncancellable(cancelled, chain.cancellations, given.deliverTo);
         const subscriber = correctedSubscriberOf(
             subscriberCorrectedSince(
                 cancelled.subscriber,
                 await this.subscribers.listCorrections(cancelled.subscriberId),
                 cancelled.issuedAt,
             ),
-            request.corrections ?? {},
+            given.corrections,
         );
         const configured = contractPartiesOf(
             await this.subscribers.getById(cancelled.subscriberId),
@@ -311,14 +414,16 @@ export class InvoiceCancellationService implements OnModuleInit {
             moves,
             movedIn: moves.reduce((sum, part) => sumToCents(sum, part.movedIn), 0),
             credited: moves.reduce((sum, part) => sumToCents(sum, part.credited), 0),
+            reason: given.reason,
+            deliverTo: given.deliverTo,
         };
     }
 
-    /** Refuses an invoice a cancellation does not correct (`SC-PRIC-025`, `SC-PRIC-036`). */
+    /** Refuses an invoice a cancellation does not correct (`SC-PRIC-091`, `SC-PRIC-036`). */
     private async refuseUncancellable(
         invoice: SubscriptionInvoiceRecord,
         cancellations: readonly SubscriptionInvoiceCancellationRecord[],
-        request: InvoiceCancellationRequest,
+        deliverTo: string | null,
     ): Promise<void> {
         const params = { number: invoice.number };
         if (invoice.correction?.kind === 'cancellation') {
@@ -344,7 +449,7 @@ export class InvoiceCancellationService implements OnModuleInit {
             );
         }
         const record = await this.subscribers.getById(invoice.subscriberId);
-        if (!record.invoiceEmail && !request.deliverTo?.trim()) {
+        if (!record.invoiceEmail && deliverTo === null) {
             throw new UnprocessableEntityException(
                 codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS, {
                     ...params,
@@ -423,7 +528,7 @@ export class InvoiceCancellationService implements OnModuleInit {
 
     /**
      * Withdraws the collections of the cancelled invoice planned and not yet
-     * submitted, so none of them is (`SC-PRIC-025`); one already submitted is
+     * submitted, so none of them is (`SC-PRIC-091`); one already submitted is
      * left to its answer, and holds the replacement back until then.
      */
     private async withdrawPlanned(
@@ -446,4 +551,45 @@ export class InvoiceCancellationService implements OnModuleInit {
             throw new Error('Cancelling an invoice needs a transaction runner.');
         return this.transactions;
     }
+}
+
+/**
+ * The operator's request with each part settled, or refused with `422`: a
+ * reason of one line, a correction that holds as the subscriber's detail does,
+ * an address shaped like an email address (`SC-ADM-020`, `SC-PRIC-047`).
+ */
+function settledRequestOf(
+    request: InvoiceCancellationRequest,
+    number: string,
+): {
+    reason: string;
+    corrections: Partial<Record<InvoiceSubscriberDetail, string | null>>;
+    deliverTo: string | null;
+} {
+    const reason = typeof request.reason === 'string' ? request.reason.trim() : '';
+    if (
+        reason === '' ||
+        reason.length > INVOICE_CANCELLATION_REASON_MAX_LENGTH ||
+        !holdsAsSubscriberDetail(reason)
+    ) {
+        throw new UnprocessableEntityException(
+            codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID, {
+                number,
+                max: INVOICE_CANCELLATION_REASON_MAX_LENGTH,
+            }),
+        );
+    }
+    const address = request.deliverTo?.trim() ?? '';
+    if (address !== '' && !isDeliverableAddress(address)) {
+        throw new UnprocessableEntityException(
+            codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID, {
+                number,
+            }),
+        );
+    }
+    return {
+        reason,
+        corrections: settleInvoiceCorrections(request.corrections ?? {}),
+        deliverTo: address === '' ? null : address,
+    };
 }

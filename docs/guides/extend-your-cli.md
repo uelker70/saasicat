@@ -51,6 +51,10 @@ Optional but strongly recommended integration for ops workflows.
         ContractRefreshCliFlow,
         ContractsCommands,
         ContractsRefreshCommand,
+        // Where invoices are issued and the administration shows tenants:
+        InvoiceCancelCliFlow,
+        InvoicesCommands,
+        InvoicesCancelCommand,
     ],
 })
 export class CliModule {}
@@ -74,6 +78,8 @@ myapp manifest check                                         # drift detection
 myapp maintenance on --until 2026-10-02T23:00+02:00 --yes    # before a migration
 myapp maintenance off --yes                                  # after the health check
 myapp contracts refresh --all                                # what a new vocabulary would change
+myapp invoices cancel --tenant acme --invoice AHP-2026-000123 \
+    --reason "The billing address was wrong."                # what a cancellation would write
 ```
 
 The `maintenance` commands ask for no second factor: a deploy script has nobody to type one. They
@@ -83,6 +89,13 @@ ask for the identity and, against production, `--yes`. See
 `contracts refresh` shows what carrying a changed feature vocabulary into the contracts in force
 would change, and writes it only with `--apply`. See
 [Change the feature vocabulary](change-the-feature-vocabulary.md).
+
+`invoices cancel` shows the cancellation invoice and the replacement an issued invoice would be
+corrected by, and writes them only with `--apply`, which asks for the second factor and, against
+production, `--yes`. It names the invoice by its tenant and the number on its document; `--correct
+city=Bremen` corrects a detail the replacement names, `--deliver-to` gives the address both invoices
+go to. Exit code 6 is an invoice cancelled already, 1 every other refusal. See
+[Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):
 `0=ok`, `1=user-error`, `2=identity`, `3=mfa`, `4=connectivity`, `5=permission`,

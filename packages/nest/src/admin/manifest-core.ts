@@ -303,6 +303,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Archived invoice document does not match its checksum and is not handed out',
                 severity: 'high',
             },
+            {
+                key: 'SUBSCRIPTION_INVOICE_CANCELLED',
+                label: 'Invoice cancelled by a cancellation invoice and its replacement, for the reason given',
+                severity: 'high',
+            },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'FEATURE_WITHDRAW', label: 'Feature withdrawn', severity: 'high' },
             {

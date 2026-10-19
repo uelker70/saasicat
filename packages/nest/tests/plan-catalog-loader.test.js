@@ -366,7 +366,7 @@ test('a VAT rate is a percentage: a fraction is refused, and the bounds are perc
     }
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 test('the issuer names an entity, or the file does not load', () => {
     // Every one of these is settled by taking the surrounding whitespace off
     // before it is compared, so a value made only of whitespace is a value that

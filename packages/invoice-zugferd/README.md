@@ -38,7 +38,7 @@ An A4 letter laid out after DIN 5008:
 - the tax per rate and the total;
 - the note its treatment carries, such as the reverse charge;
 - the footer lines `config/saas.yaml` named under `invoicing.footer` on the
-  issue date, on every page, with the page's number (`SC-PRIC-077`); a line
+  issue date, on every page, with the page's number (`SC-PRIC-093`); a line
   wider than the page goes on in the next, and the foot grows to hold it.
 
 A name or an address line wider than its column goes on in the next line, and
@@ -141,5 +141,5 @@ docker run --rm -v "$PWD:/m" eclipse-temurin:21-jre \
   renderer goes, and the footer lines in `config/saas.yaml`.
 - [`@saasicat/tax-de`](../tax-de/README.md) — the adapter whose format check
   every rendered file passes.
-- [The requirements](../../docs/requirements.md) — `SC-PRIC-077` and
+- [The requirements](../../docs/requirements.md) — `SC-PRIC-093` and
   `SC-PRIC-078`.

@@ -56,6 +56,7 @@ import { SubscriberService } from '../../subscriber/subscriber.service.js';
 import { TAX_TREATMENTS_TOKEN } from '../../tax/tax.tokens.js';
 import type { TaxTreatments } from '../../tax/tax-treatments.js';
 import { AuditedOnce } from './audited-once.js';
+import { addressGivenFor } from './invoice-delivery-address.js';
 import {
     INVOICE_ARCHIVE_TOKEN,
     INVOICE_MAIL_PORT_TOKEN,
@@ -386,7 +387,9 @@ export class InvoiceDocumentService implements OnModuleInit {
             return this.failed(invoiceId, new Error('the invoice or its document was not found'));
         }
         const subscriber = await this.subscribers.getById(invoice.subscriberId);
-        const to = subscriber.invoiceEmail;
+        // A cancellation invoice and its replacement go where the operator said
+        // to send them, and are not written onto the subscriber's record.
+        const to = (await addressGivenFor(this.invoices, invoice)) ?? subscriber.invoiceEmail;
         if (!to) {
             await this.recordHold(invoice, 'SUBSCRIPTION_INVOICE_DELIVERY_HELD', {
                 code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL,

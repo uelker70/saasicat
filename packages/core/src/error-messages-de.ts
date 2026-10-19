@@ -339,6 +339,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Rechnung {number} weist ein Guthaben aus, das dem Vertragspartner bei ihrer Ausstellung gutgeschrieben wurde; sie wird nicht storniert.',
     SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS:
         'Die Akte des Vertragspartners nennt keine Rechnungs-E-Mail: Nennen Sie eine Adresse, an die die Stornierung der Rechnung {number} und ihre Ersatzrechnung gehen.',
+    SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID:
+        'Die Adresse, an die die Stornierung der Rechnung {number} und ihre Ersatzrechnung gehen sollen, ist keine E-Mail-Adresse.',
+    SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
+        'Die Stornierung der Rechnung {number} braucht einen Grund in einer Zeile mit höchstens {max} Zeichen, den beide Rechnungen nennen.',
     SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
         'Der Rechnung fehlt, was der Steueradapter {adapter} verlangt: {missing}. Sie wird ausgestellt, sobald es ergänzt ist.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:

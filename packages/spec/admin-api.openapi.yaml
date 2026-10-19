@@ -580,6 +580,116 @@ paths:
                         archived file does not match the recorded checksum and
                         is not handed out (`SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`)
 
+    /tenants/{slug}/invoices/{invoiceId}/cancellation/preview:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+            - name: invoiceId
+              in: path
+              required: true
+              description: The invoice's id
+              schema: { type: string }
+        post:
+            tags: [subscriptions]
+            summary: What cancelling an issued invoice would write
+            description: >-
+                Served where the invoice's document is (`invoices.read`); the
+                manifest announces it as `invoices.cancel`. Takes the same
+                steps as the cancellation and is refused as it is, and writes
+                nothing: the cancellation invoice, the replacement with its tax
+                decided again for the parties it names and its own payment
+                term, how each payment's share moves onto it and what becomes a
+                credit, the reason and the address as they would be recorded.
+                No number is drawn.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/AdminInvoiceCancellation' }
+            responses:
+                '200':
+                    description: What the cancellation would write
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminInvoiceCancellationPlan' }
+                '400':
+                    description: A field out of shape, or a reason blank or too long
+                '404':
+                    description: >-
+                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
+                        invoice under this id of the tenant
+                        (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+                '409':
+                    description: >-
+                        The invoice is cancelled already
+                        (`SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`), or its
+                        document is not archived yet
+                        (`SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`)
+                '422':
+                    description: >-
+                        A reason that is blank, runs over one line or exceeds
+                        its length (`SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`);
+                        a correction the subscriber's record would not hold
+                        (`SUBSCRIBER_DETAIL_INVALID`, `SUBSCRIBER_LEGAL_NAME_REQUIRED`);
+                        an address that is no email address
+                        (`SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`); a
+                        cancellation invoice (`SUBSCRIPTION_INVOICE_IS_CANCELLATION`);
+                        an invoice that states a credit
+                        (`SUBSCRIPTION_INVOICE_STATES_A_CREDIT`); no invoice email
+                        on the record and no address given
+                        (`SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`); a replacement
+                        that could not be issued (`SUBSCRIPTION_INVOICE_MANDATE_MISSING`,
+                        `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`, or the tax
+                        adapter's refusal)
+
+    /tenants/{slug}/invoices/{invoiceId}/cancellation:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+            - name: invoiceId
+              in: path
+              required: true
+              description: The invoice's id
+              schema: { type: string }
+        post:
+            tags: [subscriptions]
+            summary: Cancel an issued invoice by a cancellation invoice and its replacement
+            description: >-
+                Writes what the preview showed, in one transaction and in the
+                turn of the invoice's chain: the cancellation invoice, the
+                replacement, the movement of what was paid onto it or into
+                credits, and the withdrawal of a collection of the cancelled
+                invoice not yet made. Both invoices are archived and sent by
+                the next run, to the address given where one was. The audit
+                log records the operator, the reason and which details were
+                corrected (`SUBSCRIPTION_INVOICE_CANCELLED`). The manifest
+                announces it as `invoices.cancel`.
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/AdminInvoiceCancellation' }
+            responses:
+                '200':
+                    description: What the cancellation wrote
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminCancelledInvoice' }
+                '400':
+                    description: A field out of shape, or a reason blank or too long
+                '404':
+                    description: >-
+                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
+                        invoice under this id of the tenant
+                        (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+                '409':
+                    description: >-
+                        As the preview; a second cancellation of the same invoice
+                        at the same moment is refused here
+                        (`SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`). Nothing is
+                        written, and no number is drawn.
+                '422':
+                    description: As the preview. Nothing is written, and no number is drawn.
+
     /tenants/{slug}/subscriber:
         parameters:
             - $ref: '#/components/parameters/TenantSlug'
@@ -3475,6 +3585,92 @@ components:
             required: [note]
             properties:
                 note: { type: string, maxLength: 500, description: Not blank. }
+
+        AdminInvoiceCancellation:
+            type: object
+            required: [reason]
+            properties:
+                reason:
+                    type: string
+                    maxLength: 500
+                    description: One line, not blank; both invoices name it.
+                corrections:
+                    type: object
+                    description: >-
+                        The subscriber's details the cancelled invoice named
+                        wrongly, as the replacement is to name them. A detail
+                        left out stays as it was; `null` clears one, except the
+                        legal name.
+                    properties:
+                        legalName: { type: string, maxLength: 300 }
+                        vatId: { type: string, nullable: true, maxLength: 300 }
+                        taxNumber: { type: string, nullable: true, maxLength: 300 }
+                        addressLine1: { type: string, nullable: true, maxLength: 300 }
+                        addressLine2: { type: string, nullable: true, maxLength: 300 }
+                        postalCode: { type: string, nullable: true, maxLength: 300 }
+                        city: { type: string, nullable: true, maxLength: 300 }
+                        country:
+                            type: string
+                            nullable: true
+                            maxLength: 300
+                            description: ISO 3166-1 alpha-2.
+                deliverTo:
+                    type: string
+                    nullable: true
+                    maxLength: 254
+                    description: >-
+                        Where both invoices are sent, and the replacement's
+                        collection notices where the record holds no invoice
+                        email; required where it holds none. Kept with the
+                        cancellation, not written onto the subscriber's record.
+
+        AdminInvoiceCancellationPlan:
+            type: object
+            description: >-
+                What the cancellation would write: `cancellation` and
+                `replacement` as they would be issued, without their numbers;
+                `correctedSubscriber`, each corrected detail with the value it
+                replaces; `moves`, each payment's share of the cancelled
+                invoice and where it goes; `movedIn` and `credited`, their
+                totals; and `reason` and `deliverTo` as they would be recorded.
+            required:
+                [
+                    cancelled,
+                    cancellation,
+                    replacement,
+                    correctedSubscriber,
+                    moves,
+                    movedIn,
+                    credited,
+                    reason,
+                    deliverTo,
+                ]
+            properties:
+                cancelled: { type: object }
+                cancellation: { type: object }
+                replacement: { type: object }
+                correctedSubscriber: { type: object, nullable: true }
+                moves: { type: array, items: { type: object } }
+                movedIn: { type: number }
+                credited: { type: number }
+                reason: { type: string }
+                deliverTo: { type: string, nullable: true }
+
+        AdminCancelledInvoice:
+            type: object
+            description: >-
+                What the cancellation wrote: the cancellation with its reason,
+                corrections and address, the cancellation invoice and the
+                replacement as issued, the credits it left, and how many
+                planned collections of the cancelled invoice it withdrew.
+            required:
+                [cancellation, cancellationInvoice, replacement, credits, withdrawnCollections]
+            properties:
+                cancellation: { type: object }
+                cancellationInvoice: { type: object }
+                replacement: { type: object }
+                credits: { type: array, items: { type: object } }
+                withdrawnCollections: { type: integer }
 
         AdminTenantInvoice:
             type: object

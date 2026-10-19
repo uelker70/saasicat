@@ -118,7 +118,7 @@ describe('AdminManifestDoctorCheck', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('IssuerIdentityDoctorCheck', () => {
     /** The verdict the platform's own inspector would hand back, without booting one. */
     const checkWith = (verdict, running = null) =>

@@ -674,7 +674,7 @@ export const INVOICE_ERROR_CODES = {
     /**
      * The invoice (`number`) is cancelled only once its document is archived,
      * so a cancellation never corrects a document the subscriber could not
-     * have received (`SC-PRIC-025`).
+     * have received (`SC-PRIC-091`).
      */
     SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED: 'SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED',
     /** The invoice (`number`) is a cancellation invoice, which is not cancelled itself. */
@@ -691,6 +691,18 @@ export const INVOICE_ERROR_CODES = {
      * and its replacement to (`SC-PRIC-047`).
      */
     SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS: 'SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS',
+    /**
+     * The address given to deliver the cancellation of the invoice (`number`)
+     * and its replacement to is not shaped like an email address.
+     */
+    SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID: 'SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID',
+    /**
+     * The cancellation of the invoice (`number`) gives no reason, or one longer
+     * than `max` characters or holding what its documents cannot carry, such
+     * as a line break (`SC-ADM-020`).
+     */
+    SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
+        'SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID',
     /**
      * The invoice lacks content the tax adapter requires of it — `missing`
      * names the fields, `adapter` the adapter. It draws no number and waits

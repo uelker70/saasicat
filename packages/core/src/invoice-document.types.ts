@@ -11,7 +11,8 @@
 // (`SC-PRIC-033`): as the same write, or — where the renderer has changed
 // meanwhile and nothing was archived — with the new file in place of the one
 // recorded. Once archived, it is mailed to the subscriber's invoice email with
-// the file attached (`SC-PRIC-047`).
+// the file attached, or — for a cancellation invoice and its replacement — to
+// the address given with the cancellation, where one was (`SC-PRIC-047`).
 
 import type { InvoiceCollectionNotice } from './invoice-collection-notice.types.js';
 import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
@@ -21,6 +22,13 @@ import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js'
  * invoice's archived document. The platform sets it where it serves the route.
  */
 export const INVOICE_DOCUMENT_CAPABILITY = 'invoices.read';
+
+/**
+ * The manifest capability that announces the operator's cancellation of an
+ * issued invoice, with its preview (`SC-PRIC-091`). The platform sets it where
+ * it serves the routes.
+ */
+export const INVOICE_CANCEL_CAPABILITY = 'invoices.cancel';
 
 /** A rendered invoice: its bytes, as a file. */
 export interface InvoiceDocument {
@@ -90,7 +98,10 @@ export interface InvoiceArchivePort {
 /** An invoice on its way to the subscriber. */
 export interface InvoiceMail {
     invoice: SubscriptionInvoiceRecord;
-    /** The invoice email on the subscriber's record. */
+    /**
+     * The invoice email on the subscriber's record, or, for a cancellation
+     * invoice and its replacement, the address given with the cancellation.
+     */
     to: string;
     /** The archived file, to attach. */
     document: InvoiceDocument;
@@ -99,7 +110,10 @@ export interface InvoiceMail {
 /** A notice about collecting an invoice on its way to the subscriber. */
 export interface InvoiceNoticeMail {
     notice: InvoiceCollectionNotice;
-    /** The invoice email on the subscriber's record. */
+    /**
+     * The invoice email on the subscriber's record, or, where it holds none,
+     * the address given with the cancellation the invoice is the replacement of.
+     */
     to: string;
 }
 

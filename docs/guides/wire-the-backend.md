@@ -980,7 +980,7 @@ The charges of the journal, issued as invoices: one invoice for the charges book
 contract — the charges a billing period opens with, or one that arises later in the period — numbered
 without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. **Switch it on for
 real customers only from the release that brings the cancellation invoice** (`1.0.0-rc.28`): an
-issued invoice is never edited (`SC-PRIC-025`), so until then a wrong one cannot be corrected. Each
+issued invoice is never edited (`SC-PRIC-091`), so until then a wrong one cannot be corrected. Each
 invoice is issued, rendered into the file its tax law requires — by `@saasicat/invoice-zugferd`, or
 a renderer of your own — archived and mailed.
 
@@ -1050,9 +1050,9 @@ archived. Each invoice is put together from what holds on its issue date:
 - **the subscriber** as its record stands, with its customer number;
 - **the issuer** of the contract its charges belong to — the file's, address and all, while the file
   names the entity the contract was concluded with or a correction of it the operator declared
-  (`SC-PRIC-026`); the contract's own copy otherwise;
+  (`SC-PRIC-092`); the contract's own copy otherwise;
 - **the footer** `invoicing.footer` names, copied as it stands — where the invoice names the file's
-  issuer; an invoice naming the contract's copy of another entity carries none (`SC-PRIC-077`);
+  issuer; an invoice naming the contract's copy of another entity carries none (`SC-PRIC-093`);
 - **the treatment** the tax adapter decides for the subscriber now (`SC-PRIC-043`) and for the issuer
   the invoice names, recorded with the adapter's name and version, and **the tax** by the adapter's
   rule, once per rate (`SC-PRIC-041`);
@@ -1106,9 +1106,11 @@ after tries it again:
    rendering that differs from the recorded one — your renderer was updated in between — takes its
    place, and the audit log records `SUBSCRIPTION_INVOICE_DOCUMENT_RERENDERED` with both checksums
    before it does.
-5. **Mailed** by your `InvoiceMailPort` to the invoice email on the subscriber's record, with the
-   archived file attached (`SC-PRIC-047`). Your application words the message — in the subscriber's
-   language, with a link to the tenant's sign-in rather than to the file — and sends it. A run claims
+5. **Mailed** by your `InvoiceMailPort` to the invoice email on the subscriber's record — or, for a
+   cancellation invoice and its replacement, to the address given with the cancellation, where one
+   was —, with the archived file attached (`SC-PRIC-047`). Your application words the message — in
+   the subscriber's language, with a link to the tenant's sign-in rather than to the file — and
+   sends it. A run claims
    an invoice before it hands it over, so of several instances one sends it. A subscriber without an
    invoice email
    waits, recorded as `SUBSCRIPTION_INVOICE_DELIVERY_HELD` with
@@ -1145,6 +1147,39 @@ recorded in the audit log under that action; an invoice still waiting for its do
 `TenantBillingModule` itself mounts the route with
 `InvoiceDocumentModule.forRoot({ guards, imports })` from `@saasicat/nest/billing`, importing the
 tenant billing module it built.
+
+### Cancelling an invoice
+
+An issued invoice is never edited (`SC-PRIC-091`): the operator cancels it, and the platform writes
+a cancellation invoice that reverses it and asks for nothing, and a replacement for its charges under
+a new number, with what was paid for it moved onto the replacement or, where the replacement does
+not take it, credited for the operator to refund. The next run archives and mails both like any
+invoice.
+
+- **The preview**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview`, answers what
+  the cancellation would write and writes nothing; show it in the confirmation (`SC-UI-017`).
+- **The cancellation**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`, asks for the
+  second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
+  invoices name —, `corrections` of the subscriber's details the replacement names, and `deliverTo`,
+  required where the subscriber's record holds no invoice email. Both invoices go there, and the
+  replacement's collection notices too where the record holds none; nothing is written back onto
+  the record (`SC-PRIC-047`). The manifest announces both routes as `invoices.cancel`, and the audit
+  log records `SUBSCRIPTION_INVOICE_CANCELLED` with the reason, which details were corrected and
+  whether an address was given.
+- **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
+  shows the same and writes nothing; `--apply` cancels, with the second factor and, against
+  production, a confirmation ([Extend your CLI](extend-your-cli.md)).
+
+The replacement names the legal entity and the subscriber of the invoice it replaces, with the
+corrections given. It is a letter of its own issue date: while `config/saas.yaml` names that entity,
+it carries the address, the contact details and the footer the file names on that day
+(`SC-PRIC-092`, `SC-PRIC-093`). Its tax is decided again for the parties it names, and its payment
+term runs from its own issue date. A cancellation is refused for an invoice whose document is not
+archived yet, one cancelled already, a cancellation invoice and one that states a credit; each
+refusal is in the [error codes](../reference/error-codes.md). An application that wires
+`TenantBillingModule` itself mounts the routes with `InvoiceCancellationModule.forRoot({ guards,
+imports })` from `@saasicat/nest/billing`, importing its admin resources module and the tenant
+billing module it built.
 
 ### Collecting an invoice
 

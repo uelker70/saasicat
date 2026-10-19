@@ -16,7 +16,7 @@
 // the lock, plus a grace for requests already under way, so that the next line
 // of the script — the migration — runs alone (`SC-OPS-015`).
 
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
     type AdminActor,
     MAINTENANCE_STATE_MAX_AGE_SECONDS,
@@ -27,6 +27,7 @@ import {
 import { MaintenanceService } from '@saasicat/nest';
 
 import { CliContextService, CliError } from './cli-context.service.js';
+import { refusalsAsCliErrors } from './cli-refusals.js';
 
 /**
  * How long `on` waits, by default, for requests that passed before the lock to
@@ -36,9 +37,8 @@ import { CliContextService, CliError } from './cli-context.service.js';
  */
 export const DEFAULT_DRAIN_SECONDS = 10;
 
-/** Exit codes per `cli-conventions.md` §6. */
+/** Exit code per `cli-conventions.md` §6. */
 const EXIT_USER_ERROR = 1;
-const EXIT_CONFLICT = 6;
 
 /** What every writing command is given. */
 export interface MaintenanceCommandOptions {
@@ -92,7 +92,7 @@ export class MaintenanceCliFlow {
             );
         }
         const actor = await this.operator(options);
-        return refusalsAsCliErrors(() =>
+        return refusalsAsCliErrors('MAINTENANCE_REFUSED', () =>
             this.maintenance.announce({ startsAt, endsAt, message: options.message }, actor),
         );
     }
@@ -102,7 +102,7 @@ export class MaintenanceCliFlow {
         const endsAt = instantOf(options.ends, '--ends');
         const actor = await this.operator(options);
         const id = await this.openWindowId();
-        return refusalsAsCliErrors(() =>
+        return refusalsAsCliErrors('MAINTENANCE_REFUSED', () =>
             this.maintenance.reschedule(id, { startsAt, endsAt, message: options.message }, actor),
         );
     }
@@ -110,7 +110,7 @@ export class MaintenanceCliFlow {
     async cancel(options: MaintenanceCommandOptions): Promise<MaintenanceWindowRecord> {
         const actor = await this.operator(options);
         const id = await this.openWindowId();
-        return refusalsAsCliErrors(() => this.maintenance.cancel(id, actor));
+        return refusalsAsCliErrors('MAINTENANCE_REFUSED', () => this.maintenance.cancel(id, actor));
     }
 
     /**
@@ -137,7 +137,7 @@ export class MaintenanceCliFlow {
             );
         }
         const actor = await this.operator(options);
-        const outcome = await refusalsAsCliErrors(() =>
+        const outcome = await refusalsAsCliErrors('MAINTENANCE_REFUSED', () =>
             this.maintenance.lock({ endsAt, message: options.message }, actor),
         );
         const waitedMs = (MAINTENANCE_STATE_MAX_AGE_SECONDS + drain) * 1000;
@@ -149,7 +149,7 @@ export class MaintenanceCliFlow {
         options: MaintenanceCommandOptions,
     ): Promise<{ window: MaintenanceWindowRecord | null; wasLocked: boolean }> {
         const actor = await this.operator(options);
-        return refusalsAsCliErrors(() => this.maintenance.unlock({}, actor));
+        return refusalsAsCliErrors('MAINTENANCE_REFUSED', () => this.maintenance.unlock({}, actor));
     }
 
     /** One line or a few, for the terminal. */
@@ -207,40 +207,4 @@ function instantOf(value: string | undefined, flag: string): Date | undefined {
         );
     }
     return moment;
-}
-
-/**
- * The service refuses the way a route does, with a coded HTTP exception. Here
- * it becomes the exit code a script can branch on, with the service's sentence.
- */
-async function refusalsAsCliErrors<T>(act: () => Promise<T>): Promise<T> {
-    try {
-        return await act();
-    } catch (error) {
-        const status = statusOf(error);
-        if (status === null || status >= 500) throw error;
-        const body = (error as { getResponse(): unknown }).getResponse() as {
-            code?: string;
-            message?: string;
-        };
-        throw new CliError(
-            body.code ?? 'MAINTENANCE_REFUSED',
-            body.message ?? String(error),
-            status === HttpStatus.CONFLICT ? EXIT_CONFLICT : EXIT_USER_ERROR,
-        );
-    }
-}
-
-/**
- * The HTTP status of a Nest exception, read rather than tested with
- * `instanceof`: the service's `@nestjs/common` and this package's may be two
- * copies in an application's `node_modules`.
- */
-function statusOf(error: unknown): number | null {
-    const candidate = error as { getStatus?: unknown; getResponse?: unknown } | null;
-    if (typeof candidate?.getStatus !== 'function' || typeof candidate.getResponse !== 'function') {
-        return null;
-    }
-    const status: unknown = candidate.getStatus();
-    return typeof status === 'number' ? status : null;
 }

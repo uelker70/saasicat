@@ -5,11 +5,13 @@ import assert from 'node:assert/strict';
 
 import { CliError } from '../../dist/index.js';
 
-/** The CLI context, recording what each command asked of it. */
+/** The CLI context, recording what each command asked of it and what it wrote to the audit log. */
 export function recordingContext() {
     const asked = [];
+    const logged = [];
     return {
         asked,
+        logged,
         resolveIdentity(as) {
             asked.push('identity');
             const email = as ?? 'ops@example.com';
@@ -21,6 +23,13 @@ export function recordingContext() {
         },
         async ensureProductionConfirmation({ yes }) {
             asked.push(yes ? 'confirmed with --yes' : 'confirmation');
+        },
+        async requireMfa(userId) {
+            asked.push(`second factor of ${userId}`);
+        },
+        async log(entry) {
+            asked.push('audit');
+            logged.push(entry);
         },
     };
 }

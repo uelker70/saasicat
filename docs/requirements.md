@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 90      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 93      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 646 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪ 0 drafts,
-🔵 29 superseded, 🔴 3 withdrawn.
+Of 649 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+🔵 32 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -146,14 +146,11 @@ Of 646 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
-[SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
-[SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
-[SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
+[SC-PRIC-091](#sc-pric-091--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
 [SC-PRIC-033](#sc-pric-033--an-invoice-interrupted-in-archiving-keeps-its-number-and-is-never-issued-twice),
 [SC-PRIC-081](#sc-pric-081--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
-[SC-PRIC-036](#sc-pric-036--what-an-invoice-owes-and-how-it-is-paid-changes-one-step-at-a-time),
 [SC-PRIC-037](#sc-pric-037--the-tax-a-subscriber-is-charged-is-decided-by-a-tax-adapter-for-the-issuer),
 [SC-PRIC-038](#sc-pric-038--a-contract-and-an-invoice-record-the-tax-treatment-and-the-adapter-that-decided-it),
 [SC-PRIC-039](#sc-pric-039--a-subscriber-the-tax-adapter-cannot-treat-is-refused-before-a-contract-exists),
@@ -163,7 +160,6 @@ Of 646 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
 [SC-PRIC-045](#sc-pric-045--invoice-dates-and-tax-periods-count-in-the-installations-time-zone),
 [SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
-[SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
@@ -206,6 +202,9 @@ Of 646 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
 [SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
 [SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
+[SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
+[SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
+[SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
 [SC-PRIC-088](#sc-pric-088--reversals-of-an-invoice-end-alike-in-any-order-and-it-is-collected-again),
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
@@ -225,7 +224,7 @@ Of 646 entries: 🟢 559 stand today, 🟡 55 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 646 requirements. Do not edit by hand:
+Generated from `requirements/` — 649 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5298,7 +5297,7 @@ identifier or a change of name the same legal entity went through, which the ope
 with the values it replaces and the reason (`SC-ADM-020`); later invoices carry the corrected
 identity, and the contract keeps its copy as concluded. SaaSiCat cannot tell a correction from
 another legal entity taking over, so the operator declares which it is: a takeover is a transfer
-or a new contract rather than an edit, the same rule `SC-PRIC-026` applies to the issuer.
+or a new contract rather than an edit, the same rule `SC-PRIC-092` applies to the issuer.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8940,9 +8939,9 @@ _Source:_ #214
 period opens with together, and a charge that arises later in the period, such as a bundle booked
 mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A charge correcting one on a cancelled invoice is
-the exception: it goes on that invoice's replacement (`SC-PRIC-025`). A billing period whose charges
+the exception: it goes on that invoice's replacement (`SC-PRIC-091`). A billing period whose charges
 are all zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoice that
-stands: a cancelled invoice and the replacement that follows it (`SC-PRIC-025`) are not two. Each
+stands: a cancelled invoice and the replacement that follows it (`SC-PRIC-091`) are not two. Each
 charge carries its period (`SC-AUD-011`). A subscription belongs to one tenant, so an invoice stays
 inside the tenant it was for and what a tenant downloads never shows another tenant's charges.
 
@@ -9003,6 +9002,46 @@ _Tested by:_
 
 ### SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
 
+🔵 _(Superseded on 2026-10-20 by `SC-PRIC-091`.)_ 💰 An invoice is cancelled only once its document
+is archived (`SC-PRIC-033`), so a cancellation never corrects a document the subscriber could not
+have received. The cancellation invoice cancels the whole invoice, names it and the reason given
+for it (`SC-ADM-020`), and carries the issuer and the subscriber of that invoice rather than
+whatever `config/saas.yaml` or the subscriber's record names by then, so an invoice stays
+correctable after either has changed. Where some or all of the charges it covered are still owed,
+a replacement invoice for exactly those, and for any charge written to correct one of the
+cancelled invoice's charges (`SC-PRIC-020`), follows under a new number, names the invoice it
+replaces, and each of its lines names the line it replaces (`SC-AUD-013`). The replacement
+carries both parties of the invoice it replaces, the issuer and the subscriber, rather than
+whatever `config/saas.yaml` or the subscriber's record names by then: the charges are owed
+between the parties of their contract, and the subscriber's record may have kept only what its
+documents need (`SC-PRIV-013`). Where a party detail on the cancelled invoice was wrong, such as
+the billing address, the name or a tax identifier, the operator records the corrected detail with
+the cancellation and its reason, and the replacement carries it; a correction of the issuer
+declared in `config/saas.yaml` (`SC-PRIC-026`) or of the subscriber's legal identity
+(`SC-SUB-017`) applies as well. A correcting charge names the charge it corrects and goes on the
+replacement rather than on an invoice of its own, so what was paid settles it like the others.
+Those charges are then on the replacement, the cancelled invoice no longer counts for them
+(`SC-PRIC-022`), and a charge no longer owed is on no invoice that stands. What a payment for the
+cancelled invoice settles moves with the charges, whether it was paid before the cancellation or
+confirmed by the gateway after it: it is applied to the replacement as a new entry rather than
+collected again, and where there is no replacement, or the payment exceeds it, the rest is a
+credit on the subscriber's account for the operator to refund (`SC-PRIC-083`). A collection for
+the cancelled invoice not yet submitted to the gateway is not submitted, and no invoice of its
+chain is collected while one already submitted for any of them is unresolved (`SC-PRIC-036`).
+Where several payments settled the cancelled invoice, they settle the replacement in the order
+they were confirmed, the oldest first, and what remains of the most recent ones becomes the
+credit; each payment's share is recorded, so a later reversal takes back exactly that payment's
+part (`SC-PRIC-084`). The cancellation invoice, its replacement and the movement of what was paid
+onto the replacement or into a credit are written in one transaction, so an interruption leaves
+all of them or none, and it takes its turn with everything else that changes the invoice
+(`SC-PRIC-036`), so an invoice is cancelled once and a payment event that commits after the
+cancellation settles the replacement or the credit rather than the cancelled invoice; archiving
+each invoice then follows `SC-PRIC-033`.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+
 🟡 _(Decided, not yet delivered.)_ 💰 An invoice is cancelled only once its document is archived
 (`SC-PRIC-033`), so a cancellation never corrects a document the subscriber could not have received.
 The cancellation invoice cancels the whole invoice, names it and the reason given for it
@@ -9011,39 +9050,52 @@ The cancellation invoice cancels the whole invoice, names it and the reason give
 either has changed. Where some or all of the charges it covered are still owed, a replacement
 invoice for exactly those, and for any charge written to correct one of the cancelled invoice's
 charges (`SC-PRIC-020`), follows under a new number, names the invoice it replaces, and each of its
-lines names the line it replaces (`SC-AUD-013`). The replacement carries both parties of the invoice
-it replaces, the issuer and the subscriber, rather than whatever `config/saas.yaml` or the
-subscriber's record names by then: the charges are owed between the parties of their contract, and
-the subscriber's record may have kept only what its documents need (`SC-PRIV-013`). Where a party
-detail on the cancelled invoice was wrong, such as the billing address, the name or a tax
-identifier, the operator records the corrected detail with the cancellation and its reason, and the
-replacement carries it; a correction of the issuer declared in `config/saas.yaml` (`SC-PRIC-026`) or
-of the subscriber's legal identity (`SC-SUB-017`) applies as well. A correcting charge names the
-charge it corrects and goes on the replacement rather than on an invoice of its own, so what was
-paid settles it like the others. Those charges are then on the replacement, the cancelled invoice no
-longer counts for them (`SC-PRIC-022`), and a charge no longer owed is on no invoice that stands.
-What a payment for the cancelled invoice settles moves with the charges, whether it was paid before
-the cancellation or confirmed by the gateway after it: it is applied to the replacement as a new
-entry rather than collected again, and where there is no replacement, or the payment exceeds it, the
-rest is a credit on the subscriber's account for the operator to refund (`SC-PRIC-083`). A
-collection for the cancelled invoice not yet submitted to the gateway is not submitted, and no
-invoice of its chain is collected while one already submitted for any of them is unresolved
-(`SC-PRIC-036`). Where several payments settled the cancelled invoice, they settle the replacement
-in the order they were confirmed, the oldest first, and what remains of the most recent ones becomes
-the credit; each payment's share is recorded, so a later reversal takes back exactly that payment's
-part (`SC-PRIC-084`). The cancellation invoice, its replacement and the movement of what was paid
-onto the replacement or into a credit are written in one transaction, so an interruption leaves all
-of them or none, and it takes its turn with everything else that changes the invoice
-(`SC-PRIC-036`), so an invoice is cancelled once and a payment event that commits after the
-cancellation settles the replacement or the credit rather than the cancelled invoice; archiving each
-invoice then follows `SC-PRIC-033`.
+lines names the line it replaces (`SC-AUD-013`). The replacement names the parties of the invoice it
+replaces, the legal entity it named as the issuer and the subscriber, rather than whichever entity
+`config/saas.yaml` or whatever the subscriber's record names by then: the charges are owed between
+the parties of their contract, and the subscriber's record may have kept only what its documents
+need (`SC-PRIV-013`). It is a business letter of its own issue date, though: while
+`config/saas.yaml` names that same entity, the replacement carries the address, the contact details
+and the footer lines the file names for it on that day (`SC-PRIC-092`, `SC-PRIC-093`), so the
+account to pay into and the managing directors are those of the day it is sent; the cancellation
+invoice keeps everything of the invoice it cancels. Where a party detail on the cancelled invoice
+was wrong, such as the billing address, the name or a tax identifier, the operator records the
+corrected detail with the cancellation and its reason, and the replacement carries it; a correction
+of the issuer declared in `config/saas.yaml` (`SC-PRIC-092`) or of the subscriber's legal identity
+(`SC-SUB-017`) applies as well. A correcting charge names the charge it corrects and goes on the
+replacement rather than on an invoice of its own, so what was paid settles it like the others. Those
+charges are then on the replacement, the cancelled invoice no longer counts for them
+(`SC-PRIC-022`), and a charge no longer owed is on no invoice that stands. What a payment for the
+cancelled invoice settles moves with the charges, whether it was paid before the cancellation or
+confirmed by the gateway after it: it is applied to the replacement as a new entry rather than
+collected again, and where there is no replacement, or the payment exceeds it, the rest is a credit
+on the subscriber's account for the operator to refund (`SC-PRIC-083`). A collection for the
+cancelled invoice not yet submitted to the gateway is not submitted, and no invoice of its chain is
+collected while one already submitted for any of them is unresolved (`SC-PRIC-036`). Where several
+payments settled the cancelled invoice, they settle the replacement in the order they were
+confirmed, the oldest first, and what remains of the most recent ones becomes the credit; each
+payment's share is recorded, so a later reversal takes back exactly that payment's part
+(`SC-PRIC-084`). The cancellation invoice, its replacement and the movement of what was paid onto
+the replacement or into a credit are written in one transaction, so an interruption leaves all of
+them or none, and it takes its turn with everything else that changes the invoice (`SC-PRIC-036`),
+so an invoice is cancelled once and a payment event that commits after the cancellation settles the
+replacement or the credit rather than the cancelled invoice; archiving each invoice then follows
+`SC-PRIC-033`.
 
-_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #334
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
+- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
+    - the preview is the command, and the cancellation the second one
+        - without --apply it previews the tenant’s invoice so numbered, and asks for neither factor
+          nor confirmation
+        - with --apply it asks for the second factor and the confirmation, cancels as the operator
+          and records it
+        - passes the corrections and the address on as typed, a correction left empty clearing its
+          detail
 - `packages/core/tests/a-reversal-takes-a-payment-back.test.js`
     - what a reversal opened, gathered on the invoice that stands in its chain
         - a give-back settles the replacement of a cancelled invoice the reversal opened
@@ -9128,6 +9180,8 @@ _Tested by:_
 
 <!-- END proof -->
 
+(decided 2026-10-20)
+
 ### SC-PRIC-089 — A cancellation is titled as one, and a correction names the invoice it corrects
 
 🟢 💰 The shipped renderer gives a cancellation invoice the title "Stornorechnung", never
@@ -9175,23 +9229,44 @@ _Tested by:_
 
 ### SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 
-🟡 _(Decided, not yet delivered.)_ 💰 The issuer's identity, its legal name and tax identifiers, is
-the counterparty a contract names (`SC-AUD-020`), so an invoice takes that identity from the copy
-on the contract its charges belong to, with a declared correction of that entity applied; its
-address and contact details come from `config/saas.yaml` on the issue date while the configuration
-names that same identity, and from the contract's copy otherwise. The subscriber's details are
-copied from its record. A cancellation or replacement invoice keeps both parties of the invoice it
-corrects instead (`SC-PRIC-025`). Either way a later change leaves the invoice as it was, and a new
-contract takes its issuer from `config/saas.yaml`. An installation that names a different identity
-while contracts with the previous one still run does not start, and names those contracts: moving a
-contract to another legal entity is a transfer, not an edit of a setting, and an invoice never asks
-for payment on behalf of an entity the contract was not concluded with. A correction of the same
-entity, such as a misspelt name, a wrong tax identifier or a change of name that entity went
-through, starts once `config/saas.yaml` declares it as one beside the values it replaces; the
+🔵 _(Superseded on 2026-10-20 by `SC-PRIC-092`.)_ 💰 The issuer's identity, its legal name and tax
+identifiers, is the counterparty a contract names (`SC-AUD-020`), so an invoice takes that identity
+from the copy on the contract its charges belong to, with a declared correction of that entity
+applied; its address and contact details come from `config/saas.yaml` on the issue date while the
+configuration names that same identity, and from the contract's copy otherwise. The subscriber's
+details are copied from its record. A cancellation or replacement invoice keeps both parties of the
+invoice it corrects instead (`SC-PRIC-025`). Either way a later change leaves the invoice as it was,
+and a new contract takes its issuer from `config/saas.yaml`. An installation that names a different
+identity while contracts with the previous one still run does not start, and names those contracts:
+moving a contract to another legal entity is a transfer, not an edit of a setting, and an invoice
+never asks for payment on behalf of an entity the contract was not concluded with. A correction of
+the same entity, such as a misspelt name, a wrong tax identifier or a change of name that entity
+went through, starts once `config/saas.yaml` declares it as one beside the values it replaces; the
 settings record keeps that declaration (`SC-CFG-025`), and invoices issued afterwards carry the
 corrected identity.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+
+🟢 💰 The issuer's identity, its legal name and tax identifiers, is the counterparty a contract names
+(`SC-AUD-020`), so an invoice takes that identity from the copy on the contract its charges belong
+to, with a declared correction of that entity applied; its address and contact details come from
+`config/saas.yaml` on the issue date while the configuration names that same identity, and from the
+contract's copy otherwise. The subscriber's details are copied from its record. A cancellation
+invoice keeps both parties of the invoice it cancels; a replacement names the legal entity and the
+subscriber of the invoice it replaces, and takes the issuer's address and contact details as an
+invoice issued on its day does (`SC-PRIC-091`). Either way a later change leaves the invoice as it
+was, and a new contract takes its issuer from `config/saas.yaml`. An installation that names a
+different identity while contracts with the previous one still run does not start, and names those
+contracts: moving a contract to another legal entity is a transfer, not an edit of a setting, and an
+invoice never asks for payment on behalf of an entity the contract was not concluded with. A
+correction of the same entity, such as a misspelt name, a wrong tax identifier or a change of name
+that entity went through, starts once `config/saas.yaml` declares it as one beside the values it
+replaces; the settings record keeps that declaration (`SC-CFG-025`), and invoices issued afterwards
+carry the corrected identity.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #334
 
 <!-- BEGIN proof -->
 
@@ -9297,18 +9372,35 @@ _Tested by:_
 
 <!-- END proof -->
 
+(decided 2026-10-20)
+
 ### SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
 
-🟡 _(Decided, not yet delivered.)_ 💰 What a business letter of the issuer has to state beyond the
-invoice's own content, such as the register court and number and the managing directors of a GmbH,
-or the bank account to pay into, is named in `config/saas.yaml` as lines of text, so that it fits any
-legal form. An invoice copies those lines on its issue date, as it does the issuer's address
-(`SC-PRIC-026`), and its document shows them; a later change leaves the invoices issued before as
-they were, and a cancellation or replacement invoice keeps the lines of the invoice it corrects
-(`SC-PRIC-025`). The lines are those of the entity the file names, so an invoice that names the
-contract's copy of another entity carries none rather than another company's register or account.
+🔵 _(Superseded on 2026-10-20 by `SC-PRIC-093`.)_ 💰 What a business letter of the issuer has to state
+beyond the invoice's own content, such as the register court and number and the managing directors
+of a GmbH, or the bank account to pay into, is named in `config/saas.yaml` as lines of text, so that
+it fits any legal form. An invoice copies those lines on its issue date, as it does the issuer's
+address (`SC-PRIC-026`), and its document shows them; a later change leaves the invoices issued
+before as they were, and a cancellation or replacement invoice keeps the lines of the invoice it
+corrects (`SC-PRIC-025`). The lines are those of the entity the file names, so an invoice that names
+the contract's copy of another entity carries none rather than another company's register or
+account.
 
 _Source:_ #332 · #276
+
+### SC-PRIC-093 — An invoice carries the issuer's footer as it was on the day it was issued
+
+🟢 💰 What a business letter of the issuer has to state beyond the invoice's own content, such as the
+register court and number and the managing directors of a GmbH, or the bank account to pay into, is
+named in `config/saas.yaml` as lines of text, so that it fits any legal form. An invoice copies
+those lines on its issue date, as it does the issuer's address (`SC-PRIC-092`), and its document
+shows them; a later change leaves the invoices issued before as they were. A cancellation invoice
+keeps the lines of the invoice it cancels, and a replacement, a letter of its own issue date,
+carries the lines the file names on that day (`SC-PRIC-091`). The lines are those of the entity the
+file names, so an invoice that names the contract's copy of another entity carries none rather than
+another company's register or account.
+
+_Source:_ #332 · #276 · #334 (decided 2026-10-20)
 
 <!-- BEGIN proof -->
 
@@ -9391,7 +9483,7 @@ mandate reference, and it reaches the subscriber at least the lead time named in
 `config/saas.yaml` before the collection. A collection whose date or mandate differs from what the
 invoice announced, such as after the payment method was replaced or a collection is retried, is
 announced again with its own date and mandate reference, the same lead time before it; that notice
-stands on its own and leaves the invoice as it was issued (`SC-PRIC-025`).
+stands on its own and leaves the invoice as it was issued (`SC-PRIC-091`).
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -10108,7 +10200,7 @@ reversed itself, the cover is lifted before anything else, and the later reversa
 as its own. The earlier one then takes what the credit covered as it would have without that
 credit, as everything stands when the cover is lifted (`SC-PRIC-084`): the credits its own payment
 left first — its share of a cancelled invoice that the replacement did not take among them
-(`SC-PRIC-025`) —, then the open credits other payments left for its invoice, and only then the
+(`SC-PRIC-091`) —, then the open credits other payments left for its invoice, and only then the
 invoice of its chain that payment still settles — the replacement, where its invoice was cancelled
 —, which it opens again by no more than that. What goes beyond all of them, such as a credit of its
 payment already paid out, is a case to reconcile. Two reversals of one invoice's payments therefore
@@ -10578,19 +10670,19 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 
-🟡 _(Decided, not yet delivered.)_ 💰 Cancelling an invoice (`SC-PRIC-025`), recording a payment event
-(`SC-PRIC-029`) or a reversal (`SC-PRIC-084`) against it, and marking a collection for it as
-submitted to the gateway (`SC-PRIC-034`) take turns, and the turn belongs to the invoice's chain:
-the invoice and every replacement that follows it, however many cancellations deep, share one. Each
-reads the chain's state only once it holds the turn, so a payment event for a cancelled invoice and
-the cancellation of its replacement never read the same replacement at once, and the event settles
-the invoice that stands in the chain when it holds the turn. A collection that finds the invoice
-cancelled is not submitted, and a request only leaves once its attempt is marked, so no request is
-sent for an invoice a cancellation has already replaced. A second cancellation that finds the
-invoice already cancelled is refused; a mistake on the replacement is corrected by cancelling the
-replacement. No invoice of a chain is collected while an attempt submitted for any invoice of that
-chain is unresolved, so a replacement of a replacement waits for the attempt its first predecessor
-sent. The turn covers the writes and not the gateway's answer, which arrives as an event of its own.
+🟢 💰 Cancelling an invoice (`SC-PRIC-091`), recording a payment event (`SC-PRIC-029`) or a reversal
+(`SC-PRIC-084`) against it, and marking a collection for it as submitted to the gateway
+(`SC-PRIC-034`) take turns, and the turn belongs to the invoice's chain: the invoice and every
+replacement that follows it, however many cancellations deep, share one. Each reads the chain's
+state only once it holds the turn, so a payment event for a cancelled invoice and the cancellation
+of its replacement never read the same replacement at once, and the event settles the invoice that
+stands in the chain when it holds the turn. A collection that finds the invoice cancelled is not
+submitted, and a request only leaves once its attempt is marked, so no request is sent for an
+invoice a cancellation has already replaced. A second cancellation that finds the invoice already
+cancelled is refused; a mistake on the replacement is corrected by cancelling the replacement. No
+invoice of a chain is collected while an attempt submitted for any invoice of that chain is
+unresolved, so a replacement of a replacement waits for the attempt its first predecessor sent. The
+turn covers the writes and not the gateway's answer, which arrives as an event of its own.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -10681,7 +10773,7 @@ _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 🟡 _(Decided, not yet delivered.)_ 💰 The treatment, the rate, the note and the adapter's name and
 version are written with the contract when it is concluded and with each invoice when it is issued,
 so a document still says why it carries the tax it does after the adapter is updated or replaced. An
-update never changes a document already issued (`SC-PRIC-025`).
+update never changes a document already issued (`SC-PRIC-091`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
@@ -11023,7 +11115,7 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 The change is recorded with its date, and a new tax identifier
 is validated first (`SC-PRIC-040`). An invoice already issued keeps its treatment; one issued under
-a detail that was wrong is corrected by cancelling it (`SC-PRIC-025`).
+a detail that was wrong is corrected by cancelling it (`SC-PRIC-091`).
 
 _Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
 
@@ -11165,15 +11257,15 @@ _Tested by:_
 
 ### SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
 
-🟡 _(Decided, not yet delivered.)_ 💰 Cancellation and replacement invoices as well, sent to the
-invoice email on the subscriber's record once the document is archived (`SC-PRIC-033`), so a
-subscriber who never signs in, or whose tenant is gone, still receives it. A link in the message
-leads to the tenant's sign-in rather than to an address anyone holding it could open. Where the
-subscriber's record no longer holds an invoice email, as `SC-PRIV-013` allows once no claim is left,
-the operator enters an address to deliver to when cancelling the invoice, and cannot cancel without
-one; the address is kept with the cancellation and its reason and used for the replacement as well,
-rather than written back onto the subscriber's record. A message that cannot be delivered is shown
-to the operator, and the invoice stays issued: delivery is not what makes it an invoice.
+🟢 💰 Cancellation and replacement invoices as well, sent to the invoice email on the subscriber's
+record once the document is archived (`SC-PRIC-033`), so a subscriber who never signs in, or whose
+tenant is gone, still receives it. A link in the message leads to the tenant's sign-in rather than
+to an address anyone holding it could open. Where the subscriber's record no longer holds an invoice
+email, as `SC-PRIV-013` allows once no claim is left, the operator enters an address to deliver to
+when cancelling the invoice, and cannot cancel without one; the address is kept with the
+cancellation and its reason and used for the replacement as well, rather than written back onto the
+subscriber's record. A message that cannot be delivered is shown to the operator, and the invoice
+stays issued: delivery is not what makes it an invoice.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -11198,6 +11290,12 @@ _Tested by:_
     - the quarter-hourly run
         - issues an invoice, archives it and mails it in one run
         - whose archiving fails still mails, and the next run archives again
+- `packages/nest/tests/an-invoice-is-cancelled.test.js`
+    - the documents of a cancellation
+        - go to the address given with the cancellation, and the record keeps its own
+        - go to the invoice email on the record where no address was given
+        - of a replacement cancelled in turn before it was sent go where each cancellation said
+        - reach a subscriber whose record holds no invoice email, the replacement’s notices too
 
 <!-- END proof -->
 
@@ -15226,6 +15324,10 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - where the cancellation is served
+        - beside the invoices’ documents, announced as invoices.cancel with its audit action
+        - nowhere the administration shows no tenants
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
         - the corrections are announced beside the subscriber view, and only there
@@ -15568,6 +15670,17 @@ there before are `SC-ADM-005`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
+    - the preview is the command, and the cancellation the second one
+        - with --apply it asks for the second factor and the confirmation, cancels as the operator
+          and records it
+
+<!-- END proof -->
+
 ### SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
 
 🟡 _(Decided, not yet delivered.)_ Resetting somebody's password, deactivating a user, cancelling an
@@ -15578,10 +15691,32 @@ part of the record. An early deletion is for a legal reason, such as abuse or an
 authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
-(`SC-PRIC-025`), and an address to deliver to where the subscriber's record no longer holds an
+(`SC-PRIC-091`), and an address to deliver to where the subscriber's record no longer holds an
 invoice email (`SC-PRIC-047`). This entry supersedes `SC-ADM-006` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - what an operator gives a cancellation
+        - passes with a reason, and with corrections and an address beside it
+        - with ${why} is refused
+    - a cancellation settles what it is given before anything else
+        - the reason and the address trimmed, as the preview shows and the cancellation records them
+        - an address of blanks as none given
+        - refuses a reason ${why}, drawing no number
+        - takes a reason of exactly the longest length
+        - refuses an address ${why}
+        - each correction as the subscriber’s record holds that detail
+        - refuses ${why}
+    - the cancellation route
+        - writes the cancellation and records it under the operator, the address not named
+        - of another tenant’s invoice is refused as none, and nothing is recorded
+
+<!-- END proof -->
 
 ### SC-ADM-021 — An operator finds everything about a subscriber in one record
 
@@ -15668,8 +15803,8 @@ contract, its account and its payment method move to it, together with the maste
 collected (`SC-PRIC-032`): the billing address and the invoice email replace what the earlier record
 kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
 (`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
-(`SC-PRIC-026`), and the contract keeps the party copy it was concluded with, which names the same
-legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
+(`SC-PRIC-092`), and the contract keeps the party copy it was concluded with, which names the same
+legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-091`),
 and the record created at
 sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
 whole history. A subscriber with a live tenant is not joined to a second one.
@@ -17426,6 +17561,10 @@ _Source:_ #212
 
 _Tested by:_
 
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the preview route
+        - answers what the cancellation would write, and writes nothing
+        - of another tenant’s invoice is refused as none
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
     - quasarConfirmOptions
         - carries the wording the page wrote, not a generic "are you sure"
@@ -18458,7 +18597,7 @@ _Source:_ #260 · #217
 file names in force — the file is the one place a setting lives — and the disagreement is what the
 next start records as a change. It is read for one thing that is not a setting, the legal entity this
 installation last ran as, and there it decides only whether the start continues at all
-(`SC-PRIC-026`); no value from it reaches anything that runs. Held three ways: a start against a
+(`SC-PRIC-092`); no value from it reaches anything that runs. Held three ways: a start against a
 record that says otherwise runs on the file's values, no code outside the record's own module, its
 wiring and that one check reaches for the port, and a record disagreeing about every other value
 still starts.
@@ -20800,7 +20939,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIV-013 — A subscriber with no live tenant and no claim left keeps only what its documents need
 
 🟡 _(Decided, not yet delivered.)_ 🔒 Its tenant was its only live one (`SC-SCOPE-012`), and every
-contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-026`,
+contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-092`,
 `SC-AUD-020`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
 while a credit is still to be refunded, and until the latest end of the reversal period among all
 its payments (`SC-PRIC-084`); until then the contact data and the gateway reference needed to

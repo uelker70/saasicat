@@ -239,7 +239,7 @@ describe('an invoice row becomes a record', () => {
         }
     });
 
-    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
     test('that says what it corrects, as a cancellation invoice or a replacement, from either adapter’s row', () => {
         const correction = (kind, issueDate) => ({
             kind,

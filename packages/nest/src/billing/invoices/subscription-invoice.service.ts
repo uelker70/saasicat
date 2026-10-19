@@ -4,7 +4,7 @@
 // one invoice for each group of their charges — the charges booked at the same
 // moment under the same contract. An invoice is put together from what holds on
 // its issue date: the subscriber as its record stands, the issuer of the
-// contract (`SC-PRIC-026`), the treatment the tax adapter decides for the
+// contract (`SC-PRIC-092`), the treatment the tax adapter decides for the
 // subscriber now (`SC-PRIC-043`), the tax by the adapter's rule
 // (`SC-PRIC-041`), its days in the installation's time zone (`SC-PRIC-045`),
 // and the subscriber's payment method it is collected with — a direct debit on
@@ -144,7 +144,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
      * start refuse a change of the issuer's legal identity nobody declared a
      * correction of: without it, another legal entity named in
      * `config/saas.yaml` would number on in the range of the one before. The
-     * record also keeps the corrections an invoice follows (`SC-PRIC-026`).
+     * record also keeps the corrections an invoice follows (`SC-PRIC-092`).
      *
      * Refuses, too, an installation that takes payment methods and gives this
      * run no way to read them: its invoices would announce no collection, and
@@ -303,7 +303,7 @@ export class SubscriptionInvoiceService implements OnModuleInit {
      * The issuer an invoice names for a party copied as `copy` — a contract's,
      * or the invoice a replacement replaces —: `configured`, the issuer the
      * running configuration names, where a correction declared since connects
-     * the copy to it, otherwise the copy (`SC-PRIC-026`).
+     * the copy to it, otherwise the copy (`SC-PRIC-092`).
      */
     async issuerFor(
         copy: ContractIssuerParty,

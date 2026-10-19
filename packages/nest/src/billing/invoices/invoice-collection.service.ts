@@ -113,6 +113,7 @@ import {
 } from '../notice-sender.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import { AuditedOnce } from './audited-once.js';
+import { addressGivenFor } from './invoice-delivery-address.js';
 import { INVOICE_MAIL_PORT_TOKEN } from './invoice-document.tokens.js';
 import {
     INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
@@ -890,10 +891,19 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         }
     }
 
-    /** Hands a notice to the mail port, for the subscriber's invoice email. */
+    /**
+     * Hands a notice to the mail port, for the subscriber's invoice email, or,
+     * where the record holds none, the address given with the cancellation the
+     * invoice is the replacement of (`SC-PRIC-047`).
+     */
     private async mailNotice(notice: InvoiceCollectionNotice): Promise<SubscriptionNoticeDelivery> {
         const subscriber = await this.subscribers!.getById(notice.subscriberId);
-        const to = subscriber.invoiceEmail;
+        const invoice = subscriber.invoiceEmail
+            ? null
+            : await this.invoices.findById(notice.invoiceId);
+        const to =
+            subscriber.invoiceEmail ??
+            (invoice ? await addressGivenFor(this.invoices, invoice) : null);
         if (!to) {
             throw new Error(
                 `Subscriber ${notice.subscriberId} has no invoice email to tell of ` +

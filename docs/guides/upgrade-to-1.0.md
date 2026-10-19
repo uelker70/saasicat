@@ -2222,13 +2222,15 @@ cancelled.
 
 ### An invoice is cancelled by a cancellation invoice and its replacement
 
-An issued invoice is corrected by cancelling it (`SC-PRIC-025`): a cancellation invoice that states
+An issued invoice is corrected by cancelling it (`SC-PRIC-091`): a cancellation invoice that states
 it reversed and asks for nothing, a replacement for its charges under a new number, and what was
 paid for it moved onto the replacement — each payment's share, the oldest first — or, where the
 replacement does not take it, a credit for the operator to refund. An invoice and the invoices that
 correct it are one chain, and whatever changes what an invoice of a chain owes or how it is
-collected takes the chain's turn (`SC-PRIC-036`). `InvoiceCancellationService` previews and writes
-a cancellation; the operator's route and command follow in the next release candidate.
+collected takes the chain's turn (`SC-PRIC-036`). The operator previews and cancels at
+`POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview` and `…/cancellation`, the
+second with the second factor, or with `<app> invoices cancel`; the manifest announces both as
+`invoices.cancel` ([Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice)).
 
 1. Take fragments 15, 20 and 24 as they ship now: `SubscriptionInvoice` gains `chainId`,
    `chainStep` and `paidOnIssue`, a line `chainStep` and `correctedPosition` — a charge now stands
@@ -2288,9 +2290,23 @@ a cancellation; the operator's route and command follow in the next release cand
 - **A renderer of your own** states `paidOnIssue` on a replacement: what was paid (BT-113) and the
   amount due less it, as `zugferdInvoiceRenderer()` does; `@saasicat/tax-de`'s check refuses a
   document whose prepaid amount or amount due is not what the invoice records.
+- **A mail port of your own** sends each invoice to `InvoiceMail.to` as it is given — for a
+  cancellation invoice and its replacement, the address given with the cancellation where one was
+  — and each notice to `InvoiceNoticeMail.to`, which for a replacement whose subscriber's record
+  holds no invoice email is that address too. Neither is written onto the record.
+- **A CLI of your own** registers `InvoiceCancelCliFlow`, `InvoicesCommands` and
+  `InvoicesCancelCommand` from `@saasicat/cli` where invoices are issued
+  ([Extend your CLI](extend-your-cli.md)).
+- **An application that wires `TenantBillingModule` itself** mounts the routes with
+  `InvoiceCancellationModule.forRoot({ guards, imports })`, importing its admin resources module
+  and the tenant billing module it built. `InvoiceCancellationPlan` names `reason` and `deliverTo`
+  as they are recorded; the service settles both and the corrections before anything else.
 - **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`,
   `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`, `SUBSCRIPTION_INVOICE_IS_CANCELLATION`,
-  `SUBSCRIPTION_INVOICE_STATES_A_CREDIT` and `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`. The audit
+  `SUBSCRIPTION_INVOICE_STATES_A_CREDIT`, `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`,
+  `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID` and
+  `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, and labels the audit action
+  `SUBSCRIPTION_INVOICE_CANCELLED`. The audit
   entry `SUBSCRIBER_REVERSAL_RECORDED` names `credits`, every credit of the payment it took from,
   where it named one `credit`, and each of its `uncovered` as `LiftedCover` does, the case by its
   `caseId`; what a lifted cover met that matched nothing is a `SUBSCRIBER_REVERSAL_UNMATCHED` of

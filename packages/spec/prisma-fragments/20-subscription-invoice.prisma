@@ -79,7 +79,7 @@ model SubscriptionInvoice {
     // The parties as the invoice names them, copied when it was issued.
     issuerParty     Json
     subscriberParty Json
-    // The footer lines config/saas.yaml named on the issue date (SC-PRIC-077).
+    // The footer lines config/saas.yaml named on the issue date (SC-PRIC-093).
     footer          Json    @default("[]")
     // The adapter's treatment, with its name and version, and the tax per rate.
     taxTreatment    Json
@@ -88,7 +88,7 @@ model SubscriptionInvoice {
     totalTax        Decimal @db.Decimal(12, 2)
     totalGross      Decimal @db.Decimal(12, 2)
     // What a replacement took over, when it was issued, of what was paid for
-    // the invoice it replaces (`SC-PRIC-025`); its document states it as paid.
+    // the invoice it replaces (`SC-PRIC-091`); its document states it as paid.
     // Zero on every other invoice.
     paidOnIssue     Decimal @default(0) @db.Decimal(12, 2)
 
@@ -150,7 +150,7 @@ model SubscriptionInvoiceLine {
     @@map("subscription_invoice_lines")
 }
 
-// A cancellation (`SC-PRIC-025`): the invoice it cancels, the cancellation
+// A cancellation (`SC-PRIC-091`): the invoice it cancels, the cancellation
 // invoice that does, and the replacement for what is still owed — none where
 // nothing is —, written in one transaction with both invoices and the moving
 // of what was paid (24-subscriber-payments.prisma). The operator's reason, the

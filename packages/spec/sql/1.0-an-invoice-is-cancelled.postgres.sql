@@ -4,7 +4,7 @@
 --
 -- An invoice and the invoices that correct it become a chain, a cancellation
 -- is recorded with the reason it was given, and what was paid for a cancelled
--- invoice moves onto its replacement (#276 step 6, `SC-PRIC-025`,
+-- invoice moves onto its replacement (#276 step 6, `SC-PRIC-091`,
 -- `SC-PRIC-036`). Needed where `tenantBilling.chargeJournal.invoices` is
 -- configured. Run it BEFORE `db push`, after
 -- `1.0-an-invoice-is-issued.postgres.sql` and, where invoices are collected,

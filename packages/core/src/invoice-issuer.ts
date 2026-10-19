@@ -1,4 +1,4 @@
-// Which issuer an invoice names (`SC-PRIC-026`).
+// Which issuer an invoice names (`SC-PRIC-092`).
 //
 // The identity — the legal name and the tax identifiers — is the counterparty
 // the contract was concluded with, so it is taken from the copy on the
@@ -58,7 +58,7 @@ export function invoiceIssuerOf(
 }
 
 /**
- * The footer lines an invoice carries (`SC-PRIC-077`): those `config/saas.yaml`
+ * The footer lines an invoice carries (`SC-PRIC-093`): those `config/saas.yaml`
  * names, where the invoice names the issuer the file names; none where it names
  * the contract's copy of another entity, whose register and account the lines
  * are not.
