@@ -2248,8 +2248,11 @@ a cancellation; the operator's route and command follow in the next release cand
     of its own and one per cancellation (`subscriber_credits_one_per_payment`, which
     `constraints.postgres.sql` holds as well), and gives each reversal `reinstatedToCases`, what of
     its give-backs covered its cases, as far as what it was given back and what its cases hold
-    allow. It does nothing on a second run, and the part about payments nothing where invoices are
-    not collected.
+    allow. That is what the release before counted, and the database keeps nothing it could be
+    corrected from: where a reversal grew after a give-back before the upgrade, a case it opened
+    then reads as covered by that give-back. Look at the open cases of such a reversal on the
+    reconciliation page. It does nothing on a second run, and the part about payments nothing
+    where invoices are not collected.
 
 3. The start refuses invoicing without `contractFreeze.transactionRunner`, the transaction a
    cancellation is written on. `SaaSiCatModule` passes the persistence bundle's; an application
