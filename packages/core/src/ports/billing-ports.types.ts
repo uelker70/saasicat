@@ -1126,8 +1126,12 @@ export interface SubscriberPaymentRepository {
      * those invoices left, the oldest first (`SC-PRIC-087`). What it takes of
      * the payment's own credit beyond the open part lifts the covers that
      * credit gave other reversals before it counts as paid out: each is given
-     * back to the credit, and its reversal opens the invoice by it
-     * (`SC-PRIC-088`, `ReversalWithdrawal.uncovered`). What the gateway gives
+     * back to the credit, and its reversal takes it as a withdrawal of its
+     * payment would without that credit, as everything stands then — the
+     * credits that payment left first, then the other open credits for its
+     * invoices as the withdrawal lifting it left them, then the invoices it
+     * still settles —, and what goes beyond is a case of that reversal
+     * (`SC-PRIC-090`, `ReversalWithdrawal.uncovered`). What the gateway gives
      * back returns to the payment's own credit before the covering ones. What the gateway newly
      * gave back covers the reversal's cases first, closing each it covers, then
      * gives back what it took of the credit, then settles again what it opened

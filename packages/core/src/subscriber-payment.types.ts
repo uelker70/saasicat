@@ -273,8 +273,8 @@ export interface ReversalWithdrawal {
     invoices: InvoicePart[];
     /**
      * The covers the payment's own credit gave other reversals of its invoice,
-     * lifted before anything else: each of those reversals now opens the
-     * invoice by what it took (`SC-PRIC-088`).
+     * lifted before anything else: each of those reversals now takes what the
+     * cover held as a withdrawal of its payment would without it (`SC-PRIC-090`).
      */
     uncovered: LiftedCover[];
     /**
@@ -285,12 +285,30 @@ export interface ReversalWithdrawal {
     case: SubscriberReconciliationCaseRecord | null;
 }
 
-/** A cover lifted: the reversal it was given to, that reversal's payment, and what it opens now. */
+/**
+ * A cover lifted: the reversal it was given to, that reversal's payment, and
+ * how that reversal takes now what the cover held — as a withdrawal of its
+ * payment would without that credit, read as everything stands when the cover
+ * is lifted (`SC-PRIC-090`).
+ */
 export interface LiftedCover {
     reversalId: string;
     paymentId: string;
-    invoiceId: string;
+    /** What the cover held, given back to the credit that gave it. */
     amount: number;
+    /** What it takes of the open credits its payment left. */
+    credits: CreditPart[];
+    /** What it takes instead of opening an invoice again, of the open credits other payments left for it. */
+    covering: CreditPart[];
+    /** The invoices it opens again, each by how much. */
+    invoices: InvoicePart[];
+    /**
+     * What met the part of its payment's credits that is not open — paid out,
+     * or lent to a further reversal as a cover, which a lift does not lift in
+     * turn —, or went beyond what the payment brought: a case to reconcile.
+     */
+    unmatched: number;
+    case: SubscriberReconciliationCaseRecord | null;
 }
 
 /** What giving back part of a reversal's amount took back in turn. */

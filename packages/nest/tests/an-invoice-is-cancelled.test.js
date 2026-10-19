@@ -273,6 +273,23 @@ describe('an invoice cancelled by the operator', () => {
         assert.equal(await payments.owedBy(replacement.id), 0);
     });
 
+    test('states as paid on the replacement what moves onto it, and no share below nothing', async () => {
+        const installation = await anInvoiceToCollect();
+        const { cancellation, invoice, gateway, payments } = installation;
+        gateway.answers.push(succeeded(invoice, 'pi_part', 20));
+        await installation.collect(FIRST_RUN);
+        // A share below nothing beside the one that paid, as a store could hand it over.
+        const sharesOf = payments.sharesOf.bind(payments);
+        payments.sharesOf = async (invoiceId, tx) => [
+            ...(await sharesOf(invoiceId, tx)),
+            { paymentId: 'payment-taken-back', recordedAt: FIRST_RUN, amount: -5 },
+        ];
+
+        const preview = await cancellation.preview('t1', invoice.id, REQUEST, CANCELLED_AT);
+
+        assert.deepEqual([preview.replacement.paidOnIssue, preview.movedIn], [20, 20]);
+    });
+
     test('withdraws a collection of it planned and not yet made', async () => {
         const { cancellation, invoice, collections, method } = await anInvoiceToCollect();
         await collections.plan({
@@ -561,5 +578,61 @@ describe('the collections of a cancelled invoice’s chain', () => {
             [replacement.number, invoice.totalGross],
         );
         assert.equal(await installation.payments.owedBy(replacement.id), invoice.totalGross);
+    });
+
+    test('a reversal is followed up in its chain’s turn: read, told and marked on the transaction that holds the chain', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { cancellation, invoice, collections, notices, store } = installation;
+        await installation.collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        const { replacement } = await cancellation.cancel(
+            't1',
+            invoice.id,
+            REQUEST,
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        await delivering(installation)(
+            reversalReported('evt_r1', attempt.attemptKey, {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_1',
+                withdrawnCents: toCents(invoice.totalGross),
+            }),
+        );
+        // The transactions the chain was held on, and those the follow-up read,
+        // told and marked on.
+        const holding = new Set();
+        const holdChain = store.holdChain.bind(store);
+        store.holdChain = async (invoiceId, tx) => {
+            holding.add(tx);
+            return holdChain(invoiceId, tx);
+        };
+        const readOn = [];
+        const listByInvoice = collections.listByInvoice.bind(collections);
+        collections.listByInvoice = async (invoiceId, tx) => {
+            if (invoiceId === replacement.id) readOn.push(tx);
+            return listByInvoice(invoiceId, tx);
+        };
+        const markedOn = [];
+        const markFollowedUp = collections.markFollowedUp.bind(collections);
+        collections.markFollowedUp = async (id, at, tx) => {
+            if (id === attempt.id) markedOn.push(tx);
+            return markFollowedUp(id, at, tx);
+        };
+        const toldOn = [];
+        const record = notices.record.bind(notices);
+        notices.record = async (recorded, now, tx) => {
+            if (recorded.some((each) => each.kind === 'collection-reversed')) toldOn.push(tx);
+            return record(recorded, now, tx);
+        };
+
+        await runAt(installation, after(CANCELLED_AT, { days: 1 }));
+
+        assert.equal(toldOn.length, 1, 'the premise: the subscriber is told of the reversal');
+        const [turn] = toldOn;
+        assert.ok(holding.has(turn), 'told on a transaction that does not hold the chain');
+        assert.ok(readOn.includes(turn), 'the replacement’s attempts read outside the turn');
+        assert.deepEqual(markedOn, [turn]);
     });
 });

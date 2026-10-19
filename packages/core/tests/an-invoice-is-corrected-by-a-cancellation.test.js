@@ -15,6 +15,7 @@ import {
     isOwnCreditOf,
     movedPaymentParts,
     owedByInvoice,
+    paidByShares,
     paymentSharesOf,
     refundParts,
     reversibleCreditsOf,
@@ -482,6 +483,24 @@ describe('each payment’s share of a cancelled invoice', () => {
                 ['p-a', 10],
                 ['p-b', 5],
             ],
+        );
+    });
+
+    test('state as paid on the replacement what moves onto it, a share below nothing counting for nothing', () => {
+        const shares = [
+            { paymentId: 'p-1', recordedAt: at('02'), amount: 30 },
+            { paymentId: 'p-2', recordedAt: at('03'), amount: -10 },
+        ];
+        const drafted = draftReplacementInvoice(
+            CANCELLED,
+            replacementIssue({ paid: paidByShares(shares) }),
+        );
+
+        const moved = movedPaymentParts(shares, drafted.totalGross);
+        assert.equal(paidByShares(shares), 30);
+        assert.equal(
+            drafted.paidOnIssue,
+            moved.reduce((sum, part) => sum + part.movedIn, 0),
         );
     });
 

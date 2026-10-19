@@ -419,7 +419,7 @@ export function paidOutByCredit(
  * of its invoice (`SC-PRIC-087`) and still hold: the credit's `entries` of
  * reversals not in `own`, net of what was given back, in whole cents, in the
  * order the reversals first appear. Where the credit's own payment is reversed
- * as well, these covers are lifted first (`SC-PRIC-088`).
+ * as well, these covers are lifted first (`SC-PRIC-090`).
  */
 export function coversOf(
     entries: readonly {
@@ -445,7 +445,7 @@ export function coversOf(
  * credit gave other reversals (`coversOf`) before it counts as paid out, in
  * the order given — and only that credit's: what one credit paid out lifts
  * nothing another one lent. Each lifted cover opens its reversal's invoice
- * again; what it reaches beyond them stays unmatched (`SC-PRIC-088`).
+ * again; what it reaches beyond them stays unmatched (`SC-PRIC-090`).
  */
 export function coversLifted<
     Cover extends { creditId: string; reversalId: string; amount: number },

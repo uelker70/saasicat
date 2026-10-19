@@ -43,6 +43,16 @@ your own implements `holdChain`, `issueCancellation`, `findCancellation`,
 `findCancellationById`, `sharesOf` and `moveShares`;
 `ReversalWithdrawal.credit` is `credits`, and `withdrawalParts` takes a list.
 
+A cover a reversed payment's credit gave another reversal is lifted as a
+withdrawal of the covered payment would go without that credit, as everything
+stands then (`SC-PRIC-090`, superseding `SC-PRIC-088`): its credits first, a
+cancellation's share among them, then the other open credits for its invoices,
+then what it still settles of them, and a case for the rest. So a cover lifted
+after a cancellation opens the replacement by no more than its total, and two
+reversals end alike in either order where a third payment left a credit as
+well. `LiftedCover` names `credits`, `covering`, `invoices`, `unmatched` and
+`case` where it named one `invoiceId`.
+
 `zugferdInvoiceRenderer()` states what a replacement took over as paid, on its
 page and as BT-113, and the amount due less it, and announces a direct debit of
 the rest alone; `@saasicat/tax-de`'s check refuses

@@ -148,7 +148,8 @@ type MoneyAudit =
               credits: CreditPart[];
               covering: CreditPart[];
               invoices: InvoicePart[];
-              uncovered: LiftedCover[];
+              /** Each cover lifted, with the case it opened by its id. */
+              uncovered: (Omit<LiftedCover, 'case'> & { caseId: string | null })[];
               unmatched: number;
           };
       }
@@ -469,7 +470,7 @@ export class InvoicePaymentService
      * attempts whose payments the lifted covers stood for, and every attempt of
      * that invoice that succeeded: none of them settles it any more, and one
      * that succeeded would keep every other attempt from being made
-     * (`SC-PRIC-085`, `SC-PRIC-088`).
+     * (`SC-PRIC-085`, `SC-PRIC-090`).
      */
     private async markWhatOpened(
         reversal: SubscriberReversalRecord,
@@ -478,7 +479,9 @@ export class InvoicePaymentService
         tx: TransactionContext,
     ): Promise<void> {
         const opened = new Set(
-            [...withdrawal.invoices, ...withdrawal.uncovered].map((part) => part.invoiceId),
+            [...withdrawal.invoices, ...withdrawal.uncovered.flatMap((each) => each.invoices)].map(
+                (part) => part.invoiceId,
+            ),
         );
         if (opened.size === 0) return;
         const attempts = new Set<string>();
@@ -508,8 +511,8 @@ export class InvoicePaymentService
     }
 
     /** What the invoice still owes after what is settled against it; throws for one that does not exist. */
-    async owed(invoiceId: string): Promise<number> {
-        const owed = await this.payments.owedBy(invoiceId);
+    async owed(invoiceId: string, tx?: TransactionContext): Promise<number> {
+        const owed = await this.payments.owedBy(invoiceId, tx);
         if (owed === null) throw new Error(`Invoice ${invoiceId} does not exist.`);
         return owed;
     }
@@ -602,7 +605,10 @@ export class InvoicePaymentService
                     credits: withdrawal.credits,
                     covering: withdrawal.covering,
                     invoices: withdrawal.invoices,
-                    uncovered: withdrawal.uncovered,
+                    uncovered: withdrawal.uncovered.map(({ case: opened, ...lifted }) => ({
+                        ...lifted,
+                        caseId: opened?.id ?? null,
+                    })),
                     unmatched: withdrawal.unmatched,
                 },
             });
@@ -617,6 +623,7 @@ export class InvoicePaymentService
                     },
                 });
             }
+            await this.auditLiftedUnmatched(reversal, withdrawal.uncovered);
         }
         if (!reinstatement) return;
         this.logger.log(
@@ -635,6 +642,36 @@ export class InvoicePaymentService
         });
         await this.auditClosedCases(reversal.subscriberId, reinstatement.closedCases);
         if (reinstatement.credit) await this.auditCredit(reinstatement.credit);
+    }
+
+    /**
+     * Audits what a lifted cover met that matched nothing — a credit of its
+     * payment already paid out, or more than that payment brought — as the
+     * earlier reversal's, which the case it opened is about.
+     */
+    private async auditLiftedUnmatched(
+        reversal: SubscriberReversalRecord,
+        uncovered: readonly LiftedCover[],
+    ): Promise<void> {
+        for (const lifted of uncovered) {
+            if (lifted.unmatched <= 0) continue;
+            const payment = await this.payments.findPaymentById(lifted.paymentId);
+            const about = {
+                reversalRef: lifted.case?.gatewayRef ?? lifted.reversalId,
+                paymentRef: payment?.gatewayRef ?? lifted.paymentId,
+                currency: reversal.currency,
+            };
+            this.logger.warn(
+                `Reversal ${about.reversalRef} of payment ${about.paymentRef}, its cover lifted, ` +
+                    `took ${lifted.unmatched.toFixed(2)} ${reversal.currency} that matches nothing; ` +
+                    "it is the operator's to reconcile.",
+            );
+            await this.writeAudit(reversal.subscriberId, {
+                entity: 'Subscriber',
+                action: 'SUBSCRIBER_REVERSAL_UNMATCHED',
+                changes: { ...about, unmatched: lifted.unmatched, caseId: lifted.case?.id ?? null },
+            });
+        }
     }
 
     /** Audits the cases SaaSiCat closed because the money they were about came back. */

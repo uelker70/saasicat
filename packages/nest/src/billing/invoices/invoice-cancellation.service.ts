@@ -40,6 +40,7 @@ import {
     invoiceFooterOf,
     invoicePaymentOf,
     movedPaymentParts,
+    paidByShares,
     subscriberCorrectedSince,
     sumToCents,
     type CorrectedInvoiceSubscriber,
@@ -298,7 +299,7 @@ export class InvoiceCancellationService implements OnModuleInit {
             paymentTermDays: invoicing.paymentTermDays,
             directDebitLeadDays: directDebitLeadDaysOf(invoicing),
             payment: invoicePaymentOf(method),
-            paid: shares.reduce((sum, share) => sumToCents(sum, share.amount), 0),
+            paid: paidByShares(shares),
         });
         this.refuseUnissuable(replacement, method?.id ?? null);
         const moves = movedPaymentParts(shares, replacement.totalGross);

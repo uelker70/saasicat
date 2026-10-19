@@ -89,6 +89,7 @@ import {
     type SubscriptionNoticeDelivery,
     type SubscriptionNoticeRecord,
     type SubscriptionNoticeRepository,
+    type TransactionContext,
     type TransactionRunner,
 } from '@saasicat/core';
 
@@ -475,22 +476,28 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
      */
     private async followUpReversal(reversed: InvoiceCollectionRecord): Promise<void> {
         if (reversed.followedUpAt !== null) return;
-        // The chain as it stands in its turn: what every invoice of it is
-        // collected with decides whether, and how, the subscriber is told.
-        const chain = await this.recording().transactions.run((tx) =>
-            this.invoices.holdChain(reversed.invoiceId, tx),
-        );
+        // From the hold to the mark in the chain's turn: what every invoice of
+        // it is collected with decides whether, and how, the subscriber is
+        // told, and nothing changes that before the notice is recorded.
+        await this.recording().transactions.run((tx) => this.followUpReversalIn(reversed, tx));
+    }
+
+    private async followUpReversalIn(
+        reversed: InvoiceCollectionRecord,
+        tx: TransactionContext,
+    ): Promise<void> {
+        const chain = await this.invoices.holdChain(reversed.invoiceId, tx);
         if (!chain) throw new Error(`Invoice ${reversed.invoiceId} does not exist.`);
         const standing = standingInvoiceOf(chain);
-        const owed = standing ? await this.recording().payments.owed(standing.id) : 0;
+        const owed = standing ? await this.recording().payments.owed(standing.id, tx) : 0;
         if (!standing || owed <= 0) {
-            await this.collections.markFollowedUp(reversed.id, new Date());
+            await this.collections.markFollowedUp(reversed.id, new Date(), tx);
             return;
         }
-        const attempts = await this.collections.listByInvoice(reversed.invoiceId);
+        const attempts = await this.collections.listByInvoice(reversed.invoiceId, tx);
         const ofChain: InvoiceCollectionRecord[] = [];
         for (const invoice of chain.invoices) {
-            ofChain.push(...(await this.collections.listByInvoice(invoice.id)));
+            ofChain.push(...(await this.collections.listByInvoice(invoice.id, tx)));
         }
         // Attempts reversed together — the one whose payment was taken back,
         // and one that succeeded beside it — tell the subscriber once, from the
@@ -503,7 +510,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 (each.followedUpAt === null || each.followedUpAt.getTime() >= reversedAt),
         );
         if (toldByALater) {
-            await this.collections.markFollowedUp(reversed.id, new Date());
+            await this.collections.markFollowedUp(reversed.id, new Date(), tx);
             return;
         }
         // Another attempt of the chain on its way may still pay the invoice
@@ -511,7 +518,7 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
         // says what follows.
         if (ofChain.some((each) => UNSETTLED_COLLECTION_STATUSES.includes(each.status))) return;
         const invoice = standing;
-        const method = await this.paymentMethods!.findActive(invoice.subscriberId);
+        const method = await this.paymentMethods!.findActive(invoice.subscriberId, tx);
         const notice: CollectionReversedNotice = {
             kind: 'collection-reversed',
             ...aboutInvoice(invoice),
@@ -537,8 +544,9 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
                 },
             ],
             new Date(),
+            tx,
         );
-        await this.collections.markFollowedUp(reversed.id, new Date());
+        await this.collections.markFollowedUp(reversed.id, new Date(), tx);
     }
 
     /**

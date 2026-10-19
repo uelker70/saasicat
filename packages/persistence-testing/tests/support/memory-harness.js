@@ -2623,13 +2623,15 @@ export function createMemoryHarness() {
             recordedAt: at,
         });
     };
-    const withdrawReversal = (reversal, payment, amount, at) => {
+    // What the payment brought, as a withdrawal of it reads it now: the
+    // credits it left — its surplus, and its share of a cancelled invoice the
+    // replacement did not take —, what it still settles on each invoice, and
+    // the open credits other payments of those invoices' chains left.
+    const broughtBy = (payment) => {
         const taken = state.reversals
             .filter((row) => row.paymentId === payment.id)
             .reduce((sum, row) => sum + centsOf(Number(row.fromCredit)), 0);
         const standings = standingsOf(payment.subscriberId, null);
-        // The credits the payment left: its surplus, and its share of a
-        // cancelled invoice the replacement did not take.
         const own = reversibleCreditsOf(
             standings
                 .filter((each) => isOwnCreditOf(each.credit, payment.id))
@@ -2644,8 +2646,6 @@ export function createMemoryHarness() {
         const invoices = netByInvoice(settlementsOf((row) => row.paymentId === payment.id)).map(
             (net) => ({ invoiceId: net.invoiceId, left: net.amount }),
         );
-        // Collected for an invoice of the same chain: a payment of the invoice
-        // a replacement replaces settles the replacement as well.
         const chains = new Set(invoices.flatMap((each) => [...chainInvoiceIdsOf(each.invoiceId)]));
         const others = new Set(
             state.payments
@@ -2655,11 +2655,91 @@ export function createMemoryHarness() {
         const covering = standings
             .filter((each) => others.has(each.credit.origin.paymentId))
             .map((each) => ({ creditId: each.credit.id, open: each.open }));
-        const parts = withdrawalParts(amount, own, invoices, covering);
+        return { own, invoices, covering };
+    };
+    const writeTaken = (reversal, taken, at) => {
+        for (const part of taken.credits) {
+            state.creditEntries.push({
+                id: nextId('credit-entry'),
+                ...reversalEntryColumns(part.creditId, reversal, 'REVERSAL', part.amount, at),
+            });
+        }
+        for (const part of taken.invoices) {
+            writeSettlement(
+                part.invoiceId,
+                { id: reversal.paymentId },
+                'REVERSAL',
+                part.amount,
+                reversal,
+                at,
+            );
+        }
+    };
+    const reversalCaseOf = (reversal, payment, unmatched, at) =>
+        unmatched > 0
+            ? openCase({
+                  kind: 'REVERSAL_UNMATCHED',
+                  amount: unmatched,
+                  currency: payment.currency,
+                  payment,
+                  about: reversal,
+                  at,
+              })
+            : null;
+    // The cover given back to the credit that gave it, and its reversal taking
+    // it as a withdrawal of its payment would without that credit.
+    const liftCover = (cover, at) => {
+        const covered = toSubscriberReversalRecord(
+            structuredClone(state.reversals.find((row) => row.id === cover.reversalId)),
+        );
+        const payment = toSubscriberPaymentRecord(
+            structuredClone(state.payments.find((row) => row.id === covered.paymentId)),
+        );
+        state.creditEntries.push({
+            id: nextId('credit-entry'),
+            ...reversalEntryColumns(
+                cover.creditId,
+                covered,
+                'REVERSAL_TAKEN_BACK',
+                cover.amount,
+                at,
+            ),
+        });
+        const brought = broughtBy(payment);
+        const parts = withdrawalParts(
+            cover.amount,
+            brought.own,
+            brought.invoices,
+            brought.covering,
+        );
+        writeTaken(
+            covered,
+            { credits: [...parts.credits, ...parts.covering], invoices: parts.invoices },
+            at,
+        );
+        const row = state.reversals.find((each) => each.id === covered.id);
+        row.fromCredit = (
+            (centsOf(Number(row.fromCredit)) + centsOf(parts.fromCredit)) /
+            100
+        ).toFixed(2);
+        return {
+            reversalId: covered.id,
+            paymentId: covered.paymentId,
+            amount: cover.amount,
+            credits: parts.credits,
+            covering: parts.covering,
+            invoices: parts.invoices,
+            unmatched: parts.unmatched,
+            case: reversalCaseOf(covered, payment, parts.unmatched, at),
+        };
+    };
+    const withdrawReversal = (reversal, payment, amount, at) => {
+        const brought = broughtBy(payment);
+        const parts = withdrawalParts(amount, brought.own, brought.invoices, brought.covering);
         const ownIds = new Set(
             state.reversals.filter((row) => row.paymentId === payment.id).map((row) => row.id),
         );
-        const covers = own.flatMap((credit) =>
+        const covers = brought.own.flatMap((credit) =>
             coversOf(
                 state.creditEntries
                     .filter((row) => row.creditId === credit.creditId)
@@ -2668,38 +2748,6 @@ export function createMemoryHarness() {
             ).map((cover) => ({ creditId: credit.creditId, ...cover })),
         );
         const { lifted, unmatched } = coversLifted(parts, covers);
-        // What a lifted cover opens again is the invoice that stands in the
-        // payment's chain.
-        const reopened = standingInvoiceIdOf(payment.invoiceId) ?? payment.invoiceId;
-        const uncovered = lifted.map((cover) => {
-            const covered = toSubscriberReversalRecord(
-                structuredClone(state.reversals.find((row) => row.id === cover.reversalId)),
-            );
-            state.creditEntries.push({
-                id: nextId('credit-entry'),
-                ...reversalEntryColumns(
-                    cover.creditId,
-                    covered,
-                    'REVERSAL_TAKEN_BACK',
-                    cover.amount,
-                    at,
-                ),
-            });
-            writeSettlement(
-                reopened,
-                { id: covered.paymentId },
-                'REVERSAL',
-                cover.amount,
-                covered,
-                at,
-            );
-            return {
-                reversalId: covered.id,
-                paymentId: covered.paymentId,
-                invoiceId: reopened,
-                amount: cover.amount,
-            };
-        });
         const takenOfOwn = new Map();
         for (const part of [...parts.credits, ...lifted]) {
             takenOfOwn.set(
@@ -2707,32 +2755,20 @@ export function createMemoryHarness() {
                 (takenOfOwn.get(part.creditId) ?? 0) + centsOf(part.amount),
             );
         }
-        const ownParts = own
+        const ownParts = brought.own
             .filter((credit) => (takenOfOwn.get(credit.creditId) ?? 0) > 0)
             .map((credit) => ({
                 creditId: credit.creditId,
                 amount: takenOfOwn.get(credit.creditId) / 100,
             }));
-        for (const part of [...ownParts, ...parts.covering]) {
-            state.creditEntries.push({
-                id: nextId('credit-entry'),
-                ...reversalEntryColumns(part.creditId, reversal, 'REVERSAL', part.amount, at),
-            });
-        }
-        for (const part of parts.invoices) {
-            writeSettlement(part.invoiceId, payment, 'REVERSAL', part.amount, reversal, at);
-        }
-        const opened =
-            unmatched > 0
-                ? openCase({
-                      kind: 'REVERSAL_UNMATCHED',
-                      amount: unmatched,
-                      currency: payment.currency,
-                      payment,
-                      about: reversal,
-                      at,
-                  })
-                : null;
+        writeTaken(
+            reversal,
+            { credits: [...ownParts, ...parts.covering], invoices: parts.invoices },
+            at,
+        );
+        // Lifted once the withdrawal is written, so a lifted cover is taken
+        // again of what the covering credits still hold after it.
+        const uncovered = lifted.map((cover) => liftCover(cover, at));
         return {
             fromCredit: parts.fromCredit,
             withdrawal: {
@@ -2741,7 +2777,7 @@ export function createMemoryHarness() {
                 invoices: parts.invoices,
                 uncovered,
                 unmatched,
-                case: opened,
+                case: reversalCaseOf(reversal, payment, unmatched, at),
             },
         };
     };

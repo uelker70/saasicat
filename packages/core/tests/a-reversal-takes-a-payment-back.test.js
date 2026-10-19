@@ -251,7 +251,7 @@ describe('what credits other payments for the same invoice left cover of a rever
     });
 });
 
-// @requirement SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
+// @requirement SC-PRIC-090 — Reversals of an invoice end alike in any order, and it is collected again
 describe('the covers a credit gave other reversals', () => {
     const entry = (reversalId, kind, amount) => ({ reversalId, kind, amount });
 

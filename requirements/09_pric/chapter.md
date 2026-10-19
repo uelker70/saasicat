@@ -979,6 +979,8 @@ _Tested by:_
         - moves onto the replacement the oldest first, and what it does not take is credited
         - moves by what the replacement owes: ${why}
         - confirmed at the same moment, move in the order of their ids
+        - state as paid on the replacement what moves onto it, a share below nothing counting for
+          nothing
         - of nothing, or taken back in full, move nothing
     - what a corrected invoice owes
         - a cancelled invoice and its cancellation invoice owe nothing, whatever they state
@@ -1010,6 +1012,7 @@ _Tested by:_
           is refused, and nothing is written
         - paid already, moves what was paid onto the replacement, which is then collected no further
         - paid in part, the replacement is collected for the rest alone
+        - states as paid on the replacement what moves onto it, and no share below nothing
         - withdraws a collection of it planned and not yet made
     - a cancellation refused
         - for an invoice the tenant does not have, or that does not exist
@@ -1860,6 +1863,8 @@ _Tested by:_
         - a reversal is told only once no attempt of any invoice of the chain is on its way, about
           the invoice that stands
         - a reversal of a payment that moved tells the subscriber the replacement is open again
+        - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
+          that holds the chain
 
 <!-- END proof -->
 
@@ -1982,18 +1987,40 @@ _Tested by:_
 
 ### SC-PRIC-088 — Reversals of an invoice end alike in any order, and it is collected again
 
-🟢 💰 Where a payment whose credit covered another reversal of its invoice (`SC-PRIC-087`) is
-reversed itself, the cover is lifted before anything else: the earlier reversal opens the invoice
-by what the credit covered, as it would have without the credit, and the later one takes the
-credit as its own. Two reversals of one invoice's payments therefore end alike whatever order the
-gateway reports them in. Where a reversal leaves an invoice owing — itself, or through a cover it
-lifted —, every attempt of that invoice that succeeded is marked reversed beside the attempt
-whose payment was taken back: none of them settles the invoice any more, and one that succeeded
-would keep every other attempt from being made. Its payment method collects that invoice no more
-either, even where its payment was paid out rather than reversed (`SC-PRIC-085`), and the
-subscriber is told once.
+🔵 _(Superseded on 2026-10-19 by `SC-PRIC-090`.)_ 💰 Where a payment whose credit covered another
+reversal of its invoice (`SC-PRIC-087`) is reversed itself, the cover is lifted before anything
+else: the earlier reversal opens the invoice by what the credit covered, as it would have without
+the credit, and the later one takes the credit as its own. Two reversals of one invoice's payments
+therefore end alike whatever order the gateway reports them in. Where a reversal leaves an invoice
+owing — itself, or through a cover it lifted —, every attempt of that invoice that succeeded is
+marked reversed beside the attempt whose payment was taken back: none of them settles the invoice
+any more, and one that succeeded would keep every other attempt from being made. Its payment method
+collects that invoice no more either, even where its payment was paid out rather than reversed
+(`SC-PRIC-085`), and the subscriber is told once.
 
 _Source:_ #333 (decided 2026-10-15)
+
+### SC-PRIC-090 — Reversals of an invoice end alike in any order, and it is collected again
+
+🟢 💰 Where a payment whose credit covered another reversal of its invoice (`SC-PRIC-087`) is
+reversed itself, the cover is lifted before anything else, and the later reversal takes the credit
+as its own. The earlier one then takes what the credit covered as it would have without that
+credit, as everything stands when the cover is lifted (`SC-PRIC-084`): the credits its own payment
+left first — its share of a cancelled invoice that the replacement did not take among them
+(`SC-PRIC-025`) —, then the open credits other payments left for its invoice, and only then the
+invoice of its chain that payment still settles — the replacement, where its invoice was cancelled
+—, which it opens again by no more than that. What goes beyond all of them, such as a credit of its
+payment already paid out, is a case to reconcile. Two reversals of one invoice's payments therefore
+end alike whatever order the gateway reports them in, and whether the invoice was cancelled between
+them. The one exception is a credit of the earlier payment that covered a third reversal in turn:
+the lift does not lift that cover again, and what reaches it is a case as well. Where a reversal
+leaves an invoice owing — itself, or through a cover it lifted —, every attempt of that invoice
+that succeeded is marked reversed beside the attempt whose payment was taken back: none of them
+settles the invoice any more, and one that succeeded would keep every other attempt from being
+made. Its payment method collects that invoice no more either, even where its payment was paid out
+rather than reversed (`SC-PRIC-085`), and the subscriber is told once.
+
+_Source:_ #333 (decided 2026-10-15) · #334
 
 <!-- BEGIN proof -->
 
@@ -2011,6 +2038,10 @@ _Tested by:_
 - `packages/nest/tests/a-reversal-reopens-an-invoice.test.js`
     - two payments of one invoice, both no longer there
         - ${what}: both attempts reversed, told once, collected with a new card only
+        - a cover lifted that a third payment’s credit takes again opens nothing, and leaves both
+          attempts standing
+        - a lifted cover that meets a credit of its payment already paid out is the covered
+          reversal’s case, and audited as its
         - a failure followed up before the reversal holds no later direct debit back
         - a failure on the reversed card holds no direct debit back once the reversal was told
 
@@ -2515,6 +2546,8 @@ _Tested by:_
         - a reversal is told only once no attempt of any invoice of the chain is on its way, about
           the invoice that stands
         - a reversal of a payment that moved tells the subscriber the replacement is open again
+        - a reversal is followed up in its chain’s turn: read, told and marked on the transaction
+          that holds the chain
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - an invoice is corrected by a cancellation invoice
         - a database from before ends up with the schema the fragments declare, twice

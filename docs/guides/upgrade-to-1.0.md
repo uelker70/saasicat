@@ -2261,7 +2261,13 @@ a cancellation; the operator's route and command follow in the next release cand
   a cancellation invoice (`owedByInvoice`), settles a payment on the invoice that stands in its
   chain, leaves a cancellation invoice uncredited, implements `sharesOf` and `moveShares`, and
   takes every credit a payment left before it opens an invoice on a reversal (`withdrawalParts`
-  takes a list; `ReversalWithdrawal.credit` is `credits`).
+  takes a list; `ReversalWithdrawal.credit` is `credits`). A cover it lifts is taken as a withdrawal
+  of the covered payment would take it without that credit, as everything stands then
+  (`SC-PRIC-090`, which supersedes `SC-PRIC-088`): that payment's credits first, then the other open
+  credits for its invoices as the withdrawal lifting it left them — so that withdrawal is written
+  first —, then what it still settles of them, and a case for the rest, the covered reversal's
+  `fromCredit` growing by what it took of its payment's credits. `LiftedCover` says so: it names
+  `credits`, `covering`, `invoices`, `unmatched` and `case` where it named one `invoiceId`.
 - **An `InvoiceCollectionRepository` of your own** takes the chain's turn wherever it took the
   invoice's, collects no invoice of a chain while an attempt for one of them is unresolved, and
   none with a payment method one of the chain's payments was reversed on. It writes an attempt
@@ -2277,7 +2283,9 @@ a cancellation; the operator's route and command follow in the next release cand
   `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`, `SUBSCRIPTION_INVOICE_IS_CANCELLATION`,
   `SUBSCRIPTION_INVOICE_STATES_A_CREDIT` and `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`. The audit
   entry `SUBSCRIBER_REVERSAL_RECORDED` names `credits`, every credit of the payment it took from,
-  where it named one `credit`.
+  where it named one `credit`, and each of its `uncovered` as `LiftedCover` does, the case by its
+  `caseId`; what a lifted cover met that matched nothing is a `SUBSCRIBER_REVERSAL_UNMATCHED` of
+  the reversal it covered.
 
 ### The plan catalogue is read when it is asked for
 

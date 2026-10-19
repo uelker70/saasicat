@@ -113,7 +113,7 @@ export interface ReplacementIssue extends CorrectionIssue {
     directDebitLeadDays: number;
     /** The subscriber's payment method in use, as `invoicePaymentOf` records it, or `null`. */
     payment: SubscriptionInvoicePayment | null;
-    /** What was paid for the cancelled invoice and moves onto the replacement, before it takes it. */
+    /** What was paid for the cancelled invoice and moves onto the replacement, before it takes it: `paidByShares`. */
     paid: number;
 }
 
@@ -277,6 +277,22 @@ export interface MovedPaymentPart {
     credited: number;
 }
 
+/** Whether a share brings anything to move: one at or below nothing moves nothing. */
+const bringsSomething = (share: InvoicePaymentShare): boolean => toCents(share.amount) > 0;
+
+/**
+ * What the shares of a cancelled invoice bring to its replacement — the
+ * shares that move, as `movedPaymentParts` moves them —, which the replacement
+ * states as paid on issue as far as it owes it (`ReplacementIssue.paid`). So
+ * what the document states as paid is what moves onto it, and its amount due
+ * is what is collected.
+ */
+export function paidByShares(shares: readonly InvoicePaymentShare[]): number {
+    return (
+        shares.filter(bringsSomething).reduce((sum, share) => sum + toCents(share.amount), 0) / 100
+    );
+}
+
 /**
  * How each payment's share of a cancelled invoice moves onto its replacement,
  * which owes `replacementOwes` (`SC-PRIC-025`): in the order the payments were
@@ -295,7 +311,7 @@ export function movedPaymentParts(
                 a.recordedAt.getTime() - b.recordedAt.getTime() ||
                 a.paymentId.localeCompare(b.paymentId, 'en'),
         )
-        .filter((share) => toCents(share.amount) > 0)
+        .filter(bringsSomething)
         .map((share) => {
             const cents = toCents(share.amount);
             const movedIn = Math.min(cents, owes);
