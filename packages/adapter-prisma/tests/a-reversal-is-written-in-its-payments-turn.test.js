@@ -266,6 +266,7 @@ describe('a reversal', () => {
             currency: 'EUR',
             fromCredit: '0.00',
             reinstated: '0.00',
+            reinstatedToCases: '0.00',
             recordedAt: PAID_AT,
             reinstatedAt: null,
         });

@@ -55,6 +55,7 @@ const reversalRow = (paymentId) =>
         currency: 'EUR',
         fromCredit: '20.00',
         reinstated: '0.00',
+        reinstatedToCases: '0.00',
         recordedAt: '2026-02-20 09:00:00',
     });
 

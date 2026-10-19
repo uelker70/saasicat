@@ -36,16 +36,25 @@
 --   becomes one credit of a payment's own (the partial
 --   `subscriber_credits_one_per_payment`) and one per cancellation.
 --
+--   `subscriber_reversals`, where invoices are collected — given
+--   `reinstatedToCases`, the part of what the gateway gave back that covered
+--   the reversal's cases. A case can be opened after a give-back — lifting a
+--   cover after a cancellation opens one —, so it is recorded rather than
+--   inferred from what was given back. Each reversal recorded so far is given
+--   what that inference counted, the smaller of what was given back and what
+--   its cases hold, once: only where the column is added.
+--
 -- Skipped, with a notice, where there are no invoices; the part about
 -- settlements and credits is skipped, with a notice, where invoices are not
 -- collected. Nothing else is backfilled: no invoice was cancelled before this
--- file ran.
+-- file ran, and `reinstatedToCases` is filled only as it is added.
 --
 -- Safe to run again: every column, table and index is created only where it is
 -- missing, an index is dropped only where it is there, each foreign key is added
--- only where its name is not taken, and `chainId` is filled only where it is
--- empty. On a database created from `reference-schema.postgres.sql` the whole
--- file does nothing at all.
+-- only where its name is not taken, `chainId` is filled only where it is
+-- empty, and `reinstatedToCases` is filled only in the run that adds it. On a
+-- database created from `reference-schema.postgres.sql` the whole file does
+-- nothing at all.
 
 BEGIN;
 
@@ -179,6 +188,27 @@ BEGIN
             ADD CONSTRAINT "subscriber_credits_originCancellationId_fkey"
             FOREIGN KEY ("originCancellationId") REFERENCES "subscription_invoice_cancellations"("id")
             ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+
+    -- What a reversal's give-backs covered of its cases, recorded, and for a
+    -- reversal recorded so far what the inference before it counted.
+    IF to_regclass('subscriber_reversals') IS NOT NULL
+        AND to_regclass('subscriber_reconciliation_cases') IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+             WHERE table_schema = current_schema()
+               AND table_name = 'subscriber_reversals'
+               AND column_name = 'reinstatedToCases'
+        ) THEN
+        ALTER TABLE "subscriber_reversals"
+            ADD COLUMN "reinstatedToCases" DECIMAL(12,2) NOT NULL DEFAULT 0;
+        UPDATE "subscriber_reversals" AS r
+           SET "reinstatedToCases" = LEAST(r."reinstated", c.total)
+          FROM (SELECT "reversalId", SUM("amount") AS total
+                  FROM "subscriber_reconciliation_cases"
+                 WHERE "reversalId" IS NOT NULL
+                 GROUP BY "reversalId") AS c
+         WHERE c."reversalId" = r."id";
     END IF;
 END $$;
 

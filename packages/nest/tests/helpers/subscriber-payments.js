@@ -475,6 +475,7 @@ export class MemorySubscriberPayments {
                 currency: reported.currency,
                 fromCredit: 0,
                 reinstated: 0,
+                reinstatedToCases: 0,
                 recordedAt: reported.at,
                 reinstatedAt: null,
             };
@@ -493,8 +494,11 @@ export class MemorySubscriberPayments {
             Math.min(toCents(reported.reinstated), toCents(reversal.amount)) -
             toCents(reversal.reinstated);
         if (given > 0) {
-            reinstatement = this.#reinstate(reversal, payment, given / 100, reported.at);
+            const givenBack = this.#reinstate(reversal, payment, given / 100, reported.at);
+            reinstatement = givenBack.reinstatement;
             reversal.reinstated = (toCents(reversal.reinstated) + given) / 100;
+            reversal.reinstatedToCases =
+                (toCents(reversal.reinstatedToCases) + toCents(givenBack.toCases)) / 100;
             reversal.reinstatedAt = reported.at;
         }
         if (!withdrawal && !reinstatement) {
@@ -652,7 +656,7 @@ export class MemorySubscriberPayments {
     #reinstate(reversal, payment, amount, at) {
         const cases = this.cases.filter((each) => each.reversalId === reversal.id);
         const unmatched = cases.reduce((sum, each) => sum + toCents(each.amount), 0);
-        const coveredBefore = Math.min(toCents(reversal.reinstated), unmatched);
+        const coveredBefore = toCents(reversal.reinstatedToCases);
         const parts = reinstatementParts(amount, {
             unmatched: (unmatched - coveredBefore) / 100,
             credits: inWithdrawalOrder(
@@ -701,7 +705,15 @@ export class MemorySubscriberPayments {
                       at,
                   )
                 : null;
-        return { closedCases, credits: parts.credits, invoices: parts.invoices, credit };
+        return {
+            reinstatement: {
+                closedCases,
+                credits: parts.credits,
+                invoices: parts.invoices,
+                credit,
+            },
+            toCases: parts.covered,
+        };
     }
 
     #reversalEntry(reversal, kind, part, recordedAt) {

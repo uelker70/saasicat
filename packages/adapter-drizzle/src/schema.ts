@@ -833,6 +833,9 @@ export const subscriberReversals = pgTable('subscriber_reversals', {
     currency: text('currency').notNull(),
     fromCredit: numeric('fromCredit', { precision: 12, scale: 2 }).notNull(),
     reinstated: numeric('reinstated', { precision: 12, scale: 2 }).notNull(),
+    reinstatedToCases: numeric('reinstatedToCases', { precision: 12, scale: 2 })
+        .notNull()
+        .default('0'),
     recordedAt: ts('recordedAt').notNull().defaultNow(),
     reinstatedAt: ts('reinstatedAt'),
 });

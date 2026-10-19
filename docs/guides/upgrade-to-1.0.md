@@ -2234,8 +2234,9 @@ a cancellation; the operator's route and command follow in the next release cand
    `chainStep` and `paidOnIssue`, a line `chainStep` and `correctedPosition` — a charge now stands
    on one line per step of its chain, so `SubscriberLedgerEntry.invoiceLines` is a list —, the
    model `SubscriptionInvoiceCancellation` is new, a settlement gains `cancellationId` and the
-   kinds `MOVED_OUT` and `MOVED_IN`, and a credit `originCancellationId`. Where `notAdopted`
-   leaves the invoices out, name `SubscriptionInvoiceCancellation` with them.
+   kinds `MOVED_OUT` and `MOVED_IN`, a credit `originCancellationId`, and a reversal
+   `reinstatedToCases`. Where `notAdopted` leaves the invoices out, name
+   `SubscriptionInvoiceCancellation` with them.
 2. Run the migration once, **before** `db push`, after the two it builds on:
 
     ```bash
@@ -2245,8 +2246,10 @@ a cancellation; the operator's route and command follow in the next release cand
     It gives every invoice issued so far a chain of its own, creates the cancellations, moves the
     unique charge of a line to the unique charge per chain step, and lets a payment leave a credit
     of its own and one per cancellation (`subscriber_credits_one_per_payment`, which
-    `constraints.postgres.sql` holds as well). It does nothing on a second run, and the part about
-    payments nothing where invoices are not collected.
+    `constraints.postgres.sql` holds as well), and gives each reversal `reinstatedToCases`, what of
+    its give-backs covered its cases, as far as what it was given back and what its cases hold
+    allow. It does nothing on a second run, and the part about payments nothing where invoices are
+    not collected.
 
 3. The start refuses invoicing without `contractFreeze.transactionRunner`, the transaction a
    cancellation is written on. `SaaSiCatModule` passes the persistence bundle's; an application
@@ -2267,7 +2270,10 @@ a cancellation; the operator's route and command follow in the next release cand
   credits for its invoices as the withdrawal lifting it left them — so that withdrawal is written
   first —, then what it still settles of them, and a case for the rest, the covered reversal's
   `fromCredit` growing by what it took of its payment's credits. `LiftedCover` says so: it names
-  `credits`, `covering`, `invoices`, `unmatched` and `case` where it named one `invoiceId`.
+  `credits`, `covering`, `invoices`, `unmatched` and `case` where it named one `invoiceId`. A
+  give-back covers what a reversal's cases hold beyond its `reinstatedToCases` and adds what it
+  covered there, rather than counting every earlier give-back as having covered the cases: a case
+  can be opened after one (`subscriberReversalColumns` writes it as `0`).
 - **An `InvoiceCollectionRepository` of your own** takes the chain's turn wherever it took the
   invoice's, collects no invoice of a chain while an attempt for one of them is unresolved, and
   none with a payment method one of the chain's payments was reversed on. It writes an attempt

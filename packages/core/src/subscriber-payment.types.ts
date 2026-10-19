@@ -236,6 +236,14 @@ export interface SubscriberReversalRecord {
     fromCredit: number;
     /** What the gateway gave back of `amount`, a dispute won; `0` until it gives anything back. */
     reinstated: number;
+    /**
+     * The part of `reinstated` that covered the reversal's cases: what came
+     * back of what matched nothing. Recorded rather than inferred from
+     * `reinstated`, because a case can be opened after a give-back — the
+     * amount grew, or a cover was lifted —, and what was given back before it
+     * went elsewhere.
+     */
+    reinstatedToCases: number;
     recordedAt: Date;
     /** When the gateway last gave something back; `null` until it does. */
     reinstatedAt: Date | null;

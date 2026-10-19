@@ -119,15 +119,22 @@ export async function recordReversalIn(
         toCents(reversal.reinstated);
     let reinstatement: ReversalReinstatement | null = null;
     if (given > 0) {
-        reinstatement = await reinstate(db, reversal, payment, given / 100, reported.at);
+        const givenBack = await reinstate(db, reversal, payment, given / 100, reported.at);
+        reinstatement = givenBack.reinstatement;
         reversal = {
             ...reversal,
             reinstated: (toCents(reversal.reinstated) + given) / 100,
+            reinstatedToCases:
+                (toCents(reversal.reinstatedToCases) + toCents(givenBack.toCases)) / 100,
             reinstatedAt: reported.at,
         };
         await db
             .update(subscriberReversals)
-            .set({ reinstated: toDecimalString(reversal.reinstated), reinstatedAt: reported.at })
+            .set({
+                reinstated: toDecimalString(reversal.reinstated),
+                reinstatedToCases: toDecimalString(reversal.reinstatedToCases),
+                reinstatedAt: reported.at,
+            })
             .where(eq(subscriberReversals.id, reversal.id));
     }
     if (!withdrawal && !reinstatement) return { outcome: 'unchanged', reversal };
@@ -490,14 +497,18 @@ async function reversibleCredits(
     return reversibleCreditsOf(credits, taken / 100);
 }
 
-/** Writes what `amount`, newly given back by the gateway, returns of what the reversal took. */
+/**
+ * Writes what `amount`, newly given back by the gateway, returns of what the
+ * reversal took, and answers with the part of it that covered the reversal's
+ * cases, which the reversal records.
+ */
 async function reinstate(
     db: Db,
     reversal: SubscriberReversalRecord,
     payment: SubscriberPaymentRecord,
     amount: number,
     at: Date,
-): Promise<ReversalReinstatement> {
+): Promise<{ reinstatement: ReversalReinstatement; toCases: number }> {
     const cases = (
         await db
             .select()
@@ -509,8 +520,9 @@ async function reinstate(
             )
     ).map(toSubscriberReconciliationCaseRecord);
     const unmatched = cases.reduce((sum, each) => sum + toCents(each.amount), 0);
-    // What the gateway gave back before covered the unmatched part first.
-    const coveredBefore = Math.min(toCents(reversal.reinstated), unmatched);
+    // What earlier give-backs covered of them, as the reversal recorded it: a
+    // case opened after a give-back was not covered by it.
+    const coveredBefore = toCents(reversal.reinstatedToCases);
     const entries = (
         await db
             .select()
@@ -594,5 +606,8 @@ async function reinstate(
         parts.credited > 0
             ? await createCredit(db, payment, parts.credited, { originReversalId: reversal.id }, at)
             : null;
-    return { closedCases, credits: parts.credits, invoices: parts.invoices, credit };
+    return {
+        reinstatement: { closedCases, credits: parts.credits, invoices: parts.invoices, credit },
+        toCases: parts.covered,
+    };
 }

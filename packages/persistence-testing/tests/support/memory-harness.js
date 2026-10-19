@@ -2787,7 +2787,8 @@ export function createMemoryHarness() {
             .sort((a, b) => a.recordedAt - b.recordedAt || (a.id < b.id ? -1 : 1))
             .map((row) => toSubscriberReconciliationCaseRecord(structuredClone(row)));
         const unmatched = cases.reduce((sum, each) => sum + centsOf(each.amount), 0);
-        const coveredBefore = Math.min(centsOf(reversal.reinstated), unmatched);
+        // What earlier give-backs covered of them, as the reversal recorded it.
+        const coveredBefore = centsOf(reversal.reinstatedToCases);
         const entries = state.creditEntries
             .filter((row) => row.reversalId === reversal.id)
             .map((row) => toSubscriberCreditEntryRecord(structuredClone(row)));
@@ -2838,7 +2839,15 @@ export function createMemoryHarness() {
             parts.credited > 0
                 ? writeCredit(payment, parts.credited, { originReversalId: reversal.id }, at)
                 : null;
-        return { closedCases, credits: parts.credits, invoices: parts.invoices, credit };
+        return {
+            reinstatement: {
+                closedCases,
+                credits: parts.credits,
+                invoices: parts.invoices,
+                credit,
+            },
+            toCases: parts.covered,
+        };
     };
     const recordReversal = (reported) => {
         const paymentRow = state.payments.find(
@@ -2884,14 +2893,18 @@ export function createMemoryHarness() {
             Math.min(centsOf(reported.reinstated), centsOf(reversal.amount)) -
             centsOf(reversal.reinstated);
         if (given > 0) {
-            reinstatement = reinstateReversal(reversal, payment, given / 100, reported.at);
+            const givenBack = reinstateReversal(reversal, payment, given / 100, reported.at);
+            reinstatement = givenBack.reinstatement;
             reversal = {
                 ...reversal,
                 reinstated: (centsOf(reversal.reinstated) + given) / 100,
+                reinstatedToCases:
+                    (centsOf(reversal.reinstatedToCases) + centsOf(givenBack.toCases)) / 100,
                 reinstatedAt: reported.at,
             };
             Object.assign(row, {
                 reinstated: reversal.reinstated.toFixed(2),
+                reinstatedToCases: reversal.reinstatedToCases.toFixed(2),
                 reinstatedAt: reported.at,
             });
         }

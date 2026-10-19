@@ -2891,7 +2891,10 @@ describe('an invoice is corrected by a cancellation invoice', () => {
 
     const MIGRATION = '1.0-an-invoice-is-cancelled.postgres.sql';
 
-    /** The reference schema as rc.27 left it: no chain, no cancellation, one credit per payment. */
+    /**
+     * The reference schema as rc.27 left it: no chain, no cancellation, one
+     * credit per payment, and nothing recorded of what covered a reversal's cases.
+     */
     async function beforeTheMigration() {
         await freshGround();
         await client.query(
@@ -2906,7 +2909,8 @@ describe('an invoice is corrected by a cancellation invoice', () => {
                 'CREATE UNIQUE INDEX "subscription_invoice_lines_chargeId_key" ' +
                 '    ON "subscription_invoice_lines"("chargeId"); ' +
                 'ALTER TABLE "subscription_invoices" DROP COLUMN "chainId", ' +
-                '    DROP COLUMN "chainStep", DROP COLUMN "paidOnIssue"',
+                '    DROP COLUMN "chainStep", DROP COLUMN "paidOnIssue"; ' +
+                'ALTER TABLE "subscriber_reversals" DROP COLUMN "reinstatedToCases"',
         );
     }
 
@@ -2945,6 +2949,66 @@ describe('an invoice is corrected by a cancellation invoice', () => {
         assert.deepEqual(rows, [
             { id: 'invoice-1', chainId: 'invoice-1', chainStep: 0, paidOnIssue: '0.00' },
         ]);
+    });
+
+    // @requirement SC-PRIC-086 — A dispute won takes its reversal back, and what was paid meanwhile becomes a credit
+    test('a reversal given back before records what of that covered its cases, once', async () => {
+        await beforeTheMigration();
+        await anInvoiceFromBefore();
+        await client.query(
+            'INSERT INTO "subscription_invoice_collections" ("id", "invoiceId", "attempt", ' +
+                '"attemptKey", "gatewayAccount", "paymentMethodId", "paymentMethodType", ' +
+                '"customerRef", "paymentMethodRef", "invoiceNumber", "amount", "currency", ' +
+                '"status", "submittedAt", "heldAt") ' +
+                "VALUES ('attempt-1', 'invoice-1', 1, 'saasicat:collect:invoice-1:1', " +
+                "'stripe-main', 'pm-1', 'card', 'cus_1', 'pm_1', 'AHP-2026-000001', 58.31, 'EUR', " +
+                "'SUCCEEDED', NOW(), NOW())",
+        );
+        await client.query(
+            'INSERT INTO "subscriber_payments" ("id", "subscriberId", "tenantId", "invoiceId", ' +
+                '"collectionId", "gatewayAccount", "provider", "gatewayRef", "amount", "currency") ' +
+                "VALUES ('p-1', 's-1', 't-1', 'invoice-1', 'attempt-1', 'stripe-main', 'stripe', " +
+                "'pi_1', 58.31, 'EUR')",
+        );
+        // Given back 30 with a case of 20, 10 with one of 25, and 5 with none.
+        await client.query(
+            'INSERT INTO "subscriber_reversals" ("id", "subscriberId", "tenantId", "paymentId", ' +
+                '"gatewayAccount", "gatewayRef", "amount", "currency", "fromCredit", "reinstated", ' +
+                '"reinstatedAt") VALUES ' +
+                "('r-1', 's-1', 't-1', 'p-1', 'stripe-main', 'du_1', 50, 'EUR', 0, 30, NOW()), " +
+                "('r-2', 's-1', 't-1', 'p-1', 'stripe-main', 'du_2', 40, 'EUR', 0, 10, NOW()), " +
+                "('r-3', 's-1', 't-1', 'p-1', 'stripe-main', 'du_3', 20, 'EUR', 0, 5, NOW())",
+        );
+        await client.query(
+            'INSERT INTO "subscriber_reconciliation_cases" ("id", "subscriberId", "tenantId", ' +
+                '"kind", "amount", "currency", "paymentId", "reversalId", "gatewayAccount", ' +
+                '"gatewayRef") VALUES ' +
+                "('case-1', 's-1', 't-1', 'REVERSAL_UNMATCHED', 20, 'EUR', 'p-1', 'r-1', " +
+                "'stripe-main', 'du_1'), " +
+                "('case-2', 's-1', 't-1', 'REVERSAL_UNMATCHED', 25, 'EUR', 'p-1', 'r-2', " +
+                "'stripe-main', 'du_2')",
+        );
+        const toCases = async () =>
+            (
+                await client.query(
+                    'SELECT "id", "reinstatedToCases"::text AS "toCases" ' +
+                        'FROM "subscriber_reversals" ORDER BY "id"',
+                )
+            ).rows;
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await toCases(), [
+            { id: 'r-1', toCases: '20.00' },
+            { id: 'r-2', toCases: '10.00' },
+            { id: 'r-3', toCases: '0.00' },
+        ]);
+        // What a give-back records afterwards is not counted over by a second run.
+        await client.query(
+            'UPDATE "subscriber_reversals" SET "reinstatedToCases" = 15 WHERE "id" = \'r-1\'',
+        );
+        await apply(MIGRATION);
+        assert.deepEqual((await toCases())[0], { id: 'r-1', toCases: '15.00' });
     });
 
     test('the files that created the invoices and the payments, run again, leave the chain in place', async () => {

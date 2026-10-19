@@ -514,19 +514,32 @@ describe('a reversal row', () => {
 
     test('is first written with nothing withdrawn, which its entries raise', () => {
         assert.deepEqual(
-            [Number(row.amount), Number(row.fromCredit), Number(row.reinstated), row.reinstatedAt],
-            [0, 0, 0, null],
+            [
+                Number(row.amount),
+                Number(row.fromCredit),
+                Number(row.reinstated),
+                Number(row.reinstatedToCases),
+                row.reinstatedAt,
+            ],
+            [0, 0, 0, 0, null],
         );
         const record = toSubscriberReversalRecord({
             ...row,
             amount: '120.00',
             fromCredit: '20.00',
             reinstated: '15.00',
+            reinstatedToCases: '15.00',
             reinstatedAt: AT,
         });
         assert.deepEqual(
-            [record.paymentId, record.amount, record.fromCredit, record.reinstated],
-            ['p-1', 120, 20, 15],
+            [
+                record.paymentId,
+                record.amount,
+                record.fromCredit,
+                record.reinstated,
+                record.reinstatedToCases,
+            ],
+            ['p-1', 120, 20, 15, 15],
         );
     });
 
@@ -539,6 +552,14 @@ describe('a reversal row', () => {
         [{ amount: '10.00', fromCredit: '-0.01' }, 'takes a negative part'],
         [{ amount: '10.00', reinstated: '5.00' }, 'is given something back without when'],
         [{ amount: '10.00', reinstatedAt: AT }, 'carries when without being given anything'],
+        [
+            { amount: '10.00', reinstated: '5.00', reinstatedToCases: '5.01', reinstatedAt: AT },
+            'covered its cases with more than was given back',
+        ],
+        [
+            { amount: '10.00', reinstated: '5.00', reinstatedToCases: '-0.01', reinstatedAt: AT },
+            'covered its cases with a negative part',
+        ],
     ]) {
         test(`that ${why} stops the read`, () => {
             assert.throws(

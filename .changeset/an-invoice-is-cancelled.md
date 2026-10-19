@@ -53,6 +53,12 @@ reversals end alike in either order where a third payment left a credit as
 well. `LiftedCover` names `credits`, `covering`, `invoices`, `unmatched` and
 `case` where it named one `invoiceId`.
 
+A reversal records what of its give-backs covered its cases
+(`reinstatedToCases`). A case opened after a give-back — the reversal grew, or
+a cover was lifted — was counted as covered by it, closed as given back while
+no money came back for it, and what came back afterwards settled an invoice
+instead. The migration gives each reversal so far what that count was.
+
 `zugferdInvoiceRenderer()` states what a replacement took over as paid, on its
 page and as BT-113, and the amount due less it, and announces a direct debit of
 the rest alone; `@saasicat/tax-de`'s check refuses

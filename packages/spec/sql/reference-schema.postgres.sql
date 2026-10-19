@@ -1052,6 +1052,7 @@ CREATE TABLE "subscriber_reversals" (
     "currency" TEXT NOT NULL,
     "fromCredit" DECIMAL(12,2) NOT NULL,
     "reinstated" DECIMAL(12,2) NOT NULL,
+    "reinstatedToCases" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reinstatedAt" TIMESTAMP(3),
 

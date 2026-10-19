@@ -1132,12 +1132,14 @@ export interface SubscriberPaymentRepository {
      * invoices as the withdrawal lifting it left them, then the invoices it
      * still settles —, and what goes beyond is a case of that reversal
      * (`SC-PRIC-090`, `ReversalWithdrawal.uncovered`). What the gateway gives
-     * back returns to the payment's own credit before the covering ones. What the gateway newly
-     * gave back covers the reversal's cases first, closing each it covers, then
-     * gives back what it took of the credit, then settles again what it opened
-     * as far as the invoice still owes, and what an invoice no longer owes is a
-     * credit (`SC-PRIC-086`). Throws for a reversal in another currency than
-     * its payment.
+     * back returns to the payment's own credit before the covering ones. What
+     * the gateway newly gave back covers first what the reversal's cases hold
+     * beyond what earlier give-backs covered of them, which the reversal
+     * records (`reinstatedToCases`) — a case can be opened after a give-back —,
+     * closing each it covers in full, then gives back what it took of the
+     * credit, then settles again what it opened as far as the invoice still
+     * owes, and what an invoice no longer owes is a credit (`SC-PRIC-086`).
+     * Throws for a reversal in another currency than its payment.
      */
     recordReversal(
         reversal: ReportedSubscriberReversal,

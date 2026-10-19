@@ -9605,6 +9605,60 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
+        // @requirement SC-PRIC-086
+        test('a case a reversal opens as it grows after a give-back is covered only by what is given back after it', async (t) => {
+            const account = await paidOnce(t, 'tenant-reversal-grows-after-a-give-back', 5);
+            if (!account) return;
+            const { payments, invoiceId, subscriberId } = account;
+            // 3 taken of the credit and given back to it, then the credit paid out.
+            await payments.recordReversal(reversalOf('du_1', 'pi_paid', 3));
+            await payments.recordReversal(reversalOf('du_1', 'pi_paid', 3, 3, GIVEN_BACK_AT));
+            await payments.recordRefund(refundOf('re_1', 'pi_paid', 5));
+            // Grown to 8: 2 meet the credit paid out, 3 open the invoice.
+            await payments.recordReversal(reversalOf('du_1', 'pi_paid', 8, 3, GIVEN_BACK_AT));
+            assert.deepEqual(
+                [
+                    (await payments.listCases({ state: 'open', subscriberId }, { limit: 10 })).map(
+                        (each) => [each.gatewayRef, each.amount],
+                    ),
+                    await payments.owedBy(invoiceId),
+                ],
+                [[['du_1', 2]], 3],
+                'the premise: a case of 2, opened after the give-back',
+            );
+
+            const later = await payments.recordReversal(
+                reversalOf('du_1', 'pi_paid', 8, 4, GIVEN_BACK_AT),
+            );
+
+            assert.ok(later.outcome === 'recorded' && later.reinstatement);
+            assert.deepEqual(
+                [
+                    later.reinstatement.closedCases,
+                    later.reinstatement.invoices,
+                    later.reversal.reinstatedToCases,
+                ],
+                [[], [], 1],
+            );
+            assert.equal(
+                (await payments.listCases({ state: 'open', subscriberId }, { limit: 10 })).length,
+                1,
+            );
+            assert.equal(await payments.owedBy(invoiceId), 3);
+
+            // What covered the case is kept: of 2 more, 1 covers the rest of it and
+            // 1 settles the invoice again.
+            const last = await payments.recordReversal(
+                reversalOf('du_1', 'pi_paid', 8, 6, GIVEN_BACK_AT),
+            );
+            assert.ok(last.outcome === 'recorded' && last.reinstatement);
+            assert.deepEqual(
+                [last.reinstatement.closedCases.length, last.reversal.reinstatedToCases],
+                [1, 2],
+            );
+            assert.equal(await payments.owedBy(invoiceId), 2);
+        });
+
         // @requirement SC-PRIC-087
         test("a part given back returns to the payment's own credit before a covering one", async (t) => {
             const account = await paidOnce(t, 'tenant-reversal-given-in-order', 20);
@@ -10484,6 +10538,51 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 [['REVERSAL_UNMATCHED', 'du_a', gross]],
             );
             assert.equal(await payments.owedBy(invoiceId), 0);
+        });
+
+        // @requirement SC-PRIC-086
+        // @requirement SC-PRIC-090
+        test('a case a lifted cover opens after an earlier give-back is covered only by what is given back after it', async (t) => {
+            const account = await paidTwice(t, 'tenant-cancel-lift-after-a-give-back');
+            if (!account) return;
+            const { invoices, payments, gross, invoiceId, subscriberId } = account;
+            const net = (await invoices.findById(invoiceId))!.totalNet;
+            const unmatched = sumToCents(gross, -net);
+            assert.ok(net > 5 && unmatched > 1, 'the premise: room for the give-backs below');
+            await payments.recordReversal(reversalOf('du_a', 'pi_paid', gross));
+            // Given back before anything matched nothing: it returns to the covering credit.
+            await payments.recordReversal(reversalOf('du_a', 'pi_paid', gross, 5, GIVEN_BACK_AT));
+            const { replacement } = await cancelInvoice(invoiceId, { treatment: REVERSE_CHARGE });
+            assert.ok(replacement);
+            await payments.recordRefund(refundOf('re_1', 'pi_paid', unmatched));
+            await payments.recordReversal(reversalOf('du_b', 'pi_late', gross));
+            assert.deepEqual(
+                (await payments.listCases({ state: 'open', subscriberId }, { limit: 10 })).map(
+                    (each) => [each.gatewayRef, each.amount],
+                ),
+                [['du_a', unmatched]],
+                'the premise: the lifted cover met the credit paid out',
+            );
+            assert.equal(await payments.owedBy(replacement.id), sumToCents(net, -5));
+
+            const later = await payments.recordReversal(
+                reversalOf('du_a', 'pi_paid', gross, 6, GIVEN_BACK_AT),
+            );
+
+            assert.ok(later.outcome === 'recorded' && later.reinstatement);
+            assert.deepEqual(
+                [
+                    later.reinstatement.closedCases,
+                    later.reinstatement.invoices,
+                    later.reversal.reinstatedToCases,
+                ],
+                [[], [], 1],
+            );
+            assert.equal(
+                (await payments.listCases({ state: 'open', subscriberId }, { limit: 10 })).length,
+                1,
+            );
+            assert.equal(await payments.owedBy(replacement.id), sumToCents(net, -5));
         });
 
         // @requirement SC-PRIC-025

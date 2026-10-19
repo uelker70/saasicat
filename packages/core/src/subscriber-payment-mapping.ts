@@ -434,6 +434,7 @@ export interface CanonicalSubscriberReversalRow {
     currency: string;
     fromCredit: unknown;
     reinstated: unknown;
+    reinstatedToCases: unknown;
     recordedAt: Date;
     reinstatedAt: Date | null;
 }
@@ -450,11 +451,18 @@ export function toSubscriberReversalRecord(
     const amount = columnAmountOf(row.amount, where('amount'));
     const fromCredit = columnAmountOf(row.fromCredit, where('fromCredit'));
     const reinstated = columnAmountOf(row.reinstated, where('reinstated'));
+    const toCases = columnAmountOf(row.reinstatedToCases, where('reinstatedToCases'));
     const within = (part: number) => part >= 0 && toCents(part) <= toCents(amount);
     if (!within(fromCredit) || !within(reinstated)) {
         throw new Error(
             `${REVERSALS} row '${row.id}' takes ${fromCredit} from the credit and is given back ` +
                 `${reinstated} of the ${amount} it withdrew; each is a part of it.`,
+        );
+    }
+    if (toCases < 0 || toCents(toCases) > toCents(reinstated)) {
+        throw new Error(
+            `${REVERSALS} row '${row.id}' covered ${toCases} of its cases with the ${reinstated} ` +
+                'given back of it; what covered them is a part of that.',
         );
     }
     if (reinstated > 0 !== (row.reinstatedAt !== null)) {
@@ -474,6 +482,7 @@ export function toSubscriberReversalRecord(
         currency: row.currency,
         fromCredit,
         reinstated,
+        reinstatedToCases: toCases,
         recordedAt: row.recordedAt,
         reinstatedAt: row.reinstatedAt,
     };
@@ -487,10 +496,14 @@ export function toSubscriberReversalRecord(
 export function subscriberReversalColumns(
     reversal: ReportedSubscriberReversal,
     payment: { id: string; subscriberId: string; tenantId: string },
-): Omit<CanonicalSubscriberReversalRow, 'id' | 'amount' | 'fromCredit' | 'reinstated'> & {
+): Omit<
+    CanonicalSubscriberReversalRow,
+    'id' | 'amount' | 'fromCredit' | 'reinstated' | 'reinstatedToCases'
+> & {
     amount: string;
     fromCredit: string;
     reinstated: string;
+    reinstatedToCases: string;
 } {
     return {
         subscriberId: payment.subscriberId,
@@ -502,6 +515,7 @@ export function subscriberReversalColumns(
         currency: reversal.currency,
         fromCredit: toDecimalString(0),
         reinstated: toDecimalString(0),
+        reinstatedToCases: toDecimalString(0),
         recordedAt: reversal.at,
         reinstatedAt: null,
     };

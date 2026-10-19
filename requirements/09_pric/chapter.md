@@ -1921,6 +1921,9 @@ _Tested by:_
     - a reversal the gateway gives back
         - after the invoice was paid again leaves that payment as a credit, audited
         - closes the cases it opened, audited as closed because the money came back
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an invoice is corrected by a cancellation invoice
+        - a reversal given back before records what of that covered its cases, once
 - `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
     - the tenant page's payments
         - a credit a reversal given back left names the reversal
@@ -2552,6 +2555,7 @@ _Tested by:_
     - an invoice is corrected by a cancellation invoice
         - a database from before ends up with the schema the fragments declare, twice
         - an invoice issued before begins a chain of its own, paid on issue by nothing
+        - a reversal given back before records what of that covered its cases, once
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through

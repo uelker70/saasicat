@@ -188,24 +188,26 @@ model SubscriberRefund {
 }
 
 model SubscriberReversal {
-    id             String    @id @default(uuid())
-    subscriberId   String
+    id                String    @id @default(uuid())
+    subscriberId      String
     // The tenant the payment's invoice was for, as a trace; no relation to it.
-    tenantId       String
-    paymentId      String
-    gatewayAccount String
+    tenantId          String
+    paymentId         String
+    gatewayAccount    String
     // The gateway's own reference to it, such as a dispute's, unique within its account.
-    gatewayRef     String
+    gatewayRef        String
     // What the gateway withdrew so far, positive.
-    amount         Decimal   @db.Decimal(12, 2)
-    currency       String
+    amount            Decimal   @db.Decimal(12, 2)
+    currency          String
     // The part of `amount` taken from the credit the payment left, open or paid out.
-    fromCredit     Decimal   @db.Decimal(12, 2)
+    fromCredit        Decimal   @db.Decimal(12, 2)
     // What the gateway gave back of `amount` so far, a dispute won.
-    reinstated     Decimal   @db.Decimal(12, 2)
-    recordedAt     DateTime  @default(now())
+    reinstated        Decimal   @db.Decimal(12, 2)
+    // The part of `reinstated` that covered the reversal's cases, written as it is given back.
+    reinstatedToCases Decimal   @default(0) @db.Decimal(12, 2)
+    recordedAt        DateTime  @default(now())
     // When the gateway last gave something back.
-    reinstatedAt   DateTime?
+    reinstatedAt      DateTime?
 
     subscriber  Subscriber                     @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
     payment     SubscriberPayment              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
