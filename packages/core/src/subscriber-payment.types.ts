@@ -71,7 +71,7 @@ export type SubscriberCreditOrigin =
     | { kind: 'reversal'; reversalId: string }
     /**
      * What a payment settled of an invoice that was cancelled, which the
-     * replacement did not take (`SC-PRIC-025`); a reversal of the payment takes
+     * replacement did not take (`SC-PRIC-091`); a reversal of the payment takes
      * it back as the payment's own (`SC-PRIC-084`).
      */
     | { kind: 'cancellation'; cancellationId: string; paymentId: string };

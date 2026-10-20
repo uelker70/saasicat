@@ -1451,6 +1451,10 @@ _Source:_ #212
 
 _Tested by:_
 
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the preview route
+        - answers what the cancellation would write, and writes nothing
+        - of another tenant’s invoice is refused as none
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
     - quasarConfirmOptions
         - carries the wording the page wrote, not a generic "are you sure"

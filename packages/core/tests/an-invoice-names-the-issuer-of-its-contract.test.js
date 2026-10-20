@@ -8,7 +8,7 @@
 // (`SettingsChangeRecord`): the file it replaced and the file it applied, the
 // declaration of a correction included.
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -137,7 +137,7 @@ describe('the issuer an invoice names', () => {
     });
 });
 
-// @requirement SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
+// @requirement SC-PRIC-093 — An invoice carries the issuer's footer as it was on the day it was issued
 describe('the footer an invoice carries', () => {
     const FOOTER = ['Amtsgericht München HRB 123456', 'IBAN DE02 1203 0000 0000 2020 51'];
 

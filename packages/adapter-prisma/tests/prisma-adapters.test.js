@@ -989,7 +989,7 @@ describe('prismaPersistence()', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('PrismaSubscriptionContractRepository.listRunningIssuers', () => {
     /** The delegate, recording what it was asked for. */
     function fakeContracts(rows) {

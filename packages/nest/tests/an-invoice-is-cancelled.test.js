@@ -70,7 +70,7 @@ async function runAt(installation, at) {
     return installation.collect(at);
 }
 
-// @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
 describe('an invoice cancelled by the operator', () => {
     clockFrom(FIRST_RUN);
 
@@ -322,7 +322,7 @@ describe('an invoice cancelled by the operator', () => {
     });
 });
 
-// @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
 // @requirement SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 describe('a cancellation refused', () => {
     clockFrom(FIRST_RUN);
@@ -427,6 +427,160 @@ describe('a cancellation refused', () => {
         const service = new InvoiceCancellationService(null, null, null, null, null, {}, null);
 
         assert.throws(() => service.onModuleInit(), /contractFreeze\.transactionRunner/);
+    });
+});
+
+// @requirement SC-PRIC-094 — Every invoice reaches the subscriber by email, with its file attached
+describe('the documents of a cancellation', () => {
+    clockFrom(FIRST_RUN);
+
+    /** Cancels the installation's invoice with `request`, then archives and mails what is due. */
+    async function cancelledAndMailed(installation, request) {
+        const cancelled = await installation.cancellation.cancel(
+            't1',
+            installation.invoice.id,
+            request,
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        await installation.documents.archiveDue(after(CANCELLED_AT, { minutes: 15 }));
+        await installation.documents.deliverDue();
+        return cancelled;
+    }
+
+    /** Where each invoice of the cancellation was sent, by number. */
+    const sentOf = ({ mail }, cancelled) =>
+        [cancelled.cancellationInvoice, cancelled.replacement].map((invoice) => [
+            invoice.number,
+            mail.sent.find((each) => each.invoice.id === invoice.id)?.to ?? null,
+        ]);
+
+    test('go to the address given with the cancellation, and the record keeps its own', async () => {
+        const installation = await anInvoiceToCollect();
+        const { subscriber, subscribers } = installation;
+        const recorded = (await subscribers.getById(subscriber.id)).invoiceEmail;
+
+        const cancelled = await cancelledAndMailed(installation, {
+            ...REQUEST,
+            deliverTo: 'accounts@t1.example',
+        });
+
+        assert.deepEqual(sentOf(installation, cancelled), [
+            [cancelled.cancellationInvoice.number, 'accounts@t1.example'],
+            [cancelled.replacement.number, 'accounts@t1.example'],
+        ]);
+        assert.equal((await subscribers.getById(subscriber.id)).invoiceEmail, recorded);
+    });
+
+    test('go to the invoice email on the record where no address was given', async () => {
+        const installation = await anInvoiceToCollect();
+        const recorded = (await installation.subscribers.getById(installation.subscriber.id))
+            .invoiceEmail;
+
+        const cancelled = await cancelledAndMailed(installation, REQUEST);
+
+        assert.deepEqual(sentOf(installation, cancelled), [
+            [cancelled.cancellationInvoice.number, recorded],
+            [cancelled.replacement.number, recorded],
+        ]);
+    });
+
+    test('of a replacement cancelled in turn before it was sent go where each cancellation said', async () => {
+        const installation = await anInvoiceToCollect();
+        const { cancellation, invoice, documents, mail } = installation;
+        const first = await cancellation.cancel(
+            't1',
+            invoice.id,
+            { ...REQUEST, deliverTo: 'first@t1.example' },
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        // Archived, so that it can be cancelled, and not sent yet.
+        await documents.archiveDue(after(CANCELLED_AT, { minutes: 15 }));
+        const second = await cancellation.cancel(
+            't1',
+            first.replacement.id,
+            { ...REQUEST, deliverTo: 'second@t1.example' },
+            'operator:anna',
+            after(CANCELLED_AT, { minutes: 20 }),
+        );
+
+        await documents.archiveDue(after(CANCELLED_AT, { minutes: 30 }));
+        await documents.deliverDue();
+
+        const sentTo = (id) => mail.sent.find((each) => each.invoice.id === id)?.to ?? null;
+        assert.deepEqual(
+            [
+                sentTo(first.cancellationInvoice.id),
+                sentTo(first.replacement.id),
+                sentTo(second.cancellationInvoice.id),
+                sentTo(second.replacement.id),
+            ],
+            ['first@t1.example', 'first@t1.example', 'second@t1.example', 'second@t1.example'],
+        );
+    });
+
+    test('send the replacement’s notices where they sent the replacement, the record’s email beside it', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { invoice, collections, mail, subscriber, subscribers } = installation;
+        await installation.collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        assert.ok(
+            (await subscribers.getById(subscriber.id)).invoiceEmail,
+            'the premise: the record holds an invoice email',
+        );
+
+        const cancelled = await cancelledAndMailed(installation, {
+            ...REQUEST,
+            deliverTo: 'accounts@t1.example',
+        });
+        await delivering(installation)(
+            reversalReported('evt_r1', attempt.attemptKey, {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_1',
+                withdrawnCents: toCents(invoice.totalGross),
+            }),
+        );
+        await runAt(installation, after(CANCELLED_AT, { days: 1 }));
+
+        const told = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            told.map((each) => [each.notice.invoiceNumber, each.to]),
+            [[cancelled.replacement.number, 'accounts@t1.example']],
+        );
+    });
+
+    test('reach a subscriber whose record holds no invoice email, the replacement’s notices too', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { invoice, collections, mail, subscriber, subscribers } = installation;
+        await installation.collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        await subscribers.changeContact(subscriber.id, { invoiceEmail: null }, 'operator:anna');
+
+        const cancelled = await cancelledAndMailed(installation, {
+            ...REQUEST,
+            deliverTo: 'accounts@t1.example',
+        });
+        await delivering(installation)(
+            reversalReported('evt_r1', attempt.attemptKey, {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_1',
+                withdrawnCents: toCents(invoice.totalGross),
+            }),
+        );
+        await runAt(installation, after(CANCELLED_AT, { days: 1 }));
+
+        assert.deepEqual(sentOf(installation, cancelled), [
+            [cancelled.cancellationInvoice.number, 'accounts@t1.example'],
+            [cancelled.replacement.number, 'accounts@t1.example'],
+        ]);
+        const told = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            told.map((each) => [each.notice.invoiceNumber, each.to]),
+            [[cancelled.replacement.number, 'accounts@t1.example']],
+        );
     });
 });
 

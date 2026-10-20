@@ -180,7 +180,7 @@ describe('a period whose charges are all zero', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('the parties an invoice names', () => {
     test('are the subscriber as its record stands and the issuer the file names', async () => {
         const { run, store, subscribers, subscriber } = await aChargedSubscriber();
@@ -262,7 +262,7 @@ const namingFooter = (footer) => ({
     invoicing: { ...INVOICING_SETTINGS.invoicing, footer },
 });
 
-// @requirement SC-PRIC-077 — An invoice carries the issuer's footer as it was on the day it was issued
+// @requirement SC-PRIC-093 — An invoice carries the issuer's footer as it was on the day it was issued
 describe('the footer of an invoice', () => {
     test('is the lines the file names on the issue date, and stays when the file changes after', async () => {
         const settings = namingFooter([...FOOTER]);

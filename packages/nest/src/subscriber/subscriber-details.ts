@@ -4,11 +4,13 @@
 // business status a yes, a no or not stated.
 //
 // Every way a detail arrives goes through here: a new subscriber, a contact
-// change, a correction of the legal identity. A rule held on one of them and
-// not the others would let the same value in through the next door.
+// change, a correction of the legal identity, and a detail the operator
+// corrects for the replacement of a cancelled invoice. A rule held on one of
+// them and not the others would let the same value in through the next door.
 
 import { HttpException, UnprocessableEntityException } from '@nestjs/common';
 import type {
+    InvoiceSubscriberDetail,
     LegalIdentityField,
     NewSubscriberDetails,
     SubscriberContact,
@@ -20,6 +22,8 @@ import type {
 import {
     canonicalVatId,
     holdsOnlyXmlCharacters,
+    INVOICE_CORRECTION_MAX_LENGTH,
+    INVOICE_SUBSCRIBER_DETAILS,
     LEGAL_IDENTITY_FIELDS,
     SUBSCRIBER_ERROR_CODES,
     SUBSCRIBER_INVOICE_ADDRESS_FIELDS,
@@ -105,6 +109,38 @@ export function settleIdentityCorrection(
         values[field] = settleIdentityValue(field, correction[field]);
     }
     return values as SubscriberIdentityValues;
+}
+
+/**
+ * The details of the subscriber the operator corrects for the replacement of
+ * a cancelled invoice (`SC-PRIC-091`), each settled as the record's own are and
+ * at most `INVOICE_CORRECTION_MAX_LENGTH` characters once trimmed; a detail
+ * left out stays out.
+ */
+export function settleInvoiceCorrections(
+    corrections: Readonly<Partial<Record<InvoiceSubscriberDetail, string | null>>>,
+): Partial<Record<InvoiceSubscriberDetail, string | null>> {
+    const settled: Partial<Record<InvoiceSubscriberDetail, string | null>> = {};
+    for (const field of INVOICE_SUBSCRIBER_DETAILS) {
+        const value = corrections[field];
+        if (value === undefined) continue;
+        const detail =
+            field === 'legalName' || field === 'vatId' || field === 'taxNumber'
+                ? settleIdentityValue(field, value)
+                : settleContactValue(field, value);
+        if (detail !== null && detail.length > INVOICE_CORRECTION_MAX_LENGTH) throw invalid(field);
+        settled[field] = detail;
+    }
+    return settled;
+}
+
+/**
+ * Whether `text`, trimmed, can stand as an address an invoice is delivered
+ * to: shaped like an email address, as the record's invoice email is, and
+ * holding nothing a detail cannot (`holdsAsSubscriberDetail`).
+ */
+export function isDeliverableAddress(text: string): boolean {
+    return holdsAsSubscriberDetail(text) && isEmailShaped(text.trim());
 }
 
 function settleIdentityValue(field: LegalIdentityField, value: unknown): string | null {

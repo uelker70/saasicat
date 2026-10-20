@@ -141,7 +141,7 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 ### SC-PRIV-013 — A subscriber with no live tenant and no claim left keeps only what its documents need
 
 🟡 _(Decided, not yet delivered.)_ 🔒 Its tenant was its only live one (`SC-SCOPE-012`), and every
-contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-026`,
+contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-092`,
 `SC-AUD-020`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
 while a credit is still to be refunded, and until the latest end of the reversal period among all
 its payments (`SC-PRIC-084`); until then the contact data and the gateway reference needed to

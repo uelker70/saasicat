@@ -411,7 +411,7 @@ export interface TenantBillingModuleOptions {
              * the database (`SC-AUD-014`).
              */
             archive: ProviderSpec<InvoiceArchivePort>;
-            /** Sends an archived invoice to the subscriber with its file attached (`SC-PRIC-047`). */
+            /** Sends an archived invoice to the subscriber with its file attached (`SC-PRIC-094`). */
             mail: ProviderSpec<InvoiceMailPort>;
             /**
              * Where the attempts to collect the invoices through their payment

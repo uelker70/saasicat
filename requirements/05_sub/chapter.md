@@ -348,7 +348,7 @@ identifier or a change of name the same legal entity went through, which the ope
 with the values it replaces and the reason (`SC-ADM-020`); later invoices carry the corrected
 identity, and the contract keeps its copy as concluded. SaaSiCat cannot tell a correction from
 another legal entity taking over, so the operator declares which it is: a takeover is a transfer
-or a new contract rather than an edit, the same rule `SC-PRIC-026` applies to the issuer.
+or a new contract rather than an edit, the same rule `SC-PRIC-092` applies to the issuer.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 

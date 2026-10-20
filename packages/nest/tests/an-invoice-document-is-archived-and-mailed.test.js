@@ -433,7 +433,7 @@ describe('an invoice interrupted in archiving', () => {
     });
 });
 
-// @requirement SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
+// @requirement SC-PRIC-094 — Every invoice reaches the subscriber by email, with its file attached
 describe('an archived invoice’s mail', () => {
     test('goes to the invoice email on the subscriber’s record, with the archived file attached', async () => {
         const before = new Date();
@@ -676,7 +676,7 @@ describe('an invoice’s document downloaded later', () => {
 });
 
 // @requirement SC-PRIC-033 — An invoice interrupted in archiving keeps its number and is never issued twice
-// @requirement SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
+// @requirement SC-PRIC-094 — Every invoice reaches the subscriber by email, with its file attached
 describe('the quarter-hourly run', () => {
     test('issues an invoice, archives it and mails it in one run', async () => {
         const installation = anInvoicingInstallation();

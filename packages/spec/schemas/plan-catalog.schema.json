@@ -288,7 +288,7 @@
                         "pattern": "\\S",
                         "maxLength": 120
                     },
-                    "description": "Lines a business letter of the issuer has to state beyond the invoice's own content, printed at the foot of every page of its document: the register court and number and the managing directors of a GmbH (§ 35a GmbHG), a bank account to pay into, and the like — e.g. [\"Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster\", \"IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001\"]. An invoice copies them on its issue date, so a later change leaves the invoices issued before as they were (SC-PRIC-077). At most six lines of 120 characters, which is what fits the foot of a page."
+                    "description": "Lines a business letter of the issuer has to state beyond the invoice's own content, printed at the foot of every page of its document: the register court and number and the managing directors of a GmbH (§ 35a GmbHG), a bank account to pay into, and the like — e.g. [\"Amtsgericht München HRB 123456 · Geschäftsführer: Erika Muster\", \"IBAN DE02 1203 0000 0000 2020 51 · BIC BYLADEM1001\"]. An invoice copies them on its issue date, so a later change leaves the invoices issued before as they were (SC-PRIC-093). At most six lines of 120 characters, which is what fits the foot of a page."
                 }
             }
         },

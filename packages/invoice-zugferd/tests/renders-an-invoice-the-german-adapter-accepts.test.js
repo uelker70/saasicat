@@ -575,7 +575,7 @@ describe('a replacement', () => {
         assert.ok(!xml.includes('TotalPrepaidAmount'), 'nothing was paid on issue');
     });
 
-    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
     test('paid already, states what was paid and that nothing is due, and names no way of paying', async () => {
         const { content } = await render('replacement-paid');
         const [page] = await pageTexts(content);
@@ -592,7 +592,7 @@ describe('a replacement', () => {
         assert.ok(xml.includes('<ram:DuePayableAmount>0.00</ram:DuePayableAmount>'));
     });
 
-    // @requirement SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
     // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
     test('paid in part, announces the debit of what is left alone', async () => {
         const { content } = await render('replacement-paid-in-part');

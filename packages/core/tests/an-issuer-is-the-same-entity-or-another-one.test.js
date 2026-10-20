@@ -52,7 +52,7 @@ const issuerBlock = (overrides = {}) => ({
     ...overrides,
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('the identity of an issuer', () => {
     test('is the three fields a contract names it by, and nothing about how it is reached', () => {
         assert.deepEqual(issuerIdentityOf(issuerBlock()), GMBH);
@@ -119,7 +119,7 @@ describe('the identity of an issuer', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 // @requirement SC-AUD-020 — A contract is concluded with both parties, and carries them as they were that day
 describe('the copy a contract takes of the issuer', () => {
     test('carries the same three fields the start compares, and the address beside them', () => {
@@ -177,7 +177,7 @@ describe('the copy a contract takes of the issuer', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('the identity a record holds', () => {
     test('is read back out of the settings tree the last start wrote', () => {
         assert.deepEqual(recordedIssuerIdentity({ currency: 'EUR', issuer: issuerBlock() }), GMBH);
@@ -192,7 +192,7 @@ describe('the identity a record holds', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('what a start finds when it compares the two', () => {
     test('nothing named on either side is nothing to compare', () => {
         assert.deepEqual(classifyIssuerChange(null, undefined), { kind: 'none-named' });

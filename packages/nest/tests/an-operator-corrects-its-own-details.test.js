@@ -212,7 +212,7 @@ afterEach(async () => {
     app = undefined;
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('a start that finds the issuer where it left it', () => {
     test('names one for the first time, and says so', async () => {
         const port = new FakeAppliedSettingsPort();
@@ -288,7 +288,7 @@ describe('a start that finds the issuer where it left it', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('a start that finds another legal entity', () => {
     test('does not start, and names the contracts still running under the previous one', async () => {
         const port = portRecording(settingsOf(catalogWith(GMBH)));
@@ -538,7 +538,7 @@ describe('a start that finds another legal entity', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('what the comparison needs, and what it does without', () => {
     test('an installation that records nothing compares the issuer with nothing, and says so', async () => {
         const said = await capturingLogs(async () => {
@@ -591,7 +591,7 @@ describe('what the comparison needs, and what it does without', () => {
     });
 });
 
-// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-PRIC-092 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('what this start found stays what this start found', () => {
     test('a reader afterwards is told the correction, not that nothing moved', async () => {
         // The recorder replaces the record moments after the comparison, in a

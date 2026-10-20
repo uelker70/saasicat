@@ -1,4 +1,4 @@
-// What correcting an issued invoice writes (`SC-PRIC-025`): the cancellation
+// What correcting an issued invoice writes (`SC-PRIC-091`): the cancellation
 // invoice, which states the cancelled invoice reversed and asks for nothing;
 // the replacement for the charges still owed, named by the cancelled invoice's
 // parties with what the operator corrected; and how what was paid for the
@@ -96,12 +96,12 @@ export function draftCancellationInvoice(
 export interface ReplacementIssue extends CorrectionIssue {
     /**
      * The subscriber it names: the cancelled invoice's, with a correction of its
-     * legal identity since and what the operator corrected (`SC-PRIC-025`).
+     * legal identity since and what the operator corrected (`SC-PRIC-091`).
      */
     subscriber: SubscriptionInvoiceSubscriber;
-    /** The issuer it names: the cancelled invoice's, with a declared correction since (`SC-PRIC-026`). */
+    /** The issuer it names: the cancelled invoice's, with a declared correction since (`SC-PRIC-092`). */
     issuer: SubscriptionInvoiceIssuer;
-    /** The footer lines `config/saas.yaml` names on its issue date for that issuer (`SC-PRIC-077`). */
+    /** The footer lines `config/saas.yaml` names on its issue date for that issuer (`SC-PRIC-093`). */
     footer: readonly string[];
     /** The treatment the tax adapter decides for the parties it names, over its service period. */
     treatment: TaxTreatment;
@@ -122,7 +122,7 @@ export interface ReplacementIssue extends CorrectionIssue {
  * replaces. Its tax is the treatment decided for the parties it names; it takes
  * over what was paid for the cancelled invoice, as far as it owes it, and
  * states that as paid; only what remains is collected, and announced where a
- * direct debit collects it (`SC-PRIC-025`, `SC-PRIC-028`). Its payment term runs
+ * direct debit collects it (`SC-PRIC-091`, `SC-PRIC-028`). Its payment term runs
  * from its own issue date.
  */
 export function draftReplacementInvoice(
@@ -295,7 +295,7 @@ export function paidByShares(shares: readonly InvoicePaymentShare[]): number {
 
 /**
  * How each payment's share of a cancelled invoice moves onto its replacement,
- * which owes `replacementOwes` (`SC-PRIC-025`): in the order the payments were
+ * which owes `replacementOwes` (`SC-PRIC-091`): in the order the payments were
  * confirmed, the oldest first, each settling the replacement as far as it still
  * owes, so that what remains of the most recent ones is credited. Without a
  * replacement, every share is credited. A share of nothing moves nothing.

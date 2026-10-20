@@ -627,7 +627,7 @@ export interface SubscriptionInvoiceRepository {
 
     /**
      * Writes a cancellation in the turn of its chain, which the caller holds
-     * on `tx` (`SC-PRIC-025`): the cancellation invoice and the replacement,
+     * on `tx` (`SC-PRIC-091`): the cancellation invoice and the replacement,
      * each with the next number of its year, the cancellation a step after the
      * cancelled invoice in its chain and the replacement a step after that,
      * and the cancellation with its reason. Refused with
@@ -712,7 +712,7 @@ export interface SubscriptionInvoiceRepository {
      * it is not delivered and no run holds it, or the run that holds it took it
      * on before `staleBefore`. `true` where this run holds it now — of two
      * concurrent calls exactly one does — so that an invoice is mailed once
-     * however many instances run (`SC-PRIC-047`).
+     * however many instances run (`SC-PRIC-094`).
      */
     claimDelivery(
         invoiceId: string,
@@ -1007,7 +1007,7 @@ export interface SubscriberPaymentRepository {
     /**
      * What each payment still settles of `invoiceId` — its settlements, less
      * what reversals and an earlier cancellation took back —, with when it was
-     * recorded: what a cancellation of the invoice moves (`SC-PRIC-025`). Read
+     * recorded: what a cancellation of the invoice moves (`SC-PRIC-091`). Read
      * in the turn of the invoice's chain, which the caller holds on `tx`.
      */
     sharesOf(invoiceId: string, tx: TransactionContext): Promise<InvoicePaymentShare[]>;
@@ -1035,7 +1035,7 @@ export interface SubscriberPaymentRepository {
      * and returns the credit; `null`, writing nothing, where it is credited
      * already, its total is not negative, or it is a cancellation invoice,
      * whose total the invoice it cancels takes back rather than the subscriber
-     * is owed (`SC-PRIC-025`).
+     * is owed (`SC-PRIC-091`).
      */
     creditInvoice(
         invoiceId: string,

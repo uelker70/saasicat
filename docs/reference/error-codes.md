@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 279 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 281 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -267,30 +267,32 @@ Checkout offers and subscription contracts.
 
 Invoices issued from the charge journal.
 
-| Code                                         | Shipped English text                                                                                                                                                                            |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUBSCRIBER_CREDIT_NOT_FOUND`                | No credit '{creditId}' of this tenant's subscriber.                                                                                                                                             |
-| `SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`           | The credit {creditId} still owes {open}; nothing beyond that is paid out, and nothing was recorded.                                                                                             |
-| `SUBSCRIBER_PAYOUT_NOT_MADE_YET`             | A payout is recorded once it left: {paidOn} is after today, {today}.                                                                                                                            |
-| `SUBSCRIBER_RECONCILIATION_CASE_CLOSED`      | The case {caseId} was closed on {closedAt}; its note stands, and nothing was recorded.                                                                                                          |
-| `SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND`   | No case to reconcile '{caseId}'.                                                                                                                                                                |
-| `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`     | Invoice {number} is cancelled already. A mistake on its replacement is corrected by cancelling the replacement.                                                                                 |
-| `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`       | Charge '{chargeId}' already stands on an invoice.                                                                                                                                               |
-| `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`    | The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.                                                                                 |
-| `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`      | The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps. |
-| `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`     | The archived document of invoice {invoiceId} does not match the checksum recorded when it was rendered, and is not handed out.                                                                  |
-| `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED` | The document of invoice {invoiceId} is not archived yet.                                                                                                                                        |
-| `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED`      | The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.                                                           |
-| `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`      | The direct debit is announced once the subscriber has been told that collection {attemptKey} failed.                                                                                            |
-| `SUBSCRIPTION_INVOICE_IS_CANCELLATION`       | Invoice {number} is a cancellation invoice, which is not cancelled itself.                                                                                                                      |
-| `SUBSCRIPTION_INVOICE_MANDATE_MISSING`       | The direct debit {paymentMethodId} names no mandate reference, which has to be announced before it is debited. The invoice waits until the payment method is replaced.                          |
-| `SUBSCRIPTION_INVOICE_NOT_FOUND`             | No invoice '{invoiceId}'.                                                                                                                                                                       |
-| `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`      | Invoice {number} is cancelled only once its document is archived.                                                                                                                               |
-| `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`   | The subscriber's record holds no invoice email: name an address to deliver the cancellation of invoice {number} and its replacement to.                                                         |
-| `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`      | Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.                                                                                  |
-| `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD`     | The subscriber {subscriberId} has no payment method in use. The invoice is collected once one is.                                                                                               |
-| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`   | Contract {contractId} does not say who its parties were when it was concluded — a migration copied them, or it names no issuer — so its charges are not invoiced.                               |
-| `SUBSCRIPTION_INVOICE_STATES_A_CREDIT`       | Invoice {number} states a credit, which the subscriber was credited when it was issued; it is not cancelled.                                                                                    |
+| Code                                               | Shipped English text                                                                                                                                                                            |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUBSCRIBER_CREDIT_NOT_FOUND`                      | No credit '{creditId}' of this tenant's subscriber.                                                                                                                                             |
+| `SUBSCRIBER_PAYOUT_EXCEEDS_CREDIT`                 | The credit {creditId} still owes {open}; nothing beyond that is paid out, and nothing was recorded.                                                                                             |
+| `SUBSCRIBER_PAYOUT_NOT_MADE_YET`                   | A payout is recorded once it left: {paidOn} is after today, {today}.                                                                                                                            |
+| `SUBSCRIBER_RECONCILIATION_CASE_CLOSED`            | The case {caseId} was closed on {closedAt}; its note stands, and nothing was recorded.                                                                                                          |
+| `SUBSCRIBER_RECONCILIATION_CASE_NOT_FOUND`         | No case to reconcile '{caseId}'.                                                                                                                                                                |
+| `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`           | Invoice {number} is cancelled already. A mistake on its replacement is corrected by cancelling the replacement.                                                                                 |
+| `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID` | The cancellation of invoice {number} needs a reason of one line and at most {max} characters, which both invoices name.                                                                         |
+| `SUBSCRIPTION_INVOICE_CHARGE_INVOICED`             | Charge '{chargeId}' already stands on an invoice.                                                                                                                                               |
+| `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`          | The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.                                                                                 |
+| `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`    | The address to deliver the cancellation of invoice {number} and its replacement to is not an email address.                                                                                     |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_CHANGED`            | The document of invoice {invoiceId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the invoice keeps. |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`           | The archived document of invoice {invoiceId} does not match the checksum recorded when it was rendered, and is not handed out.                                                                  |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_NOT_ARCHIVED`       | The document of invoice {invoiceId} is not archived yet.                                                                                                                                        |
+| `SUBSCRIPTION_INVOICE_DOCUMENT_REFUSED`            | The tax adapter {adapter} refuses the rendered invoice: {missing}. The invoice keeps its number and waits for a document that passes.                                                           |
+| `SUBSCRIPTION_INVOICE_FAILURE_NOT_TOLD`            | The direct debit is announced once the subscriber has been told that collection {attemptKey} failed.                                                                                            |
+| `SUBSCRIPTION_INVOICE_IS_CANCELLATION`             | Invoice {number} is a cancellation invoice, which is not cancelled itself.                                                                                                                      |
+| `SUBSCRIPTION_INVOICE_MANDATE_MISSING`             | The direct debit {paymentMethodId} names no mandate reference, which has to be announced before it is debited. The invoice waits until the payment method is replaced.                          |
+| `SUBSCRIPTION_INVOICE_NOT_FOUND`                   | No invoice '{invoiceId}'.                                                                                                                                                                       |
+| `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`            | Invoice {number} is cancelled only once its document is archived.                                                                                                                               |
+| `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`         | The subscriber's record holds no invoice email: name an address to deliver the cancellation of invoice {number} and its replacement to.                                                         |
+| `SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL`            | Subscriber {subscriberId} has no invoice email, so its invoice cannot be sent; it is sent once one is entered.                                                                                  |
+| `SUBSCRIPTION_INVOICE_NO_PAYMENT_METHOD`           | The subscriber {subscriberId} has no payment method in use. The invoice is collected once one is.                                                                                               |
+| `SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED`         | Contract {contractId} does not say who its parties were when it was concluded — a migration copied them, or it names no issuer — so its charges are not invoiced.                               |
+| `SUBSCRIPTION_INVOICE_STATES_A_CREDIT`             | Invoice {number} states a credit, which the subscriber was credited when it was issued; it is not cancelled.                                                                                    |
 
 ## Subscribers
 

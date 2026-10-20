@@ -2,7 +2,7 @@
 // English beside them.
 //
 // What a cancellation invoice and a replacement say of the invoice they correct
-// (`SC-PRIC-025`, `SC-PRIC-089`), in German and in English, as the page shows it
+// (`SC-PRIC-091`, `SC-PRIC-089`), in German and in English, as the page shows it
 // and the XML states it: which invoice that is, why it was cancelled, and which
 // of its lines each line cancels or replaces.
 
@@ -28,7 +28,7 @@ export function xmlSignOf(invoice: SubscriptionInvoiceRecord): 1 | -1 {
 
 /**
  * What the invoice asks for: its total, less what was paid for the invoice a
- * replacement replaces and moved onto it when it was issued (`SC-PRIC-025`).
+ * replacement replaces and moved onto it when it was issued (`SC-PRIC-091`).
  */
 export function amountDueOf(invoice: SubscriptionInvoiceRecord): number {
     return sumToCents(invoice.totalGross, -invoice.paidOnIssue);

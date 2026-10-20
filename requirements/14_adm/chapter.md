@@ -391,6 +391,10 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - where the cancellation is served
+        - beside the invoices’ documents, announced as invoices.cancel with its audit action
+        - nowhere the administration shows no tenants
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
         - the corrections are announced beside the subscriber view, and only there
@@ -733,6 +737,17 @@ there before are `SC-ADM-005`'s.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
+    - the preview is the command, and the cancellation the second one
+        - with --apply it asks for the second factor and the confirmation, cancels as the operator
+          and records it
+
+<!-- END proof -->
+
 ### SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
 
 🟡 _(Decided, not yet delivered.)_ Resetting somebody's password, deactivating a user, cancelling an
@@ -743,10 +758,34 @@ part of the record. An early deletion is for a legal reason, such as abuse or an
 authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
-(`SC-PRIC-025`), and an address to deliver to where the subscriber's record no longer holds an
-invoice email (`SC-PRIC-047`). This entry supersedes `SC-ADM-006` in the change that delivers it.
+(`SC-PRIC-091`), and an address to deliver to where the subscriber's record no longer holds an
+invoice email (`SC-PRIC-094`). This entry supersedes `SC-ADM-006` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - what an operator gives a cancellation
+        - passes with a reason, and with corrections and an address beside it
+        - is trimmed before its lengths are checked, as the service settles it
+        - with ${why} is refused
+    - a cancellation settles what it is given before anything else
+        - the reason and the address trimmed, as the preview shows and the cancellation records them
+        - an address of blanks as none given
+        - refuses a reason ${why}, drawing no number
+        - takes a reason of exactly the longest length
+        - refuses an address ${why}
+        - each correction as the subscriber’s record holds that detail
+        - takes a correction of exactly the longest length
+        - refuses ${why}
+    - the cancellation route
+        - writes the cancellation and records it under the operator, the address not named
+        - of another tenant’s invoice is refused as none, and nothing is recorded
+
+<!-- END proof -->
 
 ### SC-ADM-021 — An operator finds everything about a subscriber in one record
 
@@ -833,8 +872,8 @@ contract, its account and its payment method move to it, together with the maste
 collected (`SC-PRIC-032`): the billing address and the invoice email replace what the earlier record
 kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
 (`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
-(`SC-PRIC-026`), and the contract keeps the party copy it was concluded with, which names the same
-legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
+(`SC-PRIC-092`), and the contract keeps the party copy it was concluded with, which names the same
+legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-091`),
 and the record created at
 sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
 whole history. A subscriber with a live tenant is not joined to a second one.

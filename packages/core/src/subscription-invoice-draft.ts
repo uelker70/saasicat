@@ -69,7 +69,7 @@ export interface InvoiceDraftInput {
     subscriberId: string;
     subscriber: SubscriptionInvoiceSubscriber;
     issuer: SubscriptionInvoiceIssuer;
-    /** The footer lines `config/saas.yaml` names now (`SC-PRIC-077`). */
+    /** The footer lines `config/saas.yaml` names now (`SC-PRIC-093`). */
     footer: readonly string[];
     /** The treatment the tax adapter decides for the subscriber now (`SC-PRIC-043`). */
     treatment: TaxTreatment;

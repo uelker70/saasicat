@@ -206,7 +206,7 @@ export class SubscriberService {
     /**
      * Who an invoice issued now is between: the subscriber as its record
      * stands, and the issuer as the running configuration names it — the
-     * configuration's half of the issuer an invoice names (`SC-PRIC-026`) —
+     * configuration's half of the issuer an invoice names (`SC-PRIC-092`) —
      * with the tax origin the invoice's treatment is decided from. Refused with
      * `SUBSCRIBER_IDENTITY_INCOMPLETE` while the address an invoice names has
      * gaps (`SC-PRIC-032`), and with `SUBSCRIBER_NOT_FOUND` for no subscriber.
@@ -241,7 +241,7 @@ export class SubscriberService {
 
     /**
      * The tax origin of `party`, an invoice's copy of this subscriber
-     * (`SC-PRIC-025`): its country and VAT id as the invoice names them, the
+     * (`SC-PRIC-091`): its country and VAT id as the invoice names them, the
      * business status as the record states it, and the VAT id validated only
      * where the record holds that same number with a valid check. A number
      * corrected on the invoice alone counts as not validated: it is corrected

@@ -199,7 +199,7 @@ export interface PlanCatalogInvoicing {
     directDebitLeadDays?: number;
     /**
      * What a business letter of the issuer states beyond the invoice's own
-     * content, line by line — copied onto every invoice issued (`SC-PRIC-077`).
+     * content, line by line — copied onto every invoice issued (`SC-PRIC-093`).
      */
     footer?: string[];
 }

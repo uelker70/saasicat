@@ -43,6 +43,8 @@ const LASTING = [
     'POST admin/reconciliation/:caseId/close',
     // Money the operator paid a subscriber, recorded for good (`SC-PRIC-083`).
     'POST admin/tenants/:slug/credits/:creditId/payouts',
+    // An issued invoice cancelled and replaced under new numbers (`SC-ADM-019`).
+    'POST admin/tenants/:slug/invoices/:invoiceId/cancellation',
     'POST admin/tenants/:slug/reactivate',
     // What the next invoice's tax is decided from, and whom it names
     // (`SC-SUB-017`, `SC-PRIC-043`).

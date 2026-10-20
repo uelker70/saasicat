@@ -546,7 +546,7 @@ _Source:_ #260 · #217
 file names in force — the file is the one place a setting lives — and the disagreement is what the
 next start records as a change. It is read for one thing that is not a setting, the legal entity this
 installation last ran as, and there it decides only whether the start continues at all
-(`SC-PRIC-026`); no value from it reaches anything that runs. Held three ways: a start against a
+(`SC-PRIC-092`); no value from it reaches anything that runs. Held three ways: a start against a
 record that says otherwise runs on the file's values, no code outside the record's own module, its
 wiring and that one check reaches for the port, and a record disagreeing about every other value
 still starts.

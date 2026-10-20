@@ -51,7 +51,7 @@ function sourceFiles(dir, out = []) {
  * this installation last ran as, and decides whether the start continues at
  * all; the invoice run reads the corrections of that entity the operator
  * declared, and decides which name and identifiers an invoice carries for a
- * contract concluded before them (`SC-PRIC-026`). A list cannot say that
+ * contract concluded before them (`SC-PRIC-092`). A list cannot say that
  * either reads nothing else, so that half is behavioural: in
  * `an-operator-corrects-its-own-details.test.js` a record disagreeing with the
  * file about every other value still starts, and still runs on the file's, and
