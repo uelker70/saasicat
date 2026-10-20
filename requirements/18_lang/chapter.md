@@ -269,6 +269,7 @@ _Tested by:_
         - reads in English where the interface is English
         - is worded by the code the error carries where its body names none
         - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code named like an inherited property reads as the failing side said it
         - of a code the platform does not know reads as the failing side said it
 - `packages/ui-vue/tests/component/a-code-flag-follows-the-language.test.ts`
     - a code flag follows the language that was chosen
@@ -461,6 +462,7 @@ _Tested by:_
         - falls back to the code only when there is no message either
         - reads top-level body fields when a placeholder is not in params
         - params win over a top-level field of the same name
+        - reads a code named like an inherited property, \
     - catalogueSentenceFor
         - words a known code in the catalogue, its placeholders filled from params
         - reads a top-level field where params name none, and params win over one
@@ -612,6 +614,7 @@ _Tested by:_
         - falls back to the code only when there is no message either
         - reads top-level body fields when a placeholder is not in params
         - params win over a top-level field of the same name
+        - reads a code named like an inherited property, \
     - catalogueSentenceFor
         - words a known code in the catalogue, its placeholders filled from params
         - reads a top-level field where params name none, and params win over one
@@ -655,6 +658,7 @@ _Tested by:_
         - reads in English where the interface is English
         - is worded by the code the error carries where its body names none
         - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code named like an inherited property reads as the failing side said it
         - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem

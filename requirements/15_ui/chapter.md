@@ -512,6 +512,7 @@ _Tested by:_
         - reads in English where the interface is English
         - is worded by the code the error carries where its body names none
         - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code named like an inherited property reads as the failing side said it
         - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
@@ -611,6 +612,7 @@ _Tested by:_
         - reads in English where the interface is English
         - is worded by the code the error carries where its body names none
         - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code named like an inherited property reads as the failing side said it
         - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem

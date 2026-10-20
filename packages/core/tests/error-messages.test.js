@@ -163,6 +163,15 @@ describe('resolveErrorMessage', () => {
             'n=2',
         );
     });
+
+    for (const code of ['constructor', 'toString']) {
+        test(`reads a code named like an inherited property, \`${code}\`, as unknown`, () => {
+            assert.equal(
+                resolveErrorMessage({ code, message: 'Not allowed here.' }),
+                'Not allowed here.',
+            );
+        });
+    }
 });
 
 describe('catalogueSentenceFor', () => {
@@ -199,6 +208,8 @@ describe('catalogueSentenceFor', () => {
     for (const [why, body] of [
         ['a code the catalogue does not know', { code: 'SOMETHING_NEW', params: { number: '1' } }],
         ['a body without a code', { params: { number: '1' } }],
+        ['a code named like an inherited property, `constructor`', { code: 'constructor' }],
+        ['a code named like an inherited property, `toString`', { code: 'toString' }],
         ['one value of two missing', { code: 'BOTH', params: { number: 'AHP-1' } }],
         [
             'a value without a text of its own',

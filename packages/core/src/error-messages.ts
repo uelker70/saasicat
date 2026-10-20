@@ -516,6 +516,19 @@ function parameterText(value: unknown): string | null {
     return items.every((item) => item !== null) ? items.join(',') : null;
 }
 
+/**
+ * The sentence `catalogue` holds for `code`, or `undefined`. Only text counts:
+ * a code arrives from outside, and `constructor` or `toString` would otherwise
+ * read the function every object inherits.
+ */
+function catalogueEntry(
+    catalogue: Partial<Record<string, string>>,
+    code: string,
+): string | undefined {
+    const entry = catalogue[code];
+    return typeof entry === 'string' ? entry : undefined;
+}
+
 /** A `{name}` placeholder of a message template, which this file's own catalogues write. */
 const PLACEHOLDER = /\{(\w+)\}/g;
 
@@ -544,7 +557,7 @@ export function catalogueSentenceFor(
 ): string | null {
     if (typeof body !== 'object' || body === null) return null;
     const code = 'code' in body ? body.code : undefined;
-    const template = typeof code === 'string' ? catalogue[code] : undefined;
+    const template = typeof code === 'string' ? catalogueEntry(catalogue, code) : undefined;
     if (template === undefined) return null;
     const values = new Map(Object.entries(body));
     const params = values.get('params');
@@ -596,7 +609,9 @@ export function resolveErrorMessage(
     defaults: Partial<Record<string, string>> = ERROR_MESSAGES_EN,
 ): string {
     const code = typeof body.code === 'string' ? body.code : undefined;
-    const template = (code && (overrides[code] ?? defaults[code])) ?? undefined;
+    const template = code
+        ? (catalogueEntry(overrides, code) ?? catalogueEntry(defaults, code))
+        : undefined;
     if (!template) {
         return typeof body.message === 'string' ? body.message : (code ?? '');
     }

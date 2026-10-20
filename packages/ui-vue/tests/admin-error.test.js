@@ -400,6 +400,19 @@ describe('a refusal the platform knows by its code', () => {
         );
     });
 
+    test('of a code named like an inherited property reads as the failing side said it', () => {
+        assert.equal(
+            adminErrorMessage(
+                refusal(
+                    { code: 'constructor', message: 'Not allowed here.' },
+                    { code: 'constructor', detail: 'Not allowed here.' },
+                ),
+                DE,
+            ),
+            'Not allowed here.',
+        );
+    });
+
     test('of a code the platform does not know reads as the failing side said it', () => {
         assert.equal(
             adminErrorMessage(
