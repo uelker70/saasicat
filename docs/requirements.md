@@ -16691,6 +16691,12 @@ _Tested by:_
         - but an error from app code keeps its message — that IS what was said
         - wraps a thrown string
         - survives a thrown nothing
+    - a refusal the platform knows by its code
+        - reads in the interface’s language with its values, not in the server’s
+        - reads in English where the interface is English
+        - is worded by the code the error carries where its body names none
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
         - a real fetch failure still says "check your connection"
@@ -16784,6 +16790,12 @@ _Tested by:_
         - but an error from app code keeps its message — that IS what was said
         - wraps a thrown string
         - survives a thrown nothing
+    - a refusal the platform knows by its code
+        - reads in the interface’s language with its values, not in the server’s
+        - reads in English where the interface is English
+        - is worded by the code the error carries where its body names none
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
         - a real fetch failure still says "check your connection"
@@ -19851,6 +19863,9 @@ _Source:_ #243 · release 0.19.0
 
 _Tested by:_
 
+- `packages/ui-vue/tests/admin-error.test.js`
+    - a refusal the platform knows by its code
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
 - `packages/ui-vue/tests/i18n.test.js`
     - i18n locales
         - German is the default locale
@@ -19936,6 +19951,13 @@ _Source:_ release 0.18.0
 
 _Tested by:_
 
+- `packages/ui-vue/tests/admin-error.test.js`
+    - a refusal the platform knows by its code
+        - reads in the interface’s language with its values, not in the server’s
+        - reads in English where the interface is English
+        - is worded by the code the error carries where its body names none
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code the platform does not know reads as the failing side said it
 - `packages/ui-vue/tests/component/a-code-flag-follows-the-language.test.ts`
     - a code flag follows the language that was chosen
         - English reads English
@@ -20127,6 +20149,11 @@ _Tested by:_
         - falls back to the code only when there is no message either
         - reads top-level body fields when a placeholder is not in params
         - params win over a top-level field of the same name
+    - catalogueSentenceFor
+        - words a known code in the catalogue, its placeholders filled from params
+        - reads a top-level field where params name none, and params win over one
+        - words a sentence without placeholders as it stands
+        - answers nothing for ${why}, so the caller falls back
 - `packages/nest/tests/error-params-contract.test.js`
     - error params contract
         - the sources contain coded throw sites at all
@@ -20273,6 +20300,11 @@ _Tested by:_
         - falls back to the code only when there is no message either
         - reads top-level body fields when a placeholder is not in params
         - params win over a top-level field of the same name
+    - catalogueSentenceFor
+        - words a known code in the catalogue, its placeholders filled from params
+        - reads a top-level field where params name none, and params win over one
+        - words a sentence without placeholders as it stands
+        - answers nothing for ${why}, so the caller falls back
 - `packages/ui-vue/tests/admin-error.test.js`
     - AdminError
         - defaults to status 0 — a request that never produced one
@@ -20306,6 +20338,12 @@ _Tested by:_
         - but an error from app code keeps its message — that IS what was said
         - wraps a thrown string
         - survives a thrown nothing
+    - a refusal the platform knows by its code
+        - reads in the interface’s language with its values, not in the server’s
+        - reads in English where the interface is English
+        - is worded by the code the error carries where its body names none
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
         - a real fetch failure still says "check your connection"

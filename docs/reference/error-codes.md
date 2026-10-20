@@ -4,7 +4,9 @@ Every code a platform error carries, with the English text shipped for it.
 
 **The code is the contract, not the message.** Resolve your own translation
 by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
-the text below. Renaming or removing a code is a breaking change; rewording
+the text below. The administration words each one in the language its
+interface is in — German and English ship with it —, with the values the
+refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
 Generated from `@saasicat/core` — 282 codes. Do not edit by hand:
