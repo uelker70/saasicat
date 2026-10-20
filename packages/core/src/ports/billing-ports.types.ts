@@ -712,7 +712,7 @@ export interface SubscriptionInvoiceRepository {
      * it is not delivered and no run holds it, or the run that holds it took it
      * on before `staleBefore`. `true` where this run holds it now — of two
      * concurrent calls exactly one does — so that an invoice is mailed once
-     * however many instances run (`SC-PRIC-047`).
+     * however many instances run (`SC-PRIC-094`).
      */
     claimDelivery(
         invoiceId: string,

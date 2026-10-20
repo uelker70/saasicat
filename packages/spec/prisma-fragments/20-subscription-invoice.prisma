@@ -156,7 +156,7 @@ model SubscriptionInvoiceLine {
 // of what was paid (24-subscriber-payments.prisma). The operator's reason, the
 // subscriber's details corrected for the replacement — each with the value it
 // replaces —, an address to deliver to where the subscriber's record holds no
-// invoice email (`SC-PRIC-047`), who cancelled and when. An invoice is
+// invoice email (`SC-PRIC-094`), who cancelled and when. An invoice is
 // cancelled once: the unique `cancelledInvoiceId` refuses a second.
 model SubscriptionInvoiceCancellation {
     id                    String   @id @default(uuid())

@@ -688,7 +688,7 @@ export const INVOICE_ERROR_CODES = {
     /**
      * The subscriber's record (`subscriberId`) holds no invoice email, and the
      * cancellation of the invoice (`number`) names no address to deliver it
-     * and its replacement to (`SC-PRIC-047`).
+     * and its replacement to (`SC-PRIC-094`).
      */
     SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS: 'SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS',
     /**
@@ -759,7 +759,7 @@ export const INVOICE_ERROR_CODES = {
     SUBSCRIPTION_INVOICE_NOT_FOUND: 'SUBSCRIPTION_INVOICE_NOT_FOUND',
     /**
      * The subscriber's record holds no invoice email (`subscriberId`), so the
-     * archived invoice cannot be sent (`SC-PRIC-047`); it is sent once one is
+     * archived invoice cannot be sent (`SC-PRIC-094`); it is sent once one is
      * entered.
      */
     SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL: 'SUBSCRIPTION_INVOICE_NO_INVOICE_EMAIL',

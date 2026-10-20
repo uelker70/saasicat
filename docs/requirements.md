@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 93      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 94      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 649 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
-🔵 32 superseded, 🔴 3 withdrawn.
+Of 650 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+🔵 33 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -210,6 +210,7 @@ Of 649 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-PRIC-079](#sc-pric-079--an-invoice-is-collected-once-it-has-reached-the-subscriber),
 [SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
 [SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
+[SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
 [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-ENTL-021](#sc-entl-021--a-commercial-edit-does-not-reach-a-running-contract-a-feature-losing-its-code-does),
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
@@ -224,7 +225,7 @@ Of 649 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 649 requirements. Do not edit by hand:
+Generated from `requirements/` — 650 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -10890,7 +10891,7 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 The German adapter requires ZUGFeRD in the EN 16931 profile, one
 file a person reads as a PDF and a program reads as structured data, for cancellation and
-replacement invoices as well. That file is what is archived, sent (`SC-PRIC-047`) and downloaded
+replacement invoices as well. That file is what is archived, sent (`SC-PRIC-094`) and downloaded
 (`SC-AUD-014`). Rendering stays a port, so an application's own renderer can produce it. A rendered
 file the adapter's format check refuses is not issued. The content check and the format check come
 from one profile of the adapter, so content that passed before the number was drawn (`SC-PRIC-027`)
@@ -11257,17 +11258,34 @@ _Tested by:_
 
 ### SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
 
-🟢 💰 Cancellation and replacement invoices as well, sent to the invoice email on the subscriber's
-record once the document is archived (`SC-PRIC-033`), so a subscriber who never signs in, or whose
-tenant is gone, still receives it. A link in the message leads to the tenant's sign-in rather than
-to an address anyone holding it could open. Where the subscriber's record no longer holds an invoice
-email, as `SC-PRIV-013` allows once no claim is left, the operator enters an address to deliver to
-when cancelling the invoice, and cannot cancel without one; the address is kept with the
-cancellation and its reason and used for the replacement as well, rather than written back onto the
-subscriber's record. A message that cannot be delivered is shown to the operator, and the invoice
-stays issued: delivery is not what makes it an invoice.
+🔵 _(Superseded on 2026-10-20 by `SC-PRIC-094`.)_ 💰 Cancellation and replacement invoices as well,
+sent to the invoice email on the subscriber's record once the document is archived
+(`SC-PRIC-033`), so a subscriber who never signs in, or whose tenant is gone, still receives it.
+A link in the message leads to the tenant's sign-in rather than to an address anyone holding it
+could open. Where the subscriber's record no longer holds an invoice email, as `SC-PRIV-013`
+allows once no claim is left, the operator enters an address to deliver to when cancelling the
+invoice, and cannot cancel without one; the address is kept with the cancellation and its reason
+and used for the replacement as well, rather than written back onto the subscriber's record. A
+message that cannot be delivered is shown to the operator, and the invoice stays issued: delivery
+is not what makes it an invoice.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-094 — Every invoice reaches the subscriber by email, with its file attached
+
+🟢 💰 Cancellation and replacement invoices as well, sent to the invoice email on the subscriber's
+record once the document is archived (`SC-PRIC-033`), so a subscriber who never signs in, or
+whose tenant is gone, still receives it. A link in the message leads to the tenant's sign-in
+rather than to an address anyone holding it could open. The operator may give an address to
+deliver to when cancelling an invoice, and has to where the subscriber's record no longer holds
+an invoice email, as `SC-PRIV-013` allows once no claim is left. Where one is given, the
+cancellation invoice, its replacement and what the subscriber is told about collecting the
+replacement (`SC-PRIC-028`, `SC-PRIC-080`) go there, one address for all of it; the address is
+kept with the cancellation and its reason rather than written back onto the subscriber's record.
+A message that cannot be delivered is shown to the operator, and the invoice stays issued:
+delivery is not what makes it an invoice.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #334
 
 <!-- BEGIN proof -->
 
@@ -11295,9 +11313,13 @@ _Tested by:_
         - go to the address given with the cancellation, and the record keeps its own
         - go to the invoice email on the record where no address was given
         - of a replacement cancelled in turn before it was sent go where each cancellation said
+        - send the replacement’s notices where they sent the replacement, the record’s email beside
+          it
         - reach a subscriber whose record holds no invoice email, the replacement’s notices too
 
 <!-- END proof -->
+
+(decided 2026-10-20)
 
 ### SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
 
@@ -15692,7 +15714,7 @@ authority, and only once the export was offered (`SC-PRIV-017`): the operator is
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
 (`SC-PRIC-091`), and an address to deliver to where the subscriber's record no longer holds an
-invoice email (`SC-PRIC-047`). This entry supersedes `SC-ADM-006` in the change that delivers it.
+invoice email (`SC-PRIC-094`). This entry supersedes `SC-ADM-006` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -15703,6 +15725,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
+        - is trimmed before its lengths are checked, as the service settles it
         - with ${why} is refused
     - a cancellation settles what it is given before anything else
         - the reason and the address trimmed, as the preview shows and the cancellation records them
@@ -15711,6 +15734,7 @@ _Tested by:_
         - takes a reason of exactly the longest length
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
+        - takes a correction of exactly the longest length
         - refuses ${why}
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named

@@ -12,7 +12,7 @@
 // meanwhile and nothing was archived — with the new file in place of the one
 // recorded. Once archived, it is mailed to the subscriber's invoice email with
 // the file attached, or — for a cancellation invoice and its replacement — to
-// the address given with the cancellation, where one was (`SC-PRIC-047`).
+// the address given with the cancellation, where one was (`SC-PRIC-094`).
 
 import type { InvoiceCollectionNotice } from './invoice-collection-notice.types.js';
 import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
@@ -111,14 +111,15 @@ export interface InvoiceMail {
 export interface InvoiceNoticeMail {
     notice: InvoiceCollectionNotice;
     /**
-     * The invoice email on the subscriber's record, or, where it holds none,
-     * the address given with the cancellation the invoice is the replacement of.
+     * The invoice email on the subscriber's record, or, for a notice about a
+     * replacement, the address given with the cancellation that issued it,
+     * where one was.
      */
     to: string;
 }
 
 /**
- * Sends an invoice to the subscriber with its file attached (`SC-PRIC-047`),
+ * Sends an invoice to the subscriber with its file attached (`SC-PRIC-094`),
  * and what the subscriber is told about collecting it (`SC-PRIC-028`,
  * `SC-PRIC-080`).
  *

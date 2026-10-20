@@ -101,8 +101,8 @@ export interface InvoiceCancellationRequest {
     corrections?: Partial<Record<InvoiceSubscriberDetail, string | null>>;
     /**
      * The address both invoices are delivered to, and the replacement's
-     * collection notices where the subscriber's record holds no invoice email;
-     * required where it holds none (`SC-PRIC-047`).
+     * collection notices with them; required where the subscriber's record
+     * holds no invoice email (`SC-PRIC-094`).
      */
     deliverTo?: string | null;
 }
@@ -556,7 +556,7 @@ export class InvoiceCancellationService implements OnModuleInit {
 /**
  * The operator's request with each part settled, or refused with `422`: a
  * reason of one line, a correction that holds as the subscriber's detail does,
- * an address shaped like an email address (`SC-ADM-020`, `SC-PRIC-047`).
+ * an address shaped like an email address (`SC-ADM-020`, `SC-PRIC-094`).
  */
 function settledRequestOf(
     request: InvoiceCancellationRequest,

@@ -3,7 +3,7 @@ import type { SubscriptionInvoiceRecord, SubscriptionInvoiceRepository } from '@
 /**
  * The address given with the cancellation an invoice is the cancellation
  * invoice or the replacement of, or `null` where it is neither or none was
- * given (`SC-PRIC-047`). Asked of the invoice it corrects, whose own
+ * given (`SC-PRIC-094`). Asked of the invoice it corrects, whose own
  * cancellation a store answers first: a replacement cancelled in turn still
  * belongs to the cancellation that issued it.
  */

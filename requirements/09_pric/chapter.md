@@ -2793,7 +2793,7 @@ _Tested by:_
 
 🟡 _(Decided, not yet delivered.)_ 💰 The German adapter requires ZUGFeRD in the EN 16931 profile, one
 file a person reads as a PDF and a program reads as structured data, for cancellation and
-replacement invoices as well. That file is what is archived, sent (`SC-PRIC-047`) and downloaded
+replacement invoices as well. That file is what is archived, sent (`SC-PRIC-094`) and downloaded
 (`SC-AUD-014`). Rendering stays a port, so an application's own renderer can produce it. A rendered
 file the adapter's format check refuses is not issued. The content check and the format check come
 from one profile of the adapter, so content that passed before the number was drawn (`SC-PRIC-027`)
@@ -3160,17 +3160,34 @@ _Tested by:_
 
 ### SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
 
-🟢 💰 Cancellation and replacement invoices as well, sent to the invoice email on the subscriber's
-record once the document is archived (`SC-PRIC-033`), so a subscriber who never signs in, or whose
-tenant is gone, still receives it. A link in the message leads to the tenant's sign-in rather than
-to an address anyone holding it could open. Where the subscriber's record no longer holds an invoice
-email, as `SC-PRIV-013` allows once no claim is left, the operator enters an address to deliver to
-when cancelling the invoice, and cannot cancel without one; the address is kept with the
-cancellation and its reason and used for the replacement as well, rather than written back onto the
-subscriber's record. A message that cannot be delivered is shown to the operator, and the invoice
-stays issued: delivery is not what makes it an invoice.
+🔵 _(Superseded on 2026-10-20 by `SC-PRIC-094`.)_ 💰 Cancellation and replacement invoices as well,
+sent to the invoice email on the subscriber's record once the document is archived
+(`SC-PRIC-033`), so a subscriber who never signs in, or whose tenant is gone, still receives it.
+A link in the message leads to the tenant's sign-in rather than to an address anyone holding it
+could open. Where the subscriber's record no longer holds an invoice email, as `SC-PRIV-013`
+allows once no claim is left, the operator enters an address to deliver to when cancelling the
+invoice, and cannot cancel without one; the address is kept with the cancellation and its reason
+and used for the replacement as well, rather than written back onto the subscriber's record. A
+message that cannot be delivered is shown to the operator, and the invoice stays issued: delivery
+is not what makes it an invoice.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-094 — Every invoice reaches the subscriber by email, with its file attached
+
+🟢 💰 Cancellation and replacement invoices as well, sent to the invoice email on the subscriber's
+record once the document is archived (`SC-PRIC-033`), so a subscriber who never signs in, or
+whose tenant is gone, still receives it. A link in the message leads to the tenant's sign-in
+rather than to an address anyone holding it could open. The operator may give an address to
+deliver to when cancelling an invoice, and has to where the subscriber's record no longer holds
+an invoice email, as `SC-PRIV-013` allows once no claim is left. Where one is given, the
+cancellation invoice, its replacement and what the subscriber is told about collecting the
+replacement (`SC-PRIC-028`, `SC-PRIC-080`) go there, one address for all of it; the address is
+kept with the cancellation and its reason rather than written back onto the subscriber's record.
+A message that cannot be delivered is shown to the operator, and the invoice stays issued:
+delivery is not what makes it an invoice.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md` · #334
 
 <!-- BEGIN proof -->
 
@@ -3198,9 +3215,13 @@ _Tested by:_
         - go to the address given with the cancellation, and the record keeps its own
         - go to the invoice email on the record where no address was given
         - of a replacement cancelled in turn before it was sent go where each cancellation said
+        - send the replacement’s notices where they sent the replacement, the record’s email beside
+          it
         - reach a subscriber whose record holds no invoice email, the replacement’s notices too
 
 <!-- END proof -->
+
+(decided 2026-10-20)
 
 ### SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
 

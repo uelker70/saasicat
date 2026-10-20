@@ -759,7 +759,7 @@ authority, and only once the export was offered (`SC-PRIV-017`): the operator is
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
 (`SC-PRIC-091`), and an address to deliver to where the subscriber's record no longer holds an
-invoice email (`SC-PRIC-047`). This entry supersedes `SC-ADM-006` in the change that delivers it.
+invoice email (`SC-PRIC-094`). This entry supersedes `SC-ADM-006` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -770,6 +770,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - what an operator gives a cancellation
         - passes with a reason, and with corrections and an address beside it
+        - is trimmed before its lengths are checked, as the service settles it
         - with ${why} is refused
     - a cancellation settles what it is given before anything else
         - the reason and the address trimmed, as the preview shows and the cancellation records them
@@ -778,6 +779,7 @@ _Tested by:_
         - takes a reason of exactly the longest length
         - refuses an address ${why}
         - each correction as the subscriber’s record holds that detail
+        - takes a correction of exactly the longest length
         - refuses ${why}
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named

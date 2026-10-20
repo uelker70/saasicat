@@ -13,7 +13,7 @@
 // differs from the recorded one — a renderer updated in between — takes its
 // place, with both checksums in the audit log. An archived invoice is then
 // mailed to the subscriber's
-// invoice email with the file attached (`SC-PRIC-047`) — claimed first, so of
+// invoice email with the file attached (`SC-PRIC-094`) — claimed first, so of
 // several instances one sends it — and every later download returns the
 // archived file after checking it against the recorded checksum (`SC-AUD-014`).
 //

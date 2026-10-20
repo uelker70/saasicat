@@ -3620,9 +3620,9 @@ components:
                     maxLength: 254
                     description: >-
                         Where both invoices are sent, and the replacement's
-                        collection notices where the record holds no invoice
-                        email; required where it holds none. Kept with the
-                        cancellation, not written onto the subscriber's record.
+                        collection notices with them; required where the record
+                        holds no invoice email. Kept with the cancellation, not
+                        written onto the subscriber's record.
 
         AdminInvoiceCancellationPlan:
             type: object

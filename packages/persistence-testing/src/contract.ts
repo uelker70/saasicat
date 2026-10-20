@@ -7369,7 +7369,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         }
 
         // @requirement SC-PRIC-033
-        // @requirement SC-PRIC-047
+        // @requirement SC-PRIC-094
         test('an invoice is archived once, and handed to the mail once, only after it is archived', async (t) => {
             const account = await issuedInvoices(t, 'tenant-document-marks');
             if (!account) return;
@@ -7426,7 +7426,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-047
+        // @requirement SC-PRIC-094
         test("an invoice's mail held by a fresh claim is not taken, and one held by a stale claim is", async (t) => {
             const archived = await anArchivedInvoice(t, 'tenant-delivery-lease');
             if (!archived) return;
@@ -7452,7 +7452,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-047
+        // @requirement SC-PRIC-094
         test("an invoice's mail let go is taken by the next run at once, and a delivered one stays delivered", async (t) => {
             const archived = await anArchivedInvoice(t, 'tenant-delivery-release');
             if (!archived) return;
@@ -7473,7 +7473,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-047
+        // @requirement SC-PRIC-094
         test("of concurrent claims on an invoice's mail exactly one holds it", async (t) => {
             const archived = await anArchivedInvoice(t, 'tenant-delivery-race');
             if (!archived) return;

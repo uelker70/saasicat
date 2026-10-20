@@ -22,6 +22,7 @@ import type {
 import {
     canonicalVatId,
     holdsOnlyXmlCharacters,
+    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
     LEGAL_IDENTITY_FIELDS,
     SUBSCRIBER_ERROR_CODES,
@@ -112,8 +113,9 @@ export function settleIdentityCorrection(
 
 /**
  * The details of the subscriber the operator corrects for the replacement of
- * a cancelled invoice (`SC-PRIC-091`), each settled as the record's own are; a
- * detail left out stays out.
+ * a cancelled invoice (`SC-PRIC-091`), each settled as the record's own are and
+ * at most `INVOICE_CORRECTION_MAX_LENGTH` characters once trimmed; a detail
+ * left out stays out.
  */
 export function settleInvoiceCorrections(
     corrections: Readonly<Partial<Record<InvoiceSubscriberDetail, string | null>>>,
@@ -122,10 +124,12 @@ export function settleInvoiceCorrections(
     for (const field of INVOICE_SUBSCRIBER_DETAILS) {
         const value = corrections[field];
         if (value === undefined) continue;
-        settled[field] =
+        const detail =
             field === 'legalName' || field === 'vatId' || field === 'taxNumber'
                 ? settleIdentityValue(field, value)
                 : settleContactValue(field, value);
+        if (detail !== null && detail.length > INVOICE_CORRECTION_MAX_LENGTH) throw invalid(field);
+        settled[field] = detail;
     }
     return settled;
 }

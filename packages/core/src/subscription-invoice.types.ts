@@ -242,6 +242,12 @@ export type CorrectedInvoiceSubscriber = Partial<
  */
 export const INVOICE_CANCELLATION_REASON_MAX_LENGTH = 500;
 
+/**
+ * The longest a detail of the subscriber the operator corrects for a
+ * replacement is, once trimmed: one line of an address or a name.
+ */
+export const INVOICE_CORRECTION_MAX_LENGTH = 300;
+
 /** A cancellation as a store reads it back (`SC-PRIC-091`). */
 export interface SubscriptionInvoiceCancellationRecord {
     id: string;
@@ -257,7 +263,7 @@ export interface SubscriptionInvoiceCancellationRecord {
     correctedSubscriber: CorrectedInvoiceSubscriber | null;
     /**
      * The address both invoices are delivered to where the subscriber's record
-     * holds no invoice email (`SC-PRIC-047`); `null` otherwise.
+     * holds no invoice email (`SC-PRIC-094`); `null` otherwise.
      */
     deliverTo: string | null;
     /** Who cancelled it, as an actor tag the audit log writes. */

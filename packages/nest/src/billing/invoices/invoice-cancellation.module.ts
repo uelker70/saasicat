@@ -12,7 +12,7 @@ import {
     Req,
     type Type,
 } from '@nestjs/common';
-import { Type as Nested } from 'class-transformer';
+import { Type as Nested, Transform } from 'class-transformer';
 import {
     IsObject,
     IsOptional,
@@ -22,7 +22,11 @@ import {
     ValidateIf,
     ValidateNested,
 } from 'class-validator';
-import { INVOICE_CANCELLATION_REASON_MAX_LENGTH, type RlsBypassPort } from '@saasicat/core';
+import {
+    INVOICE_CANCELLATION_REASON_MAX_LENGTH,
+    INVOICE_CORRECTION_MAX_LENGTH,
+    type RlsBypassPort,
+} from '@saasicat/core';
 
 import { AdminResourcesService } from '../../admin/admin-resources.module.js';
 import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
@@ -37,12 +41,19 @@ import {
     invoiceCancellationAudit,
 } from './invoice-cancellation.service.js';
 
-/** The longest a corrected detail is given, as one line of an address or a name. */
-const MAX_DETAIL_LENGTH = 300;
 /** RFC 5321 caps an address at 254 characters. */
 const MAX_ADDRESS_LENGTH = 254;
 /** Something besides blanks. */
 const NOT_BLANK = /\S/;
+
+/**
+ * Text trimmed before its length is checked, as the service settles it: the
+ * route accepts what the command line does, and nothing more.
+ */
+const Trimmed = () =>
+    Transform(({ value }: { value: unknown }) =>
+        typeof value === 'string' ? value.trim() : value,
+    );
 
 /**
  * The details of the subscriber the cancelled invoice named wrongly, as the
@@ -50,51 +61,59 @@ const NOT_BLANK = /\S/;
  * clears one, except the legal name, which a party always has.
  */
 export class InvoiceSubscriberCorrectionsDto {
+    @Trimmed()
     @IsOptional()
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     legalName?: string;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     vatId?: string | null;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     taxNumber?: string | null;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     addressLine1?: string | null;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     addressLine2?: string | null;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     postalCode?: string | null;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     city?: string | null;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()
-    @MaxLength(MAX_DETAIL_LENGTH)
+    @MaxLength(INVOICE_CORRECTION_MAX_LENGTH)
     country?: string | null;
 }
 
@@ -103,6 +122,7 @@ export class InvoiceSubscriberCorrectionsDto {
  * `…/preview` — what the operator gives a cancellation (`SC-ADM-020`).
  */
 export class CancelInvoiceDto {
+    @Trimmed()
     @IsString()
     @Matches(NOT_BLANK, { message: 'reason must say why the invoice is cancelled' })
     @MaxLength(INVOICE_CANCELLATION_REASON_MAX_LENGTH)
@@ -114,6 +134,7 @@ export class CancelInvoiceDto {
     @Nested(() => InvoiceSubscriberCorrectionsDto)
     corrections?: InvoiceSubscriberCorrectionsDto;
 
+    @Trimmed()
     @IsOptional()
     @ValidateIf((_, value: unknown) => value !== null)
     @IsString()

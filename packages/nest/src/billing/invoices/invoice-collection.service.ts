@@ -892,18 +892,17 @@ export class InvoiceCollectionService implements OnModuleInit, OnApplicationBoot
     }
 
     /**
-     * Hands a notice to the mail port, for the subscriber's invoice email, or,
-     * where the record holds none, the address given with the cancellation the
-     * invoice is the replacement of (`SC-PRIC-047`).
+     * Hands a notice to the mail port: about a replacement, for the address
+     * given with the cancellation that issued it, where one was, as the
+     * replacement itself was sent there; otherwise for the subscriber's invoice
+     * email (`SC-PRIC-094`).
      */
     private async mailNotice(notice: InvoiceCollectionNotice): Promise<SubscriptionNoticeDelivery> {
         const subscriber = await this.subscribers!.getById(notice.subscriberId);
-        const invoice = subscriber.invoiceEmail
-            ? null
-            : await this.invoices.findById(notice.invoiceId);
+        const invoice = await this.invoices.findById(notice.invoiceId);
         const to =
-            subscriber.invoiceEmail ??
-            (invoice ? await addressGivenFor(this.invoices, invoice) : null);
+            (invoice ? await addressGivenFor(this.invoices, invoice) : null) ??
+            subscriber.invoiceEmail;
         if (!to) {
             throw new Error(
                 `Subscriber ${notice.subscriberId} has no invoice email to tell of ` +

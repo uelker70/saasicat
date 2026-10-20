@@ -18,6 +18,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
+    INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_ERROR_CODES,
     SUBSCRIBER_ERROR_CODES,
 } from '@saasicat/core';
@@ -92,6 +93,17 @@ describe('what an operator gives a cancellation', () => {
         );
     });
 
+    test('is trimmed before its lengths are checked, as the service settles it', async () => {
+        assert.deepEqual(
+            await problemsOf({
+                reason: `  ${'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH)}  `,
+                corrections: { city: ` ${'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH)} ` },
+                deliverTo: `  ${'a'.repeat(242)}@t1.example  `,
+            }),
+            [],
+        );
+    });
+
     for (const [why, body, property] of [
         ['no reason', {}, 'reason'],
         ['a reason of blanks', { reason: '   ' }, 'reason'],
@@ -104,6 +116,11 @@ describe('what an operator gives a cancellation', () => {
         [
             'a correction that is no text',
             { ...REQUEST, corrections: { city: 28195 } },
+            'corrections',
+        ],
+        [
+            'a correction a character too long',
+            { ...REQUEST, corrections: { city: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) } },
             'corrections',
         ],
         ['an address that is no text', { ...REQUEST, deliverTo: 42 }, 'deliverTo'],
@@ -218,7 +235,21 @@ describe('a cancellation settles what it is given before anything else', () => {
         );
     });
 
+    test('takes a correction of exactly the longest length', async () => {
+        const installation = await anInvoiceToCollect();
+        const city = 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH);
+
+        const plan = await previewWith(installation, { ...REQUEST, corrections: { city } });
+
+        assert.equal(plan.replacement.subscriber.city, city);
+    });
+
     for (const [why, corrections, code] of [
+        [
+            'a correction a character too long, as the command line gives it',
+            { city: 'x'.repeat(INVOICE_CORRECTION_MAX_LENGTH + 1) },
+            SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID,
+        ],
         [
             'a legal name taken away',
             { legalName: null },

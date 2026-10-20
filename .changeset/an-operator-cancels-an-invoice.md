@@ -22,14 +22,16 @@ The reason is one line of at most 500 characters, refused otherwise with
 `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`; corrections are settled as
 the subscriber's record holds each detail; an address to deliver to is trimmed
 and refused with `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID` where it is no
-email address. The cancellation invoice and its replacement are sent to that
-address where one was given, and the replacement's collection notices too where
-the subscriber's record holds no invoice email; nothing is written back onto
-the record.
+email address. The cancellation invoice, its replacement and the replacement's
+collection notices are sent to that address where one was given, one address
+for all of it; nothing is written back onto the record. Corrections are held to
+300 characters each, and the route trims what it is given before checking its
+length, as the service does, so both paths accept the same.
 
 `SC-PRIC-091`, `SC-PRIC-092` and `SC-PRIC-093` supersede `SC-PRIC-025`,
 `SC-PRIC-026` and `SC-PRIC-077`: a replacement names the legal entity and the
 subscriber of the invoice it replaces, and carries the issuer's address,
 contact details and footer as `config/saas.yaml` names them on its own issue
-date, as it already did. `InvoiceCancellationPlan` names `reason` and
+date, as it already did. `SC-PRIC-094` supersedes `SC-PRIC-047` with the one
+address to deliver to. `InvoiceCancellationPlan` names `reason` and
 `deliverTo`.

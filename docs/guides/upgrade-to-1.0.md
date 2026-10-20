@@ -2292,8 +2292,8 @@ second with the second factor, or with `<app> invoices cancel`; the manifest ann
   document whose prepaid amount or amount due is not what the invoice records.
 - **A mail port of your own** sends each invoice to `InvoiceMail.to` as it is given — for a
   cancellation invoice and its replacement, the address given with the cancellation where one was
-  — and each notice to `InvoiceNoticeMail.to`, which for a replacement whose subscriber's record
-  holds no invoice email is that address too. Neither is written onto the record.
+  — and each notice to `InvoiceNoticeMail.to`, which for a notice about such a replacement is that
+  address too. Neither is written onto the record.
 - **A CLI of your own** registers `InvoiceCancelCliFlow`, `InvoicesCommands` and
   `InvoicesCancelCommand` from `@saasicat/cli` where invoices are issued
   ([Extend your CLI](extend-your-cli.md)).

@@ -430,7 +430,7 @@ describe('a cancellation refused', () => {
     });
 });
 
-// @requirement SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
+// @requirement SC-PRIC-094 — Every invoice reaches the subscriber by email, with its file attached
 describe('the documents of a cancellation', () => {
     clockFrom(FIRST_RUN);
 
@@ -517,6 +517,37 @@ describe('the documents of a cancellation', () => {
                 sentTo(second.replacement.id),
             ],
             ['first@t1.example', 'first@t1.example', 'second@t1.example', 'second@t1.example'],
+        );
+    });
+
+    test('send the replacement’s notices where they sent the replacement, the record’s email beside it', async () => {
+        quietLog();
+        const installation = await anInvoiceToCollect();
+        const { invoice, collections, mail, subscriber, subscribers } = installation;
+        await installation.collect(FIRST_RUN);
+        const [attempt] = collections.attempts;
+        assert.ok(
+            (await subscribers.getById(subscriber.id)).invoiceEmail,
+            'the premise: the record holds an invoice email',
+        );
+
+        const cancelled = await cancelledAndMailed(installation, {
+            ...REQUEST,
+            deliverTo: 'accounts@t1.example',
+        });
+        await delivering(installation)(
+            reversalReported('evt_r1', attempt.attemptKey, {
+                reversalRef: 'du_1',
+                paymentRef: 'pi_1',
+                withdrawnCents: toCents(invoice.totalGross),
+            }),
+        );
+        await runAt(installation, after(CANCELLED_AT, { days: 1 }));
+
+        const told = mail.told.filter((each) => each.notice.kind === 'collection-reversed');
+        assert.deepEqual(
+            told.map((each) => [each.notice.invoiceNumber, each.to]),
+            [[cancelled.replacement.number, 'accounts@t1.example']],
         );
     });
 

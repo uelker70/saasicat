@@ -1108,7 +1108,7 @@ after tries it again:
    before it does.
 5. **Mailed** by your `InvoiceMailPort` to the invoice email on the subscriber's record — or, for a
    cancellation invoice and its replacement, to the address given with the cancellation, where one
-   was —, with the archived file attached (`SC-PRIC-047`). Your application words the message — in
+   was —, with the archived file attached (`SC-PRIC-094`). Your application words the message — in
    the subscriber's language, with a link to the tenant's sign-in rather than to the file — and
    sends it. A run claims
    an invoice before it hands it over, so of several instances one sends it. A subscriber without an
@@ -1161,11 +1161,11 @@ invoice.
 - **The cancellation**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`, asks for the
   second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
   invoices name —, `corrections` of the subscriber's details the replacement names, and `deliverTo`,
-  required where the subscriber's record holds no invoice email. Both invoices go there, and the
-  replacement's collection notices too where the record holds none; nothing is written back onto
-  the record (`SC-PRIC-047`). The manifest announces both routes as `invoices.cancel`, and the audit
-  log records `SUBSCRIPTION_INVOICE_CANCELLED` with the reason, which details were corrected and
-  whether an address was given.
+  required where the subscriber's record holds no invoice email. Both invoices and the
+  replacement's collection notices go there, one address for all of it; nothing is written back
+  onto the record (`SC-PRIC-094`). The manifest announces both routes as `invoices.cancel`, and
+  the audit log records `SUBSCRIPTION_INVOICE_CANCELLED` with the reason, which details were
+  corrected and whether an address was given.
 - **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
   shows the same and writes nothing; `--apply` cancels, with the second factor and, against
   production, a confirmation ([Extend your CLI](extend-your-cli.md)).
