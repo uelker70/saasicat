@@ -14,8 +14,6 @@ import {
 } from '@nestjs/common';
 import { Type as Nested, Transform } from 'class-transformer';
 import {
-    IsISO8601,
-    IsNumber,
     IsObject,
     IsOptional,
     IsString,
@@ -27,9 +25,7 @@ import {
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_CORRECTION_MAX_LENGTH,
-    type CalendarDay,
     type InvoiceCancellationRequest,
-    type InvoiceCancellationShown,
     type RlsBypassPort,
 } from '@saasicat/core';
 
@@ -50,8 +46,8 @@ import {
 const MAX_ADDRESS_LENGTH = 254;
 /** Something besides blanks. */
 const NOT_BLANK = /\S/;
-/** A day as `YYYY-MM-DD`, as an invoice is due on it. */
-const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+/** A preview's digest: SHA-256, in hex. */
+const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 
 /**
  * Text trimmed before its length is checked, as the service settles it: the
@@ -124,37 +120,6 @@ export class InvoiceSubscriberCorrectionsDto {
     country?: string | null;
 }
 
-/** An amount as a preview states it: to the cent. */
-const Amount = () => IsNumber({ maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false });
-
-/** What the preview showed the replacement to ask for, and when. */
-export class InvoiceCancellationShownReplacementDto {
-    @Amount()
-    totalGross!: number;
-
-    @Amount()
-    totalTax!: number;
-
-    @IsString()
-    @Matches(DAY_PATTERN, { message: 'dueDate must be a day, YYYY-MM-DD' })
-    @IsISO8601({ strict: true })
-    dueDate!: CalendarDay;
-}
-
-/** The figures of the preview the operator confirmed, which the cancellation is held to. */
-export class InvoiceCancellationShownDto implements InvoiceCancellationShown {
-    @IsObject()
-    @ValidateNested()
-    @Nested(() => InvoiceCancellationShownReplacementDto)
-    replacement!: InvoiceCancellationShownReplacementDto;
-
-    @Amount()
-    movedIn!: number;
-
-    @Amount()
-    credited!: number;
-}
-
 /**
  * `POST admin/tenants/:slug/invoices/:invoiceId/cancellation` and its
  * `…/preview` — what the operator gives a cancellation (`SC-ADM-020`).
@@ -180,10 +145,9 @@ export class CancelInvoiceDto implements InvoiceCancellationRequest {
     deliverTo?: string | null;
 
     @IsOptional()
-    @IsObject()
-    @ValidateNested()
-    @Nested(() => InvoiceCancellationShownDto)
-    shown?: InvoiceCancellationShownDto;
+    @IsString()
+    @Matches(DIGEST_PATTERN, { message: 'previewDigest must be the digest a preview answered' })
+    previewDigest?: string;
 }
 
 export interface InvoiceCancellationModuleOptions {

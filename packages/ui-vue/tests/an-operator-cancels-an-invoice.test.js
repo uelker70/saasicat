@@ -1,7 +1,7 @@
 // The operator cancels one of a tenant's invoices from its page: at which
 // invoices it is offered, the request the input makes, the two requests of
 // the tenants descriptor, and the flow — preview, back, the second factor,
-// the figures shown sent along, and a preview that no longer holds put in
+// the preview's digest sent along, and a preview that no longer holds put in
 // place of the one confirmed.
 //
 // The paths are the ones `@saasicat/nest` serves
@@ -47,6 +47,10 @@ const invoiceOf = (overrides = {}) => ({
 
 const OF = { invoiceId: 'invoice-123', number: 'AHP-2026-000123', issueDate: '2026-02-01' };
 
+/** The digest the preview answers, and the one a preview read again answers once a payment came in. */
+const DIGEST = '1'.repeat(64);
+const DIGEST_AFTER_A_PAYMENT = '2'.repeat(64);
+
 /** What the server says cancelling it would write: 100 net, reverse charge, 19 credited. */
 const planOf = (overrides = {}) => ({
     cancelled: { number: 'AHP-2026-000123', currency: 'EUR', subscriber: {} },
@@ -64,14 +68,9 @@ const planOf = (overrides = {}) => ({
     credited: 19,
     reason: 'The billing address was wrong.',
     deliverTo: null,
+    digest: DIGEST,
     ...overrides,
 });
-
-const SHOWN = {
-    replacement: { totalGross: 100, totalTax: 0, dueDate: '2026-04-03' },
-    movedIn: 100,
-    credited: 19,
-};
 
 const CANCELLED = {
     cancellationInvoice: { number: 'AHP-2026-000140' },
@@ -167,9 +166,9 @@ describe('the tenants descriptor', () => {
     });
 
     // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
-    test('cancels with the second factor and the figures shown', async () => {
+    test('cancels with the second factor and the preview’s digest', async () => {
         const { http, calls } = answering(200, CANCELLED);
-        const request = { ...REQUEST, shown: SHOWN };
+        const request = { ...REQUEST, previewDigest: DIGEST };
 
         const cancelled = await bindResource(tenantsResource, http, CTX).cancelInvoice(
             'acme',
@@ -338,7 +337,7 @@ describe('cancelling an invoice', () => {
     });
 
     // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
-    test('is confirmed behind the second factor with the request previewed and the figures shown, announced, and read again', async () => {
+    test('is confirmed behind the second factor with the request previewed and its digest, announced, and read again', async () => {
         const { flow, calls, notices, reloads } = cancellationOf();
         flow.open(invoiceOf());
         await flow.ask(DRAFT);
@@ -348,7 +347,7 @@ describe('cancelling an invoice', () => {
         assert.deepEqual(cancelled, CANCELLED);
         assert.deepEqual(calls.slice(1), [
             ['mfa', 'Cancel invoice AHP-2026-000123. Enter the TOTP code.'],
-            ['cancel', 'acme', 'invoice-123', { ...ASKED, shown: SHOWN }, '123456'],
+            ['cancel', 'acme', 'invoice-123', { ...ASKED, previewDigest: DIGEST }, '123456'],
         ]);
         assert.deepEqual(notices, [
             ['positive', 'Cancelled by AHP-2026-000140, replaced by AHP-2026-000141.'],
@@ -367,7 +366,7 @@ describe('cancelling an invoice', () => {
 
         await flow.cancel();
 
-        assert.deepEqual(calls.at(-1)[3], { ...ASKED, shown: SHOWN });
+        assert.deepEqual(calls.at(-1)[3], { ...ASKED, previewDigest: DIGEST });
     });
 
     test('for the tenant it was opened on, though the page moved on meanwhile', async () => {
@@ -415,8 +414,8 @@ describe('cancelling an invoice', () => {
         assert.equal(flow.target.value?.id, 'invoice-123');
     });
 
-    test('confirmed again after such a refusal, carries the figures of the new preview', async () => {
-        const changed = planOf({ movedIn: 119, credited: 0 });
+    test('confirmed again after such a refusal, carries the digest of the new preview', async () => {
+        const changed = planOf({ movedIn: 119, credited: 0, digest: DIGEST_AFTER_A_PAYMENT });
         const failWith = new AdminError({
             status: 409,
             code: INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED,
@@ -429,7 +428,7 @@ describe('cancelling an invoice', () => {
 
         await assert.rejects(() => setUp.flow.cancel());
 
-        assert.deepEqual(setUp.calls.at(-1)[3].shown, { ...SHOWN, movedIn: 119, credited: 0 });
+        assert.equal(setUp.calls.at(-1)[3].previewDigest, DIGEST_AFTER_A_PAYMENT);
     });
 
     test('refused otherwise rejects with the refusal, and keeps the preview it was refused on', async () => {

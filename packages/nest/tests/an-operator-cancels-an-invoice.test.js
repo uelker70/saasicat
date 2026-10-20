@@ -22,7 +22,6 @@ import {
     INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_ERROR_CODES,
     SUBSCRIBER_ERROR_CODES,
-    cancellationShownOf,
 } from '@saasicat/core';
 
 import {
@@ -42,12 +41,8 @@ const CANCELLED_AT = new Date('2026-03-20T09:00:00.000Z');
 
 const REQUEST = { reason: 'The billing address was wrong.' };
 
-/** Figures of a preview, shaped as the confirmation sends them back. */
-const SHOWN = {
-    replacement: { totalGross: 119, totalTax: 19, dueDate: '2026-04-03' },
-    movedIn: 0,
-    credited: 0,
-};
+/** A digest shaped as a preview answers one: SHA-256, in hex. */
+const DIGEST = 'a'.repeat(64);
 
 /** The coded answer an operator reads, as its status and body. */
 async function refusalOf(attempt) {
@@ -98,7 +93,7 @@ describe('what an operator gives a cancellation', () => {
             [],
         );
         assert.deepEqual(await problemsOf({ ...REQUEST, deliverTo: null }), []);
-        assert.deepEqual(await problemsOf({ ...REQUEST, shown: SHOWN }), []);
+        assert.deepEqual(await problemsOf({ ...REQUEST, previewDigest: DIGEST }), []);
         assert.deepEqual(
             await problemsOf({ reason: 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH) }),
             [],
@@ -141,27 +136,16 @@ describe('what an operator gives a cancellation', () => {
             { ...REQUEST, deliverTo: `${'a'.repeat(246)}@t1.example` },
             'deliverTo',
         ],
-        ['figures shown that are no object', { ...REQUEST, shown: 'all of it' }, 'shown'],
+        ['a digest that is no text', { ...REQUEST, previewDigest: 42 }, 'previewDigest'],
         [
-            'figures shown without the replacement',
-            { ...REQUEST, shown: { movedIn: 0, credited: 0 } },
-            'shown',
+            'a digest a character short',
+            { ...REQUEST, previewDigest: DIGEST.slice(1) },
+            'previewDigest',
         ],
         [
-            'a due date shown that is no day',
-            {
-                ...REQUEST,
-                shown: {
-                    ...SHOWN,
-                    replacement: { ...SHOWN.replacement, dueDate: '2026-04-03T00:00:00Z' },
-                },
-            },
-            'shown',
-        ],
-        [
-            'an amount shown finer than a cent',
-            { ...REQUEST, shown: { ...SHOWN, credited: 0.005 } },
-            'shown',
+            'a digest in capitals',
+            { ...REQUEST, previewDigest: DIGEST.toUpperCase() },
+            'previewDigest',
         ],
     ]) {
         test(`with ${why} is refused`, async () => {
@@ -403,13 +387,19 @@ describe('the cancellation route', () => {
 
 // @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
 describe('a cancellation held to the preview the operator confirmed', () => {
-    const previewOf = ({ cancellation, invoice }) =>
-        cancellation.preview('t1', invoice.id, REQUEST, CANCELLED_AT);
-    const cancelShowing = ({ cancellation, invoice }, shown) =>
-        cancellation.cancel('t1', invoice.id, { ...REQUEST, shown }, 'operator:anna', CANCELLED_AT);
+    const previewOf = ({ cancellation, invoice }, at = CANCELLED_AT) =>
+        cancellation.preview('t1', invoice.id, REQUEST, at);
+    const cancelConfirming = ({ cancellation, invoice }, previewDigest) =>
+        cancellation.cancel(
+            't1',
+            invoice.id,
+            { ...REQUEST, previewDigest },
+            'operator:anna',
+            CANCELLED_AT,
+        );
 
     /** The refusal's status, its code and the preview it carries. */
-    async function changedSinceShown(attempt) {
+    async function changedSincePreview(attempt) {
         try {
             await attempt;
         } catch (error) {
@@ -419,72 +409,85 @@ describe('a cancellation held to the preview the operator confirmed', () => {
         throw new Error('it was not refused');
     }
 
-    test('is written where it would write what was shown', async () => {
+    test('is written where it would write what the preview showed', async () => {
         const installation = await anInvoiceToCollect();
 
         const plan = await previewOf(installation);
-        const cancelled = await cancelShowing(installation, cancellationShownOf(plan));
+        const cancelled = await cancelConfirming(installation, plan.digest);
 
         assert.equal(cancelled.cancellation.cancelledInvoiceId, installation.invoice.id);
     });
 
-    for (const [figure, moved] of [
-        [
-            'the replacement’s total a cent apart',
-            (shown) => ({
-                ...shown,
-                replacement: {
-                    ...shown.replacement,
-                    totalGross: shown.replacement.totalGross + 0.01,
-                },
-            }),
-        ],
-        [
-            'the replacement’s tax a cent apart',
-            (shown) => ({
-                ...shown,
-                replacement: { ...shown.replacement, totalTax: shown.replacement.totalTax - 0.01 },
-            }),
-        ],
-        [
-            'the replacement due a day later',
-            (shown) => ({ ...shown, replacement: { ...shown.replacement, dueDate: '2026-04-04' } }),
-        ],
-        [
-            'a cent more taken over as paid',
-            (shown) => ({ ...shown, movedIn: shown.movedIn + 0.01 }),
-        ],
-        ['a cent more credited', (shown) => ({ ...shown, credited: shown.credited + 0.01 })],
-    ]) {
-        test(`with ${figure} is refused with the preview as it stands, and nothing is written`, async () => {
-            const installation = await anInvoiceToCollect();
-            const plan = await previewOf(installation);
-            const before = heldBy(installation);
+    test('names the same preview by the same digest at another moment of its day, and another the next day', async () => {
+        const installation = await anInvoiceToCollect();
 
-            const refusal = await changedSinceShown(
-                cancelShowing(installation, moved(cancellationShownOf(plan))),
-            );
+        const [atTen, atFive, nextDay] = [
+            await previewOf(installation),
+            await previewOf(installation, new Date('2026-03-20T16:00:00.000Z')),
+            await previewOf(installation, new Date('2026-03-21T09:00:00.000Z')),
+        ];
 
-            assert.deepEqual(
-                [refusal.status, refusal.code],
-                [409, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED],
-            );
-            assert.deepEqual(cancellationShownOf(refusal.preview), cancellationShownOf(plan));
-            assert.deepEqual(heldBy(installation), before);
-        });
-    }
+        assert.match(atTen.digest, /^[0-9a-f]{64}$/);
+        assert.equal(atFive.digest, atTen.digest);
+        assert.notEqual(nextDay.digest, atTen.digest);
+    });
+
+    test('is refused with another preview’s digest, with the preview as it stands, and nothing is written', async () => {
+        const installation = await anInvoiceToCollect();
+        const plan = await previewOf(installation);
+        const before = heldBy(installation);
+
+        const refusal = await changedSincePreview(cancelConfirming(installation, DIGEST));
+
+        assert.deepEqual(
+            [refusal.status, refusal.code, refusal.preview.digest],
+            [
+                409,
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED,
+                plan.digest,
+            ],
+        );
+        assert.deepEqual(heldBy(installation), before);
+    });
 
     test('is refused where a payment came in after the preview, with the preview that counts it', async () => {
         const installation = await anInvoiceToCollect();
-        const shown = cancellationShownOf(await previewOf(installation));
+        const shown = await previewOf(installation);
         installation.gateway.answers.push(succeeded(installation.invoice, 'pi_late', 20));
         await installation.collect(FIRST_RUN);
 
-        const refusal = await changedSinceShown(cancelShowing(installation, shown));
+        const refusal = await changedSincePreview(cancelConfirming(installation, shown.digest));
 
         assert.deepEqual(
             [refusal.code, shown.movedIn, refusal.preview.movedIn],
             [INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED, 0, 20],
+        );
+        assert.equal(heldBy(installation)[1], 0);
+    });
+
+    test('is refused where the legal name was corrected after the preview, though no amount moved', async () => {
+        const installation = await anInvoiceToCollect();
+        const shown = await previewOf(installation);
+        await installation.subscribers.correctIdentity(installation.subscriber.id, {
+            kind: 'correction',
+            legalName: 'Customer of t1 Holding GmbH',
+            reason: 'Change of name of the same company',
+            correctedBy: 'operator:ben',
+        });
+
+        const refusal = await changedSincePreview(cancelConfirming(installation, shown.digest));
+
+        assert.deepEqual(
+            [
+                refusal.code,
+                refusal.preview.replacement.subscriber.legalName,
+                refusal.preview.replacement.totalGross,
+            ],
+            [
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED,
+                'Customer of t1 Holding GmbH',
+                shown.replacement.totalGross,
+            ],
         );
         assert.equal(heldBy(installation)[1], 0);
     });

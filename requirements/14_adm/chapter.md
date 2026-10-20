@@ -751,14 +751,14 @@ _Tested by:_
           and records it
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
     - the tenants descriptor
-        - cancels with the second factor and the figures shown
+        - cancels with the second factor and the preview’s digest
     - cancelling an invoice
-        - is confirmed behind the second factor with the request previewed and the figures shown,
+        - is confirmed behind the second factor with the request previewed and its digest,
           announced, and read again
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
     - an invoice cancelled from the tenant page
-        - is confirmed behind the second factor with the figures shown, announced, and the invoices
-          read again
+        - is confirmed behind the second factor with the preview’s digest, announced, and the
+          invoices read again
 
 <!-- END proof -->
 

@@ -686,8 +686,8 @@ paths:
                         As the preview; a second cancellation of the same invoice
                         at the same moment is refused here
                         (`SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`); and where the
-                        figures `shown` differ from what it would write, the
-                        refusal carries the new preview as `preview`
+                        `previewDigest` is not the digest of what it would write,
+                        the refusal carries the new preview as `preview`
                         (`SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED`).
                         Nothing is written, and no number is drawn.
                 '422':
@@ -3626,25 +3626,16 @@ components:
                         collection notices with them; required where the record
                         holds no invoice email. Kept with the cancellation, not
                         written onto the subscriber's record.
-                shown:
-                    type: object
+                previewDigest:
+                    type: string
+                    pattern: '^[0-9a-f]{64}$'
                     description: >-
-                        The figures of the preview the operator confirms. Given,
+                        The `digest` of the preview the operator confirms. Given,
                         the cancellation is refused with
                         `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the
-                        new preview wherever what it would write differs; each
-                        amount is compared to the cent. Ignored by the preview.
-                    required: [replacement, movedIn, credited]
-                    properties:
-                        replacement:
-                            type: object
-                            required: [totalGross, totalTax, dueDate]
-                            properties:
-                                totalGross: { type: number, multipleOf: 0.01 }
-                                totalTax: { type: number, multipleOf: 0.01 }
-                                dueDate: { type: string, format: date }
-                        movedIn: { type: number, multipleOf: 0.01 }
-                        credited: { type: number, multipleOf: 0.01 }
+                        new preview wherever what it would write differs from that
+                        preview in anything but the moment it is issued. Ignored
+                        by the preview.
 
         AdminInvoiceCancellationPlan:
             type: object
@@ -3654,7 +3645,10 @@ components:
                 `correctedSubscriber`, each corrected detail with the value it
                 replaces; `moves`, each payment's share of the cancelled
                 invoice and where it goes; `movedIn` and `credited`, their
-                totals; and `reason` and `deliverTo` as they would be recorded.
+                totals; `reason` and `deliverTo` as they would be recorded; and
+                `digest`, a SHA-256 fingerprint of all of it but the moment both
+                invoices are issued, which the cancellation takes back as
+                `previewDigest`.
             required:
                 [
                     cancelled,
@@ -3666,6 +3660,7 @@ components:
                     credited,
                     reason,
                     deliverTo,
+                    digest,
                 ]
             properties:
                 cancelled: { type: object }
@@ -3677,6 +3672,7 @@ components:
                 credited: { type: number }
                 reason: { type: string }
                 deliverTo: { type: string, nullable: true }
+                digest: { type: string, pattern: '^[0-9a-f]{64}$' }
 
         AdminCancelledInvoice:
             type: object

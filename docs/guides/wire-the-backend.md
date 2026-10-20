@@ -1158,8 +1158,8 @@ invoice.
 
 - **The preview**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview`, answers what
   the cancellation would write and writes nothing; show it in the confirmation (`SC-UI-017`), and
-  send its figures back with the cancellation as `shown` — `cancellationShownOf(plan)` from
-  `@saasicat/core`. A payment that arrives in between then refuses the cancellation with
+  send its `digest` back with the cancellation as `previewDigest`. A payment that arrives in
+  between, or a correction of the subscriber's legal identity, then refuses the cancellation with
   `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, rather than writing what
   nobody confirmed.
 - **The cancellation**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`, asks for the
@@ -1177,7 +1177,7 @@ invoice.
 - **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
   shows the same and writes nothing; `--apply` cancels, with the second factor and, against
   production, a confirmation, and says what it took over as paid and credited — it sends no
-  `shown`, so that is what was written ([Extend your CLI](extend-your-cli.md)).
+  `previewDigest`, so that is what was written ([Extend your CLI](extend-your-cli.md)).
 
 The replacement names the legal entity and the subscriber of the invoice it replaces, with the
 corrections given. It is a letter of its own issue date: while `config/saas.yaml` names that entity,

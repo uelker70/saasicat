@@ -16,9 +16,10 @@ the reason, an address to deliver to and the subscriber's details the
 replacement names corrected, then the server's preview, confirmed with the
 second factor.
 
-A cancellation may carry the figures its preview showed as `shown`
-(`cancellationShownOf` in `@saasicat/core`); where what it would write differs
-— a payment came in meanwhile —, it is refused with
+A preview answers a `digest` of everything the cancellation would write but
+the moment it issues the two invoices, and a cancellation may carry it back as
+`previewDigest`; where what it would write differs — a payment came in, the
+subscriber's legal identity was corrected meanwhile —, it is refused with
 `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, and
 nothing is written. `InvoiceCancellationRequest` moves from `@saasicat/nest` to
 `@saasicat/core`. After `--apply`, `<app> invoices cancel` says what was taken

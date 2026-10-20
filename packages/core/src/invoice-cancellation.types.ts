@@ -3,7 +3,6 @@
 // (`SC-PRIC-091`). The server's plan and answer carry more and are declared to
 // hold to these, so what the page reads cannot drift from what is served.
 
-import { toCents } from './money.js';
 import type { SubscriberCreditRecord } from './subscriber-payment.types.js';
 import type {
     InvoiceSubscriberDetail,
@@ -34,23 +33,15 @@ export interface InvoiceCancellationRequest {
      */
     deliverTo?: string | null;
     /**
-     * What the preview the operator confirms showed. Given, the cancellation
-     * is refused with `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and
-     * the new preview wherever what it would write differs, so what is written
-     * is what was confirmed (`SC-UI-017`). Left out, as the command line
-     * leaves it, the answer says what was written.
+     * The `digest` of the preview the operator confirms. Given, the
+     * cancellation is refused with
+     * `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview
+     * wherever what it would write differs from that preview in anything — a
+     * party, a tax treatment, an amount, where what was paid goes —, so what
+     * is written is what was confirmed (`SC-UI-017`). Left out, as the command
+     * line leaves it, the answer says what was written.
      */
-    shown?: InvoiceCancellationShown;
-}
-
-/**
- * The figures of a preview that a cancellation is held to: what the
- * replacement asks for, when, and where what was paid goes.
- */
-export interface InvoiceCancellationShown {
-    replacement: Pick<NewCorrectionInvoice, 'totalGross' | 'totalTax' | 'dueDate'>;
-    movedIn: number;
-    credited: number;
+    previewDigest?: string;
 }
 
 /**
@@ -81,6 +72,12 @@ export interface AdminInvoiceCancellationPlan {
     reason: string;
     /** The address both invoices are delivered to; `null` where none was given. */
     deliverTo: string | null;
+    /**
+     * A fingerprint of everything the cancellation would write but the moment
+     * it issues the two invoices, which the cancellation is held to by
+     * `previewDigest`.
+     */
+    digest: string;
 }
 
 /** What the administration reads of what a cancellation wrote. */
@@ -89,31 +86,4 @@ export interface AdminCancelledInvoice {
     replacement: Pick<SubscriptionInvoiceRecord, 'number' | 'paidOnIssue'>;
     /** The credits it left for the operator to refund. */
     credits: Pick<SubscriberCreditRecord, 'amount'>[];
-}
-
-/** The figures of `plan` a cancellation is held to (`InvoiceCancellationRequest.shown`). */
-export function cancellationShownOf(
-    plan: Pick<AdminInvoiceCancellationPlan, 'replacement' | 'movedIn' | 'credited'>,
-): InvoiceCancellationShown {
-    const { totalGross, totalTax, dueDate } = plan.replacement;
-    return {
-        replacement: { totalGross, totalTax, dueDate },
-        movedIn: plan.movedIn,
-        credited: plan.credited,
-    };
-}
-
-/** Whether `a` and `b` are the same figures, each amount to the cent. */
-export function sameCancellationShown(
-    a: InvoiceCancellationShown,
-    b: InvoiceCancellationShown,
-): boolean {
-    const sameAmount = (x: number, y: number) => toCents(x) === toCents(y);
-    return (
-        sameAmount(a.replacement.totalGross, b.replacement.totalGross) &&
-        sameAmount(a.replacement.totalTax, b.replacement.totalTax) &&
-        a.replacement.dueDate === b.replacement.dueDate &&
-        sameAmount(a.movedIn, b.movedIn) &&
-        sameAmount(a.credited, b.credited)
-    );
 }

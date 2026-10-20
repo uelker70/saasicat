@@ -20,6 +20,8 @@
 // names then (`SC-PRIC-093`), its payment term runs from it, and it is
 // collected with the payment method in use unless what was paid covers it.
 
+import { createHash } from 'node:crypto';
+
 import {
     ConflictException,
     Inject,
@@ -32,7 +34,7 @@ import {
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_ERROR_CODES,
-    cancellationShownOf,
+    canonicalJson,
     contractPartiesOf,
     correctedSubscriberOf,
     directDebitLeadDaysOf,
@@ -43,14 +45,12 @@ import {
     invoicePaymentOf,
     movedPaymentParts,
     paidByShares,
-    sameCancellationShown,
     subscriberCorrectedSince,
     sumToCents,
     type AdminCancelledInvoice,
     type AdminInvoiceCancellationPlan,
     type CorrectedInvoiceSubscriber,
     type InvoiceCancellationRequest,
-    type InvoiceCancellationShown,
     type InvoiceCollectionRepository,
     type InvoicePaymentShare,
     type InvoiceSubscriberDetail,
@@ -279,7 +279,7 @@ export class InvoiceCancellationService implements OnModuleInit {
     ): Promise<CancelledInvoice> {
         return this.runner().run(async (tx) => {
             const plan = await this.planIn(tenantId, invoiceId, request, now, tx);
-            refuseChangedSincePreview(plan, request.shown);
+            refuseChangedSincePreview(plan, request.previewDigest);
             const issued = await answeringRefusals(
                 () =>
                     this.invoices.issueCancellation(
@@ -385,7 +385,7 @@ export class InvoiceCancellationService implements OnModuleInit {
         });
         this.refuseUnissuable(replacement, method?.id ?? null);
         const moves = movedPaymentParts(shares, replacement.totalGross);
-        return {
+        const plan = {
             cancelled,
             cancellation: draftCancellationInvoice(cancelled, issue),
             replacement,
@@ -396,6 +396,7 @@ export class InvoiceCancellationService implements OnModuleInit {
             reason: given.reason,
             deliverTo: given.deliverTo,
         };
+        return { ...plan, digest: previewDigestOf(plan) };
     }
 
     /** Refuses an invoice a cancellation does not correct (`SC-PRIC-091`, `SC-PRIC-036`). */
@@ -533,17 +534,34 @@ export class InvoiceCancellationService implements OnModuleInit {
 }
 
 /**
- * Refuses a cancellation whose confirmed preview showed other figures than
- * it would write — a payment came in meanwhile, or the replacement's tax or
- * due date moved —, with the new preview, so that what is written is what
- * the operator confirmed (`SC-UI-017`). A request that shows nothing, as the
- * command line's, is not held to a preview.
+ * The fingerprint of what `plan` would write: SHA-256 over its canonical
+ * JSON, the moment the two invoices are issued left out. A preview read a
+ * minute before the confirmation writes the same invoices a minute later; the
+ * issue day stays in, and with it the due date and the number's year it
+ * decides.
+ */
+function previewDigestOf(plan: Omit<InvoiceCancellationPlan, 'digest'>): string {
+    const timeless = (invoice: NewCorrectionInvoice) => ({ ...invoice, issuedAt: null });
+    const held = {
+        ...plan,
+        cancellation: timeless(plan.cancellation),
+        replacement: timeless(plan.replacement),
+    };
+    return createHash('sha256').update(canonicalJson(held)).digest('hex');
+}
+
+/**
+ * Refuses a cancellation whose confirmed preview differs from what it would
+ * write — a payment came in meanwhile, a correction of the subscriber's legal
+ * identity was recorded, the tax treatment moved —, with the new preview, so
+ * that what is written is what the operator confirmed (`SC-UI-017`). A request
+ * that names no preview, as the command line's, is not held to one.
  */
 function refuseChangedSincePreview(
     plan: InvoiceCancellationPlan,
-    shown: InvoiceCancellationShown | undefined,
+    previewDigest: string | undefined,
 ): void {
-    if (!shown || sameCancellationShown(cancellationShownOf(plan), shown)) return;
+    if (previewDigest === undefined || previewDigest === plan.digest) return;
     throw new ConflictException({
         ...codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED, {
             number: plan.cancelled.number,

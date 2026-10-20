@@ -7,8 +7,8 @@
 // What is confirmed is what was shown (`SC-UI-017`): the cancellation sends
 // the request the preview answered, not whatever was entered since; going
 // back discards the preview; an answer to a question no longer asked is
-// dropped; and the cancellation carries the figures shown, so the server
-// refuses it with the new preview where they no longer hold.
+// dropped; and the cancellation carries the preview's digest, so the server
+// refuses it with the new preview where it would write anything else.
 //
 // Both steps are a form dialog's `submit`: each rejects on a failure, so the
 // dialog keeps what is on screen and shows why, and resolves `null` where
@@ -23,7 +23,6 @@ import {
     INVOICE_CANCEL_CAPABILITY,
     INVOICE_ERROR_CODES,
     SUBSCRIBER_PAYMENTS_CAPABILITY,
-    cancellationShownOf,
     type AdminCancelledInvoice,
     type AdminInvoiceCancellationPlan,
     type AdminManifest,
@@ -180,7 +179,7 @@ export function useInvoiceCancellation(
                     tenants.cancelInvoice(
                         tenant,
                         invoice.id,
-                        { ...request, shown: cancellationShownOf(shown) },
+                        { ...request, previewDigest: shown.digest },
                         code,
                     ),
             );

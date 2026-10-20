@@ -184,8 +184,8 @@ export const tenantsResource = defineResource('tenants', {
 
     /**
      * Cancels one of the tenant's invoices by a cancellation invoice and its
-     * replacement. Requires the second factor; the request carries what the
-     * preview showed, and a preview that no longer holds is refused with the
+     * replacement. Requires the second factor; the request carries the
+     * preview's digest, and a preview that no longer holds is refused with the
      * new one.
      */
     cancelInvoice: async (

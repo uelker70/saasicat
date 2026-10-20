@@ -112,6 +112,7 @@ const planOf = (
     credited: 19,
     reason: 'The billing address was wrong.',
     deliverTo: null,
+    digest: 'd'.repeat(64),
     ...overrides,
 });
 
@@ -311,7 +312,7 @@ describe('an invoice cancelled from the tenant page', () => {
     });
 
     // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
-    test('is confirmed behind the second factor with the figures shown, announced, and the invoices read again', async () => {
+    test('is confirmed behind the second factor with the preview’s digest, announced, and the invoices read again', async () => {
         const { wrapper, calls, notices } = await mountPage();
         await cancelAt(wrapper, 'AHP-2026-000124').trigger('click');
         await settle();
@@ -330,11 +331,7 @@ describe('an invoice cancelled from the tenant page', () => {
                 {
                     reason: REASON,
                     deliverTo: null,
-                    shown: {
-                        replacement: { totalGross: 100, totalTax: 0, dueDate: '2026-04-03' },
-                        movedIn: 100,
-                        credited: 19,
-                    },
+                    previewDigest: 'd'.repeat(64),
                 },
                 CODE,
             ],
