@@ -13,14 +13,16 @@
 // records the operator and the reason (`SC-ADM-020`). The invoice is named by
 // the number on its document and the tenant it belongs to.
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     INVOICE_SUBSCRIBER_DETAILS,
     type InvoiceSubscriberDetail,
     type NewCorrectionInvoice,
+    type RlsBypassPort,
 } from '@saasicat/core';
 import {
     InvoiceCancellationService,
+    RLS_BYPASS_PORT_TOKEN,
     invoiceCancellationAudit,
     type CancelledInvoice,
     type InvoiceCancellationPlan,
@@ -58,6 +60,12 @@ export class InvoiceCancelCliFlow {
         @Inject(AdminResourcesService) private readonly tenants: AdminResourcesService,
         @Inject(InvoiceCancellationService)
         private readonly cancellations: InvoiceCancellationService,
+        // The command runs outside any request, so nothing else lifts the
+        // tenant policy for it: where row-level security is on, the tenant
+        // would read as none without it.
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /**
@@ -132,7 +140,7 @@ export class InvoiceCancelCliFlow {
         const slug = required(options.tenant, '--tenant <slug>');
         const number = required(options.invoice, '--invoice <number>');
         const tenant = await refusalsAsCliErrors('TENANT_NOT_FOUND', () =>
-            this.tenants.getTenantDetail(slug),
+            this.acrossTenants(() => this.tenants.getTenantDetail(slug)),
         );
         const invoiceId = await this.cancellations.invoiceIdNumbered(tenant.id, number);
         if (!invoiceId) {
@@ -143,6 +151,11 @@ export class InvoiceCancelCliFlow {
             );
         }
         return { tenantId: tenant.id, invoiceId };
+    }
+
+    /** `read` in the bypass frame where one is bound, and plainly where none is. */
+    private acrossTenants<T>(read: () => Promise<T>): Promise<T> {
+        return this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read();
     }
 }
 

@@ -44,11 +44,26 @@ const CANCELLED = {
     withdrawnCollections: 0,
 };
 
-function setUp({ refusal = null, numbered = 'invoice-1' } = {}) {
+function setUp({ refusal = null, numbered = 'invoice-1', bypass = 'bound' } = {}) {
     const calls = [];
+    // Where row-level security is on, a tenant read outside the bypass frame is none.
+    let lifted = false;
+    const rlsBypass = {
+        async runWithBypass(fn) {
+            lifted = true;
+            try {
+                return await fn();
+            } finally {
+                lifted = false;
+            }
+        },
+    };
     const tenants = {
         async getTenantDetail(slug) {
             calls.push(['tenant', slug]);
+            if (bypass === 'bound' && !lifted) {
+                throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
+            }
             if (slug !== 'acme') throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
             return { id: 't1', slug };
         },
@@ -82,7 +97,13 @@ function setUp({ refusal = null, numbered = 'invoice-1' } = {}) {
         },
     };
     const ctx = recordingContext();
-    return { ctx, calls, flow: new InvoiceCancelCliFlow(ctx, tenants, cancellations) };
+    const flow = new InvoiceCancelCliFlow(
+        ctx,
+        tenants,
+        cancellations,
+        bypass === 'bound' ? rlsBypass : null,
+    );
+    return { ctx, calls, flow };
 }
 
 // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
@@ -166,6 +187,24 @@ describe('the preview is the command, and the cancellation the second one', () =
             corrections: { city: 'Bremen', addressLine2: null },
             deliverTo: 'accounts@acme.example',
         });
+    });
+});
+
+describe('the tenant the command names', () => {
+    test('is read in the bypass frame where one is bound, so row-level security does not hide it', async () => {
+        const { flow, calls } = setUp();
+
+        await flow.preview(OPTIONS);
+
+        assert.deepEqual(calls[0], ['tenant', 'acme']);
+    });
+
+    test('is read plainly where none is bound', async () => {
+        const { flow, calls } = setUp({ bypass: 'none' });
+
+        await flow.preview(OPTIONS);
+
+        assert.deepEqual(calls[0], ['tenant', 'acme']);
     });
 });
 
