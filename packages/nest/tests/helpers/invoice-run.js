@@ -258,8 +258,16 @@ function invoiceStore(journal) {
         async findById(id) {
             return structuredClone(invoices.find((inv) => inv.id === id) ?? null);
         },
+        // The latest number first, as the port promises and both adapters keep it.
         async listBySubscriber(subscriberId) {
-            return structuredClone(invoices.filter((inv) => inv.subscriberId === subscriberId));
+            return structuredClone(
+                invoices
+                    .filter((inv) => inv.subscriberId === subscriberId)
+                    .sort(
+                        (a, b) =>
+                            b.numberYear - a.numberYear || b.numberSequence - a.numberSequence,
+                    ),
+            );
         },
         async listIssuedNumberPrefixes() {
             return [...new Set(invoices.map((inv) => inv.numberPrefix))].sort().slice(0, 2);

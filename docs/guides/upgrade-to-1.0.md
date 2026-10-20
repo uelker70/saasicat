@@ -2230,7 +2230,9 @@ correct it are one chain, and whatever changes what an invoice of a chain owes o
 collected takes the chain's turn (`SC-PRIC-036`). The operator previews and cancels at
 `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview` and `…/cancellation`, the
 second with the second factor, or with `<app> invoices cancel`; the manifest announces both as
-`invoices.cancel` ([Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice)).
+`invoices.cancel` ([Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice)). The
+shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPayments` carries
+`correction` and `cancelledBy`, so a page of your own that lists them can say which is which.
 
 1. Take fragments 15, 20 and 24 as they ship now: `SubscriptionInvoice` gains `chainId`,
    `chainStep` and `paidOnIssue`, a line `chainStep` and `correctedPosition` — a charge now stands

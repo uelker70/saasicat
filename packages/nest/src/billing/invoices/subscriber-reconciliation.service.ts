@@ -90,7 +90,8 @@ export class SubscriberReconciliationService {
 
     /**
      * The tenant's invoices, the latest first, each with what it still owes,
-     * and its cases still open, the oldest first; none for a tenant without a
+     * what it corrects and the cancellation invoice that cancelled it, and its
+     * cases still open, the oldest first; none for a tenant without a
      * subscriber.
      */
     async paymentsOf(tenantId: string): Promise<AdminTenantPayments> {
@@ -106,6 +107,20 @@ export class SubscriberReconciliationService {
             { state: 'open', subscriberId: subscriber.id },
             { limit: RECONCILIATION_PAGE_SIZE },
         );
+        // A cancellation invoice belongs to the subscriber of the invoice it
+        // cancels, so the list that holds one holds the other.
+        const cancelledBy = new Map(
+            invoices.flatMap((invoice) =>
+                invoice.correction?.kind === 'cancellation'
+                    ? [
+                          [
+                              invoice.correction.of.invoiceId,
+                              { invoiceId: invoice.id, number: invoice.number },
+                          ] as const,
+                      ]
+                    : [],
+            ),
+        );
         return {
             invoices: invoices.map((invoice) => ({
                 id: invoice.id,
@@ -115,6 +130,10 @@ export class SubscriberReconciliationService {
                 totalGross: invoice.totalGross,
                 currency: invoice.currency,
                 owed: owed.get(invoice.id) ?? invoice.totalGross,
+                correction: invoice.correction
+                    ? { kind: invoice.correction.kind, of: invoice.correction.of }
+                    : null,
+                cancelledBy: cancelledBy.get(invoice.id) ?? null,
             })),
             openCases: await this.viewsOf(open),
         };

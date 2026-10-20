@@ -289,6 +289,17 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/TenantDetailPage.vue'),
         props: () => ({ slug: 'northwind' }),
     }),
+    // The cancellation's first step with the replacement's details opened:
+    // the dialog and its correction fields only exist once both are clicked.
+    visualCase({
+        id: 'tenant-detail-cancel-invoice',
+        load: () => import('../../../src/pages/TenantDetailPage.vue'),
+        props: () => ({ slug: 'northwind' }),
+        revealBy: [
+            'button[aria-label="Cancel invoice AHP-2026-000124"]',
+            '.sa-dialog .sa-accordion__trigger',
+        ],
+    }),
     visualCase({
         id: 'promo-code-detail',
         load: () => import('../../../src/pages/PromoCodeDetailPage.vue'),

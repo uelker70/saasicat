@@ -805,6 +805,14 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - names the invoice, and previews nothing before a reason is given
+        - previews what the reason and the corrections would write, the record’s values offered
+        - is confirmed behind the second factor with the preview’s digest, announced, and the
+          invoices read again
+        - goes back to what was entered, the preview discarded
+        - refused because what it writes changed, shows the new preview to confirm again
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
     - quasarConfirmOptions
         - carries the wording the page wrote, not a generic "are you sure"
@@ -1455,6 +1463,38 @@ _Tested by:_
     - the preview route
         - answers what the cancellation would write, and writes nothing
         - of another tenant’s invoice is refused as none
+    - a cancellation held to the preview the operator confirmed
+        - is written where it would write what the preview showed
+        - names the same preview by the same digest at another moment of its day, and another the
+          next day
+        - is refused with another preview’s digest, with the preview as it stands, and nothing is
+          written
+        - is refused where a payment came in after the preview, with the preview that counts it
+        - is refused where the legal name was corrected after the preview, though no amount moved
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - cancelling an invoice
+        - previews what the input would write, and that is the second step
+        - a refused preview rejects with the refusal, and the first step stays
+        - asks nothing of an input that gives no reason
+        - going back discards the preview, and an answer still on its way is dropped
+        - a refusal of a question no longer asked is dropped, not shown against the one on screen
+        - is confirmed behind the second factor with the request previewed and its digest,
+          announced, and read again
+        - sends what the preview answered, not what was entered after it
+        - for the tenant it was opened on, though the page moved on meanwhile
+        - stepped back from at the second factor stays on its preview, cancelling nothing
+        - refused because what it writes changed shows the new preview to confirm, and nothing else
+        - confirmed again after such a refusal, carries the digest of the new preview
+        - refused otherwise rejects with the refusal, and keeps the preview it was refused on
+        - opened on another invoice starts afresh
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - names the invoice, and previews nothing before a reason is given
+        - previews what the reason and the corrections would write, the record’s values offered
+        - is confirmed behind the second factor with the preview’s digest, announced, and the
+          invoices read again
+        - goes back to what was entered, the preview discarded
+        - refused because what it writes changed, shows the new preview to confirm again
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
     - quasarConfirmOptions
         - carries the wording the page wrote, not a generic "are you sure"

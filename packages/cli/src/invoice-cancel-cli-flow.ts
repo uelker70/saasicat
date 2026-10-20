@@ -16,6 +16,8 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     INVOICE_SUBSCRIBER_DETAILS,
+    sumToCents,
+    type InvoiceCancellationRequest,
     type InvoiceSubscriberDetail,
     type NewCorrectionInvoice,
     type RlsBypassPort,
@@ -26,7 +28,6 @@ import {
     invoiceCancellationAudit,
     type CancelledInvoice,
     type InvoiceCancellationPlan,
-    type InvoiceCancellationRequest,
 } from '@saasicat/nest';
 import { AdminResourcesService } from '@saasicat/nest/platform';
 
@@ -122,9 +123,19 @@ export class InvoiceCancelCliFlow {
 
     /** What the cancellation wrote, for the terminal. */
     formatCancelled(cancelled: CancelledInvoice): string {
+        const { cancellationInvoice, replacement } = cancelled;
+        const credited = cancelled.credits.reduce(
+            (sum, credit) => sumToCents(sum, credit.amount),
+            0,
+        );
         return [
-            `Cancelled by ${cancelled.cancellationInvoice.number}, ` +
-                `replaced by ${cancelled.replacement.number}.`,
+            `Cancelled by ${cancellationInvoice.number}, replaced by ${replacement.number}.`,
+            // What was written, which a payment arriving after the preview may
+            // have moved: the command line is not held to its preview.
+            `Taken over as paid: ${replacement.paidOnIssue.toFixed(2)} ${replacement.currency}` +
+                (credited > 0
+                    ? `; credited for the operator to refund: ${credited.toFixed(2)}`
+                    : ''),
             'The next run archives both and sends them.',
         ].join('\n');
     }

@@ -779,17 +779,21 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     reconciliation: Object.keys(reconciliationResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    // `charges`, the credits, the payments and the subscriber's operations
-    // are platform-served with no admin-client twin, like the settings: their
-    // requests are pinned in `tests/tenant-charges-resource.test.js`,
-    // `tests/tenant-credits-resource.test.js`, `tests/reconciliation.test.js`
-    // and `tests/tenant-subscriber-resource.test.js`.
+    // `charges`, the credits, the payments, an invoice's cancellation and the
+    // subscriber's operations are platform-served with no admin-client twin,
+    // like the settings: their requests are pinned in
+    // `tests/tenant-charges-resource.test.js`,
+    // `tests/tenant-credits-resource.test.js`, `tests/reconciliation.test.js`,
+    // `tests/an-operator-cancels-an-invoice.test.js` and
+    // `tests/tenant-subscriber-resource.test.js`.
     tenants: [
         LIST_OP,
         'charges',
         'credits',
         'payments',
         'recordPayout',
+        'previewInvoiceCancellation',
+        'cancelInvoice',
         'subscriber',
         'subscriberAttention',
         'subscriberHistory',

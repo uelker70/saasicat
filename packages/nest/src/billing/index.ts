@@ -180,7 +180,6 @@ export {
     invoiceCancellationAudit,
     type CancelledInvoice,
     type InvoiceCancellationPlan,
-    type InvoiceCancellationRequest,
 } from './invoices/invoice-cancellation.service.js';
 export {
     CancelInvoiceDto,

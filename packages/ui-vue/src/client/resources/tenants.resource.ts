@@ -12,11 +12,14 @@
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
 // encoded on the way into the path there, so they are encoded here. `charges`,
-// `credits`, `payments`, `recordPayout` and the subscriber's operations have
-// no twin there: the pages reach them through this descriptor alone.
+// `credits`, `payments`, `recordPayout`, the invoice's cancellation and the
+// subscriber's operations have no twin there: the pages reach them through
+// this descriptor alone.
 
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
+    type AdminCancelledInvoice,
+    type AdminInvoiceCancellationPlan,
     type AdminSubscriberAccount,
     type AdminSubscriberAttention,
     type AdminSubscriberCorrected,
@@ -26,6 +29,7 @@ import {
     type AdminTenantDetail,
     type AdminTenantPayments,
     type AdminTenantSubscriber,
+    type InvoiceCancellationRequest,
     type TenantDto,
     type TenantListFilter,
 } from '@saasicat/core';
@@ -62,6 +66,10 @@ function tenantsUrl(ctx: ResourceContext): string {
 
 function tenantUrl(ctx: ResourceContext, slug: string): string {
     return `${tenantsUrl(ctx)}/${encodeURIComponent(slug)}`;
+}
+
+function invoiceUrl(ctx: ResourceContext, slug: string, invoiceId: string): string {
+    return `${tenantUrl(ctx, slug)}/invoices/${encodeURIComponent(invoiceId)}`;
 }
 
 /** The tenant ids in pages the server takes, each named once. */
@@ -152,6 +160,47 @@ export const tenantsResource = defineResource('tenants', {
             `${tenantUrl(ctx, slug)}/credits/${encodeURIComponent(creditId)}/payouts`,
             'The payout returned no body',
             { method: 'POST', body: payout, headers: mfaHeader(mfaCode) },
+        ),
+
+    /**
+     * What cancelling one of the tenant's invoices would write — the
+     * cancellation invoice, the replacement and where what was paid goes —,
+     * computed as the cancellation computes it and refused as it is; nothing
+     * is written. Served where the manifest announces `invoices.cancel`.
+     */
+    previewInvoiceCancellation: async (
+        http,
+        ctx,
+        slug: string,
+        invoiceId: string,
+        request: InvoiceCancellationRequest,
+    ): Promise<AdminInvoiceCancellationPlan> =>
+        requestJsonBody<AdminInvoiceCancellationPlan>(
+            http,
+            `${invoiceUrl(ctx, slug, invoiceId)}/cancellation/preview`,
+            'The cancellation preview returned no body',
+            { method: 'POST', body: request },
+        ),
+
+    /**
+     * Cancels one of the tenant's invoices by a cancellation invoice and its
+     * replacement. Requires the second factor; the request carries the
+     * preview's digest, and a preview that no longer holds is refused with the
+     * new one.
+     */
+    cancelInvoice: async (
+        http,
+        ctx,
+        slug: string,
+        invoiceId: string,
+        request: InvoiceCancellationRequest,
+        mfaCode?: string,
+    ): Promise<AdminCancelledInvoice> =>
+        requestJsonBody<AdminCancelledInvoice>(
+            http,
+            `${invoiceUrl(ctx, slug, invoiceId)}/cancellation`,
+            'The cancellation returned no body',
+            { method: 'POST', body: request, headers: mfaHeader(mfaCode) },
         ),
 
     /**

@@ -1,8 +1,9 @@
 // The operator's path to cancelling an issued invoice: what the request may
 // hold before anything is computed, the preview route that writes nothing,
 // the cancellation route behind the second factor that records itself in the
-// audit log, where both are served and announced, and the invoice named by the
-// number on its document.
+// audit log, the cancellation held to the preview the operator confirmed,
+// where both are served and announced, the invoice named by the number on its
+// document, and the tenant's invoices saying which is cancelled by which.
 //
 // Over the installation in memory the cancellation tests use, whose invoices,
 // attempts and payments are kept as the persistence contract holds both
@@ -27,9 +28,11 @@ import {
     CancelInvoiceDto,
     INVOICE_CANCELLED_AUDIT_ACTION,
     InvoiceCancellationModule,
+    SubscriberReconciliationService,
 } from '../dist/billing/index.js';
 import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
-import { anInvoiceToCollect } from './helpers/invoice-collection.js';
+import { FIRST_RUN, anInvoiceToCollect } from './helpers/invoice-collection.js';
+import { succeeded } from './helpers/money-events.js';
 import { invoicingPlatform } from './helpers/invoicing-platform.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 
@@ -37,6 +40,9 @@ import { controllersIn, handlersOf } from './helpers/operator-routes.js';
 const CANCELLED_AT = new Date('2026-03-20T09:00:00.000Z');
 
 const REQUEST = { reason: 'The billing address was wrong.' };
+
+/** A digest shaped as a preview answers one: SHA-256, in hex. */
+const DIGEST = 'a'.repeat(64);
 
 /** The coded answer an operator reads, as its status and body. */
 async function refusalOf(attempt) {
@@ -87,6 +93,7 @@ describe('what an operator gives a cancellation', () => {
             [],
         );
         assert.deepEqual(await problemsOf({ ...REQUEST, deliverTo: null }), []);
+        assert.deepEqual(await problemsOf({ ...REQUEST, previewDigest: DIGEST }), []);
         assert.deepEqual(
             await problemsOf({ reason: 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH) }),
             [],
@@ -128,6 +135,17 @@ describe('what an operator gives a cancellation', () => {
             'an address longer than one can be',
             { ...REQUEST, deliverTo: `${'a'.repeat(246)}@t1.example` },
             'deliverTo',
+        ],
+        ['a digest that is no text', { ...REQUEST, previewDigest: 42 }, 'previewDigest'],
+        [
+            'a digest a character short',
+            { ...REQUEST, previewDigest: DIGEST.slice(1) },
+            'previewDigest',
+        ],
+        [
+            'a digest in capitals',
+            { ...REQUEST, previewDigest: DIGEST.toUpperCase() },
+            'previewDigest',
         ],
     ]) {
         test(`with ${why} is refused`, async () => {
@@ -364,6 +382,150 @@ describe('the cancellation route', () => {
         );
         assert.deepEqual(logged, []);
         assert.deepEqual(heldBy(installation)[1], 0);
+    });
+});
+
+// @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
+describe('a cancellation held to the preview the operator confirmed', () => {
+    const previewOf = ({ cancellation, invoice }, at = CANCELLED_AT) =>
+        cancellation.preview('t1', invoice.id, REQUEST, at);
+    const cancelConfirming = ({ cancellation, invoice }, previewDigest) =>
+        cancellation.cancel(
+            't1',
+            invoice.id,
+            { ...REQUEST, previewDigest },
+            'operator:anna',
+            CANCELLED_AT,
+        );
+
+    /** The refusal's status, its code and the preview it carries. */
+    async function changedSincePreview(attempt) {
+        try {
+            await attempt;
+        } catch (error) {
+            const { code, preview } = error.getResponse();
+            return { status: error.getStatus(), code, preview };
+        }
+        throw new Error('it was not refused');
+    }
+
+    test('is written where it would write what the preview showed', async () => {
+        const installation = await anInvoiceToCollect();
+
+        const plan = await previewOf(installation);
+        const cancelled = await cancelConfirming(installation, plan.digest);
+
+        assert.equal(cancelled.cancellation.cancelledInvoiceId, installation.invoice.id);
+    });
+
+    test('names the same preview by the same digest at another moment of its day, and another the next day', async () => {
+        const installation = await anInvoiceToCollect();
+
+        const [atTen, atFive, nextDay] = [
+            await previewOf(installation),
+            await previewOf(installation, new Date('2026-03-20T16:00:00.000Z')),
+            await previewOf(installation, new Date('2026-03-21T09:00:00.000Z')),
+        ];
+
+        assert.match(atTen.digest, /^[0-9a-f]{64}$/);
+        assert.equal(atFive.digest, atTen.digest);
+        assert.notEqual(nextDay.digest, atTen.digest);
+    });
+
+    test('is refused with another preview’s digest, with the preview as it stands, and nothing is written', async () => {
+        const installation = await anInvoiceToCollect();
+        const plan = await previewOf(installation);
+        const before = heldBy(installation);
+
+        const refusal = await changedSincePreview(cancelConfirming(installation, DIGEST));
+
+        assert.deepEqual(
+            [refusal.status, refusal.code, refusal.preview.digest],
+            [
+                409,
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED,
+                plan.digest,
+            ],
+        );
+        assert.deepEqual(heldBy(installation), before);
+    });
+
+    test('is refused where a payment came in after the preview, with the preview that counts it', async () => {
+        const installation = await anInvoiceToCollect();
+        const shown = await previewOf(installation);
+        installation.gateway.answers.push(succeeded(installation.invoice, 'pi_late', 20));
+        await installation.collect(FIRST_RUN);
+
+        const refusal = await changedSincePreview(cancelConfirming(installation, shown.digest));
+
+        assert.deepEqual(
+            [refusal.code, shown.movedIn, refusal.preview.movedIn],
+            [INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED, 0, 20],
+        );
+        assert.equal(heldBy(installation)[1], 0);
+    });
+
+    test('is refused where the legal name was corrected after the preview, though no amount moved', async () => {
+        const installation = await anInvoiceToCollect();
+        const shown = await previewOf(installation);
+        await installation.subscribers.correctIdentity(installation.subscriber.id, {
+            kind: 'correction',
+            legalName: 'Customer of t1 Holding GmbH',
+            reason: 'Change of name of the same company',
+            correctedBy: 'operator:ben',
+        });
+
+        const refusal = await changedSincePreview(cancelConfirming(installation, shown.digest));
+
+        assert.deepEqual(
+            [
+                refusal.code,
+                refusal.preview.replacement.subscriber.legalName,
+                refusal.preview.replacement.totalGross,
+            ],
+            [
+                INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED,
+                'Customer of t1 Holding GmbH',
+                shown.replacement.totalGross,
+            ],
+        );
+        assert.equal(heldBy(installation)[1], 0);
+    });
+});
+
+// @requirement SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
+describe('the invoices on the tenant’s page after a cancellation', () => {
+    test('say which is cancelled, which cancels it and which replaces it, and nothing of the rest', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+        const { cancellationInvoice, replacement } = await installation.cancellation.cancel(
+            't1',
+            invoice.id,
+            REQUEST,
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        const listing = new SubscriberReconciliationService(
+            installation.payments,
+            installation.store,
+            installation.subscribers,
+        );
+
+        const { invoices } = await listing.paymentsOf('t1');
+
+        const of = { invoiceId: invoice.id, number: invoice.number, issueDate: invoice.issueDate };
+        const cancelledBy = {
+            invoiceId: cancellationInvoice.id,
+            number: cancellationInvoice.number,
+        };
+        assert.deepEqual(
+            invoices.map((each) => [each.number, each.correction, each.cancelledBy]),
+            [
+                [replacement.number, { kind: 'replacement', of }, null],
+                [cancellationInvoice.number, { kind: 'cancellation', of }, null],
+                [invoice.number, null, cancelledBy],
+            ],
+        );
     });
 });
 

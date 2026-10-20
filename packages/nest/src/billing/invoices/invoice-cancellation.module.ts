@@ -25,6 +25,7 @@ import {
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_CORRECTION_MAX_LENGTH,
+    type InvoiceCancellationRequest,
     type RlsBypassPort,
 } from '@saasicat/core';
 
@@ -45,6 +46,8 @@ import {
 const MAX_ADDRESS_LENGTH = 254;
 /** Something besides blanks. */
 const NOT_BLANK = /\S/;
+/** A preview's digest: SHA-256, in hex. */
+const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 
 /**
  * Text trimmed before its length is checked, as the service settles it: the
@@ -121,7 +124,7 @@ export class InvoiceSubscriberCorrectionsDto {
  * `POST admin/tenants/:slug/invoices/:invoiceId/cancellation` and its
  * `…/preview` — what the operator gives a cancellation (`SC-ADM-020`).
  */
-export class CancelInvoiceDto {
+export class CancelInvoiceDto implements InvoiceCancellationRequest {
     @Trimmed()
     @IsString()
     @Matches(NOT_BLANK, { message: 'reason must say why the invoice is cancelled' })
@@ -140,6 +143,11 @@ export class CancelInvoiceDto {
     @IsString()
     @MaxLength(MAX_ADDRESS_LENGTH)
     deliverTo?: string | null;
+
+    @IsOptional()
+    @IsString()
+    @Matches(DIGEST_PATTERN, { message: 'previewDigest must be the digest a preview answered' })
+    previewDigest?: string;
 }
 
 export interface InvoiceCancellationModuleOptions {

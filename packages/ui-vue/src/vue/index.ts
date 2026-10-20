@@ -63,6 +63,7 @@ export * from './use-tenant-action-flow.js';
 export * from './use-tenant-account.js';
 export * from './use-tenant-credits.js';
 export * from './use-tenant-payments.js';
+export * from './use-invoice-cancellation.js';
 export * from './use-tenant-subscriber.js';
 export * from './use-subscriber-attention.js';
 export * from './use-subscriber-corrections.js';

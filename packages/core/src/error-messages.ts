@@ -339,6 +339,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The address to deliver the cancellation of invoice {number} and its replacement to is not an email address.',
     SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
         'The cancellation of invoice {number} needs a reason of one line and at most {max} characters, which both invoices name.',
+    SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED:
+        'What cancelling invoice {number} writes changed since it was shown. Look at it again before cancelling.',
     SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
         'The invoice lacks what the tax adapter {adapter} requires of it: {missing}. It is issued once that is supplied.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:

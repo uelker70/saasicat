@@ -9,6 +9,7 @@
 
 import type {
     AdminManifest,
+    AdminTenantInvoice,
     BundleRow,
     BundleVersionRow,
     CapabilityCatalogEntryRow,
@@ -48,10 +49,11 @@ export const FIXTURE_MANIFEST: AdminManifest = {
         vatRate: 19,
         plans: [],
     },
-    // Only what a page asks for by name: the charges section on the tenant
-    // detail is shown where the platform announces it, and a fixture that does
-    // not would leave the section unrendered and unmeasured.
-    capabilities: { 'charges.read': true },
+    // Only what a page asks for by name: the charges and payments sections on
+    // the tenant detail, and the cancellation at an invoice, are shown where
+    // the platform announces them, and a fixture that does not would leave
+    // them unrendered and unmeasured.
+    capabilities: { 'charges.read': true, 'payments.read': true, 'invoices.cancel': true },
     navigation: { standardPages: {} },
     // Real KPI cards, not an empty list: `AdminStatistics` and `AdminKpi` are
     // exactly the primitives the token migration rewrites, so a dashboard that
@@ -1017,6 +1019,52 @@ const TENANT_ACCOUNT = {
     ],
 };
 
+const tenantInvoice = (number: string, overrides: Partial<AdminTenantInvoice> = {}) => ({
+    id: `inv-${number.slice(-3)}`,
+    number,
+    issuedAt: '2026-02-01T05:15:00.000Z',
+    dueDate: '2026-02-15',
+    totalGross: 117.81,
+    currency: 'EUR',
+    owed: 0,
+    correction: null,
+    cancelledBy: null,
+    ...overrides,
+});
+
+const CANCELLED_INVOICE = {
+    invoiceId: 'inv-123',
+    number: 'AHP-2026-000123',
+    issueDate: '2026-02-01',
+};
+
+// Every relation an invoice of the list can stand in — a replacement, its
+// cancellation invoice, one of its own still open, and the one cancelled —, so
+// the relation column and the cancel action are measured where each appears.
+const TENANT_PAYMENTS = {
+    invoices: [
+        tenantInvoice('AHP-2026-000141', {
+            issuedAt: '2026-03-20T09:00:00.000Z',
+            dueDate: '2026-04-03',
+            correction: { kind: 'replacement', of: CANCELLED_INVOICE },
+        }),
+        tenantInvoice('AHP-2026-000140', {
+            issuedAt: '2026-03-20T09:00:00.000Z',
+            dueDate: '2026-03-20',
+            correction: { kind: 'cancellation', of: CANCELLED_INVOICE },
+        }),
+        tenantInvoice('AHP-2026-000124', {
+            issuedAt: '2026-03-01T05:15:00.000Z',
+            dueDate: '2026-03-15',
+            owed: 117.81,
+        }),
+        tenantInvoice('AHP-2026-000123', {
+            cancelledBy: { invoiceId: 'inv-140', number: 'AHP-2026-000140' },
+        }),
+    ],
+    openCases: [],
+};
+
 const EMAIL_ROW = {
     id: 'e-1',
     fromEmail: 'noreply@fixture.test',
@@ -1315,6 +1363,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/promo-codes/WELCOME20', PROMO_DETAIL],
     ['/api/admin/tenants/northwind', TENANT_DETAIL],
     ['/api/admin/tenants/northwind/charges', TENANT_ACCOUNT],
+    ['/api/admin/tenants/northwind/payments', TENANT_PAYMENTS],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface
