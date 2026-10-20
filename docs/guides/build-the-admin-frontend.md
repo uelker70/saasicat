@@ -467,6 +467,13 @@ createSuperAdminApp({
 });
 ```
 
+**Refusals read in the chosen language too.** A refusal the platform answers with a code — a
+cancellation of an invoice whose document is not archived yet, say — is worded from `errors.codes`,
+the platform's catalogue of every code in German and English, with the values the refusal carries.
+The server's English message shows instead where the code is not in that catalogue, as on a route
+of your own, or where a value the sentence names did not come with the refusal. An added language
+words the codes under `errors.codes` like any other key; one it leaves out reads in `basedOn`.
+
 **Choosing the starting language** — `'de'` when offered, otherwise the first
 entry of `locales`. This is the default for a user who has not picked yet; a
 stored pick outranks it. Three ways to take control:

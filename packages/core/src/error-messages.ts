@@ -517,15 +517,60 @@ function parameterText(value: unknown): string | null {
 }
 
 /**
+ * The sentence `catalogue` holds for `code`, or `undefined`. Only text counts:
+ * a code arrives from outside, and `constructor` or `toString` would otherwise
+ * read the function every object inherits.
+ */
+function catalogueEntry(
+    catalogue: Partial<Record<string, string>>,
+    code: string,
+): string | undefined {
+    const entry = catalogue[code];
+    return typeof entry === 'string' ? entry : undefined;
+}
+
+/** A `{name}` placeholder of a message template, which this file's own catalogues write. */
+const PLACEHOLDER = /\{(\w+)\}/g;
+
+/**
  * Replaces `{name}` with `params.name`. An unknown placeholder is left
  * verbatim, so a missing value is visible in the UI rather than silently
  * vanishing — and so is a value without a text of its own.
  */
 export function formatErrorMessage(template: string, params: ErrorMessageParams = {}): string {
     return template.replace(
-        /\{(\w+)\}/g,
+        PLACEHOLDER,
         (match, name: string) => parameterText(params[name]) ?? match,
     );
+}
+
+/**
+ * The sentence `catalogue` words the refusal `body` carries in, every
+ * placeholder filled from its `params` and its other fields; `null` where the
+ * catalogue does not know its code, or where a value the sentence names is
+ * not there to fill it. A sentence with a hole in it reads worse than the
+ * failing side's own, so the caller falls back to that one.
+ */
+export function catalogueSentenceFor(
+    body: unknown,
+    catalogue: Partial<Record<string, string>>,
+): string | null {
+    if (typeof body !== 'object' || body === null) return null;
+    const code = 'code' in body ? body.code : undefined;
+    const template = typeof code === 'string' ? catalogueEntry(catalogue, code) : undefined;
+    if (template === undefined) return null;
+    const values = new Map(Object.entries(body));
+    const params = values.get('params');
+    if (typeof params === 'object' && params !== null) {
+        for (const [name, value] of Object.entries(params)) values.set(name, value);
+    }
+    let complete = true;
+    const sentence = template.replace(PLACEHOLDER, (match, name: string) => {
+        const text = parameterText(values.get(name));
+        if (text === null) complete = false;
+        return text ?? match;
+    });
+    return complete ? sentence : null;
 }
 
 /**
@@ -564,7 +609,9 @@ export function resolveErrorMessage(
     defaults: Partial<Record<string, string>> = ERROR_MESSAGES_EN,
 ): string {
     const code = typeof body.code === 'string' ? body.code : undefined;
-    const template = (code && (overrides[code] ?? defaults[code])) ?? undefined;
+    const template = code
+        ? (catalogueEntry(overrides, code) ?? catalogueEntry(defaults, code))
+        : undefined;
     if (!template) {
         return typeof body.message === 'string' ? body.message : (code ?? '');
     }

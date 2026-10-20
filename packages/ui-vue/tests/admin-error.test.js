@@ -354,6 +354,79 @@ describe('toAdminError', () => {
     });
 });
 
+// @requirement SC-LANG-005 — Every string on a screen follows the language that was chosen
+describe('a refusal the platform knows by its code', () => {
+    const DE = SA_MESSAGES.de.errors;
+    const refusal = (body, init = {}) =>
+        new AdminError({
+            status: 409,
+            code: 'SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED',
+            body,
+            detail: 'Invoice AHP-2026-000124 is cancelled only once its document is archived.',
+            ...init,
+        });
+    const ARCHIVED = {
+        code: 'SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED',
+        message: 'Invoice AHP-2026-000124 is cancelled only once its document is archived.',
+        params: { number: 'AHP-2026-000124' },
+    };
+
+    test('reads in the interface’s language with its values, not in the server’s', () => {
+        assert.equal(
+            adminErrorMessage(refusal(ARCHIVED), DE),
+            'Die Rechnung AHP-2026-000124 kann erst storniert werden, wenn ihr Dokument archiviert ist.',
+        );
+    });
+
+    test('reads in English where the interface is English', () => {
+        assert.equal(
+            adminErrorMessage(refusal(ARCHIVED), EN),
+            'Invoice AHP-2026-000124 is cancelled only once its document is archived.',
+        );
+    });
+
+    test('is worded by the code the error carries where its body names none', () => {
+        assert.equal(
+            adminErrorMessage(refusal({ params: ARCHIVED.params }), DE),
+            'Die Rechnung AHP-2026-000124 kann erst storniert werden, wenn ihr Dokument archiviert ist.',
+        );
+    });
+
+    // @requirement SC-LANG-004 — A missing translation is never an empty line
+    test('missing a value its sentence names, reads as the failing side said it, never with a hole', () => {
+        assert.equal(
+            adminErrorMessage(refusal({ code: ARCHIVED.code, message: ARCHIVED.message }), DE),
+            'Invoice AHP-2026-000124 is cancelled only once its document is archived.',
+        );
+    });
+
+    test('of a code named like an inherited property reads as the failing side said it', () => {
+        assert.equal(
+            adminErrorMessage(
+                refusal(
+                    { code: 'constructor', message: 'Not allowed here.' },
+                    { code: 'constructor', detail: 'Not allowed here.' },
+                ),
+                DE,
+            ),
+            'Not allowed here.',
+        );
+    });
+
+    test('of a code the platform does not know reads as the failing side said it', () => {
+        assert.equal(
+            adminErrorMessage(
+                refusal(
+                    { code: 'NOTES_QUOTA_REACHED', message: 'Quota reached.' },
+                    { code: 'NOTES_QUOTA_REACHED', detail: 'Quota reached.' },
+                ),
+                DE,
+            ),
+            'Quota reached.',
+        );
+    });
+});
+
 describe('a transport failure is declared by the client, not read off the class', () => {
     // `err instanceof TypeError` stood in for "the request failed in transit"
     // and was the third guess in this file to be wrong about a fact nothing in

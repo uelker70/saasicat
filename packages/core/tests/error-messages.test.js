@@ -10,6 +10,7 @@ import {
     FEATURE_NOT_LICENSED,
     PLATFORM_ERROR_CODES,
     formatErrorMessage,
+    catalogueSentenceFor,
     resolveErrorMessage,
 } from '../dist/index.js';
 
@@ -162,4 +163,63 @@ describe('resolveErrorMessage', () => {
             'n=2',
         );
     });
+
+    for (const code of ['constructor', 'toString']) {
+        test(`reads a code named like an inherited property, \`${code}\`, as unknown`, () => {
+            assert.equal(
+                resolveErrorMessage({ code, message: 'Not allowed here.' }),
+                'Not allowed here.',
+            );
+        });
+    }
+});
+
+describe('catalogueSentenceFor', () => {
+    const CATALOGUE = {
+        NOT_ARCHIVED: 'Rechnung {number} ist noch nicht archiviert.',
+        BOTH: '{number} von {count}',
+        PLAIN: 'Ohne Werte.',
+    };
+
+    test('words a known code in the catalogue, its placeholders filled from params', () => {
+        assert.equal(
+            catalogueSentenceFor(
+                { code: 'NOT_ARCHIVED', message: 'Invoice AHP-1 …', params: { number: 'AHP-1' } },
+                CATALOGUE,
+            ),
+            'Rechnung AHP-1 ist noch nicht archiviert.',
+        );
+    });
+
+    test('reads a top-level field where params name none, and params win over one', () => {
+        assert.equal(
+            catalogueSentenceFor(
+                { code: 'BOTH', count: 3, number: 'x', params: { number: 'AHP-1' } },
+                CATALOGUE,
+            ),
+            'AHP-1 von 3',
+        );
+    });
+
+    test('words a sentence without placeholders as it stands', () => {
+        assert.equal(catalogueSentenceFor({ code: 'PLAIN' }, CATALOGUE), 'Ohne Werte.');
+    });
+
+    for (const [why, body] of [
+        ['a code the catalogue does not know', { code: 'SOMETHING_NEW', params: { number: '1' } }],
+        ['a body without a code', { params: { number: '1' } }],
+        ['a code named like an inherited property, `constructor`', { code: 'constructor' }],
+        ['a code named like an inherited property, `toString`', { code: 'toString' }],
+        ['one value of two missing', { code: 'BOTH', params: { number: 'AHP-1' } }],
+        [
+            'a value without a text of its own',
+            { code: 'NOT_ARCHIVED', params: { number: { id: 1 } } },
+        ],
+        ['a body that is no object', 'NOT_ARCHIVED'],
+        ['no body at all', null],
+    ]) {
+        test(`answers nothing for ${why}, so the caller falls back`, () => {
+            assert.equal(catalogueSentenceFor(body, CATALOGUE), null);
+        });
+    }
 });

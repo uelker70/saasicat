@@ -17,7 +17,10 @@
 //     candidate for showing a user, and it is `undefined` when there is none.
 //
 // `adminErrorMessage()` is what turns an error into user-facing text; it is
-// the only place that decides between `detail` and a translated fallback.
+// the only place that decides between a code's sentence, `detail` and a
+// translated fallback.
+
+import { catalogueSentenceFor } from '@saasicat/core';
 
 import { attachCause } from './attach-cause.js';
 import { formatMessage } from './i18n/format.js';
@@ -544,7 +547,7 @@ export function toAdminError(err: unknown): AdminError {
  * Maps `status` to the key that describes what happened. `undefined` means the
  * status has no dedicated wording and falls through to the generic template.
  */
-function statusKey(status: number): keyof SaMessages['errors'] | undefined {
+function statusKey(status: number): Exclude<keyof SaMessages['errors'], 'codes'> | undefined {
     if (status === 400 || status === 422) return 'validation';
     if (status === 401) return 'unauthorized';
     if (status === 403) return 'forbidden';
@@ -558,8 +561,12 @@ function statusKey(status: number): keyof SaMessages['errors'] | undefined {
 /**
  * Turns anything that was caught into text for a user.
  *
- * What the failing side said outranks anything this package could guess, so a
- * `detail` wins whenever there is one. After that come the two facts a seam
+ * A refusal the platform knows by its code reads first, in the interface's
+ * language, from `msgs.codes`: it is the sentence the route worded its English
+ * message from, with the values the refusal carries (`SC-LANG-005`). Where the
+ * code is unknown — a consumer's own route — or a value the sentence names is
+ * missing, what the failing side said outranks anything this package could
+ * guess, so a `detail` wins whenever there is one. After that come the two facts a seam
  * declared about a request with no HTTP status — they need opposite sentences
  * and no number can tell them apart — and only then the status.
  *
@@ -577,6 +584,9 @@ function statusKey(status: number): keyof SaMessages['errors'] | undefined {
  */
 export function adminErrorMessage(err: unknown, msgs: SaMessages['errors']): string {
     const error = toAdminError(err);
+    const body = typeof error.body === 'object' && error.body !== null ? error.body : {};
+    const worded = catalogueSentenceFor({ code: error.code, ...body }, msgs.codes);
+    if (worded !== null) return worded;
     if (error.detail) return error.detail;
     if (error.emptyResponse) return msgs.emptyResponse;
     if (error.transportFailure) return msgs.network;

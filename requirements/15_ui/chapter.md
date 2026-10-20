@@ -507,6 +507,13 @@ _Tested by:_
         - but an error from app code keeps its message — that IS what was said
         - wraps a thrown string
         - survives a thrown nothing
+    - a refusal the platform knows by its code
+        - reads in the interface’s language with its values, not in the server’s
+        - reads in English where the interface is English
+        - is worded by the code the error carries where its body names none
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code named like an inherited property reads as the failing side said it
+        - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
         - a real fetch failure still says "check your connection"
@@ -600,6 +607,13 @@ _Tested by:_
         - but an error from app code keeps its message — that IS what was said
         - wraps a thrown string
         - survives a thrown nothing
+    - a refusal the platform knows by its code
+        - reads in the interface’s language with its values, not in the server’s
+        - reads in English where the interface is English
+        - is worded by the code the error carries where its body names none
+        - missing a value its sentence names, reads as the failing side said it, never with a hole
+        - of a code named like an inherited property reads as the failing side said it
+        - of a code the platform does not know reads as the failing side said it
     - a transport failure is declared by the client, not read off the class
         - a null dereference is not a connection problem
         - a real fetch failure still says "check your connection"
