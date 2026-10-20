@@ -94,7 +94,9 @@ would change, and writes it only with `--apply`. See
 corrected by, and writes them only with `--apply`, which asks for the second factor and, against
 production, `--yes`. It names the invoice by its tenant and the number on its document; `--correct
 city=Bremen` corrects a detail the replacement names, `--deliver-to` gives the address both invoices
-go to. Exit code 6 is an invoice cancelled already, 1 every other refusal. See
+go to. After `--apply` it says what the replacement took over as paid and what was credited — a
+payment that arrived since the preview counts there. Exit code 6 is an invoice cancelled already, 1
+every other refusal. See
 [Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):

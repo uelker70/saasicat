@@ -117,6 +117,8 @@
                     :error="payments.error.value"
                     :retry="payments.reload"
                     :format-date="formatDateResolved"
+                    :cancellation="cancellation"
+                    :record="subscriber.data.value?.subscriber ?? null"
                 />
 
                 <slot name="extra-cards" :data="data" :reload="load" />
@@ -173,6 +175,7 @@ import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantAccount } from '../vue/use-tenant-account.js';
 import { useTenantCredits } from '../vue/use-tenant-credits.js';
 import { useTenantPayments } from '../vue/use-tenant-payments.js';
+import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
 import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
@@ -318,6 +321,14 @@ const credits = useTenantCredits(tenantSlug, servedBy, tenants, { notify, mfa })
 
 // Its invoices with what each still owes, and its cases open to reconcile.
 const payments = useTenantPayments(tenantSlug, servedBy, tenants);
+
+// Cancelling one of them behind the same second-factor dialog; what was paid
+// for it moves, so its credits are read again with the invoices.
+const cancellation = useInvoiceCancellation(tenantSlug, servedBy, tenants, {
+    notify,
+    mfa,
+    onCancelled: () => Promise.all([payments.reload(), credits.reload()]),
+});
 
 function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<string | null> {
     return mfa.prompt(

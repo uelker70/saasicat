@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 33      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 34      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 650 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+Of 651 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
 🔵 33 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -225,7 +225,7 @@ Of 650 entries: 🟢 563 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 650 requirements. Do not edit by hand:
+Generated from `requirements/` — 651 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -15375,6 +15375,10 @@ _Tested by:_
     - SaaSiCatModule + tenantManifest
         - tenantManifest without defaultPlanId/resolver throws
         - tenantManifest + defaultPlanId registers controller + service
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - where cancelling is offered
+        - ${what}: ${offered ? 'at an invoice that stands' : 'nowhere'}
+        - never at a cancellation invoice, wherever it is served
 - `packages/ui-vue/tests/app-served-resources.test.js`
     - pilotsResource — the paths a consumer already serves
         - ${c.op} calls ${c.method} ${c.url}
@@ -15700,6 +15704,16 @@ _Tested by:_
     - the preview is the command, and the cancellation the second one
         - with --apply it asks for the second factor and the confirmation, cancels as the operator
           and records it
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - the tenants descriptor
+        - cancels with the second factor and the figures shown
+    - cancelling an invoice
+        - is confirmed behind the second factor with the request previewed and the figures shown,
+          announced, and read again
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - is confirmed behind the second factor with the figures shown, announced, and the invoices
+          read again
 
 <!-- END proof -->
 
@@ -15739,6 +15753,13 @@ _Tested by:_
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
         - of another tenant’s invoice is refused as none, and nothing is recorded
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - the request what the operator entered makes
+        - with nothing but a reason: the reason trimmed, no corrections, no address
+        - each text trimmed, a detail typed as nothing left as it was, one taken over as none kept
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - previews what the reason and the corrections would write, the record’s values offered
 
 <!-- END proof -->
 
@@ -16131,6 +16152,35 @@ _Tested by:_
         - a cancelled code closes nothing
     - a tenant's payments
         - are read where the manifest announces them, and not otherwise
+
+<!-- END proof -->
+
+### SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
+
+🟢 💰 Each invoice on the subscriber's tenant page names, by the numbers on the documents, the invoice
+it corrects — a cancellation invoice the one it cancels, a replacement the one it replaces — and the
+cancellation invoice that cancelled it; a replacement cancelled in turn says both. The operator is
+offered the cancellation at an invoice that stands and is no cancellation invoice (`SC-PRIC-091`),
+where the platform serves it (`SC-ADM-015`). Before the second factor, the dialog shows what the
+server says the cancellation will write, and a cancellation whose figures changed since is refused
+with the new ones to confirm (`SC-UI-017`).
+
+_Source:_ #334 (decided 2026-10-20)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoices on the tenant’s page after a cancellation
+        - say which is cancelled, which cancels it and which replaces it, and nothing of the rest
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoices a cancellation is offered at
+        - ${what}: ${offered ? 'offered' : 'not offered'}
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - the invoices on the tenant page
+        - say what each stands in relation to, and offer cancelling only where one stands
+        - offer no cancelling where the platform does not serve it
 
 <!-- END proof -->
 
@@ -16939,6 +16989,14 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - names the invoice, and previews nothing before a reason is given
+        - previews what the reason and the corrections would write, the record’s values offered
+        - is confirmed behind the second factor with the figures shown, announced, and the invoices
+          read again
+        - goes back to what was entered, the preview discarded
+        - refused because what it writes changed, shows the new preview to confirm again
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
     - quasarConfirmOptions
         - carries the wording the page wrote, not a generic "are you sure"
@@ -17589,6 +17647,34 @@ _Tested by:_
     - the preview route
         - answers what the cancellation would write, and writes nothing
         - of another tenant’s invoice is refused as none
+    - a cancellation held to the preview the operator confirmed
+        - is written where it would write what was shown
+        - with ${figure} is refused with the preview as it stands, and nothing is written
+        - is refused where a payment came in after the preview, with the preview that counts it
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - cancelling an invoice
+        - previews what the input would write, and that is the second step
+        - a refused preview rejects with the refusal, and the first step stays
+        - asks nothing of an input that gives no reason
+        - going back discards the preview, and an answer still on its way is dropped
+        - a refusal of a question no longer asked is dropped, not shown against the one on screen
+        - is confirmed behind the second factor with the request previewed and the figures shown,
+          announced, and read again
+        - sends what the preview answered, not what was entered after it
+        - for the tenant it was opened on, though the page moved on meanwhile
+        - stepped back from at the second factor stays on its preview, cancelling nothing
+        - refused because what it writes changed shows the new preview to confirm, and nothing else
+        - confirmed again after such a refusal, carries the figures of the new preview
+        - refused otherwise rejects with the refusal, and keeps the preview it was refused on
+        - opened on another invoice starts afresh
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - names the invoice, and previews nothing before a reason is given
+        - previews what the reason and the corrections would write, the record’s values offered
+        - is confirmed behind the second factor with the figures shown, announced, and the invoices
+          read again
+        - goes back to what was entered, the preview discarded
+        - refused because what it writes changed, shows the new preview to confirm again
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
     - quasarConfirmOptions
         - carries the wording the page wrote, not a generic "are you sure"

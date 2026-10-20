@@ -1157,7 +1157,11 @@ not take it, credited for the operator to refund. The next run archives and mail
 invoice.
 
 - **The preview**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview`, answers what
-  the cancellation would write and writes nothing; show it in the confirmation (`SC-UI-017`).
+  the cancellation would write and writes nothing; show it in the confirmation (`SC-UI-017`), and
+  send its figures back with the cancellation as `shown` — `cancellationShownOf(plan)` from
+  `@saasicat/core`. A payment that arrives in between then refuses the cancellation with
+  `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, rather than writing what
+  nobody confirmed.
 - **The cancellation**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`, asks for the
   second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
   invoices name —, `corrections` of the subscriber's details the replacement names, and `deliverTo`,
@@ -1166,9 +1170,14 @@ invoice.
   onto the record (`SC-PRIC-094`). The manifest announces both routes as `invoices.cancel`, and
   the audit log records `SUBSCRIPTION_INVOICE_CANCELLED` with the reason, which details were
   corrected and whether an address was given.
+- **On the tenant page** of the shipped administration, each invoice says what it corrects and
+  which cancellation invoice cancelled it, and one that stands offers the cancellation in two steps
+  — what the operator gives, then the preview, confirmed with the second factor (`SC-ADM-034`).
+  Nothing to wire beyond the routes.
 - **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
   shows the same and writes nothing; `--apply` cancels, with the second factor and, against
-  production, a confirmation ([Extend your CLI](extend-your-cli.md)).
+  production, a confirmation, and says what it took over as paid and credited — it sends no
+  `shown`, so that is what was written ([Extend your CLI](extend-your-cli.md)).
 
 The replacement names the legal entity and the subscriber of the invoice it replaces, with the
 corrections given. It is a letter of its own issue date: while `config/saas.yaml` names that entity,

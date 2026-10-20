@@ -343,6 +343,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Die Adresse, an die die Stornierung der Rechnung {number} und ihre Ersatzrechnung gehen sollen, ist keine E-Mail-Adresse.',
     SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
         'Die Stornierung der Rechnung {number} braucht einen Grund in einer Zeile mit höchstens {max} Zeichen, den beide Rechnungen nennen.',
+    SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED:
+        'Was die Stornierung der Rechnung {number} schreibt, hat sich seit der Vorschau geändert. Prüfen Sie sie erneut, bevor Sie stornieren.',
     SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE:
         'Der Rechnung fehlt, was der Steueradapter {adapter} verlangt: {missing}. Sie wird ausgestellt, sobald es ergänzt ist.',
     SUBSCRIPTION_INVOICE_PARTIES_UNCONFIRMED:

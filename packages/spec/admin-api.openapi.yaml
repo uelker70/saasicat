@@ -685,8 +685,11 @@ paths:
                     description: >-
                         As the preview; a second cancellation of the same invoice
                         at the same moment is refused here
-                        (`SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`). Nothing is
-                        written, and no number is drawn.
+                        (`SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`); and where the
+                        figures `shown` differ from what it would write, the
+                        refusal carries the new preview as `preview`
+                        (`SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED`).
+                        Nothing is written, and no number is drawn.
                 '422':
                     description: As the preview. Nothing is written, and no number is drawn.
 
@@ -3623,6 +3626,25 @@ components:
                         collection notices with them; required where the record
                         holds no invoice email. Kept with the cancellation, not
                         written onto the subscriber's record.
+                shown:
+                    type: object
+                    description: >-
+                        The figures of the preview the operator confirms. Given,
+                        the cancellation is refused with
+                        `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the
+                        new preview wherever what it would write differs; each
+                        amount is compared to the cent. Ignored by the preview.
+                    required: [replacement, movedIn, credited]
+                    properties:
+                        replacement:
+                            type: object
+                            required: [totalGross, totalTax, dueDate]
+                            properties:
+                                totalGross: { type: number, multipleOf: 0.01 }
+                                totalTax: { type: number, multipleOf: 0.01 }
+                                dueDate: { type: string, format: date }
+                        movedIn: { type: number, multipleOf: 0.01 }
+                        credited: { type: number, multipleOf: 0.01 }
 
         AdminInvoiceCancellationPlan:
             type: object
@@ -3674,7 +3696,8 @@ components:
 
         AdminTenantInvoice:
             type: object
-            required: [id, number, issuedAt, dueDate, totalGross, currency, owed]
+            required:
+                [id, number, issuedAt, dueDate, totalGross, currency, owed, correction, cancelledBy]
             properties:
                 id: { type: string }
                 number: { type: string }
@@ -3688,6 +3711,31 @@ components:
                         What it still owes after every payment, reversal and
                         give-back against it; negative where the subscriber is
                         owed.
+                correction:
+                    type: object
+                    nullable: true
+                    description: >-
+                        What it corrects, on a cancellation invoice or a
+                        replacement; `null` on an invoice issued for the charge
+                        journal's charges.
+                    required: [kind, of]
+                    properties:
+                        kind: { type: string, enum: [cancellation, replacement] }
+                        of:
+                            type: object
+                            required: [invoiceId, number, issueDate]
+                            properties:
+                                invoiceId: { type: string }
+                                number: { type: string }
+                                issueDate: { type: string, format: date }
+                cancelledBy:
+                    type: object
+                    nullable: true
+                    description: The cancellation invoice that cancelled it; `null` while it stands.
+                    required: [invoiceId, number]
+                    properties:
+                        invoiceId: { type: string }
+                        number: { type: string }
 
         AdminTenantPayments:
             type: object

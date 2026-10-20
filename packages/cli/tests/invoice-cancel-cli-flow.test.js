@@ -39,12 +39,17 @@ const CANCELLED = {
         tenantId: 't1',
         correction: { kind: 'cancellation', of: { number: 'AHP-2026-000123' } },
     },
-    replacement: { number: 'AHP-2026-000141', paidOnIssue: 0 },
+    replacement: { number: 'AHP-2026-000141', paidOnIssue: 0, currency: 'EUR' },
     credits: [],
     withdrawnCollections: 0,
 };
 
-function setUp({ refusal = null, numbered = 'invoice-1', bypass = 'bound' } = {}) {
+function setUp({
+    refusal = null,
+    numbered = 'invoice-1',
+    bypass = 'bound',
+    cancelled = CANCELLED,
+} = {}) {
     const calls = [];
     // Where row-level security is on, a tenant read outside the bypass frame is none.
     let lifted = false;
@@ -93,7 +98,7 @@ function setUp({ refusal = null, numbered = 'invoice-1', bypass = 'bound' } = {}
         async cancel(tenantId, invoiceId, request, cancelledBy) {
             calls.push(['cancel', tenantId, invoiceId, request, cancelledBy]);
             if (refusal) throw refusal;
-            return CANCELLED;
+            return cancelled;
         },
     };
     const ctx = recordingContext();
@@ -322,6 +327,28 @@ describe('the commands', () => {
         );
         assert.match(previewed, /Run again with --apply/);
         assert.match(applied, /Cancelled by AHP-2026-000140, replaced by AHP-2026-000141\./);
+        assert.match(applied, /^Taken over as paid: 0\.00 EUR$/m);
+    });
+
+    test('say after --apply what was taken over and credited, which no preview holds it to', async () => {
+        const { flow } = setUp({
+            cancelled: {
+                ...CANCELLED,
+                replacement: { ...CANCELLED.replacement, paidOnIssue: 50 },
+                credits: [{ amount: 3.3 }, { amount: 5.01 }],
+            },
+        });
+
+        const applied = await printed(new InvoicesCancelCommand(flow), {
+            ...OPTIONS,
+            apply: true,
+            yes: true,
+        });
+
+        assert.match(
+            applied,
+            /^Taken over as paid: 50\.00 EUR; credited for the operator to refund: 8\.31$/m,
+        );
     });
 
     test('print JSON with -o json', async () => {

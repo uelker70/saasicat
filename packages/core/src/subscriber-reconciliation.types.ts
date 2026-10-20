@@ -6,6 +6,7 @@
 // itself only where the money it was about came back: the refund failed, or
 // the gateway gave the reversal back (`SC-PRIC-086`).
 
+import type { SubscriptionInvoiceCorrection } from './subscription-invoice.types.js';
 import type { CalendarDay } from './zoned-day.js';
 
 /** What a case is about: a refund no credit takes, or a reversal no credit takes. */
@@ -113,7 +114,7 @@ export interface AdminReconciliationClose {
     note: string;
 }
 
-/** An invoice on its tenant's page: what it asked for, and what it still owes. */
+/** An invoice on its tenant's page: what it asked for, what it still owes, and what it stands for. */
 export interface AdminTenantInvoice {
     id: string;
     number: string;
@@ -128,6 +129,13 @@ export interface AdminTenantInvoice {
      * total is negative.
      */
     owed: number;
+    /**
+     * What it corrects, on a cancellation invoice or a replacement; `null` on
+     * an invoice issued for the charge journal's charges (`SC-PRIC-091`).
+     */
+    correction: Pick<SubscriptionInvoiceCorrection, 'kind' | 'of'> | null;
+    /** The cancellation invoice that cancelled it; `null` while it stands. */
+    cancelledBy: { invoiceId: string; number: string } | null;
 }
 
 /** A tenant's invoices, the newest first, and its cases still open, the oldest first. */

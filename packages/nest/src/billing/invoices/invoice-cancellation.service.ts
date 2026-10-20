@@ -32,6 +32,7 @@ import {
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_ERROR_CODES,
+    cancellationShownOf,
     contractPartiesOf,
     correctedSubscriberOf,
     directDebitLeadDaysOf,
@@ -42,9 +43,14 @@ import {
     invoicePaymentOf,
     movedPaymentParts,
     paidByShares,
+    sameCancellationShown,
     subscriberCorrectedSince,
     sumToCents,
+    type AdminCancelledInvoice,
+    type AdminInvoiceCancellationPlan,
     type CorrectedInvoiceSubscriber,
+    type InvoiceCancellationRequest,
+    type InvoiceCancellationShown,
     type InvoiceCollectionRepository,
     type InvoicePaymentShare,
     type InvoiceSubscriberDetail,
@@ -87,28 +93,8 @@ import {
 import { SubscriptionInvoiceService } from './subscription-invoice.service.js';
 import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.tokens.js';
 
-/**
- * What the operator gives a cancellation. Each part is settled before
- * anything is computed: the reason trimmed and held to one line of at most
- * `INVOICE_CANCELLATION_REASON_MAX_LENGTH` characters, each correction as the
- * subscriber's record holds that detail, the address trimmed and shaped like
- * an email address.
- */
-export interface InvoiceCancellationRequest {
-    /** Why the invoice is cancelled; both invoices name it (`SC-ADM-020`). */
-    reason: string;
-    /** Details of the subscriber the cancelled invoice named wrongly, as the replacement names them. */
-    corrections?: Partial<Record<InvoiceSubscriberDetail, string | null>>;
-    /**
-     * The address both invoices are delivered to, and the replacement's
-     * collection notices with them; required where the subscriber's record
-     * holds no invoice email (`SC-PRIC-094`).
-     */
-    deliverTo?: string | null;
-}
-
 /** What cancelling an invoice writes, as the preview shows it and the cancellation writes it. */
-export interface InvoiceCancellationPlan {
+export interface InvoiceCancellationPlan extends AdminInvoiceCancellationPlan {
     cancelled: SubscriptionInvoiceRecord;
     cancellation: NewCorrectionInvoice;
     replacement: NewCorrectionInvoice;
@@ -116,14 +102,6 @@ export interface InvoiceCancellationPlan {
     correctedSubscriber: CorrectedInvoiceSubscriber | null;
     /** How each payment's share of the cancelled invoice moves, the oldest first. */
     moves: MovedPaymentPart[];
-    /** What the replacement takes over of what was paid. */
-    movedIn: number;
-    /** What becomes a credit for the operator to refund. */
-    credited: number;
-    /** The reason both invoices name, as it is recorded. */
-    reason: string;
-    /** The address both invoices are delivered to, as it is recorded; `null` where none was given. */
-    deliverTo: string | null;
 }
 
 /** The audit action a cancellation is recorded under (`SC-ADM-020`). */
@@ -173,7 +151,7 @@ export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
 }
 
 /** What a cancellation wrote. */
-export interface CancelledInvoice {
+export interface CancelledInvoice extends AdminCancelledInvoice {
     cancellation: SubscriptionInvoiceCancellationRecord;
     cancellationInvoice: SubscriptionInvoiceRecord;
     replacement: SubscriptionInvoiceRecord;
@@ -301,6 +279,7 @@ export class InvoiceCancellationService implements OnModuleInit {
     ): Promise<CancelledInvoice> {
         return this.runner().run(async (tx) => {
             const plan = await this.planIn(tenantId, invoiceId, request, now, tx);
+            refuseChangedSincePreview(plan, request.shown);
             const issued = await answeringRefusals(
                 () =>
                     this.invoices.issueCancellation(
@@ -551,6 +530,26 @@ export class InvoiceCancellationService implements OnModuleInit {
             throw new Error('Cancelling an invoice needs a transaction runner.');
         return this.transactions;
     }
+}
+
+/**
+ * Refuses a cancellation whose confirmed preview showed other figures than
+ * it would write — a payment came in meanwhile, or the replacement's tax or
+ * due date moved —, with the new preview, so that what is written is what
+ * the operator confirmed (`SC-UI-017`). A request that shows nothing, as the
+ * command line's, is not held to a preview.
+ */
+function refuseChangedSincePreview(
+    plan: InvoiceCancellationPlan,
+    shown: InvoiceCancellationShown | undefined,
+): void {
+    if (!shown || sameCancellationShown(cancellationShownOf(plan), shown)) return;
+    throw new ConflictException({
+        ...codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED, {
+            number: plan.cancelled.number,
+        }),
+        preview: plan,
+    });
 }
 
 /**

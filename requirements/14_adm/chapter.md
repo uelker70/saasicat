@@ -420,6 +420,10 @@ _Tested by:_
     - SaaSiCatModule + tenantManifest
         - tenantManifest without defaultPlanId/resolver throws
         - tenantManifest + defaultPlanId registers controller + service
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - where cancelling is offered
+        - ${what}: ${offered ? 'at an invoice that stands' : 'nowhere'}
+        - never at a cancellation invoice, wherever it is served
 - `packages/ui-vue/tests/app-served-resources.test.js`
     - pilotsResource — the paths a consumer already serves
         - ${c.op} calls ${c.method} ${c.url}
@@ -745,6 +749,16 @@ _Tested by:_
     - the preview is the command, and the cancellation the second one
         - with --apply it asks for the second factor and the confirmation, cancels as the operator
           and records it
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - the tenants descriptor
+        - cancels with the second factor and the figures shown
+    - cancelling an invoice
+        - is confirmed behind the second factor with the request previewed and the figures shown,
+          announced, and read again
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - is confirmed behind the second factor with the figures shown, announced, and the invoices
+          read again
 
 <!-- END proof -->
 
@@ -784,6 +798,13 @@ _Tested by:_
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
         - of another tenant’s invoice is refused as none, and nothing is recorded
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - the request what the operator entered makes
+        - with nothing but a reason: the reason trimmed, no corrections, no address
+        - each text trimmed, a detail typed as nothing left as it was, one taken over as none kept
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - an invoice cancelled from the tenant page
+        - previews what the reason and the corrections would write, the record’s values offered
 
 <!-- END proof -->
 
@@ -1176,5 +1197,34 @@ _Tested by:_
         - a cancelled code closes nothing
     - a tenant's payments
         - are read where the manifest announces them, and not otherwise
+
+<!-- END proof -->
+
+### SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
+
+🟢 💰 Each invoice on the subscriber's tenant page names, by the numbers on the documents, the invoice
+it corrects — a cancellation invoice the one it cancels, a replacement the one it replaces — and the
+cancellation invoice that cancelled it; a replacement cancelled in turn says both. The operator is
+offered the cancellation at an invoice that stands and is no cancellation invoice (`SC-PRIC-091`),
+where the platform serves it (`SC-ADM-015`). Before the second factor, the dialog shows what the
+server says the cancellation will write, and a cancellation whose figures changed since is refused
+with the new ones to confirm (`SC-UI-017`).
+
+_Source:_ #334 (decided 2026-10-20)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoices on the tenant’s page after a cancellation
+        - say which is cancelled, which cancels it and which replaces it, and nothing of the rest
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoices a cancellation is offered at
+        - ${what}: ${offered ? 'offered' : 'not offered'}
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - the invoices on the tenant page
+        - say what each stands in relation to, and offer cancelling only where one stands
+        - offer no cancelling where the platform does not serve it
 
 <!-- END proof -->

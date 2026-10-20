@@ -704,6 +704,14 @@ export const INVOICE_ERROR_CODES = {
     SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
         'SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID',
     /**
+     * What cancelling the invoice (`number`) would write differs from the
+     * preview the operator confirmed — a payment came in, or the
+     * replacement's tax or due date moved —, so nothing is written; the
+     * refusal carries the new preview (`SC-UI-017`).
+     */
+    SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED:
+        'SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED',
+    /**
      * The invoice lacks content the tax adapter requires of it — `missing`
      * names the fields, `adapter` the adapter. It draws no number and waits
      * until what is missing is supplied (`SC-PRIC-027`).
