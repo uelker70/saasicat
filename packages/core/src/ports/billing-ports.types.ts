@@ -558,6 +558,11 @@ export interface SubscriberLedgerRepository {
      * period start and origin — is already written is left as it is and not
      * returned, however often it is derived and whoever derives it at the same
      * time: the unique index decides, not a read before the write.
+     *
+     * A correction (`origin: 'correction'`) names the charge it corrects, which
+     * has to be in the journal, the invoice that charge stood on and the reason
+     * (`counterEntryOf`); no other charge names any of them. Either refusal
+     * writes nothing of the call.
      */
     recordCharges(
         charges: readonly NewSubscriberCharge[],
@@ -586,13 +591,18 @@ export interface SubscriptionInvoiceRepository {
      * that carries an amount (`SC-PRIC-048`). By id, at most `limit`, after
      * `after` where it is given, so a caller reads them page by page and a
      * subscription held back on one run never keeps the others from the next.
+     * A correction counts for nothing here: only the cancellation that wrote it
+     * invoices it, on its replacement.
      */
     listSubscriptionsWithUninvoicedCharges(
         page: { limit: number; after?: string },
         tx?: TransactionContext,
     ): Promise<string[]>;
 
-    /** The charges of one subscription on no invoice, oldest period first. */
+    /**
+     * The charges of one subscription on no invoice, oldest period first; no
+     * correction among them, which only the cancellation that wrote it invoices.
+     */
     listUninvoicedCharges(
         subscriptionId: string,
         tx?: TransactionContext,

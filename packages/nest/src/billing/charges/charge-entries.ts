@@ -124,6 +124,9 @@ export function chargeOf(
         // Rounded once, here, where it is derived (`SC-PRIC-018`).
         amountNet: toCents(charge.amountNet) / CENTS,
         bookedAt: charge.bookedAt,
+        // A correction is written by the cancellation it belongs to
+        // (`counterEntryOf`); the store refuses one without what it corrects.
+        correction: null,
     };
 }
 

@@ -24,7 +24,14 @@
 // `origin` and `source` are text holding a closed set, checked when a row is
 // read (`toSubscriberChargeRecord` in @saasicat/core):
 //   origin: activation | renewal | planChange | bundleBooking | bundleChange | credit | correction
+//           | reductionTakenBack
 //   source: plan | bundle | discount
+//
+// A `correction` is a counter-entry: written only by the cancellation of the
+// invoice its charge stood on, it names that charge, that invoice and the
+// reason, and only that cancellation's replacement invoices it — the invoice
+// run never does. Its `sourceRef` is `<invoiceId>/<chargeId>`, so each
+// correction is an entry of its own under the unique index.
 //
 // Optional: adopt it where `tenantBilling.chargeJournal` is configured, which
 // needs frozen contracts (`contractFreeze`).
@@ -54,15 +61,26 @@ model SubscriberLedgerEntry {
     bookedAt  DateTime
     createdAt DateTime @default(now())
 
+    // A correction's three parts, all set on a correction and none on any
+    // other charge (`toSubscriberChargeRecord`). The invoice is a value rather
+    // than a key, so the journal stands without the invoice fragments.
+    correctsChargeId   String?
+    correctedInvoiceId String?
+    correctionReason   String?
+
     subscriber       Subscriber           @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
     contract         SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
     contractLineItem ContractLineItem     @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
     // The lines that invoice it: the invoice it was first issued on, and the
     // cancellation and replacement of each invoice of that chain.
     invoiceLines     SubscriptionInvoiceLine[] // see 20-subscription-invoice.prisma
+    // The charge a correction corrects, and the corrections of a charge.
+    corrects         SubscriberLedgerEntry?    @relation("ChargeCorrection", fields: [correctsChargeId], references: [id], onDelete: Restrict)
+    correctedBy      SubscriberLedgerEntry[]   @relation("ChargeCorrection")
 
     @@unique([subscriptionId, source, sourceRef, periodStart, origin])
     @@index([subscriberId, bookedAt])
     @@index([contractLineItemId])
+    @@index([correctsChargeId])
     @@map("subscriber_ledger_entries")
 }

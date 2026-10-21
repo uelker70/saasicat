@@ -4,6 +4,7 @@
 import { oneOf } from './closed-value.js';
 import type {
     NewSubscriberCharge,
+    SubscriberChargeCorrection,
     SubscriberChargeOrigin,
     SubscriberChargeRecord,
     SubscriberChargeSource,
@@ -26,6 +27,13 @@ const SOURCES: Record<SubscriberChargeSource, true> = {
     bundle: true,
     discount: true,
 };
+
+/**
+ * The origin of a counter-entry. Only the cancellation of the invoice its
+ * charge stood on writes one, and only that cancellation's replacement
+ * invoices it: the invoice run leaves it out.
+ */
+export const CORRECTION_ORIGIN = 'correction' satisfies SubscriberChargeOrigin;
 
 /** Every origin a charge may name, as a record or a line that copies one is checked against. */
 export const SUBSCRIBER_CHARGE_ORIGINS: readonly SubscriberChargeOrigin[] = keysOf(ORIGINS);
@@ -57,6 +65,10 @@ export interface CanonicalSubscriberChargeRow {
     currency: string;
     amountNet: unknown;
     bookedAt: Date;
+    /** The three parts of a correction, all set on a correction and none on any other charge. */
+    correctsChargeId: string | null;
+    correctedInvoiceId: string | null;
+    correctionReason: string | null;
     createdAt: Date;
 }
 
@@ -84,7 +96,86 @@ export function toSubscriberChargeRecord(
         currency: row.currency,
         amountNet: Number(row.amountNet),
         bookedAt: row.bookedAt,
+        correction: correctionOfRow(row),
         createdAt: row.createdAt,
+    };
+}
+
+/**
+ * The correction a row records, checked against its origin: a correction
+ * names all three parts and no other charge names any, so a counter-entry
+ * cannot be read as an ordinary charge, nor an ordinary charge as one.
+ */
+function correctionOfRow(row: CanonicalSubscriberChargeRow): SubscriberChargeCorrection | null {
+    const {
+        correctsChargeId: chargeId,
+        correctedInvoiceId: invoiceId,
+        correctionReason: reason,
+    } = row;
+    const named = [chargeId, invoiceId, reason].filter((part) => part !== null).length;
+    if (row.origin !== CORRECTION_ORIGIN && named === 0) return null;
+    if (
+        row.origin === CORRECTION_ORIGIN &&
+        chargeId !== null &&
+        invoiceId !== null &&
+        reason !== null
+    ) {
+        return { chargeId, invoiceId, reason };
+    }
+    throw new Error(
+        `${TABLE} row '${row.id}' is a ${row.origin} charge naming ${named} of the three parts of a ` +
+            'correction; a correction names the charge it corrects, the invoice it stood on and the ' +
+            'reason, and no other charge names any.',
+    );
+}
+
+/** The `sourceRef` of a correction: the invoice the corrected charge stood on, and that charge. */
+export function correctionSourceRefOf(
+    correction: Pick<SubscriberChargeCorrection, 'chargeId' | 'invoiceId'>,
+): string {
+    return `${correction.invoiceId}/${correction.chargeId}`;
+}
+
+/**
+ * The counter-entry by which what `charge` asks falls by `by` (a positive
+ * amount, to the cent): the corrected charge's subscription, contract line,
+ * source and period, a negative amount, and the correction it records, due at
+ * `bookedAt` (`SC-PRIC-020`). A correction is never corrected in turn.
+ */
+export function counterEntryOf(
+    charge: SubscriberChargeRecord,
+    correction: { invoiceId: string; by: number; reason: string; bookedAt: Date },
+): NewSubscriberCharge {
+    if (charge.origin === CORRECTION_ORIGIN) {
+        throw new Error(
+            `Charge ${charge.id} is a correction itself; the charge it corrects is corrected instead.`,
+        );
+    }
+    if (!(correction.by > 0)) {
+        throw new Error(
+            `A correction of charge ${charge.id} takes a positive amount off, not ${correction.by}.`,
+        );
+    }
+    const parts = {
+        chargeId: charge.id,
+        invoiceId: correction.invoiceId,
+        reason: correction.reason,
+    };
+    return {
+        subscriberId: charge.subscriberId,
+        tenantId: charge.tenantId,
+        subscriptionId: charge.subscriptionId,
+        contractId: charge.contractId,
+        contractLineItemId: charge.contractLineItemId,
+        origin: CORRECTION_ORIGIN,
+        source: charge.source,
+        sourceRef: correctionSourceRefOf(parts),
+        periodStart: charge.periodStart,
+        periodEnd: charge.periodEnd,
+        currency: charge.currency,
+        amountNet: -correction.by,
+        bookedAt: correction.bookedAt,
+        correction: parts,
     };
 }
 
@@ -121,7 +212,46 @@ export function subscriberChargeColumns(
         currency: charge.currency,
         amountNet: charge.amountNet.toFixed(2),
         bookedAt: charge.bookedAt,
+        ...correctionColumnsOf(charge),
     };
+}
+
+/**
+ * The correction's columns, refused where they do not fit the charge: a
+ * correction names all three parts and carries the `sourceRef` they make, and
+ * no other charge names any — the same rule `correctionOfRow` reads by.
+ */
+function correctionColumnsOf(
+    charge: NewSubscriberCharge,
+): Pick<
+    CanonicalSubscriberChargeRow,
+    'correctsChargeId' | 'correctedInvoiceId' | 'correctionReason'
+> {
+    const { correction } = charge;
+    if (charge.origin !== CORRECTION_ORIGIN && correction === null) {
+        return { correctsChargeId: null, correctedInvoiceId: null, correctionReason: null };
+    }
+    if (
+        charge.origin === CORRECTION_ORIGIN &&
+        correction !== null &&
+        correction.reason.trim() !== ''
+    ) {
+        if (charge.sourceRef !== correctionSourceRefOf(correction)) {
+            throw new Error(
+                `A correction of charge ${correction.chargeId} carries sourceRef '${charge.sourceRef}' ` +
+                    `rather than '${correctionSourceRefOf(correction)}'.`,
+            );
+        }
+        return {
+            correctsChargeId: correction.chargeId,
+            correctedInvoiceId: correction.invoiceId,
+            correctionReason: correction.reason,
+        };
+    }
+    throw new Error(
+        `A ${charge.origin} charge is written ${correction === null ? 'without' : 'with'} a correction; ` +
+            'a correction names what it corrects and why, and no other charge does.',
+    );
 }
 
 function keysOf<T extends string>(record: Record<T, true>): T[] {

@@ -621,6 +621,11 @@ export const subscriberLedgerEntries = pgTable('subscriber_ledger_entries', {
     currency: text('currency').notNull(),
     amountNet: numeric('amountNet', { precision: 10, scale: 2 }).notNull(),
     bookedAt: ts('bookedAt').notNull(),
+    // A correction's three parts, all set on a correction and none on any
+    // other charge (`toSubscriberChargeRecord`).
+    correctsChargeId: text('correctsChargeId'),
+    correctedInvoiceId: text('correctedInvoiceId'),
+    correctionReason: text('correctionReason'),
     createdAt: writtenAt('createdAt'),
 });
 

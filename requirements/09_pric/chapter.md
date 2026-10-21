@@ -596,6 +596,15 @@ _Source:_ #214
 
 _Tested by:_
 
+- `packages/core/tests/a-charge-row-becomes-a-record.test.js`
+    - a counter-entry
+        - takes what it corrects off the charge, under its contract line, source and period
+        - takes the smallest amount there is, a cent, and nothing that is not taken off
+        - is never written for a correction, but for the charge it corrects
+        - reads back with what it corrects, and is written with it
+        - read without ${missing}, stops the read naming the row
+        - read on another charge, a part of a correction stops the read naming the row
+        - ${why} is not written
 - `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
     - a written charge is never edited
         - a contract written later changes no charge already written

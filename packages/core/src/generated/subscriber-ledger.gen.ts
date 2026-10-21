@@ -6,7 +6,7 @@
 // the generated output diverge.
 
 /**
- * What made the charge arise. activation: the first period of a subscription. renewal: a later period. planChange: what an immediate plan change adds. bundleBooking: the first, short period of an add-on. bundleChange: what an add-on's switch to a dearer version adds for the rest of its period. credit: a decision that reduces what is owed. correction: a counter-entry reversing an earlier charge, which is how the append-only journal answers a mistake. reductionTakenBack: a reduction granted in advance, taken back for the days it no longer covers — the feature it was granted for came back, or what it reduced ended at once.
+ * What made the charge arise. activation: the first period of a subscription. renewal: a later period. planChange: what an immediate plan change adds. bundleBooking: the first, short period of an add-on. bundleChange: what an add-on's switch to a dearer version adds for the rest of its period. credit: a decision that reduces what is owed. correction: a counter-entry by which what an earlier charge asks falls, in whole or in part, which is how the append-only journal answers a mistake; only the cancellation of the invoice the charge stood on writes one, and only that cancellation's replacement invoices it. reductionTakenBack: a reduction granted in advance, taken back for the days it no longer covers — the feature it was granted for came back, or what it reduced ended at once.
  */
 export type SubscriberChargeOrigin =
     | 'activation'
@@ -53,7 +53,7 @@ export interface SubscriberCharge {
     origin: SubscriberChargeOrigin;
     source: SubscriberChargeSource;
     /**
-     * Which thing of its source the charge is for, stable across contracts: the subscription id for the plan, the booking id for an add-on, the discount's key for a discount. Part of the natural key (subscriptionId, source, sourceRef, periodStart, origin), which is unique — a charge derived twice is written once.
+     * Which thing of its source the charge is for, stable across contracts: the subscription id for the plan, the booking id for an add-on, the discount's key for a discount — and for a correction, the invoice it was corrected on and the charge it corrects, `<invoiceId>/<chargeId>`, so that each correction is an entry of its own. Part of the natural key (subscriptionId, source, sourceRef, periodStart, origin), which is unique — a charge derived twice is written once.
      */
     sourceRef: string;
     /**
@@ -66,12 +66,33 @@ export interface SubscriberCharge {
      */
     currency: string;
     /**
-     * Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount.
+     * Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount, a credit and a correction.
      */
     amountNet: number;
     /**
      * When the amount became due. The account is ordered by this, not by when the row was written.
      */
     bookedAt: string;
+    /**
+     * On a correction, what it corrects and why; null on every other charge.
+     */
+    correction: SubscriberChargeCorrection | null;
     createdAt: string;
+}
+/**
+ * What a counter-entry corrects: a charge that stood on an invoice cancelled because the charge was not owed, or not in full. The counter-entry carries the corrected charge's contract line, source and period, and the amount by which what is owed falls.
+ */
+export interface SubscriberChargeCorrection {
+    /**
+     * The charge it corrects. Never a correction: a counter-entry is not corrected in turn, the charge it corrects is.
+     */
+    chargeId: string;
+    /**
+     * The invoice the charge stood on when it was corrected, the one cancelled.
+     */
+    invoiceId: string;
+    /**
+     * Why, as the cancellation gave it.
+     */
+    reason: string;
 }

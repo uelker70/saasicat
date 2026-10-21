@@ -831,10 +831,10 @@ _Tested by:_
     - replicas running different files
         - an old start between two new ones is three real moves, dated in the order they landed
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - a settings change carries the order it was recorded in
-        - rows recorded before the column keep the order they were listed in, and the numbering
-          continues
-        - a second run leaves every number where the first one put it
+    - a correction in the journal names what it corrects
+        - gives the journal the three parts, and the database holds a correction to them
+        - a second run leaves the journal as the first one did
+        - a correction already there without what it corrects stops it, and says so
 
 <!-- END proof -->
 

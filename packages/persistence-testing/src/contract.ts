@@ -57,6 +57,7 @@ import {
     INVOICE_ERROR_CODES,
     PROMO_ERROR_CODES,
     collectionAttemptKey,
+    counterEntryOf,
     draftCancellationInvoice,
     draftReplacementInvoice,
     isPersistenceRefusal,
@@ -6521,6 +6522,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 currency: 'EUR',
                 amountNet: 19.9,
                 bookedAt: new Date('2026-02-01T00:00:00.000Z'),
+                correction: null,
                 ...overrides,
             });
             return { ledger, subscriptionId, discountLineId: discountLine.id, charge };
@@ -6653,6 +6655,111 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ledger.recordCharges([charge({ contractLineItemId: 'no-such-line' })]),
             );
             assert.deepEqual(await ledger.listBySubscription(subscriptionId), []);
+        });
+
+        const CORRECTED_AT = new Date('2026-03-20T09:00:00.000Z');
+
+        test('a correction names the charge it corrects, the invoice it stood on and the reason', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-correction');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+            const [corrected] = await ledger.recordCharges([charge()]);
+
+            const [written] = await ledger.recordCharges([
+                counterEntryOf(corrected!, {
+                    invoiceId: 'invoice-1',
+                    by: 9.95,
+                    reason: 'Half the month was not owed.',
+                    bookedAt: CORRECTED_AT,
+                }),
+            ]);
+
+            const read = (await ledger.listBySubscription(subscriptionId)).find(
+                (entry) => entry.id === written?.id,
+            );
+            assert.deepEqual(
+                [read?.origin, read?.amountNet, read?.correction, read?.contractLineItemId],
+                [
+                    'correction',
+                    -9.95,
+                    {
+                        chargeId: corrected!.id,
+                        invoiceId: 'invoice-1',
+                        reason: 'Half the month was not owed.',
+                    },
+                    corrected!.contractLineItemId,
+                ],
+            );
+            assert.deepEqual(
+                [read?.source, read?.periodStart, read?.periodEnd],
+                [corrected!.source, corrected!.periodStart, corrected!.periodEnd],
+            );
+            assert.equal(
+                (await ledger.listBySubscription(subscriptionId)).find(
+                    (entry) => entry.id === corrected!.id,
+                )?.correction,
+                null,
+            );
+        });
+
+        test('a charge corrected on two invoices of its chain, and two charges of one period, are an entry each', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-corrections');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+            const [renewal, change] = await ledger.recordCharges([
+                charge(),
+                charge({ origin: 'planChange', amountNet: 5 }),
+            ]);
+            const on = (corrected: SubscriberChargeRecord, invoiceId: string, by: number) =>
+                counterEntryOf(corrected, {
+                    invoiceId,
+                    by,
+                    reason: 'Not owed.',
+                    bookedAt: CORRECTED_AT,
+                });
+
+            const written = await ledger.recordCharges([
+                on(renewal!, 'invoice-1', 10),
+                on(change!, 'invoice-1', 5),
+                on(renewal!, 'invoice-3', 9.9),
+            ]);
+
+            assert.equal(
+                written.length,
+                3,
+                'a correction collided with another under the natural key',
+            );
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 5);
+        });
+
+        test('a correction naming a charge not in the journal is refused', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-correction-orphan');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+            const [corrected] = await ledger.recordCharges([charge()]);
+            const orphan = counterEntryOf(
+                { ...corrected!, id: '00000000-0000-4000-8000-00000000c0de' },
+                { invoiceId: 'invoice-1', by: 1, reason: 'Not owed.', bookedAt: CORRECTED_AT },
+            );
+
+            await assert.rejects(ledger.recordCharges([orphan]));
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 1);
+        });
+
+        test('a correction without what it corrects is refused, and so is another charge with it', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-correction-shape');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+            const [corrected] = await ledger.recordCharges([charge()]);
+            const parts = { chargeId: corrected!.id, invoiceId: 'invoice-1', reason: 'Not owed.' };
+
+            await assert.rejects(
+                ledger.recordCharges([charge({ origin: 'correction', sourceRef: 'invoice-1/x' })]),
+            );
+            await assert.rejects(
+                ledger.recordCharges([charge({ origin: 'renewal', correction: parts })]),
+            );
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 1);
         });
 
         // -------------------------------------------------------------
@@ -6921,6 +7028,38 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(
                 await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }),
                 [],
+            );
+        });
+
+        // @requirement SC-PRIC-022
+        test('a correction is never left to invoice: only the cancellation that wrote it does', async (t) => {
+            const account = await anInvoiceAccount(t, 'tenant-invoice-correction');
+            if (!account) return;
+            const { invoices, ledger, record, invoiceOf, subscriptionId } = account;
+            const [february, march] = await record(monthly(1), monthly(2));
+            await invoices.issue(invoiceOf([february!]));
+            const [correction] = await ledger.recordCharges([
+                counterEntryOf(february!, {
+                    invoiceId: 'invoice-1',
+                    by: 19.9,
+                    reason: 'Not owed.',
+                    bookedAt: new Date('2026-03-20T09:00:00.000Z'),
+                }),
+            ]);
+            assert.ok(correction, 'the correction was not recorded');
+
+            assert.deepEqual(
+                (await invoices.listUninvoicedCharges(subscriptionId)).map((each) => each.id),
+                [march!.id],
+            );
+
+            await invoices.issue(invoiceOf([march!]));
+
+            assert.deepEqual(await invoices.listUninvoicedCharges(subscriptionId), []);
+            assert.deepEqual(
+                await invoices.listSubscriptionsWithUninvoicedCharges({ limit: 10 }),
+                [],
+                'a subscription whose only charge left is a correction was due',
             );
         });
 

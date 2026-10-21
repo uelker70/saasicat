@@ -742,6 +742,9 @@ CREATE TABLE "subscriber_ledger_entries" (
     "amountNet" DECIMAL(10,2) NOT NULL,
     "bookedAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "correctsChargeId" TEXT,
+    "correctedInvoiceId" TEXT,
+    "correctionReason" TEXT,
 
     CONSTRAINT "subscriber_ledger_entries_pkey" PRIMARY KEY ("id")
 );
@@ -1327,6 +1330,9 @@ CREATE INDEX "subscriber_ledger_entries_subscriberId_bookedAt_idx" ON "subscribe
 CREATE INDEX "subscriber_ledger_entries_contractLineItemId_idx" ON "subscriber_ledger_entries"("contractLineItemId");
 
 -- CreateIndex
+CREATE INDEX "subscriber_ledger_entries_correctsChargeId_idx" ON "subscriber_ledger_entries"("correctsChargeId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "subscriber_ledger_entries_subscriptionId_source_sourceRef_p_key" ON "subscriber_ledger_entries"("subscriptionId", "source", "sourceRef", "periodStart", "origin");
 
 -- CreateIndex
@@ -1531,6 +1537,9 @@ ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entrie
 ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entries_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entries_correctsChargeId_fkey" FOREIGN KEY ("correctsChargeId") REFERENCES "subscriber_ledger_entries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscription_invoices" ADD CONSTRAINT "subscription_invoices_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1693,6 +1702,21 @@ ALTER TABLE subscription_bundles
 ALTER TABLE subscription_bundles
     ADD CONSTRAINT subscription_bundles_switch_has_its_moment
     CHECK (("pendingBundleVersionId" IS NULL) = ("pendingVersionEffectiveAt" IS NULL));
+
+-- A charge is a correction exactly where it names what it corrects — the
+-- charge, the invoice that charge stood on and the reason, all three — and no
+-- other charge names any. A counter-entry read as an ordinary charge would be
+-- invoiced by the run, and an ordinary charge read as one would be left out of
+-- it. Same two plain statements as above.
+ALTER TABLE subscriber_ledger_entries
+    DROP CONSTRAINT IF EXISTS subscriber_ledger_entries_correction_names_its_charge;
+ALTER TABLE subscriber_ledger_entries
+    ADD CONSTRAINT subscriber_ledger_entries_correction_names_its_charge
+    CHECK (CASE WHEN "origin" = 'correction'
+        THEN "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
+            AND "correctionReason" IS NOT NULL
+        ELSE "correctsChargeId" IS NULL AND "correctedInvoiceId" IS NULL
+            AND "correctionReason" IS NULL END);
 
 -- At most ONE maintenance window is open — announced or locked, not yet ended.
 --

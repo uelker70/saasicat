@@ -301,7 +301,22 @@ const CHARGE = {
     currency: 'EUR',
     amountNet: 19.9,
     bookedAt: '2026-01-01T00:00:00Z',
+    correction: null,
     createdAt: '2026-01-01T00:00:01Z',
+};
+
+/** A counter-entry by which what `CHARGE` asks falls, naming what it corrects. */
+const CORRECTION = {
+    ...CHARGE,
+    id: '00000000-0000-4000-8000-000000000002',
+    origin: 'correction',
+    sourceRef: 'invoice-1/00000000-0000-4000-8000-000000000001',
+    amountNet: -9.95,
+    correction: {
+        chargeId: '00000000-0000-4000-8000-000000000001',
+        invoiceId: 'invoice-1',
+        reason: 'Half the month was not owed.',
+    },
 };
 
 function without(entry, field) {
@@ -364,4 +379,26 @@ test('subscriberLedger rejects a charge that names no period', () => {
 
 test('subscriberLedger rejects a currency that is not an ISO 4217 code', () => {
     assert.equal(chargeValidator()({ ...CHARGE, currency: 'Euro' }), false);
+});
+
+test('subscriberLedger accepts a correction naming the charge it corrects, the invoice and the reason', () => {
+    const validate = chargeValidator();
+    const ok = validate(CORRECTION);
+    assert.ok(ok, JSON.stringify(validate.errors, null, 2));
+});
+
+for (const [why, correction] of [
+    ['without the charge it corrects', without(CORRECTION.correction, 'chargeId')],
+    ['without the invoice', without(CORRECTION.correction, 'invoiceId')],
+    ['without a reason', without(CORRECTION.correction, 'reason')],
+    ['with an empty reason', { ...CORRECTION.correction, reason: '' }],
+    ['with a field of its own', { ...CORRECTION.correction, amount: 9.95 }],
+]) {
+    test(`subscriberLedger rejects a correction ${why}`, () => {
+        assert.equal(chargeValidator()({ ...CORRECTION, correction }), false);
+    });
+}
+
+test('subscriberLedger rejects a charge that leaves out whether it corrects anything', () => {
+    assert.equal(chargeValidator()(without(CHARGE, 'correction')), false);
 });

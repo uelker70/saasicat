@@ -2314,6 +2314,36 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
   `caseId`; what a lifted cover met that matched nothing is a `SUBSCRIBER_REVERSAL_UNMATCHED` of
   the reversal it covered.
 
+### A correction in the journal names what it corrects
+
+A charge is never edited (`SC-PRIC-020`): where a cancelled invoice asked for a charge that was not
+owed, or not in full, a counter-entry says so — a charge of origin `correction` that names the
+charge it corrects, the invoice that charge stood on and the reason, and takes the amount off
+(`counterEntryOf` in `@saasicat/core`). Only that cancellation writes one, and only its replacement
+invoices it: the invoice run never does. This release adds the journal's side; the cancellation
+that writes counter-entries follows.
+
+1. Take fragment 15 as it ships now: `SubscriberLedgerEntry` gains `correctsChargeId`,
+   `correctedInvoiceId` and `correctionReason`, and the relation `corrects` / `correctedBy`.
+2. Run the migration once, **before** `db push`, after the one that created the journal:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-the-journal-names-what-a-correction-corrects.postgres.sql
+    ```
+
+    It adds the three columns, empty on every charge there is, their index and foreign key, and
+    the check `subscriber_ledger_entries_correction_names_its_charge` that
+    `constraints.postgres.sql` holds as well: a correction names all three, no other charge names
+    any. It refuses with a sentence where a `correction` row is already there without them, which
+    no release wrote, and does nothing on a second run or where there is no journal.
+
+- **A `SubscriberLedgerRepository` of your own** writes and reads the three columns through
+  `subscriberChargeColumns` and `toSubscriberChargeRecord`, which refuse a correction without what
+  it corrects and any other charge with it. `SubscriberChargeRecord` and `NewSubscriberCharge`
+  carry `correction`, `null` on every charge but a correction.
+- **A `SubscriptionInvoiceRepository` of your own** leaves a correction (`CORRECTION_ORIGIN`) out
+  of `listSubscriptionsWithUninvoicedCharges` and `listUninvoicedCharges`.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

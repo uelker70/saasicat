@@ -140,9 +140,10 @@ function invoiceStore(journal) {
         invoices.push(issued);
         return issued;
     };
+    // A correction is invoiced by the cancellation that wrote it, never by the run.
     const uninvoiced = () => {
         const taken = onInvoice();
-        return journal.filter((charge) => !taken.has(charge.id));
+        return journal.filter((charge) => !taken.has(charge.id) && charge.origin !== 'correction');
     };
     const store = {
         invoices,
