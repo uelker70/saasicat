@@ -149,8 +149,9 @@ export function correctionSourceRefOf(
  * subscription, contract line, source and period, a negative amount, and the
  * correction it records, due at `bookedAt` (`SC-PRIC-020`). Only a charge that
  * asks for an amount is corrected, and only downwards; a discount or a credit
- * is not, and a correction is never corrected in turn. What several
- * corrections of one charge take off together is the caller's to bound.
+ * is not, and a correction is never corrected in turn. Two things are the
+ * caller's to hold: that `invoiceId` is an invoice the charge stood on, and
+ * what several corrections of one charge take off together.
  */
 export function counterEntryOf(
     charge: SubscriberChargeRecord,
@@ -236,7 +237,7 @@ export function subscriberChargeColumns(
 
 /**
  * The ids of the charges the corrections among `charges` name, each once: what
- * a store reads, in the write's transaction, for
+ * a store reads, in the write's transaction where it has one, for
  * `assertCorrectionsFitTheirCharges`.
  */
 export function correctedChargeIdsOf(charges: readonly NewSubscriberCharge[]): string[] {
@@ -254,7 +255,9 @@ export function correctedChargeIdsOf(charges: readonly NewSubscriberCharge[]): s
  * the charges named (`correctedChargeIdsOf`); a charge not among them is the
  * foreign key's to refuse. A store calls it before it writes, so a refusal
  * writes nothing of the call. A charge is never edited, so nothing it is
- * checked against moves between the read and the write.
+ * checked against moves between the read and the write. The invoice a
+ * correction names is its own and is not checked here: `counterEntryOf` takes
+ * it from its caller.
  */
 export function assertCorrectionsFitTheirCharges(
     charges: readonly NewSubscriberCharge[],

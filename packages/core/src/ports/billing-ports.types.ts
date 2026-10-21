@@ -565,9 +565,13 @@ export interface SubscriberLedgerRepository {
      * stands in the charge's account, subscription, contract line, source,
      * period and currency, takes off a whole number of cents up to what the
      * charge asks, and corrects neither a correction nor a discount
-     * (`assertCorrectionsFitTheirCharges`, against the charges read in the
-     * write's transaction). No other charge names any of the three. Any of
-     * these refusals writes nothing of the call.
+     * (`assertCorrectionsFitTheirCharges`, against the charges read in `tx`
+     * where one is given, and just before the write otherwise — a charge is
+     * never edited, so nothing moves in between). The invoice it names is taken
+     * on the caller's word: no store checks that the charge stood on it, and
+     * the cancellation that writes a correction names the invoice it cancels.
+     * No other charge names any of the three. Any of these refusals writes
+     * nothing of the call.
      */
     recordCharges(
         charges: readonly NewSubscriberCharge[],
