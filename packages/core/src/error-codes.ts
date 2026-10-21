@@ -225,9 +225,11 @@ export const BILLING_ERROR_CODES = {
      */
     NO_SUBSCRIPTION: 'NO_SUBSCRIPTION',
     /**
-     * The cancellation date the reader was shown is no longer the one the rules
-     * return, so the confirmation is refused rather than silently applied.
-     * Carries the recomputed dates, so the page can re-ask instead of guessing.
+     * The cancellation the reader was shown is no longer the one the rules
+     * return — its date moved, or it changed while ending at once was being
+     * decided —, so the confirmation is refused rather than silently applied.
+     * Where the date moved it carries the recomputed dates, so the page can
+     * re-ask instead of guessing.
      */
     CANCELLATION_TERMS_CHANGED: 'CANCELLATION_TERMS_CHANGED',
     /**
@@ -500,7 +502,7 @@ export const BILLING_ERROR_CODES = {
     // catalogue could be complete against it and no guard could check one. The
     // subject is a parameter now.
 
-    /** The subscription has ended; its plan can no longer be changed. */
+    /** The subscription has ended, so nothing changes it any more: no plan change, no booking, no activation. */
     SUBSCRIPTION_ENDED: 'SUBSCRIPTION_ENDED',
     /** An active special contract blocks self-service plan changes. */
     PLAN_LOCKED: 'PLAN_LOCKED',

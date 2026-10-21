@@ -30,7 +30,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     // ── auth ──
     NOT_AUTHENTICATED: 'Not authenticated',
     NO_TENANT_ASSIGNED: 'No tenant assigned',
-    TENANT_CONTEXT_MISSING: 'No tenant ID found on the request',
+    TENANT_CONTEXT_MISSING: 'The request does not say which tenant or which user it is for.',
     TENANT_ADMIN_REQUIRED: 'This action requires the TENANT_ADMIN role.',
     BILLING_PERMISSION_REQUIRED: 'This part of the billing area requires the billing permission.',
     SUPER_ADMIN_REQUIRED: 'Only the SUPER_ADMIN role is allowed',
@@ -158,8 +158,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This bundle cannot run on the {planKey} plan, which the subscription moves to with effect from {from}.',
     BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE:
         'A yearly bundle cannot run beside the monthly billing the subscription moves to with effect from {from}.',
-    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
-        "SubscriptionBundle '{subscriptionBundleId}' is already cancelled.",
+    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED: 'This bundle booking is already cancelled.',
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' is not cancelled.",
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE:
@@ -176,12 +175,12 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         '{planName} is only activated via a special contract. Please contact the contract manager.',
     PLAN_NOT_SOLD_IN_CYCLE:
         '{planName} has no price for this billing rhythm and cannot be booked in it.',
-    PLAN_CHANGE_BLOCKED: 'Plan change during onboarding is blocked.',
+    PLAN_CHANGE_BLOCKED: 'The plan change is blocked for the reasons given with it.',
     SUBSCRIPTION_CHANGED:
         'This subscription changed while the request was being decided. Reload it.',
     NO_SUBSCRIPTION: 'This tenant has no subscription to cancel.',
     CANCELLATION_TERMS_CHANGED:
-        'The effective date changed since it was shown. Confirm the new one.',
+        'The cancellation changed since it was shown. Look at it again before confirming it.',
     VERSION_OFFER_CHANGED:
         'The offer changed since it was shown. Look at the current one before switching.',
     PLAN_CHANGE_QUOTE_CHANGED:
@@ -269,7 +268,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This subscription cannot switch now: a change is scheduled, it has ended, or its plan is held for a special contract.',
     RETIREMENT_SWITCH_CHANGED:
         'The retirement changed since it was shown. Look at it again before switching.',
-    SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
+    SUBSCRIPTION_ENDED: 'This subscription has ended, so it can no longer be changed.',
     PLAN_LOCKED:
         'Active {planName} special contract — please contact the contract manager to change plans.',
     QUOTA_OVER_TARGET:
@@ -559,6 +558,16 @@ export function catalogueSentenceFor(
     const code = 'code' in body ? body.code : undefined;
     const template = typeof code === 'string' ? catalogueEntry(catalogue, code) : undefined;
     if (template === undefined) return null;
+    const { sentence, complete } = filled(template, body);
+    return complete ? sentence : null;
+}
+
+/**
+ * `template` with each placeholder filled from `body` — its `params` first,
+ * its other fields second —, and whether every one found a value with a text
+ * of its own.
+ */
+function filled(template: string, body: object): { sentence: string; complete: boolean } {
     const values = new Map(Object.entries(body));
     const params = values.get('params');
     if (typeof params === 'object' && params !== null) {
@@ -570,7 +579,7 @@ export function catalogueSentenceFor(
         if (text === null) complete = false;
         return text ?? match;
     });
-    return complete ? sentence : null;
+    return { sentence, complete };
 }
 
 /**
@@ -597,7 +606,10 @@ export type ResolvableErrorBody = Omit<Partial<PlatformErrorBody>, 'code'> &
  * the English `message` the backend sent, and only then the bare code. Because
  * every coded exception carries a message, the last step is unreachable in
  * practice — a consumer that has not translated a new code yet shows English
- * prose, never `PLAN_VERSION_SUPERSEDED`.
+ * prose, never `PLAN_VERSION_SUPERSEDED`. A catalogue's sentence that names a
+ * value the body did not bring gives way to that message as well, as
+ * `catalogueSentenceFor` does: a sentence with a hole in it reads worse than
+ * the failing side's own. Only a body with no message shows the hole.
  *
  * Interpolation reads `params` first and the remaining top-level body fields
  * second, so a template may name either without the value being duplicated on
@@ -612,9 +624,8 @@ export function resolveErrorMessage(
     const template = code
         ? (catalogueEntry(overrides, code) ?? catalogueEntry(defaults, code))
         : undefined;
-    if (!template) {
-        return typeof body.message === 'string' ? body.message : (code ?? '');
-    }
-    const { params, ...rest } = body;
-    return formatErrorMessage(template, { ...rest, ...(params as ErrorMessageParams) });
+    const message = typeof body.message === 'string' ? body.message : undefined;
+    if (!template) return message ?? code ?? '';
+    const { sentence, complete } = filled(template, body);
+    return complete || message === undefined ? sentence : message;
 }

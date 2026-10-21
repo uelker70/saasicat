@@ -462,6 +462,8 @@ _Tested by:_
         - falls back to the code only when there is no message either
         - reads top-level body fields when a placeholder is not in params
         - params win over a top-level field of the same name
+        - gives a sentence that names a value the body did not bring way to the message
+        - shows the sentence with its hole only where the body brings no message either
         - reads a code named like an inherited property, \
     - catalogueSentenceFor
         - words a known code in the catalogue, its placeholders filled from params
@@ -614,6 +616,8 @@ _Tested by:_
         - falls back to the code only when there is no message either
         - reads top-level body fields when a placeholder is not in params
         - params win over a top-level field of the same name
+        - gives a sentence that names a value the body did not bring way to the message
+        - shows the sentence with its hole only where the body brings no message either
         - reads a code named like an inherited property, \
     - catalogueSentenceFor
         - words a known code in the catalogue, its placeholders filled from params

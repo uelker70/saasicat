@@ -164,6 +164,23 @@ describe('resolveErrorMessage', () => {
         );
     });
 
+    test('gives a sentence that names a value the body did not bring way to the message', () => {
+        assert.equal(
+            resolveErrorMessage(
+                { code: 'X', message: 'Booking b1 is cancelled already.', params: {} },
+                { X: 'Buchung {bookingId} ist bereits gekündigt.' },
+            ),
+            'Booking b1 is cancelled already.',
+        );
+    });
+
+    test('shows the sentence with its hole only where the body brings no message either', () => {
+        assert.equal(
+            resolveErrorMessage({ code: 'X' }, { X: 'Buchung {bookingId} ist bereits gekündigt.' }),
+            'Buchung {bookingId} ist bereits gekündigt.',
+        );
+    });
+
     for (const code of ['constructor', 'toString']) {
         test(`reads a code named like an inherited property, \`${code}\`, as unknown`, () => {
             assert.equal(
