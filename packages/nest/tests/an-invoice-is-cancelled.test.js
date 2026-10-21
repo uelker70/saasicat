@@ -48,20 +48,7 @@ async function refusalOf(attempt) {
 const heldBy = ({ store }) => [store.invoices.length, store.cancellations.length];
 
 /** Hands invoice `invoiceId`'s document to the mail at `at`, as the document run does. */
-function mailed({ store }, invoiceId, at = CANCELLED_AT) {
-    store.documents.set(invoiceId, {
-        invoiceId,
-        checksum: 'b'.repeat(64),
-        mediaType: 'application/pdf',
-        fileName: `${invoiceId}.pdf`,
-        size: 1,
-        renderedAt: at,
-        archivedAt: at,
-        deliveryClaimedAt: at,
-        deliveredAt: at,
-        deliveredTo: 'billing@t1.example',
-    });
-}
+const mailed = (installation, invoiceId, at = CANCELLED_AT) => installation.mailed(invoiceId, at);
 
 /** Delivers what the gateway reports about money to the callback route. */
 const delivering = (installation) => (event) =>
@@ -494,8 +481,8 @@ describe('a cancellation that says what was not owed', () => {
         assert.deepEqual(
             lines.map((line) => [line.position, line.standsAt, line.becomes]),
             [
-                [1, 4900, 2450],
-                [2, -490, -245],
+                [1, 49, 24.5],
+                [2, -4.9, -2.45],
             ],
         );
     });

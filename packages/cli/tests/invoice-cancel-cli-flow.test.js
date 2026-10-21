@@ -88,9 +88,16 @@ function setUp({
                     number: OPTIONS.invoice,
                     currency: 'EUR',
                     subscriber: { legalName: 'Müller & Söhne GmbH' },
+                    lines: [],
                 },
                 cancellation: { totalGross: 58.31, currency: 'EUR', issueDate: '2026-03-20' },
-                replacement: { totalGross: 58.31, currency: 'EUR', issueDate: '2026-03-20' },
+                replacement: {
+                    totalGross: 58.31,
+                    currency: 'EUR',
+                    issueDate: '2026-03-20',
+                    lines: [],
+                },
+                lines: [],
                 movedIn: 58.31,
                 credited: 0,
                 reason: request.reason,
@@ -127,7 +134,7 @@ describe('the preview is the command, and the cancellation the second one', () =
                 'preview',
                 't1',
                 'invoice-1',
-                { reason: OPTIONS.reason, corrections: {}, deliverTo: null },
+                { reason: OPTIONS.reason, corrections: {}, deliverTo: null, lines: [] },
             ],
         ]);
         assert.deepEqual(ctx.asked, ['identity', 'super-admin']);
@@ -150,7 +157,7 @@ describe('the preview is the command, and the cancellation the second one', () =
             'cancel',
             't1',
             'invoice-1',
-            { reason: OPTIONS.reason, corrections: {}, deliverTo: null },
+            { reason: OPTIONS.reason, corrections: {}, deliverTo: null, lines: [] },
             'cli:ops@example.com:deploy-host',
         ]);
         assert.deepEqual(ctx.logged, [
@@ -194,7 +201,21 @@ describe('the preview is the command, and the cancellation the second one', () =
             reason: OPTIONS.reason,
             corrections: { city: 'Bremen', addressLine2: null },
             deliverTo: 'accounts@acme.example',
+            lines: [],
         });
+    });
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    test('passes each line on by its position, not owed as nothing and an amount as typed', async () => {
+        const { flow, calls } = setUp();
+
+        await flow.preview({ ...OPTIONS, line: ['2=not-owed', '1=24.50', '3=7'] });
+
+        assert.deepEqual(calls.at(-1)[3].lines, [
+            { position: 2, owed: 0 },
+            { position: 1, owed: 24.5 },
+            { position: 3, owed: 7 },
+        ]);
     });
 });
 
@@ -249,6 +270,44 @@ describe('what the command refuses', () => {
             assert.deepEqual([error.code, error.exitCode], ['INVOICE_CORRECTION_INVALID', 1]);
         });
     }
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    for (const [why, line] of [
+        ['no equals sign', '2'],
+        ['no position before it', '=24.50'],
+        ['position 0', '0=1'],
+        ['a position that is no number', 'x=1'],
+        ['a position with a leading zero', '02=1'],
+        ['nothing after it', '2='],
+        ['a word other than not-owed', '2=nothing'],
+        ['less than nothing', '2=-1'],
+        ['a third decimal', '2=24.505'],
+        ['a dot and no decimals', '2=24.'],
+        ['a decimal with no whole part', '2=.5'],
+    ]) {
+        test(`a line with ${why}`, async () => {
+            const { flow, calls } = setUp();
+
+            const error = await cliErrorOf(() => flow.preview({ ...OPTIONS, line: [line] }));
+
+            assert.deepEqual([error.code, error.exitCode], ['INVOICE_LINE_INVALID', 1]);
+            assert.ok(error.message.includes(`got '${line}'`), error.message);
+            assert.deepEqual(
+                calls.filter(([what]) => what === 'preview'),
+                [],
+            );
+        });
+    }
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    test('a line whose amount takes a comma, saying to use a dot rather than guessing', async () => {
+        const { flow } = setUp();
+
+        const error = await cliErrorOf(() => flow.preview({ ...OPTIONS, line: ['2=24,50'] }));
+
+        assert.deepEqual([error.code, error.exitCode], ['INVOICE_LINE_INVALID', 1]);
+        assert.match(error.message, /with a dot/);
+    });
 
     test('a tenant it does not know, with the platform’s code', async () => {
         const { flow } = setUp();
@@ -360,7 +419,7 @@ describe('the commands', () => {
                 ...CANCELLED,
                 cancellationInvoice: { ...CANCELLED.cancellationInvoice, currency: 'EUR' },
                 replacement: null,
-                lines: [{ position: 1, standsAt: 4900, becomes: 0 }],
+                lines: [{ position: 1, standsAt: 49, becomes: 0 }],
                 credits: [{ amount: 58.31 }],
             },
         });
@@ -390,6 +449,7 @@ describe('the commands', () => {
                 number: 'AHP-2026-000123',
                 currency: 'EUR',
                 subscriber: { legalName: 'Müller & Söhne GmbH' },
+                lines: [{ position: 1, title: 'Standard' }],
             },
             cancellation: {
                 totalGross: -58.31,
@@ -398,6 +458,7 @@ describe('the commands', () => {
                 dueDate: '2026-03-20',
             },
             replacement: null,
+            lines: [{ position: 1, standsAt: 49, becomes: 0 }],
             movedIn: 0,
             credited: 58.31,
             reason: OPTIONS.reason,
@@ -406,6 +467,102 @@ describe('the commands', () => {
 
         assert.match(previewed, /^Replacement: none — nothing of the invoice is owed any more\.$/m);
         assert.match(previewed, /credited for the operator to refund: 58\.31/);
+        assert.match(previewed, /^ {2}1\. Standard: 49\.00 → 0\.00$/m);
+    });
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    test('print each line that moves from what to what, and the replacement’s lines with what each correction corrects', () => {
+        const { flow } = setUp();
+
+        const previewed = flow.formatPreview({
+            cancelled: {
+                number: 'AHP-2026-000123',
+                currency: 'EUR',
+                subscriber: { legalName: 'Müller & Söhne GmbH' },
+                lines: [
+                    { position: 1, title: 'Standard' },
+                    { position: 2, title: 'Welcome' },
+                    { position: 3, title: 'Archive' },
+                ],
+            },
+            cancellation: {
+                totalGross: -58.31,
+                currency: 'EUR',
+                issueDate: '2026-03-20',
+                dueDate: '2026-03-20',
+            },
+            replacement: {
+                totalGross: 26.24,
+                currency: 'EUR',
+                issueDate: '2026-03-20',
+                dueDate: '2026-04-03',
+                lines: [
+                    { position: 1, title: 'Standard', amountNet: 49, correctsPosition: null },
+                    { position: 2, title: 'Standard', amountNet: -24.5, correctsPosition: 1 },
+                    { position: 3, title: 'Welcome', amountNet: -4.9, correctsPosition: null },
+                    { position: 4, title: 'Welcome', amountNet: 2.45, correctsPosition: 3 },
+                    { position: 5, title: 'Archive', amountNet: 10, correctsPosition: null },
+                ],
+            },
+            lines: [
+                { position: 1, standsAt: 49, becomes: 24.5 },
+                { position: 2, standsAt: -4.9, becomes: -2.45 },
+                { position: 3, standsAt: 10, becomes: 10 },
+            ],
+            movedIn: 0,
+            credited: 0,
+            reason: OPTIONS.reason,
+            deliverTo: null,
+        });
+        const shown = previewed.split('\n');
+        const moved = shown.indexOf('Lines not owed in full:');
+
+        assert.deepEqual(shown.slice(moved + 1, moved + 3), [
+            '  1. Standard: 49.00 → 24.50',
+            '  2. Welcome: -4.90 → -2.45',
+        ]);
+        assert.ok(!shown[moved + 3].includes('→'), previewed);
+        const replacement = shown.findIndex((line) => line.startsWith('Replacement:'));
+        assert.deepEqual(shown.slice(replacement + 1, replacement + 6), [
+            '  1. Standard: 49.00',
+            '  2. Standard: -24.50 (corrects line 1)',
+            '  3. Welcome: -4.90',
+            '  4. Welcome: 2.45 (corrects line 3)',
+            '  5. Archive: 10.00',
+        ]);
+    });
+
+    test('print no lines where none moves', () => {
+        const { flow } = setUp();
+
+        const previewed = flow.formatPreview({
+            cancelled: {
+                number: 'AHP-2026-000123',
+                currency: 'EUR',
+                subscriber: { legalName: 'Müller & Söhne GmbH' },
+                lines: [{ position: 1, title: 'Standard' }],
+            },
+            cancellation: {
+                totalGross: -58.31,
+                currency: 'EUR',
+                issueDate: '2026-03-20',
+                dueDate: '2026-03-20',
+            },
+            replacement: {
+                totalGross: 58.31,
+                currency: 'EUR',
+                issueDate: '2026-03-20',
+                dueDate: '2026-04-03',
+                lines: [{ position: 1, title: 'Standard', amountNet: 49, correctsPosition: null }],
+            },
+            lines: [{ position: 1, standsAt: 49, becomes: 49 }],
+            movedIn: 0,
+            credited: 0,
+            reason: OPTIONS.reason,
+            deliverTo: null,
+        });
+
+        assert.ok(!previewed.includes('Lines not owed in full'), previewed);
     });
 
     test('print JSON with -o json', async () => {
@@ -431,6 +588,7 @@ describe('the commands', () => {
                 command.parseInvoice('AHP-2026-000123'),
                 command.parseReason('why'),
                 command.parseCorrect('postalCode=28195', ['city=Bremen']),
+                command.parseLine('3=24.50', ['2=not-owed']),
                 command.parseDeliverTo('accounts@acme.example'),
                 command.parseApply(),
                 command.parseOutput('json'),
@@ -440,6 +598,7 @@ describe('the commands', () => {
                 'AHP-2026-000123',
                 'why',
                 ['city=Bremen', 'postalCode=28195'],
+                ['2=not-owed', '3=24.50'],
                 'accounts@acme.example',
                 true,
                 'json',

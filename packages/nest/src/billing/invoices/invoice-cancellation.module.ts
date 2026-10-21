@@ -4,6 +4,7 @@ import {
     Controller,
     type DynamicModule,
     type ForwardReference,
+    Get,
     HttpCode,
     Inject,
     Module,
@@ -14,6 +15,9 @@ import {
 } from '@nestjs/common';
 import { Type as Nested, Transform } from 'class-transformer';
 import {
+    IsArray,
+    IsInt,
+    IsNumber,
     IsObject,
     IsOptional,
     IsString,
@@ -25,7 +29,9 @@ import {
 import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_CORRECTION_MAX_LENGTH,
+    type AdminInvoice,
     type InvoiceCancellationRequest,
+    type InvoiceLineOwed,
     type RlsBypassPort,
 } from '@saasicat/core';
 
@@ -121,6 +127,20 @@ export class InvoiceSubscriberCorrectionsDto {
 }
 
 /**
+ * A line of the cancelled invoice that is not owed, or not in full: its
+ * position and what is still owed of it, net. Held to numbers here; whether
+ * the line may be corrected, and to what, the cancellation settles against
+ * what the line stands at, and refuses naming both.
+ */
+export class InvoiceLineOwedDto implements InvoiceLineOwed {
+    @IsInt()
+    position!: number;
+
+    @IsNumber({ allowNaN: false, allowInfinity: false })
+    owed!: number;
+}
+
+/**
  * `POST admin/tenants/:slug/invoices/:invoiceId/cancellation` and its
  * `…/preview` — what the operator gives a cancellation (`SC-ADM-020`).
  */
@@ -143,6 +163,12 @@ export class CancelInvoiceDto implements InvoiceCancellationRequest {
     @IsString()
     @MaxLength(MAX_ADDRESS_LENGTH)
     deliverTo?: string | null;
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Nested(() => InvoiceLineOwedDto)
+    lines?: InvoiceLineOwedDto[];
 
     @IsOptional()
     @IsString()
@@ -179,6 +205,22 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
             @Inject(RLS_BYPASS_PORT_TOKEN)
             private readonly rlsBypass: RlsBypassPort,
         ) {}
+
+        /**
+         * The invoice with its lines, each with what its charge stands at and
+         * whether the cancellation may correct it, so the cancel dialog offers
+         * what the cancellation accepts (`SC-ADM-035`).
+         */
+        @Get('tenants/:slug/invoices/:invoiceId')
+        invoice(
+            @Param('slug') slug: string,
+            @Param('invoiceId') invoiceId: string,
+        ): Promise<AdminInvoice> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const tenant = await this.tenants.getTenantDetail(slug);
+                return this.cancellations.invoiceOf(tenant.id, invoiceId);
+            });
+        }
 
         /**
          * What cancelling the invoice would write — the cancellation invoice,
@@ -233,8 +275,9 @@ function buildInvoiceCancellationController(guards: Array<Type<CanActivate>>): T
 }
 
 /**
- * The operator's cancellation of an issued invoice, with its preview, served
- * beside the tenant it belongs to. Mounted where the platform shows tenants
+ * The operator's cancellation of an issued invoice, with its preview and the
+ * read of the invoice's lines it starts from, served beside the tenant it
+ * belongs to. Mounted where the platform shows tenants
  * and serves the invoices' documents: an invoice is cancelled only once its
  * document is archived.
  */

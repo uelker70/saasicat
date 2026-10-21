@@ -184,6 +184,7 @@ export {
 export {
     CancelInvoiceDto,
     InvoiceCancellationModule,
+    InvoiceLineOwedDto,
     InvoiceSubscriberCorrectionsDto,
     type InvoiceCancellationModuleOptions,
 } from './invoices/invoice-cancellation.module.js';

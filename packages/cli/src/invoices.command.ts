@@ -62,6 +62,14 @@ export class InvoicesCancelCommand extends OperatorCommand<CancelFlags> {
         return [...previous, value];
     }
     @Option({
+        flags: '--line <position=owed>',
+        description:
+            'a line not owed in full, by its position: 2=not-owed, or 2=24.50 still owed, net; repeat for several',
+    })
+    parseLine(value: string, previous: string[] = []): string[] {
+        return [...previous, value];
+    }
+    @Option({
         flags: '--deliver-to <email>',
         description:
             'where both invoices are sent; required where the record holds no invoice email',

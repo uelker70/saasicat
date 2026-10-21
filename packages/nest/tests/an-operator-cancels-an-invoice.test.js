@@ -1,5 +1,6 @@
 // The operator's path to cancelling an issued invoice: what the request may
-// hold before anything is computed, the preview route that writes nothing,
+// hold before anything is computed, the invoice the dialog reads with what
+// each line may become, the preview route that writes nothing,
 // the cancellation route behind the second factor that records itself in the
 // audit log, the cancellation held to the preview the operator confirmed,
 // where both are served and announced, the invoice named by the number on its
@@ -13,7 +14,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import 'reflect-metadata';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -95,6 +96,16 @@ describe('what an operator gives a cancellation', () => {
         assert.deepEqual(await problemsOf({ ...REQUEST, deliverTo: null }), []);
         assert.deepEqual(await problemsOf({ ...REQUEST, previewDigest: DIGEST }), []);
         assert.deepEqual(
+            await problemsOf({
+                ...REQUEST,
+                lines: [
+                    { position: 2, owed: 24.5 },
+                    { position: 1, owed: 0 },
+                ],
+            }),
+            [],
+        );
+        assert.deepEqual(
             await problemsOf({ reason: 'x'.repeat(INVOICE_CANCELLATION_REASON_MAX_LENGTH) }),
             [],
         );
@@ -147,11 +158,44 @@ describe('what an operator gives a cancellation', () => {
             { ...REQUEST, previewDigest: DIGEST.toUpperCase() },
             'previewDigest',
         ],
+        ['lines that are no list', { ...REQUEST, lines: { position: 1, owed: 0 } }, 'lines'],
+        [
+            'a line named by the text of its position',
+            { ...REQUEST, lines: [{ position: '1', owed: 0 }] },
+            'lines',
+        ],
+        [
+            'a line named by a fraction',
+            { ...REQUEST, lines: [{ position: 1.5, owed: 0 }] },
+            'lines',
+        ],
+        [
+            'what is owed given as text',
+            { ...REQUEST, lines: [{ position: 1, owed: '24.50' }] },
+            'lines',
+        ],
+        ['what is owed as null', { ...REQUEST, lines: [{ position: 1, owed: null }] }, 'lines'],
+        ['what is owed left out', { ...REQUEST, lines: [{ position: 1 }] }, 'lines'],
     ]) {
         test(`with ${why} is refused`, async () => {
             assert.deepEqual(await problemsOf(body), [property]);
         });
     }
+
+    test('keeps the lines through a pipe that strips what no decorator names', async () => {
+        const pipe = new ValidationPipe({ whitelist: true, transform: true });
+        const lines = [{ position: 1, owed: 24.5 }];
+
+        const settled = await pipe.transform(
+            { ...REQUEST, lines },
+            { type: 'body', metatype: CancelInvoiceDto },
+        );
+
+        assert.deepEqual(
+            settled.lines.map((line) => ({ ...line })),
+            lines,
+        );
+    });
 });
 
 // @requirement SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
@@ -295,6 +339,118 @@ describe('a cancellation settles what it is given before anything else', () => {
     }
 });
 
+// @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+describe('the invoice the cancel dialog reads', () => {
+    const readOf = (installation, invoiceId = installation.invoice.id, slug = 'acme') =>
+        aController(installation).invoice(slug, invoiceId);
+    const asRead = (lines) =>
+        lines.map((line) => [
+            line.position,
+            line.origin,
+            line.amountNet,
+            line.standsAt,
+            line.correctable,
+            line.correctsPosition,
+        ]);
+
+    test('names each line with what it stands at, and the charge’s line alone may be corrected', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+
+        const read = await readOf(installation);
+
+        assert.deepEqual(
+            [read.id, read.number, read.issuedAt, read.totalGross, read.currency],
+            [
+                invoice.id,
+                invoice.number,
+                invoice.issuedAt.toISOString(),
+                invoice.totalGross,
+                invoice.currency,
+            ],
+        );
+        assert.deepEqual(asRead(read.lines), [
+            [1, invoice.lines[0].origin, 49, 49, true, null],
+            [2, invoice.lines[1].origin, -4.9, -4.9, false, null],
+        ]);
+    });
+
+    /** A replacement of the invoice with the plan owed in part, archived and mailed. */
+    async function aLoweredReplacement(installation) {
+        const { replacement } = await installation.cancellation.cancel(
+            't1',
+            installation.invoice.id,
+            { ...REQUEST, lines: [{ position: 1, owed: 24.5 }] },
+            'operator:anna',
+            CANCELLED_AT,
+        );
+        installation.mailed(replacement.id, CANCELLED_AT);
+        return replacement;
+    }
+
+    test('of a replacement, says what an earlier cancellation lowered each charge to', async () => {
+        const installation = await anInvoiceToCollect();
+        const replacement = await aLoweredReplacement(installation);
+
+        const read = await readOf(installation, replacement.id);
+
+        assert.deepEqual(asRead(read.lines), [
+            [1, installation.invoice.lines[0].origin, 49, 24.5, true, null],
+            [2, 'correction', -24.5, -24.5, false, 1],
+            [3, installation.invoice.lines[1].origin, -4.9, -2.45, false, null],
+            [4, 'correction', 2.45, 2.45, false, 3],
+        ]);
+    });
+
+    test('offers exactly the lines the cancellation accepts', async () => {
+        const installation = await anInvoiceToCollect();
+        const replacement = await aLoweredReplacement(installation);
+        const { lines } = await readOf(installation, replacement.id);
+
+        const accepted = [];
+        for (const line of lines) {
+            const preview = installation.cancellation.preview(
+                't1',
+                replacement.id,
+                { ...REQUEST, lines: [{ position: line.position, owed: 0 }] },
+                CANCELLED_AT,
+            );
+            accepted.push(
+                await preview.then(
+                    () => true,
+                    (error) => {
+                        assert.equal(
+                            error.getResponse().code,
+                            INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE,
+                        );
+                        return false;
+                    },
+                ),
+            );
+        }
+
+        assert.deepEqual(
+            accepted,
+            lines.map((line) => line.correctable),
+        );
+        assert.ok(accepted.includes(true) && accepted.includes(false));
+    });
+
+    for (const [what, slug, invoiceId] of [
+        ['another tenant’s invoice', 'other', null],
+        ['an invoice there is not', 'acme', 'no-such-invoice'],
+    ]) {
+        test(`of ${what} is refused as none`, async () => {
+            const installation = await anInvoiceToCollect();
+
+            assert.deepEqual(
+                await refusalOf(readOf(installation, invoiceId ?? installation.invoice.id, slug)),
+                [404, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND],
+            );
+        });
+    }
+});
+
 // @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
 describe('the preview route', () => {
     test('answers what the cancellation would write, and writes nothing', async () => {
@@ -363,6 +519,23 @@ describe('the cancellation route', () => {
                     withdrawnCollections: 0,
                 },
             ],
+        ]);
+    });
+
+    test('records each line it moved, from what to what, in the invoice’s currency', async () => {
+        const installation = await anInvoiceToCollect();
+        const logged = [];
+
+        await aController(installation, logged).cancel(
+            'acme',
+            installation.invoice.id,
+            { ...REQUEST, lines: [{ position: 1, owed: 24.5 }] },
+            { headers: {} },
+        );
+
+        assert.deepEqual(logged[0][4].correctedLines, [
+            { position: 1, standsAt: 49, becomes: 24.5 },
+            { position: 2, standsAt: -4.9, becomes: -2.45 },
         ]);
     });
 
@@ -549,6 +722,7 @@ describe('the invoice an operator names by its number', () => {
 // @requirement SC-ADM-015 — The administration only offers what the application actually has
 describe('where the cancellation is served', () => {
     const CANCELLATION_ROUTES = [
+        'GET admin/tenants/:slug/invoices/:invoiceId',
         'POST admin/tenants/:slug/invoices/:invoiceId/cancellation',
         'POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview',
     ];
@@ -556,7 +730,7 @@ describe('where the cancellation is served', () => {
         controllersIn(SaaSiCatModule.forRoot(options))
             .flatMap(handlersOf)
             .map((handler) => handler.route)
-            .filter((route) => route.includes('/cancellation'))
+            .filter((route) => route.includes('/invoices/:invoiceId'))
             .sort();
 
     test('beside the invoices’ documents, announced as invoices.cancel with its audit action', async () => {

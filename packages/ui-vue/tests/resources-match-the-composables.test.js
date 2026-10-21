@@ -792,6 +792,7 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
         'credits',
         'payments',
         'recordPayout',
+        'invoice',
         'previewInvoiceCancellation',
         'cancelInvoice',
         'subscriber',

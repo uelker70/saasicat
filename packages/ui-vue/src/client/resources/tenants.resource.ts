@@ -19,6 +19,7 @@
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
     type AdminCancelledInvoice,
+    type AdminInvoice,
     type AdminInvoiceCancellationPlan,
     type AdminSubscriberAccount,
     type AdminSubscriberAttention,
@@ -160,6 +161,18 @@ export const tenantsResource = defineResource('tenants', {
             `${tenantUrl(ctx, slug)}/credits/${encodeURIComponent(creditId)}/payouts`,
             'The payout returned no body',
             { method: 'POST', body: payout, headers: mfaHeader(mfaCode) },
+        ),
+
+    /**
+     * One of the tenant's invoices with its lines, each with what its charge
+     * stands at and whether a cancellation may correct it. Served where the
+     * manifest announces `invoices.cancel`.
+     */
+    invoice: async (http, ctx, slug: string, invoiceId: string): Promise<AdminInvoice> =>
+        requestJsonBody<AdminInvoice>(
+            http,
+            invoiceUrl(ctx, slug, invoiceId),
+            'The invoice returned no body',
         ),
 
     /**

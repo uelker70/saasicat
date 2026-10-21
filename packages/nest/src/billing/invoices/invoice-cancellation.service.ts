@@ -48,15 +48,16 @@ import {
     invoiceContentDraftOf,
     invoiceFooterOf,
     invoicePaymentOf,
-    isCorrectableLine,
     lineCorrectionsOf,
+    lineStandingsOf,
     movedPaymentParts,
     paidByShares,
-    standingCentsOf,
     subscriberCorrectedSince,
     sumToCents,
     writtenReplacementOf,
     type AdminCancelledInvoice,
+    type AdminCorrectedInvoiceLine,
+    type AdminInvoice,
     type AdminInvoiceCancellationPlan,
     type CorrectedInvoiceLine,
     type CorrectedInvoiceSubscriber,
@@ -120,8 +121,6 @@ export interface InvoiceCancellationPlan extends AdminInvoiceCancellationPlan {
     cancellation: NewCorrectionInvoice;
     /** `null` where nothing of the cancelled invoice is owed any more. */
     replacement: PlannedReplacementInvoice | null;
-    /** What each charge line of the cancelled invoice stands at, and becomes. */
-    lines: CorrectedInvoiceLine[];
     /** The counter-entries the cancellation writes, in the order of the lines they move. */
     counterEntries: NewSubscriberCharge[];
     /** The operator's corrections, each with the value it replaced; `null` where none. */
@@ -151,7 +150,7 @@ export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
         replacementNumber: string | null;
         reason: string;
         corrected: string[];
-        correctedLines: { position: number; standsAt: number; becomes: number }[];
+        correctedLines: AdminCorrectedInvoiceLine[];
         deliverToGiven: boolean;
         paidOnIssue: number;
         credited: number;
@@ -170,13 +169,7 @@ export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
             replacementNumber: replacement?.number ?? null,
             reason: cancellation.reason,
             corrected: Object.keys(cancellation.correctedSubscriber ?? {}),
-            correctedLines: cancelled.lines
-                .filter((line) => line.becomes !== line.standsAt)
-                .map((line) => ({
-                    position: line.position,
-                    standsAt: line.standsAt / 100,
-                    becomes: line.becomes / 100,
-                })),
+            correctedLines: cancelled.lines.filter((line) => line.becomes !== line.standsAt),
             deliverToGiven: cancellation.deliverTo !== null,
             paidOnIssue: replacement?.paidOnIssue ?? 0,
             credited: cancelled.credits.reduce((sum, credit) => sumToCents(sum, credit.amount), 0),
@@ -191,8 +184,6 @@ export interface CancelledInvoice extends AdminCancelledInvoice {
     cancellationInvoice: SubscriptionInvoiceRecord;
     /** `null` where nothing of the cancelled invoice was owed any more. */
     replacement: SubscriptionInvoiceRecord | null;
-    /** What each charge line of the cancelled invoice stood at, and became. */
-    lines: CorrectedInvoiceLine[];
     /** The counter-entries it wrote. */
     counterEntries: SubscriberChargeRecord[];
     credits: SubscriberCreditRecord[];
@@ -283,6 +274,53 @@ export class InvoiceCancellationService implements OnModuleInit {
         return readAcrossTenants(this.rlsBypass, () =>
             this.runner().run((tx) => this.planIn(tenantId, invoiceId, request, now, tx)),
         );
+    }
+
+    /**
+     * Invoice `invoiceId` of tenant `tenantId` with its lines, each with what
+     * its charge stands at and whether a cancellation may correct it, by the
+     * rule the cancellation settles the operator's lines by (`SC-ADM-035`).
+     * Refused with `SUBSCRIPTION_INVOICE_NOT_FOUND` (404) for no such invoice
+     * of the tenant.
+     */
+    invoiceOf(tenantId: string, invoiceId: string): Promise<AdminInvoice> {
+        return readAcrossTenants(this.rlsBypass, async () => {
+            const invoice = await this.invoices.findById(invoiceId);
+            // An invoice of another tenant is none of this one's.
+            if (!invoice || invoice.tenantId !== tenantId) {
+                throw new NotFoundException(
+                    codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND, { invoiceId }),
+                );
+            }
+            const standings = lineStandingsOf(
+                invoice,
+                await this.ledger.listBySubscription(invoice.subscriptionId),
+            );
+            return {
+                id: invoice.id,
+                number: invoice.number,
+                issuedAt: invoice.issuedAt.toISOString(),
+                dueDate: invoice.dueDate,
+                currency: invoice.currency,
+                totalNet: invoice.totalNet,
+                totalTax: invoice.totalTax,
+                totalGross: invoice.totalGross,
+                lines: standings.map(({ line, standsAt, correctable }) => ({
+                    position: line.position,
+                    title: line.title,
+                    origin: line.origin,
+                    source: line.source,
+                    periodFrom: line.periodFrom,
+                    periodUntil: line.periodUntil,
+                    amountNet: line.amountNet,
+                    taxRate: line.taxRate,
+                    correctedPosition: line.correctedPosition,
+                    correctsPosition: line.correctsPosition,
+                    standsAt: standsAt / 100,
+                    correctable,
+                })),
+            };
+        });
     }
 
     /**
@@ -503,7 +541,7 @@ export class InvoiceCancellationService implements OnModuleInit {
             cancelled,
             cancellation: draftCancellationInvoice(cancelled, issue),
             replacement,
-            lines: corrections.lines,
+            lines: corrections.lines.map(inCurrencyUnits),
             counterEntries: corrections.counterEntries,
             correctedSubscriber: subscriber.corrected,
             moves,
@@ -776,23 +814,18 @@ function settledLinesOf(
         new UnprocessableEntityException(
             codedError(INVOICE_ERROR_CODES[code], { number: invoice.number, ...params }),
         );
+    const standings = lineStandingsOf(invoice, journal);
     const seen = new Set<number>();
     return given.map(({ position, owed }) => {
-        const line = invoice.lines.find((each) => each.position === position);
+        const line = standings.find((each) => each.line.position === position);
         if (!line) {
             throw refused('SUBSCRIPTION_INVOICE_LINE_UNKNOWN', { position: asGiven(position) });
         }
         if (seen.has(position))
             throw refused('SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE', { position });
         seen.add(position);
-        const charge = journal.find((entry) => entry.id === line.chargeId);
-        if (!charge) {
-            throw new Error(
-                `Line ${position} of invoice ${invoice.number} names a charge not in the journal.`,
-            );
-        }
-        const standsAt = standingCentsOf(charge, journal);
-        if (!isCorrectableLine(line, standsAt)) {
+        const { standsAt } = line;
+        if (!line.correctable) {
             throw refused('SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE', { position });
         }
         const cents = typeof owed === 'number' ? owed * 100 : Number.NaN;
@@ -810,6 +843,11 @@ function settledLinesOf(
         }
         return { position, owed: Math.round(cents) / 100 };
     });
+}
+
+/** `line` in the invoice's currency, as every amount the administration reads is. */
+function inCurrencyUnits(line: CorrectedInvoiceLine): AdminCorrectedInvoiceLine {
+    return { position: line.position, standsAt: line.standsAt / 100, becomes: line.becomes / 100 };
 }
 
 /**
