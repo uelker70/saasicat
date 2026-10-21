@@ -23,7 +23,7 @@ import { SubscriptionPlanResolver } from '../subscription-plan-resolver.js';
 import { featureWithdrawalsOf } from './feature-withdrawal.js';
 import { PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN } from './manifest.js';
 
-import type { CompositionContext } from './context.js';
+import { optionsOf, type CompositionContext } from './context.js';
 
 /** How a tenant is resolved to a plan, or that nothing can. */
 export interface PlanResolution {
@@ -143,7 +143,8 @@ function planResolverProvider(ctx: CompositionContext, resolution: PlanResolutio
                     // same option: two enforcement paths that disagree about
                     // what a cancelled subscription keeps would be worse than
                     // either answer on its own.
-                    ctx.options.entitlement?.resolutionConfig?.canceledEntitlementPlan ?? null,
+                    optionsOf(ctx.options.entitlement).resolutionConfig?.canceledEntitlementPlan ??
+                        null,
                 ),
             inject: [PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN],
         };
