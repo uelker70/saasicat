@@ -91,7 +91,7 @@
     ],
     "scripts": {
         "build": "node ../../scripts/build-and-prune.mjs \"tsup && vite build --config vite.build.config.ts && node scripts/copy-vendor-styles.mjs\"",
-        "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json",
+        "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json && vue-tsc --noEmit -p tsconfig.config.json",
         "pretest": "pnpm run build",
         "test": "node --test 'tests/*.test.js'",
         "test:component": "vitest run --config vitest.config.ts",

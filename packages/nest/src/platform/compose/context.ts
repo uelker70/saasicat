@@ -88,8 +88,10 @@ export interface CompositionContext {
  * The option object of a `false | true | Options` slot.
  *
  * Every feature slot spells "on" three ways — absent, a boolean, or an object.
- * Only the object carries settings, and each composer had to unpack that.
+ * Only the object carries settings, and each composer had to unpack that. A
+ * `null`, which the types leave out but a configuration read from JSON can
+ * hold, carries none either, as every truthiness check of a slot reads it.
  */
-export function optionsOf<T extends object>(slot: false | true | T | undefined): T {
-    return typeof slot === 'object' ? slot : ({} as T);
+export function optionsOf<T extends object>(slot: false | true | T | undefined): Partial<T> {
+    return slot !== null && typeof slot === 'object' ? slot : {};
 }

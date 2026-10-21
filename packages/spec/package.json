@@ -38,7 +38,8 @@
     "scripts": {
         "gen:sql": "node scripts/generate-reference-sql.mjs",
         "test": "node --test tests/*.test.js",
-        "test:integration": "node --test 'tests/integration/*.test.js'"
+        "test:integration": "node --test 'tests/integration/*.test.js'",
+        "typecheck": "tsc --noEmit -p tsconfig.declarations.json"
     },
     "devDependencies": {
         "ajv": "^8.17.1",
