@@ -8,7 +8,7 @@
         "build": "tsc -p tsconfig.json",
         "dev:admin": "docker compose -f docker-compose.yml up -d db backend && docker compose -f docker-compose.yml stop admin && pnpm --filter notesapp-admin dev",
         "pretypecheck": "prisma generate",
-        "typecheck": "tsc --noEmit",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
         "pretest": "pnpm run build",
         "test": "node --test tests/*.test.mjs",
         "start": "node dist/main.js",
