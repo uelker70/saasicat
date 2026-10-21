@@ -232,6 +232,9 @@ _Tested by:_
     - the confirmation binds the version it showed
         - it sends the version of the preview on screen
         - refused because the plan changed, it shows the plan as it stands and says why
+    - a change blocked at the moment it is made
+        - lists each reason the refusal carries under why it was refused
+        - does not show an earlier refusal’s reasons while the next attempt is under way
     - a refused change always says why
         - a body with no code and a list of messages falls back to the thrown text
 
@@ -271,6 +274,9 @@ _Tested by:_
     - the confirmation binds the version it showed
         - it sends the version of the preview on screen
         - refused because the plan changed, it shows the plan as it stands and says why
+    - a change blocked at the moment it is made
+        - lists each reason the refusal carries under why it was refused
+        - does not show an earlier refusal’s reasons while the next attempt is under way
     - a refused change always says why
         - a body with no code and a list of messages falls back to the thrown text
 

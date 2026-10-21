@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import type { CatalogPlan, HttpClient } from '@saasicat/ui-vue';
+import { ERROR_MESSAGES_DE } from '@saasicat/core';
 
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
 import { DEFAULT_I18N_DE } from '../../src/default-i18n.js';
@@ -94,10 +95,12 @@ function aSubscription(retirement: unknown, retirementSwitch: unknown = null) {
 
 /** Every switch the page asked for, by the body it sent. */
 const switches: unknown[] = [];
+/** What the switch answers instead of switching, where the server refuses it. */
+let switchRefusal: { status: number; body: unknown } | null = null;
 
 function aServer(retirement: unknown, retirementSwitch: unknown = null): HttpClient {
-    const reply = (body: unknown) => ({
-        status: 200,
+    const reply = (body: unknown, status = 200) => ({
+        status,
         headers: { get: () => 'application/json' },
         json: async () => body,
         text: async () => JSON.stringify(body),
@@ -105,6 +108,7 @@ function aServer(retirement: unknown, retirementSwitch: unknown = null): HttpCli
     return async (url, init) => {
         if (url.endsWith('/retirement/switch')) {
             switches.push(JSON.parse(String(init?.body ?? 'null')));
+            if (switchRefusal) return reply(switchRefusal.body, switchRefusal.status);
             retirement = null;
             retirementSwitch = null;
             return reply({ fromPlanVersionId: 'pv-1', planVersionId: 'pv-9', heldUntilDay: null });
@@ -123,6 +127,7 @@ afterEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
     document.body.innerHTML = '';
     switches.splice(0);
+    switchRefusal = null;
 });
 
 async function aSection(retirement: unknown, retirementSwitch: unknown = null) {
@@ -241,5 +246,35 @@ describe('the switch to the replacement, before the date', () => {
         expect(switches).toEqual([{ planVersionId: 'pv-9' }]);
         expect(document.body.textContent).toContain('Sie nutzen jetzt Version 3.');
         expect(card()).toBeNull();
+    });
+
+    test('refused for what the replacement would cut, lists each reason under the refusal', async () => {
+        switchRefusal = {
+            status: 400,
+            body: {
+                code: 'PLAN_CHANGE_BLOCKED',
+                message: 'Plan change is blocked.',
+                blockers: [
+                    {
+                        code: 'QUOTA_OVER_TARGET',
+                        message: 'Current usage 6 exceeds the target limit 5 (users).',
+                        params: { used: 6, targetMax: 5, quotaKey: 'users', planName: 'Standard' },
+                    },
+                ],
+            },
+        };
+        await confirmingTheSwitch(HELD);
+        [...document.body.querySelectorAll('button')]
+            .find((button) => button.textContent?.trim() === i18n.versionRetiredSwitchConfirm)!
+            .click();
+        await flushPromises();
+
+        const alert = document.body.querySelector('[role="alert"]')!;
+        expect(alert.querySelector('p')!.textContent!.trim()).toBe(
+            ERROR_MESSAGES_DE.PLAN_CHANGE_BLOCKED,
+        );
+        expect([...alert.querySelectorAll('li')].map((li) => li.textContent!.trim())).toEqual([
+            'Aktuelle Nutzung 6 überschreitet das Ziel-Limit 5 (users) im Paket Standard. Bitte zuerst die Nutzung reduzieren.',
+        ]);
     });
 });

@@ -26,7 +26,14 @@
             <p v-if="versionSwitchNote" class="sp-plan-section__note" role="status">
                 {{ versionSwitchNote }}
             </p>
-            <p v-if="offerError" class="sp-plan-section__warn" role="alert">{{ offerError }}</p>
+            <div v-if="offerError" class="sp-plan-section__warn" role="alert">
+                <p>{{ offerError }}</p>
+                <ul v-if="offerBlockers.length > 0">
+                    <li v-for="(b, i) in offerBlockers" :key="`${b.code}:${i}`">
+                        {{ issueSentence(b, effectiveI18n.issueMessages) }}
+                    </li>
+                </ul>
+            </div>
             <p v-if="offerReadError" class="sp-plan-section__warn" role="alert">
                 {{ offerReadError }}
             </p>
@@ -330,6 +337,7 @@ import { latestAnswerWins } from './latest-answer-wins.js';
 import {
     useTenantBilling,
     type BundlePreviewShape,
+    type PlanChangePreviewIssueShape,
     type SubscriptionBundleShape,
 } from '@saasicat/ui-vue';
 import {
@@ -341,7 +349,7 @@ import {
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
 import type { VersionOfferView } from '@saasicat/core';
-import { refusalMessage, refusalOf } from './refusal-of.js';
+import { issueSentence, refusalBlockersOf, refusalMessage, refusalOf } from './refusal-of.js';
 import FeatureWithdrawnNotices from './tenant-plan-section/FeatureWithdrawnNotices.vue';
 import VersionOfferCard from './tenant-plan-section/VersionOfferCard.vue';
 import VersionRetiredCard from './tenant-plan-section/VersionRetiredCard.vue';
@@ -888,6 +896,11 @@ const takingOffer = ref(false);
 /** Why taking the offer was refused. Stays until the next attempt. */
 const offerError = ref<string | null>(null);
 /**
+ * The reasons a refused switch lists — a quota the version would cut below
+ * what is used —, shown with `offerError` and only with it.
+ */
+const offerBlockers = ref<PlanChangePreviewIssueShape[]>([]);
+/**
  * Why the offer could not be read. Kept apart from a refused switch: a refusal
  * reloads the page, the reload reads the offer again, and a read that
  * succeeds must not clear the sentence saying why the click did nothing.
@@ -963,6 +976,7 @@ async function onTakeVersionOffer(planVersionId: string): Promise<void> {
             versionOffer.value = (body.offer as VersionOfferView | null | undefined) ?? null;
         }
         offerError.value = refusalText(err);
+        offerBlockers.value = refusalBlockersOf(err);
         // A refusal usually means the subscription moved under the page, and
         // an offer beside a plan card that still shows the old state would be
         // decided on a screen that never existed. Reloaded like a success is,
@@ -986,6 +1000,7 @@ async function onSwitchToReplacement(planVersionId: string): Promise<void> {
         );
     } catch (err) {
         offerError.value = refusalText(err);
+        offerBlockers.value = refusalBlockersOf(err);
         // The retirement as it now stands is read with the reload, so the card
         // shows that rather than the one the switch was refused against.
         await billing.reload();
@@ -1127,6 +1142,14 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', planVersion
     background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     font-size: var(--sa-text-sm);
+}
+/* A refusal with its reasons: the sentence, and the list under it. */
+.sp-plan-section__warn > p {
+    margin: 0;
+}
+.sp-plan-section__warn > ul {
+    margin: var(--sa-space-2) 0 0;
+    padding-left: var(--sa-space-5);
 }
 .sp-plan-section__item-canceled {
     color: var(--sp-text-disabled);

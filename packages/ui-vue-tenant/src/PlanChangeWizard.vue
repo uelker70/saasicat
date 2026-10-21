@@ -284,6 +284,11 @@
 
                 <div v-if="submitError" class="sp-wizard__error sp-wizard__error--spaced">
                     {{ submitError }}
+                    <ul v-if="submitBlockers.length > 0">
+                        <li v-for="(b, i) in submitBlockers" :key="issueKey(b, i)">
+                            {{ issueText(b) }}
+                        </li>
+                    </ul>
                 </div>
 
                 <div class="sp-wizard__nav">
@@ -319,9 +324,8 @@ import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import WithdrawnFeatureMark from './WithdrawnFeatureMark.vue';
 import './ui/tenant-ui.css';
-import { resolveErrorMessage } from '@saasicat/core';
 import { defaultQuotaValue } from './plan/quota-value.js';
-import { refusalMessage, refusalOf } from './refusal-of.js';
+import { issueSentence, refusalBlockersOf, refusalMessage, refusalOf } from './refusal-of.js';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
 import type {
     BillingCycleStr,
@@ -496,6 +500,11 @@ function keepYearlyCycle(): void {
     targetCycle.value = 'YEARLY';
 }
 const submitError = ref<string | null>(null);
+/**
+ * The reasons a refusal at the moment of the change lists, shown under its
+ * sentence — and only with it, so they go when `submitError` does.
+ */
+const submitBlockers = ref<PlanChangePreviewIssueShape[]>([]);
 
 const currentCycleLabel = computed(() =>
     props.currentCycle === 'YEARLY' ? props.i18n.cycleYearly : props.i18n.cycleMonthly,
@@ -716,6 +725,7 @@ async function submit() {
             preview.value = body.preview as PlanChangePreviewShape;
         }
         submitError.value = refusalMessage(err, props.i18n.issueMessages);
+        submitBlockers.value = refusalBlockersOf(err);
     } finally {
         submitting.value = false;
     }
@@ -766,10 +776,7 @@ function issueKey(issue: PlanChangePreviewIssueShape, index: number): string {
 // them, with nowhere to say otherwise. Now both come out of one object, so
 // they cannot disagree.
 function issueText(issue: PlanChangePreviewIssueShape): string {
-    return resolveErrorMessage(
-        { code: issue.code, message: issue.message, params: issue.params },
-        props.i18n.issueMessages,
-    );
+    return issueSentence(issue, props.i18n.issueMessages);
 }
 </script>
 

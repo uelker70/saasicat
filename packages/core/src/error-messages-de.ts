@@ -28,7 +28,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── auth ──
     NOT_AUTHENTICATED: 'Nicht authentifiziert',
     NO_TENANT_ASSIGNED: 'Kein Mandant zugeordnet',
-    TENANT_CONTEXT_MISSING: 'Am Request wurde keine Mandanten-ID gefunden',
+    TENANT_CONTEXT_MISSING:
+        'Die Anfrage nennt nicht, für welchen Mandanten oder welchen Benutzer sie ist.',
     TENANT_ADMIN_REQUIRED: 'Diese Aktion erfordert die Rolle TENANT_ADMIN.',
     BILLING_PERMISSION_REQUIRED:
         'Dieser Teil der Abrechnung erfordert die Abrechnungs-Berechtigung.',
@@ -158,8 +159,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Bundle kann nicht im Plan {planKey} laufen, in den das Abonnement mit Wirkung ab {from} wechselt.',
     BUNDLE_CANNOT_RUN_ON_UPCOMING_CYCLE:
         'Ein jährlich abgerechnetes Bundle kann nicht neben der monatlichen Abrechnung laufen, auf die das Abonnement mit Wirkung ab {from} wechselt.',
-    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
-        "SubscriptionBundle '{subscriptionBundleId}' ist bereits gekündigt.",
+    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED: 'Diese Zusatzbuchung ist bereits gekündigt.',
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist nicht gekündigt.",
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE:
@@ -176,12 +176,12 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{planName} wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',
     PLAN_NOT_SOLD_IN_CYCLE:
         '{planName} hat für diesen Abrechnungsrhythmus keinen Preis und kann darin nicht gebucht werden.',
-    PLAN_CHANGE_BLOCKED: 'Während des Onboardings ist ein Planwechsel gesperrt.',
+    PLAN_CHANGE_BLOCKED: 'Der Planwechsel ist gesperrt.',
     SUBSCRIPTION_CHANGED:
         'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte lade es neu.',
     NO_SUBSCRIPTION: 'Dieser Mandant hat kein Abonnement, das gekündigt werden kann.',
     CANCELLATION_TERMS_CHANGED:
-        'Das Wirksamkeitsdatum hat sich seit der Anzeige geändert. Bitte bestätige das neue Datum.',
+        'Die Kündigung hat sich seit der Anzeige geändert. Bitte prüfe sie erneut, bevor du sie bestätigst.',
     VERSION_OFFER_CHANGED:
         'Das Angebot hat sich seit der Anzeige geändert. Bitte sieh dir das aktuelle an, bevor du wechselst.',
     PLAN_CHANGE_QUOTE_CHANGED:
@@ -270,8 +270,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Dieses Abonnement kann gerade nicht wechseln: Eine Änderung ist geplant, es ist beendet, oder sein Paket gilt für einen Sondervertrag.',
     RETIREMENT_SWITCH_CHANGED:
         'Die Einstellung hat sich seit der Anzeige geändert. Sehen Sie sie sich noch einmal an, bevor Sie wechseln.',
-    SUBSCRIPTION_ENDED:
-        'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
+    SUBSCRIPTION_ENDED: 'Dieses Abonnement ist beendet und lässt sich nicht mehr ändern.',
     PLAN_LOCKED:
         'Aktiver Sondervertrag {planName} — für einen Paketwechsel wenden Sie sich bitte an die Vertragsverwaltung.',
     QUOTA_OVER_TARGET:
