@@ -104,7 +104,9 @@ export function toSubscriberChargeRecord(
 /**
  * The correction a row records, checked against its origin: a correction
  * names all three parts and no other charge names any, so a counter-entry
- * cannot be read as an ordinary charge, nor an ordinary charge as one.
+ * cannot be read as an ordinary charge, nor an ordinary charge as one. And it
+ * holds as one is written (`isAsWrittenCorrection`): a reason that says
+ * something, an amount taken off.
  */
 function correctionOfRow(row: CanonicalSubscriberChargeRow): SubscriberChargeCorrection | null {
     const {
@@ -120,7 +122,12 @@ function correctionOfRow(row: CanonicalSubscriberChargeRow): SubscriberChargeCor
         invoiceId !== null &&
         reason !== null
     ) {
-        return { chargeId, invoiceId, reason };
+        const amount = Number(row.amountNet);
+        if (isAsWrittenCorrection(reason, amount)) return { chargeId, invoiceId, reason };
+        throw new Error(
+            `${TABLE} row '${row.id}' is a correction of ${amount} for the reason '${reason}'; ` +
+                'a correction takes a positive amount off and says why.',
+        );
     }
     throw new Error(
         `${TABLE} row '${row.id}' is a ${row.origin} charge naming ${named} of the three parts of a ` +
@@ -217,9 +224,20 @@ export function subscriberChargeColumns(
 }
 
 /**
+ * A correction's reason and amount as one is written: a reason that says
+ * something, and an amount below zero — a correction takes off what was not
+ * owed, it never adds (`SC-PRIC-020`). The database holds the same rule
+ * (`subscriber_ledger_entries_correction_names_its_charge`).
+ */
+function isAsWrittenCorrection(reason: string, amountNet: number): boolean {
+    return reason.trim() !== '' && amountNet < 0;
+}
+
+/**
  * The correction's columns, refused where they do not fit the charge: a
- * correction names all three parts and carries the `sourceRef` they make, and
- * no other charge names any — the same rule `correctionOfRow` reads by.
+ * correction names all three parts, says why, takes an amount off and carries
+ * the `sourceRef` its parts make, and no other charge names any — the same
+ * rule `correctionOfRow` reads by.
  */
 function correctionColumnsOf(
     charge: NewSubscriberCharge,
@@ -231,11 +249,14 @@ function correctionColumnsOf(
     if (charge.origin !== CORRECTION_ORIGIN && correction === null) {
         return { correctsChargeId: null, correctedInvoiceId: null, correctionReason: null };
     }
-    if (
-        charge.origin === CORRECTION_ORIGIN &&
-        correction !== null &&
-        correction.reason.trim() !== ''
-    ) {
+    if (charge.origin === CORRECTION_ORIGIN && correction !== null) {
+        if (!isAsWrittenCorrection(correction.reason, charge.amountNet)) {
+            throw new Error(
+                `A correction of charge ${correction.chargeId} of ${charge.amountNet} for the ` +
+                    `reason '${correction.reason}' is not written: a correction takes a positive ` +
+                    'amount off and says why.',
+            );
+        }
         if (charge.sourceRef !== correctionSourceRefOf(correction)) {
             throw new Error(
                 `A correction of charge ${correction.chargeId} carries sourceRef '${charge.sourceRef}' ` +

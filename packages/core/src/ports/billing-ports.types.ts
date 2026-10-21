@@ -560,9 +560,10 @@ export interface SubscriberLedgerRepository {
      * time: the unique index decides, not a read before the write.
      *
      * A correction (`origin: 'correction'`) names the charge it corrects, which
-     * has to be in the journal, the invoice that charge stood on and the reason
-     * (`counterEntryOf`); no other charge names any of them. Either refusal
-     * writes nothing of the call.
+     * has to be in the journal, the invoice that charge stood on and a reason
+     * that is not blank, and takes an amount off (`counterEntryOf`); no other
+     * charge names any of them. Any of these refusals writes nothing of the
+     * call.
      */
     recordCharges(
         charges: readonly NewSubscriberCharge[],

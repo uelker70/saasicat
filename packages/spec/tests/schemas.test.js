@@ -392,12 +392,34 @@ for (const [why, correction] of [
     ['without the invoice', without(CORRECTION.correction, 'invoiceId')],
     ['without a reason', without(CORRECTION.correction, 'reason')],
     ['with an empty reason', { ...CORRECTION.correction, reason: '' }],
+    ['with a reason of blanks', { ...CORRECTION.correction, reason: '   ' }],
     ['with a field of its own', { ...CORRECTION.correction, amount: 9.95 }],
 ]) {
     test(`subscriberLedger rejects a correction ${why}`, () => {
         assert.equal(chargeValidator()({ ...CORRECTION, correction }), false);
     });
 }
+
+test('subscriberLedger rejects a correction that names nothing it corrects', () => {
+    assert.equal(chargeValidator()({ ...CORRECTION, correction: null }), false);
+});
+
+test('subscriberLedger rejects another charge that names something it corrects', () => {
+    assert.equal(chargeValidator()({ ...CHARGE, correction: CORRECTION.correction }), false);
+});
+
+for (const [amountNet, what] of [
+    [0, 'takes nothing off'],
+    [0.01, 'adds'],
+]) {
+    test(`subscriberLedger rejects a correction of ${amountNet}, which ${what}`, () => {
+        assert.equal(chargeValidator()({ ...CORRECTION, amountNet }), false);
+    });
+}
+
+test('subscriberLedger accepts a correction of a cent', () => {
+    assert.equal(chargeValidator()({ ...CORRECTION, amountNet: -0.01 }), true);
+});
 
 test('subscriberLedger rejects a charge that leaves out whether it corrects anything', () => {
     assert.equal(chargeValidator()(without(CHARGE, 'correction')), false);

@@ -19,9 +19,10 @@
 --   release, so there is nothing to fill.
 --   An index and a foreign key on `correctsChargeId`, to the charge it names.
 --   The check `subscriber_ledger_entries_correction_names_its_charge` from
---   `constraints.postgres.sql`: a correction names all three, no other charge
---   names any. Refused, with a sentence, where a `correction` row is already
---   there without them — written by hand, since no release wrote one.
+--   `constraints.postgres.sql`: a correction names all three, with a reason
+--   that says something, and takes an amount off, and no other charge names
+--   any. Refused, with a sentence, where a `correction` row is already there
+--   that does not — written by hand, since no release wrote one.
 --
 -- Skipped, with a notice, where the journal is not there.
 --
@@ -63,16 +64,20 @@ BEGIN
         IF EXISTS (
             SELECT 1 FROM "subscriber_ledger_entries"
              WHERE "origin" = 'correction'
-               AND ("correctsChargeId" IS NULL OR "correctedInvoiceId" IS NULL
-                    OR "correctionReason" IS NULL)
+               AND NOT COALESCE(
+                       "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
+                       AND "correctionReason" IS NOT NULL
+                       AND "correctionReason" ~ '\S' AND "amountNet" < 0,
+                       false)
         ) THEN
-            RAISE EXCEPTION 'subscriber_ledger_entries holds a correction that does not name the charge it corrects, the invoice it stood on and the reason. No release wrote one: find it, name what it corrects or remove it, and run this file again.';
+            RAISE EXCEPTION 'subscriber_ledger_entries holds a correction that does not name the charge it corrects, the invoice it stood on and a reason, or that takes nothing off. No release wrote one: find it, make it name what it corrects and take an amount off, or remove it, and run this file again.';
         END IF;
         ALTER TABLE "subscriber_ledger_entries"
             ADD CONSTRAINT "subscriber_ledger_entries_correction_names_its_charge"
             CHECK (CASE WHEN "origin" = 'correction'
                 THEN "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
                     AND "correctionReason" IS NOT NULL
+                    AND "correctionReason" ~ '\S' AND "amountNet" < 0
                 ELSE "correctsChargeId" IS NULL AND "correctedInvoiceId" IS NULL
                     AND "correctionReason" IS NULL END);
     END IF;

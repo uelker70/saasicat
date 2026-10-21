@@ -603,7 +603,9 @@ _Tested by:_
         - is never written for a correction, but for the charge it corrects
         - reads back with what it corrects, and is written with it
         - read without ${missing}, stops the read naming the row
+        - read with ${what}, stops the read naming the row
         - read on another charge, a part of a correction stops the read naming the row
+        - one that takes an amount off and says why is written, a cent among them
         - ${why} is not written
 - `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
     - a written charge is never edited

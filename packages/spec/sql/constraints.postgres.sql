@@ -58,10 +58,12 @@ ALTER TABLE subscription_bundles
     CHECK (("pendingBundleVersionId" IS NULL) = ("pendingVersionEffectiveAt" IS NULL));
 
 -- A charge is a correction exactly where it names what it corrects — the
--- charge, the invoice that charge stood on and the reason, all three — and no
--- other charge names any. A counter-entry read as an ordinary charge would be
--- invoiced by the run, and an ordinary charge read as one would be left out of
--- it. Same two plain statements as above.
+-- charge, the invoice that charge stood on and a reason that says something,
+-- all three — and takes an amount off, and no other charge names any. A
+-- counter-entry read as an ordinary charge would be invoiced by the run, an
+-- ordinary charge read as one would be left out of it, and a correction that
+-- added would ask for more on a replacement. Same two plain statements as
+-- above.
 ALTER TABLE subscriber_ledger_entries
     DROP CONSTRAINT IF EXISTS subscriber_ledger_entries_correction_names_its_charge;
 ALTER TABLE subscriber_ledger_entries
@@ -69,6 +71,7 @@ ALTER TABLE subscriber_ledger_entries
     CHECK (CASE WHEN "origin" = 'correction'
         THEN "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
             AND "correctionReason" IS NOT NULL
+            AND "correctionReason" ~ '\S' AND "amountNet" < 0
         ELSE "correctsChargeId" IS NULL AND "correctedInvoiceId" IS NULL
             AND "correctionReason" IS NULL END);
 

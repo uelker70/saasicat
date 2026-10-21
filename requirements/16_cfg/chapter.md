@@ -833,8 +833,10 @@ _Tested by:_
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a correction in the journal names what it corrects
         - gives the journal the three parts, and the database holds a correction to them
+        - adds the check the reference schema holds, clause for clause
         - a second run leaves the journal as the first one did
         - a correction already there without what it corrects stops it, and says so
+        - a correction written after db push that ${what} stops it, and says so
 
 <!-- END proof -->
 

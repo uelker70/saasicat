@@ -92,7 +92,7 @@ export interface SubscriberChargeCorrection {
      */
     invoiceId: string;
     /**
-     * Why, as the cancellation gave it.
+     * Why, as the cancellation gave it; something besides blanks.
      */
     reason: string;
 }

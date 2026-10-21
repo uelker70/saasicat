@@ -6762,6 +6762,41 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await ledger.listBySubscription(subscriptionId)).length, 1);
         });
 
+        test('a correction that takes nothing off, adds, or gives no reason is refused, with the call it came in', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-correction-amount');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+            const [corrected] = await ledger.recordCharges([charge()]);
+            const counterEntry = counterEntryOf(corrected!, {
+                invoiceId: 'invoice-1',
+                by: 9.95,
+                reason: 'Not owed.',
+                bookedAt: CORRECTED_AT,
+            });
+
+            for (const [what, written] of [
+                ['takes nothing off', { ...counterEntry, amountNet: 0 }],
+                ['adds', { ...counterEntry, amountNet: 9.95 }],
+                [
+                    'gives a reason of blanks',
+                    {
+                        ...counterEntry,
+                        correction: {
+                            chargeId: corrected!.id,
+                            invoiceId: 'invoice-1',
+                            reason: '   ',
+                        },
+                    },
+                ],
+            ] as const) {
+                await assert.rejects(
+                    ledger.recordCharges([charge({ origin: 'planChange', amountNet: 5 }), written]),
+                    `a correction that ${what} was written`,
+                );
+            }
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 1);
+        });
+
         // -------------------------------------------------------------
         // Invoices — numbered without a gap, each charge on one invoice
         // -------------------------------------------------------------

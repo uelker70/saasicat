@@ -2333,13 +2333,15 @@ that writes counter-entries follows.
 
     It adds the three columns, empty on every charge there is, their index and foreign key, and
     the check `subscriber_ledger_entries_correction_names_its_charge` that
-    `constraints.postgres.sql` holds as well: a correction names all three, no other charge names
-    any. It refuses with a sentence where a `correction` row is already there without them, which
-    no release wrote, and does nothing on a second run or where there is no journal.
+    `constraints.postgres.sql` holds as well: a correction names all three, with a reason that says
+    something, and takes an amount off; no other charge names any. It refuses with a sentence where
+    a `correction` row is already there that does not, which no release wrote, and does nothing on
+    a second run or where there is no journal.
 
 - **A `SubscriberLedgerRepository` of your own** writes and reads the three columns through
   `subscriberChargeColumns` and `toSubscriberChargeRecord`, which refuse a correction without what
-  it corrects and any other charge with it. `SubscriberChargeRecord` and `NewSubscriberCharge`
+  it corrects, with a reason of blanks or with an amount that is not below zero, and any other
+  charge with what a correction names. `SubscriberChargeRecord` and `NewSubscriberCharge`
   carry `correction`, `null` on every charge but a correction.
 - **A `SubscriptionInvoiceRepository` of your own** leaves a correction (`CORRECTION_ORIGIN`) out
   of `listSubscriptionsWithUninvoicedCharges` and `listUninvoicedCharges`.

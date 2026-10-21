@@ -221,6 +221,19 @@ describe('a counter-entry', () => {
         });
     }
 
+    for (const [what, overrides] of [
+        ['an amount of nothing', { amountNet: '0.00' }],
+        ['an amount added', { amountNet: '19.90' }],
+        ['a reason of blanks', { correctionReason: '   ' }],
+    ]) {
+        test(`read with ${what}, stops the read naming the row`, () => {
+            assert.throws(
+                () => toSubscriberChargeRecord(correctionRow(overrides)),
+                /subscriber_ledger_entries row 'charge-2' is a correction of .* takes a positive amount off and says why/,
+            );
+        });
+    }
+
     test('read on another charge, a part of a correction stops the read naming the row', () => {
         assert.throws(
             () => toSubscriberChargeRecord(row({ correctionReason: 'Not owed.' })),
@@ -228,28 +241,58 @@ describe('a counter-entry', () => {
         );
     });
 
-    for (const [why, write] of [
+    /** A correction that would be written, with `overrides` on top. */
+    const correctionCharge = (overrides = {}) =>
+        charge({
+            origin: 'correction',
+            sourceRef: 'invoice-1/charge-1',
+            amountNet: -19.9,
+            correction: PARTS,
+            ...overrides,
+        });
+
+    test('one that takes an amount off and says why is written, a cent among them', () => {
+        assert.equal(subscriberChargeColumns(correctionCharge()).amountNet, '-19.90');
+        assert.equal(
+            subscriberChargeColumns(correctionCharge({ amountNet: -0.01 })).amountNet,
+            '-0.01',
+        );
+    });
+
+    for (const [why, write, refusal] of [
         [
             'a correction without what it corrects',
             () => charge({ origin: 'correction', correction: null }),
+            /A correction charge is written without a correction/,
         ],
-        ['another charge with a correction', () => charge({ correction: PARTS })],
+        [
+            'another charge with a correction',
+            () => charge({ correction: PARTS }),
+            /A renewal charge is written with a correction/,
+        ],
         [
             'a correction with a blank reason',
-            () =>
-                charge({
-                    origin: 'correction',
-                    sourceRef: 'invoice-1/charge-1',
-                    correction: { ...PARTS, reason: '  ' },
-                }),
+            () => correctionCharge({ correction: { ...PARTS, reason: '  ' } }),
+            /is not written: a correction takes a positive amount off and says why/,
+        ],
+        [
+            'a correction of nothing',
+            () => correctionCharge({ amountNet: 0 }),
+            /of 0 for the reason 'Not owed.' is not written/,
+        ],
+        [
+            'a correction that adds',
+            () => correctionCharge({ amountNet: 0.01 }),
+            /of 0.01 for the reason 'Not owed.' is not written/,
         ],
         [
             'a correction under another sourceRef',
-            () => charge({ origin: 'correction', sourceRef: 'sub-1', correction: PARTS }),
+            () => correctionCharge({ sourceRef: 'sub-1' }),
+            /carries sourceRef 'sub-1'/,
         ],
     ]) {
         test(`${why} is not written`, () => {
-            assert.throws(() => subscriberChargeColumns(write()));
+            assert.throws(() => subscriberChargeColumns(write()), refusal);
         });
     }
 });

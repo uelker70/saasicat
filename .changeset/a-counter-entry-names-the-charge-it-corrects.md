@@ -11,7 +11,9 @@ A correction in the charge journal names the charge it corrects
 
 A charge of origin `correction` names the charge it corrects, the invoice that
 charge stood on and the reason (`SubscriberChargeRecord.correction`), and takes
-the amount off; `counterEntryOf` in `@saasicat/core` writes one. Only the
+the amount off; `counterEntryOf` in `@saasicat/core` writes one. A correction
+that takes nothing off, adds, or gives a blank reason is refused where it is
+written, where it is read, by the database and by the JSON schema. Only the
 cancellation of that invoice writes a correction and only its replacement
 invoices it, so `listSubscriptionsWithUninvoicedCharges` and
 `listUninvoicedCharges` leave corrections out in both adapters.
