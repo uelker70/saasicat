@@ -51,6 +51,12 @@ overrides:
     # version, so Dependabot cannot lift it; what it parses is this repository's
     # own lint configuration.
     smol-toml: '^1.9.0'
+    # GHSA-r7fv-28h4-cvq7, GHSA-vfgh-jcmw-g37q and GHSA-gfr2-rv44-r23c: quadratic
+    # time in smartquotes, in inline HTML and in a multi-line link reference
+    # definition, all three closed by 15.0.3. Reached only through
+    # markdownlint-cli2, which pins an exact version, so Dependabot cannot lift
+    # it; what it parses is this repository's own Markdown.
+    markdown-it: '^15.0.3'
     # GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-qvfw-j98x-7q72 and
     # GHSA-535w-7cp7-47q4: denial of service and a file size limit bypass in
     # multipart parsing. GHSA-3pph-fpjx-jg34: denial of service through disk
