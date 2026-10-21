@@ -17,7 +17,7 @@
                         no-caps
                         unelevated
                         dense
-                        role="radiogroup"
+                        role="group"
                         :aria-label="
                             formatMessage(dialog.lineChoice, {
                                 position: line.position,

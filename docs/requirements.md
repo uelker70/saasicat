@@ -16394,6 +16394,7 @@ _Tested by:_
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
     - the lines of an invoice cancelled from the tenant page
         - offer a choice at the line the server says may be corrected, and say why at the others
+        - name each choice after its line, and say which option is chosen
         - owed in part ask for the amount before the preview, and send it
         - not owed send nothing owed, and owed again send nothing of the line
         - in the preview, show each line that moves from what to what, and the replacement’s lines

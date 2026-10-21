@@ -522,6 +522,28 @@ describe('the lines of an invoice cancelled from the tenant page', () => {
         expect(lineItem('2. Welcome').textContent).toContain('Follows what it reduced');
     });
 
+    test('name each choice after its line, and say which option is chosen', async () => {
+        await openedAt();
+
+        await chooseAt('1. Standard', 'Not owed');
+
+        const group = lineItem('1. Standard').querySelector<HTMLElement>('.q-btn-toggle');
+        expect([group?.getAttribute('role'), group?.getAttribute('aria-label')]).toEqual([
+            'group',
+            'What of line 1, Standard, is still owed',
+        ]);
+        expect(
+            [...(group?.querySelectorAll('button') ?? [])].map((button) => [
+                button.textContent?.trim(),
+                button.getAttribute('aria-pressed'),
+            ]),
+        ).toEqual([
+            ['Owed', 'false'],
+            ['Not owed', 'true'],
+            ['Owed in part', 'false'],
+        ]);
+    });
+
     test('owed in part ask for the amount before the preview, and send it', async () => {
         const { calls } = await openedAt();
 
