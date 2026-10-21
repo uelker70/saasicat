@@ -406,6 +406,43 @@ describe('taking it', () => {
         );
     });
 
+    test('a switch the new version would block lists each reason under the refusal', async () => {
+        const server = aServer({
+            offer: IMPROVEMENT,
+            accept: {
+                status: 400,
+                body: {
+                    code: 'PLAN_CHANGE_BLOCKED',
+                    message: 'Plan change is blocked.',
+                    blockers: [
+                        {
+                            code: 'QUOTA_OVER_TARGET',
+                            message: 'Current usage 6 exceeds the target limit 5 (vehicles).',
+                            params: {
+                                used: 6,
+                                targetMax: 5,
+                                quotaKey: 'vehicles',
+                                planName: 'Standard',
+                            },
+                        },
+                    ],
+                },
+            },
+        });
+        await aSection(server);
+
+        takeButton().click();
+        await flushPromises();
+
+        const alert = document.body.querySelector('[role="alert"]')!;
+        expect(alert.querySelector('p')!.textContent!.trim()).toBe(
+            ERROR_MESSAGES_DE.PLAN_CHANGE_BLOCKED,
+        );
+        expect([...alert.querySelectorAll('li')].map((li) => li.textContent!.trim())).toEqual([
+            'Aktuelle Nutzung 6 überschreitet das Ziel-Limit 5 (vehicles) im Paket Standard. Bitte zuerst die Nutzung reduzieren.',
+        ]);
+    });
+
     test('a refusal with no offer to show still says why', async () => {
         const server = aServer({
             offer: IMPROVEMENT,

@@ -288,6 +288,53 @@ describe('the confirmation binds the version it showed', () => {
     });
 });
 
+describe('a change blocked at the moment it is made', () => {
+    const blocked = (blockers: unknown[]) =>
+        Object.assign(new Error('400'), {
+            body: { code: 'PLAN_CHANGE_BLOCKED', message: 'Plan change is blocked.', blockers },
+        });
+    const OVER = {
+        code: 'QUOTA_OVER_TARGET',
+        message: 'Current usage 6 exceeds the target limit 5 (vehicles) in the Basic plan.',
+        params: { used: 6, targetMax: 5, quotaKey: 'vehicles', planName: 'Basic' },
+    };
+
+    test('lists each reason the refusal carries under why it was refused', async () => {
+        const wrapper = openWizard({ changePlan: () => Promise.reject(blocked([OVER])) });
+        await reachConfirmation(wrapper);
+        confirmButton().click();
+        await flush();
+
+        const error = panel().querySelector('.sp-wizard__error--spaced');
+        expect(error?.textContent).toContain(i18n.issueMessages.PLAN_CHANGE_BLOCKED);
+        expect(
+            [...(error?.querySelectorAll('li') ?? [])].map((li) => li.textContent?.trim()),
+        ).toEqual([
+            'Current usage 6 exceeds the target limit 5 (vehicles) in the Basic plan. Please reduce usage first.',
+        ]);
+    });
+
+    test('does not show an earlier refusal’s reasons while the next attempt is under way', async () => {
+        let attempt = 0;
+        const wrapper = openWizard({
+            changePlan: () => {
+                attempt += 1;
+                return attempt === 1 ? Promise.reject(blocked([OVER])) : new Promise(() => {});
+            },
+        });
+        await reachConfirmation(wrapper);
+        confirmButton().click();
+        await flush();
+        expect(panel().querySelectorAll('.sp-wizard__error--spaced li')).toHaveLength(1);
+
+        confirmButton().click();
+        await flush();
+
+        expect(panel().querySelectorAll('.sp-wizard__error--spaced li')).toHaveLength(0);
+        expect(panel().textContent).not.toContain('Current usage 6 exceeds');
+    });
+});
+
 describe('a refused change always says why', () => {
     test('a body with no code and a list of messages falls back to the thrown text', async () => {
         // The shape a validation pipe answers with: nothing a catalogue can

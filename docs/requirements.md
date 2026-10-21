@@ -5474,6 +5474,7 @@ _Tested by:_
         - an offer that moved is replaced by the one that stands, and the refusal is in the app
           language
         - after a refusal the page shows the subscription as it now stands, not as it was read
+        - a switch the new version would block lists each reason under the refusal
         - a refusal with no offer to show still says why
 
 <!-- END proof -->
@@ -5944,6 +5945,7 @@ _Tested by:_
         - says what it costs until the date and after it, and that cancelling without notice lapses
         - says a price that is not higher applies from the next period
         - switches to the version shown when confirmed, and says so
+        - refused for what the replacement would cut, lists each reason under the refusal
 
 <!-- END proof -->
 
@@ -6848,6 +6850,9 @@ _Tested by:_
     - the confirmation binds the version it showed
         - it sends the version of the preview on screen
         - refused because the plan changed, it shows the plan as it stands and says why
+    - a change blocked at the moment it is made
+        - lists each reason the refusal carries under why it was refused
+        - does not show an earlier refusal’s reasons while the next attempt is under way
     - a refused change always says why
         - a body with no code and a list of messages falls back to the thrown text
 
@@ -6887,6 +6892,9 @@ _Tested by:_
     - the confirmation binds the version it showed
         - it sends the version of the preview on screen
         - refused because the plan changed, it shows the plan as it stands and says why
+    - a change blocked at the moment it is made
+        - lists each reason the refusal carries under why it was refused
+        - does not show an earlier refusal’s reasons while the next attempt is under way
     - a refused change always says why
         - a body with no code and a list of messages falls back to the thrown text
 

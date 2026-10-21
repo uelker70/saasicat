@@ -176,7 +176,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         '{planName} wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',
     PLAN_NOT_SOLD_IN_CYCLE:
         '{planName} hat für diesen Abrechnungsrhythmus keinen Preis und kann darin nicht gebucht werden.',
-    PLAN_CHANGE_BLOCKED: 'Der Planwechsel ist aus den genannten Gründen gesperrt.',
+    PLAN_CHANGE_BLOCKED: 'Der Planwechsel ist gesperrt.',
     SUBSCRIPTION_CHANGED:
         'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte lade es neu.',
     NO_SUBSCRIPTION: 'Dieser Mandant hat kein Abonnement, das gekündigt werden kann.',

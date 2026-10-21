@@ -175,7 +175,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         '{planName} is only activated via a special contract. Please contact the contract manager.',
     PLAN_NOT_SOLD_IN_CYCLE:
         '{planName} has no price for this billing rhythm and cannot be booked in it.',
-    PLAN_CHANGE_BLOCKED: 'The plan change is blocked for the reasons given with it.',
+    PLAN_CHANGE_BLOCKED: 'The plan change is blocked.',
     SUBSCRIPTION_CHANGED:
         'This subscription changed while the request was being decided. Reload it.',
     NO_SUBSCRIPTION: 'This tenant has no subscription to cancel.',
