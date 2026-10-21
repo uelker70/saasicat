@@ -610,6 +610,36 @@ describe('a cancellation that says what was not owed', () => {
             'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
             { position: planLine, owed: 0.005, standsAt: 49 },
         ],
+        [
+            'names a line by the text of its position',
+            [{ position: String(planLine), owed: 1 }],
+            'SUBSCRIPTION_INVOICE_LINE_UNKNOWN',
+            { position: `"${planLine}"` },
+        ],
+        [
+            'names a line by a position no line can have',
+            [{ position: planLine + 0.5, owed: 1 }],
+            'SUBSCRIPTION_INVOICE_LINE_UNKNOWN',
+            { position: planLine + 0.5 },
+        ],
+        ...[
+            [null, 'null'],
+            ['', '""'],
+            [false, 'false'],
+            [true, 'true'],
+            ['24.5', '"24.5"'],
+        ].map(([owed, named]) => [
+            `says ${named} is owed, which is no amount`,
+            [{ position: planLine, owed }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: named, standsAt: 49 },
+        ]),
+        [
+            'says nothing of what is owed',
+            [{ position: planLine }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: 'undefined', standsAt: 49 },
+        ],
     ]) {
         test(`is refused where it ${what}, and nothing is written`, async () => {
             const installation = await anInvoiceToCollect();
@@ -625,8 +655,11 @@ describe('a cancellation that says what was not owed', () => {
             const installation = await anInvoiceToCollect();
 
             await assert.rejects(cancel(installation, lines), (error) => {
-                const { params: given } = error.getResponse();
-                return Object.entries(params).every(([key, value]) => given[key] === value);
+                const { params: given, message } = error.getResponse();
+                return (
+                    Object.entries(params).every(([key, value]) => given[key] === value) &&
+                    !message.includes('{')
+                );
             });
         });
     }

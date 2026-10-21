@@ -432,6 +432,13 @@ describe('a correction in the journal names what it corrects', () => {
                 `'${sourceRef}', '2026-03-01', '2026-04-01', 'EUR', ${amountNet}, '2026-03-01'${values})`,
         );
     const correctionParts = ', "correctsChargeId", "correctedInvoiceId", "correctionReason"';
+    const checkOf = async () =>
+        (
+            await client.query(
+                'SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = $1',
+                [CHECK],
+            )
+        ).rows.map((row) => row.definition);
 
     test('gives the journal the three parts, and the database holds a correction to them', async () => {
         await journalBeforeTheColumns();
@@ -499,13 +506,6 @@ describe('a correction in the journal names what it corrects', () => {
     });
 
     test('adds the check the reference schema holds, clause for clause', async () => {
-        const checkOf = async () =>
-            (
-                await client.query(
-                    'SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = $1',
-                    [CHECK],
-                )
-            ).rows.map((row) => row.definition);
         await freshGround();
         const shipped = await checkOf();
         assert.equal(shipped.length, 1, 'the reference schema holds no such check');
@@ -513,6 +513,28 @@ describe('a correction in the journal names what it corrects', () => {
         await journalBeforeTheColumns();
         await apply(MIGRATION);
         assert.deepEqual(await checkOf(), shipped);
+    });
+
+    test('a check of its name that asks for something else is replaced, and a discount’s correction goes in', async () => {
+        await freshGround();
+        const shipped = await checkOf();
+        await journalWithoutTheCheck();
+        await client.query(
+            `ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "${CHECK}" ` +
+                `CHECK ("origin" <> 'correction' OR "amountNet" < 0)`,
+        );
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await checkOf(), shipped);
+        await insertCharge({
+            id: 'charge-7',
+            origin: 'correction',
+            sourceRef: 'invoice-4/charge-1',
+            amountNet: 2.45,
+            parts: correctionParts,
+            values: ", 'charge-1', 'invoice-4', 'Not owed.'",
+        });
     });
 
     test('a second run leaves the journal as the first one did', async () => {

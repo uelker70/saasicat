@@ -758,20 +758,30 @@ function periodOf(
  * `invoice` and what its charges stand at in `journal`, or refused with
  * `422`: a line the invoice has, named once, whose charge asks for something,
  * owed at least nothing and below what it stands at, in whole cents.
+ *
+ * The request may come from outside TypeScript, so `owed` is held to being a
+ * number before it is read as one: `null`, `""` or `false` would multiply to
+ * nothing owed and write the whole line off. A refusal names what was given
+ * as it was given (`asGiven`), so the text `"1"` is not refused as line 1.
  */
 function settledLinesOf(
     given: readonly InvoiceLineOwed[],
     invoice: SubscriptionInvoiceRecord,
     journal: readonly SubscriberChargeRecord[],
 ): InvoiceLineOwed[] {
-    const refused = (code: keyof typeof INVOICE_ERROR_CODES, params: Record<string, number>) =>
+    const refused = (
+        code: keyof typeof INVOICE_ERROR_CODES,
+        params: Record<string, number | string>,
+    ) =>
         new UnprocessableEntityException(
             codedError(INVOICE_ERROR_CODES[code], { number: invoice.number, ...params }),
         );
     const seen = new Set<number>();
     return given.map(({ position, owed }) => {
         const line = invoice.lines.find((each) => each.position === position);
-        if (!line) throw refused('SUBSCRIPTION_INVOICE_LINE_UNKNOWN', { position });
+        if (!line) {
+            throw refused('SUBSCRIPTION_INVOICE_LINE_UNKNOWN', { position: asGiven(position) });
+        }
         if (seen.has(position))
             throw refused('SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE', { position });
         seen.add(position);
@@ -785,7 +795,7 @@ function settledLinesOf(
         if (!isCorrectableLine(line, standsAt)) {
             throw refused('SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE', { position });
         }
-        const cents = owed * 100;
+        const cents = typeof owed === 'number' ? owed * 100 : Number.NaN;
         if (
             !Number.isFinite(cents) ||
             Math.abs(cents - Math.round(cents)) > 1e-6 ||
@@ -794,12 +804,22 @@ function settledLinesOf(
         ) {
             throw refused('SUBSCRIPTION_INVOICE_LINE_OWED_INVALID', {
                 position,
-                owed,
+                owed: asGiven(owed),
                 standsAt: standsAt / 100,
             });
         }
         return { position, owed: Math.round(cents) / 100 };
     });
+}
+
+/**
+ * A value of the request as its refusal names it: a number as the number, and
+ * anything else as the JSON that carried it, so `"1"` does not read as line 1
+ * and `null` leaves no gap in the sentence.
+ */
+function asGiven(value: unknown): number | string {
+    if (typeof value === 'number') return value;
+    return JSON.stringify(value) ?? String(value);
 }
 
 /**

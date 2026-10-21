@@ -2358,8 +2358,9 @@ replacement invoices it: the invoice run never does (`SC-PRIC-096`).
     check `subscriber_ledger_entries_correction_names_its_charge` that `constraints.postgres.sql`
     holds as well: a correction names all three, with a reason that says something, and moves its
     charge by an amount; no other charge names any. It refuses with a sentence where a `correction`
-    row is already there that does not, which no release wrote, and does nothing on a second run or
-    where there is no journal.
+    row is already there that does not, which no release wrote. A second run leaves the database as
+    the first one left it — the check is dropped and added again on every run, so a check of its
+    name that asks for something else does not stay — and where there is no journal it does nothing.
 
 - **A `SubscriberLedgerRepository` of your own** writes and reads the three columns through
   `subscriberChargeColumns` and `toSubscriberChargeRecord`, which refuse a correction without what

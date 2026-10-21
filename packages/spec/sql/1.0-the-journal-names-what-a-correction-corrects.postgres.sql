@@ -27,9 +27,11 @@
 -- Skipped, with a notice, where the journal is not there.
 --
 -- Safe to run again: each column and the index are added only where missing,
--- the foreign key and the check only where their names are not taken. On a
--- database created from `reference-schema.postgres.sql` the whole file does
--- nothing at all.
+-- the foreign key only where its name is not taken. The check is dropped and
+-- added again on every run, after the refusal above: `ADD CONSTRAINT` has no
+-- `IF NOT EXISTS`, and a check of its name that asks for something else would
+-- otherwise stay. On a database created from `reference-schema.postgres.sql`
+-- the whole file leaves the schema as it found it.
 
 BEGIN;
 
@@ -57,30 +59,27 @@ BEGIN
             ON DELETE RESTRICT ON UPDATE CASCADE;
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-         WHERE conname = 'subscriber_ledger_entries_correction_names_its_charge'
+    IF EXISTS (
+        SELECT 1 FROM "subscriber_ledger_entries"
+         WHERE "origin" = 'correction'
+           AND NOT COALESCE(
+                   "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
+                   AND "correctionReason" IS NOT NULL
+                   AND "correctionReason" ~ '\S' AND "amountNet" <> 0,
+                   false)
     ) THEN
-        IF EXISTS (
-            SELECT 1 FROM "subscriber_ledger_entries"
-             WHERE "origin" = 'correction'
-               AND NOT COALESCE(
-                       "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
-                       AND "correctionReason" IS NOT NULL
-                       AND "correctionReason" ~ '\S' AND "amountNet" <> 0,
-                       false)
-        ) THEN
-            RAISE EXCEPTION 'subscriber_ledger_entries holds a correction that does not name the charge it corrects, the invoice it stood on and a reason, or that moves it by nothing. No release wrote one: find it, make it name what it corrects and move it by an amount, or remove it, and run this file again.';
-        END IF;
-        ALTER TABLE "subscriber_ledger_entries"
-            ADD CONSTRAINT "subscriber_ledger_entries_correction_names_its_charge"
-            CHECK (CASE WHEN "origin" = 'correction'
-                THEN "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
-                    AND "correctionReason" IS NOT NULL
-                    AND "correctionReason" ~ '\S' AND "amountNet" <> 0
-                ELSE "correctsChargeId" IS NULL AND "correctedInvoiceId" IS NULL
-                    AND "correctionReason" IS NULL END);
+        RAISE EXCEPTION 'subscriber_ledger_entries holds a correction that does not name the charge it corrects, the invoice it stood on and a reason, or that moves it by nothing. No release wrote one: find it, make it name what it corrects and move it by an amount, or remove it, and run this file again.';
     END IF;
+    ALTER TABLE "subscriber_ledger_entries"
+        DROP CONSTRAINT IF EXISTS "subscriber_ledger_entries_correction_names_its_charge";
+    ALTER TABLE "subscriber_ledger_entries"
+        ADD CONSTRAINT "subscriber_ledger_entries_correction_names_its_charge"
+        CHECK (CASE WHEN "origin" = 'correction'
+            THEN "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
+                AND "correctionReason" IS NOT NULL
+                AND "correctionReason" ~ '\S' AND "amountNet" <> 0
+            ELSE "correctsChargeId" IS NULL AND "correctedInvoiceId" IS NULL
+                AND "correctionReason" IS NULL END);
 END
 $$;
 
