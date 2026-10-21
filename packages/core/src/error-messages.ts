@@ -325,17 +325,26 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'The contract states {stated} % in {field}, and the tax adapter decides {decided} %.',
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED: "Charge '{chargeId}' already stands on an invoice.",
     SUBSCRIPTION_INVOICE_ALREADY_CANCELLED:
-        'Invoice {number} is cancelled already. A mistake on its replacement is corrected by cancelling the replacement.',
+        'Invoice {number} is cancelled already. Where it was replaced, a mistake on its replacement is corrected by cancelling the replacement.',
     SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED:
         'Invoice {number} is cancelled only once its document is archived.',
     SUBSCRIPTION_INVOICE_IS_CANCELLATION:
         'Invoice {number} is a cancellation invoice, which is not cancelled itself.',
     SUBSCRIPTION_INVOICE_STATES_A_CREDIT:
         'Invoice {number} states a credit, which the subscriber was credited when it was issued; it is not cancelled.',
+    SUBSCRIPTION_INVOICE_LINE_UNKNOWN: 'Invoice {number} has no line {position}.',
+    SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE:
+        'The cancellation of invoice {number} names line {position} twice.',
+    SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE:
+        'Line {position} of invoice {number} asks for nothing — a discount, a credit or a correction. A discount follows what it reduced.',
+    SUBSCRIPTION_INVOICE_LINE_OWED_INVALID:
+        'What is still owed of line {position} of invoice {number} is at least nothing and below the {standsAt} it stands at, in whole cents, not {owed}. A line owed in full is left out.',
+    SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT:
+        'Corrected so, the replacement of invoice {number} would ask for less than nothing ({totalGross}). A replacement asks for something, or there is none.',
     SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS:
-        "The subscriber's record holds no invoice email: name an address to deliver the cancellation of invoice {number} and its replacement to.",
+        "The subscriber's record holds no invoice email: name an address to deliver the cancellation of invoice {number} to, and its replacement where there is one.",
     SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID:
-        'The address to deliver the cancellation of invoice {number} and its replacement to is not an email address.',
+        'The address to deliver the cancellation of invoice {number} to, and its replacement where there is one, is not an email address.',
     SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
         'The cancellation of invoice {number} needs a reason of one line and at most {max} characters, which both invoices name.',
     SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED:

@@ -87,6 +87,7 @@ function line(position, title, amountNet, taxRate, overrides = {}) {
         amountNet,
         taxRate,
         correctedPosition: null,
+        correctsPosition: null,
         ...overrides,
     };
 }
@@ -264,6 +265,48 @@ const REVERSE_CHARGE = invoice('reverse-charge', {
 /** Why the samples that correct `standard` were cancelled. */
 const WRONG_ADDRESS = 'Falsche Rechnungsanschrift: Ringstraße 1 statt Ringstraße 11';
 
+/** Why the sample that lowers a line of `standard` was cancelled. */
+const HALF_NOT_OWED = 'Werkstattplanung erst ab dem 15.02. bereitgestellt';
+
+/**
+ * The replacement of `standard` with its add-on owed for half the month: the
+ * add-on's line, then the counter-entry that lowers it, naming that line; the
+ * plan's discount stands, since the plan is owed in full.
+ */
+function correctedReplacementOf(name, { number, sequence }) {
+    const replaced = replacementOf(name, STANDARD, {
+        number,
+        sequence,
+        reason: HALF_NOT_OWED,
+        subscriber: SUBSCRIBER,
+        payment: CARD,
+    }).invoice;
+    const [plan, addOn, discount] = replaced.lines;
+    const counterEntry = {
+        ...addOn,
+        id: `${name}-counter-entry`,
+        chargeId: 'charge-counter-entry',
+        origin: 'correction',
+        amountNet: -9.95,
+        correctedPosition: null,
+        correctsPosition: 2,
+    };
+    return {
+        name,
+        invoice: {
+            ...replaced,
+            taxes: [{ rate: 19, net: 54.05, tax: 10.27 }],
+            totalNet: 54.05,
+            totalTax: 10.27,
+            totalGross: 64.32,
+            lines: [plan, addOn, counterEntry, discount].map((entry, index) => ({
+                ...entry,
+                position: index + 1,
+            })),
+        },
+    };
+}
+
 export const SAMPLES = [
     STANDARD,
     cancellationOf('cancellation', STANDARD, {
@@ -286,6 +329,11 @@ export const SAMPLES = [
         subscriber: { ...SUBSCRIBER, addressLine1: 'Ringstraße 11' },
         payment: null,
         paidOnIssue: 76.16,
+    }),
+    // The add-on owed for half the month: a counter-entry lowers it.
+    correctedReplacementOf('replacement-lowered', {
+        number: 'AHP-2026-000145',
+        sequence: 145,
     }),
     // Paid in part: the rest is collected by direct debit, and announced.
     replacementOf('replacement-paid-in-part', STANDARD, {

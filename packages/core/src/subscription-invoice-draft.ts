@@ -32,7 +32,7 @@ export interface InvoiceGroup {
  *
  * The charges a billing period opens with are booked together and issued
  * together; a charge that arises later in the period is booked when it arises
- * and issued on an invoice of its own (`SC-PRIC-022`). A contract is the
+ * and issued on an invoice of its own (`SC-PRIC-096`). A contract is the
  * agreement an invoice asks payment under, so charges of two contracts are
  * never on one invoice. The oldest come first, so numbers follow the charges.
  * A group whose charges are all zero issues no invoice (`SC-PRIC-048`) and is
@@ -191,7 +191,23 @@ export function draftSubscriptionInvoice(input: InvoiceDraftInput): NewSubscript
 }
 
 /** What the tax adapter checks of an invoice before its number is drawn (`SC-PRIC-027`). */
-export function invoiceContentDraftOf(invoice: NewSubscriptionInvoice): InvoiceContentDraft {
+export function invoiceContentDraftOf(
+    invoice: Pick<
+        NewSubscriptionInvoice,
+        | 'issuer'
+        | 'subscriber'
+        | 'taxTreatment'
+        | 'issueDate'
+        | 'dueDate'
+        | 'servicePeriodFrom'
+        | 'servicePeriodUntil'
+    > & {
+        lines: readonly Pick<
+            NewSubscriptionInvoice['lines'][number],
+            'title' | 'amountNet' | 'taxRate'
+        >[];
+    },
+): InvoiceContentDraft {
     return {
         issuer: invoice.issuer,
         subscriber: invoice.subscriber,

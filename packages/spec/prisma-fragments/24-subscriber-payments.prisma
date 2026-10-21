@@ -22,7 +22,7 @@
 // that payment — `MOVED_OUT` of the one, `MOVED_IN` of the other —, the oldest
 // payment first; what the replacement does not take is a credit that names both
 // the payment and the cancellation, so a later reversal of the payment finds
-// it as its own (`SC-PRIC-091`, `SC-PRIC-084`).
+// it as its own (`SC-PRIC-095`, `SC-PRIC-084`).
 //
 // A reversal — a direct debit the bank returned, a chargeback — takes back
 // what its payment brought, the credit first: entries against the credit for

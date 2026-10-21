@@ -106,7 +106,7 @@ export function toSubscriberChargeRecord(
  * names all three parts and no other charge names any, so a counter-entry
  * cannot be read as an ordinary charge, nor an ordinary charge as one. And it
  * holds as one is written (`isAsWrittenCorrection`): a reason that says
- * something, an amount taken off.
+ * something, an amount that is not nothing.
  */
 function correctionOfRow(row: CanonicalSubscriberChargeRow): SubscriberChargeCorrection | null {
     const {
@@ -126,7 +126,7 @@ function correctionOfRow(row: CanonicalSubscriberChargeRow): SubscriberChargeCor
         if (isAsWrittenCorrection(reason, amount)) return { chargeId, invoiceId, reason };
         throw new Error(
             `${TABLE} row '${row.id}' is a correction of ${amount} for the reason '${reason}'; ` +
-                'a correction takes a positive amount off and says why.',
+                'a correction moves its charge by an amount and says why.',
         );
     }
     throw new Error(
@@ -144,14 +144,15 @@ export function correctionSourceRefOf(
 }
 
 /**
- * The counter-entry by which what `charge` asks falls by `by` — a whole number
- * of cents above zero and at most what the charge asks: the corrected charge's
- * subscription, contract line, source and period, a negative amount, and the
- * correction it records, due at `bookedAt` (`SC-PRIC-020`). Only a charge that
- * asks for an amount is corrected, and only downwards; a discount or a credit
- * is not, and a correction is never corrected in turn. Two things are the
+ * The counter-entry by which `charge` moves towards nothing by `by` — a whole
+ * number of cents above zero and at most what the charge stands at: the
+ * corrected charge's subscription, contract line, source and period, an
+ * amount of the other sign, and the correction it records, due at `bookedAt`
+ * (`SC-PRIC-020`). A charge that asks for an amount falls; a discount, which
+ * takes one off, shrinks with what it reduced. A correction is never corrected
+ * in turn, and a charge of nothing has nowhere to move. Two things are the
  * caller's to hold: that `invoiceId` is an invoice the charge stood on, and
- * what several corrections of one charge take off together.
+ * what several corrections of one charge move it by together.
  */
 export function counterEntryOf(
     charge: SubscriberChargeRecord,
@@ -162,18 +163,19 @@ export function counterEntryOf(
             `Charge ${charge.id} is a correction itself; the charge it corrects is corrected instead.`,
         );
     }
-    const asked = wholeCentsOf(charge.amountNet);
-    if (asked === null || asked <= 0) {
+    const stands = wholeCentsOf(charge.amountNet);
+    if (stands === null || stands === 0) {
         throw new Error(
-            `Charge ${charge.id} asks for ${charge.amountNet}; only a charge that asks for an ` +
-                'amount is corrected, and only downwards.',
+            `Charge ${charge.id} stands at ${charge.amountNet}; a correction moves a charge ` +
+                'towards nothing, and this one has nowhere to move.',
         );
     }
     const by = wholeCentsOf(correction.by);
-    if (by === null || by <= 0 || by > asked) {
+    if (by === null || by <= 0 || by > Math.abs(stands)) {
         throw new Error(
-            `A correction of charge ${charge.id} takes a whole number of cents off, above 0 and ` +
-                `at most the ${charge.amountNet} it asks, not ${correction.by}.`,
+            `A correction of charge ${charge.id} moves it towards nothing by a whole number of ` +
+                `cents, above 0 and at most the ${Math.abs(stands) / 100} it stands at, not by ` +
+                `${correction.by}.`,
         );
     }
     const parts = {
@@ -193,7 +195,7 @@ export function counterEntryOf(
         periodStart: charge.periodStart,
         periodEnd: charge.periodEnd,
         currency: charge.currency,
-        amountNet: -correction.by,
+        amountNet: (stands > 0 ? -by : by) / 100,
         bookedAt: correction.bookedAt,
         correction: parts,
     };
@@ -272,7 +274,7 @@ export function assertCorrectionsFitTheirCharges(
         const expected = subscriberChargeColumns(
             counterEntryOf(of, {
                 invoiceId: correction.invoiceId,
-                by: -charge.amountNet,
+                by: Math.abs(charge.amountNet),
                 reason: correction.reason,
                 bookedAt: charge.bookedAt,
             }),
@@ -308,19 +310,20 @@ function wholeCentsOf(amount: number): number | null {
 
 /**
  * A correction's reason and amount as one is written: a reason that says
- * something, and an amount below zero as it is stored, in whole cents — a
- * correction takes off what was not owed, it never adds (`SC-PRIC-020`), and a
- * hair of float arithmetic below zero is stored as `-0.00`, which takes nothing
- * off. The database holds the same rule
+ * something, and an amount that is not nothing as it is stored, in whole cents
+ * — a hair of float arithmetic beside zero is stored as `0.00`, which moves
+ * nothing. Which way it moves is its charge's to say: towards nothing
+ * (`SC-PRIC-020`), which `assertCorrectionsFitTheirCharges` holds against the
+ * charge it names. The database holds the same rule
  * (`subscriber_ledger_entries_correction_names_its_charge`).
  */
 function isAsWrittenCorrection(reason: string, amountNet: number): boolean {
-    return reason.trim() !== '' && Math.round(amountNet * 100) < 0;
+    return reason.trim() !== '' && Math.round(amountNet * 100) !== 0;
 }
 
 /**
  * The correction's columns, refused where they do not fit the charge: a
- * correction names all three parts, says why, takes an amount off and carries
+ * correction names all three parts, says why, moves its charge by an amount and carries
  * the `sourceRef` its parts make, and no other charge names any — the same
  * rule `correctionOfRow` reads by.
  */
@@ -338,8 +341,8 @@ function correctionColumnsOf(
         if (!isAsWrittenCorrection(correction.reason, charge.amountNet)) {
             throw new Error(
                 `A correction of charge ${correction.chargeId} of ${charge.amountNet} for the ` +
-                    `reason '${correction.reason}' is not written: a correction takes a positive ` +
-                    'amount off and says why.',
+                    `reason '${correction.reason}' is not written: a correction moves its charge ` +
+                    'by an amount and says why.',
             );
         }
         if (charge.sourceRef !== correctionSourceRefOf(correction)) {

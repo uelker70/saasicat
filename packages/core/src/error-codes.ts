@@ -676,7 +676,7 @@ export const INVOICE_ERROR_CODES = {
     /**
      * The invoice (`number`) is cancelled only once its document is archived,
      * so a cancellation never corrects a document the subscriber could not
-     * have received (`SC-PRIC-091`).
+     * have received (`SC-PRIC-095`).
      */
     SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED: 'SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED',
     /** The invoice (`number`) is a cancellation invoice, which is not cancelled itself. */
@@ -687,6 +687,30 @@ export const INVOICE_ERROR_CODES = {
      * replacement would state it again, so it is not cancelled.
      */
     SUBSCRIPTION_INVOICE_STATES_A_CREDIT: 'SUBSCRIPTION_INVOICE_STATES_A_CREDIT',
+    /** The cancellation of the invoice (`number`) names a line it does not have (`position`). */
+    SUBSCRIPTION_INVOICE_LINE_UNKNOWN: 'SUBSCRIPTION_INVOICE_LINE_UNKNOWN',
+    /** The cancellation of the invoice (`number`) names one of its lines twice (`position`). */
+    SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE: 'SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE',
+    /**
+     * The cancellation of the invoice (`number`) names a line (`position`) whose
+     * charge asks for nothing — a discount, a credit or a correction. A
+     * discount follows what it reduced (`SC-PRIC-020`).
+     */
+    SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE: 'SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE',
+    /**
+     * What the cancellation of the invoice (`number`) says is still owed of a
+     * line (`position`, `owed`) is not at least nothing and below what the
+     * line stands at (`standsAt`), in whole cents. A line owed in full is left
+     * out.
+     */
+    SUBSCRIPTION_INVOICE_LINE_OWED_INVALID: 'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+    /**
+     * Corrected as the cancellation of the invoice (`number`) says, its
+     * replacement would ask for less than nothing (`totalGross`): what is left
+     * on it is a credit. A replacement asks for something, or there is none.
+     */
+    SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT:
+        'SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT',
     /**
      * The subscriber's record (`subscriberId`) holds no invoice email, and the
      * cancellation of the invoice (`number`) names no address to deliver it

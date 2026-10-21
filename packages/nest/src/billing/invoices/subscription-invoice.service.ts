@@ -1,4 +1,4 @@
-// The run that issues the invoices the charge journal is owed (`SC-PRIC-022`).
+// The run that issues the invoices the charge journal is owed (`SC-PRIC-096`).
 //
 // It reads the subscriptions with a charge to invoice, page by page, and issues
 // one invoice for each group of their charges — the charges booked at the same

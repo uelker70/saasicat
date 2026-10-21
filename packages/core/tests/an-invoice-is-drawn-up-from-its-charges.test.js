@@ -133,7 +133,7 @@ const aCard = (overrides = {}) =>
         ...overrides,
     });
 
-// @requirement SC-PRIC-022 — Every charge of a subscription is invoiced once, on that subscription's invoice
+// @requirement SC-PRIC-096 — Every charge is invoiced once, a counter-entry by the cancellation that wrote it
 // @requirement SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
 describe('the charges one invoice issues', () => {
     test('are those booked at the same moment under the same contract', () => {

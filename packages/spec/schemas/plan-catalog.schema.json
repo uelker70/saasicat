@@ -262,7 +262,7 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["numberPrefix", "paymentTermDays"],
-            "description": "Invoices issued from the charge journal (SC-PRIC-022). Named exactly where the application wires `tenantBilling.chargeJournal.invoices`; the start refuses the one without the other. Needs `tax`, whose adapter decides an invoice's treatment, checks its content and computes its tax, and `issuer`, the party every invoice names.",
+            "description": "Invoices issued from the charge journal (SC-PRIC-096). Named exactly where the application wires `tenantBilling.chargeJournal.invoices`; the start refuses the one without the other. Needs `tax`, whose adapter decides an invoice's treatment, checks its content and computes its tax, and `issuer`, the party every invoice names.",
             "properties": {
                 "numberPrefix": {
                     "type": "string",

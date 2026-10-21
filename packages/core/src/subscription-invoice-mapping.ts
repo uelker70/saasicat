@@ -11,6 +11,7 @@ import { dayOf, type ColumnWhere } from './column-day.js';
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 import type { TaxAtRate } from './money.js';
 import {
+    CORRECTION_ORIGIN,
     SUBSCRIBER_CHARGE_ORIGINS,
     SUBSCRIBER_CHARGE_SOURCES,
 } from './subscriber-ledger-mapping.js';
@@ -96,6 +97,7 @@ export interface CanonicalSubscriptionInvoiceLineRow {
     amountNet: unknown;
     taxRate: unknown;
     correctedPosition: number | null;
+    correctsPosition: number | null;
 }
 
 /** A `subscription_invoice_cancellations` row as either adapter reads it back. */
@@ -293,7 +295,26 @@ function toSubscriptionInvoiceLineRecord(
         amountNet: amountOf(row.amountNet, where('amountNet')),
         taxRate: amountOf(row.taxRate, where('taxRate')),
         correctedPosition: row.correctedPosition,
+        correctsPosition: correctsPositionOf(row),
     };
+}
+
+/**
+ * The position a line corrects, checked against its origin: a correction's
+ * line names the line on its invoice whose charge it corrects, and no other
+ * line names one — the same rule the database holds
+ * (`subscription_invoice_lines_correction_names_its_line`).
+ */
+function correctsPositionOf(row: CanonicalSubscriptionInvoiceLineRow): number | null {
+    if ((row.origin === CORRECTION_ORIGIN) === (row.correctsPosition !== null)) {
+        return row.correctsPosition;
+    }
+    throw new Error(
+        `${LINES} row '${row.id}' is a ${row.origin} line ` +
+            (row.correctsPosition === null
+                ? 'naming no line it corrects; a correction names the line whose charge it corrects.'
+                : `naming position ${row.correctsPosition} as the line it corrects; only a correction does.`),
+    );
 }
 
 /**
@@ -337,6 +358,7 @@ export interface SubscriptionInvoiceLineColumns {
     invoiceId: string;
     chainStep: number;
     correctedPosition: number | null;
+    correctsPosition: number | null;
     position: number;
     chargeId: string;
     contractLineItemId: string;
@@ -399,6 +421,25 @@ export function subscriptionInvoiceColumns(
     };
 }
 
+/**
+ * The position a line to write corrects, refused where it does not fit its
+ * origin: a correction's line names the line whose charge it corrects, no
+ * other line names one, and a line of an invoice the run issues corrects
+ * nothing — the same rule `correctsPositionOf` reads by.
+ */
+function correctsPositionColumnOf(
+    line: NewSubscriptionInvoiceLine | NewCorrectionInvoiceLine,
+): number | null {
+    const corrects = 'correctsPosition' in line ? line.correctsPosition : null;
+    if ((line.origin === CORRECTION_ORIGIN) === (corrects !== null)) return corrects;
+    throw new Error(
+        `A ${line.origin} line at position ${line.position} is written ` +
+            (corrects === null
+                ? 'naming no line it corrects; a correction names the line whose charge it corrects.'
+                : `naming position ${corrects} as the line it corrects; only a correction does.`),
+    );
+}
+
 /** The columns a line is written with, at its invoice's step of the chain. */
 export function subscriptionInvoiceLineColumns(
     line: NewSubscriptionInvoiceLine | NewCorrectionInvoiceLine,
@@ -409,6 +450,7 @@ export function subscriptionInvoiceLineColumns(
         invoiceId,
         chainStep,
         correctedPosition: 'correctedPosition' in line ? line.correctedPosition : null,
+        correctsPosition: correctsPositionColumnOf(line),
         position: line.position,
         chargeId: line.chargeId,
         contractLineItemId: line.contractLineItemId,

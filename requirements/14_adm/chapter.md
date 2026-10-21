@@ -772,7 +772,7 @@ part of the record. An early deletion is for a legal reason, such as abuse or an
 authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
 date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
 invoice records, beside the reason, any party detail the replacement has to carry corrected
-(`SC-PRIC-091`), and an address to deliver to where the subscriber's record no longer holds an
+(`SC-PRIC-095`), and an address to deliver to where the subscriber's record no longer holds an
 invoice email (`SC-PRIC-094`). This entry supersedes `SC-ADM-006` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
@@ -894,7 +894,7 @@ collected (`SC-PRIC-032`): the billing address and the invoice email replace wha
 kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
 (`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
 (`SC-PRIC-092`), and the contract keeps the party copy it was concluded with, which names the same
-legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-091`),
+legal entity (`SC-AUD-020`). Documents already issued keep the parties they copied (`SC-PRIC-095`),
 and the record created at
 sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
 whole history. A subscriber with a live tenant is not joined to a second one.
@@ -1205,7 +1205,7 @@ _Tested by:_
 🟢 💰 Each invoice on the subscriber's tenant page names, by the numbers on the documents, the invoice
 it corrects — a cancellation invoice the one it cancels, a replacement the one it replaces — and the
 cancellation invoice that cancelled it; a replacement cancelled in turn says both. The operator is
-offered the cancellation at an invoice that stands and is no cancellation invoice (`SC-PRIC-091`),
+offered the cancellation at an invoice that stands and is no cancellation invoice (`SC-PRIC-095`),
 where the platform serves it (`SC-ADM-015`). Before the second factor, the dialog shows what the
 server says the cancellation will write, and a cancellation whose figures changed since is refused
 with the new ones to confirm (`SC-UI-017`).

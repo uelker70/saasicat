@@ -980,7 +980,7 @@ The charges of the journal, issued as invoices: one invoice for the charges book
 contract — the charges a billing period opens with, or one that arises later in the period — numbered
 without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. **Switch it on for
 real customers only from the release that brings the cancellation invoice** (`1.0.0-rc.28`): an
-issued invoice is never edited (`SC-PRIC-091`), so until then a wrong one cannot be corrected. Each
+issued invoice is never edited (`SC-PRIC-095`), so until then a wrong one cannot be corrected. Each
 invoice is issued, rendered into the file its tax law requires — by `@saasicat/invoice-zugferd`, or
 a renderer of your own — archived and mailed.
 
@@ -1150,7 +1150,7 @@ tenant billing module it built.
 
 ### Cancelling an invoice
 
-An issued invoice is never edited (`SC-PRIC-091`): the operator cancels it, and the platform writes
+An issued invoice is never edited (`SC-PRIC-095`): the operator cancels it, and the platform writes
 a cancellation invoice that reverses it and asks for nothing, and a replacement for its charges under
 a new number, with what was paid for it moved onto the replacement or, where the replacement does
 not take it, credited for the operator to refund. The next run archives and mails both like any

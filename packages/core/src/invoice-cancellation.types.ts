@@ -1,8 +1,9 @@
 // What an operator gives the cancellation of an invoice, and what its preview
 // and the cancellation itself answer, as the administration reads them
-// (`SC-PRIC-091`). The server's plan and answer carry more and are declared to
+// (`SC-PRIC-095`). The server's plan and answer carry more and are declared to
 // hold to these, so what the page reads cannot drift from what is served.
 
+import type { InvoiceLineOwed } from './invoice-line-correction.js';
 import type { SubscriberCreditRecord } from './subscriber-payment.types.js';
 import type {
     InvoiceSubscriberDetail,
@@ -33,6 +34,14 @@ export interface InvoiceCancellationRequest {
      */
     deliverTo?: string | null;
     /**
+     * The lines of the cancelled invoice that are not owed, or not in full,
+     * each by its position with what is still owed of it, net; a line left out
+     * is owed in full. Only a line whose charge asks for something is named —
+     * a discount follows what it reduced, in the share that fell
+     * (`SC-PRIC-020`). Each is written as a counter-entry with the reason.
+     */
+    lines?: readonly InvoiceLineOwed[];
+    /**
      * The `digest` of the preview the operator confirms. Given, the
      * cancellation is refused with
      * `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview
@@ -54,6 +63,7 @@ export interface InvoiceCancellationRequest {
 export interface AdminInvoiceCancellationPlan {
     cancelled: Pick<SubscriptionInvoiceRecord, 'number' | 'currency' | 'subscriber'>;
     cancellation: Pick<NewCorrectionInvoice, 'totalGross'>;
+    /** `null` where nothing of the cancelled invoice is owed any more. */
     replacement: Pick<
         NewCorrectionInvoice,
         | 'issueDate'
@@ -63,7 +73,7 @@ export interface AdminInvoiceCancellationPlan {
         | 'totalGross'
         | 'taxTreatment'
         | 'subscriber'
-    >;
+    > | null;
     /** What the replacement takes over of what was paid. */
     movedIn: number;
     /** What becomes a credit for the operator to refund. */
@@ -83,7 +93,8 @@ export interface AdminInvoiceCancellationPlan {
 /** What the administration reads of what a cancellation wrote. */
 export interface AdminCancelledInvoice {
     cancellationInvoice: Pick<SubscriptionInvoiceRecord, 'number'>;
-    replacement: Pick<SubscriptionInvoiceRecord, 'number' | 'paidOnIssue'>;
+    /** `null` where nothing of the cancelled invoice was owed any more. */
+    replacement: Pick<SubscriptionInvoiceRecord, 'number' | 'paidOnIssue'> | null;
     /** The credits it left for the operator to refund. */
     credits: Pick<SubscriberCreditRecord, 'amount'>[];
 }

@@ -460,7 +460,6 @@ describe('a correction in the journal names what it corrects', () => {
             ['a correction without a reason', -49, 'NULL'],
             ['a correction with a reason of blanks', -49, "'   '"],
             ['a correction of nothing', 0, "'Not owed.'"],
-            ['a correction that adds', 49, "'Not owed.'"],
         ]) {
             await assert.rejects(
                 insertCharge({
@@ -475,6 +474,16 @@ describe('a correction in the journal names what it corrects', () => {
                 `${what} was let in`,
             );
         }
+        // Which way a correction moves is its charge's to say, and the row
+        // cannot see the charge: the stores hold the direction.
+        await insertCharge({
+            id: 'charge-6',
+            origin: 'correction',
+            sourceRef: 'invoice-3/charge-1',
+            amountNet: 1,
+            parts: correctionParts,
+            values: ", 'charge-1', 'invoice-3', 'Not owed.'",
+        });
         await client.query('ROLLBACK').catch(() => {});
         await assert.rejects(
             insertCharge({
@@ -530,8 +539,7 @@ describe('a correction in the journal names what it corrects', () => {
 
     for (const [what, amountNet, reason] of [
         ['gives a reason of blanks', -49, "'   '"],
-        ['takes nothing off', 0, "'Not owed.'"],
-        ['adds', 49, "'Not owed.'"],
+        ['moves it by nothing', 0, "'Not owed.'"],
     ]) {
         test(`a correction written after db push that ${what} stops it, and says so`, async () => {
             await journalWithoutTheCheck();
@@ -544,7 +552,7 @@ describe('a correction in the journal names what it corrects', () => {
                 values: `, 'charge-1', 'invoice-1', ${reason}`,
             });
 
-            await assert.rejects(apply(MIGRATION), /or that takes nothing off/);
+            await assert.rejects(apply(MIGRATION), /or that moves it by nothing/);
             await client.query('ROLLBACK').catch(() => {});
             const { rows } = await client.query('SELECT 1 FROM pg_constraint WHERE conname = $1', [
                 CHECK,
@@ -3070,7 +3078,7 @@ describe('an invoice is corrected by a cancellation invoice', () => {
                 'ALTER TABLE "subscription_invoice_settlements" DROP COLUMN "cancellationId"; ' +
                 'DROP TABLE "subscription_invoice_cancellations"; ' +
                 'ALTER TABLE "subscription_invoice_lines" DROP COLUMN "chainStep", ' +
-                '    DROP COLUMN "correctedPosition"; ' +
+                '    DROP COLUMN "correctedPosition", DROP COLUMN "correctsPosition"; ' +
                 'CREATE UNIQUE INDEX "subscription_invoice_lines_chargeId_key" ' +
                 '    ON "subscription_invoice_lines"("chargeId"); ' +
                 'ALTER TABLE "subscription_invoices" DROP COLUMN "chainId", ' +
@@ -3174,6 +3182,101 @@ describe('an invoice is corrected by a cancellation invoice', () => {
         );
         await apply(MIGRATION);
         assert.deepEqual((await toCases())[0], { id: 'r-1', toCases: '15.00' });
+    });
+
+    /** Two charges of the invoice's contract line, for its lines to name. */
+    async function twoCharges() {
+        await client.query(
+            'INSERT INTO "contract_line_items" ("id", "contractId", "kind", "sourceKey", ' +
+                ' "titleSnapshot", "priceNet", "priceGross", "billingCycle", "currency", ' +
+                ' "taxRate", "taxAmount") ' +
+                "VALUES ('l-1', 'c-1', 'plan', 'STANDARD', 'Standard', 49, 58.31, 'monthly', " +
+                "'EUR', 19, 9.31)",
+        );
+        for (const id of ['ch-1', 'ch-2']) {
+            await client.query(
+                'INSERT INTO "subscriber_ledger_entries" ("id", "subscriberId", "tenantId", ' +
+                    ' "subscriptionId", "contractId", "contractLineItemId", "origin", "source", ' +
+                    ' "sourceRef", "periodStart", "periodEnd", "currency", "amountNet", "bookedAt") ' +
+                    `VALUES ('${id}', 's-1', 't-1', 'sub-1', 'c-1', 'l-1', 'renewal', 'plan', ` +
+                    `'${id}', '2026-10-01', '2026-11-01', 'EUR', 49, '2026-10-01')`,
+            );
+        }
+    }
+    /** A line of invoice-1; `corrects` names the column's value where the column is there. */
+    const aLine = (position, origin, corrects) =>
+        client.query(
+            'INSERT INTO "subscription_invoice_lines" ("id", "invoiceId", "position", ' +
+                ` "chargeId", "contractLineItemId",${corrects === undefined ? '' : ' "correctsPosition",'} ` +
+                ' "title", "origin", "source", "periodFrom", "periodUntil", "amountNet", "taxRate") ' +
+                `VALUES ('line-${position}', 'invoice-1', ${position}, 'ch-${position}', 'l-1',` +
+                `${corrects === undefined ? '' : ` ${corrects},`} 'Standard', '${origin}', 'plan', ` +
+                "'2026-10-01', '2026-10-31', 49, 19)",
+        );
+
+    test("a correction's line names a line of its invoice, and no other line names one", async () => {
+        await beforeTheMigration();
+        await anInvoiceFromBefore();
+        await twoCharges();
+        await apply(MIGRATION);
+
+        await aLine(1, 'renewal', 'NULL');
+        await aLine(2, 'correction', 1);
+        for (const [what, insert, constraint] of [
+            [
+                "a correction's line naming none",
+                () => aLine(3, 'correction', 'NULL'),
+                'subscription_invoice_lines_correction_names_its_line',
+            ],
+            [
+                'another line naming one',
+                () => aLine(3, 'renewal', 1),
+                'subscription_invoice_lines_correction_names_its_line',
+            ],
+            [
+                "a correction's line naming a position its invoice does not have",
+                () => aLine(3, 'correction', 9),
+                'subscription_invoice_lines_invoiceId_correctsPosition_fkey',
+            ],
+        ]) {
+            await client.query('DELETE FROM "subscriber_ledger_entries" WHERE "id" = \'ch-3\'');
+            await client.query(
+                'INSERT INTO "subscriber_ledger_entries" ("id", "subscriberId", "tenantId", ' +
+                    ' "subscriptionId", "contractId", "contractLineItemId", "origin", "source", ' +
+                    ' "sourceRef", "periodStart", "periodEnd", "currency", "amountNet", "bookedAt") ' +
+                    "VALUES ('ch-3', 's-1', 't-1', 'sub-1', 'c-1', 'l-1', 'renewal', 'plan', " +
+                    "'ch-3', '2026-10-01', '2026-11-01', 'EUR', 49, '2026-10-01')",
+            );
+            await assert.rejects(
+                insert(),
+                (error) => error.message.includes(constraint),
+                `${what} was let in`,
+            );
+        }
+    });
+
+    test("a correction's line already there without the line it corrects stops it, and says so", async () => {
+        await beforeTheMigration();
+        await anInvoiceFromBefore();
+        await twoCharges();
+        await client.query(
+            'INSERT INTO "subscription_invoice_lines" ("id", "invoiceId", "position", ' +
+                ' "chargeId", "contractLineItemId", "title", "origin", "source", "periodFrom", ' +
+                ' "periodUntil", "amountNet", "taxRate") ' +
+                "VALUES ('line-1', 'invoice-1', 1, 'ch-1', 'l-1', 'Standard', 'correction', " +
+                "'plan', '2026-10-01', '2026-10-31', -10, 19)",
+        );
+
+        await assert.rejects(
+            apply(MIGRATION),
+            /a correction's line that names no line it corrects/,
+        );
+        await client.query('ROLLBACK').catch(() => {});
+        const { rows } = await client.query(
+            'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
+                "AND table_name = 'subscription_invoice_lines' AND column_name = 'correctsPosition'",
+        );
+        assert.deepEqual(rows, [], 'the refused run left the column behind');
     });
 
     test('the files that created the invoices and the payments, run again, leave the chain in place', async () => {

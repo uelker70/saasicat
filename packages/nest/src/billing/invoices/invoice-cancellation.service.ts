@@ -1,9 +1,14 @@
-// The correction of an issued invoice (`SC-PRIC-091`): a cancellation invoice
-// that states it reversed and asks for nothing, a replacement for its charges,
-// and what was paid for it moved onto the replacement — or, where the
-// replacement does not take it, into credits — written in one transaction, in
-// the turn of the invoice's chain (`SC-PRIC-036`). A collection of the
-// cancelled invoice planned and not yet submitted is withdrawn with it.
+// The correction of an issued invoice (`SC-PRIC-095`): a cancellation invoice
+// that states it reversed and asks for nothing, a replacement for what of its
+// charges is still owed, and what was paid for it moved onto the replacement —
+// or, where the replacement does not take it, into credits — written in one
+// transaction, in the turn of the invoice's chain (`SC-PRIC-036`). A collection
+// of the cancelled invoice planned and not yet submitted is withdrawn with it.
+//
+// A line the operator names as not owed, or owed in part, moves by a
+// counter-entry written in the same transaction, and each discount that
+// reduced it in the share it fell (`SC-PRIC-020`); where nothing is owed any
+// more there is no replacement, and everything paid becomes a credit.
 //
 // The preview and the cancellation take the same steps, so what the operator
 // confirms is what is written (`SC-UI-017`): the preview stops before the first
@@ -39,29 +44,40 @@ import {
     correctedSubscriberOf,
     directDebitLeadDaysOf,
     draftCancellationInvoice,
-    draftReplacementInvoice,
+    draftCorrectedReplacementInvoice,
     invoiceContentDraftOf,
     invoiceFooterOf,
     invoicePaymentOf,
+    isCorrectableLine,
+    lineCorrectionsOf,
     movedPaymentParts,
     paidByShares,
+    standingCentsOf,
     subscriberCorrectedSince,
     sumToCents,
+    writtenReplacementOf,
     type AdminCancelledInvoice,
     type AdminInvoiceCancellationPlan,
+    type CorrectedInvoiceLine,
     type CorrectedInvoiceSubscriber,
+    type DiscountReduces,
     type InvoiceCancellationRequest,
+    type InvoiceLineOwed,
     type InvoiceCollectionRepository,
     type InvoicePaymentShare,
     type InvoiceSubscriberDetail,
     type MovedPaymentPart,
     type NewCorrectionInvoice,
+    type NewSubscriberCharge,
     type PlanCatalogSettings,
+    type PlannedReplacementInvoice,
     type RlsBypassPort,
+    type SubscriberChargeRecord,
     type SubscriberCreditRecord,
     type SubscriberLedgerRepository,
     type SubscriberPaymentMethodRepository,
     type SubscriberPaymentRepository,
+    type SubscriptionContractRepository,
     type SubscriptionInvoiceCancellationRecord,
     type SubscriptionInvoiceRecord,
     type SubscriptionInvoiceRepository,
@@ -81,10 +97,15 @@ import {
     settleInvoiceCorrections,
 } from '../../subscriber/subscriber-details.js';
 import { SubscriberService } from '../../subscriber/subscriber.service.js';
-import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
+import {
+    CONTRACT_TRANSACTION_RUNNER_TOKEN,
+    SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
+} from '../../subscription-contract/subscription-contract.tokens.js';
 import { TAX_TREATMENTS_TOKEN } from '../../tax/tax.tokens.js';
 import type { TaxTreatments } from '../../tax/tax-treatments.js';
+import { addOnHoldOf } from '../charges/charge-entries.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from '../charges/subscriber-charge.tokens.js';
+import { withdrawalReductionOf } from '../feature-withdrawal-lines.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../plan-catalog.module.js';
 import {
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
@@ -97,7 +118,12 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
 export interface InvoiceCancellationPlan extends AdminInvoiceCancellationPlan {
     cancelled: SubscriptionInvoiceRecord;
     cancellation: NewCorrectionInvoice;
-    replacement: NewCorrectionInvoice;
+    /** `null` where nothing of the cancelled invoice is owed any more. */
+    replacement: PlannedReplacementInvoice | null;
+    /** What each charge line of the cancelled invoice stands at, and becomes. */
+    lines: CorrectedInvoiceLine[];
+    /** The counter-entries the cancellation writes, in the order of the lines they move. */
+    counterEntries: NewSubscriberCharge[];
     /** The operator's corrections, each with the value it replaced; `null` where none. */
     correctedSubscriber: CorrectedInvoiceSubscriber | null;
     /** How each payment's share of the cancelled invoice moves, the oldest first. */
@@ -109,9 +135,10 @@ export const INVOICE_CANCELLED_AUDIT_ACTION = 'SUBSCRIPTION_INVOICE_CANCELLED';
 
 /**
  * The audit entry of a cancellation, whoever made it — an operator's route or
- * the command line. It names the invoices, the reason and which details were
- * corrected, and whether an address to deliver to was given; the address and
- * the corrected values stand on the cancellation itself.
+ * the command line. It names the invoices, the reason, which lines moved from
+ * what to what and which details were corrected, and whether an address to
+ * deliver to was given; the address and the corrected values stand on the
+ * cancellation itself.
  */
 export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
     entity: 'SubscriptionInvoice';
@@ -121,9 +148,10 @@ export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
         tenantId: string;
         number: string | null;
         cancellationNumber: string;
-        replacementNumber: string;
+        replacementNumber: string | null;
         reason: string;
         corrected: string[];
+        correctedLines: { position: number; standsAt: number; becomes: number }[];
         deliverToGiven: boolean;
         paidOnIssue: number;
         credited: number;
@@ -139,11 +167,18 @@ export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
             tenantId: cancellationInvoice.tenantId,
             number: cancellationInvoice.correction?.of.number ?? null,
             cancellationNumber: cancellationInvoice.number,
-            replacementNumber: replacement.number,
+            replacementNumber: replacement?.number ?? null,
             reason: cancellation.reason,
             corrected: Object.keys(cancellation.correctedSubscriber ?? {}),
+            correctedLines: cancelled.lines
+                .filter((line) => line.becomes !== line.standsAt)
+                .map((line) => ({
+                    position: line.position,
+                    standsAt: line.standsAt / 100,
+                    becomes: line.becomes / 100,
+                })),
             deliverToGiven: cancellation.deliverTo !== null,
-            paidOnIssue: replacement.paidOnIssue,
+            paidOnIssue: replacement?.paidOnIssue ?? 0,
             credited: cancelled.credits.reduce((sum, credit) => sumToCents(sum, credit.amount), 0),
             withdrawnCollections: cancelled.withdrawnCollections,
         },
@@ -154,7 +189,12 @@ export function invoiceCancellationAudit(cancelled: CancelledInvoice): {
 export interface CancelledInvoice extends AdminCancelledInvoice {
     cancellation: SubscriptionInvoiceCancellationRecord;
     cancellationInvoice: SubscriptionInvoiceRecord;
-    replacement: SubscriptionInvoiceRecord;
+    /** `null` where nothing of the cancelled invoice was owed any more. */
+    replacement: SubscriptionInvoiceRecord | null;
+    /** What each charge line of the cancelled invoice stood at, and became. */
+    lines: CorrectedInvoiceLine[];
+    /** The counter-entries it wrote. */
+    counterEntries: SubscriberChargeRecord[];
     credits: SubscriberCreditRecord[];
     /** The collections of the cancelled invoice that were planned and are not made. */
     withdrawnCollections: number;
@@ -197,6 +237,10 @@ export class InvoiceCancellationService implements OnModuleInit {
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        // Where a discount is said to reduce a booking rather than the plan.
+        @Optional()
+        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
+        private readonly contracts: SubscriptionContractRepository | null = null,
     ) {}
 
     /**
@@ -206,12 +250,23 @@ export class InvoiceCancellationService implements OnModuleInit {
      * invoice that no longer stands.
      */
     onModuleInit(): void {
-        if (this.transactions) return;
-        throw new Error(
-            'Invoices cannot start:\n- cancelling an invoice needs the transaction the contracts ' +
-                'are written on: give `contractFreeze.transactionRunner`, which `SaaSiCatModule` ' +
-                'passes from the persistence bundle.',
-        );
+        const missing = [
+            ...(this.transactions
+                ? []
+                : [
+                      'cancelling an invoice needs the transaction the contracts are written on: ' +
+                          'give `contractFreeze.transactionRunner`, which `SaaSiCatModule` passes ' +
+                          'from the persistence bundle.',
+                  ]),
+            ...(this.contracts
+                ? []
+                : [
+                      'cancelling an invoice reads the contract lines its discounts came from: ' +
+                          'bind `SubscriptionContractRepository`, which tenant billing does.',
+                  ]),
+        ];
+        if (missing.length === 0) return;
+        throw new Error(`Invoices cannot start:\n${missing.map((line) => `- ${line}`).join('\n')}`);
     }
 
     /**
@@ -280,13 +335,19 @@ export class InvoiceCancellationService implements OnModuleInit {
         return this.runner().run(async (tx) => {
             const plan = await this.planIn(tenantId, invoiceId, request, now, tx);
             refuseChangedSincePreview(plan, request.previewDigest);
+            const counterEntries = await this.writtenCounterEntries(plan, tx);
             const issued = await answeringRefusals(
                 () =>
                     this.invoices.issueCancellation(
                         {
                             cancelledInvoiceId: invoiceId,
                             cancellation: plan.cancellation,
-                            replacement: plan.replacement,
+                            replacement: plan.replacement
+                                ? writtenReplacementOf(
+                                      plan.replacement,
+                                      counterEntries.map((entry) => entry.id),
+                                  )
+                                : null,
                             reason: plan.reason,
                             correctedSubscriber: plan.correctedSubscriber,
                             deliverTo: plan.deliverTo,
@@ -305,14 +366,18 @@ export class InvoiceCancellationService implements OnModuleInit {
                 },
             );
             const replacement = issued.replacement;
-            if (!replacement)
-                throw new Error(`The cancellation of ${invoiceId} wrote no replacement.`);
+            if ((replacement === null) !== (plan.replacement === null)) {
+                throw new Error(
+                    `The cancellation of ${invoiceId} wrote ${replacement ? 'a' : 'no'} replacement ` +
+                        `where it planned ${plan.replacement ? 'one' : 'none'}.`,
+                );
+            }
             const credits = this.payments
                 ? await this.payments.moveShares(
                       {
                           cancellationId: issued.cancellation.id,
                           cancelledInvoiceId: invoiceId,
-                          replacementInvoiceId: replacement.id,
+                          replacementInvoiceId: replacement?.id ?? null,
                           parts: plan.moves,
                           at: now,
                       },
@@ -322,9 +387,35 @@ export class InvoiceCancellationService implements OnModuleInit {
             return {
                 ...issued,
                 replacement,
+                lines: plan.lines,
+                counterEntries,
                 credits,
                 withdrawnCollections: await this.withdrawPlanned(invoiceId, now, tx),
             };
+        });
+    }
+
+    /**
+     * Writes the counter-entries of `plan` on `tx`, in its order. Each names the
+     * cancelled invoice in its source reference, which a cancellation is made of
+     * once, so none is there already; one that was would be a cancellation that
+     * did not take its turn.
+     */
+    private async writtenCounterEntries(
+        plan: InvoiceCancellationPlan,
+        tx: TransactionContext,
+    ): Promise<SubscriberChargeRecord[]> {
+        if (plan.counterEntries.length === 0) return [];
+        const written = await this.ledger.recordCharges(plan.counterEntries, tx);
+        return plan.counterEntries.map((entry) => {
+            const record = written.find((each) => each.sourceRef === entry.sourceRef);
+            if (!record) {
+                throw new Error(
+                    `The counter-entry ${entry.sourceRef} of the cancellation of ` +
+                        `${plan.cancelled.number} is in the journal already.`,
+                );
+            }
+            return record;
         });
     }
 
@@ -346,6 +437,17 @@ export class InvoiceCancellationService implements OnModuleInit {
         }
         const given = settledRequestOf(request, cancelled.number);
         await this.refuseUncancellable(cancelled, chain.cancellations, given.deliverTo);
+        const journal = await this.ledger.listBySubscription(cancelled.subscriptionId, tx);
+        const corrections = lineCorrectionsOf(
+            cancelled,
+            settledLinesOf(request.lines ?? [], cancelled, journal),
+            {
+                journal,
+                reduces: await this.discountReductions(cancelled, journal),
+                reason: given.reason,
+                bookedAt: now,
+            },
+        );
         const subscriber = correctedSubscriberOf(
             subscriberCorrectedSince(
                 cancelled.subscriber,
@@ -359,7 +461,6 @@ export class InvoiceCancellationService implements OnModuleInit {
             this.subscribers.issuerNamed(),
         ).issuer;
         const issuer = await this.issuing.issuerFor(cancelled.issuer, configured);
-        const treatment = await this.treatmentOf(cancelled, subscriber.subscriber, issuer, tx);
         const method = (await this.paymentMethods?.findActive(cancelled.subscriberId)) ?? null;
         const shares: InvoicePaymentShare[] = this.payments
             ? await this.payments.sharesOf(invoiceId, tx)
@@ -371,24 +472,39 @@ export class InvoiceCancellationService implements OnModuleInit {
             timeZone: this.settings.timeZone!,
             numberPrefix: invoicing.numberPrefix,
         };
-        const replacement = draftReplacementInvoice(cancelled, {
-            ...issue,
-            subscriber: subscriber.subscriber,
-            issuer,
-            footer: invoiceFooterOf(issuer, configured, invoicing.footer ?? []),
-            treatment,
-            tax: (lines) => this.taxes.invoiceTax(lines),
-            paymentTermDays: invoicing.paymentTermDays,
-            directDebitLeadDays: directDebitLeadDaysOf(invoicing),
-            payment: invoicePaymentOf(method),
-            paid: paidByShares(shares),
-        });
-        this.refuseUnissuable(replacement, method?.id ?? null);
-        const moves = movedPaymentParts(shares, replacement.totalGross);
+        // Nothing owed any more needs no treatment: there is no replacement.
+        const replacement = corrections.lines.every((line) => line.becomes === 0)
+            ? null
+            : draftCorrectedReplacementInvoice(
+                  cancelled,
+                  {
+                      ...issue,
+                      subscriber: subscriber.subscriber,
+                      issuer,
+                      footer: invoiceFooterOf(issuer, configured, invoicing.footer ?? []),
+                      treatment: await this.treatmentOf(
+                          cancelled,
+                          journal,
+                          subscriber.subscriber,
+                          issuer,
+                          tx,
+                      ),
+                      tax: (lines) => this.taxes.invoiceTax(lines),
+                      paymentTermDays: invoicing.paymentTermDays,
+                      directDebitLeadDays: directDebitLeadDaysOf(invoicing),
+                      payment: invoicePaymentOf(method),
+                      paid: paidByShares(shares),
+                  },
+                  corrections,
+              );
+        if (replacement) this.refuseUnissuable(cancelled, replacement, method?.id ?? null);
+        const moves = movedPaymentParts(shares, replacement?.totalGross ?? 0);
         const plan = {
             cancelled,
             cancellation: draftCancellationInvoice(cancelled, issue),
             replacement,
+            lines: corrections.lines,
+            counterEntries: corrections.counterEntries,
             correctedSubscriber: subscriber.corrected,
             moves,
             movedIn: moves.reduce((sum, part) => sumToCents(sum, part.movedIn), 0),
@@ -399,7 +515,7 @@ export class InvoiceCancellationService implements OnModuleInit {
         return { ...plan, digest: previewDigestOf(plan) };
     }
 
-    /** Refuses an invoice a cancellation does not correct (`SC-PRIC-091`, `SC-PRIC-036`). */
+    /** Refuses an invoice a cancellation does not correct (`SC-PRIC-095`, `SC-PRIC-036`). */
     private async refuseUncancellable(
         invoice: SubscriptionInvoiceRecord,
         cancellations: readonly SubscriptionInvoiceCancellationRecord[],
@@ -440,12 +556,25 @@ export class InvoiceCancellationService implements OnModuleInit {
     }
 
     /**
-     * Refuses a replacement that the run would hold rather than issue: a direct
-     * debit whose mandate reference cannot be announced (`SC-PRIC-028`), and
-     * content the tax adapter requires and the replacement lacks
-     * (`SC-PRIC-027`).
+     * Refuses a replacement that asks for less than nothing, which the
+     * corrections left a credit, and one that the run would hold rather than
+     * issue: a direct debit whose mandate reference cannot be announced
+     * (`SC-PRIC-028`), and content the tax adapter requires and the replacement
+     * lacks (`SC-PRIC-027`).
      */
-    private refuseUnissuable(replacement: NewCorrectionInvoice, methodId: string | null): void {
+    private refuseUnissuable(
+        cancelled: SubscriptionInvoiceRecord,
+        replacement: PlannedReplacementInvoice,
+        methodId: string | null,
+    ): void {
+        if (replacement.totalGross < 0) {
+            throw new UnprocessableEntityException(
+                codedError(INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT, {
+                    number: cancelled.number,
+                    totalGross: replacement.totalGross,
+                }),
+            );
+        }
         const owed = sumToCents(replacement.totalGross, -replacement.paidOnIssue);
         if (methodId !== null && !replacement.payment && owed > 0) {
             throw new UnprocessableEntityException(
@@ -472,6 +601,7 @@ export class InvoiceCancellationService implements OnModuleInit {
      */
     private async treatmentOf(
         cancelled: SubscriptionInvoiceRecord,
+        journal: readonly SubscriberChargeRecord[],
         subscriber: SubscriptionInvoiceRecord['subscriber'],
         issuer: SubscriptionInvoiceRecord['issuer'],
         tx: TransactionContext,
@@ -481,7 +611,7 @@ export class InvoiceCancellationService implements OnModuleInit {
             subscriber,
             tx,
         );
-        const applied = this.taxes.decide(origin, await this.periodOf(cancelled), {
+        const applied = this.taxes.decide(origin, periodOf(cancelled, journal), {
             country: issuer.country,
             vatId: issuer.vatId,
         });
@@ -490,25 +620,57 @@ export class InvoiceCancellationService implements OnModuleInit {
         return applied.treatment;
     }
 
-    /** The period the invoice's charges cover: from the first start to the last end. */
-    private async periodOf(
+    /**
+     * What each discount of `invoice` reduces, read off the contract line it
+     * came from the way the charge derivation reads it (`othersOf`): a held
+     * add-on price, and a feature withdrawal's reduction of a booking, that
+     * booking; every other discount the plan.
+     */
+    private async discountReductions(
         invoice: SubscriptionInvoiceRecord,
-    ): Promise<{ from: Date; until: Date }> {
-        const ids = new Set(invoice.lines.map((line) => line.chargeId));
-        const charges = (await this.ledger.listBySubscription(invoice.subscriptionId)).filter(
-            (charge) => ids.has(charge.id),
+        journal: readonly SubscriberChargeRecord[],
+    ): Promise<(discount: SubscriberChargeRecord) => DiscountReduces> {
+        const onInvoice = new Set(invoice.lines.map((line) => line.chargeId));
+        const discounts = journal.filter(
+            (charge) => onInvoice.has(charge.id) && charge.source === 'discount',
         );
-        if (charges.length !== ids.size) {
-            throw new Error(`The charges of invoice ${invoice.number} are not all in the journal.`);
-        }
-        const starts = charges.map((charge) => charge.periodStart.getTime());
-        const ends = charges.map((charge) => charge.periodEnd.getTime());
-        return { from: new Date(Math.min(...starts)), until: new Date(Math.max(...ends)) };
+        const contracts = new Map(
+            await Promise.all(
+                [...new Set(discounts.map((charge) => charge.contractId))].map(
+                    async (contractId) =>
+                        [contractId, await this.contractRepository().findById(contractId)] as const,
+                ),
+            ),
+        );
+        return (discount) => {
+            const line = contracts
+                .get(discount.contractId)
+                ?.lineItems.find((item) => item.id === discount.contractLineItemId);
+            if (!line) {
+                throw new Error(
+                    `The discount ${discount.id} on invoice ${invoice.number} names a contract ` +
+                        'line that is not there.',
+                );
+            }
+            const booking =
+                addOnHoldOf(line)?.subscriptionBundleId ??
+                withdrawalReductionOf(line)?.subscriptionBundleId ??
+                null;
+            return booking === null
+                ? { source: 'plan' }
+                : { source: 'bundle', subscriptionBundleId: booking };
+        };
+    }
+
+    private contractRepository(): SubscriptionContractRepository {
+        // `onModuleInit` refuses a start without it.
+        if (!this.contracts) throw new Error('Cancelling an invoice needs the contracts.');
+        return this.contracts;
     }
 
     /**
      * Withdraws the collections of the cancelled invoice planned and not yet
-     * submitted, so none of them is (`SC-PRIC-091`); one already submitted is
+     * submitted, so none of them is (`SC-PRIC-095`); one already submitted is
      * left to its answer, and holds the replacement back until then.
      */
     private async withdrawPlanned(
@@ -535,17 +697,23 @@ export class InvoiceCancellationService implements OnModuleInit {
 
 /**
  * The fingerprint of what `plan` would write: SHA-256 over its canonical
- * JSON, the moment the two invoices are issued left out. A preview read a
- * minute before the confirmation writes the same invoices a minute later; the
- * issue day stays in, and with it the due date and the number's year it
- * decides.
+ * JSON, the moment the two invoices are issued and the counter-entries booked
+ * left out. A preview read a minute before the confirmation writes the same
+ * invoices and counter-entries a minute later; the issue day stays in, and
+ * with it the due date and the number's year it decides.
  */
 function previewDigestOf(plan: Omit<InvoiceCancellationPlan, 'digest'>): string {
-    const timeless = (invoice: NewCorrectionInvoice) => ({ ...invoice, issuedAt: null });
+    const timeless = <Invoice extends Pick<NewCorrectionInvoice, 'issuedAt'>>(
+        invoice: Invoice,
+    ) => ({
+        ...invoice,
+        issuedAt: null,
+    });
     const held = {
         ...plan,
         cancellation: timeless(plan.cancellation),
-        replacement: timeless(plan.replacement),
+        replacement: plan.replacement && timeless(plan.replacement),
+        counterEntries: plan.counterEntries.map((entry) => ({ ...entry, bookedAt: null })),
     };
     return createHash('sha256').update(canonicalJson(held)).digest('hex');
 }
@@ -567,6 +735,70 @@ function refuseChangedSincePreview(
             number: plan.cancelled.number,
         }),
         preview: plan,
+    });
+}
+
+/** The period the invoice's charges cover: from the first start to the last end. */
+function periodOf(
+    invoice: SubscriptionInvoiceRecord,
+    journal: readonly SubscriberChargeRecord[],
+): { from: Date; until: Date } {
+    const ids = new Set(invoice.lines.map((line) => line.chargeId));
+    const charges = journal.filter((charge) => ids.has(charge.id));
+    if (charges.length !== ids.size) {
+        throw new Error(`The charges of invoice ${invoice.number} are not all in the journal.`);
+    }
+    const starts = charges.map((charge) => charge.periodStart.getTime());
+    const ends = charges.map((charge) => charge.periodEnd.getTime());
+    return { from: new Date(Math.min(...starts)), until: new Date(Math.max(...ends)) };
+}
+
+/**
+ * The lines the operator names as not owed, or owed in part, settled against
+ * `invoice` and what its charges stand at in `journal`, or refused with
+ * `422`: a line the invoice has, named once, whose charge asks for something,
+ * owed at least nothing and below what it stands at, in whole cents.
+ */
+function settledLinesOf(
+    given: readonly InvoiceLineOwed[],
+    invoice: SubscriptionInvoiceRecord,
+    journal: readonly SubscriberChargeRecord[],
+): InvoiceLineOwed[] {
+    const refused = (code: keyof typeof INVOICE_ERROR_CODES, params: Record<string, number>) =>
+        new UnprocessableEntityException(
+            codedError(INVOICE_ERROR_CODES[code], { number: invoice.number, ...params }),
+        );
+    const seen = new Set<number>();
+    return given.map(({ position, owed }) => {
+        const line = invoice.lines.find((each) => each.position === position);
+        if (!line) throw refused('SUBSCRIPTION_INVOICE_LINE_UNKNOWN', { position });
+        if (seen.has(position))
+            throw refused('SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE', { position });
+        seen.add(position);
+        const charge = journal.find((entry) => entry.id === line.chargeId);
+        if (!charge) {
+            throw new Error(
+                `Line ${position} of invoice ${invoice.number} names a charge not in the journal.`,
+            );
+        }
+        const standsAt = standingCentsOf(charge, journal);
+        if (!isCorrectableLine(line, standsAt)) {
+            throw refused('SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE', { position });
+        }
+        const cents = owed * 100;
+        if (
+            !Number.isFinite(cents) ||
+            Math.abs(cents - Math.round(cents)) > 1e-6 ||
+            Math.round(cents) < 0 ||
+            Math.round(cents) >= standsAt
+        ) {
+            throw refused('SUBSCRIPTION_INVOICE_LINE_OWED_INVALID', {
+                position,
+                owed,
+                standsAt: standsAt / 100,
+            });
+        }
+        return { position, owed: Math.round(cents) / 100 };
     });
 }
 

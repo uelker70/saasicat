@@ -38,7 +38,7 @@ const REVERSALS = 'subscriber_reversals';
  * that opens it again by part of what a payment settled, and the same part
  * settled again where the gateway gave the reversal back; and what a
  * cancellation moved of a payment's share, out of the cancelled invoice and
- * into its replacement (`SC-PRIC-091`).
+ * into its replacement (`SC-PRIC-095`).
  */
 export type InvoiceSettlementKind =
     'PAYMENT' | 'REVERSAL' | 'REINSTATEMENT' | 'MOVED_OUT' | 'MOVED_IN';

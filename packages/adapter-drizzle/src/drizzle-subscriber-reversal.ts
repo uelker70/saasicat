@@ -433,7 +433,7 @@ async function coveringCredits(
 ): Promise<CoveringCredit[]> {
     if (invoiceIds.length === 0) return [];
     // Collected for an invoice of the same chain: a payment of the invoice a
-    // replacement replaces settles the replacement as well (`SC-PRIC-091`).
+    // replacement replaces settles the replacement as well (`SC-PRIC-095`).
     const chains = await db
         .select({ chainId: subscriptionInvoices.chainId })
         .from(subscriptionInvoices)

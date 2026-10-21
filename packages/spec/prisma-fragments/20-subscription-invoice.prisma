@@ -88,7 +88,7 @@ model SubscriptionInvoice {
     totalTax        Decimal @db.Decimal(12, 2)
     totalGross      Decimal @db.Decimal(12, 2)
     // What a replacement took over, when it was issued, of what was paid for
-    // the invoice it replaces (`SC-PRIC-091`); its document states it as paid.
+    // the invoice it replaces (`SC-PRIC-095`); its document states it as paid.
     // Zero on every other invoice.
     paidOnIssue     Decimal @default(0) @db.Decimal(12, 2)
 
@@ -129,6 +129,10 @@ model SubscriptionInvoiceLine {
     // of the line it replaces, on the invoice the cancellation names
     // (`SC-AUD-013`). Null on an invoice's own line.
     correctedPosition  Int?
+    // On a correction's line, the position on this same invoice of the line
+    // whose charge it corrects, so the document can say which (`SC-AUD-013`).
+    // Null on every other line; `constraints.postgres.sql` holds which.
+    correctsPosition   Int?
 
     title  String
     origin String
@@ -143,6 +147,8 @@ model SubscriptionInvoiceLine {
     invoice          SubscriptionInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
     charge           SubscriberLedgerEntry @relation(fields: [chargeId], references: [id], onDelete: Restrict)
     contractLineItem ContractLineItem      @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
+    corrects         SubscriptionInvoiceLine?  @relation("LineCorrection", fields: [invoiceId, correctsPosition], references: [invoiceId, position], onDelete: Restrict, onUpdate: Restrict)
+    correctedBy      SubscriptionInvoiceLine[] @relation("LineCorrection")
 
     @@unique([chargeId, chainStep])
     @@unique([invoiceId, position])
@@ -150,7 +156,7 @@ model SubscriptionInvoiceLine {
     @@map("subscription_invoice_lines")
 }
 
-// A cancellation (`SC-PRIC-091`): the invoice it cancels, the cancellation
+// A cancellation (`SC-PRIC-095`): the invoice it cancels, the cancellation
 // invoice that does, and the replacement for what is still owed — none where
 // nothing is —, written in one transaction with both invoices and the moving
 // of what was paid (24-subscriber-payments.prisma). The operator's reason, the

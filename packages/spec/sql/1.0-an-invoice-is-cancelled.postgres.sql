@@ -4,7 +4,7 @@
 --
 -- An invoice and the invoices that correct it become a chain, a cancellation
 -- is recorded with the reason it was given, and what was paid for a cancelled
--- invoice moves onto its replacement (#276 step 6, `SC-PRIC-091`,
+-- invoice moves onto its replacement (#276 step 6, `SC-PRIC-095`,
 -- `SC-PRIC-036`). Needed where `tenantBilling.chargeJournal.invoices` is
 -- configured. Run it BEFORE `db push`, after
 -- `1.0-an-invoice-is-issued.postgres.sql` and, where invoices are collected,
@@ -22,10 +22,15 @@
 --   with, which is the invoice itself for every invoice issued so far, with its
 --   index and its foreign key; `chainStep`, 0; and `paidOnIssue`, 0.
 --
---   `subscription_invoice_lines` — given `chainStep`, 0, and
---   `correctedPosition`, empty; the unique `chargeId` becomes the unique
---   (`chargeId`, `chainStep`), so a charge can stand on an invoice, its
---   cancellation and its replacement.
+--   `subscription_invoice_lines` — given `chainStep`, 0, `correctedPosition`,
+--   empty, and `correctsPosition`, empty, with its foreign key to the line of
+--   the same invoice it names and the check
+--   `subscription_invoice_lines_correction_names_its_line` from
+--   `constraints.postgres.sql`: a correction's line names the line whose
+--   charge it corrects, and no other line names one. Refused, with a sentence,
+--   where a line already breaks that — no release wrote a correction's line.
+--   The unique `chargeId` becomes the unique (`chargeId`, `chainStep`), so a
+--   charge can stand on an invoice, its cancellation and its replacement.
 --
 --   `subscription_invoice_cancellations` — created, with its unique indexes and
 --   its foreign keys to `subscription_invoices`.
@@ -93,6 +98,35 @@ BEGIN
         ADD COLUMN IF NOT EXISTS "chainStep" INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE "subscription_invoice_lines"
         ADD COLUMN IF NOT EXISTS "correctedPosition" INTEGER;
+    -- A correction's line names the line on its invoice whose charge it corrects.
+    ALTER TABLE "subscription_invoice_lines"
+        ADD COLUMN IF NOT EXISTS "correctsPosition" INTEGER;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+         WHERE conrelid = to_regclass('subscription_invoice_lines')
+           AND conname = 'subscription_invoice_lines_invoiceId_correctsPosition_fkey'
+    ) THEN
+        ALTER TABLE "subscription_invoice_lines"
+            ADD CONSTRAINT "subscription_invoice_lines_invoiceId_correctsPosition_fkey"
+            FOREIGN KEY ("invoiceId", "correctsPosition")
+            REFERENCES "subscription_invoice_lines"("invoiceId", "position")
+            ON DELETE RESTRICT ON UPDATE RESTRICT;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+         WHERE conrelid = to_regclass('subscription_invoice_lines')
+           AND conname = 'subscription_invoice_lines_correction_names_its_line'
+    ) THEN
+        IF EXISTS (
+            SELECT 1 FROM "subscription_invoice_lines"
+             WHERE ("origin" = 'correction') <> ("correctsPosition" IS NOT NULL)
+        ) THEN
+            RAISE EXCEPTION 'subscription_invoice_lines holds a correction''s line that names no line it corrects, or another line that names one. No release wrote a correction''s line: find it, make it name the line whose charge it corrects or nothing, and run this file again.';
+        END IF;
+        ALTER TABLE "subscription_invoice_lines"
+            ADD CONSTRAINT "subscription_invoice_lines_correction_names_its_line"
+            CHECK (("origin" = 'correction') = ("correctsPosition" IS NOT NULL));
+    END IF;
     DROP INDEX IF EXISTS "subscription_invoice_lines_chargeId_key";
     CREATE UNIQUE INDEX IF NOT EXISTS "subscription_invoice_lines_chargeId_chainStep_key"
         ON "subscription_invoice_lines"("chargeId", "chainStep");

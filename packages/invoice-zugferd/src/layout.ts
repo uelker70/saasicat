@@ -397,7 +397,7 @@ function closingLines(
         }
     }
     // A replacement states what was paid for the invoice it replaces, and
-    // what is left to pay (`SC-PRIC-091`).
+    // what is left to pay (`SC-PRIC-095`).
     const prepaid = invoice.paidOnIssue > 0;
     rows.push({
         label: `${bilingual(LABELS.grandTotal)} (${invoice.currency})`,

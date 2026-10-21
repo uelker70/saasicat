@@ -25,7 +25,7 @@ export const INVOICE_DOCUMENT_CAPABILITY = 'invoices.read';
 
 /**
  * The manifest capability that announces the operator's cancellation of an
- * issued invoice, with its preview (`SC-PRIC-091`). The platform sets it where
+ * issued invoice, with its preview (`SC-PRIC-095`). The platform sets it where
  * it serves the routes.
  */
 export const INVOICE_CANCEL_CAPABILITY = 'invoices.cancel';

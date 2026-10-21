@@ -2,13 +2,13 @@
 //
 // An invoice is built from the charge journal: the charges a billing period
 // opens with together, a charge that arises later in the period on an invoice
-// of its own (`SC-PRIC-022`). It copies everything it states on the day it is
+// of its own (`SC-PRIC-096`). It copies everything it states on the day it is
 // issued — the issuer and the subscriber as they stand then (`SC-PRIC-092`),
 // the tax treatment the adapter decides then (`SC-PRIC-038`, `SC-PRIC-043`),
 // the payment method it is collected with and the day a direct debit is
 // collected (`SC-PRIC-028`) — so a later change leaves it as it was. Nothing
 // here edits an issued invoice;
-// a correction is a cancellation invoice and its replacement (`SC-PRIC-091`).
+// a correction is a cancellation invoice and its replacement (`SC-PRIC-095`).
 
 import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 import type { TaxAtRate } from './money.js';
@@ -31,7 +31,7 @@ export interface SubscriptionInvoiceLineRecord {
     invoiceId: string;
     /** From 1, in the order the invoice lists its lines. */
     position: number;
-    /** The charge the line invoices; a charge stands on one invoice (`SC-PRIC-022`). */
+    /** The charge the line invoices; a charge stands on one invoice (`SC-PRIC-096`). */
     chargeId: string;
     /** The contract line the charge came from (`SC-AUD-013`). */
     contractLineItemId: string;
@@ -53,6 +53,12 @@ export interface SubscriptionInvoiceLineRecord {
      * `correction.of` names (`SC-AUD-013`). `null` on an invoice's own line.
      */
     correctedPosition: number | null;
+    /**
+     * On a line of a correction (`origin: 'correction'`), the position on this
+     * same invoice of the line whose charge it corrects, so the document can say
+     * which (`SC-AUD-013`); `null` on every other line.
+     */
+    correctsPosition: number | null;
 }
 
 /**
@@ -61,15 +67,15 @@ export interface SubscriptionInvoiceLineRecord {
  */
 export type NewSubscriptionInvoiceLine = Omit<
     SubscriptionInvoiceLineRecord,
-    'id' | 'invoiceId' | 'correctedPosition'
+    'id' | 'invoiceId' | 'correctedPosition' | 'correctsPosition'
 >;
 
-/** What a correction of an issued invoice is (`SC-PRIC-091`). */
+/** What a correction of an issued invoice is (`SC-PRIC-095`). */
 export type SubscriptionInvoiceCorrectionKind = 'cancellation' | 'replacement';
 
 /**
  * What a cancellation invoice or a replacement says of the invoice it corrects
- * (`SC-PRIC-091`, `SC-PRIC-089`): which invoice that is, as it was issued, and
+ * (`SC-PRIC-095`, `SC-PRIC-089`): which invoice that is, as it was issued, and
  * why it was cancelled.
  */
 export interface SubscriptionInvoiceCorrection {
@@ -176,7 +182,7 @@ export interface SubscriptionInvoiceRecord {
     totalGross: number;
     /**
      * What a replacement took over, when it was issued, of what was paid for
-     * the invoice it replaces (`SC-PRIC-091`), and states as paid; `0` on every
+     * the invoice it replaces (`SC-PRIC-095`), and states as paid; `0` on every
      * other invoice.
      */
     paidOnIssue: number;
@@ -230,7 +236,7 @@ export const INVOICE_SUBSCRIBER_DETAILS: readonly InvoiceSubscriberDetail[] = [
 
 /**
  * The details of the subscriber the operator corrected for a replacement
- * (`SC-PRIC-091`), each with the value it replaced on the cancelled invoice.
+ * (`SC-PRIC-095`), each with the value it replaced on the cancelled invoice.
  */
 export type CorrectedInvoiceSubscriber = Partial<
     Record<InvoiceSubscriberDetail, { previous: string | null; corrected: string | null }>
@@ -248,7 +254,7 @@ export const INVOICE_CANCELLATION_REASON_MAX_LENGTH = 500;
  */
 export const INVOICE_CORRECTION_MAX_LENGTH = 300;
 
-/** A cancellation as a store reads it back (`SC-PRIC-091`). */
+/** A cancellation as a store reads it back (`SC-PRIC-095`). */
 export interface SubscriptionInvoiceCancellationRecord {
     id: string;
     /** The invoice it cancels. */
@@ -301,7 +307,7 @@ export interface NewCorrectionInvoice extends Omit<
     lines: NewCorrectionInvoiceLine[];
 }
 
-/** A cancellation to write, with both invoices, in the chain's turn (`SC-PRIC-091`, `SC-PRIC-036`). */
+/** A cancellation to write, with both invoices, in the chain's turn (`SC-PRIC-095`, `SC-PRIC-036`). */
 export interface NewSubscriptionInvoiceCancellation {
     /** The invoice cancelled, which still stands in its chain. */
     cancelledInvoiceId: string;

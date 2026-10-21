@@ -676,6 +676,7 @@ export const subscriptionInvoiceLines = pgTable('subscription_invoice_lines', {
     contractLineItemId: text('contractLineItemId').notNull(),
     chainStep: integer('chainStep').notNull().default(0),
     correctedPosition: integer('correctedPosition'),
+    correctsPosition: integer('correctsPosition'),
     title: text('title').notNull(),
     origin: text('origin').notNull(),
     source: text('source').notNull(),

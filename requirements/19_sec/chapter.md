@@ -226,7 +226,8 @@ _Tested by:_
     - subscriberLedger rejects a correction ${why}
     - subscriberLedger rejects a correction that names nothing it corrects
     - subscriberLedger rejects another charge that names something it corrects
-    - subscriberLedger rejects a correction of ${amountNet}, which ${what}
+    - subscriberLedger rejects a correction of 0, which moves nothing
+    - subscriberLedger accepts a correction that gives back, as a discount's does
     - subscriberLedger accepts a correction of a cent
     - subscriberLedger rejects a charge that leaves out whether it corrects anything
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`

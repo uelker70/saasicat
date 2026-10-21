@@ -292,6 +292,8 @@ _Tested by:_
         - a database from before ends up with the schema the fragments declare, twice
         - an invoice issued before begins a chain of its own, paid on issue by nothing
         - a reversal given back before records what of that covered its cases, once
+        - a correction's line names a line of its invoice, and no other line names one
+        - a correction's line already there without the line it corrects stops it, and says so
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
@@ -450,6 +452,8 @@ _Tested by:_
         - a database from before ends up with the schema the fragments declare, twice
         - an invoice issued before begins a chain of its own, paid on issue by nothing
         - a reversal given back before records what of that covered its cases, once
+        - a correction's line names a line of its invoice, and no other line names one
+        - a correction's line already there without the line it corrects stops it, and says so
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through

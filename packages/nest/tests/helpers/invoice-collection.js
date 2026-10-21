@@ -29,6 +29,7 @@ import {
 import { PaymentCallbackService, PaymentGatewayRegistry } from '../../dist/payments/index.js';
 import { FakeTransactionRunner } from '../../dist/testing/index.js';
 import { auditLogFailing } from './audit-log.js';
+import { heldToTheStoresRules } from './charge-journal.js';
 import { aMailbox } from './invoice-documents.js';
 import { INVOICING_SETTINGS, anInvoicingInstallation, berlin } from './invoice-run.js';
 import {
@@ -432,6 +433,7 @@ export function aCollectingInstallation({
     );
     // Corrects an issued invoice: the journal as the ledger reads it, and the
     // platform's transaction, which the invoices in memory need none of.
+    let counterEntries = 0;
     const cancellation = new InvoiceCancellationService(
         installation.store,
         {
@@ -441,6 +443,20 @@ export function aCollectingInstallation({
                         (charge) => charge.subscriptionId === subscriptionId,
                     ),
                 ),
+            // Where a cancellation writes its counter-entries, held to what a store refuses.
+            recordCharges: async (charges) => {
+                heldToTheStoresRules(charges, installation.journal);
+                return charges.map((charge) => {
+                    counterEntries += 1;
+                    const written = {
+                        ...structuredClone(charge),
+                        id: `counter-entry-${counterEntries}`,
+                        createdAt: charge.bookedAt,
+                    };
+                    installation.journal.push(written);
+                    return structuredClone(written);
+                });
+            },
         },
         installation.subscribers,
         installation.service,
@@ -450,6 +466,8 @@ export function aCollectingInstallation({
         payments,
         collections,
         paymentMethods,
+        null,
+        installation.contracts,
     );
     cancellation.onModuleInit();
     return {

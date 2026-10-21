@@ -137,7 +137,14 @@ type Call = [string, ...unknown[]];
 async function mountPage({
     manifest = CANCELLING,
     cancelWith,
-}: { manifest?: unknown; cancelWith?: () => never } = {}) {
+    plan = planOf(),
+    cancelled = CANCELLED,
+}: {
+    manifest?: unknown;
+    cancelWith?: () => never;
+    plan?: unknown;
+    cancelled?: unknown;
+} = {}) {
     const calls: Call[] = [];
     const notices: Array<[string, string]> = [];
     const router = createRouter({
@@ -158,11 +165,11 @@ async function mountPage({
         subscriber: async () => RECORD,
         previewInvoiceCancellation: async (...args: unknown[]) => {
             calls.push(['preview', ...args]);
-            return planOf();
+            return plan;
         },
         cancelInvoice: async (...args: unknown[]) => {
             calls.push(['cancel', ...args]);
-            return cancelWith ? cancelWith() : CANCELLED;
+            return cancelWith ? cancelWith() : cancelled;
         },
     };
     // SAFETY: the two keys are the symbols the page injects its manifest and its
@@ -309,6 +316,34 @@ describe('an invoice cancelled from the tenant page', () => {
         ]) {
             expect(shown).toContain(figure);
         }
+    });
+
+    test('previews and announces a cancellation that leaves no replacement, naming no party for one', async () => {
+        const { wrapper, notices } = await mountPage({
+            plan: { ...planOf({ movedIn: 0, credited: 119 }), replacement: null },
+            cancelled: { ...CANCELLED, replacement: null, credits: [{ amount: 119 }] },
+        });
+        await cancelAt(wrapper, 'AHP-2026-000124').trigger('click');
+        await settle();
+        await typeInto('Reason', REASON);
+        dialogButton('Show preview').click();
+        await settle();
+
+        const shown = dialog().node?.textContent ?? '';
+        expect(shown).toContain('ReplacementNone — nothing of the invoice is owed any more.');
+        expect(shown).toContain('Becomes a credit, to refund€119');
+        expect(shown).not.toContain('reverse charge');
+        expect(dialog().node?.querySelector('section[aria-label]')).toBeNull();
+
+        dialogButton('Cancel invoice').click();
+        await enterTheCode(CODE);
+
+        expect(notices).toEqual([
+            [
+                'positive',
+                'Cancelled by AHP-2026-000142. Nothing of it is owed any more, so there is no replacement.',
+            ],
+        ]);
     });
 
     // @requirement SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor

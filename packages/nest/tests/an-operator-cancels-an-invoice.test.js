@@ -356,6 +356,7 @@ describe('the cancellation route', () => {
                     replacementNumber: cancelled.replacement.number,
                     reason: REQUEST.reason,
                     corrected: ['city'],
+                    correctedLines: [],
                     deliverToGiven: true,
                     paidOnIssue: 0,
                     credited: 0,

@@ -43,7 +43,7 @@ async function aChargedSubscriber(options = {}, details = {}) {
     return { ...installation, subscriber, contract };
 }
 
-// @requirement SC-PRIC-022 — Every charge of a subscription is invoiced once, on that subscription's invoice
+// @requirement SC-PRIC-096 — Every charge is invoiced once, a counter-entry by the cancellation that wrote it
 // @requirement SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
 describe('an invoice is issued for the charges booked together', () => {
     test('the opening of a period is one invoice, its lines in the contract’s order', async () => {

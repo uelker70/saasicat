@@ -2207,25 +2207,31 @@ What the gateway reports and no credit matches is a case the operator closes wit
 `SubscriptionInvoiceRecord` gains `correction` — on a cancellation invoice or a replacement, which
 invoice it corrects (`of`: its id, number and issue date), whether it cancels or replaces it, and the
 reason given — and each of its lines `correctedPosition`, the position of the line it cancels or
-replaces. Both are `null` on an invoice issued for the charge journal's charges, which is every
-invoice a store holds until cancelling one arrives. `toSubscriptionInvoiceRecord` sets them, so both
-shipped adapters return them; a `SubscriptionInvoiceRepository` of your own that builds its records
-without it adds both as `null`.
+replaces, and `correctsPosition`, on the line of a counter-entry the position on the same invoice of
+the line whose charge it corrects. All three are `null` on an invoice issued for the charge
+journal's charges, which is every invoice a store holds until cancelling one arrives.
+`toSubscriptionInvoiceRecord` sets them, so both shipped adapters return them; a
+`SubscriptionInvoiceRepository` of your own that builds its records without it adds them as
+`null`.
 
 `zugferdInvoiceRenderer()` renders a correction as `SC-PRIC-089` asks: a cancellation as a
 "Stornorechnung", never a "Gutschrift", its page stating the cancelled amounts reversed and nothing
 to pay, its XML a credit note (type `381`) stating them as the cancelled invoice did; a replacement
-as an invoice; both naming the invoice they correct (BT-25, BT-26) and why, and each line the line
-it stands for. `@saasicat/tax-de`'s check of a document refuses one whose type, figures or reference
-are not what the invoice records. **A renderer of your own** does the same before invoices can be
-cancelled.
+as an invoice; both naming the invoice they correct (BT-25, BT-26) and why, each line the line it
+stands for, and a counter-entry's line the line it corrects ("Korrektur zu Pos. 2"), in the one
+note a line carries (BT-127). `@saasicat/tax-de`'s check of a document refuses one whose type,
+figures or reference are not what the invoice records. **A renderer of your own** does the same
+before invoices can be cancelled.
 
 ### An invoice is cancelled by a cancellation invoice and its replacement
 
-An issued invoice is corrected by cancelling it (`SC-PRIC-091`): a cancellation invoice that states
-it reversed and asks for nothing, a replacement for its charges under a new number, and what was
-paid for it moved onto the replacement — each payment's share, the oldest first — or, where the
-replacement does not take it, a credit for the operator to refund. An invoice and the invoices that
+An issued invoice is corrected by cancelling it (`SC-PRIC-095`): a cancellation invoice that states
+it reversed and asks for nothing, a replacement for what of its charges is still owed under a new
+number, and what was paid for it moved onto the replacement — each payment's share, the oldest
+first — or, where the replacement does not take it, a credit for the operator to refund. The
+operator may name lines as not owed, or owed at a lower amount (`InvoiceCancellationRequest.lines`):
+each moves by a counter-entry, each discount that reduced it in the share it fell, and where nothing
+is owed any more there is no replacement. An invoice and the invoices that
 correct it are one chain, and whatever changes what an invoice of a chain owes or how it is
 collected takes the chain's turn (`SC-PRIC-036`). The operator previews and cancels at
 `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview` and `…/cancellation`, the
@@ -2235,8 +2241,9 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
 `correction` and `cancelledBy`, so a page of your own that lists them can say which is which.
 
 1. Take fragments 15, 20 and 24 as they ship now: `SubscriptionInvoice` gains `chainId`,
-   `chainStep` and `paidOnIssue`, a line `chainStep` and `correctedPosition` — a charge now stands
-   on one line per step of its chain, so `SubscriberLedgerEntry.invoiceLines` is a list —, the
+   `chainStep` and `paidOnIssue`, a line `chainStep`, `correctedPosition` and `correctsPosition`
+   with the relation `corrects` / `correctedBy` — a charge now stands on one line per step of its
+   chain, so `SubscriberLedgerEntry.invoiceLines` is a list —, the
    model `SubscriptionInvoiceCancellation` is new, a settlement gains `cancellationId` and the
    kinds `MOVED_OUT` and `MOVED_IN`, a credit `originCancellationId`, and a reversal
    `reinstatedToCases`. Where `notAdopted` leaves the invoices out, name
@@ -2248,7 +2255,11 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
     ```
 
     It gives every invoice issued so far a chain of its own, creates the cancellations, moves the
-    unique charge of a line to the unique charge per chain step, and lets a payment leave a credit
+    unique charge of a line to the unique charge per chain step, gives a line `correctsPosition`
+    with its foreign key to the line of the same invoice and the check
+    `subscription_invoice_lines_correction_names_its_line` that `constraints.postgres.sql` holds as
+    well — a counter-entry's line names the line it corrects, no other line names one; refused with
+    a sentence where a line already breaks that —, and lets a payment leave a credit
     of its own and one per cancellation (`subscriber_credits_one_per_payment`, which
     `constraints.postgres.sql` holds as well), and gives each reversal `reinstatedToCases`, what of
     its give-backs covered its cases, as far as what it was given back and what its cases hold
@@ -2259,14 +2270,19 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
     where invoices are not collected.
 
 3. The start refuses invoicing without `contractFreeze.transactionRunner`, the transaction a
-   cancellation is written on. `SaaSiCatModule` passes the persistence bundle's; an application
-   wiring `TenantBillingModule` itself passes its runner there.
+   cancellation is written on, and without a `SubscriptionContractRepository`, which a
+   cancellation reads the contract lines of its discounts from. `SaaSiCatModule` passes the
+   persistence bundle's; an application wiring `TenantBillingModule` itself passes its runner
+   there.
 
 - **A `SubscriptionInvoiceRepository` of your own** writes `chainId` (the invoice's own id) and
   `chainStep` `0` on `issue`, and implements `holdChain` — the lock on the chain's first invoice,
   then the chain read (`subscriptionInvoiceChainOf`) —, `issueCancellation`, `findCancellation`
   and `findCancellationById`; `toSubscriptionInvoiceRecord` takes the cancellation a row is the
-  cancellation invoice or the replacement of.
+  cancellation invoice or the replacement of. It writes and reads a line's `correctsPosition`
+  through `subscriptionInvoiceLineColumns` and `toSubscriptionInvoiceRecord`, which refuse a
+  counter-entry's line naming no line and any other line naming one, and writes the lines of an
+  invoice so that a line it names is there when the foreign key asks.
 - **A `SubscriberPaymentRepository` of your own** counts nothing as owed on a cancelled invoice or
   a cancellation invoice (`owedByInvoice`), settles a payment on the invoice that stands in its
   chain, leaves a cancellation invoice uncredited, implements `sharesOf` and `moveShares`, and
@@ -2290,7 +2306,8 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
 - **A persistence contract harness** runs the cancellation scenarios with the gaps it declares;
   empty `subscription_invoice_cancellations` between scenarios with the invoices.
 - **A renderer of your own** states `paidOnIssue` on a replacement: what was paid (BT-113) and the
-  amount due less it, as `zugferdInvoiceRenderer()` does; `@saasicat/tax-de`'s check refuses a
+  amount due less it, as `zugferdInvoiceRenderer()` does, and on a counter-entry's line the line it
+  corrects; `@saasicat/tax-de`'s check refuses a
   document whose prepaid amount or amount due is not what the invoice records.
 - **A mail port of your own** sends each invoice to `InvoiceMail.to` as it is given — for a
   cancellation invoice and its replacement, the address given with the cancellation where one was
@@ -2303,11 +2320,17 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
   `InvoiceCancellationModule.forRoot({ guards, imports })`, importing its admin resources module
   and the tenant billing module it built. `InvoiceCancellationPlan` names `reason` and `deliverTo`
   as they are recorded; the service settles both and the corrections before anything else.
+  `InvoiceCancellationPlan` and `CancelledInvoice` carry `lines`, what each charge line stands at
+  and becomes, and `counterEntries`; their `replacement` is `null` where nothing is owed any more,
+  and `invoiceCancellationAudit` then names `replacementNumber` as `null`.
 - **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`,
   `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`, `SUBSCRIPTION_INVOICE_IS_CANCELLATION`,
   `SUBSCRIPTION_INVOICE_STATES_A_CREDIT`, `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`,
-  `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID` and
-  `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, and labels the audit action
+  `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID`,
+  `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`, `SUBSCRIPTION_INVOICE_LINE_UNKNOWN`,
+  `SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE`, `SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE`,
+  `SUBSCRIPTION_INVOICE_LINE_OWED_INVALID` and `SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT`,
+  and labels the audit action
   `SUBSCRIPTION_INVOICE_CANCELLED`. The audit
   entry `SUBSCRIBER_REVERSAL_RECORDED` names `credits`, every credit of the payment it took from,
   where it named one `credit`, and each of its `uncovered` as `LiftedCover` does, the case by its
@@ -2318,10 +2341,10 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
 
 A charge is never edited (`SC-PRIC-020`): where a cancelled invoice asked for a charge that was not
 owed, or not in full, a counter-entry says so — a charge of origin `correction` that names the
-charge it corrects, the invoice that charge stood on and the reason, and takes the amount off
-(`counterEntryOf` in `@saasicat/core`). Only that cancellation writes one, and only its replacement
-invoices it: the invoice run never does. This release adds the journal's side; the cancellation
-that writes counter-entries follows.
+charge it corrects, the invoice that charge stood on and the reason, and moves that charge towards
+nothing: it takes an amount off a charge that asks for one, and gives back part of a discount that
+follows it (`counterEntryOf` in `@saasicat/core`). Only that cancellation writes one, and only its
+replacement invoices it: the invoice run never does (`SC-PRIC-096`).
 
 1. Take fragment 15 as it ships now: `SubscriberLedgerEntry` gains `correctsChargeId`,
    `correctedInvoiceId` and `correctionReason`, and the relation `corrects` / `correctedBy`.
@@ -2331,21 +2354,21 @@ that writes counter-entries follows.
     psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-the-journal-names-what-a-correction-corrects.postgres.sql
     ```
 
-    It adds the three columns, empty on every charge there is, their index and foreign key, and
-    the check `subscriber_ledger_entries_correction_names_its_charge` that
-    `constraints.postgres.sql` holds as well: a correction names all three, with a reason that says
-    something, and takes an amount off; no other charge names any. It refuses with a sentence where
-    a `correction` row is already there that does not, which no release wrote, and does nothing on
-    a second run or where there is no journal.
+    It adds the three columns, empty on every charge there is, their index and foreign key, and the
+    check `subscriber_ledger_entries_correction_names_its_charge` that `constraints.postgres.sql`
+    holds as well: a correction names all three, with a reason that says something, and moves its
+    charge by an amount; no other charge names any. It refuses with a sentence where a `correction`
+    row is already there that does not, which no release wrote, and does nothing on a second run or
+    where there is no journal.
 
 - **A `SubscriberLedgerRepository` of your own** writes and reads the three columns through
   `subscriberChargeColumns` and `toSubscriberChargeRecord`, which refuse a correction without what
-  it corrects, with a reason of blanks or with an amount that is not below zero, and any other
-  charge with what a correction names. Before it writes, it reads the charges the corrections name
+  it corrects, with a reason of blanks or with an amount of nothing, and any other charge with what
+  a correction names. Before it writes, it reads the charges the corrections name
   (`correctedChargeIdsOf`) in the same transaction and hands them to
   `assertCorrectionsFitTheirCharges`, which refuses a correction that is not what `counterEntryOf`
   makes of its charge: one in another account, subscription, contract line, source, period or
-  currency, one of a correction or a discount, or one taking off more than the charge asks.
+  currency, one of a correction, or one moving its charge away from nothing or past it.
   `SubscriberChargeRecord` and `NewSubscriberCharge` carry `correction`, `null` on every charge but
   a correction.
 - **A `SubscriptionInvoiceRepository` of your own** leaves a correction (`CORRECTION_ORIGIN`) out

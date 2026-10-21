@@ -2,7 +2,7 @@
 // English beside them.
 //
 // What a cancellation invoice and a replacement say of the invoice they correct
-// (`SC-PRIC-091`, `SC-PRIC-089`), in German and in English, as the page shows it
+// (`SC-PRIC-095`, `SC-PRIC-089`), in German and in English, as the page shows it
 // and the XML states it: which invoice that is, why it was cancelled, and which
 // of its lines each line cancels or replaces.
 
@@ -28,7 +28,7 @@ export function xmlSignOf(invoice: SubscriptionInvoiceRecord): 1 | -1 {
 
 /**
  * What the invoice asks for: its total, less what was paid for the invoice a
- * replacement replaces and moved onto it when it was issued (`SC-PRIC-091`).
+ * replacement replaces and moved onto it when it was issued (`SC-PRIC-095`).
  */
 export function amountDueOf(invoice: SubscriptionInvoiceRecord): number {
     return sumToCents(invoice.totalGross, -invoice.paidOnIssue);
@@ -72,18 +72,36 @@ export function correctionNoteOf(invoice: SubscriptionInvoiceRecord): Label | nu
     };
 }
 
-/** Which line of the corrected invoice `line` cancels or replaces; `null` where it corrects none. */
+/**
+ * Which line of the corrected invoice `line` cancels or replaces, and, on a
+ * correction's line, which line of this invoice it corrects — one note, since
+ * a line carries one (BT-127); `null` where it names neither.
+ */
 export function lineCorrectionOf(
     invoice: SubscriptionInvoiceRecord,
     line: SubscriptionInvoiceLineRecord,
 ): Label | null {
+    const parts: Label[] = [];
     const { correction } = invoice;
-    if (!correction || line.correctedPosition === null) return null;
     // The invoice it corrects is named once, at the head of the document.
-    const position = line.correctedPosition;
-    return correction.kind === 'cancellation'
-        ? { de: `Storniert Pos. ${position}`, en: `Cancels item ${position}` }
-        : { de: `Ersetzt Pos. ${position}`, en: `Replaces item ${position}` };
+    if (correction && line.correctedPosition !== null) {
+        const position = line.correctedPosition;
+        parts.push(
+            correction.kind === 'cancellation'
+                ? { de: `Storniert Pos. ${position}`, en: `Cancels item ${position}` }
+                : { de: `Ersetzt Pos. ${position}`, en: `Replaces item ${position}` },
+        );
+    }
+    // A line read by a store that keeps no such column names none.
+    if (typeof line.correctsPosition === 'number') {
+        const position = line.correctsPosition;
+        parts.push({ de: `Korrektur zu Pos. ${position}`, en: `Corrects item ${position}` });
+    }
+    if (parts.length === 0) return null;
+    return {
+        de: parts.map((part) => part.de).join('; '),
+        en: parts.map((part) => part.en).join('; '),
+    };
 }
 
 /**
