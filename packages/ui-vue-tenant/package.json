@@ -12,7 +12,7 @@
         "src"
     ],
     "scripts": {
-        "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json",
+        "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json && vue-tsc --noEmit -p tsconfig.config.json",
         "test:component": "vitest run --config vitest.config.ts",
         "test:shipped-source": "node ../ui-vue/scripts/check-shipped-source.mjs"
     },

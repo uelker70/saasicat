@@ -1,18 +1,16 @@
 import { defineConfig } from 'tsup';
-import swc from 'unplugin-swc';
 
 import { publicEntries } from './scripts/entries.mjs';
 import { CJS_EXTERNAL } from './tsup.shared';
 
-// tsup uses esbuild as its bundler. esbuild does NOT support
-// `emitDecoratorMetadata` — so the `Reflect.metadata` calls for
-// body DTOs are missing, which silently disables the global
-// `ValidationPipe` in consumer apps (found 2026-05-14).
-//
-// Solution: run all `.ts` files through SWC first. SWC supports
-// `emitDecoratorMetadata` natively and emits the
-// `__metadata("design:paramtypes", [...])` calls that Nest needs
-// to validate `@Body() dto: SomeDto`.
+// tsup bundles with esbuild, which does not emit decorator metadata: the
+// `__metadata("design:paramtypes", [...])` calls Nest reads to validate an
+// `@Body() dto: SomeDto` against the consumer's global `ValidationPipe`.
+// Without them a body DTO goes unvalidated, and nothing says so. tsup closes
+// that gap itself: where `tsconfig.json` sets `emitDecoratorMetadata`, it runs
+// every source through SWC first — provided `@swc/core` is installed, without
+// which it logs a warning and builds without the metadata. The tests that read
+// `design:paramtypes` off the built controllers are what notice that.
 
 export default defineConfig({
     // Derived from `package.json` exports — adding an entry there is enough,
@@ -32,17 +30,4 @@ export default defineConfig({
     // also be wrong for a second reason: it would wipe the shared CJS bundle
     // and the stubs on a `tsup`-only invocation.
     external: CJS_EXTERNAL,
-    plugins: [
-        swc.vite({
-            jsc: {
-                parser: { syntax: 'typescript', decorators: true },
-                transform: {
-                    legacyDecorator: true,
-                    decoratorMetadata: true,
-                },
-                target: 'es2022',
-                keepClassNames: true,
-            },
-        }),
-    ],
 });

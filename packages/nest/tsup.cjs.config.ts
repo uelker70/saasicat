@@ -1,5 +1,4 @@
 import { defineConfig } from 'tsup';
-import swc from 'unplugin-swc';
 
 import { CJS_EXTERNAL } from './tsup.shared';
 
@@ -11,6 +10,7 @@ import { CJS_EXTERNAL } from './tsup.shared';
 // produced here. See `src/_all-entries.ts` for why.
 //
 // `clean: false` — this runs after the main build and must not wipe it.
+// Decorator metadata comes from tsup's own SWC pass, as `tsup.config.ts` says.
 export default defineConfig({
     entry: { _entries: 'src/_all-entries.ts' },
     format: ['cjs'],
@@ -18,17 +18,4 @@ export default defineConfig({
     clean: false,
     splitting: false,
     external: CJS_EXTERNAL,
-    plugins: [
-        swc.vite({
-            jsc: {
-                parser: { syntax: 'typescript', decorators: true },
-                transform: {
-                    legacyDecorator: true,
-                    decoratorMetadata: true,
-                },
-                target: 'es2022',
-                keepClassNames: true,
-            },
-        }),
-    ],
 });

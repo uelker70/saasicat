@@ -155,7 +155,8 @@
     "scripts": {
         "build": "node ../../scripts/build-and-prune.mjs \"tsup && tsup --config tsup.cjs.config.ts && node scripts/build-cjs-stubs.mjs\"",
         "pretest": "pnpm run build",
-        "test": "node --test 'tests/*.test.js'"
+        "test": "node --test 'tests/*.test.js'",
+        "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.config.json"
     },
     "dependencies": {
         "@saasicat/core": "workspace:^",
@@ -190,8 +191,7 @@
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.0.0",
         "tsup": "^8.0.0",
-        "typescript": "^6.0.0",
-        "unplugin-swc": "^1.5.9"
+        "typescript": "^6.0.0"
     },
     "license": "PolyForm-Shield-1.0.0",
     "author": "Taci Uelker",

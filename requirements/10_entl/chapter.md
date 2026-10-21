@@ -506,6 +506,8 @@ _Tested by:_
         - grants the configured floor instead, where one is configured
         - while a cancellation still to come grants everything
         - and an uncancelled subscription is unaffected
+    - the floor the module options name, in the composed module
+        - is ${floor ?? 'nothing'} ${what}
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
     - what else ends when the subscription does
         - the frozen contract is ended on the same date
