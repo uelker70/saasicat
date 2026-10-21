@@ -22,6 +22,8 @@ import {
     refuseForeignPaymentMethodReference,
     scheduledChangeAfterWrite,
     subscriberChargeColumns,
+    assertCorrectionsFitTheirCharges,
+    correctedChargeIdsOf,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
     subscriptionInvoiceChainOf,
@@ -1937,6 +1939,13 @@ export function createMemoryHarness() {
                     throw new Error(`charge '${corrected}' a correction names does not exist`);
                 }
             }
+            const named = correctedChargeIdsOf(charges);
+            assertCorrectionsFitTheirCharges(
+                charges,
+                state.ledgerEntries
+                    .filter((entry) => named.includes(entry.id))
+                    .map(toSubscriberChargeRecord),
+            );
             // Every charge is shaped before any is written, as one statement would be.
             const shaped = charges.map((charge) => [charge, subscriberChargeColumns(charge)]);
             const written = [];

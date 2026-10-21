@@ -144,10 +144,13 @@ export function correctionSourceRefOf(
 }
 
 /**
- * The counter-entry by which what `charge` asks falls by `by` (a positive
- * amount, to the cent): the corrected charge's subscription, contract line,
- * source and period, a negative amount, and the correction it records, due at
- * `bookedAt` (`SC-PRIC-020`). A correction is never corrected in turn.
+ * The counter-entry by which what `charge` asks falls by `by` — a whole number
+ * of cents above zero and at most what the charge asks: the corrected charge's
+ * subscription, contract line, source and period, a negative amount, and the
+ * correction it records, due at `bookedAt` (`SC-PRIC-020`). Only a charge that
+ * asks for an amount is corrected, and only downwards; a discount or a credit
+ * is not, and a correction is never corrected in turn. What several
+ * corrections of one charge take off together is the caller's to bound.
  */
 export function counterEntryOf(
     charge: SubscriberChargeRecord,
@@ -158,9 +161,18 @@ export function counterEntryOf(
             `Charge ${charge.id} is a correction itself; the charge it corrects is corrected instead.`,
         );
     }
-    if (!(correction.by > 0)) {
+    const asked = wholeCentsOf(charge.amountNet);
+    if (asked === null || asked <= 0) {
         throw new Error(
-            `A correction of charge ${charge.id} takes a positive amount off, not ${correction.by}.`,
+            `Charge ${charge.id} asks for ${charge.amountNet}; only a charge that asks for an ` +
+                'amount is corrected, and only downwards.',
+        );
+    }
+    const by = wholeCentsOf(correction.by);
+    if (by === null || by <= 0 || by > asked) {
+        throw new Error(
+            `A correction of charge ${charge.id} takes a whole number of cents off, above 0 and ` +
+                `at most the ${charge.amountNet} it asks, not ${correction.by}.`,
         );
     }
     const parts = {
@@ -198,8 +210,7 @@ export function counterEntryOf(
 export function subscriberChargeColumns(
     charge: NewSubscriberCharge,
 ): Omit<CanonicalSubscriberChargeRow, 'id' | 'createdAt' | 'amountNet'> & { amountNet: string } {
-    const cents = charge.amountNet * 100;
-    if (!Number.isFinite(cents) || Math.abs(cents - Math.round(cents)) > CENT_TOLERANCE) {
+    if (wholeCentsOf(charge.amountNet) === null) {
         throw new Error(
             `A charge of ${charge.amountNet} is not a whole number of cents; ` +
                 'round it once where it is derived, before it is written.',
@@ -224,13 +235,84 @@ export function subscriberChargeColumns(
 }
 
 /**
+ * The ids of the charges the corrections among `charges` name, each once: what
+ * a store reads, in the write's transaction, for
+ * `assertCorrectionsFitTheirCharges`.
+ */
+export function correctedChargeIdsOf(charges: readonly NewSubscriberCharge[]): string[] {
+    const ids = charges.flatMap((charge) =>
+        charge.correction ? [charge.correction.chargeId] : [],
+    );
+    return [...new Set(ids)];
+}
+
+/**
+ * Refuses a correction among `charges` that is not what `counterEntryOf` makes
+ * of the charge it names: one of another account, subscription, contract line,
+ * source, period or currency, one of a correction or of a discount, or one
+ * taking off more than that charge asks. `corrected` is what the store read of
+ * the charges named (`correctedChargeIdsOf`); a charge not among them is the
+ * foreign key's to refuse. A store calls it before it writes, so a refusal
+ * writes nothing of the call. A charge is never edited, so nothing it is
+ * checked against moves between the read and the write.
+ */
+export function assertCorrectionsFitTheirCharges(
+    charges: readonly NewSubscriberCharge[],
+    corrected: readonly SubscriberChargeRecord[],
+): void {
+    for (const charge of charges) {
+        const { correction } = charge;
+        if (correction === null) continue;
+        const of = corrected.find((each) => each.id === correction.chargeId);
+        if (of === undefined) continue;
+        const written = new Map(Object.entries(subscriberChargeColumns(charge)));
+        const expected = subscriberChargeColumns(
+            counterEntryOf(of, {
+                invoiceId: correction.invoiceId,
+                by: -charge.amountNet,
+                reason: correction.reason,
+                bookedAt: charge.bookedAt,
+            }),
+        );
+        const differing = Object.entries(expected)
+            .filter(([column, value]) => !isSameColumn(value, written.get(column)))
+            .map(([column]) => column);
+        if (differing.length > 0) {
+            throw new Error(
+                `A correction of charge ${of.id} does not stand where that charge stands: ` +
+                    `${differing.join(', ')} ${differing.length === 1 ? 'differs' : 'differ'}. ` +
+                    'A correction is what counterEntryOf makes of the charge it names.',
+            );
+        }
+    }
+}
+
+function isSameColumn(expected: unknown, written: unknown): boolean {
+    if (expected instanceof Date && written instanceof Date) {
+        return expected.getTime() === written.getTime();
+    }
+    return expected === written;
+}
+
+/** `amount` in whole cents, or `null` where it is not a whole number of them. */
+function wholeCentsOf(amount: number): number | null {
+    const cents = amount * 100;
+    if (!Number.isFinite(cents) || Math.abs(cents - Math.round(cents)) > CENT_TOLERANCE) {
+        return null;
+    }
+    return Math.round(cents);
+}
+
+/**
  * A correction's reason and amount as one is written: a reason that says
- * something, and an amount below zero — a correction takes off what was not
- * owed, it never adds (`SC-PRIC-020`). The database holds the same rule
+ * something, and an amount below zero as it is stored, in whole cents — a
+ * correction takes off what was not owed, it never adds (`SC-PRIC-020`), and a
+ * hair of float arithmetic below zero is stored as `-0.00`, which takes nothing
+ * off. The database holds the same rule
  * (`subscriber_ledger_entries_correction_names_its_charge`).
  */
 function isAsWrittenCorrection(reason: string, amountNet: number): boolean {
-    return reason.trim() !== '' && amountNet < 0;
+    return reason.trim() !== '' && Math.round(amountNet * 100) < 0;
 }
 
 /**

@@ -561,9 +561,13 @@ export interface SubscriberLedgerRepository {
      *
      * A correction (`origin: 'correction'`) names the charge it corrects, which
      * has to be in the journal, the invoice that charge stood on and a reason
-     * that is not blank, and takes an amount off (`counterEntryOf`); no other
-     * charge names any of them. Any of these refusals writes nothing of the
-     * call.
+     * that is not blank, and is what `counterEntryOf` makes of that charge: it
+     * stands in the charge's account, subscription, contract line, source,
+     * period and currency, takes off a whole number of cents up to what the
+     * charge asks, and corrects neither a correction nor a discount
+     * (`assertCorrectionsFitTheirCharges`, against the charges read in the
+     * write's transaction). No other charge names any of the three. Any of
+     * these refusals writes nothing of the call.
      */
     recordCharges(
         charges: readonly NewSubscriberCharge[],

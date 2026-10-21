@@ -7,6 +7,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    assertCorrectionsFitTheirCharges,
+    correctedChargeIdsOf,
     counterEntryOf,
     subscriberChargeColumns,
     toSubscriberChargeRecord,
@@ -158,9 +160,9 @@ describe('a counter-entry', () => {
         );
     });
 
-    test('takes the smallest amount there is, a cent, and nothing that is not taken off', () => {
-        const corrected = toSubscriberChargeRecord(row());
-        const by = (amount) => () =>
+    const by =
+        (amount, corrected = toSubscriberChargeRecord(row())) =>
+        () =>
             counterEntryOf(corrected, {
                 invoiceId: 'invoice-1',
                 by: amount,
@@ -168,10 +170,30 @@ describe('a counter-entry', () => {
                 bookedAt: CORRECTED_AT,
             });
 
+    test('takes off a cent at least and what the charge asks at most', () => {
         assert.equal(by(0.01)().amountNet, -0.01);
-        assert.throws(by(0), /takes a positive amount off, not 0/);
-        assert.throws(by(-1), /takes a positive amount off, not -1/);
+        assert.equal(by(19.9)().amountNet, -19.9);
     });
+
+    for (const amount of [0, -1, 0.004, 19.91]) {
+        test(`takes off nothing else, not ${amount}`, () => {
+            assert.throws(by(amount), (error) =>
+                error.message.endsWith(`above 0 and at most the 19.9 it asks, not ${amount}.`),
+            );
+        });
+    }
+
+    for (const [what, amountNet] of [
+        ['a discount', '-3.98'],
+        ['a charge of nothing', '0.00'],
+    ]) {
+        test(`is never written for ${what}, which is not corrected downwards`, () => {
+            assert.throws(
+                by(1, toSubscriberChargeRecord(row({ source: 'discount', amountNet }))),
+                /only a charge that asks for an amount is corrected, and only downwards/,
+            );
+        });
+    }
 
     test('is never written for a correction, but for the charge it corrects', () => {
         const correction = toSubscriberChargeRecord(correctionRow());
@@ -286,6 +308,11 @@ describe('a counter-entry', () => {
             /of 0.01 for the reason 'Not owed.' is not written/,
         ],
         [
+            'a correction a hair of float arithmetic below nothing, which is stored as -0.00',
+            () => correctionCharge({ amountNet: -1e-9 }),
+            /of -1e-9 for the reason 'Not owed.' is not written/,
+        ],
+        [
             'a correction under another sourceRef',
             () => correctionCharge({ sourceRef: 'sub-1' }),
             /carries sourceRef 'sub-1'/,
@@ -295,4 +322,90 @@ describe('a counter-entry', () => {
             assert.throws(() => subscriberChargeColumns(write()), refusal);
         });
     }
+});
+
+// @requirement SC-PRIC-020 — A charge, once written, is never edited
+describe('a correction is held to the charge it names, as the store read it', () => {
+    const corrected = toSubscriberChargeRecord(row());
+    const counterEntry = counterEntryOf(corrected, {
+        invoiceId: 'invoice-1',
+        by: 9.95,
+        reason: 'Not owed.',
+        bookedAt: CORRECTED_AT,
+    });
+    /** A correction of `chargeId` on `invoiceId`, standing where `counterEntry` stands. */
+    const naming = (chargeId, invoiceId = 'invoice-3') => ({
+        ...counterEntry,
+        sourceRef: `${invoiceId}/${chargeId}`,
+        correction: { chargeId, invoiceId, reason: 'Not owed.' },
+    });
+
+    test('names each charge corrected once, and nothing for a charge that corrects nothing', () => {
+        assert.deepEqual(correctedChargeIdsOf([charge(), counterEntry, naming('charge-1')]), [
+            'charge-1',
+        ]);
+        assert.deepEqual(correctedChargeIdsOf([charge()]), []);
+    });
+
+    test('one counterEntryOf made of it fits, beside a charge that corrects nothing', () => {
+        assert.doesNotThrow(() =>
+            assertCorrectionsFitTheirCharges([charge(), counterEntry], [corrected]),
+        );
+    });
+
+    for (const [where, column, value] of [
+        ['another account', 'subscriberId', 'subscriber-2'],
+        ['another tenant', 'tenantId', 'tenant-2'],
+        ['another subscription', 'subscriptionId', 'sub-2'],
+        ['another contract', 'contractId', 'contract-2'],
+        ['another contract line', 'contractLineItemId', 'line-2'],
+        ['another source', 'source', 'bundle'],
+        ['another period', 'periodStart', END],
+        ['another currency', 'currency', 'CHF'],
+    ]) {
+        test(`one standing in ${where} is refused, naming what differs`, () => {
+            assert.throws(
+                () =>
+                    assertCorrectionsFitTheirCharges(
+                        [{ ...counterEntry, [column]: value }],
+                        [corrected],
+                    ),
+                (error) =>
+                    error.message.includes(
+                        `charge charge-1 does not stand where that charge stands: ${column} differs.`,
+                    ),
+            );
+        });
+    }
+
+    test('one taking off more than the charge asks is refused', () => {
+        assert.throws(
+            () =>
+                assertCorrectionsFitTheirCharges(
+                    [{ ...counterEntry, amountNet: -19.91 }],
+                    [corrected],
+                ),
+            /at most the 19\.9 it asks, not 19\.91\./,
+        );
+    });
+
+    test('one naming a correction, or a discount, is refused', () => {
+        const correction = toSubscriberChargeRecord(correctionRow());
+        const discount = toSubscriberChargeRecord(
+            row({ id: 'charge-3', source: 'discount', amountNet: '-3.98' }),
+        );
+
+        assert.throws(
+            () => assertCorrectionsFitTheirCharges([naming('charge-2')], [correction]),
+            /Charge charge-2 is a correction itself/,
+        );
+        assert.throws(
+            () => assertCorrectionsFitTheirCharges([naming('charge-3')], [discount]),
+            /Charge charge-3 asks for -3\.98; only a charge that asks for an amount is corrected/,
+        );
+    });
+
+    test('one naming a charge the store did not find is left to the foreign key', () => {
+        assert.doesNotThrow(() => assertCorrectionsFitTheirCharges([counterEntry], []));
+    });
 });

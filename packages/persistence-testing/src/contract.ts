@@ -6797,6 +6797,59 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await ledger.listBySubscription(subscriptionId)).length, 1);
         });
 
+        test('a correction stands where the charge it corrects stands, and corrects no correction', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-correction-place');
+            const other = await anAccount(t, 'tenant-ledger-correction-elsewhere');
+            if (!account || !other) return;
+            const { ledger, subscriptionId, charge } = account;
+            const [corrected] = await ledger.recordCharges([charge()]);
+            const counterEntry = counterEntryOf(corrected!, {
+                invoiceId: 'invoice-1',
+                by: 9.95,
+                reason: 'Not owed.',
+                bookedAt: CORRECTED_AT,
+            });
+            const [correction] = await ledger.recordCharges([counterEntry]);
+            const elsewhere = other.charge();
+            const onInvoice = (invoiceId: string, chargeId: string) => ({
+                sourceRef: `${invoiceId}/${chargeId}`,
+                correction: { chargeId, invoiceId, reason: 'Not owed.' },
+            });
+
+            for (const [what, refused] of [
+                [
+                    "in another tenant's account",
+                    {
+                        ...counterEntry,
+                        subscriberId: elsewhere.subscriberId,
+                        tenantId: elsewhere.tenantId,
+                        subscriptionId: elsewhere.subscriptionId,
+                        contractId: elsewhere.contractId,
+                        contractLineItemId: elsewhere.contractLineItemId,
+                    },
+                ],
+                [
+                    'taking off more than the charge asks',
+                    {
+                        ...counterEntry,
+                        ...onInvoice('invoice-2', corrected!.id),
+                        amountNet: -19.91,
+                    },
+                ],
+                [
+                    'of a correction',
+                    { ...counterEntry, ...onInvoice('invoice-3', correction!.id), amountNet: -1 },
+                ],
+            ] as const) {
+                await assert.rejects(
+                    ledger.recordCharges([refused]),
+                    `a correction ${what} was written`,
+                );
+            }
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 2);
+            assert.deepEqual(await ledger.listBySubscription(elsewhere.subscriptionId), []);
+        });
+
         // -------------------------------------------------------------
         // Invoices — numbered without a gap, each charge on one invoice
         // -------------------------------------------------------------

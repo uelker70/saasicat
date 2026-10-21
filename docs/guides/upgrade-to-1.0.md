@@ -2341,8 +2341,13 @@ that writes counter-entries follows.
 - **A `SubscriberLedgerRepository` of your own** writes and reads the three columns through
   `subscriberChargeColumns` and `toSubscriberChargeRecord`, which refuse a correction without what
   it corrects, with a reason of blanks or with an amount that is not below zero, and any other
-  charge with what a correction names. `SubscriberChargeRecord` and `NewSubscriberCharge`
-  carry `correction`, `null` on every charge but a correction.
+  charge with what a correction names. Before it writes, it reads the charges the corrections name
+  (`correctedChargeIdsOf`) in the same transaction and hands them to
+  `assertCorrectionsFitTheirCharges`, which refuses a correction that is not what `counterEntryOf`
+  makes of its charge: one in another account, subscription, contract line, source, period or
+  currency, one of a correction or a discount, or one taking off more than the charge asks.
+  `SubscriberChargeRecord` and `NewSubscriberCharge` carry `correction`, `null` on every charge but
+  a correction.
 - **A `SubscriptionInvoiceRepository` of your own** leaves a correction (`CORRECTION_ORIGIN`) out
   of `listSubscriptionsWithUninvoicedCharges` and `listUninvoicedCharges`.
 

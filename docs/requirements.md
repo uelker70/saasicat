@@ -8705,7 +8705,9 @@ _Tested by:_
 - `packages/core/tests/a-charge-row-becomes-a-record.test.js`
     - a counter-entry
         - takes what it corrects off the charge, under its contract line, source and period
-        - takes the smallest amount there is, a cent, and nothing that is not taken off
+        - takes off a cent at least and what the charge asks at most
+        - takes off nothing else, not ${amount}
+        - is never written for ${what}, which is not corrected downwards
         - is never written for a correction, but for the charge it corrects
         - reads back with what it corrects, and is written with it
         - read without ${missing}, stops the read naming the row
@@ -8713,6 +8715,13 @@ _Tested by:_
         - read on another charge, a part of a correction stops the read naming the row
         - one that takes an amount off and says why is written, a cent among them
         - ${why} is not written
+    - a correction is held to the charge it names, as the store read it
+        - names each charge corrected once, and nothing for a charge that corrects nothing
+        - one counterEntryOf made of it fits, beside a charge that corrects nothing
+        - one standing in ${where} is refused, naming what differs
+        - one taking off more than the charge asks is refused
+        - one naming a correction, or a discount, is refused
+        - one naming a charge the store did not find is left to the foreign key
 - `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
     - a written charge is never edited
         - a contract written later changes no charge already written
