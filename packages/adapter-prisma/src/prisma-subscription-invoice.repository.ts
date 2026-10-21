@@ -20,6 +20,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    CORRECTION_ORIGIN,
     formatInvoiceNumber,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
@@ -139,10 +140,13 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
     ): Promise<string[]> {
         // An empty text sorts before every id, so no `after` reads from the start.
         const after = page.after ?? '';
+        // SAFETY: the statement selects one column, "subscriptionId", a NOT NULL
+        // text of subscriber_ledger_entries, so each row is that and nothing else.
         const rows = (await this.db(tx).$queryRaw`
             SELECT DISTINCT e."subscriptionId"
               FROM "subscriber_ledger_entries" e
              WHERE e."subscriptionId" > ${after}
+               AND e."origin" <> ${CORRECTION_ORIGIN}
                AND NOT EXISTS (
                        SELECT 1 FROM "subscription_invoice_lines" l
                         WHERE l."chargeId" = e."id"
@@ -159,7 +163,11 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         tx?: TransactionContext,
     ): Promise<SubscriberChargeRecord[]> {
         const rows = await this.db(tx).subscriberLedgerEntry.findMany({
-            where: { subscriptionId, invoiceLines: { none: {} } },
+            where: {
+                subscriptionId,
+                invoiceLines: { none: {} },
+                origin: { not: CORRECTION_ORIGIN },
+            },
             orderBy: [
                 { periodStart: 'asc' },
                 { source: 'asc' },

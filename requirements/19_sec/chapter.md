@@ -221,6 +221,14 @@ _Tested by:_
     - subscriberLedger rejects an empty sourceRef, which would not collide with itself
     - subscriberLedger rejects a charge that names no period
     - subscriberLedger rejects a currency that is not an ISO 4217 code
+    - subscriberLedger accepts a correction naming the charge it corrects, the invoice and the
+      reason
+    - subscriberLedger rejects a correction ${why}
+    - subscriberLedger rejects a correction that names nothing it corrects
+    - subscriberLedger rejects another charge that names something it corrects
+    - subscriberLedger rejects a correction of ${amountNet}, which ${what}
+    - subscriberLedger accepts a correction of a cent
+    - subscriberLedger rejects a charge that leaves out whether it corrects anything
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
     - DiscoveryPage survives a snapshot that is not a snapshot
         - ${label} renders instead of throwing

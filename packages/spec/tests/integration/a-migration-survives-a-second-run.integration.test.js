@@ -389,6 +389,171 @@ describe('the applied settings hold one row, and the database is what holds them
 });
 
 // @requirement SC-CFG-033 — The changes are listed in the order the record went through them
+describe('a correction in the journal names what it corrects', () => {
+    // The journal as it shipped before a correction could say what it
+    // corrects, with a charge on it — the installation this migration meets.
+    const MIGRATION = '1.0-the-journal-names-what-a-correction-corrects.postgres.sql';
+    const CHECK = 'subscriber_ledger_entries_correction_names_its_charge';
+    /** The journal as `db push` leaves it from the fragment: the three parts, not the check. */
+    async function journalWithoutTheCheck() {
+        await freshGround();
+        await client.query(`ALTER TABLE "subscriber_ledger_entries" DROP CONSTRAINT "${CHECK}"`);
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Kunde GmbH', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "contract_line_items" ("id", "contractId", "kind", "sourceKey", ' +
+                ' "titleSnapshot", "priceNet", "priceGross", "billingCycle", "currency", ' +
+                ' "taxRate", "taxAmount") ' +
+                `VALUES ('l-1', 'c-1', 'plan', 'STANDARD', 'Standard', 49, 58.31, 'monthly', ` +
+                "'EUR', 19, 9.31)",
+        );
+        await insertCharge({ id: 'charge-1', origin: 'renewal', sourceRef: 'sub-1' });
+    }
+    async function journalBeforeTheColumns() {
+        await journalWithoutTheCheck();
+        await client.query(
+            'ALTER TABLE "subscriber_ledger_entries" ' +
+                'DROP COLUMN "correctsChargeId", DROP COLUMN "correctedInvoiceId", ' +
+                'DROP COLUMN "correctionReason"',
+        );
+    }
+    const insertCharge = ({ id, origin, sourceRef, amountNet = 49, parts = '', values = '' }) =>
+        client.query(
+            'INSERT INTO "subscriber_ledger_entries" ("id", "subscriberId", "tenantId", ' +
+                ' "subscriptionId", "contractId", "contractLineItemId", "origin", "source", ' +
+                ` "sourceRef", "periodStart", "periodEnd", "currency", "amountNet", "bookedAt"${parts}) ` +
+                `VALUES ('${id}', 's-1', 't-1', 'sub-1', 'c-1', 'l-1', '${origin}', 'plan', ` +
+                `'${sourceRef}', '2026-03-01', '2026-04-01', 'EUR', ${amountNet}, '2026-03-01'${values})`,
+        );
+    const correctionParts = ', "correctsChargeId", "correctedInvoiceId", "correctionReason"';
+
+    test('gives the journal the three parts, and the database holds a correction to them', async () => {
+        await journalBeforeTheColumns();
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT "correctsChargeId", "correctedInvoiceId", "correctionReason" ' +
+                `FROM "subscriber_ledger_entries" WHERE "id" = 'charge-1'`,
+        );
+        assert.deepEqual(rows, [
+            { correctsChargeId: null, correctedInvoiceId: null, correctionReason: null },
+        ]);
+        await insertCharge({
+            id: 'charge-2',
+            origin: 'correction',
+            sourceRef: 'invoice-1/charge-1',
+            amountNet: -0.01,
+            parts: correctionParts,
+            values: ", 'charge-1', 'invoice-1', 'Not owed.'",
+        });
+        await assert.rejects(
+            insertCharge({ id: 'charge-3', origin: 'correction', sourceRef: 'invoice-1/x' }),
+            (error) => error.message.includes(CHECK),
+        );
+        for (const [what, amountNet, reason] of [
+            ['a correction without a reason', -49, 'NULL'],
+            ['a correction with a reason of blanks', -49, "'   '"],
+            ['a correction of nothing', 0, "'Not owed.'"],
+            ['a correction that adds', 49, "'Not owed.'"],
+        ]) {
+            await assert.rejects(
+                insertCharge({
+                    id: 'charge-5',
+                    origin: 'correction',
+                    sourceRef: 'invoice-2/charge-1',
+                    amountNet,
+                    parts: correctionParts,
+                    values: `, 'charge-1', 'invoice-2', ${reason}`,
+                }),
+                (error) => error.message.includes(CHECK),
+                `${what} was let in`,
+            );
+        }
+        await client.query('ROLLBACK').catch(() => {});
+        await assert.rejects(
+            insertCharge({
+                id: 'charge-4',
+                origin: 'correction',
+                sourceRef: 'invoice-1/nothing',
+                amountNet: -49,
+                parts: correctionParts,
+                values: ", 'no-such-charge', 'invoice-1', 'Not owed.'",
+            }),
+            /correctsChargeId_fkey/,
+        );
+    });
+
+    test('adds the check the reference schema holds, clause for clause', async () => {
+        const checkOf = async () =>
+            (
+                await client.query(
+                    'SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = $1',
+                    [CHECK],
+                )
+            ).rows.map((row) => row.definition);
+        await freshGround();
+        const shipped = await checkOf();
+        assert.equal(shipped.length, 1, 'the reference schema holds no such check');
+
+        await journalBeforeTheColumns();
+        await apply(MIGRATION);
+        assert.deepEqual(await checkOf(), shipped);
+    });
+
+    test('a second run leaves the journal as the first one did', async () => {
+        await journalBeforeTheColumns();
+        await apply(MIGRATION);
+        const first = await fingerprint(client);
+
+        await apply(MIGRATION);
+        assert.deepEqual(await fingerprint(client), first);
+    });
+
+    test('a correction already there without what it corrects stops it, and says so', async () => {
+        await journalBeforeTheColumns();
+        await insertCharge({ id: 'charge-9', origin: 'correction', sourceRef: 'by-hand' });
+
+        await assert.rejects(apply(MIGRATION), /does not name the charge it corrects/);
+        await client.query('ROLLBACK').catch(() => {});
+        const { rows } = await client.query(
+            'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
+                "AND table_name = 'subscriber_ledger_entries' AND column_name = 'correctsChargeId'",
+        );
+        assert.deepEqual(rows, [], 'the refused run left a column behind');
+    });
+
+    for (const [what, amountNet, reason] of [
+        ['gives a reason of blanks', -49, "'   '"],
+        ['takes nothing off', 0, "'Not owed.'"],
+        ['adds', 49, "'Not owed.'"],
+    ]) {
+        test(`a correction written after db push that ${what} stops it, and says so`, async () => {
+            await journalWithoutTheCheck();
+            await insertCharge({
+                id: 'charge-9',
+                origin: 'correction',
+                sourceRef: 'invoice-1/charge-1',
+                amountNet,
+                parts: correctionParts,
+                values: `, 'charge-1', 'invoice-1', ${reason}`,
+            });
+
+            await assert.rejects(apply(MIGRATION), /or that takes nothing off/);
+            await client.query('ROLLBACK').catch(() => {});
+            const { rows } = await client.query('SELECT 1 FROM pg_constraint WHERE conname = $1', [
+                CHECK,
+            ]);
+            assert.deepEqual(rows, [], 'the refused run added the check');
+        });
+    }
+});
+
 describe('a settings change carries the order it was recorded in', () => {
     // `seq` arrives on a table that may already hold rows, and the list an
     // operator saw was ordered by `noticedAt`, then `id`. The migration numbers

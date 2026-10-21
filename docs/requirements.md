@@ -8702,6 +8702,26 @@ _Source:_ #214
 
 _Tested by:_
 
+- `packages/core/tests/a-charge-row-becomes-a-record.test.js`
+    - a counter-entry
+        - takes what it corrects off the charge, under its contract line, source and period
+        - takes off a cent at least and what the charge asks at most
+        - takes off nothing else, not ${amount}
+        - is never written for ${what}, which is not corrected downwards
+        - is never written for a correction, but for the charge it corrects
+        - reads back with what it corrects, and is written with it
+        - read without ${missing}, stops the read naming the row
+        - read with ${what}, stops the read naming the row
+        - read on another charge, a part of a correction stops the read naming the row
+        - one that takes an amount off and says why is written, a cent among them
+        - ${why} is not written
+    - a correction is held to the charge it names, as the store read it
+        - names each charge corrected once, and nothing for a charge that corrects nothing
+        - one counterEntryOf made of it fits, beside a charge that corrects nothing
+        - one standing in ${where} is refused, naming what differs
+        - one taking off more than the charge asks is refused
+        - one naming a correction, or a discount, is refused
+        - one naming a charge the store did not find is left to the foreign key
 - `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
     - a written charge is never edited
         - a contract written later changes no charge already written
@@ -19018,10 +19038,12 @@ _Tested by:_
     - replicas running different files
         - an old start between two new ones is three real moves, dated in the order they landed
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - a settings change carries the order it was recorded in
-        - rows recorded before the column keep the order they were listed in, and the numbering
-          continues
-        - a second run leaves every number where the first one put it
+    - a correction in the journal names what it corrects
+        - gives the journal the three parts, and the database holds a correction to them
+        - adds the check the reference schema holds, clause for clause
+        - a second run leaves the journal as the first one did
+        - a correction already there without what it corrects stops it, and says so
+        - a correction written after db push that ${what} stops it, and says so
 
 <!-- END proof -->
 
@@ -20625,6 +20647,14 @@ _Tested by:_
     - subscriberLedger rejects an empty sourceRef, which would not collide with itself
     - subscriberLedger rejects a charge that names no period
     - subscriberLedger rejects a currency that is not an ISO 4217 code
+    - subscriberLedger accepts a correction naming the charge it corrects, the invoice and the
+      reason
+    - subscriberLedger rejects a correction ${why}
+    - subscriberLedger rejects a correction that names nothing it corrects
+    - subscriberLedger rejects another charge that names something it corrects
+    - subscriberLedger rejects a correction of ${amountNet}, which ${what}
+    - subscriberLedger accepts a correction of a cent
+    - subscriberLedger rejects a charge that leaves out whether it corrects anything
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
     - DiscoveryPage survives a snapshot that is not a snapshot
         - ${label} renders instead of throwing
@@ -21765,6 +21795,12 @@ _Tested by:_
     - the applied settings hold one row, and the database is what holds them to it
         - a second id is refused by the constraint, on the reference schema
         - and on a database that gained the tables from the migration alone
+    - a correction in the journal names what it corrects
+        - gives the journal the three parts, and the database holds a correction to them
+        - adds the check the reference schema holds, clause for clause
+        - a second run leaves the journal as the first one did
+        - a correction already there without what it corrects stops it, and says so
+        - a correction written after db push that ${what} stops it, and says so
     - a settings change carries the order it was recorded in
         - rows recorded before the column keep the order they were listed in, and the numbering
           continues
@@ -21917,6 +21953,12 @@ _Tested by:_
     - the applied settings hold one row, and the database is what holds them to it
         - a second id is refused by the constraint, on the reference schema
         - and on a database that gained the tables from the migration alone
+    - a correction in the journal names what it corrects
+        - gives the journal the three parts, and the database holds a correction to them
+        - adds the check the reference schema holds, clause for clause
+        - a second run leaves the journal as the first one did
+        - a correction already there without what it corrects stops it, and says so
+        - a correction written after db push that ${what} stops it, and says so
     - a settings change carries the order it was recorded in
         - rows recorded before the column keep the order they were listed in, and the numbering
           continues

@@ -4,12 +4,14 @@
 
 import type {
     SubscriberCharge,
+    SubscriberChargeCorrection,
     SubscriberChargeOrigin,
     SubscriberChargeSource,
 } from './generated/subscriber-ledger.gen.js';
 
 export type {
     SubscriberCharge,
+    SubscriberChargeCorrection,
     SubscriberChargeOrigin,
     SubscriberChargeSource,
 } from './generated/subscriber-ledger.gen.js';
@@ -24,15 +26,25 @@ export interface SubscriberChargeRecord {
     contractLineItemId: string;
     origin: SubscriberChargeOrigin;
     source: SubscriberChargeSource;
-    /** The subscription id for the plan, the booking id for an add-on, the discount's key. */
+    /**
+     * The subscription id for the plan, the booking id for an add-on, the
+     * discount's key; for a correction, `<invoiceId>/<chargeId>` of what it
+     * corrects (`correctionSourceRefOf`).
+     */
     sourceRef: string;
     periodStart: Date;
     periodEnd: Date;
     currency: string;
-    /** Net, rounded to the cent when written. Negative for a discount. */
+    /** Net, rounded to the cent when written. Negative for a discount, a credit and a correction. */
     amountNet: number;
     /** When the amount became due. */
     bookedAt: Date;
+    /**
+     * On a correction (`origin: 'correction'`), the charge it corrects, the
+     * invoice that charge stood on, and the reason; `null` on every other
+     * charge (`SC-PRIC-020`).
+     */
+    correction: SubscriberChargeCorrection | null;
     createdAt: Date;
 }
 

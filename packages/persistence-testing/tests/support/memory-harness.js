@@ -22,6 +22,8 @@ import {
     refuseForeignPaymentMethodReference,
     scheduledChangeAfterWrite,
     subscriberChargeColumns,
+    assertCorrectionsFitTheirCharges,
+    correctedChargeIdsOf,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
     subscriptionInvoiceChainOf,
@@ -1929,10 +1931,25 @@ export function createMemoryHarness() {
                 if (!state.contractLines.some((line) => line.id === charge.contractLineItemId)) {
                     throw new Error(`contract line '${charge.contractLineItemId}' does not exist`);
                 }
+                const corrected = charge.correction?.chargeId;
+                if (
+                    corrected !== undefined &&
+                    !state.ledgerEntries.some((entry) => entry.id === corrected)
+                ) {
+                    throw new Error(`charge '${corrected}' a correction names does not exist`);
+                }
             }
+            const named = correctedChargeIdsOf(charges);
+            assertCorrectionsFitTheirCharges(
+                charges,
+                state.ledgerEntries
+                    .filter((entry) => named.includes(entry.id))
+                    .map(toSubscriberChargeRecord),
+            );
+            // Every charge is shaped before any is written, as one statement would be.
+            const shaped = charges.map((charge) => [charge, subscriberChargeColumns(charge)]);
             const written = [];
-            for (const charge of charges) {
-                const columns = subscriberChargeColumns(charge);
+            for (const [charge, columns] of shaped) {
                 if (state.ledgerEntries.some((entry) => keyOf(entry) === keyOf(charge))) continue;
                 const row = { id: nextId('charge'), ...columns, createdAt: FIXED_NOW };
                 state.ledgerEntries.push(row);
@@ -2029,9 +2046,11 @@ export function createMemoryHarness() {
         }
         return row;
     };
+    // A correction is invoiced by the cancellation that wrote it, never by the run.
     const uninvoiced = () =>
         state.ledgerEntries
             .filter((entry) => !state.invoiceLines.some((line) => line.chargeId === entry.id))
+            .filter((entry) => entry.origin !== 'correction')
             .map(toSubscriberChargeRecord);
     const subscriptionInvoiceRepository = {
         async listSubscriptionsWithUninvoicedCharges({ limit, after }) {

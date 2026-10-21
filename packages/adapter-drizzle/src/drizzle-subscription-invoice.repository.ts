@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import type {
     CanonicalInvoiceCorrection,
     IssuedSubscriptionInvoiceCancellation,
@@ -17,6 +17,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    CORRECTION_ORIGIN,
     formatInvoiceNumber,
     subscriptionInvoiceAlreadyCancelled,
     subscriptionInvoiceCancellationColumns,
@@ -43,6 +44,7 @@ import {
 
 type Db = ReturnType<typeof resolveDb>;
 type InvoiceRow = typeof subscriptionInvoices.$inferSelect;
+
 type LineRow = typeof subscriptionInvoiceLines.$inferSelect;
 
 /**
@@ -80,6 +82,7 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
             .where(
                 and(
                     isNull(subscriptionInvoiceLines.id),
+                    ne(subscriberLedgerEntries.origin, CORRECTION_ORIGIN),
                     page.after === undefined
                         ? undefined
                         : gt(subscriberLedgerEntries.subscriptionId, page.after),
@@ -111,6 +114,7 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
                 and(
                     eq(subscriberLedgerEntries.subscriptionId, subscriptionId),
                     isNull(subscriptionInvoiceLines.id),
+                    ne(subscriberLedgerEntries.origin, CORRECTION_ORIGIN),
                 ),
             )
             .orderBy(

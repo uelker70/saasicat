@@ -265,8 +265,9 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
 
         const [first, second] = callsNamed(client, '$queryRaw');
         assert.match(first[1].join('?'), /HAVING bool_or\(e."amountNet" <> 0\)/);
-        assert.deepEqual(first.slice(2), ['', 5]);
-        assert.deepEqual(second.slice(2), ['sub-0', 5]);
+        assert.match(first[1].join('?'), /e."origin" <> \?/);
+        assert.deepEqual(first.slice(2), ['', 'correction', 5]);
+        assert.deepEqual(second.slice(2), ['sub-0', 'correction', 5]);
     });
 
     test('the charges left to invoice are those on no invoice line, in the journal’s order', async () => {
@@ -275,7 +276,11 @@ describe('PrismaSubscriptionInvoiceRepository', () => {
         await new PrismaSubscriptionInvoiceRepository(client).listUninvoicedCharges('sub-1');
 
         const [[, query]] = callsNamed(client, 'ledger.findMany');
-        assert.deepEqual(query.where, { subscriptionId: 'sub-1', invoiceLines: { none: {} } });
+        assert.deepEqual(query.where, {
+            subscriptionId: 'sub-1',
+            invoiceLines: { none: {} },
+            origin: { not: 'correction' },
+        });
         assert.deepEqual(query.orderBy[0], { periodStart: 'asc' });
     });
 

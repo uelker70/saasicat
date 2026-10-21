@@ -6,7 +6,12 @@ import type {
     SubscriberLedgerRepository,
     TransactionContext,
 } from '@saasicat/core';
-import { subscriberChargeColumns, toSubscriberChargeRecord } from '@saasicat/core';
+import {
+    assertCorrectionsFitTheirCharges,
+    correctedChargeIdsOf,
+    subscriberChargeColumns,
+    toSubscriberChargeRecord,
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** Narrow view of the client and of a transaction client, which carry the same delegate. */
@@ -42,15 +47,30 @@ export class PrismaSubscriberLedgerRepository implements SubscriberLedgerReposit
      * and skipped rather than raised, and only what this call wrote comes back.
      * It names no conflict target, so it suppresses every unique key; the only
      * one besides the natural key is the primary key, a uuid made per row here.
+     * A correction among them is checked against the charge it names first.
      */
     async recordCharges(
         charges: readonly NewSubscriberCharge[],
         tx?: TransactionContext,
     ): Promise<SubscriberChargeRecord[]> {
         if (charges.length === 0) return [];
+        const data = charges.map(subscriberChargeColumns);
+        assertCorrectionsFitTheirCharges(charges, await this.correctedChargesOf(charges, tx));
         const rows = await this.db(tx).subscriberLedgerEntry.createManyAndReturn({
-            data: charges.map(subscriberChargeColumns),
+            data,
             skipDuplicates: true,
+        });
+        return rows.map(toSubscriberChargeRecord);
+    }
+
+    private async correctedChargesOf(
+        charges: readonly NewSubscriberCharge[],
+        tx?: TransactionContext,
+    ): Promise<SubscriberChargeRecord[]> {
+        const ids = correctedChargeIdsOf(charges);
+        if (ids.length === 0) return [];
+        const rows = await this.db(tx).subscriberLedgerEntry.findMany({
+            where: { id: { in: ids } },
         });
         return rows.map(toSubscriberChargeRecord);
     }
