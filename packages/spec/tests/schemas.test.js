@@ -408,14 +408,13 @@ test('subscriberLedger rejects another charge that names something it corrects',
     assert.equal(chargeValidator()({ ...CHARGE, correction: CORRECTION.correction }), false);
 });
 
-for (const [amountNet, what] of [
-    [0, 'takes nothing off'],
-    [0.01, 'adds'],
-]) {
-    test(`subscriberLedger rejects a correction of ${amountNet}, which ${what}`, () => {
-        assert.equal(chargeValidator()({ ...CORRECTION, amountNet }), false);
-    });
-}
+test('subscriberLedger rejects a correction of 0, which moves nothing', () => {
+    assert.equal(chargeValidator()({ ...CORRECTION, amountNet: 0 }), false);
+});
+
+test("subscriberLedger accepts a correction that gives back, as a discount's does", () => {
+    assert.equal(chargeValidator()({ ...CORRECTION, amountNet: 0.01 }), true);
+});
 
 test('subscriberLedger accepts a correction of a cent', () => {
     assert.equal(chargeValidator()({ ...CORRECTION, amountNet: -0.01 }), true);

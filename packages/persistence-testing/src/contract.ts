@@ -59,12 +59,15 @@ import {
     collectionAttemptKey,
     counterEntryOf,
     draftCancellationInvoice,
+    draftCorrectedReplacementInvoice,
     draftReplacementInvoice,
     isPersistenceRefusal,
+    lineCorrectionsOf,
     movedPaymentParts,
     paidByShares,
     sumToCents,
     taxPerRate,
+    writtenReplacementOf,
 } from '@saasicat/core';
 import type {
     ContractGap,
@@ -6850,6 +6853,38 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(await ledger.listBySubscription(elsewhere.subscriptionId), []);
         });
 
+        test("a discount's correction gives back part of it, and one taking more off is refused", async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-correction-discount');
+            if (!account) return;
+            const { ledger, subscriptionId, discountLineId, charge } = account;
+            const [discount] = await ledger.recordCharges([
+                charge({
+                    source: 'discount',
+                    sourceRef: 'WELCOME20',
+                    contractLineItemId: discountLineId,
+                    amountNet: -3.98,
+                }),
+            ]);
+            const givenBack = counterEntryOf(discount!, {
+                invoiceId: 'invoice-1',
+                by: 1.99,
+                reason: 'Half the month was not owed.',
+                bookedAt: CORRECTED_AT,
+            });
+
+            await assert.rejects(
+                ledger.recordCharges([{ ...givenBack, amountNet: -1.99 }]),
+                'a correction took more off a discount',
+            );
+            const [written] = await ledger.recordCharges([givenBack]);
+
+            assert.deepEqual(
+                [written?.amountNet, written?.correction?.chargeId],
+                [1.99, discount!.id],
+            );
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 2);
+        });
+
         // -------------------------------------------------------------
         // Invoices — numbered without a gap, each charge on one invoice
         // -------------------------------------------------------------
@@ -7036,7 +7071,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-022
+        // @requirement SC-PRIC-096
         // @requirement SC-PRIC-072
         test('a charge stands on one invoice: a second one naming it is refused and draws no number', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-once');
@@ -7056,7 +7091,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await invoices.issue(invoiceOf([march!]))).number, 'EX-2026-000002');
         });
 
-        // @requirement SC-PRIC-022
+        // @requirement SC-PRIC-096
         test('two invoices naming the same charge at the same time: one is issued', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-once-race');
             if (!account) return;
@@ -7093,7 +7128,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal((await invoices.issue(invoiceOf([february!]))).number, 'EX-2026-000001');
         });
 
-        // @requirement SC-PRIC-022
+        // @requirement SC-PRIC-096
         test('the charges left to invoice are those on no invoice', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-left');
             if (!account) return;
@@ -7119,7 +7154,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-022
+        // @requirement SC-PRIC-096
         test('a correction is never left to invoice: only the cancellation that wrote it does', async (t) => {
             const account = await anInvoiceAccount(t, 'tenant-invoice-correction');
             if (!account) return;
@@ -7304,7 +7339,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             assert.deepEqual(
                 readLines.map(({ id: _lineId, invoiceId: _invoiceId, ...line }) => line),
-                lines.map((line) => ({ ...line, correctedPosition: null })),
+                lines.map((line) => ({ ...line, correctedPosition: null, correctsPosition: null })),
             );
             assert.ok(readLines.every((line) => line.invoiceId === id));
             assert.deepEqual([number, numberSequence], ['EX-2027-000001', 1]);
@@ -10195,45 +10230,80 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         };
 
         /**
-         * Cancels `invoiceId` as the platform does (`SC-PRIC-091`): in the turn of
+         * Cancels `invoiceId` as the platform does (`SC-PRIC-095`): in the turn of
          * its chain, the cancellation invoice and — unless `replace` is false — a
          * replacement under `treatment`, then what was paid for the invoice moved
-         * onto the replacement, or into credits. `pause` holds the turn after the
-         * shares are read; `fail` throws once everything is written, so that the
-         * transaction rolls back.
+         * onto the replacement, or into credits. `owed` names the lines not owed,
+         * or not in full: their counter-entries are written on the same turn and
+         * stand on the replacement, where any is still owed (`SC-PRIC-020`).
+         * `pause` holds the turn after the shares are read; `fail` throws once
+         * everything is written, so that the transaction rolls back.
          */
         async function cancelInvoice(
             invoiceId: string,
             {
                 replace = true,
+                owed,
                 treatment = INVOICE_TREATMENT,
                 pause = 0,
                 fail = false,
-            }: { replace?: boolean; treatment?: TaxTreatment; pause?: number; fail?: boolean } = {},
+            }: {
+                replace?: boolean;
+                owed?: { position: number; owed: number }[];
+                treatment?: TaxTreatment;
+                pause?: number;
+                fail?: boolean;
+            } = {},
         ) {
             const invoices = harness.adapter.subscriptionInvoiceRepository!;
             const payments = harness.adapter.subscriberPaymentRepository!;
+            const ledger = harness.adapter.subscriberLedgerRepository!;
             return harness.adapter.transactionRunner.run(async (tx) => {
                 const chain = await invoices.holdChain(invoiceId, tx);
                 const cancelled = chain?.invoices.find((each) => each.id === invoiceId);
                 assert.ok(cancelled, `invoice ${invoiceId} was not found in its chain`);
                 const shares = await payments.sharesOf(invoiceId, tx);
                 if (pause > 0) await sleep(pause);
-                const paid = paidByShares(shares);
-                const replacement = replace
-                    ? draftReplacementInvoice(cancelled, {
-                          ...CORRECTION_ISSUE,
-                          subscriber: cancelled.subscriber,
-                          issuer: cancelled.issuer,
-                          footer: cancelled.footer,
-                          treatment,
-                          tax: taxPerRate,
-                          paymentTermDays: 14,
-                          directDebitLeadDays: 5,
-                          payment: cancelled.payment,
-                          paid,
+                const issue = {
+                    ...CORRECTION_ISSUE,
+                    subscriber: cancelled.subscriber,
+                    issuer: cancelled.issuer,
+                    footer: cancelled.footer,
+                    treatment,
+                    tax: taxPerRate,
+                    paymentTermDays: 14,
+                    directDebitLeadDays: 5,
+                    payment: cancelled.payment,
+                    paid: paidByShares(shares),
+                };
+                const corrections = owed
+                    ? lineCorrectionsOf(cancelled, owed, {
+                          journal: await ledger.listBySubscription(cancelled.subscriptionId, tx),
+                          reduces: () => ({ source: 'plan' }),
+                          reason: CANCELLATION_REASON,
+                          bookedAt: CANCELLED_AT,
                       })
                     : null;
+                const counterEntries =
+                    corrections && corrections.counterEntries.length > 0
+                        ? await ledger.recordCharges(corrections.counterEntries, tx)
+                        : [];
+                const planned =
+                    corrections && draftCorrectedReplacementInvoice(cancelled, issue, corrections);
+                const replacement = !replace
+                    ? null
+                    : corrections
+                      ? planned &&
+                        writtenReplacementOf(
+                            planned,
+                            corrections.counterEntries.map(
+                                (entry) =>
+                                    counterEntries.find(
+                                        (each) => each.sourceRef === entry.sourceRef,
+                                    )!.id,
+                            ),
+                        )
+                      : draftReplacementInvoice(cancelled, issue);
                 const issued = await invoices.issueCancellation(
                     {
                         cancelledInvoiceId: invoiceId,
@@ -10294,7 +10364,175 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         /** `amount` taken the other way, nothing staying nothing. */
         const reversedAmount = (amount: number) => (amount === 0 ? 0 : -amount);
 
-        // @requirement SC-PRIC-091
+        /** The journal's corrections of `subscriptionId`, as charge, invoice and amount. */
+        async function correctionsOf(subscriptionId: string) {
+            const ledger = harness.adapter.subscriberLedgerRepository!;
+            return (await ledger.listBySubscription(subscriptionId))
+                .filter((entry) => entry.origin === 'correction')
+                .map((entry) => [
+                    entry.correction?.chargeId,
+                    entry.correction?.invoiceId,
+                    entry.amountNet,
+                ]);
+        }
+
+        test('a charge owed in part is lowered by a counter-entry on the same turn, which the replacement carries after the line it corrects', async (t) => {
+            const account = await payable(t, 'tenant-cancel-owed-in-part');
+            if (!account) return;
+            const { invoices, ids } = account;
+            const invoiceId = ids[0]!;
+            const original = await invoices.findById(invoiceId);
+            assert.ok(original);
+            const line = original.lines[0]!;
+
+            const { replacement } = await cancelInvoice(invoiceId, {
+                owed: [{ position: 1, owed: 9.95 }],
+            });
+
+            assert.ok(replacement, 'no replacement was written');
+            const read = await invoices.findById(replacement.id);
+            assert.deepEqual(
+                read?.lines.map((each) => [
+                    each.position,
+                    each.origin,
+                    each.amountNet,
+                    each.correctedPosition,
+                    each.correctsPosition,
+                ]),
+                [
+                    [1, line.origin, line.amountNet, 1, null],
+                    [2, 'correction', -sumToCents(line.amountNet, -9.95), null, 1],
+                ],
+            );
+            assert.equal(read?.totalNet, 9.95);
+            assert.deepEqual(await correctionsOf(original.subscriptionId), [
+                [line.chargeId, invoiceId, -sumToCents(line.amountNet, -9.95)],
+            ]);
+        });
+
+        test('a charge owed no more leaves no replacement, its counter-entry on no invoice, and the run does not take it', async (t) => {
+            const account = await payable(t, 'tenant-cancel-owed-no-more');
+            if (!account) return;
+            const { invoices, ids } = account;
+            const invoiceId = ids[0]!;
+            const original = await invoices.findById(invoiceId);
+            assert.ok(original);
+
+            const { replacement, cancellation } = await cancelInvoice(invoiceId, {
+                owed: [{ position: 1, owed: 0 }],
+            });
+
+            assert.equal(replacement, null);
+            assert.equal(cancellation.replacementInvoiceId, null);
+            assert.deepEqual(await correctionsOf(original.subscriptionId), [
+                [original.lines[0]!.chargeId, invoiceId, -original.lines[0]!.amountNet],
+            ]);
+            assert.deepEqual(await invoices.listUninvoicedCharges(original.subscriptionId), []);
+        });
+
+        test('a cancellation whose turn fails writes no counter-entry', async (t) => {
+            const account = await payable(t, 'tenant-cancel-owed-fails');
+            if (!account) return;
+            const { invoices, ids } = account;
+            const invoiceId = ids[0]!;
+            const original = await invoices.findById(invoiceId);
+            assert.ok(original);
+
+            await assert.rejects(
+                cancelInvoice(invoiceId, { owed: [{ position: 1, owed: 9.95 }], fail: true }),
+                /the run that cancelled it failed/,
+            );
+
+            assert.deepEqual(await correctionsOf(original.subscriptionId), []);
+            const chain = await harness.adapter.transactionRunner.run((tx) =>
+                invoices.holdChain(invoiceId, tx),
+            );
+            assert.deepEqual(
+                [chain?.invoices.map((each) => each.id), chain?.cancellations],
+                [[invoiceId], []],
+            );
+        });
+
+        test("a replacement whose correction's line names no line of it, or a position it lacks, is refused, and nothing is written", async (t) => {
+            const account = await payable(t, 'tenant-cancel-owed-misnamed');
+            if (!account) return;
+            const { invoices, ids } = account;
+            const ledger = harness.adapter.subscriberLedgerRepository!;
+            const invoiceId = ids[0]!;
+            const original = await invoices.findById(invoiceId);
+            assert.ok(original);
+
+            for (const [what, corrects] of [
+                ['names none', null],
+                ['names a position it lacks', 9],
+            ] as const) {
+                await assert.rejects(
+                    harness.adapter.transactionRunner.run(async (tx) => {
+                        const chain = await invoices.holdChain(invoiceId, tx);
+                        const cancelled = chain?.invoices.find((each) => each.id === invoiceId);
+                        assert.ok(cancelled);
+                        const charge = (
+                            await ledger.listBySubscription(cancelled.subscriptionId, tx)
+                        ).find((entry) => entry.id === cancelled.lines[0]!.chargeId);
+                        assert.ok(charge);
+                        const [counterEntry] = await ledger.recordCharges(
+                            [
+                                counterEntryOf(charge, {
+                                    invoiceId,
+                                    by: 1,
+                                    reason: CANCELLATION_REASON,
+                                    bookedAt: CANCELLED_AT,
+                                }),
+                            ],
+                            tx,
+                        );
+                        const replacement = draftReplacementInvoice(cancelled, {
+                            ...CORRECTION_ISSUE,
+                            subscriber: cancelled.subscriber,
+                            issuer: cancelled.issuer,
+                            footer: cancelled.footer,
+                            treatment: INVOICE_TREATMENT,
+                            tax: taxPerRate,
+                            paymentTermDays: 14,
+                            directDebitLeadDays: 5,
+                            payment: cancelled.payment,
+                            paid: 0,
+                        });
+                        replacement.lines.push({
+                            ...replacement.lines[0]!,
+                            position: 2,
+                            chargeId: counterEntry!.id,
+                            origin: 'correction',
+                            amountNet: -1,
+                            correctedPosition: null,
+                            correctsPosition: corrects,
+                        });
+                        await invoices.issueCancellation(
+                            {
+                                cancelledInvoiceId: invoiceId,
+                                cancellation: draftCancellationInvoice(cancelled, CORRECTION_ISSUE),
+                                replacement,
+                                reason: CANCELLATION_REASON,
+                                correctedSubscriber: null,
+                                deliverTo: null,
+                                cancelledBy: 'operator-1',
+                                cancelledAt: CANCELLED_AT,
+                            },
+                            tx,
+                        );
+                    }),
+                    `a correction's line that ${what} was written`,
+                );
+            }
+
+            assert.deepEqual(await correctionsOf(original.subscriptionId), []);
+            const chain = await harness.adapter.transactionRunner.run((tx) =>
+                invoices.holdChain(invoiceId, tx),
+            );
+            assert.deepEqual(chain?.cancellations, []);
+        });
+
+        // @requirement SC-PRIC-095
         test('an invoice is cancelled by a cancellation invoice and a replacement that follow it in its chain, each naming it', async (t) => {
             const account = await payable(t, 'tenant-cancel-once');
             if (!account) return;
@@ -10482,7 +10720,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-PRIC-091
+        // @requirement SC-PRIC-095
         test('what was paid for a cancelled invoice moves onto the replacement, the oldest payment first, and what it does not take is a credit of the payment and the cancellation', async (t) => {
             const account = await payable(t, 'tenant-cancel-paid');
             if (!account) return;
@@ -10537,7 +10775,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-091
+        // @requirement SC-PRIC-095
         // @requirement SC-PRIC-036
         test('a payment confirmed after the cancellation settles the replacement, and is a credit where the cancellation left none', async (t) => {
             const account = await payable(t, 'tenant-cancel-then-paid', 2);
@@ -10570,7 +10808,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-091
+        // @requirement SC-PRIC-095
         // @requirement SC-PRIC-084
         test('a reversal of a payment whose share moved takes the credit the cancellation left first, then opens the replacement', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-reversed');
@@ -10603,7 +10841,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
         });
 
-        // @requirement SC-PRIC-091
+        // @requirement SC-PRIC-095
         // @requirement SC-PRIC-086
         test('a reversal given back after its invoice was cancelled settles the replacement, part by part, and leaves no credit', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-given-back');
@@ -10687,7 +10925,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         }
 
-        // @requirement SC-PRIC-091
+        // @requirement SC-PRIC-095
         // @requirement SC-PRIC-090
         test("a cover lifted after its invoice was cancelled takes the credit the cancellation left first, and opens the replacement by no more than its payment's share", async (t) => {
             const account = await coveredThenCancelled(t, 'tenant-cancel-lift');
@@ -10812,7 +11050,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await payments.owedBy(replacement.id), sumToCents(net, -5));
         });
 
-        // @requirement SC-PRIC-091
+        // @requirement SC-PRIC-095
         test('a cancellation interrupted before it ends leaves none of it, and hands its numbers back', async (t) => {
             const account = await paidOnce(t, 'tenant-cancel-interrupted');
             if (!account) return;

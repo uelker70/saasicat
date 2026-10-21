@@ -66,7 +66,7 @@ export interface SubscriberCharge {
      */
     currency: string;
     /**
-     * Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount, a credit and a correction.
+     * Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount and a credit; a correction has the sign that moves its charge towards nothing — negative for a charge that asks, positive for a discount.
      */
     amountNet: number;
     /**

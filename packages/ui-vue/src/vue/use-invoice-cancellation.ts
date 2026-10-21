@@ -197,10 +197,14 @@ export function useInvoiceCancellation(
         report(() =>
             ports.notify(
                 'positive',
-                formatMessage(msg.value.payments.cancelled, {
-                    cancellation: cancellationInvoice.number,
-                    replacement: replacement.number,
-                }),
+                replacement
+                    ? formatMessage(msg.value.payments.cancelled, {
+                          cancellation: cancellationInvoice.number,
+                          replacement: replacement.number,
+                      })
+                    : formatMessage(msg.value.payments.cancelledWithoutReplacement, {
+                          cancellation: cancellationInvoice.number,
+                      }),
             ),
         );
         close();

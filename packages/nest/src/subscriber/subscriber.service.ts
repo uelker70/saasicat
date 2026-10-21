@@ -241,7 +241,7 @@ export class SubscriberService {
 
     /**
      * The tax origin of `party`, an invoice's copy of this subscriber
-     * (`SC-PRIC-091`): its country and VAT id as the invoice names them, the
+     * (`SC-PRIC-095`): its country and VAT id as the invoice names them, the
      * business status as the record states it, and the VAT id validated only
      * where the record holds that same number with a valid check. A number
      * corrected on the invoice alone counts as not validated: it is corrected

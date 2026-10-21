@@ -131,7 +131,7 @@ export interface AdminTenantInvoice {
     owed: number;
     /**
      * What it corrects, on a cancellation invoice or a replacement; `null` on
-     * an invoice issued for the charge journal's charges (`SC-PRIC-091`).
+     * an invoice issued for the charge journal's charges (`SC-PRIC-095`).
      */
     correction: Pick<SubscriptionInvoiceCorrection, 'kind' | 'of'> | null;
     /** The cancellation invoice that cancelled it; `null` while it stands. */

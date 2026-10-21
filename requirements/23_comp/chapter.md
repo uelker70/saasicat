@@ -1078,6 +1078,7 @@ _Tested by:_
         - fails once, saying so, instead of asking for a declaration the check would reject
 - `packages/spec/tests/reference-sql-drift.test.js`
     - prisma-fragments compose and reference-schema.postgres.sql is in sync
+    - no comment of the reference schema holds a semicolon, which the test harnesses split it on
     - normative constraints are part of the reference schema
     - bundle validity windows and their lookup index are in the reference schema
     - plan-version validity, termination and lookup index are in the reference schema

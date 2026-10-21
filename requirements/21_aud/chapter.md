@@ -202,7 +202,7 @@ installation that concludes contracts does not start while the file names no iss
 is concluded with nobody on the operator's side. A copy the migration to subscribers made of an
 existing contract's parties says so and is never presented as what was true at conclusion. Neither
 such a contract nor one concluded before a contract needed an issuer is invoiced: nothing SaaSiCat
-holds says who its parties were that day, so its charges stay held (`SC-PRIC-022`). Every
+holds says who its parties were that day, so its charges stay held (`SC-PRIC-096`). Every
 successor frozen afresh, such as after a change of plan or of its billing rhythm, an add-on booked
 or ended, a move to another version, or a refresh in full, copies both parties as they stand that
 day, and that one is invoiced. One that only carries the contract forward, a refresh of its
@@ -263,6 +263,11 @@ _Tested by:_
         - of the same contract line come in the order of their periods
         - refuse a charge whose contract line the contract does not have
         - refuse charges in two currencies, which no invoice states
+- `packages/core/tests/an-invoice-row-becomes-a-record.test.js`
+    - a line names the line of its invoice it corrects exactly where it is a correction’s
+        - written and read, a correction’s line keeps the position it corrects
+        - ${what} is not written
+        - ${what} stops the read, naming the row
 - `packages/nest/tests/an-invoice-is-issued.test.js`
     - an invoice is issued for the charges booked together
         - the opening of a period is one invoice, its lines in the contract’s order

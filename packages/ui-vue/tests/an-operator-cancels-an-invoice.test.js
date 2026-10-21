@@ -205,6 +205,7 @@ function cancellationOf({
     failWith,
     code = '123456',
     whilePrompted,
+    answer = CANCELLED,
 } = {}) {
     const calls = [];
     const notices = [];
@@ -218,7 +219,7 @@ function cancellationOf({
         cancelInvoice: async (slug, invoiceId, request, mfaCode) => {
             calls.push(['cancel', slug, invoiceId, request, mfaCode]);
             if (failWith) throw failWith;
-            return CANCELLED;
+            return answer;
         },
     };
     const slug = ref('acme');
@@ -354,6 +355,24 @@ describe('cancelling an invoice', () => {
         ]);
         assert.deepEqual(reloads, ['reloaded']);
         assert.equal(flow.target.value, null);
+    });
+
+    test('announces a cancellation that left no replacement as one', async () => {
+        const answer = { ...CANCELLED, replacement: null };
+        const { flow, notices } = cancellationOf({
+            plans: [{ ...planOf(), replacement: null }],
+            answer,
+        });
+        flow.open(invoiceOf());
+        await flow.ask(DRAFT);
+
+        assert.deepEqual(await flow.cancel(), answer);
+        assert.deepEqual(notices, [
+            [
+                'positive',
+                'Cancelled by AHP-2026-000140. Nothing of it is owed any more, so there is no replacement.',
+            ],
+        ]);
     });
 
     test('sends what the preview answered, not what was entered after it', async () => {

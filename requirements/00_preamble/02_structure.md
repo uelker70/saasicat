@@ -83,7 +83,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 94      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 96      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 651 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
-🔵 33 superseded, 🔴 3 withdrawn.
+Of 653 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+🔵 35 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -113,8 +113,8 @@ Of 651 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
-[SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
-[SC-PRIC-091](#sc-pric-091--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
+[SC-PRIC-096](#sc-pric-096--every-charge-is-invoiced-once-a-counter-entry-by-the-cancellation-that-wrote-it),
+[SC-PRIC-095](#sc-pric-095--an-issued-invoice-is-never-edited-its-cancellation-corrects-what-was-not-owed),
 [SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
 [SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
 [SC-PRIC-033](#sc-pric-033--an-invoice-interrupted-in-archiving-keeps-its-number-and-is-never-issued-twice),
@@ -169,8 +169,10 @@ Of 651 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
 [SC-PRIC-016](#sc-pric-016--a-tax-rate-has-a-validity-window),
+[SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
 [SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
 [SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
+[SC-PRIC-091](#sc-pric-091--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
 [SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
 [SC-PRIC-077](#sc-pric-077--an-invoice-carries-the-issuers-footer-as-it-was-on-the-day-it-was-issued),
 [SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),

@@ -203,6 +203,77 @@ const cancellationRow = (overrides = {}) => ({
     ...overrides,
 });
 
+// @requirement SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
+describe('a line names the line of its invoice it corrects exactly where it is a correction’s', () => {
+    const [first] = INVOICE.lines;
+    const correction = {
+        ...first,
+        position: 2,
+        origin: 'correction',
+        amountNet: -1,
+        correctsPosition: 1,
+    };
+
+    test('written and read, a correction’s line keeps the position it corrects', () => {
+        for (const { row, lines } of [
+            drizzleRows({ ...INVOICE, lines: [first, correction] }),
+            prismaRows({ ...INVOICE, lines: [first, correction] }),
+        ]) {
+            assert.deepEqual(
+                toSubscriptionInvoiceRecord(row, lines).lines.map((line) => [
+                    line.position,
+                    line.origin,
+                    line.correctsPosition,
+                ]),
+                [
+                    [1, first.origin, null],
+                    [2, 'correction', 1],
+                ],
+            );
+        }
+    });
+
+    for (const [what, line, refusal] of [
+        [
+            'a correction’s line naming none',
+            { ...correction, correctsPosition: null },
+            /A correction line at position 2 is written naming no line it corrects/,
+        ],
+        [
+            'another line naming one',
+            { ...first, correctsPosition: 1 },
+            /A renewal line at position 1 is written naming position 1 as the line it corrects; only a correction does/,
+        ],
+    ]) {
+        test(`${what} is not written`, () => {
+            assert.throws(() => subscriptionInvoiceLineColumns(line, 'invoice-1', 2), refusal);
+        });
+    }
+
+    for (const [what, overrides, refusal] of [
+        [
+            'a correction’s line naming none',
+            { origin: 'correction', correctsPosition: null },
+            /is a correction line naming no line it corrects/,
+        ],
+        [
+            'another line naming one',
+            { correctsPosition: 3 },
+            /is a renewal line naming position 3 as the line it corrects; only a correction does/,
+        ],
+    ]) {
+        test(`${what} stops the read, naming the row`, () => {
+            const { row, lines } = drizzleRows();
+            assert.throws(
+                () => toSubscriptionInvoiceRecord(row, [{ ...lines[0], ...overrides }]),
+                (error) =>
+                    error.message.includes(`subscription_invoice_lines row '${lines[0].id}'`) &&
+                    refusal.test(error.message),
+            );
+        });
+    }
+});
+
 describe('an invoice row becomes a record', () => {
     test('that says what the invoice drafted said, and corrects nothing, from either adapter’s row', () => {
         // An invoice of the journal's charges: paid nothing on issue, none of
@@ -211,7 +282,11 @@ describe('an invoice row becomes a record', () => {
             ...INVOICE,
             paidOnIssue: 0,
             correction: null,
-            lines: INVOICE.lines.map((line) => ({ ...line, correctedPosition: null })),
+            lines: INVOICE.lines.map((line) => ({
+                ...line,
+                correctedPosition: null,
+                correctsPosition: null,
+            })),
         };
         for (const { row, lines } of [drizzleRows(), prismaRows()]) {
             const record = toSubscriptionInvoiceRecord(row, lines);
@@ -239,7 +314,7 @@ describe('an invoice row becomes a record', () => {
         }
     });
 
-    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
     test('that says what it corrects, as a cancellation invoice or a replacement, from either adapter’s row', () => {
         const correction = (kind, issueDate) => ({
             kind,

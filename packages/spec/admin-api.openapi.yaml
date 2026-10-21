@@ -3641,19 +3641,25 @@ components:
             type: object
             description: >-
                 What the cancellation would write: `cancellation` and
-                `replacement` as they would be issued, without their numbers;
+                `replacement` as they would be issued, without their numbers —
+                `replacement` `null` where nothing of the invoice is owed any
+                more; `lines`, what each charge line stands at and becomes, in
+                cents; `counterEntries`, the charges that move the lines named
+                as not owed and the discounts that follow them;
                 `correctedSubscriber`, each corrected detail with the value it
                 replaces; `moves`, each payment's share of the cancelled
                 invoice and where it goes; `movedIn` and `credited`, their
                 totals; `reason` and `deliverTo` as they would be recorded; and
                 `digest`, a SHA-256 fingerprint of all of it but the moment both
-                invoices are issued, which the cancellation takes back as
-                `previewDigest`.
+                invoices are issued and the counter-entries booked, which the
+                cancellation takes back as `previewDigest`.
             required:
                 [
                     cancelled,
                     cancellation,
                     replacement,
+                    lines,
+                    counterEntries,
                     correctedSubscriber,
                     moves,
                     movedIn,
@@ -3665,7 +3671,17 @@ components:
             properties:
                 cancelled: { type: object }
                 cancellation: { type: object }
-                replacement: { type: object }
+                replacement: { type: object, nullable: true }
+                lines:
+                    type: array
+                    items:
+                        type: object
+                        required: [position, standsAt, becomes]
+                        properties:
+                            position: { type: integer }
+                            standsAt: { type: integer, description: In cents. }
+                            becomes: { type: integer, description: In cents. }
+                counterEntries: { type: array, items: { type: object } }
                 correctedSubscriber: { type: object, nullable: true }
                 moves: { type: array, items: { type: object } }
                 movedIn: { type: number }
@@ -3679,14 +3695,26 @@ components:
             description: >-
                 What the cancellation wrote: the cancellation with its reason,
                 corrections and address, the cancellation invoice and the
-                replacement as issued, the credits it left, and how many
+                replacement as issued — `null` where nothing was owed any more
+                —, what each charge line stood at and became, the
+                counter-entries it wrote, the credits it left, and how many
                 planned collections of the cancelled invoice it withdrew.
             required:
-                [cancellation, cancellationInvoice, replacement, credits, withdrawnCollections]
+                [
+                    cancellation,
+                    cancellationInvoice,
+                    replacement,
+                    lines,
+                    counterEntries,
+                    credits,
+                    withdrawnCollections,
+                ]
             properties:
                 cancellation: { type: object }
                 cancellationInvoice: { type: object }
-                replacement: { type: object }
+                replacement: { type: object, nullable: true }
+                lines: { type: array, items: { type: object } }
+                counterEntries: { type: array, items: { type: object } }
                 credits: { type: array, items: { type: object } }
                 withdrawnCollections: { type: integer }
 

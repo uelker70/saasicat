@@ -136,7 +136,7 @@ const replacementIssue = (overrides = {}) => ({
     ...overrides,
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the cancellation invoice', () => {
     test('states the cancelled invoice reversed, each line naming the line it cancels', () => {
         const drafted = draftCancellationInvoice(CANCELLED, ISSUE);
@@ -218,7 +218,7 @@ describe('the cancellation invoice', () => {
     }
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the replacement', () => {
     test('invoices the same charges, each line naming the line it replaces, under the treatment decided now', () => {
         const reverse = {
@@ -315,7 +315,7 @@ describe('the replacement', () => {
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the subscriber a replacement names before the operator corrects it', () => {
     const correction = (correctedAt, corrected) => ({
         correctedAt: new Date(correctedAt),
@@ -358,7 +358,7 @@ describe('the subscriber a replacement names before the operator corrects it', (
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the operator’s corrections of the subscriber', () => {
     const SUBSCRIBER = CANCELLED.subscriber;
 
@@ -398,7 +398,7 @@ describe('the operator’s corrections of the subscriber', () => {
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('each payment’s share of a cancelled invoice', () => {
     const at = (day) => new Date(`2026-02-${day}T09:00:00.000Z`);
 
@@ -567,7 +567,7 @@ describe('the invoice that stands in a chain', () => {
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('what a corrected invoice owes', () => {
     test('a cancelled invoice and its cancellation invoice owe nothing, whatever they state', () => {
         assert.equal(owedByInvoice(53.67, [], { cancelled: true, isCancellation: false }), 0);

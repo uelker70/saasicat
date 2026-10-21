@@ -178,22 +178,39 @@ describe('a counter-entry', () => {
     for (const amount of [0, -1, 0.004, 19.91]) {
         test(`takes off nothing else, not ${amount}`, () => {
             assert.throws(by(amount), (error) =>
-                error.message.endsWith(`above 0 and at most the 19.9 it asks, not ${amount}.`),
+                error.message.endsWith(
+                    `above 0 and at most the 19.9 it stands at, not by ${amount}.`,
+                ),
             );
         });
     }
 
-    for (const [what, amountNet] of [
-        ['a discount', '-3.98'],
-        ['a charge of nothing', '0.00'],
-    ]) {
-        test(`is never written for ${what}, which is not corrected downwards`, () => {
-            assert.throws(
-                by(1, toSubscriberChargeRecord(row({ source: 'discount', amountNet }))),
-                /only a charge that asks for an amount is corrected, and only downwards/,
-            );
+    describe('of a discount, which shrinks with what it reduced', () => {
+        const discount = toSubscriberChargeRecord(row({ source: 'discount', amountNet: '-3.98' }));
+
+        test('gives back a cent at least and the whole discount at most', () => {
+            assert.equal(by(0.01, discount)().amountNet, 0.01);
+            assert.equal(by(1.99, discount)().amountNet, 1.99);
+            assert.equal(by(3.98, discount)().amountNet, 3.98);
         });
-    }
+
+        for (const amount of [0, -1, 3.99]) {
+            test(`gives back nothing else, not ${amount}`, () => {
+                assert.throws(by(amount, discount), (error) =>
+                    error.message.endsWith(
+                        `above 0 and at most the 3.98 it stands at, not by ${amount}.`,
+                    ),
+                );
+            });
+        }
+    });
+
+    test('is never written for a charge of nothing, which has nowhere to move', () => {
+        assert.throws(
+            by(1, toSubscriberChargeRecord(row({ amountNet: '0.00' }))),
+            /Charge charge-1 stands at 0; a correction moves a charge towards nothing/,
+        );
+    });
 
     test('is never written for a correction, but for the charge it corrects', () => {
         const correction = toSubscriberChargeRecord(correctionRow());
@@ -245,16 +262,22 @@ describe('a counter-entry', () => {
 
     for (const [what, overrides] of [
         ['an amount of nothing', { amountNet: '0.00' }],
-        ['an amount added', { amountNet: '19.90' }],
         ['a reason of blanks', { correctionReason: '   ' }],
     ]) {
         test(`read with ${what}, stops the read naming the row`, () => {
             assert.throws(
                 () => toSubscriberChargeRecord(correctionRow(overrides)),
-                /subscriber_ledger_entries row 'charge-2' is a correction of .* takes a positive amount off and says why/,
+                /subscriber_ledger_entries row 'charge-2' is a correction of .* moves its charge by an amount and says why/,
             );
         });
     }
+
+    test("read with an amount given back, as a discount's correction carries it, reads as written", () => {
+        assert.equal(
+            toSubscriberChargeRecord(correctionRow({ amountNet: '1.99' })).amountNet,
+            1.99,
+        );
+    });
 
     test('read on another charge, a part of a correction stops the read naming the row', () => {
         assert.throws(
@@ -273,11 +296,15 @@ describe('a counter-entry', () => {
             ...overrides,
         });
 
-    test('one that takes an amount off and says why is written, a cent among them', () => {
+    test('one that moves its charge by an amount and says why is written, a cent either way among them', () => {
         assert.equal(subscriberChargeColumns(correctionCharge()).amountNet, '-19.90');
         assert.equal(
             subscriberChargeColumns(correctionCharge({ amountNet: -0.01 })).amountNet,
             '-0.01',
+        );
+        assert.equal(
+            subscriberChargeColumns(correctionCharge({ amountNet: 0.01 })).amountNet,
+            '0.01',
         );
     });
 
@@ -295,7 +322,7 @@ describe('a counter-entry', () => {
         [
             'a correction with a blank reason',
             () => correctionCharge({ correction: { ...PARTS, reason: '  ' } }),
-            /is not written: a correction takes a positive amount off and says why/,
+            /is not written: a correction moves its charge by an amount and says why/,
         ],
         [
             'a correction of nothing',
@@ -303,14 +330,14 @@ describe('a counter-entry', () => {
             /of 0 for the reason 'Not owed.' is not written/,
         ],
         [
-            'a correction that adds',
-            () => correctionCharge({ amountNet: 0.01 }),
-            /of 0.01 for the reason 'Not owed.' is not written/,
-        ],
-        [
-            'a correction a hair of float arithmetic below nothing, which is stored as -0.00',
+            'a correction a hair of float arithmetic below nothing, which is stored as 0.00',
             () => correctionCharge({ amountNet: -1e-9 }),
             /of -1e-9 for the reason 'Not owed.' is not written/,
+        ],
+        [
+            'a correction a hair of float arithmetic above nothing, which is stored as 0.00',
+            () => correctionCharge({ amountNet: 1e-9 }),
+            /of 1e-9 for the reason 'Not owed.' is not written/,
         ],
         [
             'a correction under another sourceRef',
@@ -385,23 +412,61 @@ describe('a correction is held to the charge it names, as the store read it', ()
                     [{ ...counterEntry, amountNet: -19.91 }],
                     [corrected],
                 ),
-            /at most the 19\.9 it asks, not 19\.91\./,
+            /at most the 19\.9 it stands at, not by 19\.91\./,
         );
     });
 
-    test('one naming a correction, or a discount, is refused', () => {
-        const correction = toSubscriberChargeRecord(correctionRow());
-        const discount = toSubscriberChargeRecord(
-            row({ id: 'charge-3', source: 'discount', amountNet: '-3.98' }),
+    test('one moving its charge away from nothing is refused: a charge that asks gains nothing', () => {
+        assert.throws(
+            () =>
+                assertCorrectionsFitTheirCharges(
+                    [{ ...counterEntry, amountNet: 9.95 }],
+                    [corrected],
+                ),
+            /does not stand where that charge stands: amountNet differs\./,
         );
+    });
+
+    describe('of a discount', () => {
+        const discount = toSubscriberChargeRecord(
+            row({
+                id: 'charge-3',
+                source: 'discount',
+                sourceRef: 'WELCOME20',
+                contractLineItemId: 'line-2',
+                amountNet: '-3.98',
+            }),
+        );
+        const givenBack = counterEntryOf(discount, {
+            invoiceId: 'invoice-1',
+            by: 1.99,
+            reason: 'Not owed.',
+            bookedAt: CORRECTED_AT,
+        });
+
+        test('one giving back part of it fits', () => {
+            assert.equal(givenBack.amountNet, 1.99);
+            assert.doesNotThrow(() => assertCorrectionsFitTheirCharges([givenBack], [discount]));
+        });
+
+        test('one taking off more of it, rather than giving back, is refused', () => {
+            assert.throws(
+                () =>
+                    assertCorrectionsFitTheirCharges(
+                        [{ ...givenBack, amountNet: -1.99 }],
+                        [discount],
+                    ),
+                /does not stand where that charge stands: amountNet differs\./,
+            );
+        });
+    });
+
+    test('one naming a correction is refused', () => {
+        const correction = toSubscriberChargeRecord(correctionRow());
 
         assert.throws(
             () => assertCorrectionsFitTheirCharges([naming('charge-2')], [correction]),
             /Charge charge-2 is a correction itself/,
-        );
-        assert.throws(
-            () => assertCorrectionsFitTheirCharges([naming('charge-3')], [discount]),
-            /Charge charge-3 asks for -3\.98; only a charge that asks for an amount is corrected/,
         );
     });
 

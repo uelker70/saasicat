@@ -130,6 +130,8 @@ export const tenantsMessages = defineMessages(
             cancelInvoice: 'Rechnung {number} stornieren',
             mfaCancel: 'Rechnung {number} stornieren. TOTP-Code eingeben.',
             cancelled: 'Storniert durch {cancellation}, ersetzt durch {replacement}.',
+            cancelledWithoutReplacement:
+                'Storniert durch {cancellation}. Nichts davon ist mehr geschuldet, es gibt keine Ersatzrechnung.',
             cancelDialog: {
                 askSubtitle:
                     'Eine ausgestellte Rechnung wird nie geändert: Eine Stornorechnung hebt sie auf, und eine Ersatzrechnung tritt an ihre Stelle. Was bezahlt war, zählt für die Ersatzrechnung.',
@@ -151,6 +153,7 @@ export const tenantsMessages = defineMessages(
                     'Vom Server berechnet, wie die Stornierung schreibt. Noch ist nichts geschrieben.',
                 cancellationInvoice: 'Stornorechnung',
                 replacement: 'Ersatzrechnung',
+                noReplacement: 'Keine – nichts von der Rechnung ist mehr geschuldet.',
                 amounts: '{net} netto · {tax} USt · {gross} brutto',
                 tax: 'Steuer',
                 dates: 'Ausgestellt am {issued}, fällig am {due}',
@@ -394,6 +397,8 @@ export const tenantsMessages = defineMessages(
             cancelInvoice: 'Cancel invoice {number}',
             mfaCancel: 'Cancel invoice {number}. Enter the TOTP code.',
             cancelled: 'Cancelled by {cancellation}, replaced by {replacement}.',
+            cancelledWithoutReplacement:
+                'Cancelled by {cancellation}. Nothing of it is owed any more, so there is no replacement.',
             cancelDialog: {
                 askSubtitle:
                     'An issued invoice is never changed: a cancellation invoice cancels it, and a replacement takes its place. What was paid counts for the replacement.',
@@ -415,6 +420,7 @@ export const tenantsMessages = defineMessages(
                     'Computed by the server, as the cancellation writes it. Nothing is written yet.',
                 cancellationInvoice: 'Cancellation invoice',
                 replacement: 'Replacement',
+                noReplacement: 'None — nothing of the invoice is owed any more.',
                 amounts: '{net} net · {tax} VAT · {gross} gross',
                 tax: 'Tax',
                 dates: 'Issued on {issued}, due on {due}',

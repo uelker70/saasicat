@@ -2023,6 +2023,18 @@ export function createMemoryHarness() {
             ),
         );
         if (taken) throw subscriptionInvoiceChargeInvoiced(taken.chargeId);
+        // The foreign key from a correction's line to the line of its invoice it names.
+        for (const line of invoice.lines) {
+            const corrects = line.correctsPosition ?? null;
+            if (corrects !== null && !invoice.lines.some((other) => other.position === corrects)) {
+                throw new Error(
+                    `line ${line.position} names position ${corrects}, which its invoice does not have`,
+                );
+            }
+        }
+        // Shaped before anything is written, as one statement would be.
+        for (const line of invoice.lines)
+            subscriptionInvoiceLineColumns(line, 'unwritten', chainStep);
     };
     /** Draws the invoice's number and writes it with its lines where `placed` puts it. */
     const writeInvoice = (invoice, placed) => {

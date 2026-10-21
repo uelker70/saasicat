@@ -13,9 +13,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { INVOICE_ERROR_CODES, TAX_ERROR_CODES, toCents } from '@saasicat/core';
 
-import { InvoiceCancellationService } from '../dist/billing/index.js';
+import { InvoiceCancellationService, invoiceCancellationAudit } from '../dist/billing/index.js';
 import {
     FIRST_RUN,
+    ISSUED,
+    aCollectingInstallation,
     after,
     anInvoiceToCollect,
     clockAt,
@@ -24,6 +26,7 @@ import {
     quietLog,
 } from './helpers/invoice-collection.js';
 import { collectionReported, reversalReported, succeeded } from './helpers/money-events.js';
+import { line } from './helpers/invoice-run.js';
 import { MAIN_ACCOUNT, signedCallback } from './helpers/payments.js';
 
 /** 10:00 in Berlin on 20 March, when the operator cancels the invoice of February. */
@@ -70,7 +73,7 @@ async function runAt(installation, at) {
     return installation.collect(at);
 }
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('an invoice cancelled by the operator', () => {
     clockFrom(FIRST_RUN);
 
@@ -322,7 +325,7 @@ describe('an invoice cancelled by the operator', () => {
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 // @requirement SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
 describe('a cancellation refused', () => {
     clockFrom(FIRST_RUN);
@@ -427,6 +430,329 @@ describe('a cancellation refused', () => {
         const service = new InvoiceCancellationService(null, null, null, null, null, {}, null);
 
         assert.throws(() => service.onModuleInit(), /contractFreeze\.transactionRunner/);
+    });
+});
+
+/** What the installation's journal holds of corrections: the charge each corrects, and by how much. */
+const correctionsIn = ({ journal }) =>
+    journal
+        .filter((entry) => entry.origin === 'correction')
+        .map((entry) => [entry.correction.chargeId, entry.correction.invoiceId, entry.amountNet]);
+
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
+describe('a cancellation that says what was not owed', () => {
+    clockFrom(FIRST_RUN);
+
+    const cancel = (installation, lines) =>
+        installation.cancellation.cancel(
+            't1',
+            installation.invoice.id,
+            { ...REQUEST, lines },
+            'operator:anna',
+            CANCELLED_AT,
+        );
+    const [planLine, discountLine] = [1, 2];
+
+    test('lowers a line owed in part, its discount in the same share, by counter-entries the replacement carries', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+        const [plan, discount] = invoice.lines;
+
+        const { replacement, counterEntries, lines } = await cancel(installation, [
+            { position: planLine, owed: 24.5 },
+        ]);
+
+        assert.deepEqual(
+            replacement.lines.map((line) => [
+                line.position,
+                line.origin,
+                line.amountNet,
+                line.correctedPosition,
+                line.correctsPosition,
+            ]),
+            [
+                [1, plan.origin, 49, 1, null],
+                [2, 'correction', -24.5, null, 1],
+                [3, discount.origin, -4.9, 2, null],
+                [4, 'correction', 2.45, null, 3],
+            ],
+        );
+        assert.deepEqual(
+            [replacement.totalNet, replacement.totalTax, replacement.totalGross],
+            [22.05, 4.19, 26.24],
+        );
+        assert.deepEqual(correctionsIn(installation), [
+            [plan.chargeId, invoice.id, -24.5],
+            [discount.chargeId, invoice.id, 2.45],
+        ]);
+        assert.deepEqual(
+            replacement.lines
+                .filter((line) => line.origin === 'correction')
+                .map((line) => line.chargeId),
+            counterEntries.map((entry) => entry.id),
+        );
+        assert.deepEqual(
+            lines.map((line) => [line.position, line.standsAt, line.becomes]),
+            [
+                [1, 4900, 2450],
+                [2, -490, -245],
+            ],
+        );
+    });
+
+    test('owed no more, leaves no replacement, its charges and their counter-entries on no invoice that stands', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+        const [plan, discount] = invoice.lines;
+
+        const cancelled = await cancel(installation, [{ position: planLine, owed: 0 }]);
+
+        assert.equal(cancelled.replacement, null);
+        assert.equal(cancelled.cancellation.replacementInvoiceId, null);
+        assert.deepEqual(correctionsIn(installation), [
+            [plan.chargeId, invoice.id, -49],
+            [discount.chargeId, invoice.id, 4.9],
+        ]);
+        assert.deepEqual(installation.store.invoices.length, 2, 'a replacement was issued');
+        assert.equal(invoiceCancellationAudit(cancelled).changes.replacementNumber, null);
+    });
+
+    test('owed no more and paid, credits everything that was paid', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+        await installation.collect(FIRST_RUN);
+
+        const { replacement, credits } = await cancel(installation, [
+            { position: planLine, owed: 0 },
+        ]);
+
+        assert.equal(replacement, null);
+        assert.deepEqual(
+            credits.map((credit) => credit.amount),
+            [invoice.totalGross],
+        );
+    });
+
+    test('owed in part and paid, credits what the replacement no longer asks for', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+        await installation.collect(FIRST_RUN);
+
+        const { replacement, credits } = await cancel(installation, [
+            { position: planLine, owed: 24.5 },
+        ]);
+
+        assert.deepEqual(
+            [replacement.paidOnIssue, credits.map((credit) => credit.amount)],
+            [26.24, [toCents(invoice.totalGross - 26.24) / 100]],
+        );
+    });
+
+    test('is written as its preview showed it, held to the digest of that preview', async () => {
+        const installation = await anInvoiceToCollect();
+        const request = { ...REQUEST, lines: [{ position: planLine, owed: 24.5 }] };
+        const preview = await installation.cancellation.preview(
+            't1',
+            installation.invoice.id,
+            request,
+            after(CANCELLED_AT, { minutes: -5 }),
+        );
+
+        const cancelled = await installation.cancellation.cancel(
+            't1',
+            installation.invoice.id,
+            { ...request, previewDigest: preview.digest },
+            'operator:anna',
+            CANCELLED_AT,
+        );
+
+        assert.equal(cancelled.replacement.totalGross, preview.replacement.totalGross);
+        assert.equal(preview.counterEntries.length, 2);
+    });
+
+    for (const [what, lines, code, params] of [
+        [
+            'names a line the invoice does not have',
+            [{ position: 9, owed: 1 }],
+            'SUBSCRIPTION_INVOICE_LINE_UNKNOWN',
+            { position: 9 },
+        ],
+        [
+            'names a line twice',
+            [
+                { position: planLine, owed: 1 },
+                { position: planLine, owed: 2 },
+            ],
+            'SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE',
+            { position: planLine },
+        ],
+        [
+            'names a discount, which follows what it reduced',
+            [{ position: discountLine, owed: 0 }],
+            'SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE',
+            { position: discountLine },
+        ],
+        [
+            'says all of a line is owed, which leaving it out says',
+            [{ position: planLine, owed: 49 }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: 49, standsAt: 49 },
+        ],
+        [
+            'says less than nothing is owed',
+            [{ position: planLine, owed: -0.01 }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: -0.01, standsAt: 49 },
+        ],
+        [
+            'says a part of a cent is owed',
+            [{ position: planLine, owed: 0.005 }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: 0.005, standsAt: 49 },
+        ],
+        [
+            'names a line by the text of its position',
+            [{ position: String(planLine), owed: 1 }],
+            'SUBSCRIPTION_INVOICE_LINE_UNKNOWN',
+            { position: `"${planLine}"` },
+        ],
+        [
+            'names a line by a position no line can have',
+            [{ position: planLine + 0.5, owed: 1 }],
+            'SUBSCRIPTION_INVOICE_LINE_UNKNOWN',
+            { position: planLine + 0.5 },
+        ],
+        ...[
+            [null, 'null'],
+            ['', '""'],
+            [false, 'false'],
+            [true, 'true'],
+            ['24.5', '"24.5"'],
+        ].map(([owed, named]) => [
+            `says ${named} is owed, which is no amount`,
+            [{ position: planLine, owed }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: named, standsAt: 49 },
+        ]),
+        [
+            'says nothing of what is owed',
+            [{ position: planLine }],
+            'SUBSCRIPTION_INVOICE_LINE_OWED_INVALID',
+            { position: planLine, owed: 'undefined', standsAt: 49 },
+        ],
+    ]) {
+        test(`is refused where it ${what}, and nothing is written`, async () => {
+            const installation = await anInvoiceToCollect();
+            const before = [heldBy(installation), installation.journal.length];
+
+            const refused = await refusalOf(cancel(installation, lines));
+
+            assert.deepEqual(refused, [422, INVOICE_ERROR_CODES[code]]);
+            assert.deepEqual([heldBy(installation), installation.journal.length], before);
+        });
+
+        test(`names the line where it ${what}`, async () => {
+            const installation = await anInvoiceToCollect();
+
+            await assert.rejects(cancel(installation, lines), (error) => {
+                const { params: given, message } = error.getResponse();
+                return (
+                    Object.entries(params).every(([key, value]) => given[key] === value) &&
+                    !message.includes('{')
+                );
+            });
+        });
+    }
+
+    test('lowers a held add-on price with its booking, read off its contract line, and leaves the plan’s discount', async () => {
+        const installation = aCollectingInstallation();
+        const subscriber = await installation.aSubscriber('t1', {
+            invoiceEmail: 'billing@t1.example',
+        });
+        const held = {
+            ...line('discount', 'HOLD', -2, 'Held price'),
+            metadata: {
+                generated: true,
+                priceHold: {
+                    subscriptionBundleId: 'booking-1',
+                    bundleVersionId: 'bv-1',
+                    until: '2027-01-01T00:00:00.000Z',
+                    resolvedAmountNet: 2,
+                },
+            },
+        };
+        const contract = await installation.aContract(subscriber, {
+            lineItems: [
+                line('plan', 'STANDARD', 49),
+                line('discount', 'WELCOME', -4.9),
+                line('bundle', 'ARCHIVE', 10),
+                held,
+            ],
+        });
+        const heldLine = contract.lineItems.find((item) => item.sourceKey === 'HOLD');
+        installation.charge(contract, 'plan');
+        installation.charge(contract, 'discount');
+        const addOn = installation.charge(contract, 'bundle', { sourceRef: 'booking-1' });
+        const heldCharge = installation.charge(contract, 'discount', {
+            contractLineItemId: heldLine.id,
+            amountNet: -2,
+        });
+        const invoice = await installation.anInvoiceMailed(subscriber.id, ISSUED);
+        const position = (charge) =>
+            invoice.lines.find((each) => each.chargeId === charge.id).position;
+
+        await installation.cancellation.cancel(
+            't1',
+            invoice.id,
+            { ...REQUEST, lines: [{ position: position(addOn), owed: 0 }] },
+            'operator:anna',
+            CANCELLED_AT,
+        );
+
+        assert.deepEqual(correctionsIn(installation), [
+            [addOn.id, invoice.id, -10],
+            [heldCharge.id, invoice.id, 2],
+        ]);
+    });
+
+    test('owed for a cent less than all of it, is written', async () => {
+        const installation = await anInvoiceToCollect();
+
+        const { counterEntries } = await cancel(installation, [
+            { position: planLine, owed: 48.99 },
+        ]);
+
+        assert.equal(counterEntries[0].amountNet, -0.01);
+    });
+
+    test('is refused where what is left asks for less than nothing, and nothing is written', async () => {
+        const installation = await anInvoiceToCollect();
+        const { invoice } = installation;
+        // A credit of an earlier period beside the plan, which stays.
+        invoice.lines.push({
+            ...invoice.lines[0],
+            id: 'line-credit',
+            position: 3,
+            chargeId: 'charge-credit',
+            origin: 'credit',
+            amountNet: -30,
+        });
+        installation.journal.push({
+            ...installation.journal.find((entry) => entry.id === invoice.lines[0].chargeId),
+            id: 'charge-credit',
+            origin: 'credit',
+            sourceRef: 'credit-1',
+            amountNet: -30,
+        });
+        const before = [heldBy(installation), installation.journal.length];
+
+        const refused = await refusalOf(cancel(installation, [{ position: planLine, owed: 5 }]));
+
+        assert.deepEqual(refused, [
+            422,
+            INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT,
+        ]);
+        assert.deepEqual([heldBy(installation), installation.journal.length], before);
     });
 });
 

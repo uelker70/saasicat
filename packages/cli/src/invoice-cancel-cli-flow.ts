@@ -1,7 +1,7 @@
 // InvoiceCancelCliFlow — `<app> invoices cancel`.
 //
 // Cancels an issued invoice by a cancellation invoice and its replacement, on
-// the operator's command (`SC-PRIC-091`):
+// the operator's command (`SC-PRIC-095`):
 //
 //     <app> invoices cancel --tenant acme --invoice AHP-2026-000123 \
 //         --reason "The billing address was wrong."          # shows what it writes
@@ -110,7 +110,9 @@ export class InvoiceCancelCliFlow {
             `Invoice ${cancelled.number} of ${cancelled.subscriber.legalName} would be cancelled — ` +
                 'nothing is written yet.',
             describe('Cancellation invoice', plan.cancellation),
-            describe('Replacement', plan.replacement),
+            plan.replacement
+                ? describe('Replacement', plan.replacement)
+                : 'Replacement: none — nothing of the invoice is owed any more.',
             `Taken over as paid: ${plan.movedIn.toFixed(2)} ${cancelled.currency}` +
                 (plan.credited > 0
                     ? `; credited for the operator to refund: ${plan.credited.toFixed(2)}`
@@ -128,14 +130,21 @@ export class InvoiceCancelCliFlow {
             (sum, credit) => sumToCents(sum, credit.amount),
             0,
         );
+        const refund =
+            credited > 0 ? `; credited for the operator to refund: ${credited.toFixed(2)}` : '';
+        if (!replacement) {
+            return [
+                `Cancelled by ${cancellationInvoice.number}; nothing of the invoice is owed any ` +
+                    'more, so there is no replacement.',
+                `Taken over as paid: 0.00 ${cancellationInvoice.currency}${refund}`,
+                'The next run archives the cancellation invoice and sends it.',
+            ].join('\n');
+        }
         return [
             `Cancelled by ${cancellationInvoice.number}, replaced by ${replacement.number}.`,
             // What was written, which a payment arriving after the preview may
             // have moved: the command line is not held to its preview.
-            `Taken over as paid: ${replacement.paidOnIssue.toFixed(2)} ${replacement.currency}` +
-                (credited > 0
-                    ? `; credited for the operator to refund: ${credited.toFixed(2)}`
-                    : ''),
+            `Taken over as paid: ${replacement.paidOnIssue.toFixed(2)} ${replacement.currency}${refund}`,
             'The next run archives both and sends them.',
         ].join('\n');
     }
@@ -207,7 +216,10 @@ function required(value: string | undefined, flag: string): string {
     return value;
 }
 
-function describe(title: string, invoice: NewCorrectionInvoice): string {
+function describe(
+    title: string,
+    invoice: Pick<NewCorrectionInvoice, 'totalGross' | 'currency' | 'issueDate' | 'dueDate'>,
+): string {
     return (
         `${title}: ${invoice.totalGross.toFixed(2)} ${invoice.currency} gross, ` +
         `issued ${invoice.issueDate}, due ${invoice.dueDate}`

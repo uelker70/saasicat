@@ -834,6 +834,8 @@ _Tested by:_
     - a correction in the journal names what it corrects
         - gives the journal the three parts, and the database holds a correction to them
         - adds the check the reference schema holds, clause for clause
+        - a check of its name that asks for something else is replaced, and a discount’s correction
+          goes in
         - a second run leaves the journal as the first one did
         - a correction already there without what it corrects stops it, and says so
         - a correction written after db push that ${what} stops it, and says so

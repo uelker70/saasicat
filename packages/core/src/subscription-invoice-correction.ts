@@ -1,4 +1,4 @@
-// What correcting an issued invoice writes (`SC-PRIC-091`): the cancellation
+// What correcting an issued invoice writes (`SC-PRIC-095`): the cancellation
 // invoice, which states the cancelled invoice reversed and asks for nothing;
 // the replacement for the charges still owed, named by the cancelled invoice's
 // parties with what the operator corrected; and how what was paid for the
@@ -8,12 +8,19 @@
 // Pure. The caller holds the chain's turn while it reads what these take and
 // writes what they answer (`SC-PRIC-036`).
 
+import {
+    replacementLinesOf,
+    writtenReplacementLinesOf,
+    type InvoiceLineCorrections,
+    type PlannedReplacementLine,
+} from './invoice-line-correction.js';
 import { toCents, type TaxPerRate } from './money.js';
 import type { SubscriberCorrectionRecord } from './subscriber.types.js';
 import {
     INVOICE_SUBSCRIBER_DETAILS,
     type InvoiceSubscriberDetail,
     type NewCorrectionInvoice,
+    type NewCorrectionInvoiceLine,
     type SubscriptionInvoiceChain,
     type SubscriptionInvoiceIssuer,
     type SubscriptionInvoicePayment,
@@ -88,6 +95,7 @@ export function draftCancellationInvoice(
             amountNet: reversed(line.amountNet),
             taxRate: line.taxRate,
             correctedPosition: line.position,
+            correctsPosition: line.correctsPosition,
         })),
     };
 }
@@ -96,7 +104,7 @@ export function draftCancellationInvoice(
 export interface ReplacementIssue extends CorrectionIssue {
     /**
      * The subscriber it names: the cancelled invoice's, with a correction of its
-     * legal identity since and what the operator corrected (`SC-PRIC-091`).
+     * legal identity since and what the operator corrected (`SC-PRIC-095`).
      */
     subscriber: SubscriptionInvoiceSubscriber;
     /** The issuer it names: the cancelled invoice's, with a declared correction since (`SC-PRIC-092`). */
@@ -122,27 +130,70 @@ export interface ReplacementIssue extends CorrectionIssue {
  * replaces. Its tax is the treatment decided for the parties it names; it takes
  * over what was paid for the cancelled invoice, as far as it owes it, and
  * states that as paid; only what remains is collected, and announced where a
- * direct debit collects it (`SC-PRIC-091`, `SC-PRIC-028`). Its payment term runs
+ * direct debit collects it (`SC-PRIC-095`, `SC-PRIC-028`). Its payment term runs
  * from its own issue date.
  */
 export function draftReplacementInvoice(
     cancelled: SubscriptionInvoiceRecord,
     issue: ReplacementIssue,
 ): NewCorrectionInvoice {
+    return replacementOf(
+        cancelled,
+        issue,
+        cancelled.lines.map((line) => ({
+            position: line.position,
+            chargeId: line.chargeId,
+            contractLineItemId: line.contractLineItemId,
+            title: line.title,
+            origin: line.origin,
+            source: line.source,
+            periodFrom: line.periodFrom,
+            periodUntil: line.periodUntil,
+            amountNet: line.amountNet,
+            taxRate: issue.treatment.rate,
+            correctedPosition: line.position,
+            correctsPosition: line.correctsPosition,
+        })),
+    );
+}
+
+/** A replacement as a cancellation plans it, before the counter-entries on it are written. */
+export interface PlannedReplacementInvoice extends Omit<NewCorrectionInvoice, 'lines'> {
+    lines: PlannedReplacementLine[];
+}
+
+/**
+ * The replacement of `cancelled` once `corrections` are applied
+ * (`SC-PRIC-095`): what `draftReplacementInvoice` drafts, for what is still
+ * owed — a charge owed in part with the counter-entry that lowers it, nothing
+ * of a charge owed no more, each discount at what it became. `null` where
+ * nothing is owed any more: then there is no replacement, and everything paid
+ * becomes a credit.
+ */
+export function draftCorrectedReplacementInvoice(
+    cancelled: SubscriptionInvoiceRecord,
+    issue: ReplacementIssue,
+    corrections: InvoiceLineCorrections,
+): PlannedReplacementInvoice | null {
+    const lines = replacementLinesOf(cancelled, corrections, issue.treatment.rate);
+    return lines.length === 0 ? null : replacementOf(cancelled, issue, lines);
+}
+
+/** `planned` with the charges of the counter-entries written for it, in their order. */
+export function writtenReplacementOf(
+    planned: PlannedReplacementInvoice,
+    counterEntryIds: readonly string[],
+): NewCorrectionInvoice {
+    return { ...planned, lines: writtenReplacementLinesOf(planned.lines, counterEntryIds) };
+}
+
+/** The replacement of `cancelled` with `lines`, its figures, what it takes of what was paid, and its term. */
+function replacementOf<Line extends Omit<NewCorrectionInvoiceLine, 'chargeId'>>(
+    cancelled: SubscriptionInvoiceRecord,
+    issue: ReplacementIssue,
+    lines: Line[],
+): Omit<NewCorrectionInvoice, 'lines'> & { lines: Line[] } {
     const issueDate = dayInZone(issue.issuedAt, issue.timeZone);
-    const lines = cancelled.lines.map((line) => ({
-        position: line.position,
-        chargeId: line.chargeId,
-        contractLineItemId: line.contractLineItemId,
-        title: line.title,
-        origin: line.origin,
-        source: line.source,
-        periodFrom: line.periodFrom,
-        periodUntil: line.periodUntil,
-        amountNet: line.amountNet,
-        taxRate: issue.treatment.rate,
-        correctedPosition: line.position,
-    }));
     const tax = issue.tax(lines.map((line) => ({ net: line.amountNet, rate: line.taxRate })));
     const paidOnIssue =
         Math.min(Math.max(0, toCents(issue.paid)), Math.max(0, toCents(tax.gross))) / 100;
@@ -295,7 +346,7 @@ export function paidByShares(shares: readonly InvoicePaymentShare[]): number {
 
 /**
  * How each payment's share of a cancelled invoice moves onto its replacement,
- * which owes `replacementOwes` (`SC-PRIC-091`): in the order the payments were
+ * which owes `replacementOwes` (`SC-PRIC-095`): in the order the payments were
  * confirmed, the oldest first, each settling the replacement as far as it still
  * owes, so that what remains of the most recent ones is credited. Without a
  * replacement, every share is credited. A share of nothing moves nothing.

@@ -4,6 +4,11 @@
 // The journal fake holds the natural key the way the unique index does, so a
 // test that derives a charge twice sees what an adapter would do with it.
 
+import {
+    assertCorrectionsFitTheirCharges,
+    correctedChargeIdsOf,
+    subscriberChargeColumns,
+} from '@saasicat/core';
 import { SubscriberAccountService, SubscriberChargeService } from '../../dist/billing/index.js';
 import { FakeSubscriptionContractRepository } from '../../dist/testing/index.js';
 
@@ -70,6 +75,25 @@ export function discountLine(discountNet, { promoCode = null, promotions = [] } 
     );
 }
 
+/**
+ * Refuses `charges` where a store refuses them, before anything is written:
+ * a charge of a shape the columns do not take, and a correction that names a
+ * charge not in `rows`, or is not what `counterEntryOf` makes of it.
+ */
+export function heldToTheStoresRules(charges, rows) {
+    for (const charge of charges) subscriberChargeColumns(charge);
+    const named = correctedChargeIdsOf(charges);
+    for (const id of named) {
+        if (!rows.some((row) => row.id === id)) {
+            throw new Error(`charge '${id}' a correction names does not exist`);
+        }
+    }
+    assertCorrectionsFitTheirCharges(
+        charges,
+        rows.filter((row) => named.includes(row.id)),
+    );
+}
+
 function journal() {
     const rows = [];
     // Everything a run asked to write, including what the key turned away.
@@ -81,6 +105,7 @@ function journal() {
         offered,
         async recordCharges(charges) {
             offered.push(...charges);
+            heldToTheStoresRules(charges, rows);
             const written = [];
             for (const charge of charges) {
                 if (rows.some((row) => keyOf(row) === keyOf(charge))) continue;

@@ -36,7 +36,7 @@ export async function lockChain(db: Db, chainId: string): Promise<void> {
 }
 
 /**
- * The invoice that stands in the chain of `invoiceId` (`SC-PRIC-091`): the
+ * The invoice that stands in the chain of `invoiceId` (`SC-PRIC-095`): the
  * invoice itself where it is not cancelled, otherwise the replacement of its
  * cancellation, followed on where that is cancelled as well. `null` where a
  * cancellation left no replacement. Read in the chain's turn.

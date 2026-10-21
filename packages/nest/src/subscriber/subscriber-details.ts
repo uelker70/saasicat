@@ -113,7 +113,7 @@ export function settleIdentityCorrection(
 
 /**
  * The details of the subscriber the operator corrects for the replacement of
- * a cancelled invoice (`SC-PRIC-091`), each settled as the record's own are and
+ * a cancelled invoice (`SC-PRIC-095`), each settled as the record's own are and
  * at most `INVOICE_CORRECTION_MAX_LENGTH` characters once trimmed; a detail
  * left out stays out.
  */

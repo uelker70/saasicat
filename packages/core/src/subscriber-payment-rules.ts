@@ -28,7 +28,7 @@ export function owedOn(gross: number, settled: readonly number[]): number {
  * What an invoice owes, as `owedOn` reads its settlements, unless it is
  * cancelled or is a cancellation invoice: those owe nothing. The cancellation
  * invoice and the invoice it cancels add up to nothing, and what is still owed
- * stands on the replacement (`SC-PRIC-091`).
+ * stands on the replacement (`SC-PRIC-095`).
  */
 export function owedByInvoice(
     gross: number,
@@ -132,7 +132,7 @@ function rankFor(credit: OpenCredit, paymentId: string): number {
 /**
  * Whether a credit is what payment `paymentId` left: what it brought beyond its
  * invoice, or its share of a cancelled invoice the replacement did not take
- * (`SC-PRIC-091`). A refund of the payment, and a reversal of it, take these
+ * (`SC-PRIC-095`). A refund of the payment, and a reversal of it, take these
  * first (`SC-PRIC-083`, `SC-PRIC-084`).
  */
 export function isOwnCreditOf(
@@ -379,7 +379,7 @@ export function netByInvoice(entries: readonly InvoicePart[]): InvoicePart[] {
 
 /**
  * What a reversal opened again and has not settled again, gathered on the
- * invoice that stands in each chain now (`SC-PRIC-091`): what the gateway
+ * invoice that stands in each chain now (`SC-PRIC-095`): what the gateway
  * gives back settles that invoice, whichever invoice of the chain the reversal
  * opened, so a dispute won after a cancellation settles the replacement rather
  * than becoming a credit beside it. `nets` is `netByInvoice` over the

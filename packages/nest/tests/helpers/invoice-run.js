@@ -130,6 +130,7 @@ function invoiceStore(journal) {
             chainStep: placed.chainStep,
             lines: invoice.lines.map((l, index) => ({
                 correctedPosition: null,
+                correctsPosition: null,
                 ...l,
                 id: `${id}-line-${index + 1}`,
                 invoiceId: id,
@@ -483,6 +484,7 @@ export function anInvoicingInstallation({
                 currency: 'EUR',
                 amountNet: contractLine.priceNet,
                 bookedAt: periodStart,
+                correction: null,
                 createdAt: periodStart,
                 ...overrides,
             };

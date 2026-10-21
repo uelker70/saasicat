@@ -575,7 +575,7 @@ describe('a replacement', () => {
         assert.ok(!xml.includes('TotalPrepaidAmount'), 'nothing was paid on issue');
     });
 
-    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
     test('paid already, states what was paid and that nothing is due, and names no way of paying', async () => {
         const { content } = await render('replacement-paid');
         const [page] = await pageTexts(content);
@@ -592,7 +592,7 @@ describe('a replacement', () => {
         assert.ok(xml.includes('<ram:DuePayableAmount>0.00</ram:DuePayableAmount>'));
     });
 
-    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
     // @requirement SC-PRIC-028 — A direct debit is announced before it is collected
     test('paid in part, announces the debit of what is left alone', async () => {
         const { content } = await render('replacement-paid-in-part');
@@ -602,6 +602,25 @@ describe('a replacement', () => {
         assert.ok(said.includes('DerBetragvon26,16EURwirdfrühestensam25.02.2026'), said);
         assert.ok(xml.includes('<ram:TotalPrepaidAmount>50.00</ram:TotalPrepaidAmount>'));
         assert.ok(xml.includes('<ram:DuePayableAmount>26.16</ram:DuePayableAmount>'));
+    });
+});
+
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
+describe('a replacement that lowers a line', () => {
+    test('names, beside the counter-entry, the line it corrects, in the file and on the page', async () => {
+        const { content } = await render('replacement-lowered');
+        const page = (await pageTexts(content)).flat();
+        const xml = await embeddedXml(content);
+
+        assert.ok(page.includes('Korrektur zu Pos. 2 / Corrects item 2'), page.join(' | '));
+        assert.ok(page.includes('Ersetzt Pos. 2 / Replaces item 2'));
+        assert.ok(
+            xml.includes(
+                '<ram:IncludedNote><ram:Content>Korrektur zu Pos. 2 / Corrects item 2</ram:Content></ram:IncludedNote>',
+            ),
+        );
+        assert.ok(xml.includes('<ram:LineTotalAmount>-9.95</ram:LineTotalAmount>'));
+        assert.ok(xml.includes('<ram:GrandTotalAmount>64.32</ram:GrandTotalAmount>'));
     });
 });
 

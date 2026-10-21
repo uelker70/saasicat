@@ -11,7 +11,7 @@ import { optionsOf, type CompositionContext } from './context.js';
  * Whether the operator is offered an invoice's document and its cancellation:
  * the administration shows tenants and invoices are issued. The routes and the
  * capabilities that announce them all ask this, so none can exist without the
- * others; a cancellation needs the archived document (`SC-PRIC-091`).
+ * others; a cancellation needs the archived document (`SC-PRIC-095`).
  */
 export function servesInvoiceDocuments(options: SaaSiCatModuleOptions): boolean {
     return Boolean(

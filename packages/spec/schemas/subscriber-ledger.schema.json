@@ -25,10 +25,10 @@
     "additionalProperties": false,
     "if": { "properties": { "origin": { "const": "correction" } }, "required": ["origin"] },
     "then": {
-        "description": "A correction names what it corrects and takes an amount off.",
+        "description": "A correction names what it corrects and moves it by an amount, towards nothing.",
         "properties": {
             "correction": { "$ref": "#/$defs/SubscriberChargeCorrection" },
-            "amountNet": { "exclusiveMaximum": 0 }
+            "amountNet": { "not": { "const": 0 } }
         }
     },
     "else": {
@@ -81,7 +81,7 @@
         },
         "amountNet": {
             "type": "number",
-            "description": "Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount, a credit and a correction."
+            "description": "Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount and a credit; a correction has the sign that moves its charge towards nothing — negative for a charge that asks, positive for a discount."
         },
         "bookedAt": {
             "type": "string",

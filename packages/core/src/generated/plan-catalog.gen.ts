@@ -184,7 +184,7 @@ export interface PlanCatalog {
         customerNumberPrefix?: string;
     };
     /**
-     * Invoices issued from the charge journal (SC-PRIC-022). Named exactly where the application wires `tenantBilling.chargeJournal.invoices`; the start refuses the one without the other. Needs `tax`, whose adapter decides an invoice's treatment, checks its content and computes its tax, and `issuer`, the party every invoice names.
+     * Invoices issued from the charge journal (SC-PRIC-096). Named exactly where the application wires `tenantBilling.chargeJournal.invoices`; the start refuses the one without the other. Needs `tax`, whose adapter decides an invoice's treatment, checks its content and computes its tax, and `issuer`, the party every invoice names.
      */
     invoicing?: {
         /**

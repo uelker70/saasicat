@@ -40,6 +40,8 @@ const CANCELLED = {
         correction: { kind: 'cancellation', of: { number: 'AHP-2026-000123' } },
     },
     replacement: { number: 'AHP-2026-000141', paidOnIssue: 0, currency: 'EUR' },
+    lines: [],
+    counterEntries: [],
     credits: [],
     withdrawnCollections: 0,
 };
@@ -111,7 +113,7 @@ function setUp({
     return { ctx, calls, flow };
 }
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the preview is the command, and the cancellation the second one', () => {
     test('without --apply it previews the tenant’s invoice so numbered, and asks for neither factor nor confirmation', async () => {
         const { flow, calls, ctx } = setUp();
@@ -169,6 +171,7 @@ describe('the preview is the command, and the cancellation the second one', () =
                     replacementNumber: 'AHP-2026-000141',
                     reason: OPTIONS.reason,
                     corrected: ['city'],
+                    correctedLines: [],
                     deliverToGiven: false,
                     paidOnIssue: 0,
                     credited: 0,
@@ -349,6 +352,60 @@ describe('the commands', () => {
             applied,
             /^Taken over as paid: 50\.00 EUR; credited for the operator to refund: 8\.31$/m,
         );
+    });
+
+    test('say after --apply that there is no replacement where nothing was owed any more', async () => {
+        const { flow } = setUp({
+            cancelled: {
+                ...CANCELLED,
+                cancellationInvoice: { ...CANCELLED.cancellationInvoice, currency: 'EUR' },
+                replacement: null,
+                lines: [{ position: 1, standsAt: 4900, becomes: 0 }],
+                credits: [{ amount: 58.31 }],
+            },
+        });
+
+        const applied = await printed(new InvoicesCancelCommand(flow), {
+            ...OPTIONS,
+            apply: true,
+            yes: true,
+        });
+
+        assert.match(
+            applied,
+            /Cancelled by AHP-2026-000140; nothing of the invoice is owed any more/,
+        );
+        assert.match(
+            applied,
+            /^Taken over as paid: 0\.00 EUR; credited for the operator to refund: 58\.31$/m,
+        );
+        assert.match(applied, /archives the cancellation invoice and sends it/);
+    });
+
+    test('print a preview that names no replacement where nothing is owed any more', () => {
+        const { flow } = setUp();
+
+        const previewed = flow.formatPreview({
+            cancelled: {
+                number: 'AHP-2026-000123',
+                currency: 'EUR',
+                subscriber: { legalName: 'Müller & Söhne GmbH' },
+            },
+            cancellation: {
+                totalGross: -58.31,
+                currency: 'EUR',
+                issueDate: '2026-03-20',
+                dueDate: '2026-03-20',
+            },
+            replacement: null,
+            movedIn: 0,
+            credited: 58.31,
+            reason: OPTIONS.reason,
+            deliverTo: null,
+        });
+
+        assert.match(previewed, /^Replacement: none — nothing of the invoice is owed any more\.$/m);
+        assert.match(previewed, /credited for the operator to refund: 58\.31/);
     });
 
     test('print JSON with -o json', async () => {

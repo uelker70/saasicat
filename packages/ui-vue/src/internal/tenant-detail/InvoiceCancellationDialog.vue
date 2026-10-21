@@ -77,7 +77,8 @@
                 <dt>{{ dialog.cancellationInvoice }}</dt>
                 <dd>{{ money(plan.cancellation.totalGross) }}</dd>
                 <dt>{{ dialog.replacement }}</dt>
-                <dd>
+                <dd v-if="!plan.replacement">{{ dialog.noReplacement }}</dd>
+                <dd v-else>
                     {{
                         formatMessage(dialog.amounts, {
                             net: money(plan.replacement.totalNet),
@@ -93,8 +94,10 @@
                         })
                     }}
                 </dd>
-                <dt>{{ dialog.tax }}</dt>
-                <dd>{{ treatment }}</dd>
+                <template v-if="plan.replacement">
+                    <dt>{{ dialog.tax }}</dt>
+                    <dd>{{ treatment }}</dd>
+                </template>
                 <dt>{{ dialog.movedIn }}</dt>
                 <dd>{{ money(plan.movedIn) }}</dd>
                 <template v-if="plan.credited > 0">
@@ -106,7 +109,7 @@
                 <dt>{{ dialog.deliveredTo }}</dt>
                 <dd>{{ plan.deliverTo ?? dialog.toRecord }}</dd>
             </dl>
-            <section class="q-mt-md" :aria-label="dialog.party">
+            <section v-if="plan.replacement" class="q-mt-md" :aria-label="dialog.party">
                 <div class="text-subtitle2">{{ dialog.party }}</div>
                 <dl class="sa-invoice-cancel__figures">
                     <template v-for="line in partyLines" :key="line.detail">
@@ -217,7 +220,7 @@ const money = (amount: number) =>
 const day = (iso: string) => formatDay(iso, intlLocale.value);
 
 const treatment = computed(() => {
-    const decided = plan.value?.replacement.taxTreatment;
+    const decided = plan.value?.replacement?.taxTreatment;
     if (!decided) return '';
     return formatMessage(dialog.value.taxTreatment[decided.kind], { rate: decided.rate });
 });
@@ -225,10 +228,11 @@ const treatment = computed(() => {
 /** The replacement's subscriber, detail by detail, each one it names otherwise marked. */
 const partyLines = computed(() => {
     const shown = plan.value;
-    if (!shown) return [];
+    const replacement = shown?.replacement;
+    if (!shown || !replacement) return [];
     const none = dialog.value.none;
     return INVOICE_SUBSCRIBER_DETAILS.map((detail) => {
-        const value = shown.replacement.subscriber[detail] ?? none;
+        const value = replacement.subscriber[detail] ?? none;
         const previous = shown.cancelled.subscriber[detail] ?? none;
         return {
             detail,

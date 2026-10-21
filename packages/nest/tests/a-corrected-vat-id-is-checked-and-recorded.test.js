@@ -321,7 +321,7 @@ describe('checking the number held, again', () => {
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('the tax origin of a party an invoice names', () => {
     const party = (vatId, country = 'AT') => ({ country, vatId });
 

@@ -823,6 +823,7 @@ _Tested by:_
     - an invoice cancelled from the tenant page
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
         - goes back to what was entered, the preview discarded
@@ -1494,6 +1495,7 @@ _Tested by:_
         - a refusal of a question no longer asked is dropped, not shown against the one on screen
         - is confirmed behind the second factor with the request previewed and its digest,
           announced, and read again
+        - announces a cancellation that left no replacement as one
         - sends what the preview answered, not what was entered after it
         - for the tenant it was opened on, though the page moved on meanwhile
         - stepped back from at the second factor stays on its preview, cancelling nothing
@@ -1505,6 +1507,7 @@ _Tested by:_
     - an invoice cancelled from the tenant page
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
+        - previews and announces a cancellation that leaves no replacement, naming no party for one
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
         - goes back to what was entered, the preview discarded
@@ -1773,7 +1776,7 @@ _Tested by:_
 ### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
 
 🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
-(`SC-PRIC-022`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
+(`SC-PRIC-096`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
 guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
 mapping that permission to its roles. Each invoice names who issued it, and an application that
 invoices its own customers labels the subscription's as the operator's.

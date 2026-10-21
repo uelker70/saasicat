@@ -856,6 +856,7 @@ CREATE TABLE "subscription_invoice_lines" (
     "contractLineItemId" TEXT NOT NULL,
     "chainStep" INTEGER NOT NULL DEFAULT 0,
     "correctedPosition" INTEGER,
+    "correctsPosition" INTEGER,
     "title" TEXT NOT NULL,
     "origin" TEXT NOT NULL,
     "source" TEXT NOT NULL,
@@ -1558,6 +1559,9 @@ ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_li
 ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscription_invoice_lines" ADD CONSTRAINT "subscription_invoice_lines_invoiceId_correctsPosition_fkey" FOREIGN KEY ("invoiceId", "correctsPosition") REFERENCES "subscription_invoice_lines"("invoiceId", "position") ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+-- AddForeignKey
 ALTER TABLE "subscription_invoice_cancellations" ADD CONSTRAINT "subscription_invoice_cancellations_cancelledInvoiceId_fkey" FOREIGN KEY ("cancelledInvoiceId") REFERENCES "subscription_invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1705,11 +1709,12 @@ ALTER TABLE subscription_bundles
 
 -- A charge is a correction exactly where it names what it corrects — the
 -- charge, the invoice that charge stood on and a reason that says something,
--- all three — and takes an amount off, and no other charge names any. A
+-- all three — and moves it by an amount, and no other charge names any. A
 -- counter-entry read as an ordinary charge would be invoiced by the run, an
--- ordinary charge read as one would be left out of it, and a correction that
--- added would ask for more on a replacement. Same two plain statements as
--- above.
+-- ordinary charge read as one would be left out of it, and a correction of
+-- nothing would stand on a replacement as a line that says nothing. Which way
+-- it moves is its charge's to say, which this row cannot see: the stores hold
+-- that against the charge it names. Same two plain statements as above.
 ALTER TABLE subscriber_ledger_entries
     DROP CONSTRAINT IF EXISTS subscriber_ledger_entries_correction_names_its_charge;
 ALTER TABLE subscriber_ledger_entries
@@ -1717,9 +1722,19 @@ ALTER TABLE subscriber_ledger_entries
     CHECK (CASE WHEN "origin" = 'correction'
         THEN "correctsChargeId" IS NOT NULL AND "correctedInvoiceId" IS NOT NULL
             AND "correctionReason" IS NOT NULL
-            AND "correctionReason" ~ '\S' AND "amountNet" < 0
+            AND "correctionReason" ~ '\S' AND "amountNet" <> 0
         ELSE "correctsChargeId" IS NULL AND "correctedInvoiceId" IS NULL
             AND "correctionReason" IS NULL END);
+
+-- A line is a correction's exactly where it names the line on its invoice
+-- whose charge it corrects, so the document can say which, and no other line
+-- names one. The foreign key from (`invoiceId`, `correctsPosition`) holds that
+-- the line is on the same invoice.
+ALTER TABLE subscription_invoice_lines
+    DROP CONSTRAINT IF EXISTS subscription_invoice_lines_correction_names_its_line;
+ALTER TABLE subscription_invoice_lines
+    ADD CONSTRAINT subscription_invoice_lines_correction_names_its_line
+    CHECK (("origin" = 'correction') = ("correctsPosition" IS NOT NULL));
 
 -- At most ONE maintenance window is open — announced or locked, not yet ended.
 --

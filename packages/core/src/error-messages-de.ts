@@ -329,17 +329,26 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED:
         "Die Forderung '{chargeId}' steht bereits auf einer Rechnung.",
     SUBSCRIPTION_INVOICE_ALREADY_CANCELLED:
-        'Die Rechnung {number} ist bereits storniert. Ein Fehler in ihrer Ersatzrechnung wird korrigiert, indem die Ersatzrechnung storniert wird.',
+        'Die Rechnung {number} ist bereits storniert. Wurde sie ersetzt, wird ein Fehler in ihrer Ersatzrechnung korrigiert, indem die Ersatzrechnung storniert wird.',
     SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED:
         'Die Rechnung {number} kann erst storniert werden, wenn ihr Dokument archiviert ist.',
     SUBSCRIPTION_INVOICE_IS_CANCELLATION:
         'Die Rechnung {number} ist eine Stornorechnung und wird selbst nicht storniert.',
     SUBSCRIPTION_INVOICE_STATES_A_CREDIT:
         'Die Rechnung {number} weist ein Guthaben aus, das dem Vertragspartner bei ihrer Ausstellung gutgeschrieben wurde; sie wird nicht storniert.',
+    SUBSCRIPTION_INVOICE_LINE_UNKNOWN: 'Die Rechnung {number} hat keine Position {position}.',
+    SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE:
+        'Die Stornierung der Rechnung {number} nennt die Position {position} zweimal.',
+    SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE:
+        'Die Position {position} der Rechnung {number} fordert nichts – ein Rabatt, eine Gutschrift oder eine Korrektur. Ein Rabatt folgt dem, was er reduziert hat.',
+    SUBSCRIPTION_INVOICE_LINE_OWED_INVALID:
+        'Was von der Position {position} der Rechnung {number} noch geschuldet ist, liegt bei mindestens null und unter den {standsAt}, auf denen sie steht, in ganzen Cent, nicht bei {owed}. Eine voll geschuldete Position wird nicht genannt.',
+    SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT:
+        'So korrigiert, würde die Ersatzrechnung der Rechnung {number} weniger als nichts fordern ({totalGross}). Eine Ersatzrechnung fordert etwas, oder es gibt keine.',
     SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS:
-        'Die Akte des Vertragspartners nennt keine Rechnungs-E-Mail: Nennen Sie eine Adresse, an die die Stornierung der Rechnung {number} und ihre Ersatzrechnung gehen.',
+        'Die Akte des Vertragspartners nennt keine Rechnungs-E-Mail: Nennen Sie eine Adresse, an die die Stornierung der Rechnung {number} geht, und ihre Ersatzrechnung, wo es eine gibt.',
     SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID:
-        'Die Adresse, an die die Stornierung der Rechnung {number} und ihre Ersatzrechnung gehen sollen, ist keine E-Mail-Adresse.',
+        'Die Adresse, an die die Stornierung der Rechnung {number} gehen soll, und ihre Ersatzrechnung, wo es eine gibt, ist keine E-Mail-Adresse.',
     SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID:
         'Die Stornierung der Rechnung {number} braucht einen Grund in einer Zeile mit höchstens {max} Zeichen, den beide Rechnungen nennen.',
     SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED:

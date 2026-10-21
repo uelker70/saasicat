@@ -35,7 +35,7 @@ export interface SubscriberChargeRecord {
     periodStart: Date;
     periodEnd: Date;
     currency: string;
-    /** Net, rounded to the cent when written. Negative for a discount, a credit and a correction. */
+    /** Net, rounded to the cent when written. Negative for a discount and a credit; a correction has the sign that moves its charge towards nothing. */
     amountNet: number;
     /** When the amount became due. */
     bookedAt: Date;

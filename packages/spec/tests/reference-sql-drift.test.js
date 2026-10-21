@@ -24,6 +24,22 @@ test('prisma-fragments compose and reference-schema.postgres.sql is in sync', ()
     );
 });
 
+test('no comment of the reference schema holds a semicolon, which the test harnesses split it on', () => {
+    // The adapters' integration harnesses build their database by splitting
+    // this file on `;` and dropping comment lines afterwards, so a semicolon in
+    // a comment cuts the statement after it in two.
+    const lines = readFileSync(
+        new URL('../sql/reference-schema.postgres.sql', import.meta.url),
+        'utf8',
+    ).split('\n');
+    assert.deepEqual(
+        lines
+            .map((line, index) => ({ line: index + 1, text: line }))
+            .filter(({ text }) => text.trim().startsWith('--') && text.includes(';')),
+        [],
+    );
+});
+
 test('normative constraints are part of the reference schema', () => {
     const sql = readFileSync(
         new URL('../sql/reference-schema.postgres.sql', import.meta.url),

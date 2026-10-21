@@ -557,7 +557,7 @@ describe('a replacement', () => {
         );
     });
 
-    // @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+    // @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
     describe('that took over what was paid for the invoice it replaces', () => {
         const PAID = { ...REPLACEMENT, paidOnIssue: 20 };
 

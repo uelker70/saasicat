@@ -66,7 +66,7 @@ describe('what a reversal takes back of what its payment brought', () => {
     });
 
     // A payment of a cancelled invoice leaves a second credit of its own where
-    // the replacement does not take all of its share (`SC-PRIC-091`).
+    // the replacement does not take all of its share (`SC-PRIC-095`).
     test('several credits of the payment are taken in the order given, each up to what of it is left', () => {
         const parts = withdrawalParts(
             25,
@@ -350,7 +350,7 @@ describe('the covers a credit gave other reversals', () => {
     });
 });
 
-// @requirement SC-PRIC-091 — An issued invoice is never edited; a cancellation invoice corrects it
+// @requirement SC-PRIC-095 — An issued invoice is never edited; its cancellation corrects what was not owed
 describe('what a reversal opened, gathered on the invoice that stands in its chain', () => {
     test('a give-back settles the replacement of a cancelled invoice the reversal opened', () => {
         assert.deepEqual(
