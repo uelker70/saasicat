@@ -21,6 +21,11 @@
 --        -c "SET saasicat.cancellation_notice_days_yearly = 90" \
 --        -f 1.0-a-contract-records-its-notice-period.postgres.sql
 --
+-- A runner of one's own sets them the same way, with `SET` in the session
+-- before it runs the file, or through any libpq client's environment:
+--
+--   PGOPTIONS="-c saasicat.cancellation_notice_days_monthly=14 -c saasicat.cancellation_notice_days_yearly=90"
+--
 -- Without them the file refuses where a contract is there to fill, and goes
 -- through where none is. A value that is no whole number of days, or more of
 -- them than the column holds, a contract
@@ -72,7 +77,7 @@ BEGIN
             SELECT 1 FROM pg_class c
              WHERE c.oid = to_regclass('subscription_contracts')
                AND c.relrowsecurity
-               AND (c.relforcerowsecurity OR NOT pg_has_role(current_user, c.relowner, 'MEMBER'))
+               AND (c.relforcerowsecurity OR NOT pg_has_role(current_user, c.relowner, 'USAGE'))
                AND NOT EXISTS (
                    SELECT 1 FROM pg_roles r
                     WHERE r.rolname = current_user AND (r.rolsuper OR r.rolbypassrls)

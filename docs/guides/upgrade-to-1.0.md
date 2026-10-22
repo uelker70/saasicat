@@ -2401,6 +2401,10 @@ no contracts, or a subscription nothing was confirmed for — the file decides a
         -f node_modules/@saasicat/spec/sql/1.0-a-contract-records-its-notice-period.postgres.sql
     ```
 
+    A migration runner of your own sets the two numbers the same way, with `SET` in the session
+    before it runs the file, or through the environment of any libpq client:
+    `PGOPTIONS="-c saasicat.cancellation_notice_days_monthly=14 -c saasicat.cancellation_notice_days_yearly=90"`.
+
     Each contract gets the days of its rhythm, read from its `priceSnapshot`; the column is then
     required, with the check `subscription_contracts_notice_is_days` that `constraints.postgres.sql`
     holds as well. It refuses with a sentence where contracts are there and either number is missing,
