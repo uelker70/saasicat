@@ -139,6 +139,13 @@ export interface SubscriptionContractRecord extends SubscriptionContractParties 
      * then takes the adapter's answer when it is issued.
      */
     taxTreatment: TaxTreatment | null;
+    /**
+     * The days of notice a cancellation of this contract is judged by, in its
+     * rhythm: what `config/saas.yaml#tenantBilling.cancellationNoticeDays`
+     * named for that rhythm when the contract was concluded or changed, and
+     * never what the file names later (`SC-CANC-025`).
+     */
+    cancellationNoticeDays: number;
     status: SubscriptionContractStatus;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -196,6 +203,11 @@ export interface NewSubscriptionContractData extends CreateSubscriptionContractD
      * was answered and never rewritten. Absent means `null`.
      */
     taxTreatment?: TaxTreatment | null;
+    /**
+     * The days of notice of the contract's rhythm as `config/saas.yaml` names
+     * them now, which the platform records with every contract it writes.
+     */
+    cancellationNoticeDays: number;
 }
 
 export interface TerminateSubscriptionContractData {

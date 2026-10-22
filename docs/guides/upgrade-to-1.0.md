@@ -1927,7 +1927,8 @@ then a wrong one cannot be corrected. To adopt it ([wire the backend](wire-the-b
    `zugferdInvoiceRenderer()` from the new package `@saasicat/invoice-zugferd` — or an
    `InvoiceRenderer` of your own — as `renderer`, and your `InvoiceMailPort` as `mail`. The start
    refuses the wiring without the block and, where tenant billing is configured, the block without
-   the wiring; either without a tax adapter, an issuer or the record of the applied settings
+   the wiring; either without a tax adapter, an issuer, a payment gateway (`payments`: an invoice
+   would stand open with nothing that could collect it) or the record of the applied settings
    (`AppliedSettings` and `SettingsChange`, which hold the issuer to one legal entity); the wiring
    without a renderer, an archive or a mail; an archive whose triggers are missing or disabled; and
    a prefix other than the one the issued invoices carry.
@@ -2380,6 +2381,40 @@ replacement invoices it: the invoice run never does (`SC-PRIC-096`).
   a correction.
 - **A `SubscriptionInvoiceRepository` of your own** leaves a correction (`CORRECTION_ORIGIN`) out
   of `listSubscriptionsWithUninvoicedCharges` and `listUninvoicedCharges`.
+
+### A contract records the notice period it was concluded with
+
+A cancellation is judged by the days of notice the contract in force recorded when it was concluded
+or changed (`SC-CANC-025`), not by what `config/saas.yaml#tenantBilling.cancellationNoticeDays`
+names since: the confirmation a subscriber keeps names the notice period, and a file changed later
+must not move the day a cancellation lands. Without a contract in force — an installation that keeps
+no contracts, or a subscription nothing was confirmed for — the file decides as before.
+
+1. Take fragment 08 as it ships now: `SubscriptionContract` gains `cancellationNoticeDays`.
+2. Run the migration once, **before** `db push`, after
+   `1.0-a-contract-names-its-subscriber.postgres.sql`, with the two numbers your file names:
+
+    ```bash
+    psql "$DATABASE_URL" \
+        -c "SET saasicat.cancellation_notice_days_monthly = 14" \
+        -c "SET saasicat.cancellation_notice_days_yearly = 90" \
+        -f node_modules/@saasicat/spec/sql/1.0-a-contract-records-its-notice-period.postgres.sql
+    ```
+
+    Each contract gets the days of its rhythm, read from its `priceSnapshot`; the column is then
+    required, with the check `subscription_contracts_notice_is_days` that `constraints.postgres.sql`
+    holds as well. It refuses with a sentence where contracts are there and either number is missing,
+    where a number is no whole number of days, where a contract names no rhythm, and where row-level
+    security hides contracts from the role it runs as — nothing is filled then. A second run needs
+    neither number and leaves every contract as the first one left it; where there are no contracts
+    yet, it needs neither either.
+
+- **A `SubscriptionContractRepository` of your own** writes `cancellationNoticeDays` from
+  `NewSubscriptionContractData` and reads it back through `toSubscriptionContractRecord`, which
+  refuses a value that is no whole number of days of at least none.
+- **`SubscriptionContractService`** records the days from the settings of `config/saas.yaml`, which
+  `SaaSiCatModule` provides; an application that mounts `SubscriptionContractModule` by hand imports
+  `PlanCatalogModule` too, or the start is refused with a sentence that says so.
 
 ### The plan catalogue is read when it is asked for
 

@@ -143,9 +143,7 @@ after(() => {
 });
 
 describe('which routes the platform mounts ask for the second factor', () => {
-    const handlers = operatorHandlers(
-        SaaSiCatModule.forRoot(everythingOnOptions([SignedInGuard], { collecting: true })),
-    );
+    const handlers = operatorHandlers(SaaSiCatModule.forRoot(everythingOnOptions([SignedInGuard])));
 
     test('the walk reaches every lasting action', () => {
         const routes = handlers.map((h) => h.route);
@@ -177,9 +175,7 @@ describe('what the chain Nest builds does with a request', () => {
     let handlers;
 
     before(async () => {
-        const root = SaaSiCatModule.forRoot(
-            bootable(everythingOnOptions([SignedInGuard], { collecting: true })),
-        );
+        const root = SaaSiCatModule.forRoot(bootable(everythingOnOptions([SignedInGuard])));
         handlers = operatorHandlers(root);
         moduleRef = await compile([root]);
     });

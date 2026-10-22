@@ -36,6 +36,7 @@ export interface CanonicalContractRow {
     partiesMigrated: boolean;
     /** JSON; see `toTaxTreatment`. */
     taxTreatment: unknown;
+    cancellationNoticeDays: number;
     status: string;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -87,6 +88,7 @@ export function toSubscriptionContractRecord(
         issuer: isPlainObject(row.issuerSnapshot) ? toIssuerParty(row.issuerSnapshot) : null,
         partiesMigrated: row.partiesMigrated,
         taxTreatment: toTaxTreatment(row.taxTreatment),
+        cancellationNoticeDays: noticeDaysOf(row),
         status: row.status as SubscriptionContractStatus,
         effectiveFrom: row.effectiveFrom,
         effectiveUntil: row.effectiveUntil,
@@ -104,6 +106,22 @@ export function toSubscriptionContractRecord(
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     };
+}
+
+/**
+ * The row's days of notice, refused where they are no whole number of days or
+ * fewer than none: a cancellation is judged by them, and a value the
+ * configuration could not have named would move a customer's last day.
+ */
+function noticeDaysOf(row: Pick<CanonicalContractRow, 'id' | 'cancellationNoticeDays'>): number {
+    const days = row.cancellationNoticeDays;
+    if (!Number.isInteger(days) || days < 0) {
+        throw new Error(
+            `Contract ${row.id} records ${String(days)} days of notice; a contract records a whole ` +
+                'number of days, at least none.',
+        );
+    }
+    return days;
 }
 
 export function toContractLineItemRecord(

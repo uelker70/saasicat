@@ -148,6 +148,54 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+
+🟢 💰 A contract records the days of notice of its rhythm as
+`config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when it is concluded or changed,
+and a cancellation of it is judged by those days, never by what the file names since: the
+confirmation the subscriber keeps names the notice period (`SC-AUD-016`), and a file changed later
+does not move the day a cancellation lands. Where the installation keeps no contracts, or no
+contract is in force — nothing was confirmed —, the file's days for the subscription's rhythm
+decide (`SC-CANC-007`).
+
+_Source:_ #334 (decided 2026-10-18)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a contract row becomes a contract record
+        - its days of notice read as they were recorded, none included
+- `packages/nest/tests/a-contract-records-its-notice-period.test.js`
+    - a contract records the notice period it is written with
+        - concluded ${rhythm}, it records the days the file names for that rhythm
+        - a successor records what the file names when it is written, and the contract it replaces
+          keeps its own
+        - a successor in another rhythm records the days of that rhythm
+        - the start is refused without the settings it records them from, naming the setting
+    - a cancellation is judged by the notice period its contract recorded
+        - a contract that recorded fourteen days lands at this period end, though the file names
+          ninety since
+        - a contract that recorded ninety days is moved a period, though the file names fourteen
+          since
+        - a yearly subscription is held to its contract too, not to the yearly number of the file
+        - without a contract in force, the file names the notice, as where no contracts are kept
+        - the contract asked is the tenant’s own, in force when the cancellation is declared
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a contract records the notice period it was concluded with
+        - gives each contract the notice period of its rhythm, and comes out with the column
+          required and checked
+        - ends with the shape the reference schema has, nullability and check included
+        - a second run needs neither number, and leaves every contract as the first one did
+        - with ${what} set it refuses, saying how to set them, and fills nothing
+        - a number that is ${what} stops it, and fills nothing
+        - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
+        - a table without contracts needs neither number, and comes out required
+        - a role row-level security hides contracts from stops it, naming the table and the role
+
+<!-- END proof -->
+
 ### SC-CANC-008 — No upper limit is placed on a notice period
 
 🟢 The platform does not know whether an installation serves consumers or businesses, so the number

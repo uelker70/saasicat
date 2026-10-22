@@ -228,6 +228,16 @@ it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - not without a payment gateway, which the refusal names
+
+<!-- END proof -->
+
 ### SC-SCOPE-012 — A tenant holds the application's data; the subscriber is the party to the contract
 
 🟡 _(Decided, not yet delivered.)_ 💰 A tenant can be deleted, and its subscriber stays for as

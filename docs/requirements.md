@@ -113,7 +113,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 25      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 96      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 654 entries: 🟢 565 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
 🔵 35 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -227,7 +227,7 @@ Of 654 entries: 🟢 565 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 654 requirements. Do not edit by hand:
+Generated from `requirements/` — 655 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -457,6 +457,16 @@ an invoice. This entry supersedes `SC-SCOPE-004` and `SC-PRIC-001` in the change
 it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - invoices start
+        - not without a payment gateway, which the refusal names
+
+<!-- END proof -->
 
 ### SC-SCOPE-012 — A tenant holds the application's data; the subscriber is the party to the contract
 
@@ -7445,6 +7455,54 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+
+🟢 💰 A contract records the days of notice of its rhythm as
+`config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when it is concluded or changed,
+and a cancellation of it is judged by those days, never by what the file names since: the
+confirmation the subscriber keeps names the notice period (`SC-AUD-016`), and a file changed later
+does not move the day a cancellation lands. Where the installation keeps no contracts, or no
+contract is in force — nothing was confirmed —, the file's days for the subscription's rhythm
+decide (`SC-CANC-007`).
+
+_Source:_ #334 (decided 2026-10-18)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a contract row becomes a contract record
+        - its days of notice read as they were recorded, none included
+- `packages/nest/tests/a-contract-records-its-notice-period.test.js`
+    - a contract records the notice period it is written with
+        - concluded ${rhythm}, it records the days the file names for that rhythm
+        - a successor records what the file names when it is written, and the contract it replaces
+          keeps its own
+        - a successor in another rhythm records the days of that rhythm
+        - the start is refused without the settings it records them from, naming the setting
+    - a cancellation is judged by the notice period its contract recorded
+        - a contract that recorded fourteen days lands at this period end, though the file names
+          ninety since
+        - a contract that recorded ninety days is moved a period, though the file names fourteen
+          since
+        - a yearly subscription is held to its contract too, not to the yearly number of the file
+        - without a contract in force, the file names the notice, as where no contracts are kept
+        - the contract asked is the tenant’s own, in force when the cancellation is declared
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a contract records the notice period it was concluded with
+        - gives each contract the notice period of its rhythm, and comes out with the column
+          required and checked
+        - ends with the shape the reference schema has, nullability and check included
+        - a second run needs neither number, and leaves every contract as the first one did
+        - with ${what} set it refuses, saying how to set them, and fills nothing
+        - a number that is ${what} stops it, and fills nothing
+        - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
+        - a table without contracts needs neither number, and comes out required
+        - a role row-level security hides contracts from stops it, naming the table and the role
+
+<!-- END proof -->
+
 ### SC-CANC-008 — No upper limit is placed on a notice period
 
 🟢 The platform does not know whether an installation serves consumers or businesses, so the number
@@ -9605,6 +9663,7 @@ _Tested by:_
         - not without the ${port} of their documents, which the refusal names
         - not beside an archive that would let a document it keeps be changed, naming why
         - not without a tax adapter, nor without an issuer
+        - not without a payment gateway, which the refusal names
         - and no wiring nor block at all is no invoicing, and starts
 - `packages/tax-de/tests/an-invoice-carries-what-german-law-requires.test.js`
     - what an invoice of an issuer in Germany has to carry
@@ -11406,6 +11465,7 @@ _Tested by:_
         - not without the ${port} of their documents, which the refusal names
         - not beside an archive that would let a document it keeps be changed, naming why
         - not without a tax adapter, nor without an issuer
+        - not without a payment gateway, which the refusal names
         - and no wiring nor block at all is no invoicing, and starts
 
 <!-- END proof -->
@@ -22117,6 +22177,16 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - a contract records the notice period it was concluded with
+        - gives each contract the notice period of its rhythm, and comes out with the column
+          required and checked
+        - ends with the shape the reference schema has, nullability and check included
+        - a second run needs neither number, and leaves every contract as the first one did
+        - with ${what} set it refuses, saying how to set them, and fills nothing
+        - a number that is ${what} stops it, and fills nothing
+        - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
+        - a table without contracts needs neither number, and comes out required
+        - a role row-level security hides contracts from stops it, naming the table and the role
 
 <!-- END proof -->
 
@@ -22279,6 +22349,16 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - a contract records the notice period it was concluded with
+        - gives each contract the notice period of its rhythm, and comes out with the column
+          required and checked
+        - ends with the shape the reference schema has, nullability and check included
+        - a second run needs neither number, and leaves every contract as the first one did
+        - with ${what} set it refuses, saying how to set them, and fills nothing
+        - a number that is ${what} stops it, and fills nothing
+        - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
+        - a table without contracts needs neither number, and comes out required
+        - a role row-level security hides contracts from stops it, naming the table and the role
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -23500,6 +23580,8 @@ _Tested by:_
         - an entitlement snapshot that is not an object reads as null
         - snapshot arrays that are not arrays read as empty
         - terms that are not an object read as null
+        - its days of notice read as they were recorded, none included
+        - days of notice that are ${what} stop the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them
@@ -23665,6 +23747,8 @@ _Tested by:_
         - an entitlement snapshot that is not an object reads as null
         - snapshot arrays that are not arrays read as empty
         - terms that are not an object read as null
+        - its days of notice read as they were recorded, none included
+        - days of notice that are ${what} stop the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them

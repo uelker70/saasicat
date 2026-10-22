@@ -299,6 +299,16 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - a contract records the notice period it was concluded with
+        - gives each contract the notice period of its rhythm, and comes out with the column
+          required and checked
+        - ends with the shape the reference schema has, nullability and check included
+        - a second run needs neither number, and leaves every contract as the first one did
+        - with ${what} set it refuses, saying how to set them, and fills nothing
+        - a number that is ${what} stops it, and fills nothing
+        - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
+        - a table without contracts needs neither number, and comes out required
+        - a role row-level security hides contracts from stops it, naming the table and the role
 
 <!-- END proof -->
 
@@ -461,6 +471,16 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - a contract records the notice period it was concluded with
+        - gives each contract the notice period of its rhythm, and comes out with the column
+          required and checked
+        - ends with the shape the reference schema has, nullability and check included
+        - a second run needs neither number, and leaves every contract as the first one did
+        - with ${what} set it refuses, saying how to set them, and fills nothing
+        - a number that is ${what} stops it, and fills nothing
+        - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
+        - a table without contracts needs neither number, and comes out required
+        - a role row-level security hides contracts from stops it, naming the table and the role
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

@@ -439,6 +439,7 @@ CREATE TABLE "subscription_contracts" (
     "issuerSnapshot" JSONB,
     "partiesMigrated" BOOLEAN NOT NULL DEFAULT false,
     "taxTreatment" JSONB,
+    "cancellationNoticeDays" INTEGER NOT NULL,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
     "effectiveUntil" TIMESTAMP(3),
@@ -1816,3 +1817,10 @@ SELECT setval(format('%I.%I', schemaname, sequencename)::regclass, 10001, false)
  WHERE schemaname = current_schema()
    AND sequencename = 'subscribers_customerSequence_seq'
    AND last_value IS NULL;
+
+-- A contract's days of notice are a whole number of days, at least none: a
+-- cancellation of it is judged by them. Same two plain statements as above.
+ALTER TABLE subscription_contracts
+    DROP CONSTRAINT IF EXISTS subscription_contracts_notice_is_days;
+ALTER TABLE subscription_contracts
+    ADD CONSTRAINT subscription_contracts_notice_is_days CHECK ("cancellationNoticeDays" >= 0);

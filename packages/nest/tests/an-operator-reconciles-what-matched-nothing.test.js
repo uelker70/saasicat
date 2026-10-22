@@ -29,6 +29,7 @@ import {
     bootable,
     controllersIn,
     everythingOnOptions,
+    withoutInvoicing,
     handlersOf,
 } from './helpers/operator-routes.js';
 import { MemorySubscriberPayments } from './helpers/subscriber-payments.js';
@@ -315,8 +316,8 @@ describe('the routes', () => {
                 .map((handler) => handler.route)
                 .filter((route) => route.includes('reconciliation') || route.endsWith('/payments'))
                 .sort();
-        const collecting = everythingOnOptions([SignedInGuard], { collecting: true });
-        const unrecorded = everythingOnOptions([SignedInGuard], { collecting: true });
+        const collecting = everythingOnOptions([SignedInGuard]);
+        const unrecorded = everythingOnOptions([SignedInGuard]);
         unrecorded.tenantBilling.chargeJournal.invoices.payments = undefined;
 
         assert.deepEqual(routes(collecting), [
@@ -325,7 +326,7 @@ describe('the routes', () => {
             'POST admin/reconciliation/:caseId/close',
         ]);
         assert.deepEqual(routes(unrecorded), []);
-        assert.deepEqual(routes(everythingOnOptions()), []);
+        assert.deepEqual(routes(withoutInvoicing(everythingOnOptions())), []);
     });
 });
 
@@ -348,11 +349,12 @@ describe('the manifest', () => {
             }
         };
 
-        assert.deepEqual(
-            await capabilitiesOf(everythingOnOptions([SignedInGuard], { collecting: true })),
-            [true, true, true],
-        );
-        assert.deepEqual(await capabilitiesOf(everythingOnOptions()), [
+        assert.deepEqual(await capabilitiesOf(everythingOnOptions([SignedInGuard])), [
+            true,
+            true,
+            true,
+        ]);
+        assert.deepEqual(await capabilitiesOf(withoutInvoicing(everythingOnOptions())), [
             undefined,
             undefined,
             undefined,

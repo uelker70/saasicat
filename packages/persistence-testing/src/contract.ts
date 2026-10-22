@@ -260,6 +260,7 @@ function contractFromOffer(
     return {
         tenantId: `tenant-${offerId}`,
         parties,
+        cancellationNoticeDays: 14,
         effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
         originalOfferId: offerId,
         priceSnapshot: {
@@ -4047,6 +4048,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             };
             const created = await contracts.create({
                 tenantId,
+                cancellationNoticeDays: 14,
                 parties: partiesWith(subscriberId, 'Archiv GmbH'),
                 effectiveFrom: signedAt,
                 priceSnapshot: {
@@ -4108,6 +4110,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const parties = partiesWith(subscriberId, 'Meier GmbH');
             const created = await contracts.create({
                 tenantId,
+                cancellationNoticeDays: 37,
                 parties,
                 effectiveFrom: signedAt,
                 priceSnapshot: {
@@ -4181,6 +4184,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(created.lineItems.length, 2);
             assert.deepEqual(created.originalBundleVersionIds, ['bundle-version-1']);
             assert.deepEqual(created.termsSnapshot, { noticePeriodDays: 30 });
+            assert.equal(
+                created.cancellationNoticeDays,
+                37,
+                'the notice period it was concluded with',
+            );
             const planLine = created.lineItems.find((item) => item.kind === 'plan');
             assert.ok(planLine, 'plan line expected');
             assert.equal(planLine.priceNet, 19.9, 'money must survive the round trip unrounded');
@@ -4215,6 +4223,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.ok(readBack, 'contract expected by id');
             assert.deepEqual(readBack.subscriber, parties.subscriber, 'the copy is stored');
             assert.deepEqual(readBack.issuer, parties.issuer);
+            assert.equal(readBack.cancellationNoticeDays, 37);
             assert.equal(
                 readBack.lineItems.length,
                 2,
@@ -4254,6 +4263,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.equal(terminated.effectiveUntil?.getTime(), endsAt.getTime());
             assert.equal(terminated.lineItems.length, 2, 'ending a contract keeps its lines');
+            assert.equal(
+                terminated.cancellationNoticeDays,
+                37,
+                'ending it keeps its notice period',
+            );
             assert.equal(
                 terminated.priceSnapshot.totalNet,
                 created.priceSnapshot.totalNet,
@@ -4326,6 +4340,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             const first = await contracts.create({
                 tenantId,
+                cancellationNoticeDays: 14,
                 parties,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: priceAt(19.9, 23.68),
@@ -4348,6 +4363,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             const second = await contracts.create({
                 tenantId,
+                cancellationNoticeDays: 14,
                 parties,
                 effectiveFrom: handover,
                 priceSnapshot: priceAt(24.9, 29.63),
@@ -4425,6 +4441,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const parties = { ...partiesWith(subscriberId, 'Zürich AG'), issuer: null };
             const created = await contracts.create({
                 tenantId,
+                cancellationNoticeDays: 14,
                 parties,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: {
@@ -6495,6 +6512,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             const contract = await contracts.create({
                 tenantId,
+                cancellationNoticeDays: 14,
                 parties: partiesWith(subscriberId, `${tenantId} GmbH`),
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: {

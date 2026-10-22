@@ -13,6 +13,7 @@ import {
 } from '../../dist/platform/index.js';
 import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
+import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
 
 /** Nest's own metadata keys. */
 export const PATH = 'path';
@@ -33,10 +34,11 @@ const PORT = {};
 
 /**
  * The options behind `everythingOn`, for a test that needs to change one of
- * them. `collecting` adds the collection of invoices and what it brings, for a
- * test that only reads the routes: started, it would need the payments too.
+ * them. Invoices are issued, so they are paid through the gateway: the payments
+ * are composed, the invoices collected and what each collection brought
+ * recorded.
  */
-export function everythingOnOptions(guards = [SignedInGuard], { collecting = false } = {}) {
+export function everythingOnOptions(guards = [SignedInGuard]) {
     const persistence = {
         capabilities: {
             transactions: true,
@@ -71,6 +73,7 @@ export function everythingOnOptions(guards = [SignedInGuard], { collecting = fal
             subscriberLedgerRepository: REPO,
         },
         adminResources: { resources: REPO },
+        payments: { paymentEventLog: REPO, subscriberPaymentMethodRepository: REPO },
         promo: {
             promoCodeRepository: REPO,
             redemptionRepository: REPO,
@@ -97,6 +100,7 @@ export function everythingOnOptions(guards = [SignedInGuard], { collecting = fal
             timeZone: 'Europe/Berlin',
             issuer: ISSUER,
             invoicing: { numberPrefix: 'AHP', paymentTermDays: 14 },
+            payments: paymentsCatalog().payments,
             tenantBilling: {
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 selfServiceBlockedPlans: { asTarget: [], asSource: [] },
@@ -128,11 +132,16 @@ export function everythingOnOptions(guards = [SignedInGuard], { collecting = fal
                     archive: anArchive(),
                     mail: aMailbox(),
                     includeCron: false,
-                    collections: collecting ? REPO : undefined,
-                    payments: collecting ? REPO : undefined,
+                    collections: REPO,
+                    payments: REPO,
                 },
             },
             versionNotices: { port: PORT, includeCron: false },
+        },
+        payments: {
+            gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
+            // The tenant's payment routes resolve the same guards tenant billing does.
+            extraProviders: guards,
         },
         promoCodes: true,
         setup: true,
@@ -144,6 +153,20 @@ export function everythingOnOptions(guards = [SignedInGuard], { collecting = fal
         tenantManifest: true,
         maintenance: true,
         defaultPlanId: 'STARTER',
+    };
+}
+
+/**
+ * `options` without invoices: neither the block in the file nor the wiring, so
+ * nothing that serves only beside invoices is composed.
+ */
+export function withoutInvoicing(options) {
+    const { invoicing: _invoicing, ...planCatalog } = options.planCatalog;
+    const { invoices: _invoices, ...chargeJournal } = options.tenantBilling.chargeJournal;
+    return {
+        ...options,
+        planCatalog,
+        tenantBilling: { ...options.tenantBilling, chargeJournal },
     };
 }
 

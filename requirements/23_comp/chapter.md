@@ -878,6 +878,8 @@ _Tested by:_
         - an entitlement snapshot that is not an object reads as null
         - snapshot arrays that are not arrays read as empty
         - terms that are not an object read as null
+        - its days of notice read as they were recorded, none included
+        - days of notice that are ${what} stop the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them
@@ -1043,6 +1045,8 @@ _Tested by:_
         - an entitlement snapshot that is not an object reads as null
         - snapshot arrays that are not arrays read as empty
         - terms that are not an object read as null
+        - its days of notice read as they were recorded, none included
+        - days of notice that are ${what} stop the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them

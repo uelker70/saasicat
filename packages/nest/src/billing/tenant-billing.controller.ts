@@ -62,6 +62,7 @@ import {
 } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
+import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type {
     AdminActor,
@@ -270,6 +271,11 @@ export class TenantBillingController {
         @Optional()
         @Inject(RetirementSwitchService)
         private readonly retirementSwitches: RetirementSwitchService | null = null,
+        // Appended last for the same reason. Where the installation keeps
+        // contracts, the one in force says the notice a cancellation is owed.
+        @Optional()
+        @Inject(SubscriptionContractService)
+        private readonly contracts: SubscriptionContractService | null = null,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -342,7 +348,7 @@ export class TenantBillingController {
             // period are not visible to a browser. With a window configured,
             // four days of delay cost a whole period — a sentence that has to
             // be read in the confirmation, not discovered in the receipt.
-            cancellation: this.projectCancellation(sub, now, retirement),
+            cancellation: await this.projectCancellation(tenantId, sub, now, retirement),
             retirement,
             retirementSwitch,
             limits: toEffectiveLimitsSnapshot(limits),
@@ -1108,7 +1114,12 @@ export class TenantBillingController {
         // term they were still inside — the one thing this route may not do.
         // Ending a contract on the spot is an operator's act, and it goes
         // through the operator's own path.
-        const decision = this.projectCancellation(sub, now, await this.pendingRetirement(sub, now));
+        const decision = await this.projectCancellation(
+            tenantId,
+            sub,
+            now,
+            await this.pendingRetirement(sub, now),
+        );
 
         // What the page showed has to be what the customer agreed to. Refused
         // rather than silently applied, with the new date in the error so the
@@ -1233,11 +1244,12 @@ export class TenantBillingController {
      * the same input are two chances to disagree about a rule the customer
      * meets once.
      */
-    private projectCancellation(
+    private async projectCancellation(
+        tenantId: string,
         sub: SubscriptionUsageRecord,
         now: Date,
         retirement: VersionRetiredNotice | null,
-    ): CancellationDecision {
+    ): Promise<CancellationDecision> {
         return decideCancellationFor(
             {
                 status: sub.status,
@@ -1251,12 +1263,29 @@ export class TenantBillingController {
                 billingAnchorDay: sub.billingAnchorDay ?? null,
             },
             now,
-            // The rhythm of the CONTRACT, not of the plan somebody is looking
-            // at: a customer on a yearly subscription is owed the yearly
-            // notice even where the same plan is also sold monthly. None while
-            // a retirement is on its way: it is left without notice.
-            retirement ? 0 : noticeDaysFor(this.cancellationNoticeDays, sub.billingCycle),
+            // None while a retirement is on its way: it is left without notice.
+            retirement ? 0 : await this.noticeDaysOf(tenantId, sub, now),
         );
+    }
+
+    /**
+     * The notice a cancellation declared at `now` is owed: what the contract
+     * in force recorded when it was concluded or changed (`SC-CANC-025`), and
+     * never what the file names since. Without a contract in force — an
+     * installation that keeps none, or a subscription nothing was confirmed
+     * for — the file's, for the rhythm of the subscription rather than of the
+     * plan somebody is looking at: a customer on a yearly subscription is owed
+     * the yearly notice even where the same plan is also sold monthly.
+     */
+    private async noticeDaysOf(
+        tenantId: string,
+        sub: SubscriptionUsageRecord,
+        now: Date,
+    ): Promise<number> {
+        const contract = await this.contracts?.findActiveByTenantId(tenantId, now);
+        return contract
+            ? contract.cancellationNoticeDays
+            : noticeDaysFor(this.cancellationNoticeDays, sub.billingCycle);
     }
 
     /** The retirement reaching the subscription that has not taken effect yet, or null. */

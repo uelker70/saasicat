@@ -169,6 +169,7 @@ function contractRow(overrides = {}) {
         promotionSnapshots: [],
         promoCodeSnapshots: [],
         termsSnapshot: { noticePeriodDays: 30 },
+        cancellationNoticeDays: 14,
         createdAt: CREATED,
         updatedAt: UPDATED,
         ...overrides,
@@ -251,6 +252,33 @@ describe('a contract row becomes a contract record', () => {
             null,
         );
     });
+
+    // @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+    test('its days of notice read as they were recorded, none included', () => {
+        for (const days of [0, 14, 365]) {
+            assert.equal(
+                toSubscriptionContractRecord(contractRow({ cancellationNoticeDays: days }), [])
+                    .cancellationNoticeDays,
+                days,
+            );
+        }
+    });
+
+    // @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+    for (const [what, days] of [
+        ['fewer than none', -1],
+        ['a part of a day', 14.5],
+        ['nothing at all', null],
+        ['text', '14'],
+    ]) {
+        test(`days of notice that are ${what} stop the read, naming the contract`, () => {
+            assert.throws(
+                () =>
+                    toSubscriptionContractRecord(contractRow({ cancellationNoticeDays: days }), []),
+                /Contract contract-1 records .* days of notice; a contract records a whole number/,
+            );
+        });
+    }
 });
 
 describe('a line item row becomes a line item record', () => {
