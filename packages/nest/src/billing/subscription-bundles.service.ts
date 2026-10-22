@@ -56,6 +56,11 @@ import {
     SUBSCRIPTION_BUNDLE_CONFIG_TOKEN,
     SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN,
 } from './subscription-bundles.tokens.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import {
+    agreementNamed,
+    type AgreementSettings,
+} from '../subscription-contract/contract-agreement.js';
 
 export interface SubscriptionBundleConfig {
     /**
@@ -185,6 +190,11 @@ export class SubscriptionBundlesService {
         @Optional()
         @Inject(SELF_SERVICE_BLOCKED_BUNDLES_TOKEN)
         private readonly blockedBundles: SelfServiceBlockedBundles | null = null,
+        // What a booking records as agreed, for a contract written for it
+        // later. Optional only so a test can build the service directly.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: AgreementSettings | null = null,
     ) {
         this.defaultMinTermMonths =
             config.defaultMinimumTermMonths ?? DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS;
@@ -355,6 +365,9 @@ export class SubscriptionBundlesService {
             // had no period has no period of its own either, and says so.
             currentPeriodStart: currentPeriodEnd === null ? null : startedAt,
             currentPeriodEnd,
+            // In the plan's rhythm: the contract the booking is written into
+            // is the plan's, and its notice is that rhythm's.
+            agreement: agreementNamed(this.settings, input.planCycle, new Date()),
         });
     }
 

@@ -721,8 +721,8 @@ describe('an add-on is charged even where writing its contract failed', () => {
     function freezingInto(accountOf, { fails = false } = {}) {
         return {
             calls: [],
-            async freezeOnPlanChange(tenantId, plan, cycle, at, endsAt) {
-                this.calls.push({ tenantId, plan, cycle, at, endsAt });
+            async freezeOnPlanChange(tenantId, plan, cycle, at, endsAt, terms) {
+                this.calls.push({ tenantId, plan, cycle, at, endsAt, terms });
                 if (fails) throw new Error('the catalogue is down');
                 const account = accountOf();
                 await account.supersede(at);
@@ -767,6 +767,32 @@ describe('an add-on is charged even where writing its contract failed', () => {
             account.entries().filter(([, source]) => source === 'bundle'),
             [['2026-01-21', 'bundle', 'bundleBooking', 3.55]],
         );
+    });
+
+    // @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+    test('the contract it writes records the latest of what the missed bookings were agreed under', async () => {
+        let account;
+        const freeze = freezingInto(() => account);
+        account = anAccount({ freeze });
+        await account.contract({ lineItems: [STANDARD()] });
+        const earlier = {
+            termsVersion: '2026-01',
+            cancellationNoticeDays: 14,
+            agreedAt: utc('2026-01-21'),
+        };
+        const later = {
+            termsVersion: '2026-02',
+            cancellationNoticeDays: 30,
+            agreedAt: new Date('2026-01-21T12:00:00.000Z'),
+        };
+        account.book({ agreement: later });
+        account.book({ bundleVersionId: 'bv-reports', agreement: earlier });
+        account.book({ bundleVersionId: 'bv-unrecorded', agreement: null });
+
+        await account.charge(utc('2026-01-22'));
+
+        assert.deepEqual(freeze.calls[0].terms, { agreed: later });
     });
 
     test('only a running add-on the contract misses makes the journal write one', async () => {

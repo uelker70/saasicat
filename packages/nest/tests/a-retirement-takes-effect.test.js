@@ -164,7 +164,7 @@ describe('the move at the date', () => {
             },
         ]);
         assert.deepEqual(frozen, [
-            ['t1', 'PLUS', 'MONTHLY', DATE, null, { retirementId: 'ret-1' }],
+            ['t1', 'PLUS', 'MONTHLY', DATE, null, { retirementId: 'ret-1', kind: 'move' }],
         ]);
         assert.deepEqual(recorded, ['t1']);
         assert.deepEqual(invalidated, ['t1']);
@@ -700,6 +700,7 @@ describe('the free switch before the date', () => {
                 null,
                 {
                     retirementId: 'ret-1',
+                    kind: 'switch',
                     priceHold: { amountNet: 3, until: DATE, lastDay: '2026-06-30' },
                 },
             ],

@@ -109,6 +109,7 @@ export class FeatureWithdrawalContractService {
             const successor = await this.successorOf(inForce, added, now);
             const written = await this.contracts.writeSuccessor(inForce, successor, now, {
                 keepParties: true,
+                agreement: 'kept',
             });
             if (written) {
                 this.entitlements.invalidateTenant(tenantId);

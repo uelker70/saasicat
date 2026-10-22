@@ -12,6 +12,7 @@ import type {
     CheckoutOfferLineItem,
     CheckoutOfferPriceBreakdown,
     CheckoutOfferRow,
+    ContractAgreement,
     ContractLineItemRecord,
     CreateSubscriptionContractData,
     SubscriptionContractParties,
@@ -51,7 +52,11 @@ import {
 } from './contract-refusals.js';
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
 import { offerMoneyAtRate, type OfferMoney } from '../checkout-offer/offer-money-at-rate.js';
-import { NO_NOTICE_PERIOD, noticeDaysFor } from '../billing/cancellation.js';
+import {
+    agreementNamed,
+    successorAgreement,
+    type SuccessorAgreement,
+} from './contract-agreement.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
@@ -61,6 +66,7 @@ import {
     type TaxPeriod,
     type TaxTreatments,
 } from '../tax/tax-treatments.js';
+import { TermsArchiveCheck } from '../terms/terms-archive.check.js';
 
 /** What ending a contract asks of it, whoever's contract it is. */
 type ContractTermination = Omit<TerminateSubscriptionContractData, 'tenantId'>;
@@ -116,6 +122,16 @@ export interface SuccessorOptions {
      * migration made stays marked as one.
      */
     keepParties?: boolean;
+    /**
+     * Where the version of the terms and the days of notice come from
+     * (`SuccessorAgreement`): `kept` from the contract replaced, for a
+     * successor the operator or the platform writes without the subscriber —
+     * a feature withdrawal's reductions, a refresh, a retirement's move at its
+     * date —, which stays in its rhythm; the agreement a change recorded when
+     * the subscriber scheduled it, for the contract written when it takes
+     * effect. Left out, `config/saas.yaml` now: a change the subscriber makes.
+     */
+    agreement?: SuccessorAgreement;
 }
 
 /**
@@ -147,15 +163,27 @@ export class SubscriptionContractService implements OnModuleInit {
         // `onModuleInit` refuses a start without it.
         @Optional()
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
-        private readonly settings: Pick<PlanCatalogSettings, 'tenantBilling'> | null = null,
+        private readonly settings: Pick<
+            PlanCatalogSettings,
+            'tenantBilling' | 'terms'
+        > | null = null,
+        // The start's archive of the terms, which `TermsModule` provides:
+        // a contract records the version, and the subscriber is owed its file.
+        // Optional here only so that a test can build the service directly;
+        // `onModuleInit` refuses terms without it.
+        @Optional()
+        @Inject(TermsArchiveCheck)
+        private readonly termsArchived: TermsArchiveCheck | null = null,
     ) {}
 
     /**
-     * Refuses the start while `config/saas.yaml` names no issuer, or while the
-     * settings a contract records its notice period from are not provided.
+     * Refuses the start while `config/saas.yaml` names no issuer, while the
+     * settings a contract records its notice period from are not provided, or
+     * while it names terms that nothing archives — a contract would record a
+     * version whose file nobody could hand out (`SC-CFG-038`).
      * Every module that writes contracts provides this service, and every
      * contract is concluded with an issuer (`SC-AUD-020`) and its notice
-     * period (`SC-CANC-025`): found out at the first sign-up, the missing
+     * period (`SC-CANC-026`): found out at the first sign-up, the missing
      * block would refuse a customer rather than a deploy.
      */
     onModuleInit(): void {
@@ -167,17 +195,23 @@ export class SubscriptionContractService implements OnModuleInit {
                     'of the file are provided — import `PlanCatalogModule`, which `SaaSiCatModule` does.',
             );
         }
+        if (this.settings.terms && !this.termsArchived) {
+            throw new Error(
+                'Contracts cannot start: a contract records the version of the terms ' +
+                    '`config/saas.yaml#terms` names, and nothing archives them — import ' +
+                    '`TermsModule.forRoot({ archive })`, which `SaaSiCatModule` does.',
+            );
+        }
     }
 
     /**
-     * The days of notice of `data`'s rhythm as the file names them now, which
-     * the contract records and a cancellation of it is judged by.
+     * What the subscriber agrees to by concluding or changing `data` now: the
+     * version of the terms the file names — which the start has archived
+     * before any contract is written (`SC-AUD-016`) — and the days of notice
+     * of its rhythm, which a cancellation of it is judged by.
      */
-    private noticeDaysOf(data: CreateSubscriptionContractData): number {
-        return noticeDaysFor(
-            this.settings?.tenantBilling.cancellationNoticeDays ?? NO_NOTICE_PERIOD,
-            data.priceSnapshot.billingCycle,
-        );
+    private agreementNow(data: CreateSubscriptionContractData): ContractAgreement {
+        return agreementNamed(this.settings, data.priceSnapshot.billingCycle, new Date());
     }
 
     list(filter: Parameters<SubscriptionContractRepository['list']>[0]) {
@@ -261,7 +295,7 @@ export class SubscriptionContractService implements OnModuleInit {
                 ...this.cloneCreateData(data),
                 parties,
                 ...taxTreatmentOf(decided),
-                cancellationNoticeDays: this.noticeDaysOf(data),
+                ...this.agreementNow(data),
             },
             tx,
         );
@@ -460,6 +494,12 @@ export class SubscriptionContractService implements OnModuleInit {
         }
         if (previous) this.assertTerminable(previous, { effectiveUntil: at, status: 'superseded' });
         const kept = options.keepParties && previous ? previous : null;
+        const agreement = successorAgreement(
+            previous,
+            next,
+            options.agreement,
+            this.agreementNow(next),
+        );
         const write = async (
             tx?: TransactionContext,
         ): Promise<SubscriptionContractRecord | null> => {
@@ -489,7 +529,7 @@ export class SubscriptionContractService implements OnModuleInit {
                     parties,
                     ...(kept ? { partiesMigrated: kept.partiesMigrated } : {}),
                     ...taxTreatmentOf(decided),
-                    cancellationNoticeDays: this.noticeDaysOf(next),
+                    ...agreement,
                 },
                 tx,
             );

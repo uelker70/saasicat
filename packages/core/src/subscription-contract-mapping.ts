@@ -25,6 +25,7 @@ import type {
 } from './subscription-contract.types.js';
 import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
 import { toTaxTreatment } from './tax-origin.js';
+import { TERMS_VERSION_PATTERN } from './terms.types.js';
 
 /** A `subscription_contracts` row as either adapter reads it back. */
 export interface CanonicalContractRow {
@@ -37,6 +38,8 @@ export interface CanonicalContractRow {
     /** JSON; see `toTaxTreatment`. */
     taxTreatment: unknown;
     cancellationNoticeDays: number;
+    termsVersion: string | null;
+    agreedAt: Date;
     status: string;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -89,6 +92,8 @@ export function toSubscriptionContractRecord(
         partiesMigrated: row.partiesMigrated,
         taxTreatment: toTaxTreatment(row.taxTreatment),
         cancellationNoticeDays: noticeDaysOf(row),
+        termsVersion: termsVersionOf(row),
+        agreedAt: agreedAtOf(row),
         status: row.status as SubscriptionContractStatus,
         effectiveFrom: row.effectiveFrom,
         effectiveUntil: row.effectiveUntil,
@@ -122,6 +127,35 @@ function noticeDaysOf(row: Pick<CanonicalContractRow, 'id' | 'cancellationNotice
         );
     }
     return days;
+}
+
+/**
+ * The version of the terms the row records, or `null`, refused where it is
+ * not a version a file could have named: the subscriber is owed the terms of
+ * that version, and a value no version carries finds none.
+ */
+/** The moment the row says its terms were agreed, refused where it is no moment at all. */
+function agreedAtOf(row: Pick<CanonicalContractRow, 'id' | 'agreedAt'>): Date {
+    const at: unknown = row.agreedAt;
+    if (!(at instanceof Date) || Number.isNaN(at.getTime())) {
+        throw new Error(
+            `Contract ${row.id} records ${JSON.stringify(at)} as when its terms were agreed, ` +
+                'which is no moment.',
+        );
+    }
+    return at;
+}
+
+function termsVersionOf(row: Pick<CanonicalContractRow, 'id' | 'termsVersion'>): string | null {
+    const version = row.termsVersion;
+    if (version === null) return null;
+    if (typeof version !== 'string' || !TERMS_VERSION_PATTERN.test(version)) {
+        throw new Error(
+            `Contract ${row.id} records ${JSON.stringify(version)} as its terms' version, which no ` +
+                'version of the terms is called.',
+        );
+    }
+    return version;
 }
 
 export function toContractLineItemRecord(

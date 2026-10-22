@@ -2,10 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import {
+    bookingAgreementColumns,
+    pendingAgreementColumns,
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
     toSubscriptionBundleRecord,
     type CancelSubscriptionBundleData,
+    type ContractAgreement,
     type CreateSubscriptionBundleData,
     type EndNowInput,
     type SubscriptionBundleRecord,
@@ -87,6 +90,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 billingCycle: data.billingCycle ?? null,
                 currentPeriodStart: data.currentPeriodStart ?? null,
                 currentPeriodEnd: data.currentPeriodEnd ?? null,
+                ...bookingAgreementColumns(data.agreement),
                 canceledAt: null,
                 canceledEffectiveAt: null,
                 updatedAt: now,
@@ -154,13 +158,14 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
 
     async scheduleVersion(
         subscriptionBundleId: string,
-        switchTo: { from: string; to: string; effectiveAt: Date },
+        switchTo: { from: string; to: string; effectiveAt: Date; agreement: ContractAgreement },
     ): Promise<SubscriptionBundleRecord | null> {
         const rows = await this.db
             .update(subscriptionBundles)
             .set({
                 pendingBundleVersionId: switchTo.to,
                 pendingVersionEffectiveAt: switchTo.effectiveAt,
+                ...pendingAgreementColumns(switchTo.agreement),
                 updatedAt: new Date(),
             })
             .where(
@@ -183,6 +188,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             .set({
                 pendingBundleVersionId: null,
                 pendingVersionEffectiveAt: null,
+                ...pendingAgreementColumns(null),
                 updatedAt: new Date(),
             })
             .where(

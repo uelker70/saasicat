@@ -22,7 +22,7 @@ import { dirname, join } from 'node:path';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, sql } from 'drizzle-orm';
-import { INVOICE_ARCHIVE_TRIGGERS } from '@saasicat/core';
+import { INVOICE_ARCHIVE_TRIGGERS, TERMS_ARCHIVE_TRIGGERS } from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     DrizzleAuditAdapter,
@@ -55,6 +55,7 @@ import {
     DrizzleSubscriberLedgerRepository,
     DrizzleSubscriptionInvoiceRepository,
     DrizzleInvoiceArchive,
+    DrizzleTermsArchive,
     DrizzleInvoiceCollectionRepository,
     DrizzleSubscriberPaymentRepository,
     DrizzleSubscriberRepository,
@@ -73,6 +74,7 @@ const PLATFORM_TABLES = [
     'subscriber_payments',
     'subscription_invoice_collections',
     'subscription_invoice_archive',
+    'terms_versions',
     'subscription_invoice_documents',
     'subscription_invoice_lines',
     'subscription_invoices',
@@ -137,6 +139,7 @@ function createHarness() {
             subscriberLedgerRepository: new DrizzleSubscriberLedgerRepository(db),
             subscriptionInvoiceRepository: new DrizzleSubscriptionInvoiceRepository(db),
             invoiceArchive: new DrizzleInvoiceArchive(db),
+            termsArchive: new DrizzleTermsArchive(db),
             invoiceCollectionRepository: new DrizzleInvoiceCollectionRepository(db),
             subscriberPaymentRepository: new DrizzleSubscriberPaymentRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
@@ -262,23 +265,40 @@ persistenceAdapterContract({
     gaps: ['checkoutOffers'],
 });
 
-// The triggers this adds would refuse the `TRUNCATE` the tests after it start
-// with, so it drops them again when it is done.
-// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
-describe('the database archive says whether it keeps what it holds', () => {
-    const archive = new DrizzleInvoiceArchive(db);
-    const migration = readFileSync(
+/**
+ * The shipped migration that protects `table` with `triggers`, to apply whole,
+ * and one of its triggers to disable. The triggers would refuse the `TRUNCATE`
+ * the tests after these start with, so they are dropped again at the end.
+ */
+function aProtectingMigration({ file, table, triggers }) {
+    const statements = readFileSync(
         join(
             dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
             'sql',
-            '1.0-an-invoice-document-is-archived.postgres.sql',
+            file,
         ),
         'utf8',
     );
     after(async () => {
-        for (const trigger of INVOICE_ARCHIVE_TRIGGERS) {
-            await pool.query(`DROP TRIGGER IF EXISTS "${trigger}" ON subscription_invoice_archive`);
+        for (const trigger of triggers) {
+            await pool.query(`DROP TRIGGER IF EXISTS "${trigger}" ON ${table}`);
         }
+    });
+    return {
+        // Run as the file it is, over the simple protocol: its function bodies
+        // are dollar-quoted, and a split at each statement would cut them.
+        apply: () => pool.query(statements),
+        disable: (trigger) => pool.query(`ALTER TABLE ${table} DISABLE TRIGGER "${trigger}"`),
+    };
+}
+
+// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+describe('the database archive says whether it keeps what it holds', () => {
+    const archive = new DrizzleInvoiceArchive(db);
+    const migration = aProtectingMigration({
+        file: '1.0-an-invoice-document-is-archived.postgres.sql',
+        table: 'subscription_invoice_archive',
+        triggers: INVOICE_ARCHIVE_TRIGGERS,
     });
 
     test('built from the reference schema alone, it names the triggers it lacks', async () => {
@@ -288,20 +308,49 @@ describe('the database archive says whether it keeps what it holds', () => {
     });
 
     test('with the migration applied, it keeps what it holds', async () => {
-        // Run as the file it is, over the simple protocol: its function bodies
-        // are dollar-quoted, and a split at each statement would cut them.
-        await pool.query(migration);
+        await migration.apply();
 
         assert.equal(await archive.protectionProblem(), null);
     });
 
     test('with one of its triggers disabled, it names that one', async () => {
         const [kept] = INVOICE_ARCHIVE_TRIGGERS;
-        await pool.query(`ALTER TABLE subscription_invoice_archive DISABLE TRIGGER "${kept}"`);
+        await migration.disable(kept);
 
         const problem = await archive.protectionProblem();
 
         assert.ok(problem.includes(`lacks ${kept},`), problem);
+    });
+});
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+describe('the terms archive says whether it keeps the versions it holds', () => {
+    const archive = new DrizzleTermsArchive(db);
+    const migration = aProtectingMigration({
+        file: '1.0-the-terms-are-a-version-and-a-file.postgres.sql',
+        table: 'terms_versions',
+        triggers: TERMS_ARCHIVE_TRIGGERS,
+    });
+
+    test('built from the reference schema alone, it names both triggers', async () => {
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${TERMS_ARCHIVE_TRIGGERS.join(' and ')},`), problem);
+    });
+
+    test('with the migration applied, nothing', async () => {
+        await migration.apply();
+
+        assert.equal(await archive.protectionProblem(), null);
+    });
+
+    test('with the one against a truncate disabled, that one', async () => {
+        const [, notEmptied] = TERMS_ARCHIVE_TRIGGERS;
+        await migration.disable(notEmptied);
+
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${notEmptied},`), problem);
     });
 });
 

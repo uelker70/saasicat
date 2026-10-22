@@ -291,6 +291,8 @@ _Tested by:_
     - a scheduled change to another plan binds the version it was quoted at
     - a scheduled switch to a newer version of the same plan binds that version
     - the run reads and writes every tenant's change inside the bypass
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
 
 <!-- END proof -->
 
@@ -488,6 +490,7 @@ _Tested by:_
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
         - scheduled for the term end and bound to the version offered
+        - with what taking it agrees to: the terms named and the notice of its rhythm, now
         - the party is asked about the contract that runs from the term end
         - usage up to the lower quota fits
         - usage one above the lower quota is refused like a downgrade, with the numbers

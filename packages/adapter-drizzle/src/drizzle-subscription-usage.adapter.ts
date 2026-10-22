@@ -5,6 +5,7 @@ import type {
     SubscriptionUsageRecord,
     TenantSubscriptionUsage,
 } from '@saasicat/core';
+import { toContractAgreement } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { planVersions, subscriptions } from './schema.js';
 
@@ -160,6 +161,14 @@ function toRecord(
         pendingBillingCycle: subscription.pendingBillingCycle,
         pendingEffectiveAt: subscription.pendingEffectiveAt,
         pendingChangeVersionId: subscription.pendingChangeVersionId,
+        pendingAgreement: toContractAgreement(
+            {
+                termsVersion: subscription.pendingTermsVersion,
+                cancellationNoticeDays: subscription.pendingCancellationNoticeDays,
+                agreedAt: subscription.pendingAgreedAt,
+            },
+            `Subscription ${subscription.id}'s scheduled change`,
+        ),
         planVersion: toUsagePlanVersion(planVersion),
         packageSnapshot: subscription.packageSnapshot,
         checkoutOfferId: subscription.checkoutOfferId,

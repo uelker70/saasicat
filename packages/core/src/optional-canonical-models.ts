@@ -65,6 +65,7 @@ export const OPTIONAL_CANONICAL_MODELS = {
         'entitlement.invoiceCollectionRepository',
     ],
     PromoCodeHold: ['promo.holdRepository'],
+    TermsVersion: ['core.termsArchive'],
 } as const;
 
 export type OptionalCanonicalModel = keyof typeof OPTIONAL_CANONICAL_MODELS;

@@ -10,10 +10,10 @@
 A contract records the notice period it was concluded with
 
 Every contract records the days of notice of its rhythm as
-`config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when it is
-concluded or changed (`cancellationNoticeDays` on
+`config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when the
+subscriber concludes or changes it (`cancellationNoticeDays` on
 `SubscriptionContractRecord`), and a cancellation is judged by the contract in
-force rather than by what the file names since (`SC-CANC-025`). Without a
+force rather than by what the file names since (`SC-CANC-026`). Without a
 contract in force — an installation that keeps no contracts, or a
 subscription nothing was confirmed for — the file decides as before.
 `TenantBillingModule` reads the contracts from `contractFreeze` or from its new

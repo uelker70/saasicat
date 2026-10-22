@@ -156,16 +156,29 @@ const refusedFor = (table) => (error) => {
 const CANCELLATION_MIGRATION = '1.0-an-invoice-is-cancelled.postgres.sql';
 
 /**
- * The notice period a contract row is written with, where the table records
- * one: the column and its value for an insert, or nothing on a shape from
- * before a contract recorded its notice period.
+ * What a contract row records as agreed, where the table records it: the
+ * columns and their values for an insert — the notice period, and when the
+ * subscriber agreed — or nothing on a shape from before a contract recorded
+ * either.
  */
-async function noticeOfAContract() {
+async function agreementOfAContract() {
     const { rows } = await client.query(
-        'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
-            "AND table_name = 'subscription_contracts' AND column_name = 'cancellationNoticeDays'",
+        'SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() ' +
+            "AND table_name = 'subscription_contracts' " +
+            "AND column_name IN ('cancellationNoticeDays', 'agreedAt')",
     );
-    return rows.length > 0 ? [', "cancellationNoticeDays"', ', 14'] : ['', ''];
+    const recorded = new Set(rows.map((row) => row.column_name));
+    const columns = [];
+    const values = [];
+    if (recorded.has('cancellationNoticeDays')) {
+        columns.push('"cancellationNoticeDays"');
+        values.push('14');
+    }
+    if (recorded.has('agreedAt')) {
+        columns.push('"agreedAt"');
+        values.push('NOW()');
+    }
+    return columns.length > 0 ? [`, ${columns.join(', ')}`, `, ${values.join(', ')}`] : ['', ''];
 }
 
 /**
@@ -177,7 +190,7 @@ async function anIssuedInvoice() {
     await client.query(
         `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
     );
-    const notice = await noticeOfAContract();
+    const notice = await agreementOfAContract();
     await client.query(
         'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
             ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${notice[0]}) ` +
@@ -202,6 +215,16 @@ async function anIssuedInvoice() {
 
 async function apply(name) {
     await client.query(readFileSync(join(SQL_DIR, name), 'utf8'));
+}
+
+/** The error a statement raises, or a failure where it raises none. */
+async function refusalOf(statement) {
+    try {
+        await client.query(statement);
+    } catch (error) {
+        return error;
+    }
+    assert.fail(`${statement} was not refused`);
 }
 
 describe('a shipped migration survives a second run', () => {
@@ -454,7 +477,7 @@ describe('a correction in the journal names what it corrects', () => {
         await client.query(
             `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Kunde GmbH', NOW())`,
         );
-        const notice = await noticeOfAContract();
+        const notice = await agreementOfAContract();
         await client.query(
             'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
                 ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${notice[0]}) ` +
@@ -731,7 +754,7 @@ describe('a line item learns the money it was booked with', () => {
             'INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ($1, $2, NOW())',
             [`subscriber-${id}`, `Customer ${id}`],
         );
-        const notice = await noticeOfAContract();
+        const notice = await agreementOfAContract();
         await client.query(
             'INSERT INTO "subscription_contracts" ' +
                 '("id", "tenantId", "subscriberId", "subscriberSnapshot", "effectiveFrom", ' +
@@ -1247,7 +1270,7 @@ describe('every contract names the subscriber it is concluded with', () => {
             [`sub-${tenantId}`, tenantId, createdAt],
         );
     const seedContract = async (id, tenantId, createdAt) => {
-        const notice = await noticeOfAContract();
+        const notice = await agreementOfAContract();
         return client.query(
             'INSERT INTO "subscription_contracts" ("id", "tenantId", "effectiveFrom", ' +
                 ` "priceSnapshot", "createdAt", "updatedAt"${notice[0]}) ` +
@@ -2268,7 +2291,7 @@ describe('a subscriber has a tax origin, and a contract its treatment', () => {
             `INSERT INTO "subscribers" ("id", "legalName", "vatId", "updatedAt") ` +
                 `VALUES ('s-1', 'Vorher GmbH', 'ATU12345678', NOW())`,
         );
-        const notice = await noticeOfAContract();
+        const notice = await agreementOfAContract();
         await client.query(
             'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
                 ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${notice[0]}) ` +
@@ -2621,16 +2644,6 @@ describe('an archived invoice document is kept as it was issued', () => {
         await freshGround();
         for (let run = 0; run < runs; run += 1) await apply(MIGRATION);
         await archived('invoice-1');
-    }
-
-    /** The error a statement raises, or a failure where it raises none. */
-    async function refusalOf(statement) {
-        try {
-            await client.query(statement);
-        } catch (error) {
-            return error;
-        }
-        assert.fail(`${statement} was not refused`);
     }
 
     const stored = async () =>
@@ -3372,7 +3385,157 @@ describe('an invoice is corrected by a cancellation invoice', () => {
     });
 });
 
-// @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+describe('an archived version of the terms is kept as it was agreed', () => {
+    // The triggers are the database's own guard, so they are asked directly:
+    // no adapter, whatever it does, can change or remove an archived version.
+    const MIGRATION = '1.0-the-terms-are-a-version-and-a-file.postgres.sql';
+    const TERMS = Buffer.from('%PDF-1.7 the terms as they were agreed');
+
+    /** The reference schema with the archive's triggers, run `runs` times, and one archived version. */
+    async function anArchive({ runs = 1 } = {}) {
+        await freshGround();
+        for (let run = 0; run < runs; run += 1) await apply(MIGRATION);
+        await client.query(
+            `INSERT INTO "terms_versions"
+                 ("version", "checksum", "mediaType", "fileName", "content", "archivedAt")
+             VALUES ('2026-10', $1, 'application/pdf', 'agb-2026-10.pdf', $2, now())`,
+            ['a'.repeat(64), TERMS],
+        );
+    }
+
+    const kept = async () =>
+        (await client.query('SELECT "content" FROM "terms_versions"')).rows.map((row) =>
+            Buffer.from(row.content).toString(),
+        );
+
+    for (const [what, statement] of [
+        ['an update of the file', `UPDATE "terms_versions" SET "content" = '\\x00'`],
+        ['an update of its version', `UPDATE "terms_versions" SET "version" = '2026-11'`],
+        ['a delete', 'DELETE FROM "terms_versions"'],
+        ['a truncate', 'TRUNCATE "terms_versions"'],
+    ]) {
+        test(`refuses ${what}, and the version stays`, async () => {
+            await anArchive();
+
+            const error = await refusalOf(statement);
+
+            assert.equal(error.code, '23001');
+            assert.match(
+                error.message,
+                /An archived version of the terms is kept as it was agreed/,
+            );
+            assert.deepEqual(await kept(), [TERMS.toString()]);
+        });
+    }
+
+    test('still refuses after the migration ran a second time', async () => {
+        await anArchive({ runs: 2 });
+
+        const error = await refusalOf('DELETE FROM "terms_versions"');
+
+        assert.equal(error.code, '23001');
+    });
+
+    /**
+     * The reference schema as a database from before this release holds it: no
+     * archive of the terms, no version or moment of agreement on a contract,
+     * no agreement on a scheduled change or a booking — and one contract,
+     * written at a known moment. Answers the reference's fingerprint.
+     */
+    async function aDatabaseFromBefore() {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await client.query('DROP TABLE "terms_versions"');
+        await client.query(
+            'ALTER TABLE "subscription_contracts" DROP COLUMN "termsVersion", DROP COLUMN "agreedAt"',
+        );
+        await client.query(
+            'ALTER TABLE "subscriptions" DROP COLUMN "pendingTermsVersion", ' +
+                'DROP COLUMN "pendingCancellationNoticeDays", DROP COLUMN "pendingAgreedAt"',
+        );
+        await client.query(
+            'ALTER TABLE "subscription_bundles" DROP COLUMN "pendingTermsVersion", ' +
+                'DROP COLUMN "pendingCancellationNoticeDays", DROP COLUMN "pendingAgreedAt", ' +
+                'DROP COLUMN "agreedTermsVersion", DROP COLUMN "agreedCancellationNoticeDays", ' +
+                'DROP COLUMN "agreedAt"',
+        );
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "createdAt", "updatedAt", ' +
+                ' "cancellationNoticeDays") ' +
+                "VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', '2026-03-04 05:06:07.089', NOW(), 14)",
+        );
+        return reference;
+    }
+
+    // As text: the column has no time zone, and the driver would read it in
+    // the local one.
+    const contractsAsRecorded = async () =>
+        (
+            await client.query(
+                'SELECT "id", "termsVersion", "agreedAt"::text AS "agreedAt" ' +
+                    'FROM "subscription_contracts" ORDER BY "id"',
+            )
+        ).rows.map((row) => [row.id, row.termsVersion, row.agreedAt]);
+
+    test('a database from before gains what the fragments declare, and a contract agreed when it was written', async () => {
+        const reference = await aDatabaseFromBefore();
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        assert.deepEqual(await contractsAsRecorded(), [['c-1', null, '2026-03-04 05:06:07.089']]);
+        const { rows } = await client.query(
+            'SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() ' +
+                "AND table_name = 'subscription_contracts' AND column_name = 'agreedAt'",
+        );
+        assert.deepEqual(rows, [{ is_nullable: 'NO' }], 'and comes out required');
+    });
+
+    test('a role row-level security hides contracts from stops it, naming the table and the role', async () => {
+        await aDatabaseFromBefore();
+        await asOwningRole(async ({ become, leave }) => {
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await assert.rejects(apply(MIGRATION), refusedFor('subscription_contracts'));
+            await client.query('ROLLBACK').catch(() => {});
+
+            // The counter-check: the owner of a table whose security is not
+            // forced sees every row, and the migration goes through.
+            await leave();
+            await client.query('ALTER TABLE "subscription_contracts" NO FORCE ROW LEVEL SECURITY');
+            await become();
+            await apply(MIGRATION);
+            await leave();
+            assert.deepEqual(await contractsAsRecorded(), [
+                ['c-1', null, '2026-03-04 05:06:07.089'],
+            ]);
+        });
+    });
+
+    test('once it has run through, a run as a role under row-level security asks nothing of the rows', async () => {
+        await aDatabaseFromBefore();
+        // One role for both runs, as a deploy has: the function the first
+        // creates is the second's to replace.
+        await asOwningRole(async ({ become, leave }) => {
+            await become();
+            await apply(MIGRATION);
+            await leave();
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await apply(MIGRATION);
+        });
+    });
+});
+
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
 describe('a contract records the notice period it was concluded with', () => {
     const MIGRATION = '1.0-a-contract-records-its-notice-period.postgres.sql';
     const CHECK = 'subscription_contracts_notice_is_days';
@@ -3391,8 +3554,9 @@ describe('a contract records the notice period it was concluded with', () => {
             const snapshot = rhythm === null ? {} : { billingCycle: rhythm };
             await client.query(
                 'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-                    ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-                    "VALUES ($1, 't-1', 's-1', '{}', NOW(), $2, NOW())",
+                    ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt", ' +
+                    ' "agreedAt") ' +
+                    "VALUES ($1, 't-1', 's-1', '{}', NOW(), $2, NOW(), NOW())",
                 [`c-${at + 1}`, JSON.stringify(snapshot)],
             );
         }
@@ -3447,8 +3611,8 @@ describe('a contract records the notice period it was concluded with', () => {
                     client.query(
                         'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
                             ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt", ' +
-                            ' "cancellationNoticeDays") ' +
-                            `VALUES ('c-9', 't-1', 's-1', '{}', NOW(), '{}', NOW(), ${value})`,
+                            ' "agreedAt", "cancellationNoticeDays") ' +
+                            `VALUES ('c-9', 't-1', 's-1', '{}', NOW(), '{}', NOW(), NOW(), ${value})`,
                     ),
                     (error) => String(error.message).includes(named),
                     `a contract with ${what} was let in`,

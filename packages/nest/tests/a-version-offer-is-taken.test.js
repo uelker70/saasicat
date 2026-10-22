@@ -43,6 +43,7 @@ function aSwitch({
     usage = {},
     claimed = true,
     whileWriting = () => {},
+    settings = null,
 } = {}) {
     const calls = {
         immediate: [],
@@ -79,6 +80,7 @@ function aSwitch({
         { invalidateTenant: (tenantId) => calls.invalidated.push(tenantId) },
         contractFreeze,
         charges,
+        settings,
     );
     return { calls, service, contractFreeze, take: (id = 'pv-2') => service.take('t1', id, NOW) };
 }
@@ -207,11 +209,34 @@ describe('one that takes something away is taken at the end of the term', () => 
                 expectedPlanVersionId: 'pv-1',
                 expectedPendingPlan: null,
                 pendingChangeVersionId: 'pv-2',
+                // What scheduling it agrees to, which its contract records.
+                pendingAgreement: { termsVersion: null, cancellationNoticeDays: 0, agreedAt: NOW },
             },
         ]);
         assert.equal(calls.immediate.length, 0);
         assert.deepEqual(calls.frozen, [], 'the contract is frozen when the change comes due');
         assert.deepEqual(calls.invalidated, ['t1']);
+    });
+
+    // @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+    test('with what taking it agrees to: the terms named and the notice of its rhythm, now', async () => {
+        const { calls, take } = aSwitch({
+            live: TAKES_AWAY,
+            usage: { users: 3 },
+            settings: {
+                tenantBilling: { cancellationNoticeDays: { monthly: 14, yearly: 90 } },
+                terms: { version: '2026-10', file: '/srv/config/agb-2026-10.pdf' },
+            },
+        });
+
+        await take();
+
+        assert.deepEqual(calls.scheduled[0].pendingAgreement, {
+            termsVersion: '2026-10',
+            cancellationNoticeDays: 14,
+            agreedAt: NOW,
+        });
     });
 
     test('the party is asked about the contract that runs from the term end', async () => {

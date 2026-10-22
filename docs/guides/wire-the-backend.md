@@ -129,14 +129,40 @@ marketing:
 plans self-service may not reach or leave, and whether your terms allow you to retire
 a version for the subscriptions already on it. Each has a money or a legal
 consequence, so the file states them rather than defaulting them. Where contracts are kept, each
-records the notice period of its rhythm when it is concluded or changed, and a cancellation of it is
-judged by that rather than by what the file names later (`SC-CANC-025`). See
+records the notice period of its rhythm when the subscriber concludes or changes it — a change they
+schedule records it when they schedule it, and a successor the operator or the platform writes keeps
+it —, and a cancellation of it is judged by that rather than by what the file names later
+(`SC-CANC-026`). See
 [the settings section of the upgrade guide](upgrade-to-1.0.md#the-settings-that-cost-money-live-in-configsaasyaml)
 and [Retiring a Version for Running Subscriptions](#retiring-a-version-for-running-subscriptions).
 
 > `features:` and `plans:` are still allowed as optional blocks in the schema —
 > only for static setups without an admin UI (tests, smoke environments).
 > In production they are deliberately NOT maintained in the YAML.
+
+### The terms a contract is concluded under
+
+Name your terms by a version and the PDF that holds them. Every contract records the version named
+when the subscriber concludes or changes it — a change they schedule records it when they schedule
+it, unless they agree to newer terms before it takes effect, and a successor the operator or the
+platform writes keeps the one before —, and the start archives each version once, byte for byte, so
+the terms a subscriber agreed to can be handed out as they were (`SC-CFG-038`):
+
+```yaml
+terms:
+    version: '2026-10' # letters, digits, `.`, `-` and `_`, at most 32 characters
+    file: agb-2026-10.pdf # beside config/saas.yaml, or an absolute path
+```
+
+Adopt `prisma-fragments/25-terms.prisma` and run `sql/1.0-the-terms-are-a-version-and-a-file.postgres.sql`
+once before `db push`: it adds the triggers that refuse every update, delete and truncate of an
+archived version, which `db push` cannot create. The start refuses terms it cannot keep as they were
+agreed — a file it cannot read or that is no PDF, terms without an archive, an archive whose
+triggers are missing or disabled — and another file under a version it has archived: a changed file
+is a new version. To publish new terms, put the new PDF beside the old one and name its version; the
+old one stays archived for the contracts that recorded it. Settings handed in as code name the file
+by an absolute path, since there is no `config/saas.yaml` for a relative one to start from.
+Invoicing requires the block.
 
 ### A value may name an environment variable
 
@@ -986,7 +1012,8 @@ issued invoice is never edited (`SC-PRIC-095`), so until then a wrong one cannot
 invoice is issued, rendered into the file its tax law requires — by `@saasicat/invoice-zugferd`, or
 a renderer of your own — archived and mailed.
 
-It needs the charge journal above, a tax adapter, the issuer and a payment gateway (`payments`) in
+It needs the charge journal above, a tax adapter, the issuer, the
+[terms](#the-terms-a-contract-is-concluded-under) and a payment gateway (`payments`) in
 `config/saas.yaml` — an invoice is paid through the gateway, and the start refuses invoicing without
 one —, and the record of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only
 against the record does a start refuse another legal entity named as the issuer, which would

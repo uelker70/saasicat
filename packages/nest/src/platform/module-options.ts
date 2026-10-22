@@ -25,6 +25,7 @@ import {
 } from '@nestjs/common';
 import type {
     AppliedSettingsPort,
+    TermsArchivePort,
     AuditPort,
     AdminResourcesPort,
     EmailPort,
@@ -108,6 +109,12 @@ export interface SaaSiCatAdapters {
      * not recording it.
      */
     appliedSettings?: ProviderSpec<AppliedSettingsPort>;
+    /**
+     * Optional. Where the versions of the operator's terms are kept
+     * (`config/saas.yaml#terms`); the `persistence` bundle supplies it by
+     * default. A file that names terms without either refuses the start.
+     */
+    termsArchive?: ProviderSpec<TermsArchivePort>;
     /**
      * Optional. How the platform mails an operator — today, the people
      * `config/saas.yaml#notifications.settingsChanged` names when a start

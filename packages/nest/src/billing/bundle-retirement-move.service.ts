@@ -271,6 +271,7 @@ export class BundleRetirementMoveService {
                 sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 {
                     retirementId: notice.retirementId,
+                    kind: 'move',
                     addOn: {
                         bundleVersionId: notice.replacement.bundleVersionId,
                         subscriptionBundleId: notice.subscriptionBundleId,

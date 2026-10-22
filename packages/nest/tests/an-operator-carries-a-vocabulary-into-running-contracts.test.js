@@ -676,3 +676,38 @@ describe('what the refresh is asked about', () => {
         assert.equal(all[0].id, contract.id);
     });
 });
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+describe('a refresh keeps what the subscriber agreed to', () => {
+    for (const mode of ['features', 'full']) {
+        test(`${mode}, with the version of the terms and the days of notice of the contract it replaces`, async () => {
+            const t = installation();
+            const frozen = await t.freeze();
+            // As the subscriber agreed it: under named terms, with 14 days of notice.
+            await t.repo.terminate(frozen.id, {
+                tenantId: frozen.tenantId,
+                effectiveUntil: FROZEN,
+                status: 'superseded',
+            });
+            await t.repo.create({
+                ...t.contracts.dataOf(frozen),
+                status: 'active',
+                effectiveFrom: new Date(FROZEN.getTime() + 1),
+                termsVersion: '2026-01',
+                cancellationNoticeDays: 14,
+                parties: partiesNamed('Tenant One GmbH'),
+            });
+            t.rename();
+
+            const [outcome] = await t.refresh.apply({}, mode, OPERATOR, NOW);
+
+            assert.ok(outcome.successorId, 'written');
+            const successor = await t.repo.findActiveByTenantId('t1', NOW);
+            assert.deepEqual(
+                [successor.termsVersion, successor.cancellationNoticeDays],
+                ['2026-01', 14],
+            );
+        });
+    }
+});

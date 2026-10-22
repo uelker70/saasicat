@@ -974,6 +974,12 @@ export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[keyof typeof PAYMENT
 export const SETTINGS_ERROR_CODES = {
     /** No recorded change has this id, or the installation keeps no record at all. */
     SETTINGS_CHANGE_NOT_FOUND: 'SETTINGS_CHANGE_NOT_FOUND',
+    /**
+     * A version of the terms (`version`) is archived with another file
+     * (`recorded`) than the one now given (`given`), both as checksums. The
+     * first stays: a changed file is a new version.
+     */
+    TERMS_VERSION_CHANGED: 'TERMS_VERSION_CHANGED',
 } as const;
 export type SettingsErrorCode = (typeof SETTINGS_ERROR_CODES)[keyof typeof SETTINGS_ERROR_CODES];
 

@@ -54,6 +54,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`22-subscription-invoice-archive.prisma`](22-subscription-invoice-archive.prisma)       | `SubscriptionInvoiceArchive`                                                                                                                                                |
 | [`23-subscription-invoice-collection.prisma`](23-subscription-invoice-collection.prisma) | `SubscriptionInvoiceCollection`                                                                                                                                             |
 | [`24-subscriber-payments.prisma`](24-subscriber-payments.prisma)                         | `SubscriberPayment`, `SubscriptionInvoiceSettlement`, `SubscriberCredit`, `SubscriberCreditEntry`, `SubscriberRefund`, `SubscriberReversal`, `SubscriberReconciliationCase` |
+| [`25-terms.prisma`](25-terms.prisma)                                                     | `TermsVersion`                                                                                                                                                              |
 
 ## How the consumer uses the fragments
 
@@ -111,7 +112,7 @@ from ever being deleted.
 `super_admin_users`, `super_admin_mfa`, `subscription_bundles`, `subscribers`,
 `subscriber_tenants`, `subscriber_corrections`, `subscriber_tax_origin_changes`,
 `subscriber_vat_id_checks`, `subscriber_payment_methods`,
-`subscriber_payment_method_setups`.
+`subscriber_payment_method_setups`, `terms_versions`.
 `PendingRegistration` and `PaymentEventLog` carry no `@@map` and keep Prisma's
 default names, `"PendingRegistration"` and `"PaymentEventLog"`.
 Please do **not change** them — otherwise platform migration scripts and the

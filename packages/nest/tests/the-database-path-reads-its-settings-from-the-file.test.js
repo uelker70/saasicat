@@ -13,7 +13,7 @@
 
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import 'reflect-metadata';
@@ -29,6 +29,7 @@ import {
 } from '../dist/billing/index.js';
 import { SETTINGS_SOURCE_TOKEN, storeSecretsInPlainText } from '../dist/index.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
+import { TERMS_PDF, aTermsArchive } from './helpers/terms.js';
 
 // Every settings block the schema declares but `tax`, which excludes `vatRate`
 // and has a file of its own below together with `invoicing`, which needs it, so
@@ -50,6 +51,8 @@ const LINES = [
     'notifications: { settingsChanged: [ops@example.com] }',
     'issuer: { legalName: Example Software GmbH, country: DE, vatId: DE123456789 }',
     'subscribers: { customerNumberPrefix: K- }',
+    // Beside the file, as an operator puts it: the start reads it from there.
+    'terms: { version: 2026-10, file: agb-2026-10.pdf }',
     'payments:',
     '  newPaymentMethods: main',
     "  returnUrlOrigins: ['https://app.example.com']",
@@ -91,7 +94,14 @@ const persistenceWith = (appliedSettings) => ({
         rowLevelSecurity: false,
         advisoryLocks: false,
     },
-    core: { mfa: spec, audit: spec, rlsBypass: spec, transactionRunner: spec, appliedSettings },
+    core: {
+        mfa: spec,
+        audit: spec,
+        rlsBypass: spec,
+        transactionRunner: spec,
+        appliedSettings,
+        termsArchive: aTermsArchive(),
+    },
 });
 
 const scratch = [];
@@ -108,8 +118,10 @@ function scratchDir() {
 }
 
 function fileWith(lines = LINES) {
-    const path = join(scratchDir(), 'saas.yaml');
+    const dir = scratchDir();
+    const path = join(dir, 'saas.yaml');
     writeFileSync(path, lines.join('\n'));
+    copyFileSync(TERMS_PDF, join(dir, 'agb-2026-10.pdf'));
     return path;
 }
 

@@ -178,6 +178,26 @@ describe('one that takes something away is scheduled for the end of the booking�
         assert.deepEqual(world.recorded, []);
     });
 
+    // @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+    test('with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm, now', async () => {
+        const world = offering({
+            versions: [BOOKED, TAKES_AWAY],
+            settings: {
+                tenantBilling: { cancellationNoticeDays: { monthly: 14, yearly: 90 } },
+                terms: { version: '2026-10', file: '/srv/config/agb-2026-10.pdf' },
+            },
+        });
+
+        await world.switches.take('t1', 'sb-t1', TAKES_AWAY.id, NOW);
+
+        assert.deepEqual(bookingIn(world, 'sb-t1').pendingAgreement, {
+            termsVersion: '2026-10',
+            cancellationNoticeDays: 90,
+            agreedAt: NOW,
+        });
+    });
+
     test('the booking list names the version scheduled, and its moment', async () => {
         const world = offering({ versions: [BOOKED, TAKES_AWAY] });
         await world.switches.take('t1', 'sb-t1', TAKES_AWAY.id, NOW);

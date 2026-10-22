@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 21 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 22 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -214,6 +214,16 @@ Stores what the installation applied and what changed between two boots.
 | `recordChange( change: NewSettingsChange, record: AppliedSettingsRecord, expectedFingerprint: string, ): Promise<SettingsChangeRecord \| null>` | Appends a change a boot noticed and replaces the record it supersedes, in one step: both land, or neither does.                                                                                                |
 | `listChanges(filter?: SettingsChangeFilter): Promise<SettingsChangeRecord[]>`                                                                   | Changes, the most recently recorded first: the order the record went through them, which the database numbers at each write — not the order of the moments they carry, which are the recording starts' clocks. |
 | `acknowledgeChange( id: string, acknowledgedBy: string, acknowledgedAt: Date, ): Promise<SettingsChangeRecord \| null>`                         | Marks a change as seen.                                                                                                                                                                                        |
+
+### `TermsArchivePort`
+
+Where the versions of the terms are kept, unalterably: a contract names the version it was concluded under, and the subscriber is owed that file for as long as the contract is kept.
+
+| Member                                                         | What it does                                                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `store(terms: TermsVersionToArchive): Promise<void>`           | Stores the version.                                                                               |
+| `read(version: string): Promise<ArchivedTermsVersion \| null>` | The version as it was archived, or `null` where it was not.                                       |
+| `protectionProblem(): Promise<string \| null>`                 | Why the archive would let a version it keeps be changed or removed, or `null` where it would not. |
 
 ## Subscriber notices
 

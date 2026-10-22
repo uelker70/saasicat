@@ -150,6 +150,8 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                     partiesMigrated: data.partiesMigrated ?? false,
                     taxTreatment: data.taxTreatment ? taxTreatmentToJson(data.taxTreatment) : null,
                     cancellationNoticeDays: data.cancellationNoticeDays,
+                    termsVersion: data.termsVersion,
+                    agreedAt: data.agreedAt,
                     createdAt: now,
                     updatedAt: now,
                 })

@@ -38,6 +38,7 @@ import {
     type ChargeDerivationInput,
 } from './charge-derivation.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './subscriber-charge.tokens.js';
+import { latestAgreementOf } from '../../subscription-contract/contract-agreement.js';
 
 /**
  * The usage port types it as a string, but the column behind it is the
@@ -310,6 +311,9 @@ export class SubscriberChargeService {
         ) {
             return contracts;
         }
+        // What the subscriber agreed to by the latest of these bookings, as the
+        // contract its own freeze would have recorded.
+        const agreed = latestAgreementOf(missed);
         try {
             await this.freeze.freezeOnPlanChange(
                 tenantId,
@@ -317,6 +321,7 @@ export class SubscriberChargeService {
                 planCycleOf(subscription),
                 now,
                 endOf(subscription),
+                agreed ? { agreed } : undefined,
             );
         } catch (err) {
             this.logger.error(

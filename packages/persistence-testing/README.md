@@ -119,6 +119,7 @@ persistenceAdapterContract({
         'subscriberPayments',
         'checkoutOffers',
         'appliedSettings',
+        'termsArchive',
         'maintenanceWindows',
         'subscriptionNotices',
         'versionRetirements',

@@ -26,7 +26,7 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
  * nothing issues an invoice.
  */
 export function invoicingStartProblems(
-    settings: Pick<PlanCatalogSettings, 'invoicing' | 'issuer' | 'payments'>,
+    settings: Pick<PlanCatalogSettings, 'invoicing' | 'issuer' | 'payments' | 'terms'>,
     wired:
         | { renderer?: unknown; archive?: unknown; mail?: unknown; collections?: unknown }
         | undefined,
@@ -55,6 +55,14 @@ export function invoicingStartProblems(
     }
     if (!settings.issuer) {
         problems.push('invoices name their issuer: name it under issuer in config/saas.yaml.');
+    }
+    // Every contract an invoice is issued for records the version of the
+    // terms it was concluded under, and its confirmation carries them.
+    if (!settings.terms) {
+        problems.push(
+            'invoices are issued for contracts that record the version of the terms: name ' +
+                'terms in config/saas.yaml, with the version and its PDF.',
+        );
     }
     // An invoice is paid through the gateway: without one it would stand open
     // with nothing that could ever collect it.

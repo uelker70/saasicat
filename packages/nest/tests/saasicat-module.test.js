@@ -111,7 +111,7 @@ describe('SaaSiCatModule.forRoot', () => {
         });
         assert.equal(dyn.module.name, 'SaaSiCatModule');
         assert.ok(Array.isArray(dyn.imports), 'imports must be an array');
-        // PlanCatalog + Discovery + Admin + AdminManifest + Settings = 5
+        // PlanCatalog + Discovery + Admin + AdminManifest + Settings + Terms = 6
         // platform sub-modules, plus Nest's own DiscoveryModule.
         //
         // The last one is in every configuration: `EnforcementChainCheck` runs
@@ -119,7 +119,7 @@ describe('SaaSiCatModule.forRoot', () => {
         // discovery primitives. Registering it per branch — only where a
         // misconfiguration seemed possible — meant deciding in advance which
         // shapes can be wrong, in the file that produces the shapes.
-        assert.equal(dyn.imports.length, 6, 'five sub-modules plus Nest DiscoveryModule');
+        assert.equal(dyn.imports.length, 7, 'six sub-modules plus Nest DiscoveryModule');
         assert.ok(dyn.imports.includes(NestDiscoveryModule));
         assert.equal(dyn.global, true, 'mega-module is registered globally');
     });
@@ -142,7 +142,7 @@ describe('SaaSiCatModule.forRoot', () => {
         );
     });
 
-    test('Entitlement active with all repos -> 6 sub-modules', () => {
+    test('Entitlement active with all repos -> 7 sub-modules', () => {
         const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
@@ -157,7 +157,7 @@ describe('SaaSiCatModule.forRoot', () => {
             },
             entitlement: {},
         });
-        assert.equal(dyn.imports.length, 7, 'with Entitlement: 6 sub-modules + discovery');
+        assert.equal(dyn.imports.length, 8, 'with Entitlement: 7 sub-modules + discovery');
     });
 
     test('accepts empty guards: [] as an explicit choice', () => {
@@ -211,7 +211,7 @@ describe('SaaSiCatModule.forRoot', () => {
         assert.ok(moduleNames.includes('AdminStatsModule'));
         assert.ok(moduleNames.includes('CheckoutOfferModule'));
         assert.ok(moduleNames.includes('SubscriptionContractModule'));
-        assert.equal(dyn.imports.length, 10, 'five base + four optional + Nest discovery');
+        assert.equal(dyn.imports.length, 11, 'six base + four optional + Nest discovery');
 
         const statsModule = dyn.imports.find(
             (imported) => imported?.module?.name === 'AdminStatsModule',

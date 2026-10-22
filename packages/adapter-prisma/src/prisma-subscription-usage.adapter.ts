@@ -4,6 +4,7 @@ import type {
     SubscriptionUsageRecord,
     TenantSubscriptionUsage,
 } from '@saasicat/core';
+import { toContractAgreement } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PlanVersionRowLike,
@@ -170,6 +171,14 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             pendingBillingCycle: subscription.pendingBillingCycle ?? null,
             pendingEffectiveAt: subscription.pendingEffectiveAt,
             pendingChangeVersionId: subscription.pendingChangeVersionId ?? null,
+            pendingAgreement: toContractAgreement(
+                {
+                    termsVersion: subscription.pendingTermsVersion,
+                    cancellationNoticeDays: subscription.pendingCancellationNoticeDays,
+                    agreedAt: subscription.pendingAgreedAt,
+                },
+                `Subscription ${subscription.id}'s scheduled change`,
+            ),
             planVersion: planVersionRecord,
             packageSnapshot: subscription.packageSnapshot ?? null,
             checkoutOfferId: subscription.checkoutOfferId ?? null,

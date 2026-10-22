@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+    bookingAgreementColumns,
+    pendingAgreementColumns,
     subscriptionBundleAlreadyCancelled,
     subscriptionBundleGone,
     toSubscriptionBundleRecord,
     type CancelSubscriptionBundleData,
     type CanonicalSubscriptionBundleRow,
+    type ContractAgreement,
     type CreateSubscriptionBundleData,
     type EndNowInput,
     type SubscriptionBundleRecord,
@@ -75,7 +78,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
 
     async scheduleVersion(
         subscriptionBundleId: string,
-        switchTo: { from: string; to: string; effectiveAt: Date },
+        switchTo: { from: string; to: string; effectiveAt: Date; agreement: ContractAgreement },
     ): Promise<SubscriptionBundleRecord | null> {
         const { count } = await this.db().subscriptionBundle.updateMany({
             where: {
@@ -86,6 +89,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
             data: {
                 pendingBundleVersionId: switchTo.to,
                 pendingVersionEffectiveAt: switchTo.effectiveAt,
+                ...pendingAgreementColumns(switchTo.agreement),
             },
         });
         return count === 0 ? null : this.findById(subscriptionBundleId);
@@ -97,7 +101,11 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
     ): Promise<SubscriptionBundleRecord | null> {
         const { count } = await this.db().subscriptionBundle.updateMany({
             where: { id: subscriptionBundleId, pendingBundleVersionId: to },
-            data: { pendingBundleVersionId: null, pendingVersionEffectiveAt: null },
+            data: {
+                pendingBundleVersionId: null,
+                pendingVersionEffectiveAt: null,
+                ...pendingAgreementColumns(null),
+            },
         });
         return count === 0 ? null : this.findById(subscriptionBundleId);
     }
@@ -161,6 +169,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
                 billingCycle: data.billingCycle ?? null,
                 currentPeriodStart: data.currentPeriodStart ?? null,
                 currentPeriodEnd: data.currentPeriodEnd ?? null,
+                ...bookingAgreementColumns(data.agreement),
             },
         });
         return toSubscriptionBundleRecord(row);

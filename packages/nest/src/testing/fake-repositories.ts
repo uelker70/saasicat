@@ -206,6 +206,8 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
             currentPeriodEnd: data.currentPeriodEnd ?? null,
             pendingBundleVersionId: null,
             pendingVersionEffectiveAt: null,
+            pendingAgreement: null,
+            agreement: data.agreement ? { ...data.agreement } : null,
             createdAt,
             updatedAt: createdAt,
         };
@@ -327,6 +329,8 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
                 ? { ...data.taxTreatment, adapter: { ...data.taxTreatment.adapter } }
                 : null,
             cancellationNoticeDays: data.cancellationNoticeDays,
+            termsVersion: data.termsVersion,
+            agreedAt: new Date(data.agreedAt),
             status: data.status ?? 'active',
             effectiveFrom: new Date(data.effectiveFrom),
             effectiveUntil: data.effectiveUntil ? new Date(data.effectiveUntil) : null,
@@ -445,6 +449,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             promotionSnapshots: [...row.promotionSnapshots],
             promoCodeSnapshots: [...row.promoCodeSnapshots],
             termsSnapshot: row.termsSnapshot ? { ...row.termsSnapshot } : null,
+            agreedAt: new Date(row.agreedAt),
             lineItems: row.lineItems.map((item) => ({
                 ...item,
                 minimumTermUntil: item.minimumTermUntil ? new Date(item.minimumTermUntil) : null,

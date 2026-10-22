@@ -199,7 +199,7 @@ export class RetirementMoveService {
                 sub.billingCycle as BillingCycle,
                 now,
                 sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
-                { retirementId: notice.retirementId },
+                { retirementId: notice.retirementId, kind: 'move' },
             );
             return true;
         } catch (error) {

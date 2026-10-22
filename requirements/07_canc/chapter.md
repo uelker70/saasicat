@@ -150,7 +150,8 @@ _Tested by:_
 
 ### SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
 
-🟢 💰 A contract records the days of notice of its rhythm as
+🔵 _(Superseded on 2026-10-22 by `SC-CANC-026`.)_
+💰 A contract records the days of notice of its rhythm as
 `config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when it is concluded or changed,
 and a cancellation of it is judged by those days, never by what the file names since: the
 confirmation the subscriber keeps names the notice period (`SC-AUD-016`), and a file changed later
@@ -160,13 +161,44 @@ decide (`SC-CANC-007`).
 
 _Source:_ #334 (decided 2026-10-18)
 
+### SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+
+🟢 💰 A contract records the days of notice of its rhythm as
+`config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when the subscriber concludes or
+changes it — a plan change, a booking, a switch they take. A change they schedule records the days
+of the rhythm it ends in when they schedule it, and the contract written when it takes effect
+records those, unless, in the same rhythm, they agreed to later days since. A successor the operator
+or the platform writes without them — a feature withdrawal's reductions, a refresh, a retirement's
+move at its date — keeps the days of the contract it replaces, in the same rhythm. A cancellation is
+judged by the days of the contract in force, never by what the file names since: the confirmation the
+subscriber keeps names the notice period (`SC-AUD-016`), and neither a file changed later nor a
+change the subscriber did not make moves the day a cancellation lands. Where the installation keeps
+no contracts, or no contract is in force — nothing was confirmed —, the file's days for the
+subscription's rhythm decide (`SC-CANC-007`).
+
+_Source:_ #334 (decided 2026-10-18; successors decided 2026-10-22)
+
 <!-- BEGIN proof -->
 
 _Tested by:_
 
+- `packages/core/tests/a-bundle-booking-row-becomes-a-record.test.js`
+    - a bundle booking row becomes a record
+        - what was agreed by the booking and by the switch it scheduled is read from their columns
+- `packages/core/tests/a-version-of-the-terms-is-kept-as-it-was-agreed.test.js`
+    - what a scheduled change or a booking recorded as agreed
+        - is read back as it was written, its terms none where none were named
+        - is nothing where none was recorded, columns absent or null alike
+        - ${what} stops the read, naming whose it is
+        - is written in the columns of a scheduled change and of a booking, all null for none
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a contract row becomes a contract record
         - its days of notice read as they were recorded, none included
+        - when its terms were agreed reads as it was recorded, and a moment that is none stops the
+          read
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - a booking on a subscription set to move to another plan
+        - records what booking it agrees to: the terms named and the notice of the plan’s rhythm
 - `packages/nest/tests/a-contract-records-its-notice-period.test.js`
     - a contract records the notice period it is written with
         - concluded ${rhythm}, it records the days the file names for that rhythm
@@ -188,6 +220,54 @@ _Tested by:_
         - where a module beside tenant billing writes them, and nothing freezes them
         - where the store is named ${where} and not in the bundle
         - nowhere the installation keeps no contracts
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - one that takes something away is scheduled for the end of the booking’s term
+        - with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm,
+          now
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the successor the reductions are written into
+        - keeps the terms and the notice the subscriber agreed to, whatever the file names since
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an add-on is charged even where writing its contract failed
+        - the contract it writes records the latest of what the missed bookings were agreed under
+- `packages/nest/tests/a-successor-records-what-the-subscriber-agreed-to.test.js`
+    - a change the subscriber makes now
+        - records what the file names now, whatever the contract it replaces recorded
+    - a successor the operator or the platform writes
+        - keeps what the contract it replaces records, the moment it was agreed included
+        - in either spelling of the same rhythm
+        - is refused in another rhythm, whose days of notice the contract does not hold
+        - with no contract to keep from, records what the file names
+    - a change the subscriber scheduled, written when it takes effect
+        - records what they agreed to then, though the file names newer since
+        - and so where the contract in force was agreed at the same moment
+        - gives way to newer terms the subscriber agreed to since, with their notice
+        - and, where the change moves the rhythm, to the newer terms with the notice of the rhythm
+          it was scheduled in
+        - with no contract in force, records what they agreed to then
+- `packages/nest/tests/a-switch-taken-for-a-term-end-is-made.test.js`
+    - the contract a switch taken for the end of the term is made in
+        - records what the subscriber agreed to when they took it, and the schedule goes with it
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - one that takes something away is taken at the end of the term
+        - with what taking it agrees to: the terms named and the notice of its rhythm, now
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - a refresh keeps what the subscriber agreed to
+        - ${mode}, with the version of the terms and the days of notice of the contract it replaces
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what the subscriber agreed to, on a contract a change writes
+        - ${what} ${said}
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records what scheduling it agrees to
+        - the version of the terms named, the days of notice of the rhythm it lands in, and when
+- `packages/nest/tests/the-terms-are-a-version-and-a-file.test.js`
+    - a contract records the version of the terms the subscriber agreed to
+        - a successor the operator writes keeps the version and the days of notice of the contract
+          it replaces
+        - and refuses to keep the days of one rhythm in a contract of another, writing nothing
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column

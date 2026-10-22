@@ -9,7 +9,7 @@ interface is in — German and English ship with it —, with the values the
 refusal carries. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 287 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 288 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -361,9 +361,10 @@ Redemption, validity and limits.
 
 The record of the applied configuration.
 
-| Code                        | Shipped English text                     |
-| --------------------------- | ---------------------------------------- |
-| `SETTINGS_CHANGE_NOT_FOUND` | No recorded settings change has this id. |
+| Code                        | Shipped English text                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `SETTINGS_CHANGE_NOT_FOUND` | No recorded settings change has this id.                                                                                      |
+| `TERMS_VERSION_CHANGED`     | Version {version} of the terms was archived with another file. A changed file is a new version: name one in config/saas.yaml. |
 
 ## Tax
 

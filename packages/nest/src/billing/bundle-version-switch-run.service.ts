@@ -28,6 +28,7 @@
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import type {
     BillingCycle,
+    ContractAgreement,
     RlsBypassPort,
     SubscriptionBundleRecord,
     SubscriptionBundleRepository,
@@ -69,6 +70,8 @@ type SwitchFailure = PartyRefusal | 'contract-not-written';
 interface DueSwitch extends BookingMove {
     readonly subscriptionId: string;
     readonly effectiveAt: Date;
+    /** What the subscriber agreed to when they scheduled it; null where it was scheduled before that was recorded. */
+    readonly agreement: ContractAgreement | null;
 }
 
 @Injectable()
@@ -161,6 +164,7 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
             from: booking.bundleVersionId,
             to: booking.pendingBundleVersionId!,
             effectiveAt: booking.pendingVersionEffectiveAt!,
+            agreement: booking.pendingAgreement,
         };
         // Over by now — and so by its moment, which has come — it never moves:
         // the source of a contract hands no line for a booking that has ended.
@@ -242,6 +246,12 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
         now: Date,
     ): Promise<boolean> {
         if (!this.contractFreeze) return true;
+        const addOnSwitch = {
+            subscriptionBundleId: due.subscriptionBundleId,
+            fromBundleVersionId: due.from,
+            bundleVersionId: due.to,
+            effectiveAt: due.effectiveAt,
+        };
         try {
             await this.contractFreeze.freezeOnPlanChange(
                 due.tenantId,
@@ -249,14 +259,8 @@ export class BundleVersionSwitchRunService implements OnModuleInit {
                 sub.billingCycle as BillingCycle,
                 now,
                 cancellationLandsAt(sub),
-                {
-                    addOnSwitch: {
-                        subscriptionBundleId: due.subscriptionBundleId,
-                        fromBundleVersionId: due.from,
-                        bundleVersionId: due.to,
-                        effectiveAt: due.effectiveAt,
-                    },
-                },
+                // What the subscriber agreed to when they scheduled it.
+                due.agreement ? { addOnSwitch, agreed: due.agreement } : { addOnSwitch },
             );
             return true;
         } catch (error) {

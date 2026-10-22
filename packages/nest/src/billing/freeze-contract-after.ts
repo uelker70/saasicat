@@ -1,5 +1,5 @@
 import type { Logger } from '@nestjs/common';
-import type { BillingCycle, SubscriptionUsageRecord } from '@saasicat/core';
+import type { BillingCycle, ContractAgreement, SubscriptionUsageRecord } from '@saasicat/core';
 
 import { cancellationLandsAt } from '../entitlement/landed-cancellation.js';
 import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
@@ -10,6 +10,11 @@ export interface FrozenTerms extends IntendedContract {
     plan: string;
     /** Where a retirement writes it: its move, or the switch it offers. */
     retirement?: RetirementContractTerms;
+    /**
+     * What the subscriber agreed to when they scheduled the change, for one
+     * written when it takes effect (`AgreedChangeContractTerms`).
+     */
+    agreed?: ContractAgreement;
 }
 
 /**
@@ -61,7 +66,11 @@ export async function freezeContractAfter(
             terms.cycle,
             terms.effectiveFrom,
             terms.endsAt,
-            ...(terms.retirement ? [terms.retirement] : []),
+            ...(terms.retirement
+                ? [terms.retirement]
+                : terms.agreed
+                  ? [{ agreed: terms.agreed }]
+                  : []),
         );
     } catch (err) {
         logger.error(`Contract freeze after ${change} failed (tenant ${tenantId}): ${String(err)}`);

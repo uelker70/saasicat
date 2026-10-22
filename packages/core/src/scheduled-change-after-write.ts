@@ -8,6 +8,14 @@ export interface ScheduledChangeColumns {
     readonly pendingBillingCycle: string | null;
     readonly pendingEffectiveAt: Date | null;
     readonly pendingChangeVersionId: string | null;
+    /**
+     * What the subscriber agreed to when they scheduled the change
+     * (`ContractAgreement`), in three columns: all null where nothing is
+     * scheduled, or where it was scheduled before agreements were recorded.
+     */
+    readonly pendingTermsVersion: string | null;
+    readonly pendingCancellationNoticeDays: number | null;
+    readonly pendingAgreedAt: Date | null;
 }
 
 /** No change scheduled: what a plan change writes where it does not keep one. */
@@ -16,6 +24,9 @@ export const NO_SCHEDULED_CHANGE: ScheduledChangeColumns = {
     pendingBillingCycle: null,
     pendingEffectiveAt: null,
     pendingChangeVersionId: null,
+    pendingTermsVersion: null,
+    pendingCancellationNoticeDays: null,
+    pendingAgreedAt: null,
 };
 
 /**

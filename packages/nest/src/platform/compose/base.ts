@@ -8,6 +8,7 @@
 import type { DynamicModule } from '@nestjs/common';
 import type {
     AppliedSettingsPort,
+    TermsArchivePort,
     AuditPort,
     EmailPort,
     MfaPort,
@@ -26,6 +27,7 @@ import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import { SettingsModule } from '../../settings/settings.module.js';
+import { TermsModule } from '../../terms/terms.module.js';
 import { dbCatalogNamesAFile, type SaaSiCatModuleOptions } from '../module-options.js';
 
 import { operatorGuards } from './context.js';
@@ -142,6 +144,8 @@ export interface CorePorts {
     readonly appliedSettingsPort?: ProviderSpec<AppliedSettingsPort>;
     /** Optional: without it the addresses in the file reach nobody, and the boot log says so once. */
     readonly emailPort?: ProviderSpec<EmailPort>;
+    /** Optional: without it a file that names terms refuses the start. */
+    readonly termsArchivePort?: ProviderSpec<TermsArchivePort>;
 }
 
 /** Discovery, the admin core, the manifest and the settings record — in that order. */
@@ -151,7 +155,7 @@ export function composeBaseModules(
     appInfo: DiscoveryAppInfo,
     ports: CorePorts,
 ): DynamicModule[] {
-    const { appliedSettingsPort, emailPort, ...adminPorts } = ports;
+    const { appliedSettingsPort, emailPort, termsArchivePort, ...adminPorts } = ports;
     return [
         DiscoveryModule.forRoot({
             app: appInfo,
@@ -190,5 +194,6 @@ export function composeBaseModules(
             // billing does not import this module.
             global: true,
         }),
+        TermsModule.forRoot({ archive: termsArchivePort, imports: options.imports }),
     ];
 }

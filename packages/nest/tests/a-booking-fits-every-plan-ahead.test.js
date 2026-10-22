@@ -86,11 +86,15 @@ function catalogue() {
 const MOVE_TO_BASIC = { planKey: 'BASIC', billingCycle: 'YEARLY', from: MOVE };
 
 /** A booking on a yearly Standard plan set to move to `plansAhead`, ending where `parentEndsAt` says. */
-function bookingOn({ plansAhead = [MOVE_TO_BASIC], parentEndsAt = null } = {}) {
+function bookingOn({ plansAhead = [MOVE_TO_BASIC], parentEndsAt = null, settings = null } = {}) {
     const bookings = new FakeSubscriptionBundleRepository();
-    const service = new SubscriptionBundlesService(bookings, catalogue(), {
-        defaultMinimumTermMonths: 0,
-    });
+    const service = new SubscriptionBundlesService(
+        bookings,
+        catalogue(),
+        { defaultMinimumTermMonths: 0 },
+        null,
+        settings,
+    );
     const book = (bundleVersionId, billingCycle = 'YEARLY') =>
         service.addBundleToSubscription({
             subscriptionId: 'sub-1',
@@ -160,6 +164,25 @@ describe('a booking on a subscription set to move to another plan', () => {
         const { book, booked } = bookingOn();
         await book(EXPORTS.id);
         assert.equal((await booked()).length, 1);
+    });
+
+    // @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+    test('records what booking it agrees to: the terms named and the notice of the plan’s rhythm', async () => {
+        const before = Date.now();
+        const { book, booked } = bookingOn({
+            settings: {
+                tenantBilling: { cancellationNoticeDays: { monthly: 14, yearly: 90 } },
+                terms: { version: '2026-10', file: '/srv/config/agb-2026-10.pdf' },
+            },
+        });
+
+        await book(EXPORTS.id, 'MONTHLY');
+
+        const [{ agreement }] = await booked();
+        assert.equal(agreement.termsVersion, '2026-10');
+        assert.equal(agreement.cancellationNoticeDays, 90, 'the yearly plan’s, not the add-on’s');
+        assert.ok(agreement.agreedAt.getTime() >= before);
     });
 
     test('books it where the subscription ends on the day of the move, which then never lands', async () => {

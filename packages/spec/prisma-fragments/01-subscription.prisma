@@ -103,6 +103,14 @@ model Subscription {
     // The version of `pendingPlan` the change was quoted at, bound when it
     // comes due; null where the plan stays or nothing reads versions.
     pendingChangeVersionId String?
+    // What the subscriber agreed to when they scheduled the change: the
+    // version of the operator's terms and the days of notice config/saas.yaml
+    // named then, and when. The contract the change ends in records them,
+    // unless a later agreement of theirs is in force by then. Null where
+    // nothing is scheduled.
+    pendingTermsVersion           String?
+    pendingCancellationNoticeDays Int?
+    pendingAgreedAt               DateTime?
 
     // Special contract / pilot — audit (who/when) lives in the AuditLog.
     customMonthlyNet Decimal?  @db.Decimal(10, 2)

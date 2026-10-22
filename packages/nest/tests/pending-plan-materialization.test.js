@@ -176,3 +176,38 @@ test("the run reads and writes every tenant's change inside the bypass", async (
 
     assert.deepEqual(calls.framesSeen, ['bypass', 'bypass']);
 });
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+test('the contract a scheduled change ends in records what was agreed when it was scheduled, read before the write clears it', async () => {
+    const agreed = {
+        termsVersion: '2026-10',
+        cancellationNoticeDays: 90,
+        agreedAt: new Date('2026-04-02T08:00:00.000Z'),
+    };
+    let pending = agreed;
+    const frozen = [];
+    const service = new PendingPlanMaterializationService(
+        { findDuePendingPlanChanges: async () => [{ tenantId: 't1', pendingPlan: 'STANDARD' }] },
+        {
+            async changePlanImmediate(_tenantId, input) {
+                // The write clears the scheduled change, and what was agreed with it.
+                pending = null;
+                return { plan: input.planId, billingCycle: input.cycle, claimed: true };
+            },
+        },
+        { invalidateTenant() {} },
+        {
+            async freezeOnPlanChange(...args) {
+                frozen.push(args);
+            },
+        },
+        null,
+        { findForTenant: async () => ({ pendingAgreement: pending }) },
+    );
+
+    await service.materializeDuePlanChanges(new Date('2026-06-09T00:00:00.000Z'));
+
+    const [[, , , , , terms]] = frozen;
+    assert.deepEqual(terms, { agreed });
+});

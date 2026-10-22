@@ -15,6 +15,7 @@ import type {
 } from '@saasicat/core';
 import {
     NO_SCHEDULED_CHANGE,
+    pendingAgreementColumns,
     type ScheduledChangeColumns,
     buildActivePlanVersionWhere,
     noActivePlanVersion,
@@ -45,6 +46,9 @@ interface SubscriptionDbRow {
     pendingBillingCycle: string | null;
     pendingEffectiveAt: Date | null;
     pendingChangeVersionId: string | null;
+    pendingTermsVersion: string | null;
+    pendingCancellationNoticeDays: number | null;
+    pendingAgreedAt: Date | null;
     /** Present where plan versions are synchronized. */
     planVersionId?: string | null;
 }
@@ -292,6 +296,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingBillingCycle: input.pendingBillingCycle,
                 pendingEffectiveAt: input.pendingEffectiveAt,
                 pendingChangeVersionId: input.pendingChangeVersionId,
+                ...pendingAgreementColumns(input.pendingAgreement),
             },
         });
         return { claimed: claim.count > 0 };
@@ -306,10 +311,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             const data: Record<string, unknown> = {
                 plan: input.planId,
                 billingCycle: input.cycle,
-                pendingPlan: null,
-                pendingBillingCycle: null,
-                pendingEffectiveAt: null,
-                pendingChangeVersionId: null,
+                ...NO_SCHEDULED_CHANGE,
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 // Same derivation as the immediate path: the billing day is
                 // the day the window opens.
@@ -559,5 +561,8 @@ function scheduledChangeOf(row: ScheduledChangeColumns): ScheduledChangeColumns 
         pendingBillingCycle: row.pendingBillingCycle,
         pendingEffectiveAt: row.pendingEffectiveAt,
         pendingChangeVersionId: row.pendingChangeVersionId,
+        pendingTermsVersion: row.pendingTermsVersion,
+        pendingCancellationNoticeDays: row.pendingCancellationNoticeDays,
+        pendingAgreedAt: row.pendingAgreedAt,
     };
 }

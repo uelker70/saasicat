@@ -143,6 +143,9 @@ export { PlanVersionsService } from '../catalog/plan-versions.service.js';
 export { PlansService } from '../catalog/plans.service.js';
 export { PromotionsService } from '../catalog/promotions.service.js';
 export { PublicMarketingCatalogService } from '../catalog/public-marketing-catalog.service.js';
+export { TermsArchiveCheck } from '../terms/terms-archive.check.js';
+export { TermsModule, type TermsModuleOptions } from '../terms/terms.module.js';
+export { TERMS_ARCHIVE_TOKEN } from '../terms/terms.tokens.js';
 
 export { DiscoveryScanner } from '../discovery/discovery.scanner.js';
 

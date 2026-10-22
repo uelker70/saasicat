@@ -170,6 +170,8 @@ function contractRow(overrides = {}) {
         promoCodeSnapshots: [],
         termsSnapshot: { noticePeriodDays: 30 },
         cancellationNoticeDays: 14,
+        termsVersion: null,
+        agreedAt: new Date('2026-01-01T09:00:00.000Z'),
         createdAt: CREATED,
         updatedAt: UPDATED,
         ...overrides,
@@ -253,7 +255,7 @@ describe('a contract row becomes a contract record', () => {
         );
     });
 
-    // @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
     test('its days of notice read as they were recorded, none included', () => {
         for (const days of [0, 14, 365]) {
             assert.equal(
@@ -264,7 +266,7 @@ describe('a contract row becomes a contract record', () => {
         }
     });
 
-    // @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
     for (const [what, days] of [
         ['fewer than none', -1],
         ['a part of a day', 14.5],
@@ -276,6 +278,47 @@ describe('a contract row becomes a contract record', () => {
                 () =>
                     toSubscriptionContractRecord(contractRow({ cancellationNoticeDays: days }), []),
                 /Contract contract-1 records .* days of notice; a contract records a whole number/,
+            );
+        });
+    }
+
+    // @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+    test('the version of its terms reads as it was recorded, none included', () => {
+        for (const version of [null, '2026-10', 'v3.1_de']) {
+            assert.equal(
+                toSubscriptionContractRecord(contractRow({ termsVersion: version }), [])
+                    .termsVersion,
+                version,
+            );
+        }
+    });
+
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+    test('when its terms were agreed reads as it was recorded, and a moment that is none stops the read', () => {
+        assert.equal(
+            toSubscriptionContractRecord(contractRow(), []).agreedAt.toISOString(),
+            '2026-01-01T09:00:00.000Z',
+        );
+        for (const agreedAt of [null, new Date('not a date'), '2026-01-01']) {
+            assert.throws(
+                () => toSubscriptionContractRecord(contractRow({ agreedAt }), []),
+                /Contract contract-1 records .* as when its terms were agreed, which is no moment/,
+            );
+        }
+    });
+
+    // @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+    for (const [what, version] of [
+        ['empty', ''],
+        ['a name with a space', 'Oktober 2026'],
+        ['33 characters', 'v'.repeat(33)],
+        ['not text', 202610],
+        ['missing', undefined],
+    ]) {
+        test(`a version of its terms that is ${what} stops the read, naming the contract`, () => {
+            assert.throws(
+                () => toSubscriptionContractRecord(contractRow({ termsVersion: version }), []),
+                /Contract contract-1 records .* as its terms' version/,
             );
         });
     }

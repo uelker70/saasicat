@@ -31,10 +31,13 @@ function row(overrides = {}) {
     };
 }
 
+/** What `row()` reads as: the same, with no agreement recorded for it. */
+const recordOf = (fields) => ({ ...fields, agreement: null, pendingAgreement: null });
+
 // @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
 describe('a bundle booking row becomes a record', () => {
     test('every column is carried over as it is', () => {
-        assert.deepEqual(toSubscriptionBundleRecord(row()), row());
+        assert.deepEqual(toSubscriptionBundleRecord(row()), recordOf(row()));
     });
 
     test('both rhythms are read', () => {
@@ -77,7 +80,32 @@ describe('a bundle booking row becomes a record', () => {
             pendingVersionEffectiveAt: PERIOD_END,
         });
 
-        assert.deepEqual(toSubscriptionBundleRecord(scheduled), scheduled);
+        assert.deepEqual(toSubscriptionBundleRecord(scheduled), recordOf(scheduled));
+    });
+
+    // @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+    test('what was agreed by the booking and by the switch it scheduled is read from their columns', () => {
+        const record = toSubscriptionBundleRecord(
+            row({
+                agreedTermsVersion: '2026-10',
+                agreedCancellationNoticeDays: 14,
+                agreedAt: STARTED,
+                pendingTermsVersion: '2026-11',
+                pendingCancellationNoticeDays: 30,
+                pendingAgreedAt: PERIOD_END,
+            }),
+        );
+
+        assert.deepEqual(record.agreement, {
+            termsVersion: '2026-10',
+            cancellationNoticeDays: 14,
+            agreedAt: STARTED,
+        });
+        assert.deepEqual(record.pendingAgreement, {
+            termsVersion: '2026-11',
+            cancellationNoticeDays: 30,
+            agreedAt: PERIOD_END,
+        });
     });
 
     // @requirement SC-BUN-058 — A newer add-on version is taken by naming it, the way its kind says

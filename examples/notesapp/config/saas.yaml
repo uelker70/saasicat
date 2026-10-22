@@ -66,6 +66,18 @@ marketing:
 #   notifications:
 #       settingsChanged: [ops@example.com]
 
+# Your terms, by a version and the PDF beside this file. Every contract records
+# the version named when the subscriber concludes or changes it, and keeps it
+# through a successor the operator writes. The start archives each version
+# once, byte for byte; another file under a version already archived refuses
+# the start, since a changed file is a new version. Invoicing requires the
+# block. None is named here: this example issues no invoices, and its operator
+# has no terms to agree to.
+#
+#   terms:
+#       version: '2026-10'
+#       file: terms-2026-10.pdf
+
 # The operator's side of every contract this installation concludes. A contract
 # copies it on the day it is concluded, so it keeps naming its counterparty after
 # this block changes. Only the legal name is required until invoicing requires

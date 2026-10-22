@@ -484,6 +484,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     [FEATURE_NOT_LICENSED]: 'Feature {featureKeys} is not included in the current plan.',
     // ── settings ──
     SETTINGS_CHANGE_NOT_FOUND: 'No recorded settings change has this id.',
+    TERMS_VERSION_CHANGED:
+        'Version {version} of the terms was archived with another file. A changed file is a new version: name one in config/saas.yaml.',
     // ── maintenance ──
     MAINTENANCE: 'The application is under maintenance.',
     MAINTENANCE_WINDOW_ALREADY_OPEN:

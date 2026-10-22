@@ -7,7 +7,7 @@
 // is generic; only the bundle/plan-version data access
 // (`ContractFreezeSourcePort`) is consumer-specific.
 
-import type { BillingCycle, PlanVersionRow } from '@saasicat/core';
+import type { BillingCycle, ContractAgreement, PlanVersionRow } from '@saasicat/core';
 
 import type { PricedContractLineItem } from '../subscription-contract/contract-line-item-money.js';
 import type { IntendedContract } from '../subscription-contract/subscription-contract.service.js';
@@ -101,6 +101,14 @@ export interface ContractFreezePort {
 export interface RetirementContractTerms {
     readonly retirementId: string;
     /**
+     * `move` where the retirement moves the subscription, or the booking, at
+     * its date, which the subscriber did not ask for: the contract then keeps
+     * what they agreed to — the version of the terms and the days of notice of
+     * the contract it replaces. `switch` where the subscriber took the switch
+     * the retirement offered, a change of theirs like any other.
+     */
+    readonly kind: 'move' | 'switch';
+    /**
      * The add-on version an add-on retirement moves a booking onto, and that
      * booking: its line is the one marked, and a price held is held for that
      * booking alone, never for a later booking of the same add-on.
@@ -138,10 +146,27 @@ export interface AddOnSwitchContractTerms {
         /** When the switch took effect: at once, or at the end of the booking's term. */
         readonly effectiveAt: Date;
     };
+    /**
+     * What the subscriber agreed to when they scheduled the switch, for one
+     * taken for the end of the booking's term; absent for one taken at once,
+     * which they agree to now.
+     */
+    readonly agreed?: ContractAgreement;
+}
+
+/**
+ * A change the subscriber agreed to before the contract is written for it — a
+ * plan change scheduled for the end of the term, or a booking whose own
+ * contract could not be written: what they agreed to then, which the contract
+ * records unless they agreed to a later one since (`ContractAgreement`).
+ */
+export interface AgreedChangeContractTerms {
+    readonly agreed: ContractAgreement;
 }
 
 /** What a contract a change writes carries beside the plan and the add-ons booked. */
-export type ContractChangeTerms = RetirementContractTerms | AddOnSwitchContractTerms;
+export type ContractChangeTerms =
+    RetirementContractTerms | AddOnSwitchContractTerms | AgreedChangeContractTerms;
 
 /** Frozen bundle line items + their version ids (trace). */
 export interface ContractFreezeBundleSnapshot {

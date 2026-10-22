@@ -31,6 +31,7 @@ export { DrizzlePaymentEventLog } from './drizzle-payment-event-log.adapter.js';
 export { DrizzleSubscriberLedgerRepository } from './drizzle-subscriber-ledger.repository.js';
 export { DrizzleSubscriptionInvoiceRepository } from './drizzle-subscription-invoice.repository.js';
 export { DrizzleInvoiceArchive } from './drizzle-invoice-archive.js';
+export { DrizzleTermsArchive } from './drizzle-terms-archive.js';
 export { DrizzleInvoiceCollectionRepository } from './drizzle-invoice-collection.repository.js';
 export { DrizzleSubscriberPaymentRepository } from './drizzle-subscriber-payment.repository.js';
 export { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';

@@ -142,10 +142,28 @@ export interface SubscriptionContractRecord extends SubscriptionContractParties 
     /**
      * The days of notice a cancellation of this contract is judged by, in its
      * rhythm: what `config/saas.yaml#tenantBilling.cancellationNoticeDays`
-     * named for that rhythm when the contract was concluded or changed, and
-     * never what the file names later (`SC-CANC-025`).
+     * named for that rhythm when the subscriber concluded or changed the
+     * contract — a successor the operator or the platform writes keeps those
+     * of the contract it replaces — and never what the file names later
+     * (`SC-CANC-026`).
      */
     cancellationNoticeDays: number;
+    /**
+     * The version of the operator's terms `config/saas.yaml#terms` named when
+     * the subscriber concluded or changed the contract — a successor the
+     * operator or the platform writes keeps that of the contract it replaces
+     * (`SC-CFG-038`); `null` where it named none. The terms of that version
+     * are archived as they were.
+     */
+    termsVersion: string | null;
+    /**
+     * When the subscriber agreed to `termsVersion` and `cancellationNoticeDays`:
+     * when they concluded or changed the contract, or scheduled the change it
+     * was written for. A successor the operator or the platform writes keeps
+     * it with them, and a change that takes effect later compares its own
+     * against it (`ContractAgreement`).
+     */
+    agreedAt: Date;
     status: SubscriptionContractStatus;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -208,6 +226,25 @@ export interface NewSubscriptionContractData extends CreateSubscriptionContractD
      * them now, which the platform records with every contract it writes.
      */
     cancellationNoticeDays: number;
+    /** The version of the terms `config/saas.yaml` names now; `null` where it names none. */
+    termsVersion: string | null;
+    /** When the subscriber agreed to the two above. */
+    agreedAt: Date;
+}
+
+/**
+ * What the subscriber agreed to: the version of the operator's terms and the
+ * days of notice `config/saas.yaml` named when they did, and when that was. A
+ * change they schedule records it, and the contract written when the change
+ * takes effect records the later of it and the agreement of the contract in
+ * force (`SC-CFG-038`, `SC-CANC-026`): a subscriber who agreed to newer terms
+ * in between has agreed to them for the whole contract.
+ */
+export interface ContractAgreement {
+    termsVersion: string | null;
+    /** The days of notice of the rhythm the change ends in. */
+    cancellationNoticeDays: number;
+    agreedAt: Date;
 }
 
 export interface TerminateSubscriptionContractData {

@@ -51,7 +51,7 @@ async function contractsUnder(settings, repo = new FakeSubscriptionContractRepos
     };
 }
 
-// @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
 describe('a contract records the notice period it is written with', () => {
     for (const [rhythm, days] of [
         ['monthly', 14],
@@ -131,7 +131,7 @@ function judgedUnder({ billingCycle, notice, inForce }) {
 const landsOn = async (options) =>
     (await judgedUnder(options).controller.cancelSubscription(CANCELLING, {})).canceledEffectiveAt;
 
-// @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
 describe('a cancellation is judged by the notice period its contract recorded', () => {
     test('a contract that recorded fourteen days lands at this period end, though the file names ninety since', async () => {
         const judged = await landsOn({
@@ -190,7 +190,7 @@ describe('a cancellation is judged by the notice period its contract recorded', 
     });
 });
 
-// @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
 describe('the cancellation reads the contracts whichever module writes them', () => {
     /**
      * Whether the cancellation route of `options` can read the contracts —

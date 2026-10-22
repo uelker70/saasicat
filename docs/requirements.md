@@ -113,7 +113,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 25      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 96      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 35      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
-🔵 35 superseded, 🔴 3 withdrawn.
+Of 657 entries: 🟢 567 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+🔵 36 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -197,6 +197,7 @@ Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-CANC-025](#sc-canc-025--a-cancellation-is-judged-by-the-notice-period-its-contract-recorded),
 [SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
 [SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),
@@ -227,7 +228,7 @@ Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 655 requirements. Do not edit by hand:
+Generated from `requirements/` — 657 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -259,7 +260,7 @@ _Tested by:_
         - throws when neither planCatalog nor planCatalogReadSink is set
         - quickstart path: planCatalog + 3 adapters are enough
         - Entitlement opt-in: enabled without repos -&gt; error
-        - Entitlement active with all repos -&gt; 6 sub-modules
+        - Entitlement active with all repos -&gt; 7 sub-modules
         - accepts empty guards: [] as an explicit choice
         - composes setup, admin stats, checkout offer and subscription contract
         - setup and subscription contract can derive their adapters from persistence
@@ -382,7 +383,7 @@ _Tested by:_
         - throws when neither planCatalog nor planCatalogReadSink is set
         - quickstart path: planCatalog + 3 adapters are enough
         - Entitlement opt-in: enabled without repos -&gt; error
-        - Entitlement active with all repos -&gt; 6 sub-modules
+        - Entitlement active with all repos -&gt; 7 sub-modules
         - accepts empty guards: [] as an explicit choice
         - composes setup, admin stats, checkout offer and subscription contract
         - setup and subscription contract can derive their adapters from persistence
@@ -2606,6 +2607,7 @@ _Tested by:_
         - a booking made before the billing columns existed reads as null throughout
         - a schema without the billing columns reads the same as one holding nulls
         - a switch scheduled for the end of the term is carried over, version and moment
+        - what was agreed by the booking and by the switch it scheduled is read from their columns
         - a schema without the columns of a scheduled switch reads as none scheduled
         - a rhythm of '${value}' stops the read, naming the row
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
@@ -3877,6 +3879,7 @@ _Tested by:_
         - is refused where that plan has no price for it in its rhythm
         - is refused for a yearly add-on where the move is to the monthly rhythm
         - books an add-on the plan it moves to can carry
+        - records what booking it agrees to: the terms named and the notice of the plan’s rhythm
         - books it where the subscription ends on the day of the move, which then never lands
         - but not where the subscription ends a day after the move
     - reinstating a cancelled booking, which books it again
@@ -4741,6 +4744,8 @@ _Tested by:_
         - in a trial the booking moves, and nothing is frozen or charged
     - one that takes something away is scheduled for the end of the booking’s term
         - scheduled for the end of its period, and the booking stays on its version
+        - with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm,
+          now
         - the booking list names the version scheduled, and its moment
         - asks the party about the contract that runs from then
     - the switch goes ahead only while the version shown is still the offer
@@ -5253,6 +5258,8 @@ _Tested by:_
     - a scheduled change to another plan binds the version it was quoted at
     - a scheduled switch to a newer version of the same plan binds that version
     - the run reads and writes every tenant's change inside the bypass
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
 
 <!-- END proof -->
 
@@ -5450,6 +5457,7 @@ _Tested by:_
         - in a trial nothing is frozen and nothing charged
     - one that takes something away is taken at the end of the term
         - scheduled for the term end and bound to the version offered
+        - with what taking it agrees to: the terms named and the notice of its rhythm, now
         - the party is asked about the contract that runs from the term end
         - usage up to the lower quota fits
         - usage one above the lower quota is refused like a downgrade, with the numbers
@@ -6800,6 +6808,8 @@ _Tested by:_
     - a scheduled change to another plan binds the version it was quoted at
     - a scheduled switch to a newer version of the same plan binds that version
     - the run reads and writes every tenant's change inside the bypass
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
 
 <!-- END proof -->
 
@@ -7457,7 +7467,8 @@ _Tested by:_
 
 ### SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
 
-🟢 💰 A contract records the days of notice of its rhythm as
+🔵 _(Superseded on 2026-10-22 by `SC-CANC-026`.)_
+💰 A contract records the days of notice of its rhythm as
 `config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when it is concluded or changed,
 and a cancellation of it is judged by those days, never by what the file names since: the
 confirmation the subscriber keeps names the notice period (`SC-AUD-016`), and a file changed later
@@ -7467,13 +7478,44 @@ decide (`SC-CANC-007`).
 
 _Source:_ #334 (decided 2026-10-18)
 
+### SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+
+🟢 💰 A contract records the days of notice of its rhythm as
+`config/saas.yaml#tenantBilling.cancellationNoticeDays` names them when the subscriber concludes or
+changes it — a plan change, a booking, a switch they take. A change they schedule records the days
+of the rhythm it ends in when they schedule it, and the contract written when it takes effect
+records those, unless, in the same rhythm, they agreed to later days since. A successor the operator
+or the platform writes without them — a feature withdrawal's reductions, a refresh, a retirement's
+move at its date — keeps the days of the contract it replaces, in the same rhythm. A cancellation is
+judged by the days of the contract in force, never by what the file names since: the confirmation the
+subscriber keeps names the notice period (`SC-AUD-016`), and neither a file changed later nor a
+change the subscriber did not make moves the day a cancellation lands. Where the installation keeps
+no contracts, or no contract is in force — nothing was confirmed —, the file's days for the
+subscription's rhythm decide (`SC-CANC-007`).
+
+_Source:_ #334 (decided 2026-10-18; successors decided 2026-10-22)
+
 <!-- BEGIN proof -->
 
 _Tested by:_
 
+- `packages/core/tests/a-bundle-booking-row-becomes-a-record.test.js`
+    - a bundle booking row becomes a record
+        - what was agreed by the booking and by the switch it scheduled is read from their columns
+- `packages/core/tests/a-version-of-the-terms-is-kept-as-it-was-agreed.test.js`
+    - what a scheduled change or a booking recorded as agreed
+        - is read back as it was written, its terms none where none were named
+        - is nothing where none was recorded, columns absent or null alike
+        - ${what} stops the read, naming whose it is
+        - is written in the columns of a scheduled change and of a booking, all null for none
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a contract row becomes a contract record
         - its days of notice read as they were recorded, none included
+        - when its terms were agreed reads as it was recorded, and a moment that is none stops the
+          read
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - a booking on a subscription set to move to another plan
+        - records what booking it agrees to: the terms named and the notice of the plan’s rhythm
 - `packages/nest/tests/a-contract-records-its-notice-period.test.js`
     - a contract records the notice period it is written with
         - concluded ${rhythm}, it records the days the file names for that rhythm
@@ -7495,6 +7537,54 @@ _Tested by:_
         - where a module beside tenant billing writes them, and nothing freezes them
         - where the store is named ${where} and not in the bundle
         - nowhere the installation keeps no contracts
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - one that takes something away is scheduled for the end of the booking’s term
+        - with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm,
+          now
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the successor the reductions are written into
+        - keeps the terms and the notice the subscriber agreed to, whatever the file names since
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an add-on is charged even where writing its contract failed
+        - the contract it writes records the latest of what the missed bookings were agreed under
+- `packages/nest/tests/a-successor-records-what-the-subscriber-agreed-to.test.js`
+    - a change the subscriber makes now
+        - records what the file names now, whatever the contract it replaces recorded
+    - a successor the operator or the platform writes
+        - keeps what the contract it replaces records, the moment it was agreed included
+        - in either spelling of the same rhythm
+        - is refused in another rhythm, whose days of notice the contract does not hold
+        - with no contract to keep from, records what the file names
+    - a change the subscriber scheduled, written when it takes effect
+        - records what they agreed to then, though the file names newer since
+        - and so where the contract in force was agreed at the same moment
+        - gives way to newer terms the subscriber agreed to since, with their notice
+        - and, where the change moves the rhythm, to the newer terms with the notice of the rhythm
+          it was scheduled in
+        - with no contract in force, records what they agreed to then
+- `packages/nest/tests/a-switch-taken-for-a-term-end-is-made.test.js`
+    - the contract a switch taken for the end of the term is made in
+        - records what the subscriber agreed to when they took it, and the schedule goes with it
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - one that takes something away is taken at the end of the term
+        - with what taking it agrees to: the terms named and the notice of its rhythm, now
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - a refresh keeps what the subscriber agreed to
+        - ${mode}, with the version of the terms and the days of notice of the contract it replaces
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what the subscriber agreed to, on a contract a change writes
+        - ${what} ${said}
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records what scheduling it agrees to
+        - the version of the terms named, the days of notice of the rhythm it lands in, and when
+- `packages/nest/tests/the-terms-are-a-version-and-a-file.test.js`
+    - a contract records the version of the terms the subscriber agreed to
+        - a successor the operator writes keeps the version and the days of notice of the contract
+          it replaces
+        - and refuses to keep the days of one rhythm in a contract of another, writing nothing
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column
@@ -8847,6 +8937,7 @@ _Tested by:_
         - a contract line in another rhythm prices nothing
     - an add-on is charged even where writing its contract failed
         - the journal writes the contract the booking missed, and charges the add-on under it
+        - the contract it writes records the latest of what the missed bookings were agreed under
         - only a running add-on the contract misses makes the journal write one
         - a source that does not name the booking has the contract written once, not on every call
         - nor in a trial, nor once the subscription has ended
@@ -18688,6 +18779,159 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+
+🟢 💰 `config/saas.yaml` names the terms by a version and the PDF that holds them. The start archives
+each version it has not archived before, byte for byte with its checksum, and does not start where
+the file under a version already archived is another one: a changed file is a new version. The
+database refuses every update, delete and truncate of an archived version, whoever asks, and the
+start refuses an archive whose triggers are missing or disabled, and contracts do not start where
+nothing archives the terms the file names. Every contract records the version named when the
+subscriber concluded or changed it — a plan change, a booking, a switch they take — and when that
+was. A change they schedule records the version named when they schedule it, and the contract
+written when it takes effect records that one, unless they agreed to a later version since, which
+they agreed to for the whole contract. A successor the operator or the platform writes without them
+— a feature withdrawal's reductions, a refresh, a retirement's move at its date — keeps the version
+of the contract it replaces, so the terms read back are the ones agreed (`SC-AUD-016`). Invoicing
+does not start without terms; where the file names none, nothing is archived and a contract records
+no version.
+
+_Source:_ #334 · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
+- `packages/adapter-drizzle/tests/the-terms-archive-asks-one-statement-at-a-time.test.js`
+    - a version of the terms is stored
+        - by one insert that leaves a version stored before alone, and nothing more where it wrote
+        - where it wrote nothing, as the same write for the same checksum
+        - and refused for another checksum, naming both
+    - a version of the terms is read
+        - as it was archived, its bytes its own
+        - as nothing where none is archived
+    - the archive says what would let a version change
+        - from the enabled triggers of its table, asked for by their state
+        - from the triggers as node-postgres answers them, a result holding the rows
+        - naming the triggers it lacks
+        - refusing to read ${what} as no triggers
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against an update or a delete disabled, that one
+- `packages/adapter-prisma/tests/prisma-terms-archive.test.js`
+    - the Prisma archive of the terms
+        - stores a version conflict-free, and asks for nothing more where it was written
+        - a version stored before is the same write for its checksum, and refused for another
+        - reads a version back as bytes of its own, and nothing where none is kept
+        - says what would let a version change, from the enabled triggers of its table
+- `packages/core/tests/a-version-of-the-terms-is-kept-as-it-was-agreed.test.js`
+    - an archived version of the terms
+        - is read with bytes of its own, not a view into the driver’s buffer
+        - with ${what} fails
+    - a PDF is recognised by its first bytes
+        - ${what}: ${expected ? 'is one' : 'is not'}
+    - what a version of the terms may be called
+        - is what the schema of config/saas.yaml asks for
+        - ${what}: ${expected ? 'may be' : 'may not be'}
+    - another file under a version already archived
+        - is refused by its code, with both checksums beside it
+    - the archive of the terms
+        - with both of its triggers enabled keeps what it holds
+        - ${what} names what it lacks, and the file that adds it
+    - what a scheduled change or a booking recorded as agreed
+        - is read back as it was written, its terms none where none were named
+        - is nothing where none was recorded, columns absent or null alike
+        - ${what} stops the read, naming whose it is
+        - is written in the columns of a scheduled change and of a booking, all null for none
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a contract row becomes a contract record
+        - the version of its terms reads as it was recorded, none included
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - a booking on a subscription set to move to another plan
+        - records what booking it agrees to: the terms named and the notice of the plan’s rhythm
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - one that takes something away is scheduled for the end of the booking’s term
+        - with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm,
+          now
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the successor the reductions are written into
+        - keeps the terms and the notice the subscriber agreed to, whatever the file names since
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an add-on is charged even where writing its contract failed
+        - the contract it writes records the latest of what the missed bookings were agreed under
+- `packages/nest/tests/a-successor-records-what-the-subscriber-agreed-to.test.js`
+    - a change the subscriber makes now
+        - records what the file names now, whatever the contract it replaces recorded
+    - a successor the operator or the platform writes
+        - keeps what the contract it replaces records, the moment it was agreed included
+        - in either spelling of the same rhythm
+        - is refused in another rhythm, whose days of notice the contract does not hold
+        - with no contract to keep from, records what the file names
+    - a change the subscriber scheduled, written when it takes effect
+        - records what they agreed to then, though the file names newer since
+        - and so where the contract in force was agreed at the same moment
+        - gives way to newer terms the subscriber agreed to since, with their notice
+        - and, where the change moves the rhythm, to the newer terms with the notice of the rhythm
+          it was scheduled in
+        - with no contract in force, records what they agreed to then
+- `packages/nest/tests/a-switch-taken-for-a-term-end-is-made.test.js`
+    - the contract a switch taken for the end of the term is made in
+        - records what the subscriber agreed to when they took it, and the schedule goes with it
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - one that takes something away is taken at the end of the term
+        - with what taking it agrees to: the terms named and the notice of its rhythm, now
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - a refresh keeps what the subscriber agreed to
+        - ${mode}, with the version of the terms and the days of notice of the contract it replaces
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what the subscriber agreed to, on a contract a change writes
+        - ${what} ${said}
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records what scheduling it agrees to
+        - the version of the terms named, the days of notice of the rhythm it lands in, and when
+- `packages/nest/tests/the-terms-are-a-version-and-a-file.test.js`
+    - the start archives the version of the terms the file names
+        - read beside config/saas.yaml, with its checksum, its name and every byte
+        - by an absolute path wherever the settings came from
+        - and nothing where the file names no terms
+        - a second start with the same file archives nothing again
+        - a new version is archived beside the one before, which stays
+    - the start refuses terms it cannot keep as they were agreed
+        - another file under a version already archived, asking for a new version
+        - ${what}, saying what to do, and archives nothing
+        - a contract service that would record terms nothing archives does not start
+        - refused, the start says so and stops
+    - a contract records the version of the terms the subscriber agreed to
+        - concluded, the version the file names
+        - a change of the subscriber’s records the version named then, and the one it replaces keeps
+          its own
+        - a successor the operator writes keeps the version and the days of notice of the contract
+          it replaces
+        - and refuses to keep the days of one rhythm in a contract of another, writing nothing
+        - none where the file names no terms
+    - invoices
+        - do not start without terms, which every contract they invoice records
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an archived version of the terms is kept as it was agreed
+        - refuses ${what}, and the version stays
+        - still refuses after the migration ran a second time
+        - a database from before gains what the fragments declare, and a contract agreed when it was
+          written
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - once it has run through, a run as a role under row-level security asks nothing of the rows
+
+<!-- END proof -->
+
 ### SC-CFG-003 — A setting that must change without a deployment is kept out of the file entirely
 
 🟢 And lives in one audited place instead of two. Adding a second home is what this rule exists to
@@ -22185,6 +22429,13 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - an archived version of the terms is kept as it was agreed
+        - refuses ${what}, and the version stays
+        - still refuses after the migration ran a second time
+        - a database from before gains what the fragments declare, and a contract agreed when it was
+          written
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - once it has run through, a run as a role under row-level security asks nothing of the rows
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column
           required and checked
@@ -22359,6 +22610,13 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - an archived version of the terms is kept as it was agreed
+        - refuses ${what}, and the version stays
+        - still refuses after the migration ran a second time
+        - a database from before gains what the fragments declare, and a contract agreed when it was
+          written
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - once it has run through, a run as a role under row-level security asks nothing of the rows
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column
           required and checked
@@ -23594,6 +23852,10 @@ _Tested by:_
         - terms that are not an object read as null
         - its days of notice read as they were recorded, none included
         - days of notice that are ${what} stop the read, naming the contract
+        - the version of its terms reads as it was recorded, none included
+        - when its terms were agreed reads as it was recorded, and a moment that is none stops the
+          read
+        - a version of its terms that is ${what} stops the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them
@@ -23643,6 +23905,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -23655,6 +23921,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against an update or a delete disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -23761,6 +24031,10 @@ _Tested by:_
         - terms that are not an object read as null
         - its days of notice read as they were recorded, none included
         - days of notice that are ${what} stop the read, naming the contract
+        - the version of its terms reads as it was recorded, none included
+        - when its terms were agreed reads as it was recorded, and a moment that is none stops the
+          read
+        - a version of its terms that is ${what} stops the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them
@@ -23832,6 +24106,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -23840,6 +24118,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against an update or a delete disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

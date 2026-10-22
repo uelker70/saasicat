@@ -32,6 +32,7 @@ import { DrizzleSubscriptionContractRepository } from './drizzle-subscription-co
 import { DrizzleSubscriberLedgerRepository } from './drizzle-subscriber-ledger.repository.js';
 import { DrizzleSubscriptionInvoiceRepository } from './drizzle-subscription-invoice.repository.js';
 import { DrizzleInvoiceArchive } from './drizzle-invoice-archive.js';
+import { DrizzleTermsArchive } from './drizzle-terms-archive.js';
 import { DrizzleInvoiceCollectionRepository } from './drizzle-invoice-collection.repository.js';
 import { DrizzleSubscriberPaymentRepository } from './drizzle-subscriber-payment.repository.js';
 import { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
@@ -149,6 +150,10 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             maintenanceWindows: unless(
                 'core.maintenanceWindows',
                 provide((client) => new DrizzleMaintenanceWindowRepository(client)),
+            ),
+            termsArchive: unless(
+                'core.termsArchive',
+                provide((client) => new DrizzleTermsArchive(client)),
             ),
         },
         entitlement: {

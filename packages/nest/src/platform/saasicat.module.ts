@@ -136,6 +136,7 @@ export class SaaSiCatModule {
             audit: explicit.audit ?? persistence?.core.audit,
             rlsBypass: explicit.rlsBypass ?? persistence?.core.rlsBypass,
             appliedSettings: explicit.appliedSettings ?? persistence?.core.appliedSettings,
+            termsArchive: explicit.termsArchive ?? persistence?.core.termsArchive,
             email: explicit.email,
             planCatalogReadSink: explicit.planCatalogReadSink ?? persistence?.planCatalogReadSink,
             planResolver: explicit.planResolver,
@@ -144,7 +145,7 @@ export class SaaSiCatModule {
             planVersionRepository:
                 explicit.planVersionRepository ?? persistence?.entitlement?.planVersionRepository,
             transactionRunner: explicit.transactionRunner ?? persistence?.core.transactionRunner,
-        } as SaaSiCatAdapters;
+        };
 
         // Every rule at once, rather than one throw per boot.
         //
@@ -186,6 +187,7 @@ export class SaaSiCatModule {
                 rlsBypassPort,
                 appliedSettingsPort: adapters.appliedSettings,
                 emailPort: adapters.email,
+                termsArchivePort: adapters.termsArchive,
             }),
         ];
 

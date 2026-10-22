@@ -5,6 +5,7 @@ import type {
     NewSettingsChange,
     SettingsChangeRecord,
 } from '../applied-settings.types.js';
+import type { ArchivedTermsVersion, TermsVersionToArchive } from '../terms.types.js';
 
 /** Which changes to list. */
 export interface SettingsChangeFilter {
@@ -72,4 +73,27 @@ export interface AppliedSettingsPort {
         acknowledgedBy: string,
         acknowledgedAt: Date,
     ): Promise<SettingsChangeRecord | null>;
+}
+
+/**
+ * Where the versions of the terms are kept, unalterably: a contract names the
+ * version it was concluded under, and the subscriber is owed that file for as
+ * long as the contract is kept. The shipped adapters keep it in the database
+ * (`TermsVersion`, which refuses every update and delete).
+ */
+export interface TermsArchivePort {
+    /**
+     * Stores the version. Storing it again with the same checksum is the same
+     * write and changes nothing; another checksum for a version already
+     * archived is refused with `TERMS_VERSION_CHANGED`, and the first stays.
+     */
+    store(terms: TermsVersionToArchive): Promise<void>;
+    /** The version as it was archived, or `null` where it was not. */
+    read(version: string): Promise<ArchivedTermsVersion | null>;
+    /**
+     * Why the archive would let a version it keeps be changed or removed, or
+     * `null` where it would not. Asked at the start, which is refused while it
+     * names a reason.
+     */
+    protectionProblem(): Promise<string | null>;
 }

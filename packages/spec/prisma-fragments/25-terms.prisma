@@ -1,0 +1,32 @@
+// =============================================================================
+// SaaSiCat platform Prisma fragment: TermsVersion
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The versions of the operator's terms: one PDF per version config/saas.yaml
+// has named, with its checksum, archived by the start the first time the
+// version is named. A contract records the version it was concluded under
+// (08-subscription-contract.prisma, `termsVersion`), and the subscriber is owed
+// that file for as long as the contract is kept. A row is written once and never
+// changed: the migration `1.0-the-terms-are-a-version-and-a-file.postgres.sql`
+// installs triggers that refuse every UPDATE, DELETE and TRUNCATE, whoever asks.
+//
+// Optional: adopt it where the terms are kept in the database, as
+// `persistence.core.termsArchive` keeps them. An installation that archives
+// elsewhere binds its own `TermsArchivePort` instead; one that names no terms
+// needs neither.
+//
+// Contract: @saasicat/core (TermsArchivePort).
+
+model TermsVersion {
+    version    String   @id
+    // SHA-256 of `content`, 64 lower-case hex digits.
+    checksum   String
+    mediaType  String
+    fileName   String
+    content    Bytes
+    archivedAt DateTime
+
+    @@map("terms_versions")
+}

@@ -170,6 +170,8 @@ _Tested by:_
     - a scheduled change to another plan binds the version it was quoted at
     - a scheduled switch to a newer version of the same plan binds that version
     - the run reads and writes every tenant's change inside the bypass
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
 
 <!-- END proof -->
 

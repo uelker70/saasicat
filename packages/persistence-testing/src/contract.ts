@@ -11,6 +11,7 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test, type TestContext } from 'node:test';
 import type {
+    ContractAgreement,
     NewSubscriberCharge,
     AppliedSettingsValues,
     ConfirmedPaymentMethod,
@@ -49,6 +50,7 @@ import type {
     BundleVersionRetirementRepository,
     FeatureWithdrawalRepository,
     NewFeatureWithdrawal,
+    TermsVersionToArchive,
 } from '@saasicat/core';
 import {
     BILLING_ERROR_CODES,
@@ -56,6 +58,8 @@ import {
     CONTRACT_ERROR_CODES,
     INVOICE_ERROR_CODES,
     PROMO_ERROR_CODES,
+    SETTINGS_ERROR_CODES,
+    TERMS_MEDIA_TYPE,
     collectionAttemptKey,
     counterEntryOf,
     draftCancellationInvoice,
@@ -85,6 +89,23 @@ const NO_SUCH_VERSION = '00000000-0000-4000-8000-000000000000';
 
 /** An id no booking carries. */
 const NO_SUCH_BOOKING = '00000000-0000-4000-8000-000000000001';
+
+/** When the subscriber agreed to a contract's terms, where a scenario does not ask. */
+const AGREED_AT = new Date('2026-01-01T00:00:00.000Z');
+
+/** What a subscriber agrees to by scheduling a change, where a scenario does not ask. */
+const AGREEMENT: ContractAgreement = {
+    termsVersion: null,
+    cancellationNoticeDays: 14,
+    agreedAt: AGREED_AT,
+};
+
+/** What a subscriber agreed to by scheduling a change, read back as it was written. */
+const SCHEDULED_AGREEMENT: ContractAgreement = {
+    termsVersion: '2026-10',
+    cancellationNoticeDays: 90,
+    agreedAt: new Date('2026-04-02T03:04:05.678Z'),
+};
 
 /** A plan draft on `planKey`, starting on `validFrom`. */
 function planDraft(planKey: string, validFrom: string) {
@@ -261,6 +282,8 @@ function contractFromOffer(
         tenantId: `tenant-${offerId}`,
         parties,
         cancellationNoticeDays: 14,
+        termsVersion: null,
+        agreedAt: AGREED_AT,
         effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
         originalOfferId: offerId,
         priceSnapshot: {
@@ -548,6 +571,10 @@ const CONTRACT_GAPS: Record<
     appliedSettings: {
         reason: 'adapter provides no AppliedSettingsPort',
         present: ({ adapter }) => Boolean(adapter.appliedSettings),
+    },
+    termsArchive: {
+        reason: 'adapter provides no TermsArchivePort',
+        present: ({ adapter }) => Boolean(adapter.termsArchive),
     },
     maintenanceWindows: {
         reason: 'adapter provides no MaintenanceWindowPort',
@@ -1334,6 +1361,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         pendingPlan,
                         pendingBillingCycle: 'YEARLY',
                         pendingEffectiveAt: new Date('2027-05-01T00:00:00.000Z'),
+                        pendingAgreement: AGREEMENT,
                         pendingChangeVersionId: tenant.live,
                         expectedCanceledAt: null,
                         ...expected,
@@ -1390,6 +1418,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         ...scheduled(tenant),
                         pendingBillingCycle: 'YEARLY',
                         pendingEffectiveAt: new Date('2027-05-01T00:00:00.000Z'),
+                        pendingAgreement: SCHEDULED_AGREEMENT,
                         expectedCanceledAt: null,
                     });
                     const change = await tenant.writer.changePlanImmediate(tenantId, {
@@ -1446,6 +1475,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         '2027-05-01T00:00:00.000Z',
                     );
                     assert.equal(result.after?.pendingChangeVersionId, null);
+                    assert.deepEqual(
+                        result.after?.pendingAgreement,
+                        SCHEDULED_AGREEMENT,
+                        'what was agreed for it goes with it',
+                    );
                 });
 
                 test('a change that names a version stays as it was scheduled', async (t) => {
@@ -1458,6 +1492,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     assert.equal(result.after?.pendingPlan, 'LOYAL');
                     assert.equal(result.after?.pendingChangeVersionId, result.tenant.live);
                     assert.equal(result.after?.pendingBillingCycle, 'YEARLY');
+                    assert.deepEqual(result.after?.pendingAgreement, SCHEDULED_AGREEMENT);
                 });
 
                 test('puts it back on the version it left, ended or not, with what it scheduled', async (t) => {
@@ -1520,9 +1555,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     pendingPlan: 'LOYAL',
                     pendingBillingCycle: 'YEARLY',
                     pendingEffectiveAt: new Date('2027-05-01T00:00:00.000Z'),
+                    pendingAgreement: SCHEDULED_AGREEMENT,
                     pendingChangeVersionId: null,
                     expectedCanceledAt: null,
                 });
+                const before = await usage.findForTenant('tenant-clears-change');
+                assert.deepEqual(before?.pendingAgreement, SCHEDULED_AGREEMENT, 'recorded with it');
 
                 await tenant.writer.changePlanImmediate('tenant-clears-change', {
                     ...toYearly(false),
@@ -1534,6 +1572,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 const after = await usage.findForTenant('tenant-clears-change');
                 assert.equal(after?.pendingPlan, null);
                 assert.equal(after?.pendingEffectiveAt, null);
+                assert.equal(after?.pendingAgreement, null, 'and what was agreed for it');
             });
 
             // @requirement SC-PLAN-016
@@ -2110,6 +2149,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 bundleVersionId,
                 startedAt: new Date('2026-02-21T00:00:00.000Z'),
                 minimumTermEndsAt: null,
+                agreement: SCHEDULED_AGREEMENT,
                 billingCycle: 'MONTHLY',
                 currentPeriodStart: new Date('2026-02-21T00:00:00.000Z'),
                 currentPeriodEnd: new Date('2026-02-28T00:00:00.000Z'),
@@ -2125,6 +2165,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'the period end must survive the round trip',
             );
             assert.equal(readBack.currentPeriodStart?.toISOString(), '2026-02-21T00:00:00.000Z');
+            assert.deepEqual(
+                readBack.agreement,
+                SCHEDULED_AGREEMENT,
+                'what was agreed by booking it',
+            );
+            assert.equal(readBack.pendingAgreement, null, 'no switch scheduled');
 
             // A booking made before the columns existed: every one of them null,
             // read as "billed with the plan" rather than as a broken row.
@@ -2133,12 +2179,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 bundleVersionId,
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 minimumTermEndsAt: null,
+                agreement: null,
             });
             const legacyReadBack = await repository.findById(legacy.id);
             assert.ok(legacyReadBack, 'the legacy booking must be readable back');
             assert.equal(legacyReadBack.billingCycle, null);
             assert.equal(legacyReadBack.currentPeriodStart, null);
             assert.equal(legacyReadBack.currentPeriodEnd, null);
+            assert.equal(legacyReadBack.agreement, null);
         });
 
         test('a booking whose rhythm is neither monthly nor yearly is refused when read', async (t) => {
@@ -2178,6 +2226,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 bundleVersionId,
                 startedAt: new Date('2026-02-21T00:00:00.000Z'),
                 minimumTermEndsAt: null,
+                agreement: null,
                 billingCycle: 'YEARLY',
             });
             await setBookingCycle(booking.id, 'yearly');
@@ -2249,6 +2298,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 bundleVersionId,
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 minimumTermEndsAt: null,
+                agreement: null,
             });
 
             const first = await repository.cancel(booking.id, {
@@ -2321,6 +2371,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     bundleVersionId,
                     startedAt: new Date(startedAt),
                     minimumTermEndsAt: null,
+                    agreement: null,
                 });
             }
 
@@ -2370,6 +2421,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 bundleVersionId,
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 minimumTermEndsAt: null,
+                agreement: null,
             });
             // Cancel, then clear only the request date — the half-written state
             // the nullable columns permit.
@@ -4049,6 +4101,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const created = await contracts.create({
                 tenantId,
                 cancellationNoticeDays: 14,
+                termsVersion: null,
+                agreedAt: AGREED_AT,
                 parties: partiesWith(subscriberId, 'Archiv GmbH'),
                 effectiveFrom: signedAt,
                 priceSnapshot: {
@@ -4111,6 +4165,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const created = await contracts.create({
                 tenantId,
                 cancellationNoticeDays: 37,
+                termsVersion: '2026-10',
+                agreedAt: new Date('2026-01-01T09:08:07.654Z'),
                 parties,
                 effectiveFrom: signedAt,
                 priceSnapshot: {
@@ -4224,6 +4280,16 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(readBack.subscriber, parties.subscriber, 'the copy is stored');
             assert.deepEqual(readBack.issuer, parties.issuer);
             assert.equal(readBack.cancellationNoticeDays, 37);
+            assert.equal(
+                readBack.termsVersion,
+                '2026-10',
+                'the version of the terms it was concluded under',
+            );
+            assert.equal(
+                readBack.agreedAt.toISOString(),
+                '2026-01-01T09:08:07.654Z',
+                'when they were agreed, to the millisecond',
+            );
             assert.equal(
                 readBack.lineItems.length,
                 2,
@@ -4341,6 +4407,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const first = await contracts.create({
                 tenantId,
                 cancellationNoticeDays: 14,
+                termsVersion: null,
+                agreedAt: AGREED_AT,
                 parties,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: priceAt(19.9, 23.68),
@@ -4364,6 +4432,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const second = await contracts.create({
                 tenantId,
                 cancellationNoticeDays: 14,
+                termsVersion: null,
+                agreedAt: AGREED_AT,
                 parties,
                 effectiveFrom: handover,
                 priceSnapshot: priceAt(24.9, 29.63),
@@ -4442,6 +4512,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const created = await contracts.create({
                 tenantId,
                 cancellationNoticeDays: 14,
+                termsVersion: null,
+                agreedAt: AGREED_AT,
                 parties,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: {
@@ -6513,6 +6585,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const contract = await contracts.create({
                 tenantId,
                 cancellationNoticeDays: 14,
+                termsVersion: null,
+                agreedAt: AGREED_AT,
                 parties: partiesWith(subscriberId, `${tenantId} GmbH`),
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: {
@@ -8651,6 +8725,88 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             await assert.rejects(account.archive.store(account.documentOf(NO_SUCH_VERSION)));
             assert.equal(await account.archive.read(NO_SUCH_VERSION), null);
+        });
+
+        /**
+         * The archive of the operator's terms, and a version to keep in it.
+         * Null without an archive. Its table belongs to no tenant, so each
+         * scenario names versions of its own.
+         */
+        function aTermsArchive(t: TestContext) {
+            const archive = harness.adapter.termsArchive;
+            if (!archive) {
+                missing(t, 'termsArchive');
+                return null;
+            }
+            // Every byte value, the zero byte among them, and more than one
+            // page of a driver's buffer, opening as every PDF does.
+            const content = new Uint8Array(70_000).map((_, index) => index % 256);
+            content.set([0x25, 0x50, 0x44, 0x46, 0x2d]);
+            const versionOf = (
+                version: string,
+                checksum = CHECKSUM,
+                bytes = content,
+            ): TermsVersionToArchive => ({
+                version,
+                checksum,
+                mediaType: TERMS_MEDIA_TYPE,
+                fileName: `agb-${version}.pdf`,
+                content: bytes,
+                archivedAt: new Date('2026-10-22T08:00:00.000Z'),
+            });
+            return { archive, versionOf };
+        }
+
+        test('an archived version of the terms reads back byte for byte', async (t) => {
+            const terms = aTermsArchive(t);
+            if (!terms) return;
+            const { archive, versionOf } = terms;
+
+            await archive.store(versionOf('bytes-2026-10'));
+            const read = await archive.read('bytes-2026-10');
+
+            assert.ok(read);
+            assert.deepEqual(read, versionOf('bytes-2026-10'));
+            assert.ok(read.content instanceof Uint8Array);
+            assert.equal(await archive.read('bytes-never'), null);
+        });
+
+        test('a version of the terms stored again is the same write, and another file under it is refused', async (t) => {
+            const terms = aTermsArchive(t);
+            if (!terms) return;
+            const { archive, versionOf } = terms;
+            await archive.store(versionOf('once-2026-10'));
+
+            await archive.store(versionOf('once-2026-10'));
+            await assert.rejects(
+                archive.store(
+                    versionOf('once-2026-10', OTHER_CHECKSUM, new Uint8Array([0x25, 0x50])),
+                ),
+                refusedAs(SETTINGS_ERROR_CODES.TERMS_VERSION_CHANGED, {
+                    version: 'once-2026-10',
+                    recorded: CHECKSUM,
+                    given: OTHER_CHECKSUM,
+                }),
+            );
+
+            assert.deepEqual(await archive.read('once-2026-10'), versionOf('once-2026-10'));
+        });
+
+        test('versions of the terms are kept side by side, and one stored at the same time is kept once', async (t) => {
+            const terms = aTermsArchive(t);
+            if (!terms) return;
+            const { archive, versionOf } = terms;
+
+            await Promise.all(
+                Array.from({ length: 4 }, () => archive.store(versionOf('race-2026-10'))),
+            );
+            await archive.store(versionOf('race-2026-11', OTHER_CHECKSUM));
+
+            assert.deepEqual(await archive.read('race-2026-10'), versionOf('race-2026-10'));
+            assert.deepEqual(
+                await archive.read('race-2026-11'),
+                versionOf('race-2026-11', OTHER_CHECKSUM),
+            );
         });
 
         // -------------------------------------------------------------
@@ -12643,6 +12799,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         bundleVersionId,
                         startedAt: new Date(startedAt),
                         minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
+                        agreement: null,
                         billingCycle: 'MONTHLY',
                         currentPeriodStart: new Date('2026-05-01T00:00:00.000Z'),
                         currentPeriodEnd: new Date('2026-06-01T00:00:00.000Z'),
@@ -12835,6 +12992,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         bundleVersionId,
                         startedAt: new Date('2026-02-01T00:00:00.000Z'),
                         minimumTermEndsAt: null,
+                        agreement: null,
                     });
                 };
                 const running = await bookingIn('tenant-a', v1.bundleVersionId);
@@ -12896,6 +13054,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 const booked = await repository.add({
                     subscriptionId,
                     bundleVersionId: retired.bundleVersionId,
+                    agreement: null,
                     startedAt: new Date('2026-02-01T00:00:00.000Z'),
                     minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
                     billingCycle: 'MONTHLY',
@@ -12999,6 +13158,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     return repository.add({
                         subscriptionId,
                         bundleVersionId: booked.bundleVersionId,
+                        agreement: null,
                         startedAt: new Date('2026-02-01T00:00:00.000Z'),
                         minimumTermEndsAt: new Date('2027-02-01T00:00:00.000Z'),
                         billingCycle: 'MONTHLY',
@@ -13017,15 +13177,22 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     from: booked.bundleVersionId,
                     to: taken.bundleVersionId,
                     effectiveAt: at,
+                    agreement: SCHEDULED_AGREEMENT,
                 });
 
                 assert.ok(scheduled, 'the switch is scheduled');
                 assert.equal(scheduled.pendingBundleVersionId, taken.bundleVersionId);
                 assert.equal(scheduled.pendingVersionEffectiveAt?.toISOString(), at.toISOString());
+                assert.deepEqual(
+                    scheduled.pendingAgreement,
+                    SCHEDULED_AGREEMENT,
+                    'what was agreed for it',
+                );
                 /** A booking without its schedule and the moment it was last written. */
                 const unscheduled = ({
                     pendingBundleVersionId: _version,
                     pendingVersionEffectiveAt: _at,
+                    pendingAgreement: _agreed,
                     updatedAt: _written,
                     ...rest
                 }: typeof first) => rest;
@@ -13039,6 +13206,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         from: booked.bundleVersionId,
                         to: taken.bundleVersionId,
                         effectiveAt: earlier,
+                        agreement: AGREEMENT,
                     }),
                     null,
                     'a second schedule while one stands claims nothing',
@@ -13048,6 +13216,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         from: taken.bundleVersionId,
                         to: booked.bundleVersionId,
                         effectiveAt: earlier,
+                        agreement: AGREEMENT,
                     }),
                     null,
                     'nor one from a version the booking is not on',
@@ -13057,6 +13226,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         from: booked.bundleVersionId,
                         to: taken.bundleVersionId,
                         effectiveAt: earlier,
+                        agreement: AGREEMENT,
                     }),
                 );
                 assert.equal(
@@ -13097,6 +13267,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 assert.ok(cleared, 'the switch is cleared');
                 assert.equal(cleared.pendingBundleVersionId, null);
                 assert.equal(cleared.pendingVersionEffectiveAt, null);
+                assert.equal(cleared.pendingAgreement, null, 'with what was agreed for it');
                 assert.equal(
                     cleared.bundleVersionId,
                     moved ? taken.bundleVersionId : booked.bundleVersionId,
@@ -13113,6 +13284,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         from: booked.bundleVersionId,
                         to: taken.bundleVersionId,
                         effectiveAt: at,
+                        agreement: AGREEMENT,
                     }),
                     null,
                 );

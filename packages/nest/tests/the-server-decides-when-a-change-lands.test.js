@@ -72,7 +72,7 @@ function buildWritePort() {
     };
 }
 
-function buildController(planPreview, writePort, subscription = SUBSCRIPTION) {
+function buildController(planPreview, writePort, subscription = SUBSCRIPTION, settings = null) {
     return new TenantBillingController(
         {
             computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
@@ -84,6 +84,23 @@ function buildController(planPreview, writePort, subscription = SUBSCRIPTION) {
         writePort,
         () => 't1',
         () => 'u1',
+        // The positions between, up to the settings of `config/saas.yaml`.
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        undefined,
+        null,
+        undefined,
+        undefined,
+        null,
+        null,
+        null,
+        settings,
     );
 }
 
@@ -209,5 +226,34 @@ describe('a scheduled change records the version it was quoted at', () => {
         const { input } = writePort.immediateCalls[0];
         assert.equal(input.quotedPlanVersionId, 'pv-quoted');
         assert.equal(input.quotedVersionOnly, true, 'not its successor, should it stop selling');
+    });
+});
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+describe('a scheduled change records what scheduling it agrees to', () => {
+    test('the version of the terms named, the days of notice of the rhythm it lands in, and when', async () => {
+        const writePort = buildWritePort();
+        const before = Date.now();
+        const controller = buildController(
+            previewSaying({ isImmediate: false }),
+            writePort,
+            SUBSCRIPTION,
+            {
+                tenantBilling: { cancellationNoticeDays: { monthly: 14, yearly: 90 } },
+                terms: { version: '2026-10', file: '/srv/config/agb-2026-10.pdf' },
+            },
+        );
+
+        await controller.changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'YEARLY',
+            planVersionId: 'pv-quoted',
+        });
+
+        const { pendingAgreement } = writePort.scheduledCalls[0].input;
+        assert.equal(pendingAgreement.termsVersion, '2026-10');
+        assert.equal(pendingAgreement.cancellationNoticeDays, 90);
+        assert.ok(pendingAgreement.agreedAt.getTime() >= before, 'agreed when it was scheduled');
     });
 });

@@ -95,9 +95,11 @@ async function aContractInForce({
     priceSnapshot = MONTHLY_TOTALS,
     told = toldOf(),
     withdrawal = {},
+    settings,
 } = {}) {
     const repo = new FakeSubscriptionContractRepository();
-    const contracts = new SubscriptionContractService(repo, (await subscribersFor(['t1'])).service);
+    const { service: subscribers } = await subscribersFor(['t1']);
+    const contracts = new SubscriptionContractService(repo, subscribers, null, null, settings);
     const inForce = await contracts.create({
         tenantId: 't1',
         status: 'active',
@@ -372,5 +374,28 @@ describe('the reductions of a withdrawal', () => {
             ],
         );
         assert.equal(composed.priceSnapshot.totalNet, 44);
+    });
+});
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+describe('the successor the reductions are written into', () => {
+    test('keeps the terms and the notice the subscriber agreed to, whatever the file names since', async () => {
+        const settings = {
+            tenantBilling: { cancellationNoticeDays: { monthly: 14, yearly: 90 } },
+            terms: { version: '2026-01', file: '/srv/config/agb-2026-01.pdf' },
+        };
+        const { contracts, inForce, service } = await aContractInForce({ settings });
+        settings.tenantBilling = { cancellationNoticeDays: { monthly: 30, yearly: 120 } };
+        settings.terms = { version: '2026-06', file: '/srv/config/agb-2026-06.pdf' };
+
+        assert.equal(await service.recordReductions('t1', NOW), 'written');
+
+        const successor = await contracts.findActiveByTenantId('t1', NOW);
+        assert.deepEqual([inForce.termsVersion, inForce.cancellationNoticeDays], ['2026-01', 14]);
+        assert.deepEqual(
+            [successor.termsVersion, successor.cancellationNoticeDays],
+            ['2026-01', 14],
+        );
     });
 });

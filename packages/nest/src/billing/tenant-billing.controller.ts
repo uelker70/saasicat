@@ -99,6 +99,11 @@ import {
     freezeContractAfter,
     intendedContractOf,
 } from './freeze-contract-after.js';
+import {
+    agreementNamed,
+    type AgreementSettings,
+} from '../subscription-contract/contract-agreement.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -282,6 +287,12 @@ export class TenantBillingController {
             SubscriptionContractRepository,
             'findActiveByTenantId'
         > | null = null,
+        // Appended last for the same reason. What a change scheduled now
+        // records as agreed; optional only so a test can build the controller
+        // directly.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: AgreementSettings | null = null,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -725,6 +736,9 @@ export class TenantBillingController {
             // version bound records none: it keeps whatever version is bound by
             // that day.
             pendingChangeVersionId: quotedVersionId,
+            // What the subscriber agrees to by scheduling it, which the
+            // contract it ends in records unless they agree to newer since.
+            pendingAgreement: agreementNamed(this.settings, dto.billingCycle, new Date()),
         });
         if (!scheduled.claimed) {
             throw new ConflictException(changedUnderneath);
@@ -1276,7 +1290,8 @@ export class TenantBillingController {
 
     /**
      * The notice a cancellation declared at `now` is owed: what the contract
-     * in force recorded when it was concluded or changed (`SC-CANC-025`), and
+     * in force recorded when the subscriber concluded or changed it
+     * (`SC-CANC-026`), and
      * never what the file names since. Without a contract in force — an
      * installation that keeps none, or a subscription nothing was confirmed
      * for — the file's, for the rhythm of the subscription rather than of the
