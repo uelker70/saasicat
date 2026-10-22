@@ -42,8 +42,9 @@ export const wiredInvoices = (overrides = {}) => ({
  * The options of an installation whose file names `invoicing` and whose tenant
  * billing wires `invoices`, beside a tax adapter, an issuer and the record of
  * the applied settings, unless told otherwise. `payments` is whether it takes
- * payment methods: `'none'`, `'wired'` — the file names an account and the
- * platform composes the payments beside it, and the invoices are collected —,
+ * payment methods: `'wired'` — the file names an account and the platform
+ * composes the payments beside it, and the invoices are collected, as an
+ * installation that issues invoices has to —, `'none'`,
  * `'uncollected'`, where they are composed and nothing collects the invoices,
  * or `'unread'`, where the file names the account and nothing composes them.
  * `notices: false` takes the record of subscriber notices out of the
@@ -56,16 +57,19 @@ export function invoicingPlatform({
     tax = true,
     issuer = ISSUER,
     record = true,
-    payments = 'none',
+    payments = 'wired',
     notices = true,
     recorded = true,
 } = {}) {
-    const options = everythingOnOptions();
+    // Everything on composes the payments; each mode below composes what it names.
+    const { payments: _composed, ...options } = everythingOnOptions();
+    const { payments: _stored, ...persistence } = options.persistence;
     const {
         tax: _tax,
         timeZone: _zone,
         issuer: _issuer,
         invoicing: _invoicing,
+        payments: _accounts,
         ...file
     } = options.planCatalog;
     // Version notices check their ports when the application starts, which
@@ -80,6 +84,7 @@ export function invoicingPlatform({
     };
     const composed = bootable({
         ...options,
+        persistence,
         planCatalog,
         // Nothing to discover in a fixture whose ports answer nothing.
         catalog: { ...options.catalog, autoSyncDiscoveryAtBoot: false },
@@ -96,7 +101,7 @@ export function invoicingPlatform({
     composed.persistence.core.appliedSettings = record ? new FakeAppliedSettingsPort() : undefined;
     if (!notices) composed.persistence.tenantBilling.subscriptionNotices = undefined;
     if (payments !== 'none') composed.planCatalog.payments = paymentsCatalog().payments;
-    if (payments === 'wired' || payments === 'unread') {
+    if ((payments === 'wired' || payments === 'unread') && invoices) {
         composed.tenantBilling.chargeJournal.invoices = {
             ...composed.tenantBilling.chargeJournal.invoices,
             // No attempt is open, so no account has to stay for one.

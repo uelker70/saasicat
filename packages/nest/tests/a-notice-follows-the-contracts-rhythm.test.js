@@ -9,78 +9,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TenantBillingController } from '../dist/billing/index.js';
+import { CANCELLING, cancellationRoute } from './helpers/cancellation-route.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 
-// Forty days of period left: a fourteen-day notice is served by it, a ninety-day
-// one is not. Relative to now, because the controller reads the clock — a fixed
-// date would decide this test by how long ago it was written.
-const DAY = 24 * 60 * 60 * 1000;
-const PERIOD_END = new Date(Date.now() + 40 * DAY);
-const PERIOD_START = new Date(Date.now() - 10 * DAY);
-
-const subscription = (billingCycle) => ({
-    plan: 'STARTER',
-    billingCycle,
-    status: 'ACTIVE',
-    isPilot: false,
-    pilotEndsAt: null,
-    trialEndsAt: null,
-    startedAt: PERIOD_START,
-    currentPeriodStart: PERIOD_START,
-    currentPeriodEnd: PERIOD_END,
-    minimumTermUntil: null,
-    canceledAt: null,
-    canceledEffectiveAt: null,
-    billingAnchorDay: PERIOD_END.getUTCDate(),
-    pendingPlan: null,
-    pendingBillingCycle: null,
-    pendingEffectiveAt: null,
-    planVersion: null,
-});
-
-const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
-
-function buildController(billingCycle) {
-    const port = {
-        calls: [],
-        async cancelSubscription(_tenantId, input) {
-            this.calls.push(input);
-            return {
-                canceledAt: input.canceledAt,
-                canceledEffectiveAt: input.effectiveAt,
-                status: 'ACTIVE',
-            };
-        },
-    };
-    const controller = new TenantBillingController(
-        {
-            computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
-            invalidateTenant() {},
-        },
-        {
-            async preview() {
-                return { isImmediate: false, effectiveAt: null, blockers: [] };
-            },
-        },
-        { findForTenant: async () => subscription(billingCycle) },
-        { snapshot: async () => ({}) },
-        port,
-        () => 't1',
-        () => 'u1',
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        NOTICE,
-    );
-    return { controller, port };
-}
+const buildController = (billingCycle) => cancellationRoute({ billingCycle, notice: NOTICE });
 
 describe('a notice follows the rhythm of the contract', () => {
     // @requirement SC-CANC-007 — The rhythm that decides the notice is the subscription's, not the plan's
@@ -88,8 +21,8 @@ describe('a notice follows the rhythm of the contract', () => {
         const monthly = buildController('MONTHLY');
         const yearly = buildController('YEARLY');
 
-        const onMonthly = await monthly.controller.cancelSubscription(request, {});
-        const onYearly = await yearly.controller.cancelSubscription(request, {});
+        const onMonthly = await monthly.controller.cancelSubscription(CANCELLING, {});
+        const onYearly = await yearly.controller.cancelSubscription(CANCELLING, {});
 
         // Same plan, same period end, same day of asking. Only the rhythm of
         // the contract differs: fourteen days of notice fit inside the forty
@@ -108,8 +41,8 @@ describe('a notice follows the rhythm of the contract', () => {
         const monthly = buildController('MONTHLY');
         const yearly = buildController('YEARLY');
 
-        const onMonthly = await monthly.controller.cancelSubscription(request, {});
-        const onYearly = await yearly.controller.cancelSubscription(request, {});
+        const onMonthly = await monthly.controller.cancelSubscription(CANCELLING, {});
+        const onYearly = await yearly.controller.cancelSubscription(CANCELLING, {});
 
         assert.ok(
             onYearly.canceledEffectiveAt > onMonthly.canceledEffectiveAt,

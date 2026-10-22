@@ -81,7 +81,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 24      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 25      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 96      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 654 entries: 🟢 565 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
 🔵 35 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

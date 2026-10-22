@@ -56,6 +56,14 @@ export function invoicingStartProblems(
     if (!settings.issuer) {
         problems.push('invoices name their issuer: name it under issuer in config/saas.yaml.');
     }
+    // An invoice is paid through the gateway: without one it would stand open
+    // with nothing that could ever collect it.
+    if (!settings.payments) {
+        problems.push(
+            'invoices are paid through a payment gateway: name its accounts under payments in ' +
+                'config/saas.yaml.',
+        );
+    }
     // An invoice draws its number before its document is rendered: without
     // any of these it would be numbered and then wait for its document, or its
     // mail, indefinitely.

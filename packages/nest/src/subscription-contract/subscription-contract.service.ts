@@ -19,6 +19,7 @@ import type {
     InvoiceLineItemSnapshot,
     NewContractLineItemData,
     NewSubscriberDetails,
+    PlanCatalogSettings,
     SubscriptionContractInvoiceSnapshot,
     SubscriptionContractPriceSnapshot,
     SubscriptionContractRecord,
@@ -50,6 +51,8 @@ import {
 } from './contract-refusals.js';
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
 import { offerMoneyAtRate, type OfferMoney } from '../checkout-offer/offer-money-at-rate.js';
+import { NO_NOTICE_PERIOD, noticeDaysFor } from '../billing/cancellation.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
 import { TAX_TREATMENTS_TOKEN } from '../tax/tax.tokens.js';
 import {
@@ -140,16 +143,41 @@ export class SubscriptionContractService implements OnModuleInit {
         @Optional()
         @Inject(TAX_TREATMENTS_TOKEN)
         private readonly taxes: TaxTreatments | null = null,
+        // Optional here only so that a test can build the service directly;
+        // `onModuleInit` refuses a start without it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: Pick<PlanCatalogSettings, 'tenantBilling'> | null = null,
     ) {}
 
     /**
-     * Refuses the start while `config/saas.yaml` names no issuer. Every module
-     * that writes contracts provides this service, and every contract is
-     * concluded with an issuer (`SC-AUD-020`): found out at the first sign-up,
-     * the missing block would refuse a customer rather than a deploy.
+     * Refuses the start while `config/saas.yaml` names no issuer, or while the
+     * settings a contract records its notice period from are not provided.
+     * Every module that writes contracts provides this service, and every
+     * contract is concluded with an issuer (`SC-AUD-020`) and its notice
+     * period (`SC-CANC-025`): found out at the first sign-up, the missing
+     * block would refuse a customer rather than a deploy.
      */
     onModuleInit(): void {
         this.subscribers.issuerNamed();
+        if (!this.settings) {
+            throw new Error(
+                'Contracts cannot start: a contract records the notice period ' +
+                    '`config/saas.yaml#tenantBilling.cancellationNoticeDays` names, and no settings ' +
+                    'of the file are provided — import `PlanCatalogModule`, which `SaaSiCatModule` does.',
+            );
+        }
+    }
+
+    /**
+     * The days of notice of `data`'s rhythm as the file names them now, which
+     * the contract records and a cancellation of it is judged by.
+     */
+    private noticeDaysOf(data: CreateSubscriptionContractData): number {
+        return noticeDaysFor(
+            this.settings?.tenantBilling.cancellationNoticeDays ?? NO_NOTICE_PERIOD,
+            data.priceSnapshot.billingCycle,
+        );
     }
 
     list(filter: Parameters<SubscriptionContractRepository['list']>[0]) {
@@ -229,7 +257,12 @@ export class SubscriptionContractService implements OnModuleInit {
         this.assertCreateData(data);
         const { parties, decided } = await this.partyAndTaxFor(data, tx);
         return this.repo.create(
-            { ...this.cloneCreateData(data), parties, ...taxTreatmentOf(decided) },
+            {
+                ...this.cloneCreateData(data),
+                parties,
+                ...taxTreatmentOf(decided),
+                cancellationNoticeDays: this.noticeDaysOf(data),
+            },
             tx,
         );
     }
@@ -456,6 +489,7 @@ export class SubscriptionContractService implements OnModuleInit {
                     parties,
                     ...(kept ? { partiesMigrated: kept.partiesMigrated } : {}),
                     ...taxTreatmentOf(decided),
+                    cancellationNoticeDays: this.noticeDaysOf(next),
                 },
                 tx,
             );

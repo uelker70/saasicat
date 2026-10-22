@@ -813,6 +813,7 @@ export function createMemoryHarness() {
                 issuer: structuredClone(data.parties.issuer),
                 partiesMigrated: data.partiesMigrated ?? false,
                 taxTreatment: structuredClone(data.taxTreatment ?? null),
+                cancellationNoticeDays: data.cancellationNoticeDays,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,

@@ -108,6 +108,45 @@ async function freshGround() {
     await apply(GROUND);
 }
 
+/**
+ * Runs `fn` as a role that owns every table and has no way around
+ * row-level security, the shape of an application's own database role.
+ */
+async function asOwningRole(fn) {
+    await client.query('DROP ROLE IF EXISTS saasicat_migrator');
+    await client.query('CREATE ROLE saasicat_migrator');
+    await client.query('GRANT ALL ON SCHEMA public TO saasicat_migrator');
+    const { rows: tables } = await client.query(
+        "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+    );
+    for (const { tablename } of tables) {
+        await client.query(`ALTER TABLE "${tablename}" OWNER TO saasicat_migrator`);
+    }
+    try {
+        await fn({
+            become: () => client.query('SET ROLE saasicat_migrator'),
+            leave: () => client.query('RESET ROLE'),
+        });
+    } finally {
+        await client.query('ROLLBACK').catch(() => {});
+        await client.query('RESET ROLE');
+        await client.query('DROP OWNED BY saasicat_migrator CASCADE');
+        await client.query('DROP ROLE IF EXISTS saasicat_migrator');
+    }
+}
+
+const forceRowLevelSecurity = async (table) => {
+    await client.query(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+    await client.query(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
+};
+
+const refusedFor = (table) => (error) => {
+    const said = String(error.message);
+    assert.ok(said.includes(`Cannot see every row of ${table} `), said);
+    assert.ok(said.includes('saasicat_migrator'), said);
+    return true;
+};
+
 /** Applies one file the way a consumer does: whole, in one go. */
 /**
  * The migration that gives the settlements and the credits what a cancellation
@@ -115,6 +154,19 @@ async function freshGround() {
  * compares the whole schema runs it after them, as a deploy would.
  */
 const CANCELLATION_MIGRATION = '1.0-an-invoice-is-cancelled.postgres.sql';
+
+/**
+ * The notice period a contract row is written with, where the table records
+ * one: the column and its value for an insert, or nothing on a shape from
+ * before a contract recorded its notice period.
+ */
+async function noticeOfAContract() {
+    const { rows } = await client.query(
+        'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
+            "AND table_name = 'subscription_contracts' AND column_name = 'cancellationNoticeDays'",
+    );
+    return rows.length > 0 ? [', "cancellationNoticeDays"', ', 14'] : ['', ''];
+}
 
 /**
  * An issued invoice — `invoice-1`, `AHP-2026-000001`, 58.31 — with the
@@ -125,10 +177,11 @@ async function anIssuedInvoice() {
     await client.query(
         `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
     );
+    const notice = await noticeOfAContract();
     await client.query(
         'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-            ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-            `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+            ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${notice[0]}) ` +
+            `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW()${notice[1]})`,
     );
     const { rows } = await client.query(
         'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
@@ -401,10 +454,11 @@ describe('a correction in the journal names what it corrects', () => {
         await client.query(
             `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Kunde GmbH', NOW())`,
         );
+        const notice = await noticeOfAContract();
         await client.query(
             'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+                ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${notice[0]}) ` +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW()${notice[1]})`,
         );
         await client.query(
             'INSERT INTO "contract_line_items" ("id", "contractId", "kind", "sourceKey", ' +
@@ -677,11 +731,12 @@ describe('a line item learns the money it was booked with', () => {
             'INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ($1, $2, NOW())',
             [`subscriber-${id}`, `Customer ${id}`],
         );
+        const notice = await noticeOfAContract();
         await client.query(
             'INSERT INTO "subscription_contracts" ' +
                 '("id", "tenantId", "subscriberId", "subscriberSnapshot", "effectiveFrom", ' +
-                ' "priceSnapshot", "originalOfferId", "updatedAt") ' +
-                'VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW())',
+                ` "priceSnapshot", "originalOfferId", "updatedAt"${notice[0]}) ` +
+                `VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW()${notice[1]})`,
             [
                 id,
                 `tenant-${id}`,
@@ -1191,13 +1246,15 @@ describe('every contract names the subscriber it is concluded with', () => {
                 `VALUES ($1, $2, 'STANDARD', 'pv-1', $3, NOW())`,
             [`sub-${tenantId}`, tenantId, createdAt],
         );
-    const seedContract = (id, tenantId, createdAt) =>
-        client.query(
+    const seedContract = async (id, tenantId, createdAt) => {
+        const notice = await noticeOfAContract();
+        return client.query(
             'INSERT INTO "subscription_contracts" ("id", "tenantId", "effectiveFrom", ' +
-                ' "priceSnapshot", "createdAt", "updatedAt") ' +
-                `VALUES ($1, $2, $3, '{}', $3, NOW())`,
+                ` "priceSnapshot", "createdAt", "updatedAt"${notice[0]}) ` +
+                `VALUES ($1, $2, $3, '{}', $3, NOW()${notice[1]})`,
             [id, tenantId, createdAt],
         );
+    };
 
     /** Three customers who came in a known order, and one who never bought anything. */
     async function threeCustomers() {
@@ -1447,45 +1504,6 @@ describe('every contract names the subscriber it is concluded with', () => {
             },
         );
     });
-
-    /**
-     * Runs `fn` as a role that owns every table and has no way around
-     * row-level security, the shape of an application's own database role.
-     */
-    async function asOwningRole(fn) {
-        await client.query('DROP ROLE IF EXISTS saasicat_migrator');
-        await client.query('CREATE ROLE saasicat_migrator');
-        await client.query('GRANT ALL ON SCHEMA public TO saasicat_migrator');
-        const { rows: tables } = await client.query(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
-        );
-        for (const { tablename } of tables) {
-            await client.query(`ALTER TABLE "${tablename}" OWNER TO saasicat_migrator`);
-        }
-        try {
-            await fn({
-                become: () => client.query('SET ROLE saasicat_migrator'),
-                leave: () => client.query('RESET ROLE'),
-            });
-        } finally {
-            await client.query('ROLLBACK').catch(() => {});
-            await client.query('RESET ROLE');
-            await client.query('DROP OWNED BY saasicat_migrator CASCADE');
-            await client.query('DROP ROLE IF EXISTS saasicat_migrator');
-        }
-    }
-
-    const forceRowLevelSecurity = async (table) => {
-        await client.query(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
-        await client.query(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
-    };
-
-    const refusedFor = (table) => (error) => {
-        const said = String(error.message);
-        assert.ok(said.includes(`Cannot see every row of ${table} `), said);
-        assert.ok(said.includes('saasicat_migrator'), said);
-        return true;
-    };
 
     test('a role row-level security hides contracts from stops it, naming the table and the role', async () => {
         // A consumer that forces row-level security onto its contracts and runs
@@ -2250,10 +2268,11 @@ describe('a subscriber has a tax origin, and a contract its treatment', () => {
             `INSERT INTO "subscribers" ("id", "legalName", "vatId", "updatedAt") ` +
                 `VALUES ('s-1', 'Vorher GmbH', 'ATU12345678', NOW())`,
         );
+        const notice = await noticeOfAContract();
         await client.query(
             'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
-                ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
-                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW())`,
+                ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${notice[0]}) ` +
+                `VALUES ('c-1', 't-1', 's-1', '{}', NOW(), '{}', NOW()${notice[1]})`,
         );
 
         await apply(MIGRATION);
@@ -3350,5 +3369,237 @@ describe('an invoice is corrected by a cancellation invoice', () => {
                 `to_regclass('subscription_invoice_cancellations') AS cancellations`,
         );
         assert.deepEqual(rows, [{ invoices: null, cancellations: null }]);
+    });
+});
+
+// @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+describe('a contract records the notice period it was concluded with', () => {
+    const MIGRATION = '1.0-a-contract-records-its-notice-period.postgres.sql';
+    const CHECK = 'subscription_contracts_notice_is_days';
+
+    /** The contracts as a database from before the column holds them: one monthly, one yearly. */
+    async function contractsWithoutTheirNotice({ rhythms = ['monthly', 'yearly'] } = {}) {
+        await freshGround();
+        await client.query(
+            `ALTER TABLE "subscription_contracts" DROP CONSTRAINT "${CHECK}", ` +
+                'DROP COLUMN "cancellationNoticeDays"',
+        );
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Kunde GmbH', NOW())`,
+        );
+        for (const [at, rhythm] of rhythms.entries()) {
+            const snapshot = rhythm === null ? {} : { billingCycle: rhythm };
+            await client.query(
+                'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                    ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt") ' +
+                    "VALUES ($1, 't-1', 's-1', '{}', NOW(), $2, NOW())",
+                [`c-${at + 1}`, JSON.stringify(snapshot)],
+            );
+        }
+    }
+
+    /** Runs `fn` with the two numbers set for the session, as the guide's psql line sets them. */
+    async function withNotice({ monthly, yearly }, fn) {
+        try {
+            if (monthly !== undefined) {
+                await client.query(`SET saasicat.cancellation_notice_days_monthly = '${monthly}'`);
+            }
+            if (yearly !== undefined) {
+                await client.query(`SET saasicat.cancellation_notice_days_yearly = '${yearly}'`);
+            }
+            await fn();
+        } finally {
+            await client.query('ROLLBACK').catch(() => {});
+            await client.query('RESET saasicat.cancellation_notice_days_monthly');
+            await client.query('RESET saasicat.cancellation_notice_days_yearly');
+        }
+    }
+
+    const noticeOf = async () =>
+        (
+            await client.query(
+                'SELECT "id", "cancellationNoticeDays" FROM "subscription_contracts" ORDER BY "id"',
+            )
+        ).rows.map((row) => [row.id, row.cancellationNoticeDays]);
+    const theColumnIsThere = async () =>
+        (
+            await client.query(
+                'SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() ' +
+                    "AND table_name = 'subscription_contracts' AND column_name = 'cancellationNoticeDays'",
+            )
+        ).rows.length > 0;
+
+    test('gives each contract the notice period of its rhythm, and comes out with the column required and checked', async () => {
+        await contractsWithoutTheirNotice();
+
+        await withNotice({ monthly: 14, yearly: 90 }, async () => {
+            await apply(MIGRATION);
+
+            assert.deepEqual(await noticeOf(), [
+                ['c-1', 14],
+                ['c-2', 90],
+            ]);
+            for (const [what, value, named] of [
+                ['no notice period', 'NULL', 'cancellationNoticeDays'],
+                ['less than none', '-1', CHECK],
+            ]) {
+                await assert.rejects(
+                    client.query(
+                        'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                            ' "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt", ' +
+                            ' "cancellationNoticeDays") ' +
+                            `VALUES ('c-9', 't-1', 's-1', '{}', NOW(), '{}', NOW(), ${value})`,
+                    ),
+                    (error) => String(error.message).includes(named),
+                    `a contract with ${what} was let in`,
+                );
+            }
+        });
+    });
+
+    test('ends with the shape the reference schema has, nullability and check included', async () => {
+        const shapeOf = async () => {
+            const { rows } = await client.query(
+                'SELECT c.is_nullable, (SELECT pg_get_constraintdef(oid) FROM pg_constraint ' +
+                    '  WHERE conname = $1) AS "check" ' +
+                    '  FROM information_schema.columns c WHERE c.table_schema = current_schema() ' +
+                    "   AND c.table_name = 'subscription_contracts' " +
+                    "   AND c.column_name = 'cancellationNoticeDays'",
+                [CHECK],
+            );
+            return [await fingerprint(client), rows];
+        };
+        await freshGround();
+        const shipped = await shapeOf();
+        await contractsWithoutTheirNotice();
+
+        await withNotice({ monthly: 14, yearly: 90 }, async () => {
+            await apply(MIGRATION);
+            await client.query('DELETE FROM "subscription_contracts"');
+            await client.query('DELETE FROM "subscribers"');
+
+            assert.deepEqual(await shapeOf(), shipped);
+        });
+    });
+
+    test('a second run needs neither number, and leaves every contract as the first one did', async () => {
+        await contractsWithoutTheirNotice();
+        await withNotice({ monthly: 14, yearly: 90 }, () => apply(MIGRATION));
+        const first = [await fingerprint(client), await noticeOf()];
+
+        await apply(MIGRATION);
+
+        assert.deepEqual([await fingerprint(client), await noticeOf()], first);
+    });
+
+    for (const [what, notice] of [
+        ['neither number', {}],
+        ['the monthly number alone', { monthly: 14 }],
+        ['the yearly number alone', { yearly: 90 }],
+    ]) {
+        test(`with ${what} set it refuses, saying how to set them, and fills nothing`, async () => {
+            await contractsWithoutTheirNotice();
+
+            await withNotice(notice, async () => {
+                await assert.rejects(
+                    apply(MIGRATION),
+                    /Set both numbers tenantBilling\.cancellationNoticeDays names/,
+                );
+                await client.query('ROLLBACK').catch(() => {});
+                assert.equal(
+                    await theColumnIsThere(),
+                    false,
+                    'the refused run left the column behind',
+                );
+            });
+        });
+    }
+
+    for (const [what, notice] of [
+        ['a fraction of a day', { monthly: '14.5', yearly: 90 }],
+        ['less than none', { monthly: 14, yearly: '-1' }],
+        ['a word', { monthly: 'fourteen', yearly: 90 }],
+    ]) {
+        test(`a number that is ${what} stops it, and fills nothing`, async () => {
+            await contractsWithoutTheirNotice();
+
+            await withNotice(notice, async () => {
+                await assert.rejects(
+                    apply(MIGRATION),
+                    /each is a whole number of days, at least none/,
+                );
+                await client.query('ROLLBACK').catch(() => {});
+                assert.equal(await theColumnIsThere(), false);
+            });
+        });
+    }
+
+    test('takes as many days as the column holds, the file setting no ceiling', async () => {
+        await contractsWithoutTheirNotice();
+
+        await withNotice({ monthly: 1000000, yearly: 2147483647 }, async () => {
+            await apply(MIGRATION);
+
+            assert.deepEqual(await noticeOf(), [
+                ['c-1', 1000000],
+                ['c-2', 2147483647],
+            ]);
+        });
+    });
+
+    test('more days than the column holds stop it, naming the ceiling, and fill nothing', async () => {
+        await contractsWithoutTheirNotice();
+
+        await withNotice({ monthly: 14, yearly: '2147483648' }, async () => {
+            await assert.rejects(apply(MIGRATION), /a contract records at most 2147483647 days/);
+            await client.query('ROLLBACK').catch(() => {});
+            assert.equal(await theColumnIsThere(), false);
+        });
+    });
+
+    test('a contract whose snapshot names no rhythm stops it, named, and nothing is filled', async () => {
+        await contractsWithoutTheirNotice({ rhythms: ['monthly', null] });
+
+        await withNotice({ monthly: 14, yearly: 90 }, async () => {
+            await assert.rejects(apply(MIGRATION), /The contracts c-2 name no rhythm/);
+            await client.query('ROLLBACK').catch(() => {});
+            assert.equal(await theColumnIsThere(), false);
+        });
+    });
+
+    test('a table without contracts needs neither number, and comes out required', async () => {
+        await contractsWithoutTheirNotice({ rhythms: [] });
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() ' +
+                "AND table_name = 'subscription_contracts' AND column_name = 'cancellationNoticeDays'",
+        );
+        assert.deepEqual(rows, [{ is_nullable: 'NO' }]);
+    });
+
+    test('a role row-level security hides contracts from stops it, naming the table and the role', async () => {
+        await contractsWithoutTheirNotice();
+        await asOwningRole(async ({ become, leave }) => {
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await withNotice({ monthly: 14, yearly: 90 }, async () => {
+                await assert.rejects(apply(MIGRATION), refusedFor('subscription_contracts'));
+            });
+
+            // The counter-check: the owner of a table whose security is not
+            // forced sees every row, and the migration goes through.
+            await leave();
+            await client.query('ALTER TABLE "subscription_contracts" NO FORCE ROW LEVEL SECURITY');
+            await become();
+            await withNotice({ monthly: 14, yearly: 90 }, () => apply(MIGRATION));
+            await leave();
+            assert.deepEqual(await noticeOf(), [
+                ['c-1', 14],
+                ['c-2', 90],
+            ]);
+        });
     });
 });

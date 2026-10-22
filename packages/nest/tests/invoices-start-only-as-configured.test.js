@@ -1,9 +1,10 @@
 // Where an installation issues invoices: only where the application wires them
 // with a renderer, an archive and a mail for their documents, and
 // `config/saas.yaml` names the range and the payment term, beside a tax
-// adapter, an issuer and the record of the applied settings — and never under a
-// prefix other than the one the invoices already issued carry. Each mismatch
-// refuses the start, so it is met at a deploy rather than at the first invoice.
+// adapter, an issuer, a payment gateway and the record of the applied
+// settings — and never under a prefix other than the one the invoices already
+// issued carry. Each mismatch refuses the start, so it is met at a deploy
+// rather than at the first invoice.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -99,6 +100,17 @@ describe('invoices start', () => {
         // and `issuer` — and either refusal stops the start.
         assert.match(await refusal(installation({ tax: false })), /invoicing|tax adapter/);
         assert.match(await refusal(installation({ issuer: null })), /invoicing|issuer/);
+    });
+
+    // @requirement SC-SCOPE-011 — SaaSiCat invoices subscriptions and collects payment through a payment gateway
+    test('not without a payment gateway, which the refusal names', async () => {
+        // An invoice would stand open with nothing that could ever collect it.
+        const message = await refusal(installation({ payments: 'none' }));
+
+        assert.ok(
+            message.includes('invoices are paid through a payment gateway: name its accounts'),
+            message,
+        );
     });
 
     test('and no wiring nor block at all is no invoicing, and starts', async () => {

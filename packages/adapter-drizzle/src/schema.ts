@@ -154,6 +154,8 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     // The tax adapter's answer when the contract was concluded, with its name
     // and version; null where no adapter was asked.
     taxTreatment: jsonb('taxTreatment'),
+    // The days of notice of the contract's rhythm when it was written.
+    cancellationNoticeDays: integer('cancellationNoticeDays').notNull(),
     createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });

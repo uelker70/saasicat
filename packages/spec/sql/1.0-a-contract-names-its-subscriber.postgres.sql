@@ -238,7 +238,7 @@ BEGIN
                to_regclass('subscription_contracts'), to_regclass('subscriptions'), tenant_table
            )
        AND c.relrowsecurity
-       AND (c.relforcerowsecurity OR NOT pg_has_role(current_user, c.relowner, 'MEMBER'))
+       AND (c.relforcerowsecurity OR NOT pg_has_role(current_user, c.relowner, 'USAGE'))
        AND NOT EXISTS (
            SELECT 1 FROM pg_roles r
             WHERE r.rolname = current_user AND (r.rolsuper OR r.rolbypassrls)

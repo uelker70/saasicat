@@ -1497,6 +1497,7 @@ _Tested by:_
         - not without the ${port} of their documents, which the refusal names
         - not beside an archive that would let a document it keeps be changed, naming why
         - not without a tax adapter, nor without an issuer
+        - not without a payment gateway, which the refusal names
         - and no wiring nor block at all is no invoicing, and starts
 - `packages/tax-de/tests/an-invoice-carries-what-german-law-requires.test.js`
     - what an invoice of an issuer in Germany has to carry
@@ -3298,6 +3299,7 @@ _Tested by:_
         - not without the ${port} of their documents, which the refusal names
         - not beside an archive that would let a document it keeps be changed, naming why
         - not without a tax adapter, nor without an issuer
+        - not without a payment gateway, which the refusal names
         - and no wiring nor block at all is no invoicing, and starts
 
 <!-- END proof -->

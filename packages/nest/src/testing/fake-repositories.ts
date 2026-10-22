@@ -326,6 +326,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             taxTreatment: data.taxTreatment
                 ? { ...data.taxTreatment, adapter: { ...data.taxTreatment.adapter } }
                 : null,
+            cancellationNoticeDays: data.cancellationNoticeDays,
             status: data.status ?? 'active',
             effectiveFrom: new Date(data.effectiveFrom),
             effectiveUntil: data.effectiveUntil ? new Date(data.effectiveUntil) : null,

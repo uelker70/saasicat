@@ -128,7 +128,9 @@ marketing:
 `tenantBilling:` is required, member by member — the notice period per rhythm, the
 plans self-service may not reach or leave, and whether your terms allow you to retire
 a version for the subscriptions already on it. Each has a money or a legal
-consequence, so the file states them rather than defaulting them; see
+consequence, so the file states them rather than defaulting them. Where contracts are kept, each
+records the notice period of its rhythm when it is concluded or changed, and a cancellation of it is
+judged by that rather than by what the file names later (`SC-CANC-025`). See
 [the settings section of the upgrade guide](upgrade-to-1.0.md#the-settings-that-cost-money-live-in-configsaasyaml)
 and [Retiring a Version for Running Subscriptions](#retiring-a-version-for-running-subscriptions).
 
@@ -984,11 +986,12 @@ issued invoice is never edited (`SC-PRIC-095`), so until then a wrong one cannot
 invoice is issued, rendered into the file its tax law requires — by `@saasicat/invoice-zugferd`, or
 a renderer of your own — archived and mailed.
 
-It needs the charge journal above, a tax adapter, the issuer in `config/saas.yaml`, and the record
-of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only against the record
-does a start refuse another legal entity named as the issuer, which would otherwise number on in
-the range of the one before, and the record keeps the corrections of the issuer an invoice
-follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
+It needs the charge journal above, a tax adapter, the issuer and a payment gateway (`payments`) in
+`config/saas.yaml` — an invoice is paid through the gateway, and the start refuses invoicing without
+one —, and the record of the applied settings (`prisma-fragments/12-applied-settings.prisma`): only
+against the record does a start refuse another legal entity named as the issuer, which would
+otherwise number on in the range of the one before, and the record keeps the corrections of the
+issuer an invoice follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
 `22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql`,
 `sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` and
 `sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push` and

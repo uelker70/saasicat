@@ -54,6 +54,11 @@ model SubscriptionContract {
     // yet; each invoice then takes the adapter's answer when it is issued.
     taxTreatment Json?
 
+    // The days of notice a cancellation of the contract is judged by, in its
+    // rhythm: what config/saas.yaml named for that rhythm when the contract
+    // was concluded or changed, never what the file names later.
+    cancellationNoticeDays Int
+
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
     effectiveUntil DateTime?

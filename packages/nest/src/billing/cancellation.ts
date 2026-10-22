@@ -140,7 +140,8 @@ export type { CancellationNoticePeriods };
 export const NO_NOTICE_PERIOD: CancellationNoticePeriods = { monthly: 0, yearly: 0 };
 
 /**
- * The notice a subscription on `billingCycle` is owed.
+ * The notice a subscription on `billingCycle` is owed — `'YEARLY'` as a
+ * subscription spells its rhythm, `'yearly'` as a contract does.
  *
  * The two rhythms are read apart rather than one falling back to the other:
  * they are separate numbers because real contracts set them apart, and
@@ -151,7 +152,7 @@ export const NO_NOTICE_PERIOD: CancellationNoticePeriods = { monthly: 0, yearly:
  * has to answer before the application starts.
  */
 export function noticeDaysFor(periods: CancellationNoticePeriods, billingCycle: string): number {
-    return billingCycle === 'YEARLY' ? periods.yearly : periods.monthly;
+    return billingCycle.toUpperCase() === 'YEARLY' ? periods.yearly : periods.monthly;
 }
 
 /**
