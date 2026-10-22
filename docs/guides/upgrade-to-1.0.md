@@ -2404,10 +2404,10 @@ no contracts, or a subscription nothing was confirmed for — the file decides a
     Each contract gets the days of its rhythm, read from its `priceSnapshot`; the column is then
     required, with the check `subscription_contracts_notice_is_days` that `constraints.postgres.sql`
     holds as well. It refuses with a sentence where contracts are there and either number is missing,
-    where a number is no whole number of days, where a contract names no rhythm, and where row-level
-    security hides contracts from the role it runs as — nothing is filled then. A second run needs
-    neither number and leaves every contract as the first one left it; where there are no contracts
-    yet, it needs neither either.
+    where a number is no whole number of days or more than the column holds (2147483647), where a
+    contract names no rhythm, and where row-level security hides contracts from the role it runs
+    as — nothing is filled then. A second run needs neither number and leaves every contract as the
+    first one left it; where there are no contracts yet, it needs neither either.
 
 - **A `SubscriptionContractRepository` of your own** writes `cancellationNoticeDays` from
   `NewSubscriptionContractData` and reads it back through `toSubscriptionContractRecord`, which
@@ -2415,6 +2415,13 @@ no contracts, or a subscription nothing was confirmed for — the file decides a
 - **`SubscriptionContractService`** records the days from the settings of `config/saas.yaml`, which
   `SaaSiCatModule` provides; an application that mounts `SubscriptionContractModule` by hand imports
   `PlanCatalogModule` too, or the start is refused with a sentence that says so.
+- **An application that wires `TenantBillingModule` itself** and keeps contracts without
+  `contractFreeze` — concluded from checkout offers, or written by `SubscriptionContractModule` —
+  passes the contract store as `subscriptionContractRepository`: the module that writes the
+  contracts is a sibling import whose exports never reach tenant billing, and without the store a
+  cancellation reads the file's notice period over a contract that recorded another.
+  `SaaSiCatModule` passes the one named for `subscriptionContract` or a checkout offer's
+  conclusion, or else the bundle's.
 
 ### The plan catalogue is read when it is asked for
 

@@ -22,7 +22,8 @@
 --        -f 1.0-a-contract-records-its-notice-period.postgres.sql
 --
 -- Without them the file refuses where a contract is there to fill, and goes
--- through where none is. A value that is no whole number of days, a contract
+-- through where none is. A value that is no whole number of days, or more of
+-- them than the column holds, a contract
 -- whose snapshot names no rhythm a notice period is kept for, and a table that
 -- row-level security hides rows of from this role each stop it with a sentence
 -- naming what to do. Nothing is filled then.
@@ -88,8 +89,12 @@ BEGIN
         IF monthly_text IS NULL OR yearly_text IS NULL THEN
             RAISE EXCEPTION 'subscription_contracts holds % contracts without the notice period they were concluded with, and this file cannot read config/saas.yaml. Set both numbers tenantBilling.cancellationNoticeDays names for the session, as SET saasicat.cancellation_notice_days_monthly = <days> and SET saasicat.cancellation_notice_days_yearly = <days>, and run this file again. Nothing was filled.', unfilled;
         END IF;
-        IF monthly_text !~ '^[0-9]{1,6}$' OR yearly_text !~ '^[0-9]{1,6}$' THEN
+        IF monthly_text !~ '^[0-9]+$' OR yearly_text !~ '^[0-9]+$' THEN
             RAISE EXCEPTION 'The notice periods set for the session are % monthly and % yearly, and each is a whole number of days, at least none, as tenantBilling.cancellationNoticeDays names it. Nothing was filled.', monthly_text, yearly_text;
+        END IF;
+        -- The file sets no ceiling, and the column holds what an integer does.
+        IF monthly_text::numeric > 2147483647 OR yearly_text::numeric > 2147483647 THEN
+            RAISE EXCEPTION 'The notice periods set for the session are % monthly and % yearly, and a contract records at most 2147483647 days. Nothing was filled.', monthly_text, yearly_text;
         END IF;
 
         SELECT array_agg("id" ORDER BY "id") INTO unknown_rhythm

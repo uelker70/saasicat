@@ -2,6 +2,7 @@ import type { DynamicModule } from '@nestjs/common';
 import type {
     BundleRepository,
     SubscriptionBundleRepository,
+    SubscriptionContractRepository,
     SubscriberPaymentRepository,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -69,6 +70,11 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         bundleRepository: (ctx.persistence?.entitlement?.subscriptionBundleRepository
             ? resolveBundleRepository(ctx.persistence)
             : undefined) as ProviderSpec<BundleRepository> | undefined,
+        // The contracts, for the notice period a cancellation is judged by:
+        // whichever module writes them is a sibling import here too, and
+        // without them the cancellation would read the file over a contract
+        // that recorded another.
+        subscriptionContractRepository: contractRepositoryOf(ctx),
         subscriptionUsagePort: ctx.shared
             .subscriptionUsagePort as ProviderSpec<SubscriptionUsagePort>,
         usageSnapshotPort:
@@ -113,6 +119,26 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         extraExports: [...quotaProviders, ...(extraExports ?? [])],
     });
     return [ctx.shared.tenantBillingModule];
+}
+
+/**
+ * The store of the contracts the installation keeps, as the module that
+ * writes them is given it: the one named for `subscriptionContract` or for a
+ * checkout offer's conclusion, or else the bundle's. Tenant billing's own
+ * `contractFreeze` brings the one it freezes with.
+ */
+function contractRepositoryOf(
+    ctx: CompositionContext,
+): ProviderSpec<SubscriptionContractRepository> | undefined {
+    // SAFETY: the bundle's member is the provider of the contract repository,
+    // which `PersistenceProvider` types as the provider spec it is.
+    const bundled = ctx.persistence?.entitlement?.subscriptionContractRepository as
+        ProviderSpec<SubscriptionContractRepository> | undefined;
+    return (
+        optionsOf(ctx.options.subscriptionContract).subscriptionContractRepository ??
+        optionsOf(ctx.options.checkoutOffer).conclusion?.subscriptionContractRepository ??
+        bundled
+    );
 }
 
 /**

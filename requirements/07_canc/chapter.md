@@ -182,6 +182,12 @@ _Tested by:_
         - a yearly subscription is held to its contract too, not to the yearly number of the file
         - without a contract in force, the file names the notice, as where no contracts are kept
         - the contract asked is the tenant’s own, in force when the cancellation is declared
+    - the cancellation reads the contracts whichever module writes them
+        - where tenant billing freezes them
+        - where a checkout offer concludes them from the bundle, and no other module writes them
+        - where a module beside tenant billing writes them, and nothing freezes them
+        - where the store is named ${where} and not in the bundle
+        - nowhere the installation keeps no contracts
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column
@@ -190,6 +196,8 @@ _Tested by:_
         - a second run needs neither number, and leaves every contract as the first one did
         - with ${what} set it refuses, saying how to set them, and fills nothing
         - a number that is ${what} stops it, and fills nothing
+        - takes as many days as the column holds, the file setting no ceiling
+        - more days than the column holds stop it, naming the ceiling, and fill nothing
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role

@@ -10,10 +10,16 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
+
+import { TenantBillingController } from '../dist/billing/index.js';
+import { SaaSiCatModule } from '../dist/platform/index.js';
 import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
 import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
 import { CANCELLING, cancellationRoute } from './helpers/cancellation-route.js';
 import { line } from './helpers/charge-journal.js';
+import { bootable, everythingOnOptions, withoutInvoicing } from './helpers/operator-routes.js';
 import { subscribersFor } from './helpers/subscribers.js';
 
 const settingsNaming = (monthly, yearly) => ({
@@ -181,5 +187,103 @@ describe('a cancellation is judged by the notice period its contract recorded', 
         await controller.cancelSubscription(CANCELLING, {});
 
         assert.deepEqual(asked, [['t1', true]]);
+    });
+});
+
+// @requirement SC-CANC-025 — A cancellation is judged by the notice period its contract recorded
+describe('the cancellation reads the contracts whichever module writes them', () => {
+    /**
+     * Whether the cancellation route of `options` can read the contracts —
+     * the dependency it was built with, since what is under test is the
+     * composition: a sibling module's exports never reach it.
+     */
+    async function readsContracts(options) {
+        const moduleRef = await Test.createTestingModule({
+            imports: [SaaSiCatModule.forRoot(bootable(options))],
+        }).compile();
+        try {
+            const route = moduleRef.get(TenantBillingController, { strict: false });
+            return route.contracts !== null && route.contracts !== undefined;
+        } finally {
+            await moduleRef.close();
+        }
+    }
+    /** `options` with nothing frozen: no contract freeze, and so no charge journal or invoices. */
+    const withoutFreeze = (options) => {
+        const {
+            contractFreeze: _freeze,
+            chargeJournal: _journal,
+            ...tenantBilling
+        } = withoutInvoicing(options).tenantBilling;
+        return { ...withoutInvoicing(options), tenantBilling };
+    };
+
+    test('where tenant billing freezes them', async () => {
+        assert.equal(await readsContracts(everythingOnOptions()), true);
+    });
+
+    test('where a checkout offer concludes them from the bundle, and no other module writes them', async () => {
+        // The offers' module keeps its contract store to itself: unlike the
+        // contract module, nothing re-exports it to tenant billing.
+        const options = {
+            ...withoutFreeze(everythingOnOptions()),
+            subscriptionContract: false,
+            checkoutOffer: {},
+        };
+
+        assert.equal(await readsContracts(options), true);
+    });
+
+    test('where a module beside tenant billing writes them, and nothing freezes them', async () => {
+        const options = withoutFreeze(everythingOnOptions());
+
+        assert.equal(options.subscriptionContract, true, 'the fixture keeps contracts');
+        assert.equal(await readsContracts(options), true);
+    });
+
+    /** `options` whose bundle keeps no contracts, so only a store named elsewhere brings them. */
+    const withoutBundledContracts = (options) => {
+        const { subscriptionContractRepository: _kept, ...entitlement } =
+            options.persistence.entitlement;
+        return { ...options, persistence: { ...options.persistence, entitlement } };
+    };
+    const STORE = {};
+
+    for (const [where, named] of [
+        [
+            'for the contract module',
+            { subscriptionContract: { subscriptionContractRepository: STORE } },
+        ],
+        [
+            'for a checkout offer’s conclusion',
+            {
+                subscriptionContract: false,
+                checkoutOffer: {
+                    conclusion: {
+                        subscriptionContractRepository: STORE,
+                        subscriberRepository: STORE,
+                        transactionRunner: STORE,
+                    },
+                },
+            },
+        ],
+    ]) {
+        test(`where the store is named ${where} and not in the bundle`, async () => {
+            const options = {
+                ...withoutBundledContracts(withoutFreeze(everythingOnOptions())),
+                ...named,
+            };
+
+            assert.equal(await readsContracts(options), true);
+        });
+    }
+
+    test('nowhere the installation keeps no contracts', async () => {
+        const options = {
+            ...withoutBundledContracts(withoutFreeze(everythingOnOptions())),
+            subscriptionContract: false,
+        };
+
+        assert.equal(await readsContracts(options), false);
     });
 });

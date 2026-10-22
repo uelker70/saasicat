@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
+    SubscriptionContractRepository,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
@@ -62,7 +63,7 @@ import {
 } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
-import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type {
     AdminActor,
@@ -272,10 +273,15 @@ export class TenantBillingController {
         @Inject(RetirementSwitchService)
         private readonly retirementSwitches: RetirementSwitchService | null = null,
         // Appended last for the same reason. Where the installation keeps
-        // contracts, the one in force says the notice a cancellation is owed.
+        // contracts, the one in force says the notice a cancellation is owed;
+        // read from the store, which `contractFreeze` or the option of the
+        // same name brings, whichever module writes them.
         @Optional()
-        @Inject(SubscriptionContractService)
-        private readonly contracts: SubscriptionContractService | null = null,
+        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
+        private readonly contracts: Pick<
+            SubscriptionContractRepository,
+            'findActiveByTenantId'
+        > | null = null,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);

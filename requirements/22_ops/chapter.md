@@ -306,6 +306,8 @@ _Tested by:_
         - a second run needs neither number, and leaves every contract as the first one did
         - with ${what} set it refuses, saying how to set them, and fills nothing
         - a number that is ${what} stops it, and fills nothing
+        - takes as many days as the column holds, the file setting no ceiling
+        - more days than the column holds stop it, naming the ceiling, and fill nothing
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
@@ -478,6 +480,8 @@ _Tested by:_
         - a second run needs neither number, and leaves every contract as the first one did
         - with ${what} set it refuses, saying how to set them, and fills nothing
         - a number that is ${what} stops it, and fills nothing
+        - takes as many days as the column holds, the file setting no ceiling
+        - more days than the column holds stop it, naming the ceiling, and fill nothing
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role

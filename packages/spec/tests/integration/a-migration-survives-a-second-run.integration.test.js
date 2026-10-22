@@ -3534,6 +3534,29 @@ describe('a contract records the notice period it was concluded with', () => {
         });
     }
 
+    test('takes as many days as the column holds, the file setting no ceiling', async () => {
+        await contractsWithoutTheirNotice();
+
+        await withNotice({ monthly: 1000000, yearly: 2147483647 }, async () => {
+            await apply(MIGRATION);
+
+            assert.deepEqual(await noticeOf(), [
+                ['c-1', 1000000],
+                ['c-2', 2147483647],
+            ]);
+        });
+    });
+
+    test('more days than the column holds stop it, naming the ceiling, and fill nothing', async () => {
+        await contractsWithoutTheirNotice();
+
+        await withNotice({ monthly: 14, yearly: '2147483648' }, async () => {
+            await assert.rejects(apply(MIGRATION), /a contract records at most 2147483647 days/);
+            await client.query('ROLLBACK').catch(() => {});
+            assert.equal(await theColumnIsThere(), false);
+        });
+    });
+
     test('a contract whose snapshot names no rhythm stops it, named, and nothing is filled', async () => {
         await contractsWithoutTheirNotice({ rhythms: ['monthly', null] });
 
