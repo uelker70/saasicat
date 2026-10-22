@@ -1099,6 +1099,7 @@ _Tested by:_
           and records it
         - passes the corrections and the address on as typed, a correction left empty clearing its
           detail
+        - passes each line on by its position, not owed as nothing and an amount as typed
 - `packages/core/tests/a-cancellation-corrects-what-was-not-owed.test.js`
     - a line named as not owed, or owed in part
         - becomes what is owed of it, by a counter-entry that names it, the invoice and the reason

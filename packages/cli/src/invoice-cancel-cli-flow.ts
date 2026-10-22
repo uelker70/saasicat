@@ -5,10 +5,13 @@
 //
 //     <app> invoices cancel --tenant acme --invoice AHP-2026-000123 \
 //         --reason "The billing address was wrong."          # shows what it writes
+//     <app> invoices cancel … --line 2=not-owed --line 3=24.50   # lines not owed in full
 //     <app> invoices cancel … --apply                        # writes it
 //
 // Without `--apply` it writes nothing and draws no number: the preview is the
-// command, and the cancellation the second one. `--apply` asks for the second
+// command, and the cancellation the second one. `--line` names a line by its
+// position on the document, as not owed or with what is still owed of it, net
+// (`SC-ADM-035`). `--apply` asks for the second
 // factor (`SC-ADM-019`) and, against production, a confirmation; the audit log
 // records the operator and the reason (`SC-ADM-020`). The invoice is named by
 // the number on its document and the tenant it belongs to.
@@ -18,6 +21,7 @@ import {
     INVOICE_SUBSCRIBER_DETAILS,
     sumToCents,
     type InvoiceCancellationRequest,
+    type InvoiceLineOwed,
     type InvoiceSubscriberDetail,
     type NewCorrectionInvoice,
     type RlsBypassPort,
@@ -37,6 +41,13 @@ import { refusalsAsCliErrors } from './cli-refusals.js';
 /** Exit code per `cli-conventions.md` §6. */
 const EXIT_USER_ERROR = 1;
 
+/** What `--line` takes for a line none of which is owed. */
+const NOT_OWED = 'not-owed';
+/** A position on the document: a whole number from 1. */
+const POSITION = /^[1-9]\d*$/;
+/** An amount as the command line takes it: digits, and at most two decimals after a dot. */
+const AMOUNT = /^\d+(?:\.\d{1,2})?$/;
+
 export interface InvoiceCancelOptions {
     as?: string;
     yes?: boolean;
@@ -48,6 +59,8 @@ export interface InvoiceCancelOptions {
     reason?: string;
     /** Corrected details of the subscriber, each `field=value`; `field=` clears one. */
     correct?: string[];
+    /** Lines not owed in full, each `position=not-owed` or `position=<amount>`. */
+    line?: string[];
     /** Where both invoices are sent. */
     deliverTo?: string;
     /** Cancel it; without it nothing is written. */
@@ -110,9 +123,19 @@ export class InvoiceCancelCliFlow {
             `Invoice ${cancelled.number} of ${cancelled.subscriber.legalName} would be cancelled — ` +
                 'nothing is written yet.',
             describe('Cancellation invoice', plan.cancellation),
-            plan.replacement
-                ? describe('Replacement', plan.replacement)
-                : 'Replacement: none — nothing of the invoice is owed any more.',
+            ...movedLinesOf(plan),
+            ...(plan.replacement
+                ? [
+                      describe('Replacement', plan.replacement),
+                      ...plan.replacement.lines.map(
+                          (line) =>
+                              `  ${line.position}. ${line.title}: ${line.amountNet.toFixed(2)}` +
+                              (line.correctsPosition === null
+                                  ? ''
+                                  : ` (corrects line ${line.correctsPosition})`),
+                      ),
+                  ]
+                : ['Replacement: none — nothing of the invoice is owed any more.']),
             `Taken over as paid: ${plan.movedIn.toFixed(2)} ${cancelled.currency}` +
                 (plan.credited > 0
                     ? `; credited for the operator to refund: ${plan.credited.toFixed(2)}`
@@ -185,7 +208,56 @@ function requestOf(options: InvoiceCancelOptions): InvoiceCancellationRequest {
         reason: required(options.reason, '--reason "<why>"'),
         corrections: correctionsOf(options.correct ?? []),
         deliverTo: options.deliverTo ?? null,
+        lines: linesOf(options.line ?? []),
     };
+}
+
+/**
+ * `position=not-owed` or `position=<amount>` per line not owed in full. The
+ * amount takes a dot: a comma is refused rather than read as a locale would
+ * read it, since `1,000` is a thousand to one reader and one to another.
+ * Whether the line may be corrected, and to what, the cancellation says.
+ */
+function linesOf(given: readonly string[]): InvoiceLineOwed[] {
+    return given.map((each) => {
+        const at = each.indexOf('=');
+        const position = each.slice(0, at);
+        const owed = each.slice(at + 1);
+        if (at > 0 && POSITION.test(position) && owed.includes(',')) {
+            throw new CliError(
+                'INVOICE_LINE_INVALID',
+                `--line takes the amount with a dot and at most two decimals, as 2=24.50 — ` +
+                    `got '${each}'.`,
+                EXIT_USER_ERROR,
+            );
+        }
+        if (at <= 0 || !POSITION.test(position) || (owed !== NOT_OWED && !AMOUNT.test(owed))) {
+            throw new CliError(
+                'INVOICE_LINE_INVALID',
+                `--line takes <position>=${NOT_OWED} or <position>=<amount>, as 2=${NOT_OWED} ` +
+                    `or 2=24.50 — got '${each}'.`,
+                EXIT_USER_ERROR,
+            );
+        }
+        return { position: Number(position), owed: owed === NOT_OWED ? 0 : Number(owed) };
+    });
+}
+
+/** Each line of the cancelled invoice that moves, from what to what, for the terminal. */
+function movedLinesOf(plan: InvoiceCancellationPlan): string[] {
+    const moved = plan.lines.filter((line) => line.becomes !== line.standsAt);
+    if (moved.length === 0) return [];
+    return [
+        'Lines not owed in full:',
+        ...moved.map((line) => {
+            const title =
+                plan.cancelled.lines.find((each) => each.position === line.position)?.title ?? '';
+            return (
+                `  ${line.position}. ${title}: ${line.standsAt.toFixed(2)} → ` +
+                line.becomes.toFixed(2)
+            );
+        }),
+    ];
 }
 
 /** `field=value` per corrected detail; `field=` clears it. */

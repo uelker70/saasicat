@@ -1,8 +1,11 @@
 // Cancelling one of a tenant's invoices from its page, in two steps: the
-// operator says why — and, where the invoice named them wrongly, the
-// subscriber's details the replacement is to name —, reads what the server
-// says the cancellation will write, and confirms that behind the second
-// factor (`SC-ADM-019`, `SC-ADM-020`).
+// operator says why — what of each line is still owed, where not all of it is,
+// and, where the invoice named them wrongly, the subscriber's details the
+// replacement is to name —, reads what the server says the cancellation will
+// write, and confirms that behind the second factor (`SC-ADM-019`,
+// `SC-ADM-020`, `SC-ADM-035`). The lines are read when the dialog opens, each
+// saying whether the cancellation may correct it, so the dialog offers what
+// the server accepts rather than deciding it a second time.
 //
 // What is confirmed is what was shown (`SC-UI-017`): the cancellation sends
 // the request the preview answered, not whatever was entered since; going
@@ -24,6 +27,7 @@ import {
     INVOICE_ERROR_CODES,
     SUBSCRIBER_PAYMENTS_CAPABILITY,
     type AdminCancelledInvoice,
+    type AdminInvoice,
     type AdminInvoiceCancellationPlan,
     type AdminManifest,
     type AdminTenantInvoice,
@@ -35,13 +39,14 @@ import { attachCause } from '../client/attach-cause.js';
 import { formatMessage } from '../client/i18n/format.js';
 import {
     cancellationRequestOf,
-    givesAReason,
+    isAskable,
     isCancellable,
     type InvoiceCancellationDraft,
 } from '../client/invoice-cancellation.js';
 import type { Bound } from '../client/resources/define-resource.js';
 import type { tenantsResource } from '../client/resources/tenants.resource.js';
 import { report } from './report.js';
+import { useAsyncData, type AsyncData } from './use-async-data.js';
 import type { UiNotify } from './ui-notify.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
 import { useSaMessages } from './use-super-admin-i18n.js';
@@ -64,7 +69,7 @@ function changedPreviewOf(err: unknown): AdminInvoiceCancellationPlan | null {
 /** The tenant operations a cancellation calls, already bound to the shell's client. */
 export type InvoiceCancellationResource = Pick<
     Bound<(typeof tenantsResource)['ops']>,
-    'previewInvoiceCancellation' | 'cancelInvoice'
+    'invoice' | 'previewInvoiceCancellation' | 'cancelInvoice'
 >;
 
 export interface InvoiceCancellationPorts {
@@ -82,6 +87,8 @@ export interface InvoiceCancellationFlow {
     canCancel: (invoice: AdminTenantInvoice) => boolean;
     /** The invoice being cancelled while the dialog is open. */
     readonly target: Ref<AdminTenantInvoice | null>;
+    /** The invoice's lines, read when the dialog opens; `null` while closed. */
+    readonly invoice: AsyncData<AdminInvoice | null>;
     /** What the cancellation will write, once read — the second step. */
     readonly preview: Ref<AdminInvoiceCancellationPlan | null>;
     open: (invoice: AdminTenantInvoice) => void;
@@ -89,7 +96,7 @@ export interface InvoiceCancellationFlow {
     /**
      * The first step: reads what `draft` would write, which is the second.
      * Rejects on a refusal; resolves `null`, having asked nothing for a draft
-     * that gives no reason.
+     * that gives no reason or leaves an amount owed in part out.
      */
     ask: (draft: InvoiceCancellationDraft) => Promise<null>;
     /** Back to the first step, the preview discarded. */
@@ -117,6 +124,10 @@ export function useInvoiceCancellation(
     );
     const target = ref<AdminTenantInvoice | null>(null);
     const preview = ref<AdminInvoiceCancellationPlan | null>(null);
+    const invoice = useAsyncData(
+        async () => (target.value ? tenants.invoice(tenant, target.value.id) : null),
+        { initial: null, immediate: false, subject: () => target.value?.id },
+    );
 
     // The tenant the dialog was opened on: the page may move to another one
     // while it is open, and what the operator confirms belongs to this one.
@@ -146,12 +157,12 @@ export function useInvoiceCancellation(
     }
 
     async function ask(draft: InvoiceCancellationDraft): Promise<null> {
-        const invoice = target.value;
-        if (!invoice || !givesAReason(draft)) return null;
+        const cancelled = target.value;
+        if (!cancelled || !isAskable(draft)) return null;
         const question = (asked += 1);
         const request = cancellationRequestOf(draft);
         try {
-            const answer = await tenants.previewInvoiceCancellation(tenant, invoice.id, request);
+            const answer = await tenants.previewInvoiceCancellation(tenant, cancelled.id, request);
             if (question === asked) {
                 preview.value = answer;
                 previewed = request;
@@ -166,19 +177,19 @@ export function useInvoiceCancellation(
     }
 
     async function cancel(): Promise<AdminCancelledInvoice | null> {
-        const invoice = target.value;
+        const cancelled = target.value;
         const shown = preview.value;
         const request = previewed;
-        if (!invoice || !shown || !request) return null;
+        if (!cancelled || !shown || !request) return null;
         let outcome;
         try {
             outcome = await ports.mfa.run(
-                formatMessage(msg.value.payments.mfaCancel, { number: invoice.number }),
+                formatMessage(msg.value.payments.mfaCancel, { number: cancelled.number }),
                 shell.value.mfa.invalidCode,
                 (code) =>
                     tenants.cancelInvoice(
                         tenant,
-                        invoice.id,
+                        cancelled.id,
                         { ...request, previewDigest: shown.digest },
                         code,
                     ),
@@ -216,6 +227,7 @@ export function useInvoiceCancellation(
         available,
         canCancel: (invoice) => available.value && isCancellable(invoice),
         target,
+        invoice,
         preview,
         open,
         close,

@@ -1,13 +1,14 @@
 // The operator cancels one of a tenant's invoices from its page: at which
-// invoices it is offered, the request the input makes, the two requests of
-// the tenants descriptor, and the flow — preview, back, the second factor,
-// the preview's digest sent along, and a preview that no longer holds put in
-// place of the one confirmed.
+// invoices it is offered, what of each line the operator may say is owed, the
+// request the input makes, the three requests of the tenants descriptor, and
+// the flow — the invoice's lines read on opening, preview, back, the second
+// factor, the preview's digest sent along, and a preview that no longer holds
+// put in place of the one confirmed.
 //
 // The paths are the ones `@saasicat/nest` serves
-// (`POST /admin/tenants/{slug}/invoices/{invoiceId}/cancellation/preview` and
-// `…/cancellation`); `tests/openapi-covers-the-implementation.test.js` holds
-// them to the contract from the other side.
+// (`GET /admin/tenants/{slug}/invoices/{invoiceId}`, `…/cancellation/preview`
+// and `…/cancellation`); `tests/openapi-covers-the-implementation.test.js`
+// holds them to the contract from the other side.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,9 +21,11 @@ import {
     bindResource,
     cancellationRequestOf,
     emptyCancellationDraft,
+    isAskable,
     isCancellable,
     tenantsResource,
     useInvoiceCancellation,
+    whyNotCorrectable,
 } from '../dist/index.js';
 
 async function settle() {
@@ -72,6 +75,31 @@ const planOf = (overrides = {}) => ({
     ...overrides,
 });
 
+/** The invoice with its lines, as the dialog reads it: the plan may be corrected, the discount not. */
+const readOf = (id = 'invoice-123') => ({
+    id,
+    number: 'AHP-2026-000123',
+    issuedAt: '2026-02-01T05:15:00.000Z',
+    dueDate: '2026-02-15',
+    currency: 'EUR',
+    totalNet: 100,
+    totalTax: 19,
+    totalGross: 119,
+    lines: [
+        { position: 1, title: 'Standard', origin: 'renewal', source: 'plan', amountNet: 110 },
+        { position: 2, title: 'Welcome', origin: 'renewal', source: 'discount', amountNet: -10 },
+    ].map((line) => ({
+        periodFrom: '2026-02-01',
+        periodUntil: '2026-02-28',
+        taxRate: 19,
+        correctedPosition: null,
+        correctsPosition: null,
+        standsAt: line.amountNet,
+        correctable: line.source === 'plan',
+        ...line,
+    })),
+});
+
 const CANCELLED = {
     cancellationInvoice: { number: 'AHP-2026-000140' },
     replacement: { number: 'AHP-2026-000141', paidOnIssue: 100 },
@@ -111,6 +139,7 @@ describe('the request what the operator entered makes', () => {
                 reason: 'Wrong address.',
                 deliverTo: ' accounts@acme.example ',
                 corrections: { addressLine1: ' Hauptstraße 5 ', city: '   ', addressLine2: null },
+                lines: {},
             }),
             {
                 reason: 'Wrong address.',
@@ -119,6 +148,69 @@ describe('the request what the operator entered makes', () => {
             },
         );
     });
+});
+
+// @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+describe('what of each line the operator says is owed', () => {
+    const withLines = (lines) => ({ ...emptyCancellationDraft(), reason: 'Not owed.', lines });
+
+    test('names a line not owed as nothing owed, one owed in part with its amount, and leaves one owed out', () => {
+        assert.deepEqual(
+            cancellationRequestOf(
+                withLines({
+                    1: { choice: 'not-owed', amount: 12 },
+                    2: { choice: 'part', amount: 24.5 },
+                    3: { choice: 'owed', amount: 7 },
+                }),
+            ).lines,
+            [
+                { position: 1, owed: 0 },
+                { position: 2, owed: 24.5 },
+            ],
+        );
+    });
+
+    test('names no lines where every line is owed', () => {
+        assert.equal(
+            'lines' in cancellationRequestOf(withLines({ 1: { choice: 'owed', amount: null } })),
+            false,
+        );
+    });
+
+    for (const [what, draft, askable] of [
+        ['a reason and nothing else', withLines({}), true],
+        [
+            'a line owed in part with its amount',
+            withLines({ 1: { choice: 'part', amount: 0 } }),
+            true,
+        ],
+        [
+            'a line owed in part without one',
+            withLines({ 1: { choice: 'part', amount: null } }),
+            false,
+        ],
+        [
+            'a line not owed, nothing typed',
+            withLines({ 1: { choice: 'not-owed', amount: null } }),
+            true,
+        ],
+        ['no reason', { ...withLines({}), reason: '  ' }, false],
+    ]) {
+        test(`with ${what}: ${askable ? 'asked about' : 'not asked about yet'}`, () => {
+            assert.equal(isAskable(draft), askable);
+        });
+    }
+
+    for (const [what, line, why] of [
+        ['a discount', { origin: 'renewal', source: 'discount' }, 'discount'],
+        ['a correction', { origin: 'correction', source: 'plan' }, 'correction'],
+        ['a correction of a discount', { origin: 'correction', source: 'discount' }, 'correction'],
+        ['a charge taken to nothing', { origin: 'renewal', source: 'plan' }, 'nothing'],
+    ]) {
+        test(`${what} offers no choice, and says why: ${why}`, () => {
+            assert.equal(whyNotCorrectable(line), why);
+        });
+    }
 });
 
 const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
@@ -144,6 +236,23 @@ function answering(status, body) {
 
 describe('the tenants descriptor', () => {
     const REQUEST = { reason: 'Wrong address.', deliverTo: null };
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    test('reads the invoice with its lines, the tenant and the invoice escaped', async () => {
+        const { http, calls } = answering(200, readOf());
+
+        const read = await bindResource(tenantsResource, http, CTX).invoice('a b', 'invoice/1');
+
+        assert.deepEqual(calls, [
+            {
+                url: '/api/v1/admin/tenants/a%20b/invoices/invoice%2F1',
+                method: 'GET',
+                body: undefined,
+                mfa: null,
+            },
+        ]);
+        assert.deepEqual(read, readOf());
+    });
 
     test('asks for the preview, the tenant and the invoice escaped, without the second factor', async () => {
         const { http, calls } = answering(200, planOf());
@@ -206,12 +315,18 @@ function cancellationOf({
     code = '123456',
     whilePrompted,
     answer = CANCELLED,
+    readWith = (invoiceId) => Promise.resolve(readOf(invoiceId)),
 } = {}) {
     const calls = [];
+    const reads = [];
     const notices = [];
     const reloads = [];
     const answers = [...plans];
     const tenants = {
+        invoice: async (slug, invoiceId) => {
+            reads.push([slug, invoiceId]);
+            return readWith(invoiceId);
+        },
         previewInvoiceCancellation: async (slug, invoiceId, request) => {
             calls.push(['preview', slug, invoiceId, request]);
             return previewWith ? previewWith() : answers.shift();
@@ -236,10 +351,15 @@ function cancellationOf({
         mfa,
         onCancelled: async () => reloads.push('reloaded'),
     });
-    return { flow, calls, notices, reloads, slug };
+    return { flow, calls, reads, notices, reloads, slug };
 }
 
-const DRAFT = { reason: '  The billing address was wrong. ', deliverTo: '', corrections: {} };
+const DRAFT = {
+    reason: '  The billing address was wrong. ',
+    deliverTo: '',
+    corrections: {},
+    lines: {},
+};
 const ASKED = { reason: 'The billing address was wrong.', deliverTo: null };
 
 // @requirement SC-ADM-015 — The administration only offers what the application actually has
@@ -474,5 +594,96 @@ describe('cancelling an invoice', () => {
         await settle();
 
         assert.equal(flow.preview.value, null);
+    });
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    test('asks nothing while a line owed in part says no amount', async () => {
+        const { flow, calls } = cancellationOf();
+        flow.open(invoiceOf());
+
+        await flow.ask({ ...DRAFT, lines: { 1: { choice: 'part', amount: null } } });
+
+        assert.deepEqual([calls, flow.preview.value], [[], null]);
+    });
+
+    // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+    test('sends the lines the operator named with the request it previews', async () => {
+        const { flow, calls } = cancellationOf();
+        flow.open(invoiceOf());
+
+        await flow.ask({ ...DRAFT, lines: { 1: { choice: 'part', amount: 24.5 } } });
+
+        assert.deepEqual(calls[0][3].lines, [{ position: 1, owed: 24.5 }]);
+    });
+});
+
+// @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+describe('the lines the dialog offers', () => {
+    test('are read when it opens', async () => {
+        const { flow, reads } = cancellationOf();
+
+        flow.open(invoiceOf());
+        await settle();
+
+        assert.deepEqual(reads, [['acme', 'invoice-123']]);
+        assert.deepEqual(flow.invoice.data.value, readOf());
+        assert.equal(flow.invoice.pending.value, false);
+    });
+
+    test('of another invoice replace the first one’s at once, and are read for it', async () => {
+        let answer;
+        const { flow, reads } = cancellationOf({
+            readWith: (invoiceId) =>
+                invoiceId === 'invoice-123'
+                    ? Promise.resolve(readOf(invoiceId))
+                    : new Promise((resolve) => {
+                          answer = () => resolve(readOf(invoiceId));
+                      }),
+        });
+        flow.open(invoiceOf());
+        await settle();
+
+        flow.open(invoiceOf({ id: 'invoice-124', number: 'AHP-2026-000124' }));
+        await settle();
+
+        assert.equal(flow.invoice.data.value, null);
+        assert.equal(flow.invoice.pending.value, true);
+        answer();
+        await settle();
+        assert.deepEqual(
+            [reads.at(-1), flow.invoice.data.value.id],
+            [['acme', 'invoice-124'], 'invoice-124'],
+        );
+    });
+
+    test('go when it closes', async () => {
+        const { flow } = cancellationOf();
+        flow.open(invoiceOf());
+        await settle();
+
+        flow.close();
+        await settle();
+
+        assert.equal(flow.invoice.data.value, null);
+    });
+
+    test('that fail to load say so, and are read again on retry', async () => {
+        let fail = true;
+        const { flow, reads } = cancellationOf({
+            readWith: (invoiceId) =>
+                fail
+                    ? Promise.reject(new AdminError({ status: 500 }))
+                    : Promise.resolve(readOf(invoiceId)),
+        });
+        flow.open(invoiceOf());
+        await settle();
+
+        assert.deepEqual([flow.invoice.data.value, flow.invoice.error.value?.status], [null, 500]);
+        fail = false;
+        await flow.invoice.reload();
+        assert.deepEqual(
+            [reads.length, flow.invoice.data.value, flow.invoice.error.value],
+            [2, readOf(), null],
+        );
     });
 });

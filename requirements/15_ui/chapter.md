@@ -1503,6 +1503,8 @@ _Tested by:_
         - confirmed again after such a refusal, carries the digest of the new preview
         - refused otherwise rejects with the refusal, and keeps the preview it was refused on
         - opened on another invoice starts afresh
+        - asks nothing while a line owed in part says no amount
+        - sends the lines the operator named with the request it previews
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
     - an invoice cancelled from the tenant page
         - names the invoice, and previews nothing before a reason is given

@@ -4,7 +4,7 @@
         :title="formatMessage(texts.cancelInvoice, { number: invoice?.number ?? '' })"
         :subtitle="plan ? dialog.previewSubtitle : dialog.askSubtitle"
         :submit-label="plan ? dialog.submit : dialog.preview"
-        :submit-disabled="!plan && !givesAReason(draft)"
+        :submit-disabled="!plan && !isAskable(draft)"
         :submit="plan ? flow.cancel : () => flow.ask(draft)"
         @update:model-value="(open: boolean) => !open && flow.close()"
     >
@@ -22,6 +22,14 @@
                     />
                 </template>
             </AdminField>
+            <InvoiceCancellationLines
+                :invoice="flow.invoice.data.value"
+                :pending="flow.invoice.pending.value"
+                :error="flow.invoice.error.value"
+                :retry="flow.invoice.reload"
+                :lines="draft.lines"
+                @choose="choose"
+            />
             <AdminField :label="dialog.deliverTo" :hint="dialog.deliverToHint">
                 <template #default="{ describedBy }">
                     <q-input
@@ -109,6 +117,31 @@
                 <dt>{{ dialog.deliveredTo }}</dt>
                 <dd>{{ plan.deliverTo ?? dialog.toRecord }}</dd>
             </dl>
+            <section v-if="movedLines.length > 0" class="q-mt-md" :aria-label="dialog.movedLines">
+                <div class="text-subtitle2">{{ dialog.movedLines }}</div>
+                <dl class="sa-invoice-cancel__figures">
+                    <template v-for="line in movedLines" :key="line.position">
+                        <dt>{{ line.label }}</dt>
+                        <dd>
+                            {{
+                                formatMessage(dialog.movedLine, {
+                                    from: money(line.standsAt),
+                                    to: money(line.becomes),
+                                })
+                            }}
+                        </dd>
+                    </template>
+                </dl>
+            </section>
+            <section v-if="plan.replacement" class="q-mt-md" :aria-label="dialog.replacementLines">
+                <div class="text-subtitle2">{{ dialog.replacementLines }}</div>
+                <dl class="sa-invoice-cancel__figures">
+                    <template v-for="line in plan.replacement.lines" :key="line.position">
+                        <dt>{{ line.position }}. {{ line.title }}</dt>
+                        <dd>{{ replacementLineText(line) }}</dd>
+                    </template>
+                </dl>
+            </section>
             <section v-if="plan.replacement" class="q-mt-md" :aria-label="dialog.party">
                 <div class="text-subtitle2">{{ dialog.party }}</div>
                 <dl class="sa-invoice-cancel__figures">
@@ -124,9 +157,10 @@
 
 <script setup lang="ts">
 // Cancelling an invoice in two steps: what the operator gives — the reason,
-// an address to deliver to and the details the replacement is to name
-// corrected — and what the server says the cancellation will write, which is
-// what the second factor confirms. The flow is the page's composable; this
+// what of each line is still owed, an address to deliver to and the details
+// the replacement is to name corrected — and what the server says the
+// cancellation will write, its lines among it, which is what the second
+// factor confirms. The flow is the page's composable; this
 // draws it and holds what is typed until the dialog opens on another invoice.
 
 import { computed, reactive, ref, watch } from 'vue';
@@ -134,19 +168,25 @@ import {
     INVOICE_CANCELLATION_REASON_MAX_LENGTH,
     INVOICE_CORRECTION_MAX_LENGTH,
     INVOICE_SUBSCRIBER_DETAILS,
+    type AdminReplacementLine,
     type AdminTenantSubscriber,
     type InvoiceSubscriberDetail,
 } from '@saasicat/core';
 
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { formatDay, formatMessage } from '../../client/i18n/format.js';
-import { emptyCancellationDraft, givesAReason } from '../../client/invoice-cancellation.js';
+import {
+    emptyCancellationDraft,
+    isAskable,
+    type InvoiceLineEntry,
+} from '../../client/invoice-cancellation.js';
 import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import AdminField from '../../ui/page/AdminField.vue';
 import AdminFieldGrid from '../../ui/page/AdminFieldGrid.vue';
 import type { InvoiceCancellationFlow } from '../../vue/use-invoice-cancellation.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import InvoiceCancellationLines from './InvoiceCancellationLines.vue';
 
 /** RFC 5321 caps an address at 254 characters, as the route does. */
 const ADDRESS_MAX_LENGTH = 254;
@@ -208,6 +248,10 @@ function takeOver(detail: InvoiceSubscriberDetail): void {
     if (held !== undefined) draft.corrections[detail] = held;
 }
 
+function choose(position: number, entry: InvoiceLineEntry): void {
+    draft.lines[position] = entry;
+}
+
 /** A detail typed as nothing stays as the invoice names it. */
 function correct(detail: InvoiceSubscriberDetail, value: string | number | null): void {
     const text = value === null ? '' : String(value);
@@ -218,6 +262,28 @@ function correct(detail: InvoiceSubscriberDetail, value: string | number | null)
 const money = (amount: number) =>
     formatCurrency(amount, locale.value, plan.value?.cancelled.currency);
 const day = (iso: string) => formatDay(iso, intlLocale.value);
+
+/** Each line of the cancelled invoice that moves, named as the invoice read names it. */
+const movedLines = computed(() =>
+    (plan.value?.lines ?? [])
+        .filter((line) => line.becomes !== line.standsAt)
+        .map((line) => {
+            const title = props.flow.invoice.data.value?.lines.find(
+                (each) => each.position === line.position,
+            )?.title;
+            return { ...line, label: title ? `${line.position}. ${title}` : `${line.position}.` };
+        }),
+);
+
+/** A line of the replacement: its amount, and the line it corrects where it is a correction's. */
+function replacementLineText(line: AdminReplacementLine): string {
+    const amount = money(line.amountNet);
+    if (line.correctsPosition === null) return amount;
+    const corrects = formatMessage(dialog.value.lineCorrection, {
+        position: line.correctsPosition,
+    });
+    return `${amount} · ${corrects}`;
+}
 
 const treatment = computed(() => {
     const decided = plan.value?.replacement?.taxTreatment;

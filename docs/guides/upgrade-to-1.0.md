@@ -2233,12 +2233,16 @@ operator may name lines as not owed, or owed at a lower amount (`InvoiceCancella
 each moves by a counter-entry, each discount that reduced it in the share it fell, and where nothing
 is owed any more there is no replacement. An invoice and the invoices that
 correct it are one chain, and whatever changes what an invoice of a chain owes or how it is
-collected takes the chain's turn (`SC-PRIC-036`). The operator previews and cancels at
+collected takes the chain's turn (`SC-PRIC-036`). The operator reads the invoice's lines at
+`GET admin/tenants/:slug/invoices/:invoiceId` — each saying what its charge stands at and whether
+a cancellation may correct it —, previews and cancels at
 `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview` and `…/cancellation`, the
-second with the second factor, or with `<app> invoices cancel`; the manifest announces both as
-`invoices.cancel` ([Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice)). The
-shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPayments` carries
-`correction` and `cancelledBy`, so a page of your own that lists them can say which is which.
+second with the second factor, or with `<app> invoices cancel`, `--line` naming a line not owed in
+full; the manifest announces all three as `invoices.cancel`
+([Cancelling an invoice](wire-the-backend.md#cancelling-an-invoice)). The shipped tenant page
+cancels at the invoice, line by line (`SC-ADM-035`), and each invoice of `AdminTenantPayments`
+carries `correction` and `cancelledBy`, so a page of your own that lists them can say which is
+which.
 
 1. Take fragments 15, 20 and 24 as they ship now: `SubscriptionInvoice` gains `chainId`,
    `chainStep` and `paidOnIssue`, a line `chainStep`, `correctedPosition` and `correctsPosition`
@@ -2321,8 +2325,10 @@ shipped tenant page cancels at the invoice, and each invoice of `AdminTenantPaym
   and the tenant billing module it built. `InvoiceCancellationPlan` names `reason` and `deliverTo`
   as they are recorded; the service settles both and the corrections before anything else.
   `InvoiceCancellationPlan` and `CancelledInvoice` carry `lines`, what each charge line stands at
-  and becomes, and `counterEntries`; their `replacement` is `null` where nothing is owed any more,
-  and `invoiceCancellationAudit` then names `replacementNumber` as `null`.
+  and becomes, net, in the invoice's currency, and `counterEntries`; their `replacement` is `null`
+  where nothing is owed any more, and `invoiceCancellationAudit` then names `replacementNumber` as
+  `null`. A global `ValidationPipe` with `whitelist` keeps `lines`: `CancelInvoiceDto` declares
+  them, each an `InvoiceLineOwedDto`.
 - **An application that words refusals itself** adds `SUBSCRIPTION_INVOICE_ALREADY_CANCELLED`,
   `SUBSCRIPTION_INVOICE_NOT_YET_ARCHIVED`, `SUBSCRIPTION_INVOICE_IS_CANCELLATION`,
   `SUBSCRIPTION_INVOICE_STATES_A_CREDIT`, `SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`,

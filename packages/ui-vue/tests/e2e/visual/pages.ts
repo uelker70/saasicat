@@ -289,14 +289,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/TenantDetailPage.vue'),
         props: () => ({ slug: 'northwind' }),
     }),
-    // The cancellation's first step with the replacement's details opened:
-    // the dialog and its correction fields only exist once both are clicked.
+    // The cancellation's first step with an add-on owed in part and the
+    // replacement's details opened: the dialog, the amount field and the
+    // correction fields only exist once each is clicked.
     visualCase({
         id: 'tenant-detail-cancel-invoice',
         load: () => import('../../../src/pages/TenantDetailPage.vue'),
         props: () => ({ slug: 'northwind' }),
         revealBy: [
             'button[aria-label="Cancel invoice AHP-2026-000124"]',
+            '.sa-dialog .sa-invoice-cancel__lines > li:nth-child(2) .q-btn-toggle button:nth-child(3)',
             '.sa-dialog .sa-accordion__trigger',
         ],
     }),

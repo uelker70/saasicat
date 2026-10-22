@@ -1,6 +1,7 @@
 // The tenant page says of each invoice what it stands in relation to, and
-// cancels one that stands in two steps: what the operator gives, then what the
-// server says the cancellation will write, confirmed behind the second factor.
+// cancels one that stands in two steps: what the operator gives — what of
+// each line is still owed among it —, then what the server says the
+// cancellation will write, confirmed behind the second factor.
 //
 // Mounted through a router, the way an app mounts the page, against a stubbed
 // registry: the test says what the server answers and reads what the operator
@@ -11,6 +12,7 @@ import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import {
     INVOICE_ERROR_CODES,
+    type AdminInvoice,
     type AdminInvoiceCancellationPlan,
     type AdminTenantInvoice,
 } from '@saasicat/core';
@@ -94,6 +96,44 @@ const RECORD = {
     readiness: null,
 };
 
+/** A line as the invoice read states it. */
+const lineOf = (
+    position: number,
+    title: string,
+    amountNet: number,
+    overrides: Partial<AdminInvoice['lines'][number]> = {},
+) => ({
+    position,
+    title,
+    origin: 'renewal' as const,
+    source: 'plan' as const,
+    periodFrom: '2026-02-01',
+    periodUntil: '2026-02-28',
+    amountNet,
+    taxRate: 0,
+    correctedPosition: null,
+    correctsPosition: null,
+    standsAt: amountNet,
+    correctable: amountNet > 0,
+    ...overrides,
+});
+
+/** The invoice with its lines, as the dialog reads it: a plan and its discount. */
+const READ: AdminInvoice = {
+    id: 'invoice-124',
+    number: 'AHP-2026-000124',
+    issuedAt: '2026-02-01T05:15:00.000Z',
+    dueDate: '2026-02-15',
+    currency: 'EUR',
+    totalNet: 100,
+    totalTax: 0,
+    totalGross: 100,
+    lines: [
+        lineOf(1, 'Standard', 110),
+        lineOf(2, 'Welcome', -10, { source: 'discount', correctable: false }),
+    ],
+};
+
 const planOf = (
     overrides: Partial<Pick<AdminInvoiceCancellationPlan, 'movedIn' | 'credited'>> = {},
 ) => ({
@@ -107,7 +147,12 @@ const planOf = (
         totalGross: 100,
         taxTreatment: { kind: 'reverse-charge', rate: 0 },
         subscriber: { ...PARTY, addressLine2: null, city: 'Bremen' },
+        lines: [lineOf(1, 'Standard', 110), lineOf(2, 'Welcome', -10, { source: 'discount' })],
     },
+    lines: [
+        { position: 1, standsAt: 110, becomes: 110 },
+        { position: 2, standsAt: -10, becomes: -10 },
+    ],
     movedIn: 100,
     credited: 19,
     reason: 'The billing address was wrong.',
@@ -139,11 +184,13 @@ async function mountPage({
     cancelWith,
     plan = planOf(),
     cancelled = CANCELLED,
+    readWith = async () => READ,
 }: {
     manifest?: unknown;
     cancelWith?: () => never;
     plan?: unknown;
     cancelled?: unknown;
+    readWith?: () => Promise<AdminInvoice>;
 } = {}) {
     const calls: Call[] = [];
     const notices: Array<[string, string]> = [];
@@ -163,6 +210,10 @@ async function mountPage({
             return PAYMENTS;
         },
         subscriber: async () => RECORD,
+        invoice: async (...args: unknown[]) => {
+            calls.push(['invoice', ...args]);
+            return readWith();
+        },
         previewInvoiceCancellation: async (...args: unknown[]) => {
             calls.push(['preview', ...args]);
             return plan;
@@ -230,6 +281,25 @@ async function openCorrections(): Promise<void> {
     await settle();
 }
 
+/** The item of the dialog's lines that begins with `label`, as `1. Standard`. */
+function lineItem(label: string): HTMLElement {
+    const item = [...(dialog().node?.querySelectorAll<HTMLElement>('li') ?? [])].find((candidate) =>
+        candidate.textContent?.trim().startsWith(label),
+    );
+    if (!item) throw new Error(`no line ${label}`);
+    return item;
+}
+
+/** Chooses `choice` at the line that begins with `label`. */
+async function chooseAt(label: string, choice: string): Promise<void> {
+    const button = [...lineItem(label).querySelectorAll<HTMLElement>('.q-btn-toggle button')].find(
+        (candidate) => candidate.textContent?.trim() === choice,
+    );
+    if (!button) throw new Error(`no choice ${choice} at ${label}`);
+    button.click();
+    await settle();
+}
+
 const REASON = 'The billing address was wrong.';
 
 // @requirement SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
@@ -290,6 +360,9 @@ describe('an invoice cancelled from the tenant page', () => {
         dialogButton('Show preview').click();
         await settle();
 
+        expect(calls.filter(([what]) => what === 'invoice')).toEqual([
+            ['invoice', 'acme', 'invoice-124'],
+        ]);
         expect(calls.filter(([what]) => what === 'preview')).toEqual([
             [
                 'preview',
@@ -316,6 +389,9 @@ describe('an invoice cancelled from the tenant page', () => {
         ]) {
             expect(shown).toContain(figure);
         }
+        expect(
+            dialog().node?.querySelector('section[aria-label="Lines not owed in full"]'),
+        ).toBeNull();
     });
 
     test('previews and announces a cancellation that leaves no replacement, naming no party for one', async () => {
@@ -420,5 +496,145 @@ describe('an invoice cancelled from the tenant page', () => {
         expect(shown).not.toContain('Becomes a credit');
         expect(dialogButton('Cancel invoice').disabled).toBe(false);
         expect(notices.map(([kind]) => kind)).toEqual(['negative']);
+    });
+});
+
+// @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+describe('the lines of an invoice cancelled from the tenant page', () => {
+    async function openedAt(options: Parameters<typeof mountPage>[0] = {}) {
+        const page = await mountPage(options);
+        await cancelAt(page.wrapper, 'AHP-2026-000124').trigger('click');
+        await settle();
+        await typeInto('Reason', REASON);
+        return page;
+    }
+
+    test('offer a choice at the line the server says may be corrected, and say why at the others', async () => {
+        await openedAt();
+
+        expect(lineItem('1. Standard').textContent).toContain('€110');
+        expect(
+            [...lineItem('1. Standard').querySelectorAll('.q-btn-toggle button')].map((button) =>
+                button.textContent?.trim(),
+            ),
+        ).toEqual(['Owed', 'Not owed', 'Owed in part']);
+        expect(lineItem('2. Welcome').querySelector('.q-btn-toggle')).toBeNull();
+        expect(lineItem('2. Welcome').textContent).toContain('Follows what it reduced');
+    });
+
+    test('name each choice after its line, and say which option is chosen', async () => {
+        await openedAt();
+
+        await chooseAt('1. Standard', 'Not owed');
+
+        const group = lineItem('1. Standard').querySelector<HTMLElement>('.q-btn-toggle');
+        expect([group?.getAttribute('role'), group?.getAttribute('aria-label')]).toEqual([
+            'group',
+            'What of line 1, Standard, is still owed',
+        ]);
+        expect(
+            [...(group?.querySelectorAll('button') ?? [])].map((button) => [
+                button.textContent?.trim(),
+                button.getAttribute('aria-pressed'),
+            ]),
+        ).toEqual([
+            ['Owed', 'false'],
+            ['Not owed', 'true'],
+            ['Owed in part', 'false'],
+        ]);
+    });
+
+    test('owed in part ask for the amount before the preview, and send it', async () => {
+        const { calls } = await openedAt();
+
+        await chooseAt('1. Standard', 'Owed in part');
+        expect(dialogButton('Show preview').disabled).toBe(true);
+        await typeInto('Still owed, net', '24.50');
+        expect(dialogButton('Show preview').disabled).toBe(false);
+        dialogButton('Show preview').click();
+        await settle();
+
+        expect(calls.filter(([what]) => what === 'preview').map((call) => call[3])).toEqual([
+            { reason: REASON, deliverTo: null, lines: [{ position: 1, owed: 24.5 }] },
+        ]);
+    });
+
+    test('not owed send nothing owed, and owed again send nothing of the line', async () => {
+        const { calls } = await openedAt();
+
+        await chooseAt('1. Standard', 'Not owed');
+        dialogButton('Show preview').click();
+        await settle();
+        [...(dialog().node?.querySelectorAll<HTMLButtonElement>('.sa-dialog__body button') ?? [])]
+            .find((button) => button.textContent?.includes('Change the details'))
+            ?.click();
+        await settle();
+        await chooseAt('1. Standard', 'Owed');
+        dialogButton('Show preview').click();
+        await settle();
+
+        expect(calls.filter(([what]) => what === 'preview').map((call) => call[3])).toEqual([
+            { reason: REASON, deliverTo: null, lines: [{ position: 1, owed: 0 }] },
+            { reason: REASON, deliverTo: null },
+        ]);
+    });
+
+    test('in the preview, show each line that moves from what to what, and the replacement’s lines with what each correction corrects', async () => {
+        await openedAt({
+            plan: {
+                ...planOf(),
+                replacement: {
+                    ...planOf().replacement,
+                    lines: [
+                        lineOf(1, 'Standard', 110),
+                        lineOf(2, 'Standard', -85.5, { origin: 'correction', correctsPosition: 1 }),
+                        lineOf(3, 'Welcome', -10, { source: 'discount' }),
+                        lineOf(4, 'Welcome', 7.77, {
+                            origin: 'correction',
+                            source: 'discount',
+                            correctsPosition: 3,
+                        }),
+                    ],
+                },
+                lines: [
+                    { position: 1, standsAt: 110, becomes: 24.5 },
+                    { position: 2, standsAt: -10, becomes: -2.23 },
+                ],
+            },
+        });
+        await chooseAt('1. Standard', 'Owed in part');
+        await typeInto('Still owed, net', '24.50');
+        dialogButton('Show preview').click();
+        await settle();
+
+        const moved = dialog().node?.querySelector('section[aria-label="Lines not owed in full"]');
+        expect(moved?.textContent).toContain('1. Standard€110 → €24.50');
+        expect(moved?.textContent).toContain('2. Welcome-€10 → -€2.23');
+        const replacement = dialog().node?.querySelector(
+            'section[aria-label="Lines of the replacement"]',
+        );
+        expect(replacement?.textContent).toContain('2. Standard-€85.50 · Corrects item 1');
+        expect(replacement?.textContent).toContain('4. Welcome€7.77 · Corrects item 3');
+    });
+
+    test('that fail to load say so, offer to read them again, and leave the rest of the dialog working', async () => {
+        let fail = true;
+        const { calls } = await openedAt({
+            readWith: async () => {
+                if (fail) throw new AdminError({ status: 500 });
+                return READ;
+            },
+        });
+
+        expect(dialog().node?.textContent).toContain("The invoice's lines could not be loaded");
+        expect(dialogButton('Show preview').disabled).toBe(false);
+        fail = false;
+        [...(dialog().node?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
+            .find((button) => button.textContent?.trim() === 'Retry')
+            ?.click();
+        await settle();
+
+        expect(calls.filter(([what]) => what === 'invoice')).toHaveLength(2);
+        expect(lineItem('1. Standard').textContent).toContain('€110');
     });
 });

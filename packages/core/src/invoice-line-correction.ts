@@ -91,6 +91,36 @@ export function isCorrectableLine(
     return line.origin !== CORRECTION && line.source !== 'discount' && standsAt > 0;
 }
 
+/** What a line of an invoice stands at, and whether a cancellation may correct it. */
+export interface InvoiceLineStanding {
+    line: SubscriptionInvoiceLineRecord;
+    /** Its charge's amount and every correction of it written so far, in whole cents. */
+    standsAt: number;
+    /** Whether the operator may say it is not owed, or owed below `standsAt`. */
+    correctable: boolean;
+}
+
+/**
+ * What each line of `invoice` stands at in `journal`, the journal of its
+ * subscription, and whether a cancellation may correct it — read by one rule,
+ * so what the operator is offered and what the cancellation accepts agree.
+ */
+export function lineStandingsOf(
+    invoice: SubscriptionInvoiceRecord,
+    journal: readonly SubscriberChargeRecord[],
+): InvoiceLineStanding[] {
+    return invoice.lines.map((line) => {
+        const charge = journal.find((entry) => entry.id === line.chargeId);
+        if (!charge) {
+            throw new Error(
+                `Line ${line.position} of ${invoice.number} names a charge not in the journal.`,
+            );
+        }
+        const standsAt = standingCentsOf(charge, journal);
+        return { line, standsAt, correctable: isCorrectableLine(line, standsAt) };
+    });
+}
+
 /**
  * What cancelling `cancelled` with `owed` corrects. A line named becomes what
  * is owed of it; a discount whose charges moved becomes its share of what they

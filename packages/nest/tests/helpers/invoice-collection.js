@@ -517,6 +517,24 @@ export function aCollectingInstallation({
             });
             return invoice;
         },
+        /**
+         * Hands invoice `invoiceId`'s document to the mail at `at`, as the
+         * document run does — what a cancellation of it waits for.
+         */
+        mailed(invoiceId, at) {
+            installation.store.documents.set(invoiceId, {
+                invoiceId,
+                checksum: 'b'.repeat(64),
+                mediaType: 'application/pdf',
+                fileName: `${invoiceId}.pdf`,
+                size: 1,
+                renderedAt: at,
+                archivedAt: at,
+                deliveryClaimedAt: at,
+                deliveredAt: at,
+                deliveredTo: 'billing@t1.example',
+            });
+        },
         /** The run at `now`. */
         collect(now) {
             return collection.collectDue(now);

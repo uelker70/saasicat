@@ -1156,6 +1156,10 @@ a new number, with what was paid for it moved onto the replacement or, where the
 not take it, credited for the operator to refund. The next run archives and mails both like any
 invoice.
 
+- **The invoice's lines**, `GET admin/tenants/:slug/invoices/:invoiceId`, answer the invoice with
+  each line as its document states it, what its charge stands at — an earlier cancellation's
+  correction included — and whether a cancellation may name it as not owed, or owed in part
+  (`correctable`). A cancellation accepts exactly the lines this offers (`SC-ADM-035`).
 - **The preview**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview`, answers what
   the cancellation would write and writes nothing; show it in the confirmation (`SC-UI-017`), and
   send its `digest` back with the cancellation as `previewDigest`. A payment that arrives in
@@ -1164,18 +1168,26 @@ invoice.
   nobody confirmed.
 - **The cancellation**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`, asks for the
   second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
-  invoices name —, `corrections` of the subscriber's details the replacement names, and `deliverTo`,
-  required where the subscriber's record holds no invoice email. Both invoices and the
+  invoices name —, `lines`, each `{ position, owed }` of a line not owed in full with what is still
+  owed of it, net, `corrections` of the subscriber's details the replacement names, and
+  `deliverTo`, required where the subscriber's record holds no invoice email. Each line named is
+  lowered by a counter-entry with the reason, each discount that reduced it follows in the share it
+  fell, and the preview's `lines` say what each charge line stands at and becomes, in the
+  invoice's currency. Both invoices and the
   replacement's collection notices go there, one address for all of it; nothing is written back
   onto the record (`SC-PRIC-094`). The manifest announces both routes as `invoices.cancel`, and
-  the audit log records `SUBSCRIPTION_INVOICE_CANCELLED` with the reason, which details were
-  corrected and whether an address was given.
+  the audit log records `SUBSCRIPTION_INVOICE_CANCELLED` with the reason, which lines moved from
+  what to what, which details were corrected and whether an address was given. `CancelInvoiceDto`
+  carries a decorator on every field, `lines` included, so a `ValidationPipe` with `whitelist` keeps
+  them.
 - **On the tenant page** of the shipped administration, each invoice says what it corrects and
   which cancellation invoice cancelled it, and one that stands offers the cancellation in two steps
-  — what the operator gives, then the preview, confirmed with the second factor (`SC-ADM-034`).
-  Nothing to wire beyond the routes.
+  — what the operator gives, each line owed, not owed or owed in part among it, then the preview
+  with the lines that move and the replacement's lines, confirmed with the second factor
+  (`SC-ADM-034`, `SC-ADM-035`). Nothing to wire beyond the routes.
 - **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
-  shows the same and writes nothing; `--apply` cancels, with the second factor and, against
+  shows the same and writes nothing — `--line 2=not-owed` or `--line 2=24.50` names a line by its
+  position on the document; `--apply` cancels, with the second factor and, against
   production, a confirmation, and says what it took over as paid and credited — it sends no
   `previewDigest`, so that is what was written ([Extend your CLI](extend-your-cli.md)).
 

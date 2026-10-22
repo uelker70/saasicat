@@ -580,6 +580,37 @@ paths:
                         archived file does not match the recorded checksum and
                         is not handed out (`SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`)
 
+    /tenants/{slug}/invoices/{invoiceId}:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+            - name: invoiceId
+              in: path
+              required: true
+              description: The invoice's id
+              schema: { type: string }
+        get:
+            tags: [subscriptions]
+            summary: An invoice with its lines, as its cancellation starts from
+            description: >-
+                Served beside the cancellation (`invoices.cancel`). Each line as
+                the document states it, with what its charge stands at — its
+                amount and every correction of it an earlier cancellation wrote
+                along the invoice's chain — and whether a cancellation may name
+                it as not owed, or owed below that: a line whose charge asks for
+                something, and not a discount, a credit or a correction. The
+                cancellation accepts exactly the lines it offers.
+            responses:
+                '200':
+                    description: The invoice and its lines
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminInvoice' }
+                '404':
+                    description: >-
+                        No tenant with this slug (`TENANT_NOT_FOUND`), or no
+                        invoice under this id of the tenant
+                        (`SUBSCRIPTION_INVOICE_NOT_FOUND`)
+
     /tenants/{slug}/invoices/{invoiceId}/cancellation/preview:
         parameters:
             - $ref: '#/components/parameters/TenantSlug'
@@ -636,8 +667,16 @@ paths:
                         an invoice that states a credit
                         (`SUBSCRIPTION_INVOICE_STATES_A_CREDIT`); no invoice email
                         on the record and no address given
-                        (`SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`); a replacement
-                        that could not be issued (`SUBSCRIPTION_INVOICE_MANDATE_MISSING`,
+                        (`SUBSCRIPTION_INVOICE_NO_DELIVERY_ADDRESS`); a line the
+                        invoice does not have (`SUBSCRIPTION_INVOICE_LINE_UNKNOWN`),
+                        named twice (`SUBSCRIPTION_INVOICE_LINE_NAMED_TWICE`), one
+                        that asks for nothing (`SUBSCRIPTION_INVOICE_LINE_NOT_CORRECTABLE`),
+                        or owed at less than nothing, at what it stands at or more,
+                        or in parts of a cent (`SUBSCRIPTION_INVOICE_LINE_OWED_INVALID`);
+                        corrections that would leave the replacement asking for less
+                        than nothing (`SUBSCRIPTION_INVOICE_CORRECTION_LEAVES_A_CREDIT`);
+                        a replacement that could not be issued
+                        (`SUBSCRIPTION_INVOICE_MANDATE_MISSING`,
                         `SUBSCRIPTION_INVOICE_CONTENT_INCOMPLETE`, or the tax
                         adapter's refusal)
 
@@ -3626,6 +3665,23 @@ components:
                         collection notices with them; required where the record
                         holds no invoice email. Kept with the cancellation, not
                         written onto the subscriber's record.
+                lines:
+                    type: array
+                    description: >-
+                        The lines of the invoice that are not owed, or not in
+                        full, each by its position with what is still owed of
+                        it, net; a line left out is owed in full. Only a line
+                        the invoice's read offers as `correctable` is accepted,
+                        each once, owed at least nothing and below what it
+                        stands at, in whole cents. Each is written as a
+                        counter-entry with the reason, and each discount that
+                        reduced it follows in the share it fell.
+                    items:
+                        type: object
+                        required: [position, owed]
+                        properties:
+                            position: { type: integer }
+                            owed: { type: number }
                 previewDigest:
                     type: string
                     pattern: '^[0-9a-f]{64}$'
@@ -3643,9 +3699,11 @@ components:
                 What the cancellation would write: `cancellation` and
                 `replacement` as they would be issued, without their numbers —
                 `replacement` `null` where nothing of the invoice is owed any
-                more; `lines`, what each charge line stands at and becomes, in
-                cents; `counterEntries`, the charges that move the lines named
-                as not owed and the discounts that follow them;
+                more, its lines naming the line each replaces and a correction's
+                line the line whose charge it corrects; `lines`, what each
+                charge line stands at and becomes; `counterEntries`, the
+                charges that move the lines named as not owed and the discounts
+                that follow them;
                 `correctedSubscriber`, each corrected detail with the value it
                 replaces; `moves`, each payment's share of the cancelled
                 invoice and where it goes; `movedIn` and `credited`, their
@@ -3674,13 +3732,7 @@ components:
                 replacement: { type: object, nullable: true }
                 lines:
                     type: array
-                    items:
-                        type: object
-                        required: [position, standsAt, becomes]
-                        properties:
-                            position: { type: integer }
-                            standsAt: { type: integer, description: In cents. }
-                            becomes: { type: integer, description: In cents. }
+                    items: { $ref: '#/components/schemas/AdminCorrectedInvoiceLine' }
                 counterEntries: { type: array, items: { type: object } }
                 correctedSubscriber: { type: object, nullable: true }
                 moves: { type: array, items: { type: object } }
@@ -3713,10 +3765,92 @@ components:
                 cancellation: { type: object }
                 cancellationInvoice: { type: object }
                 replacement: { type: object, nullable: true }
-                lines: { type: array, items: { type: object } }
+                lines:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminCorrectedInvoiceLine' }
                 counterEntries: { type: array, items: { type: object } }
                 credits: { type: array, items: { type: object } }
                 withdrawnCollections: { type: integer }
+
+        AdminCorrectedInvoiceLine:
+            type: object
+            description: >-
+                A charge line of the cancelled invoice, net, in its currency:
+                what it stands at, and what it becomes on the replacement —
+                `standsAt` where nothing moves it, `0` where none of it is owed.
+            required: [position, standsAt, becomes]
+            properties:
+                position: { type: integer }
+                standsAt: { type: number }
+                becomes: { type: number }
+
+        AdminInvoiceLine:
+            type: object
+            required:
+                [
+                    position,
+                    title,
+                    origin,
+                    source,
+                    periodFrom,
+                    periodUntil,
+                    amountNet,
+                    taxRate,
+                    correctedPosition,
+                    correctsPosition,
+                    standsAt,
+                    correctable,
+                ]
+            properties:
+                position: { type: integer, description: From 1, in the document's order. }
+                title: { type: string }
+                origin: { type: string, description: As the charge journal records it. }
+                source: { type: string, description: As the charge journal records it. }
+                periodFrom: { type: string, format: date }
+                periodUntil: { type: string, format: date }
+                amountNet: { type: number, description: Net, as the document states it. }
+                taxRate: { type: number, description: In per cent. }
+                correctedPosition:
+                    type: integer
+                    nullable: true
+                    description: >-
+                        On a cancellation invoice or a replacement, the line of
+                        the corrected invoice it cancels or replaces.
+                correctsPosition:
+                    type: integer
+                    nullable: true
+                    description: >-
+                        On a correction's line, the line on this invoice whose
+                        charge it corrects.
+                standsAt:
+                    type: number
+                    description: >-
+                        Its charge's amount and every correction of it written
+                        along the chain, net: below `amountNet` where an earlier
+                        cancellation lowered it.
+                correctable:
+                    type: boolean
+                    description: >-
+                        Whether a cancellation may name it as not owed, or owed
+                        below `standsAt`.
+
+        AdminInvoice:
+            type: object
+            required:
+                [id, number, issuedAt, dueDate, currency, totalNet, totalTax, totalGross, lines]
+            properties:
+                id: { type: string }
+                number: { type: string }
+                issuedAt: { type: string, format: date-time }
+                dueDate: { type: string, format: date }
+                currency: { type: string }
+                totalNet: { type: number }
+                totalTax: { type: number }
+                totalGross: { type: number }
+                lines:
+                    type: array
+                    description: In the order the document lists them.
+                    items: { $ref: '#/components/schemas/AdminInvoiceLine' }
 
         AdminTenantInvoice:
             type: object

@@ -1065,6 +1065,40 @@ const TENANT_PAYMENTS = {
     openCases: [],
 };
 
+// The invoice the cancellation opens on, read with its lines: a plan and an
+// add-on the operator may correct, and a discount that offers no choice, so
+// both kinds of line are measured.
+const invoiceLine = (position: number, title: string, amountNet: number, source: string) => ({
+    position,
+    title,
+    origin: 'renewal',
+    source,
+    periodFrom: '2026-03-01',
+    periodUntil: '2026-03-31',
+    amountNet,
+    taxRate: 19,
+    correctedPosition: null,
+    correctsPosition: null,
+    standsAt: amountNet,
+    correctable: amountNet > 0,
+});
+
+const INVOICE_TO_CANCEL = {
+    id: 'inv-124',
+    number: 'AHP-2026-000124',
+    issuedAt: '2026-03-01T05:15:00.000Z',
+    dueDate: '2026-03-15',
+    currency: 'EUR',
+    totalNet: 99,
+    totalTax: 18.81,
+    totalGross: 117.81,
+    lines: [
+        invoiceLine(1, 'Pro', 99, 'plan'),
+        invoiceLine(2, 'Plus', 9.9, 'bundle'),
+        invoiceLine(3, 'WELCOME20', -9.9, 'discount'),
+    ],
+};
+
 const EMAIL_ROW = {
     id: 'e-1',
     fromEmail: 'noreply@fixture.test',
@@ -1364,6 +1398,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/tenants/northwind', TENANT_DETAIL],
     ['/api/admin/tenants/northwind/charges', TENANT_ACCOUNT],
     ['/api/admin/tenants/northwind/payments', TENANT_PAYMENTS],
+    ['/api/admin/tenants/northwind/invoices/inv-124', INVOICE_TO_CANCEL],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface

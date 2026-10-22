@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 34      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 35      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 653 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+Of 654 entries: 🟢 565 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
 🔵 35 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -227,7 +227,7 @@ Of 653 entries: 🟢 564 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 653 requirements. Do not edit by hand:
+Generated from `requirements/` — 654 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9207,6 +9207,7 @@ _Tested by:_
           and records it
         - passes the corrections and the address on as typed, a correction left empty clearing its
           detail
+        - passes each line on by its position, not owed as nothing and an amount as typed
 - `packages/core/tests/a-cancellation-corrects-what-was-not-owed.test.js`
     - a line named as not owed, or owed in part
         - becomes what is owed of it, by a counter-entry that names it, the invoice and the reason
@@ -15896,6 +15897,7 @@ _Tested by:_
         - passes with a reason, and with corrections and an address beside it
         - is trimmed before its lengths are checked, as the service settles it
         - with ${why} is refused
+        - keeps the lines through a pipe that strips what no decorator names
     - a cancellation settles what it is given before anything else
         - the reason and the address trimmed, as the preview shows and the cancellation records them
         - an address of blanks as none given
@@ -15907,6 +15909,7 @@ _Tested by:_
         - refuses ${why}
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
+        - records each line it moved, from what to what, in the invoice’s currency
         - of another tenant’s invoice is refused as none, and nothing is recorded
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
     - the request what the operator entered makes
@@ -16336,6 +16339,68 @@ _Tested by:_
     - the invoices on the tenant page
         - say what each stands in relation to, and offer cancelling only where one stands
         - offer no cancelling where the platform does not serve it
+
+<!-- END proof -->
+
+### SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+
+🟢 💰 The cancel dialog lists every line of the invoice with what its charge stands at, a correction
+an earlier cancellation wrote included, and offers at each line whose charge asks for something:
+owed, not owed, or owed at an amount below what it stands at. A discount, a credit and a correction
+offer nothing and say so — a discount follows what it reduced (`SC-PRIC-095`). The lines offered
+are the lines the cancellation accepts, because the server says which by the rule it settles them
+by. The preview shows each line that moves, from what to what, and the replacement's lines, a
+correction naming the line it corrects. The command line takes the same with
+`--line <position>=not-owed` or `--line <position>=<amount>`, the amount with a dot and at most two
+decimals.
+
+_Source:_ #334 (decided 2026-10-22)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
+    - the preview is the command, and the cancellation the second one
+        - passes each line on by its position, not owed as nothing and an amount as typed
+    - what the command refuses
+        - a line whose amount takes a comma, saying to use a dot rather than guessing
+    - the commands
+        - print each line that moves from what to what, and the replacement’s lines with what each
+          correction corrects
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoice the cancel dialog reads
+        - names each line with what it stands at, and the charge’s line alone may be corrected
+        - of a replacement, says what an earlier cancellation lowered each charge to
+        - offers exactly the lines the cancellation accepts
+        - of ${what} is refused as none
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - what of each line the operator says is owed
+        - names a line not owed as nothing owed, one owed in part with its amount, and leaves one
+          owed out
+        - names no lines where every line is owed
+        - with ${what}: ${askable ? 'asked about' : 'not asked about yet'}
+        - ${what} offers no choice, and says why: ${why}
+    - the tenants descriptor
+        - reads the invoice with its lines, the tenant and the invoice escaped
+    - cancelling an invoice
+        - asks nothing while a line owed in part says no amount
+        - sends the lines the operator named with the request it previews
+    - the lines the dialog offers
+        - are read when it opens
+        - of another invoice replace the first one’s at once, and are read for it
+        - go when it closes
+        - that fail to load say so, and are read again on retry
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - the lines of an invoice cancelled from the tenant page
+        - offer a choice at the line the server says may be corrected, and say why at the others
+        - name each choice after its line, and say which option is chosen
+        - owed in part ask for the amount before the preview, and send it
+        - not owed send nothing owed, and owed again send nothing of the line
+        - in the preview, show each line that moves from what to what, and the replacement’s lines
+          with what each correction corrects
+        - that fail to load say so, offer to read them again, and leave the rest of the dialog
+          working
 
 <!-- END proof -->
 
@@ -17842,6 +17907,8 @@ _Tested by:_
         - confirmed again after such a refusal, carries the digest of the new preview
         - refused otherwise rejects with the refusal, and keeps the preview it was refused on
         - opened on another invoice starts afresh
+        - asks nothing while a line owed in part says no amount
+        - sends the lines the operator named with the request it previews
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
     - an invoice cancelled from the tenant page
         - names the invoice, and previews nothing before a reason is given
