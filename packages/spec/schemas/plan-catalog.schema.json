@@ -292,6 +292,24 @@
                 }
             }
         },
+        "terms": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["version", "file"],
+            "description": "The operator's terms, as a version and a file (SC-CFG-038). The start archives each new version once, with its checksum, and refuses a different file under a version already archived: a changed file is a new version. Every contract records the version named when the subscriber concludes or changes it, and a successor the operator or the platform writes keeps the version of the contract it replaces (SC-AUD-016). Required with `invoicing`; named without it, the terms are archived and recorded all the same.",
+            "properties": {
+                "version": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._-]{1,32}$",
+                    "description": "The name of this version — `2026-10`, `v3.1`: letters, digits, `.`, `-` and `_`, at most 32 characters, since it stands in a contract's confirmation, in the name of the file attached to it and in the audit log."
+                },
+                "file": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The PDF of this version, relative to the directory of this file — `agb-2026-10.pdf` beside `config/saas.yaml` — or an absolute path. Recognised as a PDF by its first bytes, not by its name."
+                }
+            }
+        },
         "payments": {
             "type": "object",
             "additionalProperties": false,
@@ -455,6 +473,6 @@
     },
     "dependentRequired": {
         "tax": ["timeZone"],
-        "invoicing": ["tax", "issuer"]
+        "invoicing": ["tax", "issuer", "terms"]
     }
 }

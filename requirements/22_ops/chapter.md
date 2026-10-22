@@ -299,6 +299,13 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - an archived version of the terms is kept as it was agreed
+        - refuses ${what}, and the version stays
+        - still refuses after the migration ran a second time
+        - a database from before gains what the fragments declare, and a contract agreed when it was
+          written
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - once it has run through, a run as a role under row-level security asks nothing of the rows
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column
           required and checked
@@ -473,6 +480,13 @@ _Tested by:_
         - the files that created the invoices and the payments, run again, leave the chain in place
         - an installation whose invoices are not collected gains the chain, and runs through
         - an installation without invoices is left without them, and runs through
+    - an archived version of the terms is kept as it was agreed
+        - refuses ${what}, and the version stays
+        - still refuses after the migration ran a second time
+        - a database from before gains what the fragments declare, and a contract agreed when it was
+          written
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - once it has run through, a run as a role under row-level security asks nothing of the rows
     - a contract records the notice period it was concluded with
         - gives each contract the notice period of its rhythm, and comes out with the column
           required and checked

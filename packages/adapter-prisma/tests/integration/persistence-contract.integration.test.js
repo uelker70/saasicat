@@ -24,6 +24,7 @@ import pg from 'pg';
 import {
     CATALOG_ERROR_CODES,
     INVOICE_ARCHIVE_TRIGGERS,
+    TERMS_ARCHIVE_TRIGGERS,
     isPersistenceRefusal,
 } from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
@@ -49,6 +50,7 @@ import {
     PrismaSubscriberLedgerRepository,
     PrismaSubscriptionInvoiceRepository,
     PrismaInvoiceArchive,
+    PrismaTermsArchive,
     PrismaInvoiceCollectionRepository,
     PrismaSubscriberPaymentRepository,
     PrismaSubscriberRepository,
@@ -79,6 +81,7 @@ const PLATFORM_TABLES = [
     'subscriber_payments',
     'subscription_invoice_collections',
     'subscription_invoice_archive',
+    'terms_versions',
     'subscription_invoice_documents',
     'subscription_invoice_lines',
     'subscription_invoices',
@@ -146,6 +149,7 @@ function createHarness() {
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
             subscriptionInvoiceRepository: new PrismaSubscriptionInvoiceRepository(prisma),
             invoiceArchive: new PrismaInvoiceArchive(prisma),
+            termsArchive: new PrismaTermsArchive(prisma),
             invoiceCollectionRepository: new PrismaInvoiceCollectionRepository(prisma),
             subscriberPaymentRepository: new PrismaSubscriberPaymentRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
@@ -258,16 +262,17 @@ persistenceAdapterContract({
     gaps: ['checkoutOffers'],
 });
 
-// The triggers this adds would refuse the `TRUNCATE` the tests after it start
-// with, so it drops them again when it is done.
-// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
-describe('the database archive says whether it keeps what it holds', () => {
-    const archive = new PrismaInvoiceArchive(prisma);
-    const migration = readFileSync(
+/**
+ * The shipped migration that protects `table` with `triggers`, to apply whole,
+ * and one of its triggers to disable. The triggers would refuse the `TRUNCATE`
+ * the tests after these start with, so they are dropped again at the end.
+ */
+function aProtectingMigration({ file, table, triggers }) {
+    const statements = readFileSync(
         join(
             dirname(createRequire(import.meta.url).resolve('@saasicat/spec/package.json')),
             'sql',
-            '1.0-an-invoice-document-is-archived.postgres.sql',
+            file,
         ),
         'utf8',
     );
@@ -276,12 +281,24 @@ describe('the database archive says whether it keeps what it holds', () => {
     const database = new pg.Client({ connectionString: testDatabaseUrl() });
     before(() => database.connect());
     after(async () => {
-        for (const trigger of INVOICE_ARCHIVE_TRIGGERS) {
-            await database.query(
-                `DROP TRIGGER IF EXISTS "${trigger}" ON subscription_invoice_archive`,
-            );
+        for (const trigger of triggers) {
+            await database.query(`DROP TRIGGER IF EXISTS "${trigger}" ON ${table}`);
         }
         await database.end();
+    });
+    return {
+        apply: () => database.query(statements),
+        disable: (trigger) => database.query(`ALTER TABLE ${table} DISABLE TRIGGER "${trigger}"`),
+    };
+}
+
+// @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+describe('the database archive says whether it keeps what it holds', () => {
+    const archive = new PrismaInvoiceArchive(prisma);
+    const migration = aProtectingMigration({
+        file: '1.0-an-invoice-document-is-archived.postgres.sql',
+        table: 'subscription_invoice_archive',
+        triggers: INVOICE_ARCHIVE_TRIGGERS,
     });
 
     test('built from the reference schema alone, it names the triggers it lacks', async () => {
@@ -291,20 +308,49 @@ describe('the database archive says whether it keeps what it holds', () => {
     });
 
     test('with the migration applied, it keeps what it holds', async () => {
-        await database.query(migration);
+        await migration.apply();
 
         assert.equal(await archive.protectionProblem(), null);
     });
 
     test('with one of its triggers disabled, it names that one', async () => {
         const [, notEmptied] = INVOICE_ARCHIVE_TRIGGERS;
-        await database.query(
-            `ALTER TABLE subscription_invoice_archive DISABLE TRIGGER "${notEmptied}"`,
-        );
+        await migration.disable(notEmptied);
 
         const problem = await archive.protectionProblem();
 
         assert.ok(problem.includes(`lacks ${notEmptied},`), problem);
+    });
+});
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+describe('the terms archive says whether it keeps the versions it holds', () => {
+    const archive = new PrismaTermsArchive(prisma);
+    const migration = aProtectingMigration({
+        file: '1.0-the-terms-are-a-version-and-a-file.postgres.sql',
+        table: 'terms_versions',
+        triggers: TERMS_ARCHIVE_TRIGGERS,
+    });
+
+    test('built from the reference schema alone, it names both triggers', async () => {
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${TERMS_ARCHIVE_TRIGGERS.join(' and ')},`), problem);
+    });
+
+    test('with the migration applied, nothing', async () => {
+        await migration.apply();
+
+        assert.equal(await archive.protectionProblem(), null);
+    });
+
+    test('with the one against an update or a delete disabled, that one', async () => {
+        const [kept] = TERMS_ARCHIVE_TRIGGERS;
+        await migration.disable(kept);
+
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${kept},`), problem);
     });
 });
 

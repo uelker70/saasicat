@@ -214,6 +214,19 @@ export interface PlanCatalog {
             | [string, string, string, string, string, string];
     };
     /**
+     * The operator's terms, as a version and a file (SC-CFG-038). The start archives each new version once, with its checksum, and refuses a different file under a version already archived: a changed file is a new version. Every contract records the version named when the subscriber concludes or changes it, and a successor the operator or the platform writes keeps the version of the contract it replaces (SC-AUD-016). Required with `invoicing`; named without it, the terms are archived and recorded all the same.
+     */
+    terms?: {
+        /**
+         * The name of this version — `2026-10`, `v3.1`: letters, digits, `.`, `-` and `_`, at most 32 characters, since it stands in a contract's confirmation, in the name of the file attached to it and in the audit log.
+         */
+        version: string;
+        /**
+         * The PDF of this version, relative to the directory of this file — `agb-2026-10.pdf` beside `config/saas.yaml` — or an absolute path. Recognised as a PDF by its first bytes, not by its name.
+         */
+        file: string;
+    };
+    /**
      * The payment gateway accounts this installation takes payment methods through. SaaSiCat keeps the gateway's reference to a payment method and its masked details, never a card number or an IBAN. The keys and the webhook secret of each account are bound in the application's code from the environment and never written here.
      */
     payments?: {

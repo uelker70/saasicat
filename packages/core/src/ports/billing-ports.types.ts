@@ -7,6 +7,7 @@ import type {
     SubscriptionBundleRecord,
 } from '../subscription.types.js';
 import type {
+    ContractAgreement,
     NewSubscriptionContractData,
     RunningContractIssuers,
     SubscriptionContractFilter,
@@ -291,7 +292,13 @@ export interface SubscriptionBundleRepository {
      */
     scheduleVersion?(
         subscriptionBundleId: string,
-        switchTo: { from: string; to: string; effectiveAt: Date },
+        switchTo: {
+            from: string;
+            to: string;
+            effectiveAt: Date;
+            /** What the subscriber agrees to by scheduling it, stored with it. */
+            agreement: ContractAgreement;
+        },
     ): Promise<SubscriptionBundleRecord | null>;
     /**
      * Clears the switch scheduled for the booking `subscriptionBundleId`, and
@@ -1274,6 +1281,17 @@ export interface SubscriptionUsageRecord {
      * both shipped adapters do.
      */
     pendingChangeVersionId?: string | null;
+    /**
+     * What the subscriber agreed to when they scheduled the change — the
+     * version of the terms and the days of notice the contract it ends in
+     * records, where no later agreement of theirs is in force by then. `null`
+     * where nothing is scheduled, or where it was scheduled before agreements
+     * were recorded: that change takes the file's when it lands.
+     *
+     * Optional, because an adapter written before it does not pass it through;
+     * both shipped adapters do.
+     */
+    pendingAgreement?: ContractAgreement | null;
     planVersion: {
         id: string;
         planId: string;
@@ -1475,6 +1493,13 @@ export interface ScheduledPlanChangeInput {
      * where no repository reads versions.
      */
     pendingChangeVersionId: string | null;
+    /**
+     * What the subscriber agrees to by scheduling the change: the version of
+     * the terms and the days of notice of `pendingBillingCycle` that
+     * `config/saas.yaml` names now, and now. Stored with the change, and
+     * recorded by the contract it ends in.
+     */
+    pendingAgreement: ContractAgreement;
     /** See `ImmediatePlanChangeInput.expectedCanceledAt`. */
     expectedCanceledAt: Date | null;
     /** See `ImmediatePlanChangeInput.expectedPlanVersionId`. */

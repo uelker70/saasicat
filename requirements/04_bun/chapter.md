@@ -177,6 +177,7 @@ _Tested by:_
         - a booking made before the billing columns existed reads as null throughout
         - a schema without the billing columns reads the same as one holding nulls
         - a switch scheduled for the end of the term is carried over, version and moment
+        - what was agreed by the booking and by the switch it scheduled is read from their columns
         - a schema without the columns of a scheduled switch reads as none scheduled
         - a rhythm of '${value}' stops the read, naming the row
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
@@ -1448,6 +1449,7 @@ _Tested by:_
         - is refused where that plan has no price for it in its rhythm
         - is refused for a yearly add-on where the move is to the monthly rhythm
         - books an add-on the plan it moves to can carry
+        - records what booking it agrees to: the terms named and the notice of the plan’s rhythm
         - books it where the subscription ends on the day of the move, which then never lands
         - but not where the subscription ends a day after the move
     - reinstating a cancelled booking, which books it again
@@ -2312,6 +2314,8 @@ _Tested by:_
         - in a trial the booking moves, and nothing is frozen or charged
     - one that takes something away is scheduled for the end of the booking’s term
         - scheduled for the end of its period, and the booking stays on its version
+        - with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm,
+          now
         - the booking list names the version scheduled, and its moment
         - asks the party about the contract that runs from then
     - the switch goes ahead only while the version shown is still the offer

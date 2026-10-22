@@ -14,7 +14,13 @@ import type {
     TenantSubscriptionWritePort,
     TransactionContext,
 } from '@saasicat/core';
-import { noActivePlanVersion, scheduledChangeAfterWrite, subscriptionGone } from '@saasicat/core';
+import {
+    NO_SCHEDULED_CHANGE,
+    noActivePlanVersion,
+    pendingAgreementColumns,
+    scheduledChangeAfterWrite,
+    subscriptionGone,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { subscriptions } from './schema.js';
@@ -146,6 +152,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 pendingBillingCycle: input.pendingBillingCycle,
                 pendingEffectiveAt: input.pendingEffectiveAt,
                 pendingChangeVersionId: input.pendingChangeVersionId,
+                ...pendingAgreementColumns(input.pendingAgreement),
             },
             [
                 ...(input.expectedPlanVersionId !== undefined
@@ -250,10 +257,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 plan: input.planId,
                 billingCycle: input.cycle,
                 planVersionId,
-                pendingPlan: null,
-                pendingBillingCycle: null,
-                pendingEffectiveAt: null,
-                pendingChangeVersionId: null,
+                ...NO_SCHEDULED_CHANGE,
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
                 ...periodFields(input.periodStart, input.periodEnd),
             });

@@ -81,7 +81,7 @@ properties it has while doing it.
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 25      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 96      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 26      |
@@ -90,7 +90,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 35      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 37      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 17      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
-🔵 35 superseded, 🔴 3 withdrawn.
+Of 657 entries: 🟢 567 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
+🔵 36 superseded, 🔴 3 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -165,6 +165,7 @@ Of 655 entries: 🟢 566 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-CANC-025](#sc-canc-025--a-cancellation-is-judged-by-the-notice-period-its-contract-recorded),
 [SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
 [SC-PRIC-008](#sc-pric-008--gross-net-and-tax-are-one-calculation-stated-once),
 [SC-PRIC-009](#sc-pric-009--an-installation-sells-in-one-currency-and-applies-one-tax-rate-both-named-once),

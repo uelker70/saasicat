@@ -337,7 +337,7 @@ export interface TenantBillingModuleOptions {
      * does not bring them — contracts concluded from checkout offers, or
      * written by `SubscriptionContractModule` beside this module. A
      * cancellation is judged by the notice period the contract in force
-     * recorded (`SC-CANC-025`), and the module that writes the contracts is a
+     * recorded (`SC-CANC-026`), and the module that writes the contracts is a
      * sibling import whose exports never reach this module's providers:
      * without this option the cancellation would read the file's notice
      * period over a contract that recorded another.

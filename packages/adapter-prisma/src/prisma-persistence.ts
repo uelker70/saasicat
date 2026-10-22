@@ -45,6 +45,7 @@ import { PrismaSubscriptionContractRepository } from './prisma-subscription-cont
 import { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.repository.js';
 import { PrismaSubscriptionInvoiceRepository } from './prisma-subscription-invoice.repository.js';
 import { PrismaInvoiceArchive } from './prisma-invoice-archive.js';
+import { PrismaTermsArchive } from './prisma-terms-archive.js';
 import { PrismaInvoiceCollectionRepository } from './prisma-invoice-collection.repository.js';
 import { PrismaSubscriberPaymentRepository } from './prisma-subscriber-payment.repository.js';
 import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
@@ -74,6 +75,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     appliedSettings: unknown;
     settingsChange: unknown;
     maintenanceWindow: unknown;
+    termsVersion: unknown;
     subscriber: unknown;
     subscriberTenant: unknown;
     subscriberCorrection: unknown;
@@ -231,6 +233,10 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             maintenanceWindows: unless(
                 'core.maintenanceWindows',
                 provide((prisma) => new PrismaMaintenanceWindowRepository(canonical(prisma))),
+            ),
+            termsArchive: unless(
+                'core.termsArchive',
+                provide((prisma) => new PrismaTermsArchive(canonical(prisma))),
             ),
         },
         entitlement: {

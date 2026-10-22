@@ -77,6 +77,10 @@ export interface SubscriptionRowLike {
     canceledAt?: Date | null;
     canceledEffectiveAt?: Date | null;
     pendingBillingCycle?: string | null;
+    /** What the subscriber agreed to when they scheduled the change. */
+    pendingTermsVersion?: string | null;
+    pendingCancellationNoticeDays?: number | null;
+    pendingAgreedAt?: Date | null;
     packageSnapshot?: unknown;
     checkoutOfferId?: string | null;
 }

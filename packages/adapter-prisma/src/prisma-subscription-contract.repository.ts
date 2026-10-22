@@ -158,6 +158,8 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
                 subscriberSnapshot: data.parties.subscriber,
                 partiesMigrated: data.partiesMigrated ?? false,
                 cancellationNoticeDays: data.cancellationNoticeDays,
+                termsVersion: data.termsVersion,
+                agreedAt: data.agreedAt,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,

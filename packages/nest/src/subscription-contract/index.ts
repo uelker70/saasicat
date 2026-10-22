@@ -15,6 +15,7 @@ export {
     CONTRACT_TRANSACTION_RUNNER_TOKEN,
     SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
 } from './subscription-contract.tokens.js';
+export { successorAgreement, type SuccessorAgreement } from './contract-agreement.js';
 export {
     contractTotalsOf,
     recordContractLinesMoney,

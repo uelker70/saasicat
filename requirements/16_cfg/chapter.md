@@ -216,6 +216,159 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+
+🟢 💰 `config/saas.yaml` names the terms by a version and the PDF that holds them. The start archives
+each version it has not archived before, byte for byte with its checksum, and does not start where
+the file under a version already archived is another one: a changed file is a new version. The
+database refuses every update, delete and truncate of an archived version, whoever asks, and the
+start refuses an archive whose triggers are missing or disabled, and contracts do not start where
+nothing archives the terms the file names. Every contract records the version named when the
+subscriber concluded or changed it — a plan change, a booking, a switch they take — and when that
+was. A change they schedule records the version named when they schedule it, and the contract
+written when it takes effect records that one, unless they agreed to a later version since, which
+they agreed to for the whole contract. A successor the operator or the platform writes without them
+— a feature withdrawal's reductions, a refresh, a retirement's move at its date — keeps the version
+of the contract it replaces, so the terms read back are the ones agreed (`SC-AUD-016`). Invoicing
+does not start without terms; where the file names none, nothing is archived and a contract records
+no version.
+
+_Source:_ #334 · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
+- `packages/adapter-drizzle/tests/the-terms-archive-asks-one-statement-at-a-time.test.js`
+    - a version of the terms is stored
+        - by one insert that leaves a version stored before alone, and nothing more where it wrote
+        - where it wrote nothing, as the same write for the same checksum
+        - and refused for another checksum, naming both
+    - a version of the terms is read
+        - as it was archived, its bytes its own
+        - as nothing where none is archived
+    - the archive says what would let a version change
+        - from the enabled triggers of its table, asked for by their state
+        - from the triggers as node-postgres answers them, a result holding the rows
+        - naming the triggers it lacks
+        - refusing to read ${what} as no triggers
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against an update or a delete disabled, that one
+- `packages/adapter-prisma/tests/prisma-terms-archive.test.js`
+    - the Prisma archive of the terms
+        - stores a version conflict-free, and asks for nothing more where it was written
+        - a version stored before is the same write for its checksum, and refused for another
+        - reads a version back as bytes of its own, and nothing where none is kept
+        - says what would let a version change, from the enabled triggers of its table
+- `packages/core/tests/a-version-of-the-terms-is-kept-as-it-was-agreed.test.js`
+    - an archived version of the terms
+        - is read with bytes of its own, not a view into the driver’s buffer
+        - with ${what} fails
+    - a PDF is recognised by its first bytes
+        - ${what}: ${expected ? 'is one' : 'is not'}
+    - what a version of the terms may be called
+        - is what the schema of config/saas.yaml asks for
+        - ${what}: ${expected ? 'may be' : 'may not be'}
+    - another file under a version already archived
+        - is refused by its code, with both checksums beside it
+    - the archive of the terms
+        - with both of its triggers enabled keeps what it holds
+        - ${what} names what it lacks, and the file that adds it
+    - what a scheduled change or a booking recorded as agreed
+        - is read back as it was written, its terms none where none were named
+        - is nothing where none was recorded, columns absent or null alike
+        - ${what} stops the read, naming whose it is
+        - is written in the columns of a scheduled change and of a booking, all null for none
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a contract row becomes a contract record
+        - the version of its terms reads as it was recorded, none included
+- `packages/nest/tests/a-booking-fits-every-plan-ahead.test.js`
+    - a booking on a subscription set to move to another plan
+        - records what booking it agrees to: the terms named and the notice of the plan’s rhythm
+- `packages/nest/tests/a-newer-add-on-version-is-taken.test.js`
+    - one that takes something away is scheduled for the end of the booking’s term
+        - with what scheduling it agrees to: the terms named and the notice of the plan’s rhythm,
+          now
+- `packages/nest/tests/a-reduction-is-written-into-the-contract.test.js`
+    - the successor the reductions are written into
+        - keeps the terms and the notice the subscriber agreed to, whatever the file names since
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an add-on is charged even where writing its contract failed
+        - the contract it writes records the latest of what the missed bookings were agreed under
+- `packages/nest/tests/a-successor-records-what-the-subscriber-agreed-to.test.js`
+    - a change the subscriber makes now
+        - records what the file names now, whatever the contract it replaces recorded
+    - a successor the operator or the platform writes
+        - keeps what the contract it replaces records, the moment it was agreed included
+        - in either spelling of the same rhythm
+        - is refused in another rhythm, whose days of notice the contract does not hold
+        - with no contract to keep from, records what the file names
+    - a change the subscriber scheduled, written when it takes effect
+        - records what they agreed to then, though the file names newer since
+        - and so where the contract in force was agreed at the same moment
+        - gives way to newer terms the subscriber agreed to since, with their notice
+        - and, where the change moves the rhythm, to the newer terms with the notice of the rhythm
+          it was scheduled in
+        - with no contract in force, records what they agreed to then
+- `packages/nest/tests/a-switch-taken-for-a-term-end-is-made.test.js`
+    - the contract a switch taken for the end of the term is made in
+        - records what the subscriber agreed to when they took it, and the schedule goes with it
+- `packages/nest/tests/a-version-offer-is-taken.test.js`
+    - one that takes something away is taken at the end of the term
+        - with what taking it agrees to: the terms named and the notice of its rhythm, now
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - a refresh keeps what the subscriber agreed to
+        - ${mode}, with the version of the terms and the days of notice of the contract it replaces
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - the contract a scheduled change ends in records what was agreed when it was scheduled, read
+      before the write clears it
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what the subscriber agreed to, on a contract a change writes
+        - ${what} ${said}
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a scheduled change records what scheduling it agrees to
+        - the version of the terms named, the days of notice of the rhythm it lands in, and when
+- `packages/nest/tests/the-terms-are-a-version-and-a-file.test.js`
+    - the start archives the version of the terms the file names
+        - read beside config/saas.yaml, with its checksum, its name and every byte
+        - by an absolute path wherever the settings came from
+        - and nothing where the file names no terms
+        - a second start with the same file archives nothing again
+        - a new version is archived beside the one before, which stays
+    - the start refuses terms it cannot keep as they were agreed
+        - another file under a version already archived, asking for a new version
+        - ${what}, saying what to do, and archives nothing
+        - a contract service that would record terms nothing archives does not start
+        - refused, the start says so and stops
+    - a contract records the version of the terms the subscriber agreed to
+        - concluded, the version the file names
+        - a change of the subscriber’s records the version named then, and the one it replaces keeps
+          its own
+        - a successor the operator writes keeps the version and the days of notice of the contract
+          it replaces
+        - and refuses to keep the days of one rhythm in a contract of another, writing nothing
+        - none where the file names no terms
+    - invoices
+        - do not start without terms, which every contract they invoice records
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - an archived version of the terms is kept as it was agreed
+        - refuses ${what}, and the version stays
+        - still refuses after the migration ran a second time
+        - a database from before gains what the fragments declare, and a contract agreed when it was
+          written
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - once it has run through, a run as a role under row-level security asks nothing of the rows
+
+<!-- END proof -->
+
 ### SC-CFG-003 — A setting that must change without a deployment is kept out of the file entirely
 
 🟢 And lives in one audited place instead of two. Adding a second home is what this rule exists to

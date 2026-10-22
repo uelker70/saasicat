@@ -52,6 +52,28 @@ const endedAfterTheMoment = (tenantId) =>
         canceledEffectiveAt: new Date('2026-11-05T00:00:00.000Z'),
     });
 
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+describe('the contract a switch taken for the end of the term is made in', () => {
+    test('records what the subscriber agreed to when they took it, and the schedule goes with it', async () => {
+        const agreed = {
+            termsVersion: '2026-10',
+            cancellationNoticeDays: 90,
+            agreedAt: new Date('2026-10-02T08:00:00.000Z'),
+        };
+        const world = offering({
+            versions: [BOOKED, TAKES_AWAY],
+            bookings: [scheduledOf('t1', { pendingAgreement: agreed })],
+        });
+
+        await world.run.switchDue(ON_TIME);
+
+        const [[, , , , , terms]] = world.frozen;
+        assert.deepEqual(terms.agreed, agreed);
+        assert.equal(bookingIn(world, 'sb-t1').pendingAgreement, null);
+    });
+});
+
 // @requirement SC-BUN-059 — A switch taken for the end of a booking's term is made at that moment
 describe('a switch whose moment has come', () => {
     test('moves the booking, writes the contract that marks it, clears the schedule and records it', async () => {

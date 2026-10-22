@@ -1,5 +1,10 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { RlsBypassPort, TenantSubscriptionWritePort } from '@saasicat/core';
+import type {
+    ContractAgreement,
+    RlsBypassPort,
+    SubscriptionUsagePort,
+    TenantSubscriptionWritePort,
+} from '@saasicat/core';
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { readAcrossTenants } from '../admin/read-across-tenants.js';
 
@@ -8,6 +13,7 @@ import { initialPeriodWindow } from './billing-period.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import {
     PENDING_PLAN_QUERY_PORT_TOKEN,
+    SUBSCRIPTION_USAGE_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
     type PendingPlanQueryPort,
 } from './tenant-billing.tokens.js';
@@ -54,6 +60,12 @@ export class PendingPlanMaterializationService {
         @Optional()
         @Inject(RLS_BYPASS_PORT_TOKEN)
         private readonly rlsBypass: RlsBypassPort | null = null,
+        // Where the change records what the subscriber agreed to when they
+        // scheduled it: read before the write that clears it, and handed to
+        // the contract it ends in. Without it the contract takes the file's.
+        @Optional()
+        @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
+        private readonly usage: SubscriptionUsagePort | null = null,
     ) {}
 
     async materializeDuePlanChanges(now: Date = new Date()): Promise<{ applied: number }> {
@@ -76,7 +88,11 @@ export class PendingPlanMaterializationService {
             }
             const cycle = rhythmTheChangeLandsIn(change);
             const period = initialPeriodWindow(now, cycle);
+            let agreed: ContractAgreement | undefined;
             try {
+                agreed =
+                    (await this.usage?.findForTenant(change.tenantId))?.pendingAgreement ??
+                    undefined;
                 const result = await this.subscriptionWrite.changePlanImmediate(change.tenantId, {
                     planId: change.pendingPlan,
                     cycle,
@@ -120,6 +136,7 @@ export class PendingPlanMaterializationService {
                     cycle,
                     effectiveFrom: now,
                     endsAt: change.canceledEffectiveAt ?? change.canceledAt,
+                    agreed,
                 },
                 'materialisation',
                 this.logger,

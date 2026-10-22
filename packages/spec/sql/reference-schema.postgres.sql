@@ -27,6 +27,7 @@
 --   prisma-fragments/22-subscription-invoice-archive.prisma
 --   prisma-fragments/23-subscription-invoice-collection.prisma
 --   prisma-fragments/24-subscriber-payments.prisma
+--   prisma-fragments/25-terms.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -82,6 +83,9 @@ CREATE TABLE "subscriptions" (
     "pendingBillingCycle" "BillingCycle",
     "pendingEffectiveAt" TIMESTAMP(3),
     "pendingChangeVersionId" TEXT,
+    "pendingTermsVersion" TEXT,
+    "pendingCancellationNoticeDays" INTEGER,
+    "pendingAgreedAt" TIMESTAMP(3),
     "customMonthlyNet" DECIMAL(10,2),
     "customLimits" JSONB,
     "customNote" TEXT,
@@ -440,6 +444,8 @@ CREATE TABLE "subscription_contracts" (
     "partiesMigrated" BOOLEAN NOT NULL DEFAULT false,
     "taxTreatment" JSONB,
     "cancellationNoticeDays" INTEGER NOT NULL,
+    "termsVersion" TEXT,
+    "agreedAt" TIMESTAMP(3) NOT NULL,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
     "effectiveUntil" TIMESTAMP(3),
@@ -565,6 +571,12 @@ CREATE TABLE "subscription_bundles" (
     "currentPeriodEnd" TIMESTAMP(3),
     "pendingBundleVersionId" TEXT,
     "pendingVersionEffectiveAt" TIMESTAMP(3),
+    "pendingTermsVersion" TEXT,
+    "pendingCancellationNoticeDays" INTEGER,
+    "pendingAgreedAt" TIMESTAMP(3),
+    "agreedTermsVersion" TEXT,
+    "agreedCancellationNoticeDays" INTEGER,
+    "agreedAt" TIMESTAMP(3),
     "canceledAt" TIMESTAMP(3),
     "canceledEffectiveAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1083,6 +1095,18 @@ CREATE TABLE "subscriber_reconciliation_cases" (
     "note" TEXT,
 
     CONSTRAINT "subscriber_reconciliation_cases_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "terms_versions" (
+    "version" TEXT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "mediaType" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "content" BYTEA NOT NULL,
+    "archivedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "terms_versions_pkey" PRIMARY KEY ("version")
 );
 
 -- CreateIndex

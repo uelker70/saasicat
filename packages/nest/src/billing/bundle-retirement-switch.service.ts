@@ -170,6 +170,7 @@ export class BundleRetirementSwitchService {
                 cancellationLandsAt(sub),
                 {
                     retirementId: notice.retirementId,
+                    kind: 'switch',
                     addOn: {
                         bundleVersionId: notice.replacement.bundleVersionId,
                         subscriptionBundleId: booking.id,

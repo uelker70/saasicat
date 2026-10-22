@@ -71,6 +71,9 @@ export const subscriptions = pgTable('subscriptions', {
     postTrialPlan: text('postTrialPlan'),
     pendingBillingCycle: text('pendingBillingCycle'),
     pendingChangeVersionId: text('pendingChangeVersionId'),
+    pendingTermsVersion: text('pendingTermsVersion'),
+    pendingCancellationNoticeDays: integer('pendingCancellationNoticeDays'),
+    pendingAgreedAt: ts('pendingAgreedAt'),
     // A negotiated price and the note that explains it, a pilot window, the
     // offer this subscription came from, and the package as it was sold.
     customMonthlyNet: numeric('customMonthlyNet', { precision: 10, scale: 2 }),
@@ -156,6 +159,9 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     taxTreatment: jsonb('taxTreatment'),
     // The days of notice of the contract's rhythm when it was written.
     cancellationNoticeDays: integer('cancellationNoticeDays').notNull(),
+    // The version of the terms named when the contract was written; null where none was.
+    termsVersion: text('termsVersion'),
+    agreedAt: ts('agreedAt').notNull(),
     createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
@@ -370,6 +376,12 @@ export const subscriptionBundles = pgTable('subscription_bundles', {
     // scheduled.
     pendingBundleVersionId: text('pendingBundleVersionId'),
     pendingVersionEffectiveAt: ts('pendingVersionEffectiveAt'),
+    pendingTermsVersion: text('pendingTermsVersion'),
+    pendingCancellationNoticeDays: integer('pendingCancellationNoticeDays'),
+    pendingAgreedAt: ts('pendingAgreedAt'),
+    agreedTermsVersion: text('agreedTermsVersion'),
+    agreedCancellationNoticeDays: integer('agreedCancellationNoticeDays'),
+    agreedAt: ts('agreedAt'),
     canceledAt: ts('canceledAt'),
     canceledEffectiveAt: ts('canceledEffectiveAt'),
     createdAt: writtenAt('createdAt'),
@@ -876,6 +888,16 @@ const bytes = customType<{ data: Uint8Array; driverData: Buffer }>({
 
 export const subscriptionInvoiceArchive = pgTable('subscription_invoice_archive', {
     invoiceId: text('invoiceId').primaryKey(),
+    checksum: text('checksum').notNull(),
+    mediaType: text('mediaType').notNull(),
+    fileName: text('fileName').notNull(),
+    content: bytes('content').notNull(),
+    archivedAt: ts('archivedAt').notNull(),
+});
+
+/** The versions of the operator's terms, one PDF each, written once (fragment 25). */
+export const termsVersions = pgTable('terms_versions', {
+    version: text('version').primaryKey(),
     checksum: text('checksum').notNull(),
     mediaType: text('mediaType').notNull(),
     fileName: text('fileName').notNull(),

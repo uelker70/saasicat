@@ -4,6 +4,7 @@ import type { PlanId, QuotaKey, FeatureKey } from './plan-catalog.types.js';
 import type { BillingCycle } from './promo-code.types.js';
 import type { CustomLimits } from './custom-limits.js';
 import type { BundleVersionRetiredNotice } from './bundle-version-retirement.types.js';
+import type { ContractAgreement } from './subscription-contract.types.js';
 
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'PENDING_SALES';
 
@@ -163,6 +164,20 @@ export interface SubscriptionBundleRecord {
      */
     pendingBundleVersionId: string | null;
     pendingVersionEffectiveAt: Date | null;
+    /**
+     * What the subscriber agreed to by scheduling that switch, recorded by the
+     * contract it is made in where no later agreement of theirs is in force by
+     * then; null where none is scheduled, or where it was scheduled before
+     * agreements were recorded.
+     */
+    pendingAgreement: ContractAgreement | null;
+    /**
+     * What the subscriber agreed to by making the booking: what a contract
+     * written for it later records — the charge journal's, where the booking's
+     * own contract could not be written — where no later agreement of theirs
+     * is in force. Null on a booking made before agreements were recorded.
+     */
+    agreement: ContractAgreement | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -211,6 +226,8 @@ export interface CreateSubscriptionBundleData {
     billingCycle?: BillingCycle | null;
     currentPeriodStart?: Date | null;
     currentPeriodEnd?: Date | null;
+    /** What the subscriber agrees to by making the booking: the file's, now. */
+    agreement: ContractAgreement | null;
 }
 
 export interface CancelSubscriptionBundleData {

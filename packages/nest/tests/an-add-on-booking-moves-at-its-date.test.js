@@ -185,6 +185,8 @@ describe('the move at the date', () => {
             ],
         );
         assert.ok(frozen.every(([, , , , , terms]) => typeof terms.retirementId === 'string'));
+        // Nobody asked for the move, so the contract keeps what was agreed.
+        assert.ok(frozen.every(([, , , , , terms]) => terms.kind === 'move'));
         assert.deepEqual(
             audited.map((entry) => [entry.action, entry.entityId, entry.changes.toBundleVersionId]),
             [

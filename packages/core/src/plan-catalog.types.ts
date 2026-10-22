@@ -204,6 +204,14 @@ export interface PlanCatalogInvoicing {
     footer?: string[];
 }
 
+/** `config/saas.yaml#terms`: the operator's terms, as a version and its PDF (`SC-CFG-038`). */
+export interface PlanCatalogTerms {
+    /** `2026-10`, `v3.1`: letters, digits, `.`, `-` and `_`, at most 32 characters. */
+    version: string;
+    /** The PDF, relative to the directory of `config/saas.yaml`, or an absolute path. */
+    file: string;
+}
+
 /** One account at a payment gateway, by the name `PlanCatalogPayments.accounts` gives it. */
 export interface PlanCatalogPaymentAccount {
     /** The provider its bound adapter names itself as, e.g. `stripe`. */
@@ -266,6 +274,8 @@ export interface PlanCatalogSettings {
     subscribers?: PlanCatalogSubscribers;
     /** How invoices are numbered and when they are due; named exactly where invoices are issued. */
     invoicing?: PlanCatalogInvoicing;
+    /** The operator's terms every contract records the version of. Optional until invoicing requires it. */
+    terms?: PlanCatalogTerms;
     /** The payment gateway accounts. Optional until payment methods are taken. */
     payments?: PlanCatalogPayments;
 }

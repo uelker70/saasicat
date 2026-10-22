@@ -194,6 +194,7 @@ export class RetirementSwitchService {
                 sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 {
                     retirementId: notice.retirementId,
+                    kind: 'switch',
                     priceHold: terms.held
                         ? {
                               amountNet: terms.held.amountNet,

@@ -49,7 +49,7 @@ function makeService({
     subscriptions = null,
     promoCodes = null,
 } = {}) {
-    const calls = { terminated: [], created: [], invalidated: 0, limitsFrom: [] };
+    const calls = { terminated: [], created: [], invalidated: 0, limitsFrom: [], options: [] };
     const entitlements = {
         invalidateTenant() {
             calls.invalidated += 1;
@@ -89,9 +89,10 @@ function makeService({
         },
         // Supersedes `previous` from `at` and writes `data` — recorded as the
         // two writes it stands for, so that a refusal is seen writing neither.
-        async writeSuccessor(previous, data, at) {
+        async writeSuccessor(previous, data, at, options = {}) {
             if (previous) calls.terminated.push({ id: previous.id, at });
             calls.created.push(data);
+            calls.options.push(options);
             return { id: 'new-contract', ...data };
         },
     };
@@ -1028,4 +1029,45 @@ describe('a contract a switch to a newer add-on version writes', () => {
         );
         assert.equal(calls.created.length, 0);
     });
+});
+
+// @requirement SC-CFG-038 — The terms are a version and a file, and an archived version stays as it was
+// @requirement SC-CANC-026 — A cancellation is judged by the notice period the subscriber agreed to
+describe('what the subscriber agreed to, on a contract a change writes', () => {
+    const AT = new Date('2026-07-01T00:00:00.000Z');
+    const AGREED = {
+        termsVersion: '2026-04',
+        cancellationNoticeDays: 30,
+        agreedAt: new Date('2026-04-02T00:00:00.000Z'),
+    };
+
+    for (const [what, terms, expected, said] of [
+        ['a plan change', undefined, undefined, 'reads it from the file'],
+        [
+            'the switch a retirement offered, taken',
+            { retirementId: 'ret-1', kind: 'switch' },
+            undefined,
+            'reads it from the file',
+        ],
+        [
+            "a retirement's move at its date",
+            { retirementId: 'ret-1', kind: 'move' },
+            'kept',
+            'keeps it from the contract replaced',
+        ],
+        [
+            'a change the subscriber scheduled',
+            { agreed: AGREED },
+            AGREED,
+            'hands on what they agreed to then',
+        ],
+    ]) {
+        test(`${what} ${said}`, async () => {
+            const { calls, service } = makeService();
+
+            await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', AT, null, terms);
+
+            assert.deepEqual(calls.options[0].agreement, expected);
+        });
+    }
 });

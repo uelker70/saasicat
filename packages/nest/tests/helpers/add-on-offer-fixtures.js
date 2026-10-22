@@ -81,7 +81,7 @@ export function bookingStore(rows) {
             rows[at] = { ...rows[at], bundleVersionId: to };
             return rows[at];
         },
-        async scheduleVersion(id, { from, to, effectiveAt }) {
+        async scheduleVersion(id, { from, to, effectiveAt, agreement }) {
             const at = rows.findIndex(
                 (row) =>
                     row.id === id && row.bundleVersionId === from && !row.pendingBundleVersionId,
@@ -91,6 +91,7 @@ export function bookingStore(rows) {
                 ...rows[at],
                 pendingBundleVersionId: to,
                 pendingVersionEffectiveAt: effectiveAt,
+                pendingAgreement: agreement,
             };
             return rows[at];
         },
@@ -101,6 +102,7 @@ export function bookingStore(rows) {
                 ...rows[at],
                 pendingBundleVersionId: null,
                 pendingVersionEffectiveAt: null,
+                pendingAgreement: null,
             };
             return rows[at];
         },
@@ -147,6 +149,7 @@ export function offering({
     freezeFails = false,
     journalFailures = 0,
     auditFailures = 0,
+    settings = null,
 } = {}) {
     const catalogue = catalogueOf(versions, { deleted });
     const usage = usageOf(subscriptions);
@@ -209,6 +212,7 @@ export function offering({
         entitlements,
         contractFreeze,
         charges,
+        settings,
     );
     return {
         offers,

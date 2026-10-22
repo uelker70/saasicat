@@ -56,6 +56,11 @@ import { contractUnlessTrialOf, intendedContractOf } from './freeze-contract-aft
 import { subscriptionNotFound } from './subscription-not-found.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { SUBSCRIPTION_USAGE_PORT_TOKEN } from './tenant-billing.tokens.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import {
+    agreementNamed,
+    type AgreementSettings,
+} from '../subscription-contract/contract-agreement.js';
 
 @Injectable()
 export class BundleVersionSwitchService {
@@ -74,6 +79,11 @@ export class BundleVersionSwitchService {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
+        // What a switch scheduled now records as agreed. Optional only so a
+        // test can build the service directly; the platform always binds it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: AgreementSettings | null = null,
     ) {}
 
     /**
@@ -170,6 +180,7 @@ export class BundleVersionSwitchService {
             from: offer.bound.bundleVersionId,
             to: offer.offered.bundleVersionId,
             effectiveAt: takesEffectAt,
+            agreement: agreementNamed(this.settings, sub.billingCycle, now),
         });
         if (!scheduled) {
             throw await this.refusedAfterTheRead(

@@ -21,6 +21,9 @@ import {
     readCustomLimits,
     refuseForeignPaymentMethodReference,
     scheduledChangeAfterWrite,
+    pendingAgreementColumns,
+    bookingAgreementColumns,
+    toContractAgreement,
     subscriberChargeColumns,
     assertCorrectionsFitTheirCharges,
     correctedChargeIdsOf,
@@ -34,6 +37,8 @@ import {
     toSubscriptionInvoiceCancellationRecord,
     toSubscriptionInvoiceRecord,
     toArchivedInvoiceDocument,
+    toArchivedTermsVersion,
+    termsVersionChanged,
     toInvoiceCollectionRecord,
     invoiceCollectionColumns,
     plannedCollectionColumns,
@@ -136,6 +141,7 @@ export function createMemoryHarness() {
         invoiceNumbers: {},
         invoiceDocuments: [],
         invoiceArchive: [],
+        termsVersions: [],
         invoiceCollections: [],
         payments: [],
         settlements: [],
@@ -290,6 +296,9 @@ export function createMemoryHarness() {
                         pendingBillingCycle: row.pendingBillingCycle ?? null,
                         pendingEffectiveAt: row.pendingEffectiveAt ?? null,
                         pendingChangeVersionId: row.pendingChangeVersionId ?? null,
+                        pendingTermsVersion: row.pendingTermsVersion ?? null,
+                        pendingCancellationNoticeDays: row.pendingCancellationNoticeDays ?? null,
+                        pendingAgreedAt: row.pendingAgreedAt ?? null,
                     },
                     input,
                 ),
@@ -337,6 +346,7 @@ export function createMemoryHarness() {
             row.pendingBillingCycle = input.pendingBillingCycle;
             row.pendingEffectiveAt = input.pendingEffectiveAt;
             row.pendingChangeVersionId = input.pendingChangeVersionId;
+            Object.assign(row, pendingAgreementColumns(input.pendingAgreement));
             return { claimed: true };
         },
         // A conditional claim, as the adapters make it: written only while
@@ -670,6 +680,8 @@ export function createMemoryHarness() {
                 currentPeriodEnd: data.currentPeriodEnd ?? null,
                 pendingBundleVersionId: null,
                 pendingVersionEffectiveAt: null,
+                ...pendingAgreementColumns(null),
+                ...bookingAgreementColumns(data.agreement ?? null),
                 canceledAt: null,
                 canceledEffectiveAt: null,
             };
@@ -734,13 +746,14 @@ export function createMemoryHarness() {
             row.bundleVersionId = to;
             return toSubscriptionBundleRecord(row);
         },
-        async scheduleVersion(id, { from, to, effectiveAt }) {
+        async scheduleVersion(id, { from, to, effectiveAt, agreement }) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
             if (!row || row.bundleVersionId !== from || row.pendingBundleVersionId !== null) {
                 return null;
             }
             row.pendingBundleVersionId = to;
             row.pendingVersionEffectiveAt = effectiveAt;
+            Object.assign(row, pendingAgreementColumns(agreement));
             return toSubscriptionBundleRecord(row);
         },
         async unscheduleVersion(id, to) {
@@ -748,6 +761,7 @@ export function createMemoryHarness() {
             if (!row || row.pendingBundleVersionId !== to) return null;
             row.pendingBundleVersionId = null;
             row.pendingVersionEffectiveAt = null;
+            Object.assign(row, pendingAgreementColumns(null));
             return toSubscriptionBundleRecord(row);
         },
         async listScheduledVersionsDue(asOf) {
@@ -814,6 +828,8 @@ export function createMemoryHarness() {
                 partiesMigrated: data.partiesMigrated ?? false,
                 taxTreatment: structuredClone(data.taxTreatment ?? null),
                 cancellationNoticeDays: data.cancellationNoticeDays,
+                termsVersion: data.termsVersion,
+                agreedAt: data.agreedAt,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
@@ -1820,6 +1836,14 @@ export function createMemoryHarness() {
             pendingBillingCycle: row.pendingBillingCycle ?? null,
             pendingEffectiveAt: row.pendingEffectiveAt ?? null,
             pendingChangeVersionId: row.pendingChangeVersionId ?? null,
+            pendingAgreement: toContractAgreement(
+                {
+                    termsVersion: row.pendingTermsVersion,
+                    cancellationNoticeDays: row.pendingCancellationNoticeDays,
+                    agreedAt: row.pendingAgreedAt,
+                },
+                `Subscription ${row.id}'s scheduled change`,
+            ),
             planVersion: planVersion
                 ? {
                       id: planVersion.id,
@@ -2286,6 +2310,28 @@ export function createMemoryHarness() {
             return row ? toArchivedInvoiceDocument(structuredClone(row)) : null;
         },
         // Nothing in memory changes a file it keeps.
+        async protectionProblem() {
+            return null;
+        },
+    };
+
+    // The terms: one file per version, written once, as the table's triggers keep it.
+    const termsArchive = {
+        async store(terms) {
+            const stored = state.termsVersions.find((row) => row.version === terms.version);
+            if (!stored) {
+                state.termsVersions.push(structuredClone(terms));
+                return;
+            }
+            if (stored.checksum !== terms.checksum) {
+                throw termsVersionChanged(terms.version, stored.checksum, terms.checksum);
+            }
+        },
+        async read(version) {
+            const row = state.termsVersions.find((candidate) => candidate.version === version);
+            return row ? toArchivedTermsVersion(structuredClone(row)) : null;
+        },
+        // Nothing in memory changes a version it keeps.
         async protectionProblem() {
             return null;
         },
@@ -3243,6 +3289,7 @@ export function createMemoryHarness() {
             subscriberLedgerRepository,
             subscriptionInvoiceRepository,
             invoiceArchive,
+            termsArchive,
             invoiceCollectionRepository,
             subscriberPaymentRepository,
             promoCodeRepository,

@@ -552,6 +552,14 @@ model Subscription {
     // The version of `pendingPlan` the change was quoted at, bound when it
     // comes due; null where the plan stays or nothing reads versions.
     pendingChangeVersionId String?
+    // What the subscriber agreed to when they scheduled the change: the
+    // version of the operator's terms and the days of notice config/saas.yaml
+    // named then, and when. The contract the change ends in records them,
+    // unless a later agreement of theirs is in force by then. Null where
+    // nothing is scheduled.
+    pendingTermsVersion           String?
+    pendingCancellationNoticeDays Int?
+    pendingAgreedAt               DateTime?
 
     // Special contract / pilot — audit (who/when) lives in the AuditLog.
     customMonthlyNet Decimal?  @db.Decimal(10, 2)
@@ -1135,9 +1143,16 @@ model SubscriptionContract {
     taxTreatment Json?
 
     // The days of notice a cancellation of the contract is judged by, in its
-    // rhythm: what config/saas.yaml named for that rhythm when the contract
-    // was concluded or changed, never what the file names later.
+    // rhythm: what config/saas.yaml named for that rhythm when the subscriber
+    // concluded or changed the contract, kept by a successor the operator or
+    // the platform writes, never what the file names later.
     cancellationNoticeDays Int
+    // The version of the operator's terms config/saas.yaml named when the
+    // subscriber concluded or changed the contract, kept by a successor the
+    // operator or the platform writes; null where it named none.
+    termsVersion String?
+    // When the subscriber agreed to termsVersion and cancellationNoticeDays.
+    agreedAt     DateTime
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
@@ -1241,6 +1256,17 @@ model SubscriptionBundle {
     // the version it continues on, and from when.
     pendingBundleVersionId    String?
     pendingVersionEffectiveAt DateTime?
+    // What the subscriber agreed to when they scheduled that switch, the same
+    // three a scheduled plan change records.
+    pendingTermsVersion           String?
+    pendingCancellationNoticeDays Int?
+    pendingAgreedAt               DateTime?
+
+    // What the subscriber agreed to by making the booking, for a contract
+    // written for it later; null on a booking made before these existed.
+    agreedTermsVersion           String?
+    agreedCancellationNoticeDays Int?
+    agreedAt                     DateTime?
 
     // Cancellation: requested at `canceledAt`, effective at
     // `canceledEffectiveAt` (period/term end). Both null = active booking.
@@ -1651,4 +1677,24 @@ model PaymentEventLog {
     @@unique([gatewayAccount, eventId])
     @@index([sessionId])
     @@index([status, processedAt])
+}
+
+// =============================================================================
+// Terms — the versions of the operator's terms
+// (25-terms.prisma)
+// =============================================================================
+
+// The versions of the operator's terms, one PDF per version, archived once by
+// the start; a contract records the version it was concluded under. The
+// migration installs triggers that refuse every UPDATE, DELETE and TRUNCATE.
+model TermsVersion {
+    version    String   @id
+    // SHA-256 of `content`, 64 lower-case hex digits.
+    checksum   String
+    mediaType  String
+    fileName   String
+    content    Bytes
+    archivedAt DateTime
+
+    @@map("terms_versions")
 }

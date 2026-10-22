@@ -5,7 +5,7 @@
 -- `subscription_contracts` gains "cancellationNoticeDays": the days of notice a
 -- cancellation of the contract is judged by, in its rhythm, as
 -- `config/saas.yaml#tenantBilling.cancellationNoticeDays` named them when the
--- contract was concluded or changed (`SC-CANC-025`). It is NOT NULL in the
+-- contract was concluded or changed (`SC-CANC-026`). It is NOT NULL in the
 -- shipped fragment, which `prisma db push` cannot produce on a table that
 -- already holds rows, so this file adds it nullable, fills it and only then
 -- tightens it. Run it BEFORE `db push`, after

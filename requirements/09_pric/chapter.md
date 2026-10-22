@@ -673,6 +673,7 @@ _Tested by:_
         - a contract line in another rhythm prices nothing
     - an add-on is charged even where writing its contract failed
         - the journal writes the contract the booking missed, and charges the add-on under it
+        - the contract it writes records the latest of what the missed bookings were agreed under
         - only a running add-on the contract misses makes the journal write one
         - a source that does not name the booking has the contract written once, not on every call
         - nor in a trial, nor once the subscription has ended

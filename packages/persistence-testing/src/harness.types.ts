@@ -30,6 +30,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionInvoiceRepository,
     InvoiceArchivePort,
+    TermsArchivePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
     SubscriptionRepository,
@@ -110,6 +111,12 @@ export interface ContractAdapterInstances {
      * everything the invoice scenarios need.
      */
     invoiceArchive?: InvoiceArchivePort;
+    /**
+     * Enables the terms scenarios: a version of the operator's terms is stored
+     * once, read back byte for byte, and another file under the same version
+     * is refused.
+     */
+    termsArchive?: TermsArchivePort;
     /**
      * Enables the collection scenarios: an invoice is due once it is
      * delivered — by direct debit from its collection date —, an attempt is
@@ -357,6 +364,7 @@ export type ContractGap =
     | 'subscriberLedger'
     | 'subscriptionInvoices'
     | 'invoiceArchive'
+    | 'termsArchive'
     | 'invoiceCollections'
     | 'subscriberPayments'
     | 'checkoutOffers'

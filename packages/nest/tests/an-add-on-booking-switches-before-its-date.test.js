@@ -104,6 +104,8 @@ describe('the switch before the date', () => {
             ],
         );
         assert.equal(typeof terms.retirementId, 'string');
+        // The subscriber took the switch, a change of theirs.
+        assert.equal(terms.kind, 'switch');
         assert.deepEqual(invalidated, ['t1']);
         assert.deepEqual(recorded, ['t1']);
     });

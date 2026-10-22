@@ -238,6 +238,7 @@ export class ContractRefreshService {
         try {
             written = await this.contracts.writeSuccessor(target.contract, successor, asOf, {
                 keepParties: mode === 'features',
+                agreement: 'kept',
             });
         } catch (error) {
             return { ...unwritten, refusal: { code: 'REFUSED', reason: messageOf(error) } };

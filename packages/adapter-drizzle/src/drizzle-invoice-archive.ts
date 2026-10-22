@@ -12,6 +12,7 @@ import {
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { subscriptionInvoiceArchive } from './schema.js';
+import { triggerNamesOf } from './trigger-names.js';
 
 /**
  * `InvoiceArchivePort` against `subscription_invoice_archive`: one file per
@@ -69,15 +70,6 @@ export class DrizzleInvoiceArchive implements InvoiceArchivePort {
             SELECT tgname::text AS "name" FROM pg_trigger
              WHERE tgrelid = to_regclass('subscription_invoice_archive')
                AND tgenabled IN ('O', 'A')`);
-        return invoiceArchiveProtectionProblem(rowsOf(result).map((row) => String(row.name)));
+        return invoiceArchiveProtectionProblem(triggerNamesOf(result));
     }
-}
-
-/**
- * The rows of a raw query, whichever driver ran it: node-postgres answers a
- * result that holds them, postgres.js the rows themselves.
- */
-function rowsOf(result: unknown): Array<Record<string, unknown>> {
-    if (Array.isArray(result)) return result as Array<Record<string, unknown>>;
-    return (result as { rows: Array<Record<string, unknown>> }).rows;
 }

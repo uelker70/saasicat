@@ -880,6 +880,10 @@ _Tested by:_
         - terms that are not an object read as null
         - its days of notice read as they were recorded, none included
         - days of notice that are ${what} stop the read, naming the contract
+        - the version of its terms reads as it was recorded, none included
+        - when its terms were agreed reads as it was recorded, and a moment that is none stops the
+          read
+        - a version of its terms that is ${what} stops the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them
@@ -929,6 +933,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -941,6 +949,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against an update or a delete disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -1047,6 +1059,10 @@ _Tested by:_
         - terms that are not an object read as null
         - its days of notice read as they were recorded, none included
         - days of notice that are ${what} stop the read, naming the contract
+        - the version of its terms reads as it was recorded, none included
+        - when its terms were agreed reads as it was recorded, and a moment that is none stops the
+          read
+        - a version of its terms that is ${what} stops the read, naming the contract
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
         - the currency and the tax come back as the row recorded them
@@ -1118,6 +1134,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1126,6 +1146,10 @@ _Tested by:_
         - built from the reference schema alone, it names the triggers it lacks
         - with the migration applied, it keeps what it holds
         - with one of its triggers disabled, it names that one
+    - the terms archive says whether it keeps the versions it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against an update or a delete disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

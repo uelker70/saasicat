@@ -61,6 +61,11 @@ import {
     USAGE_SNAPSHOT_PORT_TOKEN,
 } from './tenant-billing.tokens.js';
 import { VersionOfferService } from './version-offer.service.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
+import {
+    agreementNamed,
+    type AgreementSettings,
+} from '../subscription-contract/contract-agreement.js';
 
 @Injectable()
 export class VersionSwitchService {
@@ -80,6 +85,11 @@ export class VersionSwitchService {
         @Optional()
         @Inject(SubscriberChargeService)
         private readonly charges: SubscriberChargeService | null = null,
+        // What a switch scheduled now records as agreed. Optional only so a
+        // test can build the service directly; the platform always binds it.
+        @Optional()
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: AgreementSettings | null = null,
     ) {}
 
     /** Takes the offer of `planVersionId`, provided it is still the one offered. */
@@ -209,6 +219,7 @@ export class VersionSwitchService {
             expectedPlanVersionId: offer.bound.planVersionId,
             expectedPendingPlan: null,
             pendingChangeVersionId: offer.offered.planVersionId,
+            pendingAgreement: agreementNamed(this.settings, sub.billingCycle, now),
         });
         if (!scheduled.claimed) throw await this.refusedAfterTheRead(tenantId, offer, now);
         this.entitlements.invalidateTenant(tenantId);

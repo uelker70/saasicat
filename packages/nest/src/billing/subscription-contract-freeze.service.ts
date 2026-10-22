@@ -17,6 +17,7 @@ import {
     SubscriptionContractService,
     type IntendedContract,
 } from '../subscription-contract/subscription-contract.service.js';
+import type { SuccessorAgreement } from '../subscription-contract/contract-agreement.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
@@ -148,7 +149,9 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         );
         for (let attempt = 0; attempt < SUCCESSOR_ATTEMPTS; attempt++) {
             const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
-            const written = await this.contracts.writeSuccessor(previous, data, effectiveFrom);
+            const written = await this.contracts.writeSuccessor(previous, data, effectiveFrom, {
+                agreement: agreementOfChange(terms),
+            });
             if (written) {
                 // The next read uses the new contract snapshot.
                 this.entitlements.invalidateTenant(tenantId);
@@ -408,6 +411,18 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             },
         };
     }
+}
+
+/**
+ * Where the contract a change writes takes what was agreed from: kept, for a
+ * retirement's move at its date, which the subscriber did not ask for; the
+ * agreement they made when they scheduled the change, where it was scheduled;
+ * otherwise the file's now, for a change they make now.
+ */
+function agreementOfChange(terms: ContractChangeTerms | undefined): SuccessorAgreement | undefined {
+    if (terms === undefined) return undefined;
+    if ('retirementId' in terms) return terms.kind === 'move' ? 'kept' : undefined;
+    return terms.agreed ?? undefined;
 }
 
 function recordsPromoCode(contract: SubscriptionContractRecord, code: string): boolean {

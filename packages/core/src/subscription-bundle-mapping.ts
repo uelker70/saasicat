@@ -2,6 +2,7 @@
 // adapters for the reason `subscription-contract-mapping.ts` gives.
 
 import { oneOf } from './closed-value.js';
+import { toContractAgreement } from './contract-agreement-mapping.js';
 import type { BillingCycle } from './promo-code.types.js';
 import type { SubscriptionBundleRecord } from './subscription.types.js';
 
@@ -10,10 +11,10 @@ const BILLING_CYCLES: readonly BillingCycle[] = ['MONTHLY', 'YEARLY'];
 /**
  * A `subscription_bundles` row as either adapter reads it back.
  *
- * The three billing columns and the two of a scheduled switch are optional
- * because a Prisma client generated from a schema that predates them returns a
- * row without them; an absent column reads as null, the same as a booking made
- * before they existed.
+ * The three billing columns, those of a scheduled switch and those of the
+ * booking's agreement are optional because a Prisma client generated from a
+ * schema that predates them returns a row without them; an absent column reads
+ * as null, the same as a booking made before they existed.
  */
 export interface CanonicalSubscriptionBundleRow {
     id: string;
@@ -26,6 +27,12 @@ export interface CanonicalSubscriptionBundleRow {
     currentPeriodEnd?: Date | null;
     pendingBundleVersionId?: string | null;
     pendingVersionEffectiveAt?: Date | null;
+    pendingTermsVersion?: string | null;
+    pendingCancellationNoticeDays?: number | null;
+    pendingAgreedAt?: Date | null;
+    agreedTermsVersion?: string | null;
+    agreedCancellationNoticeDays?: number | null;
+    agreedAt?: Date | null;
     canceledAt: Date | null;
     canceledEffectiveAt: Date | null;
     createdAt: Date;
@@ -62,6 +69,22 @@ export function toSubscriptionBundleRecord(
         currentPeriodEnd: row.currentPeriodEnd ?? null,
         pendingBundleVersionId: row.pendingBundleVersionId ?? null,
         pendingVersionEffectiveAt: row.pendingVersionEffectiveAt ?? null,
+        pendingAgreement: toContractAgreement(
+            {
+                termsVersion: row.pendingTermsVersion,
+                cancellationNoticeDays: row.pendingCancellationNoticeDays,
+                agreedAt: row.pendingAgreedAt,
+            },
+            `Booking ${row.id}'s scheduled switch`,
+        ),
+        agreement: toContractAgreement(
+            {
+                termsVersion: row.agreedTermsVersion,
+                cancellationNoticeDays: row.agreedCancellationNoticeDays,
+                agreedAt: row.agreedAt,
+            },
+            `Booking ${row.id}`,
+        ),
         canceledAt: row.canceledAt,
         canceledEffectiveAt: row.canceledEffectiveAt,
         createdAt: row.createdAt,

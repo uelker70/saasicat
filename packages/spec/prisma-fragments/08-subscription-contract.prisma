@@ -55,9 +55,16 @@ model SubscriptionContract {
     taxTreatment Json?
 
     // The days of notice a cancellation of the contract is judged by, in its
-    // rhythm: what config/saas.yaml named for that rhythm when the contract
-    // was concluded or changed, never what the file names later.
+    // rhythm: what config/saas.yaml named for that rhythm when the subscriber
+    // concluded or changed the contract, kept by a successor the operator or
+    // the platform writes, never what the file names later.
     cancellationNoticeDays Int
+    // The version of the operator's terms config/saas.yaml named when the
+    // subscriber concluded or changed the contract, kept by a successor the
+    // operator or the platform writes; null where it named none.
+    termsVersion String?
+    // When the subscriber agreed to termsVersion and cancellationNoticeDays.
+    agreedAt     DateTime
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime

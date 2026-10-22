@@ -155,7 +155,7 @@ word for a dealer's record of its buyers.
 
 **Settings live in `config/saas.yaml`**: the issuer's details, the tax adapter, the time zone
 invoice dates count in, the payment term, the version of the operator's terms, which a contract
-records when it is concluded or changed, the invoice number
+records when the subscriber concludes or changes it, the invoice number
 prefix, the gateway accounts, the one for new payment methods with the methods it offers and any
 still holding references, the direct debit lead time, the read-only period, the grace period for an
 unpaid invoice, and how long a payment can still be reversed. Each account's keys and webhook secret

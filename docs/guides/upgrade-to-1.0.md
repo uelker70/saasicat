@@ -1917,7 +1917,8 @@ then a wrong one cannot be corrected. To adopt it ([wire the backend](wire-the-b
     they need.
 
 3. Name the range and the payment term in `config/saas.yaml` under `invoicing` — `numberPrefix`,
-   letters and digits, and `paymentTermDays`, both required. The block needs `tax` and `issuer`.
+   letters and digits, and `paymentTermDays`, both required. The block needs `tax`, `issuer` and
+   `terms` ([the terms are a version and a file](#the-terms-are-a-version-and-a-file)).
    Name what a business letter of yours states beyond the invoice's own content — register court
    and number, managing directors, bank account — as up to six lines under `footer`; an invoice
    copies them on its issue date.
@@ -2384,10 +2385,12 @@ replacement invoices it: the invoice run never does (`SC-PRIC-096`).
 
 ### A contract records the notice period it was concluded with
 
-A cancellation is judged by the days of notice the contract in force recorded when it was concluded
-or changed (`SC-CANC-025`), not by what `config/saas.yaml#tenantBilling.cancellationNoticeDays`
-names since: the confirmation a subscriber keeps names the notice period, and a file changed later
-must not move the day a cancellation lands. Without a contract in force — an installation that keeps
+A cancellation is judged by the days of notice the contract in force recorded when the subscriber
+concluded or changed it (`SC-CANC-026`) — a successor the operator or the platform writes, for a
+feature withdrawal, a refresh or a retirement's move, keeps the days of the contract it replaces —,
+not by what `config/saas.yaml#tenantBilling.cancellationNoticeDays` names since: the confirmation a
+subscriber keeps names the notice period, and a file changed later must not move the day a
+cancellation lands. Without a contract in force — an installation that keeps
 no contracts, or a subscription nothing was confirmed for — the file decides as before.
 
 1. Take fragment 08 as it ships now: `SubscriptionContract` gains `cancellationNoticeDays`.
@@ -2426,6 +2429,93 @@ no contracts, or a subscription nothing was confirmed for — the file decides a
   cancellation reads the file's notice period over a contract that recorded another.
   `SaaSiCatModule` passes the one named for `subscriptionContract` or a checkout offer's
   conclusion, or else the bundle's.
+
+### The terms are a version and a file
+
+Every contract records the version of your terms and the days of notice the subscriber agreed to,
+and when (`SC-CFG-038`, `SC-CANC-026`), and the start archives that version's PDF once, so the
+confirmation a subscriber keeps (`SC-AUD-016`) names the terms they agreed to and hands them out as
+they were. A change the subscriber makes reads both from the file at that moment. A change they
+schedule records them when they schedule it, and the contract written when it takes effect records
+those, unless they agreed to newer terms since. A successor the operator or the platform writes
+without them — a feature withdrawal's reductions, a refresh, a retirement's move at its date —
+keeps them from the contract it replaces. A changed file is a new version: the start refuses another
+file under a version it has archived.
+
+1. Add `TermsVersion` from `prisma-fragments/25-terms.prisma` to your schema, and take fragments 01,
+   08 and 11 as they ship now: `SubscriptionContract` gains `termsVersion` and `agreedAt`,
+   `Subscription` and `SubscriptionBundle` the columns in which a scheduled change, a scheduled
+   add-on switch and a booking record what was agreed. Leave `TermsVersion` out and
+   `saasicat schema check` lists it as not adopted; with `prismaPersistence()` or
+   `drizzlePersistence()`, pass `notAdopted: ['TermsVersion']` and the bundle builds no archive —
+   the file can then name no terms, and so no invoicing either.
+2. Run the migration once, **before** `db push`:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-the-terms-are-a-version-and-a-file.postgres.sql
+    ```
+
+    It creates `terms_versions` with the two triggers that refuse every update, delete and truncate
+    of it, which `db push` cannot create; adds `termsVersion` to the contracts, empty on every
+    contract there is — no version was recorded before, and none is made up —, and `agreedAt`,
+    filled with the moment each contract was written and then required; and adds the agreement
+    columns to the subscriptions and the bookings, empty: a change scheduled before this release
+    takes the file's when it lands. It refuses, and fills nothing, where row-level security hides
+    contracts from the role it runs as. A second run changes nothing; a table it does not find is
+    skipped with a notice.
+
+3. Name the terms in `config/saas.yaml`, the PDF beside the file or by an absolute path — an
+   absolute one where the settings are handed in as code:
+
+    ```yaml
+    terms:
+        version: '2026-10'
+        file: agb-2026-10.pdf
+    ```
+
+    A version is letters, digits, `.`, `-` and `_`, at most 32 characters; quote it where YAML would
+    read it as a number, which the schema refuses. `invoicing` requires the block. To publish new
+    terms, put the new PDF beside the old one and name its version; the old one stays archived for
+    the contracts that recorded it.
+
+4. The start archives a version it has not archived before, and refuses a version no file could be
+   called, a file it cannot read or that is no PDF, a relative file where the settings came from
+   code, terms without an archive, an archive whose triggers are missing or disabled, and another
+   file under a version already archived.
+5. Keep `terms_versions` in every backup, for as long as a contract that names one of its versions
+   is kept.
+
+- **An application that wires the contract modules by hand** — `SubscriptionContractModule`, a
+  checkout offer's conclusion, `tenantBilling.contractFreeze` — and names `terms` imports
+  `TermsModule.forRoot({ archive })` as well; `SaaSiCatModule` does. Without it contracts do not
+  start, since they would record a version nothing archived.
+- **A `SubscriptionContractRepository` of your own** writes `termsVersion` and `agreedAt` from
+  `NewSubscriptionContractData` and reads them back through `toSubscriptionContractRecord`, which
+  refuses a value no version could be called and a moment that is none.
+- **A `TenantSubscriptionWritePort` of your own** stores `ScheduledPlanChangeInput.pendingAgreement`
+  with the change (`pendingAgreementColumns`) and clears it with it: `NO_SCHEDULED_CHANGE` holds the
+  three columns. **A `SubscriptionUsagePort` of your own** reads it back as `pendingAgreement`
+  through `toContractAgreement`; without it, a scheduled change takes the file's when it lands.
+- **A `SubscriptionBundleRepository` of your own** stores `CreateSubscriptionBundleData.agreement`
+  (`bookingAgreementColumns`) and, where it schedules switches, the `agreement` of `scheduleVersion`
+  (`pendingAgreementColumns`), clears it in `unscheduleVersion`, and reads both back through
+  `toSubscriptionBundleRecord`.
+- **An application that writes a successor itself** through
+  `SubscriptionContractService.writeSuccessor` passes `agreement: 'kept'` where the operator or the
+  platform writes it without the subscriber — it then keeps the version of the terms and the days
+  of notice of the contract it replaces, and is refused in another rhythm —, or the
+  `ContractAgreement` a change recorded when it was scheduled. A `RetirementContractTerms` names
+  its `kind` — `move` at the retirement's date, which keeps them, or the `switch` the subscriber
+  took —, and a `ContractFreezePort` of your own receives `AgreedChangeContractTerms`.
+- **A `TermsArchivePort` of your own** keeps the versions in storage of your choice: it stores a
+  version once, takes the same checksum again as the same write, refuses another one with
+  `termsVersionChanged` (`TERMS_VERSION_CHANGED`), and says in `protectionProblem()` why it would
+  let a version be changed or removed. Pass it as `adapters.termsArchive`.
+- **A persistence contract harness** gains the `termsArchive` member; a harness without it declares
+  `gaps: ['termsArchive']`. Empty `terms_versions` between scenarios. A test database that ran the
+  migration refuses that `TRUNCATE`; build it from `reference-schema.postgres.sql`, which has no
+  triggers.
+- **An application that words refusals itself** adds `TERMS_VERSION_CHANGED`.
 
 ### The plan catalogue is read when it is asked for
 

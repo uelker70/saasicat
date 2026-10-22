@@ -53,6 +53,17 @@ model SubscriptionBundle {
     // that moment and clears both.
     pendingBundleVersionId    String?
     pendingVersionEffectiveAt DateTime?
+    // What the subscriber agreed to when they scheduled that switch, the same
+    // three a scheduled plan change records.
+    pendingTermsVersion           String?
+    pendingCancellationNoticeDays Int?
+    pendingAgreedAt               DateTime?
+
+    // What the subscriber agreed to by making the booking, for a contract
+    // written for it later; null on a booking made before these existed.
+    agreedTermsVersion           String?
+    agreedCancellationNoticeDays Int?
+    agreedAt                     DateTime?
 
     // Cancellation: requested at `canceledAt`, effective at
     // `canceledEffectiveAt` (period/term end). Both null = active booking.

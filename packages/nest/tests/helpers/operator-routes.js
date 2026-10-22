@@ -14,6 +14,7 @@ import {
 import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
 import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
+import { TERMS } from './terms.js';
 
 /** Nest's own metadata keys. */
 export const PATH = 'path';
@@ -55,6 +56,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             auditStats: PORT,
             maintenanceWindows: PORT,
             appliedSettings: PORT,
+            termsArchive: PORT,
         },
         catalog: {
             planRepository: REPO,
@@ -95,11 +97,12 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             schemaVersion: 1,
             app: { name: 'Probe', version: '0.0.1' },
             currency: 'EUR',
-            // Invoices need a tax adapter, its zone, an issuer and a range.
+            // Invoices need a tax adapter, its zone, an issuer, a range and the terms.
             tax: { adapter: 'test-tax' },
             timeZone: 'Europe/Berlin',
             issuer: ISSUER,
             invoicing: { numberPrefix: 'AHP', paymentTermDays: 14 },
+            terms: TERMS,
             payments: paymentsCatalog().payments,
             tenantBilling: {
                 cancellationNoticeDays: { monthly: 0, yearly: 0 },
