@@ -54,7 +54,8 @@ export function createFetchHttpClient(options: FetchHttpClientOptions = {}): Htt
         // a versioned or vendor representation —
         // `Accept: application/vnd.example.v2+json` — has no other way to say
         // so, because the per-call headers belong to platform code.
-        if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+        if (!headers.has('Accept'))
+            headers.set('Accept', init?.binary ? '*/*' : 'application/json');
         for (const [name, value] of Object.entries(init?.headers ?? {})) {
             headers.set(name, value);
         }
@@ -82,8 +83,10 @@ export function createFetchHttpClient(options: FetchHttpClientOptions = {}): Htt
             throw markTransportFailure(err);
         }
 
-        // `Response` already satisfies `HttpResponse` structurally. Naming the
-        // type here is what keeps that true if either side changes.
-        return response satisfies HttpResponse;
+        // `Response` already satisfies `HttpResponse` structurally, `bytes`
+        // aside, which not every runtime's `Response` has yet. Naming the type
+        // here is what keeps that true if either side changes.
+        const bytes = async (): Promise<Uint8Array> => new Uint8Array(await response.arrayBuffer());
+        return Object.assign(response, { bytes }) satisfies HttpResponse;
     };
 }

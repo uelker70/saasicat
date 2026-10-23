@@ -494,6 +494,15 @@ _Tested by:_
         - a read that fails says so, and a retry asks again
         - without the capability, nothing is asked and no section is shown
         - a manifest the app passes in its options is the one asked
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-contracts.test.ts`
+    - the tenant detail shows the tenant's contracts
+        - every one, the newest first, with what it records and where its confirmation stands
+        - downloads an archived confirmation under the name it was archived with
+        - a download that fails says so, and saves nothing
+        - nothing of them where the platform does not serve them
+    - the tenant detail downloads an invoice's document
+        - only where the platform serves it, the cancellation beside it or not
+        - beside the invoice, under the name it was issued with
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
     - the tenant detail shows the tenant's subscriber
         - whom the contracts are concluded with, and nothing held back

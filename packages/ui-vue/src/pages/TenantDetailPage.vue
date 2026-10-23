@@ -119,6 +119,18 @@
                     :format-date="formatDateResolved"
                     :cancellation="cancellation"
                     :record="subscriber.data.value?.subscriber ?? null"
+                    :documents="downloads.invoices.value"
+                />
+
+                <!-- Its contracts, each with where its confirmation stands -->
+                <TenantContracts
+                    v-if="contracts.available.value && downloads.confirmations.value"
+                    :contracts="contracts.data.value"
+                    :pending="contracts.pending.value"
+                    :error="contracts.error.value"
+                    :retry="contracts.reload"
+                    :format-date="formatDateResolved"
+                    :downloads="downloads.confirmations.value"
                 />
 
                 <slot name="extra-cards" :data="data" :reload="load" />
@@ -161,6 +173,7 @@ import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
+import TenantContracts from '../internal/tenant-detail/TenantContracts.vue';
 import TenantCredits from '../internal/tenant-detail/TenantCredits.vue';
 import TenantPayments from '../internal/tenant-detail/TenantPayments.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
@@ -175,6 +188,8 @@ import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { useTenantAccount } from '../vue/use-tenant-account.js';
 import { useTenantCredits } from '../vue/use-tenant-credits.js';
 import { useTenantPayments } from '../vue/use-tenant-payments.js';
+import { useTenantContracts } from '../vue/use-tenant-contracts.js';
+import { useTenantDownloads } from '../vue/use-tenant-downloads.js';
 import { useInvoiceCancellation } from '../vue/use-invoice-cancellation.js';
 import { useSubscriberCorrections } from '../vue/use-subscriber-corrections.js';
 import { useTenantSubscriber } from '../vue/use-tenant-subscriber.js';
@@ -321,6 +336,10 @@ const credits = useTenantCredits(tenantSlug, servedBy, tenants, { notify, mfa })
 
 // Its invoices with what each still owes, and its cases open to reconcile.
 const payments = useTenantPayments(tenantSlug, servedBy, tenants);
+
+// Its contracts with their confirmations, and the downloads of both files.
+const contracts = useTenantContracts(tenantSlug, servedBy, tenants);
+const downloads = useTenantDownloads(servedBy, tenants, { notify });
 
 // Cancelling one of them behind the same second-factor dialog; what was paid
 // for it moves, so its credits are read again with the invoices.

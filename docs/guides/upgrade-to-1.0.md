@@ -2577,6 +2577,11 @@ before is not confirmed. Confirmations go with invoices: the start refuses invoi
   `contractConfirmationArchive` members and the seed `markContractWrittenBeforeConfirmations`; a
   harness without them declares `gaps: ['contractConfirmations', 'contractConfirmationArchive']`.
   Empty `contract_confirmations` and `contract_confirmation_archive` between scenarios.
+- **The administration** shows a tenant's contracts with where each confirmation stands, and
+  downloads an archived confirmation and an invoice's archived document beside the tenant, where
+  the manifest announces `contracts.read` and `invoices.read`. **An `HttpClient` of your own**
+  handles `binary: true` and gives its responses `bytes()`, the body as it arrived; without it the
+  downloads say so, and every other request works as before. Both shipped clients have it.
 - **An application that words refusals itself** adds `CONTRACT_CONFIRMATION_CHANGED`,
   `CONTRACT_CONFIRMATION_MISMATCH`, `CONTRACT_CONFIRMATION_NOT_ARCHIVED`,
   `CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED`, `CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL` and

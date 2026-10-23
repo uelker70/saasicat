@@ -49,6 +49,8 @@ export interface AxiosLikeConfig {
     method?: string;
     headers?: Record<string, string>;
     data?: unknown;
+    /** Set for a request made with `binary` only, so every other one keeps the instance's own. */
+    responseType?: 'arraybuffer';
 }
 
 /** The part of an axios instance this adapter uses. */
@@ -291,7 +293,25 @@ function adapt(response: AxiosLikeResponse, declared: AxiosResponseBody): HttpRe
             const data = await readBody(response.data);
             return typeof data === 'string' ? data : JSON.stringify(data);
         },
+        bytes: async () => bytesOf(response.data),
     };
+}
+
+/**
+ * The body of a request made with `binary`, which asks axios for an
+ * `ArrayBuffer` — or a `Buffer`, under Node, which is a view. Anything else
+ * means the instance did not hand the file over as it arrived, which is said
+ * rather than read as a file it is not.
+ */
+function bytesOf(data: unknown): Uint8Array {
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (ArrayBuffer.isView(data)) {
+        return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    }
+    throw new TypeError(
+        'createAxiosHttpClient received no file: the instance answered a binary request with ' +
+            `${data === null ? 'null' : typeof data} instead of the bytes it asked for.`,
+    );
 }
 
 /**
@@ -339,6 +359,9 @@ export function createAxiosHttpClient(
                     method: (init?.method ?? 'GET').toUpperCase(),
                     headers: init?.headers,
                     data: init?.body,
+                    // Left unset otherwise: axios merges an unset key with
+                    // the instance's own, so every other request keeps it.
+                    responseType: init?.binary ? 'arraybuffer' : undefined,
                 }),
                 responseBody,
             );

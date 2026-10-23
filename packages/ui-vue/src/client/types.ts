@@ -13,6 +13,12 @@ export type HttpClient = (
         method?: string;
         headers?: Record<string, string>;
         body?: string;
+        /**
+         * The answer is a file, such as an invoice's document: ask for its
+         * body as it arrived, which `HttpResponse.bytes` then hands over. A
+         * client that leaves this out still serves every other request.
+         */
+        binary?: boolean;
     },
 ) => Promise<HttpResponse>;
 
@@ -21,6 +27,11 @@ export interface HttpResponse {
     headers: { get(name: string): string | null };
     json(): Promise<unknown>;
     text(): Promise<string>;
+    /**
+     * The body as it arrived, for a request made with `binary`. Optional: only
+     * the downloads ask for it, and they say so where a client has none.
+     */
+    bytes?(): Promise<Uint8Array>;
 }
 
 /** Simple persistence adapter; default is `localStorage`. */

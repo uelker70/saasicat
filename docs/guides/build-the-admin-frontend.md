@@ -111,6 +111,14 @@ Two things worth knowing about both adapters:
 - `createAxiosHttpClient` is typed **structurally** and does not import axios, so
   `@saasicat/ui-vue` adds no dependency to your install.
 
+**A download asks for bytes.** The operator downloads an invoice's archived document
+and a contract's confirmation beside the tenant. Such a request carries `binary: true`,
+and its response hands the file over through `bytes()`, which both adapters implement:
+`fetch` reads the body as it arrived, axios is asked for an `arraybuffer` for that
+request alone. A client of your own that leaves `bytes()` out serves every other
+request as before, and a download through it says so instead of saving a file decoded
+as text.
+
 **If your own client or interceptor knows a request never left, say so.** Call
 `markTransportFailure(err)` before rejecting — the fetch adapter does exactly that. A
 replacement error carries no evidence either way, and the platform will not guess:

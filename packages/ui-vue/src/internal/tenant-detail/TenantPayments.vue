@@ -11,7 +11,19 @@
                 :empty-text="msg.payments.invoicesEmpty"
                 storage-key="tenant-payments-invoices"
             >
-                <template v-if="cancellation.available.value" #row-actions="{ row }">
+                <template v-if="documents || cancellation.available.value" #row-actions="{ row }">
+                    <q-btn
+                        v-if="documents"
+                        flat
+                        dense
+                        no-caps
+                        :label="msg.payments.download"
+                        :aria-label="
+                            formatMessage(msg.payments.downloadInvoice, { number: row.number })
+                        "
+                        :loading="documents.downloading.value === row.id"
+                        @click="documents.download(row.id)"
+                    />
                     <q-btn
                         v-if="row.cancellable"
                         flat
@@ -53,6 +65,7 @@ import { formatMessage } from '../../client/i18n/format.js';
 import AdminTable from '../../ui/data/AdminTable.vue';
 import AdminErrorBanner from '../../ui/feedback/AdminErrorBanner.vue';
 import AdminSection from '../../ui/page/AdminSection.vue';
+import type { FileDownload } from '../../vue/use-file-download.js';
 import type { InvoiceCancellationFlow } from '../../vue/use-invoice-cancellation.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import InvoiceCancellationDialog from './InvoiceCancellationDialog.vue';
@@ -62,7 +75,8 @@ import InvoiceCancellationDialog from './InvoiceCancellationDialog.vue';
 // cancellation invoice, a replacement, an invoice cancelled —, and its cases
 // still open to reconcile: what the gateway reported and no credit matched.
 // An invoice that stands is cancelled here; a case is closed on the
-// reconciliation page, with a note.
+// reconciliation page, with a note. Every invoice's archived document is
+// downloaded beside it, where the platform serves it.
 const props = defineProps<{
     payments: AdminTenantPayments | null;
     pending: boolean;
@@ -72,6 +86,11 @@ const props = defineProps<{
     formatDate: (value: string | null | undefined) => string;
     /** Cancelling an invoice, as the page's composable runs it. */
     cancellation: InvoiceCancellationFlow;
+    /**
+     * The download of an invoice's archived document; `null` where the
+     * platform does not serve it (`invoices.read`).
+     */
+    documents: FileDownload | null;
     /** The subscriber's record, whose values a cancellation's corrections offer. */
     record: AdminTenantSubscriber['subscriber'];
 }>();

@@ -29,6 +29,7 @@ export * from './mfa-header.js';
 // Named in CONTRIBUTING as the ES2021 stand-in for `new Error(msg, { cause })`,
 // so it was already API in every sense except this line.
 export * from './attach-cause.js';
+export * from './save-file.js';
 export * from './http-json.js';
 export * from './boot-loader.js';
 export * from './manifest-loader.js';

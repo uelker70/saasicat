@@ -27,6 +27,7 @@ import {
     type AdminSubscriberCredits,
     type AdminSubscriberHistoryEntry,
     type AdminSubscriberPayout,
+    type AdminTenantContracts,
     type AdminTenantDetail,
     type AdminTenantPayments,
     type AdminTenantSubscriber,
@@ -38,7 +39,12 @@ import {
 import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { defineListOp, type ListFilterOf } from './list-resource.js';
-import { requestJson, requestJsonBody } from './resource-request.js';
+import {
+    requestFile,
+    requestJson,
+    requestJsonBody,
+    type DownloadedFile,
+} from './resource-request.js';
 
 /** What the tenants list can be narrowed by. The page number is not a filter. */
 export type TenantsListFilter = ListFilterOf<TenantListFilter>;
@@ -141,6 +147,40 @@ export const tenantsResource = defineResource('tenants', {
             http,
             `${tenantUrl(ctx, slug)}/payments`,
             'The payments returned no body',
+        ),
+
+    /**
+     * The tenant's contracts, the newest first, each with where its
+     * confirmation stands. Served only where the manifest announces
+     * `contracts.read`.
+     */
+    contracts: async (http, ctx, slug: string): Promise<AdminTenantContracts> =>
+        requestJsonBody<AdminTenantContracts>(
+            http,
+            `${tenantUrl(ctx, slug)}/contracts`,
+            'The contracts returned no body',
+        ),
+
+    /**
+     * The archived confirmation of one contract, the file its subscriber was
+     * sent. Served where the manifest announces `contracts.read`.
+     */
+    contractConfirmation: async (http, ctx, contractId: string): Promise<DownloadedFile> =>
+        requestFile(
+            http,
+            `${ctx.apiBase}/contracts/${encodeURIComponent(contractId)}/confirmation`,
+            'contract-confirmation.pdf',
+        ),
+
+    /**
+     * The archived document of one invoice, the file it was issued as. Served
+     * where the manifest announces `invoices.read`.
+     */
+    invoiceDocument: async (http, ctx, invoiceId: string): Promise<DownloadedFile> =>
+        requestFile(
+            http,
+            `${ctx.apiBase}/invoices/${encodeURIComponent(invoiceId)}/document`,
+            'invoice.pdf',
         ),
 
     /**
