@@ -5,7 +5,7 @@
 -- Where each contract's confirmation stands, and the database archive that
 -- keeps the confirmations (`SC-AUD-016`, 26-contract-confirmation.prisma).
 -- Needed where `tenantBilling.chargeJournal.invoices` is configured. Run it
--- AFTER `db push`, and after `1.0-a-contract-is-confirmed.postgres.sql`:
+-- AFTER `db push`:
 --
 --   psql "$DATABASE_URL" -f 1.0-a-contract-confirmation-is-archived.postgres.sql
 --
@@ -30,7 +30,8 @@
 --   database created from `reference-schema.postgres.sql` does not have yet.
 --
 -- Skipped, with a notice, where `subscription_contracts` is missing. Nothing is
--- backfilled: a contract written before confirmations existed is not due one.
+-- backfilled: a contract written before confirmations existed is not due one —
+-- `confirmationDue` is false by default, and only a repository writes it true.
 --
 -- Safe to run again: every table and index is created only where it is
 -- missing, each foreign key only where its name is not taken, and the trigger

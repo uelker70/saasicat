@@ -3769,8 +3769,7 @@ describe('a contract records the notice period it was concluded with', () => {
 });
 
 // @requirement SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
-describe('a contract is due its confirmation from this release on, and an archived one is kept', () => {
-    const DUE = '1.0-a-contract-is-confirmed.postgres.sql';
+describe('a contract written before confirmations is due none, and an archived one is kept', () => {
     const ARCHIVE = '1.0-a-contract-confirmation-is-archived.postgres.sql';
     const CONFIRMATION = Buffer.from('%PDF-1.7 the contract as it was confirmed');
 
@@ -3785,43 +3784,30 @@ describe('a contract is due its confirmation from this release on, and an archiv
         );
     }
 
-    const dueOf = async () =>
-        (
-            await client.query(
-                'SELECT "id", "confirmationDue" FROM "subscription_contracts" ORDER BY "id"',
-            )
-        ).rows.map((row) => [row.id, row.confirmationDue]);
-
-    test('a database from before keeps its contracts unconfirmed, and confirms every one written after', async () => {
-        await freshGround();
-        const reference = await fingerprint(client);
-        await client.query('DROP TABLE "contract_confirmation_archive", "contract_confirmations"');
-        await client.query('ALTER TABLE "subscription_contracts" DROP COLUMN "confirmationDue"');
-        await client.query(
-            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
-        );
-        await aContract('c-before');
-
-        for (const name of [DUE, DUE, ARCHIVE, ARCHIVE]) await apply(name);
-        await aContract('c-after');
-
-        assert.equal(await fingerprint(client), reference);
-        assert.deepEqual(await dueOf(), [
-            ['c-after', true],
-            ['c-before', false],
-        ]);
-    });
-
-    test('run after db push by an entrypoint that applies every file, it leaves the column as db push made it', async () => {
+    test('a contract no repository wrote is due none, as db push leaves those already there', async () => {
+        // The repositories write the flag on every contract they create; the
+        // column's default is what `db push` gives the contracts it finds.
         await freshGround();
         await client.query(
             `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
         );
         await aContract('c-1');
 
-        await apply(DUE);
+        const { rows } = await client.query(
+            'SELECT "confirmationDue" FROM "subscription_contracts"',
+        );
+        assert.deepEqual(rows, [{ confirmationDue: false }]);
+    });
 
-        assert.deepEqual(await dueOf(), [['c-1', true]]);
+    test('a database from before gains the tables of the confirmations as the fragments declare them', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await client.query('DROP TABLE "contract_confirmation_archive", "contract_confirmations"');
+
+        await apply(ARCHIVE);
+        await apply(ARCHIVE);
+
+        assert.equal(await fingerprint(client), reference);
     });
 
     /** The reference schema with the archive's triggers, run `runs` times, and one archived file. */

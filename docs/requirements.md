@@ -22165,11 +22165,9 @@ _Tested by:_
         - do not start without their ${port}, where the bundle keeps none either
         - do not start beside an archive that would let a confirmation it keeps be changed
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - a contract is due its confirmation from this release on, and an archived one is kept
-        - a database from before keeps its contracts unconfirmed, and confirms every one written
-          after
-        - run after db push by an entrypoint that applies every file, it leaves the column as db
-          push made it
+    - a contract written before confirmations is due none, and an archived one is kept
+        - a contract no repository wrote is due none, as db push leaves those already there
+        - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
 
@@ -22512,11 +22510,9 @@ _Tested by:_
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
-    - a contract is due its confirmation from this release on, and an archived one is kept
-        - a database from before keeps its contracts unconfirmed, and confirms every one written
-          after
-        - run after db push by an entrypoint that applies every file, it leaves the column as db
-          push made it
+    - a contract written before confirmations is due none, and an archived one is kept
+        - a contract no repository wrote is due none, as db push leaves those already there
+        - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
 
@@ -22700,11 +22696,9 @@ _Tested by:_
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
-    - a contract is due its confirmation from this release on, and an archived one is kept
-        - a database from before keeps its contracts unconfirmed, and confirms every one written
-          after
-        - run after db push by an entrypoint that applies every file, it leaves the column as db
-          push made it
+    - a contract written before confirmations is due none, and an archived one is kept
+        - a contract no repository wrote is due none, as db push leaves those already there
+        - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
 - `tests/build-stamp.test.js`

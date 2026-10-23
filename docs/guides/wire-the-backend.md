@@ -1021,14 +1021,14 @@ otherwise number on in the range of the one before, and the record keeps the cor
 issuer an invoice follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
 `22-subscription-invoice-archive.prisma` — and `26-contract-confirmation.prisma` for the
 [confirmation of each contract](#the-confirmation-of-each-contract) —, run
-`sql/1.0-an-invoice-is-issued.postgres.sql`, `sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql`,
-`sql/1.0-an-invoice-is-cancelled.postgres.sql` and `sql/1.0-a-contract-is-confirmed.postgres.sql`
-once before `db push` and `sql/1.0-an-invoice-document-is-archived.postgres.sql` and
+`sql/1.0-an-invoice-is-issued.postgres.sql`, `sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql`
+and `sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push` and
+`sql/1.0-an-invoice-document-is-archived.postgres.sql` and
 `sql/1.0-a-contract-confirmation-is-archived.postgres.sql` after it, name the range and the payment
 term, and wire the repository, the renderer, the archive, the mail and the confirmations' renderer
-beside the journal. An issued
-invoice is corrected by cancelling it (`InvoiceCancellationService`), on the transaction
-`contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the start requires:
+beside the journal. An issued invoice is corrected by cancelling it (`InvoiceCancellationService`),
+on the transaction `contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the
+start requires:
 
 ```yaml
 # config/saas.yaml
@@ -1194,7 +1194,8 @@ what the contract costs per billing period with its tax and the treatment's note
 notice period and the version of the terms it was concluded under. It states the whole contract in
 force — a changed contract is confirmed whole again, by the confirmation of the contract written for
 the change —, has no number of its own and names the contract and the day it was written. A
-contract written before is due none: `1.0-a-contract-is-confirmed.postgres.sql` marks those.
+contract written before is due none: the repositories write `confirmationDue` on every contract they
+create, and the column `db push` adds is false on the contracts already there.
 
 It goes the way of an invoice's document — rendered, its checksum recorded, archived write-once,
 mailed once under a claim — in the same quarter-hourly run, by the actor

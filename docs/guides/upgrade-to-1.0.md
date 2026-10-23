@@ -2526,21 +2526,18 @@ before is not confirmed. Confirmations go with invoices: the start refuses invoi
 
 1. Add `ContractConfirmation` and `ContractConfirmationArchive` from
    `prisma-fragments/26-contract-confirmation.prisma` to your schema, and take fragment 08 as it
-   ships now: `SubscriptionContract` gains `confirmationDue` and the back-relations.
-2. Run the first migration once, **before** `db push`, and the second after it:
+   ships now: `SubscriptionContract` gains `confirmationDue` and the back-relations. The column
+   is false by default, so `db push` leaves every contract already there unconfirmed; the
+   repositories write it true on every contract they create from now on.
+2. Run the migration once, **after** `db push`:
 
     ```bash
-    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-contract-is-confirmed.postgres.sql
-    # db push
     psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-contract-confirmation-is-archived.postgres.sql
     ```
 
-    The first adds `confirmationDue` false on every contract there is, and makes true the default
-    for every contract written after: `db push` alone would add it true, and confirm contracts
-    written before this release. Run after `db push`, it finds the column there and leaves it as it
-    is. The second creates the two tables of the confirmations, where they are missing, and the
-    triggers that refuse every update, delete and truncate of the archive, which `db push` cannot
-    create. Both do nothing on a second run, nor on a database without contracts.
+    It creates the two tables of the confirmations, where they are missing, and the triggers that
+    refuse every update, delete and truncate of the archive, which `db push` cannot create. It does
+    nothing on a second run, nor on a database without contracts.
 
 3. Pass the renderer beside the invoices; `SaaSiCatModule` takes the record and the archive from
    the persistence bundle:
@@ -2568,9 +2565,11 @@ before is not confirmed. Confirmations go with invoices: the start refuses invoi
   download at `GET admin/contracts/:id/confirmation`.
 - **A scheduler of your own** (`invoices.includeCron: false`) calls
   `ContractConfirmationService.archiveDue(now)` and then `deliverDue()` beside the invoices' steps.
-- **A `SubscriptionContractRepository` of your own** writes contracts with `confirmationDue` true —
-  the column's default does that —, and a **`ContractConfirmationRepository` of your own** lists
-  only the contracts that are due one.
+- **A `SubscriptionContractRepository` of your own** writes `confirmationDue` true on every contract
+  it creates — the column's default is false, for the contracts written before —, and a
+  **`ContractConfirmationRepository` of your own** lists only the contracts that are due one. The
+  persistence contract holds both: a contract created through the repository is due a
+  confirmation.
 - **A persistence contract harness** gains the `contractConfirmationRepository` and
   `contractConfirmationArchive` members and the seed `markContractWrittenBeforeConfirmations`; a
   harness without them declares `gaps: ['contractConfirmations', 'contractConfirmationArchive']`.

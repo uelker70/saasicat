@@ -152,6 +152,9 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                     cancellationNoticeDays: data.cancellationNoticeDays,
                     termsVersion: data.termsVersion,
                     agreedAt: data.agreedAt,
+                    // Every contract written is confirmed to its subscriber
+                    // (`SC-AUD-016`); the column's default is for those before.
+                    confirmationDue: true,
                     createdAt: now,
                     updatedAt: now,
                 })

@@ -331,8 +331,9 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
 19. **A contract's confirmation is recorded before it is archived, and
     archived once.** `ContractConfirmationRepository` makes the writes of an
     invoice's document (invariant 17), keyed by the contract, and lists only
-    the contracts whose `confirmationDue` is set — every contract written
-    since `1.0-a-contract-is-confirmed.postgres.sql` ran, none before. The
+    the contracts whose `confirmationDue` is set — which the contract
+    repositories write on every contract they create, and the column's
+    default leaves unset on every contract written before. The
     triggers of `1.0-a-contract-confirmation-is-archived.postgres.sql` refuse
     every update, delete and truncate of `contract_confirmation_archive`; the
     start refuses invoicing where they are missing or disabled.

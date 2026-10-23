@@ -29,12 +29,12 @@ record and the archive from the persistence bundle
 one whose triggers are missing or disabled.
 
 Fragment 26 adds `ContractConfirmation` and `ContractConfirmationArchive`, and
-fragment 08 gives `SubscriptionContract` the column `confirmationDue`. Run
-`1.0-a-contract-is-confirmed.postgres.sql` before `db push`, which leaves the
-contracts already there unconfirmed, and
-`1.0-a-contract-confirmation-is-archived.postgres.sql` after it, which adds the
-archive's triggers. `ContractConfirmationService` runs in the quarter-hourly
-invoice run, and the operator downloads a confirmation at
+fragment 08 gives `SubscriptionContract` the column `confirmationDue`, false by
+default so `db push` leaves the contracts already there unconfirmed; both
+adapters write it true on every contract they create. Run
+`1.0-a-contract-confirmation-is-archived.postgres.sql` after `db push`, which
+adds the archive's triggers. `ContractConfirmationService` runs in the
+quarter-hourly invoice run, and the operator downloads a confirmation at
 `GET admin/contracts/:id/confirmation`. The persistence contract gains the
 `contractConfirmations` and `contractConfirmationArchive` parts and the seed
 `markContractWrittenBeforeConfirmations`.

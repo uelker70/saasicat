@@ -162,7 +162,7 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     // The version of the terms named when the contract was written; null where none was.
     termsVersion: text('termsVersion'),
     agreedAt: ts('agreedAt').notNull(),
-    confirmationDue: boolean('confirmationDue').notNull().default(true),
+    confirmationDue: boolean('confirmationDue').notNull().default(false),
     createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });

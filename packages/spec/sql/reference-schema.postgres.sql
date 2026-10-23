@@ -447,7 +447,7 @@ CREATE TABLE "subscription_contracts" (
     "cancellationNoticeDays" INTEGER NOT NULL,
     "termsVersion" TEXT,
     "agreedAt" TIMESTAMP(3) NOT NULL,
-    "confirmationDue" BOOLEAN NOT NULL DEFAULT true,
+    "confirmationDue" BOOLEAN NOT NULL DEFAULT false,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
     "effectiveUntil" TIMESTAMP(3),

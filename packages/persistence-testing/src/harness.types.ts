@@ -332,11 +332,11 @@ export interface ContractSeed {
      */
     createSubscriber?(input: { legalName: string }): Promise<{ subscriberId: string }>;
     /**
-     * Marks a contract as one written before confirmations existed, as
-     * `1.0-a-contract-is-confirmed.postgres.sql` leaves every contract it finds:
-     * `confirmationDue` false. No repository writes that, which is the point —
-     * a contract the platform writes is always due one. Optional for the
-     * reason `clearBookingRequestDate` is.
+     * Marks a contract as one written before confirmations existed, as `db push`
+     * leaves every contract it finds when it adds the column: `confirmationDue`
+     * false. No repository writes that, which is the point — a contract the
+     * platform writes is always due one. Optional for the reason
+     * `clearBookingRequestDate` is.
      */
     markContractWrittenBeforeConfirmations?(contractId: string): Promise<void>;
 }

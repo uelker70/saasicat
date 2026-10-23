@@ -160,6 +160,9 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
                 cancellationNoticeDays: data.cancellationNoticeDays,
                 termsVersion: data.termsVersion,
                 agreedAt: data.agreedAt,
+                // Every contract written is confirmed to its subscriber
+                // (`SC-AUD-016`); the column's default is for those before.
+                confirmationDue: true,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
