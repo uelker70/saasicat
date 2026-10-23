@@ -24,5 +24,6 @@ repository of your own adds it. An application that wires
 administration's `AdminResourcesService` into its `imports` too.
 
 `SC-SCOPE-011` is delivered: SaaSiCat invoices subscriptions and collects
-payment through a payment gateway, which supersedes `SC-SCOPE-004` and
-`SC-PRIC-001`. The guides no longer hold invoicing back from real customers.
+payment through a payment gateway. `SC-SCOPE-004` and `SC-PRIC-001`, whose
+ground it covers, are withdrawn. The guides no longer hold invoicing back from
+real customers.
