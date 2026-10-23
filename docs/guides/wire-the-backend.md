@@ -1019,11 +1019,14 @@ one —, and the record of the applied settings (`prisma-fragments/12-applied-se
 against the record does a start refuse another legal entity named as the issuer, which would
 otherwise number on in the range of the one before, and the record keeps the corrections of the
 issuer an invoice follows. Adopt `prisma-fragments/20-subscription-invoice.prisma` and
-`22-subscription-invoice-archive.prisma`, run `sql/1.0-an-invoice-is-issued.postgres.sql`,
-`sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql` and
-`sql/1.0-an-invoice-is-cancelled.postgres.sql` once before `db push` and
-`sql/1.0-an-invoice-document-is-archived.postgres.sql` after it, name the range and the payment
-term, and wire the repository, the renderer, the archive and the mail beside the journal. An issued
+`22-subscription-invoice-archive.prisma` — and `26-contract-confirmation.prisma` for the
+[confirmation of each contract](#the-confirmation-of-each-contract) —, run
+`sql/1.0-an-invoice-is-issued.postgres.sql`, `sql/1.0-an-invoice-says-how-it-is-paid.postgres.sql`,
+`sql/1.0-an-invoice-is-cancelled.postgres.sql` and `sql/1.0-a-contract-is-confirmed.postgres.sql`
+once before `db push` and `sql/1.0-an-invoice-document-is-archived.postgres.sql` and
+`sql/1.0-a-contract-confirmation-is-archived.postgres.sql` after it, name the range and the payment
+term, and wire the repository, the renderer, the archive, the mail and the confirmations' renderer
+beside the journal. An issued
 invoice is corrected by cancelling it (`InvoiceCancellationService`), on the transaction
 `contractFreeze.transactionRunner` names, which `SaaSiCatModule` passes and the start requires:
 
@@ -1039,7 +1042,7 @@ invoicing:
 ```
 
 ```ts
-import { zugferdInvoiceRenderer } from '@saasicat/invoice-zugferd';
+import { contractConfirmationRenderer, zugferdInvoiceRenderer } from '@saasicat/invoice-zugferd';
 
 tenantBilling: {
     // … contractFreeze as above
@@ -1050,6 +1053,8 @@ tenantBilling: {
             renderer: zugferdInvoiceRenderer(),
             archive: persistence.entitlement!.subscriptionInvoiceArchive!,
             mail: new YourInvoiceMail(), // InvoiceMailPort
+            // Every contract is confirmed; the record and the archive come from the bundle.
+            confirmations: { renderer: contractConfirmationRenderer() },
             // Where config/saas.yaml names payments: the invoices are collected.
             collections: persistence.entitlement!.invoiceCollectionRepository!,
         },
@@ -1059,8 +1064,9 @@ tenantBilling: {
 
 The start refuses the wiring without the `invoicing` block, the block without the wiring where tenant
 billing is configured, either without a tax adapter, an issuer or the record of the applied
-settings, the wiring without a renderer, an archive or a mail, an archive that would let a document
-it keeps be changed, and a `numberPrefix` other than the one the invoices already issued carry
+settings, the wiring without a renderer, an archive or a mail, without the confirmations' renderer,
+record or archive, an archive of either that would let a file it keeps be changed, and a
+`numberPrefix` other than the one the invoices already issued carry
 (`SC-PRIC-024`). The prefix is letters and digits; the number puts the year and the sequence behind
 it, each after a hyphen.
 
@@ -1072,10 +1078,12 @@ whose file names another legal entity, which would otherwise number on in this r
 
 `SubscriptionInvoiceService.issueDue(now)` issues what is owed, `InvoiceDocumentService.archiveDue(now)`
 renders and archives the documents of the invoices issued, and `InvoiceDocumentService.deliverDue()`
-mails the ones archived. The platform runs the three in that order every quarter of an hour, which
-needs `ScheduleModule` in your application. With `invoices.includeCron: false` the platform leaves
-them to your own scheduler, which calls all three: an invoice is mailed only once its document is
-archived. Each invoice is put together from what holds on its issue date:
+mails the ones archived; `ContractConfirmationService.archiveDue(now)` and `deliverDue()` do the same
+for the contracts' confirmations. The platform runs them in that order every quarter of an hour,
+which needs `ScheduleModule` in your application. With `invoices.includeCron: false` the platform
+leaves them to your own scheduler, which calls all of them: an invoice is mailed only once its
+document is archived, and a confirmation once it is archived. Each invoice is put together from what
+holds on its issue date:
 
 - **the subscriber** as its record stands, with its customer number;
 - **the issuer** of the contract its charges belong to — the file's, address and all, while the file
@@ -1177,6 +1185,47 @@ recorded in the audit log under that action; an invoice still waiting for its do
 `TenantBillingModule` itself mounts the route with
 `InvoiceDocumentModule.forRoot({ guards, imports })` from `@saasicat/nest/billing`, importing the
 tenant billing module it built.
+
+### The confirmation of each contract
+
+Every contract written since confirmations exist gives its subscriber a confirmation to keep
+(`SC-AUD-016`): the parties, the plan and the add-ons with their prices, rhythm and minimum term,
+what the contract costs per billing period with its tax and the treatment's note, its start, the
+notice period and the version of the terms it was concluded under. It states the whole contract in
+force — a changed contract is confirmed whole again, by the confirmation of the contract written for
+the change —, has no number of its own and names the contract and the day it was written. A
+contract written before is due none: `1.0-a-contract-is-confirmed.postgres.sql` marks those.
+
+It goes the way of an invoice's document — rendered, its checksum recorded, archived write-once,
+mailed once under a claim — in the same quarter-hourly run, by the actor
+`job:platform:contract-confirmations`:
+
+1. **Rendered** by the `ContractConfirmationRenderer` you pass as
+   `invoices.confirmations.renderer` from what the contract records, the footer lines of
+   `invoicing.footer` where the contract names the file's issuer, and the installation's
+   `timeZone`, the same bytes every time. `contractConfirmationRenderer()` from
+   `@saasicat/invoice-zugferd` writes a PDF on the letter the invoices are printed on, labelled in
+   German with English beside it. A contract whose parties a migration copied or that names no
+   issuer waits, recorded as `CONTRACT_CONFIRMATION_HELD` with
+   `CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED`; so does one whose terms the archive does not hold,
+   with `CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED`.
+2. **Archived**: `persistence.entitlement.contractConfirmationArchive` keeps each file in
+   `contract_confirmation_archive`, whose triggers refuse every update, delete and truncate; the
+   start refuses invoicing beside an archive whose triggers are missing or disabled. A renderer
+   updated before the file was archived replaces the recorded rendering, recorded as
+   `CONTRACT_CONFIRMATION_RERENDERED`.
+3. **Mailed** through `InvoiceMailPort.deliverConfirmation({ contract, to, documents })` to the
+   invoice email on the subscriber's record, with the archived confirmation and the terms of the
+   version the contract records as `documents`. A subscriber without an invoice email waits
+   (`CONTRACT_CONFIRMATION_DELIVERY_HELD`); a message your port rejects is recorded as
+   `CONTRACT_CONFIRMATION_DELIVERY_FAILED`, and the next run tries again.
+
+**The operator downloads** a contract's archived confirmation at
+`GET admin/contracts/:id/confirmation`, behind the administration's guards, checked against the
+recorded checksum: a file that no longer matches is answered `409` with
+`CONTRACT_CONFIRMATION_MISMATCH` and recorded under that action, and a contract with none archived
+`409` with `CONTRACT_CONFIRMATION_NOT_ARCHIVED`. Keep `contract_confirmation_archive` in every
+backup, for as long as the contracts it confirms are kept.
 
 ### Cancelling an invoice
 

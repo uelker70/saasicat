@@ -32,12 +32,14 @@ import {
     subscriptionInvoiceChainOf,
     subscriptionInvoiceChargeInvoiced,
     subscriptionInvoiceDocumentChanged,
+    contractConfirmationChanged,
     subscriptionInvoiceColumns,
     subscriptionInvoiceLineColumns,
     toSubscriptionInvoiceCancellationRecord,
     toSubscriptionInvoiceRecord,
     toArchivedInvoiceDocument,
     toArchivedTermsVersion,
+    toArchivedContractConfirmation,
     termsVersionChanged,
     toInvoiceCollectionRecord,
     invoiceCollectionColumns,
@@ -142,6 +144,9 @@ export function createMemoryHarness() {
         invoiceDocuments: [],
         invoiceArchive: [],
         termsVersions: [],
+        contractConfirmations: [],
+        contractConfirmationArchive: [],
+        contractsWrittenBeforeConfirmations: new Set(),
         invoiceCollections: [],
         payments: [],
         settlements: [],
@@ -1459,6 +1464,9 @@ export function createMemoryHarness() {
     };
 
     const seed = {
+        async markContractWrittenBeforeConfirmations(contractId) {
+            state.contractsWrittenBeforeConfirmations.add(contractId);
+        },
         async createSubscriber(input) {
             const row = {
                 id: nextId('subscriber'),
@@ -2089,6 +2097,99 @@ export function createMemoryHarness() {
             .filter((entry) => !state.invoiceLines.some((line) => line.chargeId === entry.id))
             .filter((entry) => entry.origin !== 'correction')
             .map(toSubscriberChargeRecord);
+    /**
+     * The writes that carry a rendered file to its archive and on to the mail,
+     * each on the guard the port names — an invoice's document and a
+     * contract's confirmation keep the same ones. `rowsOf` is read on every
+     * call, because a reset replaces the state.
+     */
+    const renderingMarks = ({ rowsOf, key, changed }) => {
+        const rowOf = (id) => rowsOf().find((candidate) => candidate[key] === id);
+        const byId = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+        return {
+            async recordRendering(id, rendering) {
+                let row = rowOf(id);
+                if (!row) {
+                    row = {
+                        [key]: id,
+                        ...rendering,
+                        archivedAt: null,
+                        deliveryClaimedAt: null,
+                        deliveredAt: null,
+                        deliveredTo: null,
+                    };
+                    rowsOf().push(row);
+                }
+                if (row.checksum !== rendering.checksum) {
+                    throw changed(id, row.checksum, rendering.checksum);
+                }
+                return structuredClone(row);
+            },
+            writes: {
+                async replaceRendering(id, rendering, replaced) {
+                    const row = rowOf(id);
+                    if (!row || row.checksum !== replaced || row.archivedAt !== null) return null;
+                    Object.assign(row, rendering);
+                    return structuredClone(row);
+                },
+                async markArchived(id, at, checksum) {
+                    const row = rowOf(id);
+                    if (!row || row.checksum !== checksum || row.archivedAt !== null) return false;
+                    row.archivedAt = at;
+                    return true;
+                },
+                async claimDelivery(id, at, staleBefore) {
+                    const row = rowOf(id);
+                    if (!row || row.archivedAt === null || row.deliveredAt !== null) return false;
+                    if (row.deliveryClaimedAt !== null && row.deliveryClaimedAt >= staleBefore) {
+                        return false;
+                    }
+                    row.deliveryClaimedAt = at;
+                    return true;
+                },
+                async markDelivered(id, { claimedAt, at, to }) {
+                    const row = rowOf(id);
+                    if (!row || row.archivedAt === null || row.deliveredAt !== null) return false;
+                    if (row.deliveryClaimedAt?.getTime() !== claimedAt.getTime()) return false;
+                    Object.assign(row, { deliveredAt: at, deliveredTo: to });
+                    return true;
+                },
+                async releaseDelivery(id, claimedAt) {
+                    const row = rowOf(id);
+                    if (!row || row.deliveredAt !== null) return;
+                    if (row.deliveryClaimedAt?.getTime() === claimedAt.getTime()) {
+                        row.deliveryClaimedAt = null;
+                    }
+                },
+            },
+            async find(id) {
+                const row = rowOf(id);
+                return row ? structuredClone(row) : null;
+            },
+            /** Of `ids`, those whose file the archive has not confirmed, page by page. */
+            awaiting(ids, { limit, after }) {
+                return ids
+                    .filter((id) => after === undefined || id > after)
+                    .filter((id) => !rowOf(id) || rowOf(id).archivedAt === null)
+                    .sort(byId)
+                    .slice(0, limit);
+            },
+            async awaitingDelivery({ limit, after }) {
+                return rowsOf()
+                    .filter((row) => row.archivedAt !== null && row.deliveredAt === null)
+                    .map((row) => row[key])
+                    .filter((id) => after === undefined || id > after)
+                    .sort(byId)
+                    .slice(0, limit);
+            },
+        };
+    };
+    const invoiceDocuments = renderingMarks({
+        rowsOf: () => state.invoiceDocuments,
+        key: 'invoiceId',
+        changed: subscriptionInvoiceDocumentChanged,
+    });
+
     const subscriptionInvoiceRepository = {
         async listSubscriptionsWithUninvoicedCharges({ limit, after }) {
             const groups = Map.groupBy(uninvoiced(), (charge) =>
@@ -2193,97 +2294,17 @@ export function createMemoryHarness() {
             if (!state.invoices.some((row) => row.id === invoiceId)) {
                 throw new Error(`invoice '${invoiceId}' does not exist`);
             }
-            let row = state.invoiceDocuments.find((candidate) => candidate.invoiceId === invoiceId);
-            if (!row) {
-                row = {
-                    invoiceId,
-                    ...rendering,
-                    archivedAt: null,
-                    deliveryClaimedAt: null,
-                    deliveredAt: null,
-                    deliveredTo: null,
-                };
-                state.invoiceDocuments.push(row);
-            }
-            if (row.checksum !== rendering.checksum) {
-                throw subscriptionInvoiceDocumentChanged(
-                    invoiceId,
-                    row.checksum,
-                    rendering.checksum,
-                );
-            }
-            return structuredClone(row);
+            return invoiceDocuments.recordRendering(invoiceId, rendering);
         },
-        async replaceRendering(invoiceId, rendering, replaced) {
-            const row = state.invoiceDocuments.find(
-                (candidate) => candidate.invoiceId === invoiceId,
+        ...invoiceDocuments.writes,
+        findDocument: invoiceDocuments.find,
+        async listAwaitingDocument(page) {
+            return invoiceDocuments.awaiting(
+                state.invoices.map((row) => row.id),
+                page,
             );
-            if (!row || row.checksum !== replaced || row.archivedAt !== null) return null;
-            Object.assign(row, rendering);
-            return structuredClone(row);
         },
-        async markArchived(invoiceId, at, checksum) {
-            const row = state.invoiceDocuments.find(
-                (candidate) => candidate.invoiceId === invoiceId,
-            );
-            if (!row || row.checksum !== checksum || row.archivedAt !== null) return false;
-            row.archivedAt = at;
-            return true;
-        },
-        async claimDelivery(invoiceId, at, staleBefore) {
-            const row = state.invoiceDocuments.find(
-                (candidate) => candidate.invoiceId === invoiceId,
-            );
-            if (!row || row.archivedAt === null || row.deliveredAt !== null) return false;
-            if (row.deliveryClaimedAt !== null && row.deliveryClaimedAt >= staleBefore) {
-                return false;
-            }
-            row.deliveryClaimedAt = at;
-            return true;
-        },
-        async markDelivered(invoiceId, { claimedAt, at, to }) {
-            const row = state.invoiceDocuments.find(
-                (candidate) => candidate.invoiceId === invoiceId,
-            );
-            if (!row || row.archivedAt === null || row.deliveredAt !== null) return false;
-            if (row.deliveryClaimedAt?.getTime() !== claimedAt.getTime()) return false;
-            Object.assign(row, { deliveredAt: at, deliveredTo: to });
-            return true;
-        },
-        async releaseDelivery(invoiceId, claimedAt) {
-            const row = state.invoiceDocuments.find(
-                (candidate) => candidate.invoiceId === invoiceId,
-            );
-            if (!row || row.deliveredAt !== null) return;
-            if (row.deliveryClaimedAt?.getTime() === claimedAt.getTime()) {
-                row.deliveryClaimedAt = null;
-            }
-        },
-        async findDocument(invoiceId) {
-            const row = state.invoiceDocuments.find(
-                (candidate) => candidate.invoiceId === invoiceId,
-            );
-            return row ? structuredClone(row) : null;
-        },
-        async listAwaitingDocument({ limit, after }) {
-            return state.invoices
-                .map((row) => row.id)
-                .filter((id) => after === undefined || id > after)
-                .filter((id) => {
-                    const document = state.invoiceDocuments.find((row) => row.invoiceId === id);
-                    return !document || document.archivedAt === null;
-                })
-                .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-                .slice(0, limit);
-        },
-        async listAwaitingDelivery({ limit, after }) {
-            return state.invoiceDocuments
-                .filter((row) => row.archivedAt !== null && row.deliveredAt === null)
-                .map((row) => row.invoiceId)
-                .filter((id) => after === undefined || id > after)
-                .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-                .slice(0, limit);
-        },
+        listAwaitingDelivery: invoiceDocuments.awaitingDelivery,
     };
 
     // The archive: a file per invoice, written once, as the table's triggers keep it.
@@ -2332,6 +2353,61 @@ export function createMemoryHarness() {
             return row ? toArchivedTermsVersion(structuredClone(row)) : null;
         },
         // Nothing in memory changes a version it keeps.
+        async protectionProblem() {
+            return null;
+        },
+    };
+
+    // A contract's confirmation: the writes of an invoice's document, keyed by
+    // its contract, over the contracts due one.
+    const confirmations = renderingMarks({
+        rowsOf: () => state.contractConfirmations,
+        key: 'contractId',
+        changed: contractConfirmationChanged,
+    });
+    const contractConfirmationRepository = {
+        async recordRendering(contractId, rendering) {
+            if (!state.contracts.some((row) => row.id === contractId)) {
+                throw new Error(`contract '${contractId}' does not exist`);
+            }
+            return confirmations.recordRendering(contractId, rendering);
+        },
+        ...confirmations.writes,
+        find: confirmations.find,
+        async listAwaitingConfirmation(page) {
+            const due = state.contracts
+                .map((row) => row.id)
+                .filter((id) => !state.contractsWrittenBeforeConfirmations.has(id));
+            return confirmations.awaiting(due, page);
+        },
+        listAwaitingDelivery: confirmations.awaitingDelivery,
+    };
+
+    // Its file, one per contract, written once, as the table's triggers keep it.
+    const contractConfirmationArchive = {
+        async store(confirmation) {
+            if (!state.contracts.some((row) => row.id === confirmation.contractId)) {
+                throw new Error(`contract '${confirmation.contractId}' does not exist`);
+            }
+            const archive = state.contractConfirmationArchive;
+            const stored = archive.find((row) => row.contractId === confirmation.contractId);
+            if (!stored) {
+                archive.push(structuredClone(confirmation));
+            } else if (stored.checksum !== confirmation.checksum) {
+                throw contractConfirmationChanged(
+                    confirmation.contractId,
+                    stored.checksum,
+                    confirmation.checksum,
+                );
+            }
+        },
+        async read(contractId) {
+            const row = state.contractConfirmationArchive.find(
+                (candidate) => candidate.contractId === contractId,
+            );
+            return row ? toArchivedContractConfirmation(structuredClone(row)) : null;
+        },
+        // Nothing in memory changes a confirmation it keeps.
         async protectionProblem() {
             return null;
         },
@@ -3290,6 +3366,8 @@ export function createMemoryHarness() {
             subscriptionInvoiceRepository,
             invoiceArchive,
             termsArchive,
+            contractConfirmationRepository,
+            contractConfirmationArchive,
             invoiceCollectionRepository,
             subscriberPaymentRepository,
             promoCodeRepository,

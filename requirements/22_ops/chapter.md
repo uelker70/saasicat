@@ -318,6 +318,13 @@ _Tested by:_
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
+    - a contract is due its confirmation from this release on, and an archived one is kept
+        - a database from before keeps its contracts unconfirmed, and confirms every one written
+          after
+        - run after db push by an entrypoint that applies every file, it leaves the column as db
+          push made it
+        - an archived confirmation refuses ${what}, and stays
+        - an archived confirmation still refuses a delete after the migration ran a second time
 
 <!-- END proof -->
 
@@ -499,6 +506,13 @@ _Tested by:_
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
+    - a contract is due its confirmation from this release on, and an archived one is kept
+        - a database from before keeps its contracts unconfirmed, and confirms every one written
+          after
+        - run after db push by an entrypoint that applies every file, it leaves the column as db
+          push made it
+        - an archived confirmation refuses ${what}, and stays
+        - an archived confirmation still refuses a delete after the migration ran a second time
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

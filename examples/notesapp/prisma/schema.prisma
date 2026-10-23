@@ -1153,6 +1153,10 @@ model SubscriptionContract {
     termsVersion String?
     // When the subscriber agreed to termsVersion and cancellationNoticeDays.
     agreedAt     DateTime
+    // Whether the contract is due a confirmation (26-contract-confirmation.prisma):
+    // every contract written once confirmations exist, written with the contract
+    // itself; false on those written before, which the migration says so of.
+    confirmationDue Boolean @default(true)
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime

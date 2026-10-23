@@ -78,6 +78,8 @@ export { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.rep
 export { PrismaSubscriptionInvoiceRepository } from './prisma-subscription-invoice.repository.js';
 export { PrismaInvoiceArchive } from './prisma-invoice-archive.js';
 export { PrismaTermsArchive } from './prisma-terms-archive.js';
+export { PrismaContractConfirmationRepository } from './prisma-contract-confirmation.repository.js';
+export { PrismaContractConfirmationArchive } from './prisma-contract-confirmation-archive.js';
 export { PrismaInvoiceCollectionRepository } from './prisma-invoice-collection.repository.js';
 export { PrismaSubscriberPaymentRepository } from './prisma-subscriber-payment.repository.js';
 export { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';

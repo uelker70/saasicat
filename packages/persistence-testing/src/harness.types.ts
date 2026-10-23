@@ -30,6 +30,8 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionInvoiceRepository,
     InvoiceArchivePort,
+    ContractConfirmationArchivePort,
+    ContractConfirmationRepository,
     TermsArchivePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -117,6 +119,21 @@ export interface ContractAdapterInstances {
      * is refused.
      */
     termsArchive?: TermsArchivePort;
+    /**
+     * Enables the confirmation scenarios: a contract written now is due a
+     * confirmation and one written before is not, its rendering is recorded
+     * once, archived once and handed to the mail once — the writes an
+     * invoice's document makes, keyed by the contract. A confirmation belongs
+     * to a contract, so they also need `subscriptionContractRepository`,
+     * `seed.createSubscriber` and `seed.markContractWrittenBeforeConfirmations`.
+     */
+    contractConfirmationRepository?: ContractConfirmationRepository;
+    /**
+     * Enables the confirmation archive scenarios: a contract's confirmation is
+     * stored once, read back byte for byte, and another file for the same
+     * contract is refused. It needs what a contract needs.
+     */
+    contractConfirmationArchive?: ContractConfirmationArchivePort;
     /**
      * Enables the collection scenarios: an invoice is due once it is
      * delivered — by direct debit from its collection date —, an attempt is
@@ -314,6 +331,14 @@ export interface ContractSeed {
      * like the port it stands beside; the contract scenarios report it missing.
      */
     createSubscriber?(input: { legalName: string }): Promise<{ subscriberId: string }>;
+    /**
+     * Marks a contract as one written before confirmations existed, as
+     * `1.0-a-contract-is-confirmed.postgres.sql` leaves every contract it finds:
+     * `confirmationDue` false. No repository writes that, which is the point —
+     * a contract the platform writes is always due one. Optional for the
+     * reason `clearBookingRequestDate` is.
+     */
+    markContractWrittenBeforeConfirmations?(contractId: string): Promise<void>;
 }
 
 export interface PersistenceContractHarness {
@@ -365,6 +390,8 @@ export type ContractGap =
     | 'subscriptionInvoices'
     | 'invoiceArchive'
     | 'termsArchive'
+    | 'contractConfirmations'
+    | 'contractConfirmationArchive'
     | 'invoiceCollections'
     | 'subscriberPayments'
     | 'checkoutOffers'

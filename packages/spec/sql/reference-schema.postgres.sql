@@ -28,6 +28,7 @@
 --   prisma-fragments/23-subscription-invoice-collection.prisma
 --   prisma-fragments/24-subscriber-payments.prisma
 --   prisma-fragments/25-terms.prisma
+--   prisma-fragments/26-contract-confirmation.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -446,6 +447,7 @@ CREATE TABLE "subscription_contracts" (
     "cancellationNoticeDays" INTEGER NOT NULL,
     "termsVersion" TEXT,
     "agreedAt" TIMESTAMP(3) NOT NULL,
+    "confirmationDue" BOOLEAN NOT NULL DEFAULT true,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
     "effectiveUntil" TIMESTAMP(3),
@@ -1109,6 +1111,34 @@ CREATE TABLE "terms_versions" (
     CONSTRAINT "terms_versions_pkey" PRIMARY KEY ("version")
 );
 
+-- CreateTable
+CREATE TABLE "contract_confirmations" (
+    "contractId" TEXT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "mediaType" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "size" INTEGER NOT NULL,
+    "renderedAt" TIMESTAMP(3) NOT NULL,
+    "archivedAt" TIMESTAMP(3),
+    "deliveryClaimedAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "deliveredTo" TEXT,
+
+    CONSTRAINT "contract_confirmations_pkey" PRIMARY KEY ("contractId")
+);
+
+-- CreateTable
+CREATE TABLE "contract_confirmation_archive" (
+    "contractId" TEXT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "mediaType" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "content" BYTEA NOT NULL,
+    "archivedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "contract_confirmation_archive_pkey" PRIMARY KEY ("contractId")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -1493,6 +1523,9 @@ CREATE INDEX "subscriber_reconciliation_cases_subscriberId_closedAt_idx" ON "sub
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriber_reconciliation_cases_refundId_key" ON "subscriber_reconciliation_cases"("refundId");
 
+-- CreateIndex
+CREATE INDEX "contract_confirmations_archivedAt_idx" ON "contract_confirmations"("archivedAt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1672,6 +1705,12 @@ ALTER TABLE "subscriber_reconciliation_cases" ADD CONSTRAINT "subscriber_reconci
 
 -- AddForeignKey
 ALTER TABLE "subscriber_reconciliation_cases" ADD CONSTRAINT "subscriber_reconciliation_cases_reversalId_fkey" FOREIGN KEY ("reversalId") REFERENCES "subscriber_reversals"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "contract_confirmations" ADD CONSTRAINT "contract_confirmations_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "contract_confirmation_archive" ADD CONSTRAINT "contract_confirmation_archive_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.

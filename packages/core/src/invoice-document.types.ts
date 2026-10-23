@@ -14,6 +14,7 @@
 // the file attached, or — for a cancellation invoice and its replacement — to
 // the address given with the cancellation, where one was (`SC-PRIC-094`).
 
+import type { ContractConfirmationMail } from './contract-confirmation.types.js';
 import type { InvoiceCollectionNotice } from './invoice-collection-notice.types.js';
 import type { SubscriptionInvoiceRecord } from './subscription-invoice.types.js';
 
@@ -146,6 +147,14 @@ export interface InvoiceMailPort {
      * again; each notice is sent once however many instances run.
      */
     tell(mail: InvoiceNoticeMail): Promise<void>;
+    /**
+     * Sends a contract's confirmation to the subscriber's invoice email, the
+     * archived file and the terms of the version the contract records attached
+     * (`SC-AUD-016`). The application words it as it words an invoice; it
+     * rejects where the message could not be handed on, and the next run
+     * tries again. Each confirmation is sent once however many instances run.
+     */
+    deliverConfirmation(mail: ContractConfirmationMail): Promise<void>;
 }
 
 /** Where an invoice's document stands, as the invoice records it. */

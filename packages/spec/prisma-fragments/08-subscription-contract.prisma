@@ -65,6 +65,10 @@ model SubscriptionContract {
     termsVersion String?
     // When the subscriber agreed to termsVersion and cancellationNoticeDays.
     agreedAt     DateTime
+    // Whether the contract is due a confirmation (26-contract-confirmation.prisma):
+    // every contract written once confirmations exist, written with the contract
+    // itself; false on those written before, which the migration says so of.
+    confirmationDue Boolean @default(true)
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
@@ -86,6 +90,8 @@ model SubscriptionContract {
     lineItems     ContractLineItem[]
     ledgerEntries SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
     invoices      SubscriptionInvoice[]     // see 20-subscription-invoice.prisma
+    confirmation        ContractConfirmation?        // see 26-contract-confirmation.prisma
+    confirmationArchive ContractConfirmationArchive? // see 26-contract-confirmation.prisma
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

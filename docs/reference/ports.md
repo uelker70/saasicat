@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 22 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 23 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -113,6 +113,16 @@ Returns the current usage for all quotaKeys of a tenant declared via `@DefinesQu
 | `cancelSubscription( tenantId: string, input: CancelSubscriptionInput, ): Promise<CancelSubscriptionResult>`                                                                                                                                                                                                                               | Record a cancellation.                                                                                                                                                                                                              |
 | `endNow?(tenantId: string, input: EndNowInput): Promise<EndSubscriptionNowResult>`                                                                                                                                                                                                                                                         | Ends at `input.at` a subscription whose cancellation was declared for a later date, provided its effective date is still `input.expectedCanceledEffectiveAt`: both cancellation fields become `input.at` and the status `CANCELED`. |
 | `applyOnboardingSelection?( tenantId: string, input: ApplyOnboardingSelectionInput, redeemPromo: RedeemPromoInTransactionCallback \| null, ): Promise<ApplyOnboardingSelectionResult>`                                                                                                                                                     | Atomic onboarding creation: sets plan + cycle + period window AND optionally calls a promo-redeem callback — all in a single consumer transaction.                                                                                  |
+
+### `ContractConfirmationArchivePort`
+
+Keeps each contract's confirmation, unalterable, for as long as the contract is kept.
+
+| Member                                                                    | What it does                                                                                           |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `store(confirmation: ContractConfirmationToArchive): Promise<void>`       | Stores the confirmation under its contract.                                                            |
+| `read(contractId: string): Promise<ArchivedContractConfirmation \| null>` | The confirmation archived under the contract, or `null` where none is.                                 |
+| `protectionProblem(): Promise<string \| null>`                            | Why the archive would let a confirmation it keeps be changed or removed, or `null` where it would not. |
 
 ## Core
 

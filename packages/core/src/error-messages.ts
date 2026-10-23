@@ -323,6 +323,18 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     // ── contract ──
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
         'The contract states {stated} % in {field}, and the tax adapter decides {decided} %.',
+    CONTRACT_CONFIRMATION_CHANGED:
+        'The confirmation of contract {contractId} differs from the one recorded or archived for it ({rendered} instead of {recorded}); the first stays, and the next run settles which one the contract keeps.',
+    CONTRACT_CONFIRMATION_MISMATCH:
+        'The archived confirmation of contract {contractId} does not match the checksum recorded when it was rendered, and is not handed out.',
+    CONTRACT_CONFIRMATION_NOT_ARCHIVED:
+        'Contract {contractId} has no archived confirmation: it was written before confirmations, or its confirmation is still being made.',
+    CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED:
+        'Contract {contractId} does not say who its parties were when it was written — a migration copied them, or it names no issuer — so it is not confirmed.',
+    CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL:
+        'Subscriber {subscriberId} has no invoice email, so its contract confirmation cannot be sent; it is sent once one is entered.',
+    CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED:
+        'The terms of version {version}, which contract {contractId} records, are not in the archive, so its confirmation is not sent without them.',
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED: "Charge '{chargeId}' already stands on an invoice.",
     SUBSCRIPTION_INVOICE_ALREADY_CANCELLED:
         'Invoice {number} is cancelled already. Where it was replaced, a mistake on its replacement is corrected by cancelling the replacement.',

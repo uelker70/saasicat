@@ -3767,3 +3767,110 @@ describe('a contract records the notice period it was concluded with', () => {
         });
     });
 });
+
+// @requirement SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
+describe('a contract is due its confirmation from this release on, and an archived one is kept', () => {
+    const DUE = '1.0-a-contract-is-confirmed.postgres.sql';
+    const ARCHIVE = '1.0-a-contract-confirmation-is-archived.postgres.sql';
+    const CONFIRMATION = Buffer.from('%PDF-1.7 the contract as it was confirmed');
+
+    /** A contract row `id`, written with what the table has by then. */
+    async function aContract(id) {
+        const agreement = await agreementOfAContract();
+        await client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "subscriberId", ' +
+                ` "subscriberSnapshot", "effectiveFrom", "priceSnapshot", "updatedAt"${agreement[0]}) ` +
+                `VALUES ($1, 't-1', 's-1', '{}', NOW(), '{}', NOW()${agreement[1]})`,
+            [id],
+        );
+    }
+
+    const dueOf = async () =>
+        (
+            await client.query(
+                'SELECT "id", "confirmationDue" FROM "subscription_contracts" ORDER BY "id"',
+            )
+        ).rows.map((row) => [row.id, row.confirmationDue]);
+
+    test('a database from before keeps its contracts unconfirmed, and confirms every one written after', async () => {
+        await freshGround();
+        const reference = await fingerprint(client);
+        await client.query('DROP TABLE "contract_confirmation_archive", "contract_confirmations"');
+        await client.query('ALTER TABLE "subscription_contracts" DROP COLUMN "confirmationDue"');
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await aContract('c-before');
+
+        for (const name of [DUE, DUE, ARCHIVE, ARCHIVE]) await apply(name);
+        await aContract('c-after');
+
+        assert.equal(await fingerprint(client), reference);
+        assert.deepEqual(await dueOf(), [
+            ['c-after', true],
+            ['c-before', false],
+        ]);
+    });
+
+    test('run after db push by an entrypoint that applies every file, it leaves the column as db push made it', async () => {
+        await freshGround();
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await aContract('c-1');
+
+        await apply(DUE);
+
+        assert.deepEqual(await dueOf(), [['c-1', true]]);
+    });
+
+    /** The reference schema with the archive's triggers, run `runs` times, and one archived file. */
+    async function anArchivedConfirmation({ runs = 1 } = {}) {
+        await freshGround();
+        for (let run = 0; run < runs; run += 1) await apply(ARCHIVE);
+        await client.query(
+            `INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ('s-1', 'Vorher GmbH', NOW())`,
+        );
+        await aContract('c-1');
+        await client.query(
+            `INSERT INTO "contract_confirmation_archive"
+                 ("contractId", "checksum", "mediaType", "fileName", "content", "archivedAt")
+             VALUES ('c-1', $1, 'application/pdf', 'contract-c-1.pdf', $2, now())`,
+            ['a'.repeat(64), CONFIRMATION],
+        );
+    }
+
+    for (const [what, statement] of [
+        ['an update of the file', `UPDATE "contract_confirmation_archive" SET "content" = '\\x00'`],
+        ['a delete', 'DELETE FROM "contract_confirmation_archive"'],
+        ['a truncate', 'TRUNCATE "contract_confirmation_archive"'],
+        ['a truncate cascading from the contracts', 'TRUNCATE "subscription_contracts" CASCADE'],
+    ]) {
+        test(`an archived confirmation refuses ${what}, and stays`, async () => {
+            await anArchivedConfirmation();
+
+            const error = await refusalOf(statement);
+
+            assert.equal(error.code, '23001');
+            assert.match(
+                error.message,
+                /An archived contract confirmation is kept as it was archived/,
+            );
+            const { rows } = await client.query(
+                'SELECT "content" FROM "contract_confirmation_archive"',
+            );
+            assert.deepEqual(
+                rows.map((row) => Buffer.from(row.content).toString()),
+                [CONFIRMATION.toString()],
+            );
+        });
+    }
+
+    test('an archived confirmation still refuses a delete after the migration ran a second time', async () => {
+        await anArchivedConfirmation({ runs: 2 });
+
+        const error = await refusalOf('DELETE FROM "contract_confirmation_archive"');
+
+        assert.equal(error.code, '23001');
+    });
+});

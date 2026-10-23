@@ -39,6 +39,37 @@ export const LABELS = {
     of: { de: 'von', en: 'of' },
 } as const satisfies Record<string, Label>;
 
+/** What a contract's confirmation calls each of its parts, as the invoice's are called. */
+export const CONFIRMATION_LABELS = {
+    title: { de: 'Vertragsbestätigung', en: 'Contract confirmation' },
+    contract: { de: 'Vertrag', en: 'Contract' },
+    concludedOn: { de: 'Geschlossen am', en: 'Concluded on' },
+    start: { de: 'Beginn', en: 'Start' },
+    billing: { de: 'Abrechnung', en: 'Billing' },
+    minimumTerm: { de: 'Mindestlaufzeit bis', en: 'Minimum term until' },
+    subtotal: { de: 'Zwischensumme netto', en: 'Subtotal net' },
+    discount: { de: 'Rabatt', en: 'Discount' },
+    perPeriod: { de: 'Alle Beträge je Abrechnungszeitraum', en: 'All amounts per billing period' },
+    noticePeriod: { de: 'Kündigungsfrist', en: 'Notice period' },
+    days: { de: 'Tage', en: 'days' },
+    monthly: { de: 'monatlich', en: 'monthly' },
+    yearly: { de: 'jährlich', en: 'yearly' },
+} as const satisfies Record<string, Label>;
+
+/** Which terms the contract was concluded under, in German and in English. */
+export function termsNoteOf(version: string | null): Label {
+    if (version === null) {
+        return {
+            de: 'Für diesen Vertrag wurden keine Allgemeinen Geschäftsbedingungen vereinbart.',
+            en: 'No terms and conditions were agreed for this contract.',
+        };
+    }
+    return {
+        de: `Es gelten die Allgemeinen Geschäftsbedingungen in der Fassung ${version}; sie liegen dieser Bestätigung bei.`,
+        en: `The terms and conditions of version ${version} apply; they are attached to this confirmation.`,
+    };
+}
+
 /** A label as the page shows it: `Rechnung / Invoice`. */
 export function bilingual(label: Label): string {
     return `${label.de} / ${label.en}`;

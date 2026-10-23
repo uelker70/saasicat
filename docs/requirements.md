@@ -22111,6 +22111,70 @@ retrievable and storable when it is concluded.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - without the migration, the triggers it lacks
+        - once the migration ran, none
+        - with the one against an update or a delete disabled, that one
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
+- `packages/invoice-zugferd/tests/renders-a-contract-confirmation.test.js`
+    - a contract’s confirmation
+        - names the parties, the contract’s facts, its lines and what it costs, in German and
+          English
+        - states the notice period and the terms it was concluded under, attached
+        - of a contract concluded under no terms says so, rather than naming a version
+        - carries the treatment’s note where the contract’s treatment has one
+        - renders into the same bytes every time, and dated when the contract was written
+        - runs on over as many pages as its lines need, each numbered
+        - is refused for a contract that names no issuer
+- `packages/nest/tests/a-contract-is-confirmed.test.js`
+    - a contract written is confirmed
+        - rendered from the contract with the footer the file names and the zone it is told in,
+          archived, and mailed with the terms
+        - a second run renders and mails nothing again
+        - a contract that records no terms is mailed with its confirmation alone
+        - a contract that names another entity than the file is confirmed without the file’s footer
+        - a contract written before confirmations is due none
+    - a confirmation that cannot be made yet is held, and said once
+        - for a contract whose parties a migration copied, or that names no issuer
+        - for a contract whose terms the archive does not hold, until it does
+        - for a subscriber without an invoice email, until one is entered
+        - for a mail that fails, which the next run sends
+    - the confirmation handed out again
+        - is the archived file, and refused for no contract, one with none archived, and a file that
+          does not match
+    - the confirmations start
+        - not beside an archive that would let a confirmation it keeps be changed, naming why
+    - the quarter-hourly run
+        - confirms a contract written since the last one
+    - the operator’s download of a confirmation
+        - is served beside the invoices’ documents, and answers the archived file under its name
+        - is not served where the administration is not
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the confirmations every contract is due, beside the invoices
+        - start from the renderer alone, keeping their record and their files in the bundle
+        - are required: invoices do not start without their renderer, which the refusal names
+        - do not start without their ${port}, where the bundle keeps none either
+        - do not start beside an archive that would let a confirmation it keeps be changed
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a contract is due its confirmation from this release on, and an archived one is kept
+        - a database from before keeps its contracts unconfirmed, and confirms every one written
+          after
+        - run after db push by an entrypoint that applies every file, it leaves the column as db
+          push made it
+        - an archived confirmation refuses ${what}, and stays
+        - an archived confirmation still refuses a delete after the migration ran a second time
+
+<!-- END proof -->
+
 ### SC-AUD-018 — An operator finds what one person did by their e-mail, whatever they acted through
 
 🟢 `<app> audit tail --actor <email>` lists the entries of that person from the web and the command
@@ -22448,6 +22512,13 @@ _Tested by:_
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
+    - a contract is due its confirmation from this release on, and an archived one is kept
+        - a database from before keeps its contracts unconfirmed, and confirms every one written
+          after
+        - run after db push by an entrypoint that applies every file, it leaves the column as db
+          push made it
+        - an archived confirmation refuses ${what}, and stays
+        - an archived confirmation still refuses a delete after the migration ran a second time
 
 <!-- END proof -->
 
@@ -22629,6 +22700,13 @@ _Tested by:_
         - a contract whose snapshot names no rhythm stops it, named, and nothing is filled
         - a table without contracts needs neither number, and comes out required
         - a role row-level security hides contracts from stops it, naming the table and the role
+    - a contract is due its confirmation from this release on, and an archived one is kept
+        - a database from before keeps its contracts unconfirmed, and confirms every one written
+          after
+        - run after db push by an entrypoint that applies every file, it leaves the column as db
+          push made it
+        - an archived confirmation refuses ${what}, and stays
+        - an archived confirmation still refuses a delete after the migration ran a second time
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -23649,6 +23727,18 @@ _Source:_ ADR 0007
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/a-confirmation-is-written-on-its-guard.test.js`
+    - where a confirmation stands, as Drizzle writes it
+        - a rendering is one insert that leaves one recorded before alone
+        - a rendering recorded before under another checksum is refused, and none at all is said
+        - ${what} is one update on its guard, answered by whether it took the row
+        - a rendering is replaced in place of the recorded checksum while nothing is archived
+        - the contracts due one are the contracts marked due, joined to their confirmation
+        - a confirmation is found by its contract, and nothing where none is recorded
+    - the Drizzle archive of the confirmations
+        - stores a file by one insert, and compares one stored before by its checksum
+        - reads a file back as it was archived, and nothing where none is
+        - says what would let a kept confirmation change, from the enabled triggers
 - `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
     - a reversal
         - takes the turn of every invoice its payment settles, in one order, then the credits, then
@@ -23765,6 +23855,21 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-contract-confirmation.test.js`
+    - where a contract’s confirmation stands, as the Prisma adapter writes it
+        - ${what}: one guarded update
+        - a guarded write that takes no row answers false
+        - a rendering is inserted conflict-free, and the one found instead is compared by its
+          checksum
+        - a rendering neither written nor found is said
+        - a rendering replaced in place of the one recorded is read back, and nothing where none was
+        - the contracts due one are read over the contracts, those for the mail over the
+          confirmations, page by page
+        - a confirmation is found by its contract, and nothing where none is recorded
+    - the Prisma archive of the confirmations
+        - stores a file once, and compares one stored before by its checksum
+        - reads a file back as bytes of its own, and nothing where none is kept
+        - says what would let a kept confirmation change, from the enabled triggers of its table
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read
@@ -23909,6 +24014,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against a truncate disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - without the migration, the triggers it lacks
+        - once the migration ran, none
+        - with the one against an update or a delete disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -23925,6 +24034,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against an update or a delete disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -24110,6 +24223,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against a truncate disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - without the migration, the triggers it lacks
+        - once the migration ran, none
+        - with the one against an update or a delete disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -24122,6 +24239,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against an update or a delete disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

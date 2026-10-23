@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { MaintenanceService } from '../../maintenance/maintenance.service.js';
+import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
 import { InvoiceCollectionService } from './invoice-collection.service.js';
 import { InvoicePaymentService } from './invoice-payment.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
@@ -9,18 +10,21 @@ import { SubscriptionInvoiceService } from './subscription-invoice.service.js';
 
 /**
  * Issues the invoices the charge journal is owed, every quarter of an hour,
- * then archives their documents, mails them, and collects the ones mailed, so
- * a charge is invoiced, sent and collected within one of being written, and
- * whatever was held back goes on within one of being put right.
+ * then archives their documents, mails them, confirms the contracts written
+ * since the last run, and collects the invoices mailed, so a charge is
+ * invoiced, sent and collected within one of being written, a contract is
+ * confirmed within one of being concluded, and whatever was held back goes on
+ * within one of being put right.
  *
  * Needs `ScheduleModule` in the application. Left out with
  * `tenantBilling.chargeJournal.invoices.includeCron: false` — for a CLI boot,
  * or an application that calls `SubscriptionInvoiceService.issueDue`, then
  * `InvoiceDocumentService.archiveDue` and `deliverDue`, then
+ * `ContractConfirmationService.archiveDue` and `deliverDue`, then
  * `InvoiceCollectionService.collectDue`, from a scheduler of its own. An
  * invoice is mailed only once its document is archived, and collected only
- * once it is mailed, so a scheduler that leaves out a step stops everything
- * after it.
+ * once it is mailed, and a confirmation is mailed only once it is archived, so
+ * a scheduler that leaves out a step stops everything after it.
  */
 @Injectable()
 export class SubscriptionInvoiceCron {
@@ -46,6 +50,11 @@ export class SubscriptionInvoiceCron {
         @Optional()
         @Inject(InvoicePaymentService)
         private readonly payments: InvoicePaymentService | null = null,
+        // Present wherever invoices start: the start refuses them without the
+        // confirmations' renderer, record and archive.
+        @Optional()
+        @Inject(ContractConfirmationService)
+        private readonly confirmations: ContractConfirmationService | null = null,
     ) {}
 
     @Cron('*/15 * * * *', { name: 'subscriptionInvoices' })
@@ -64,7 +73,8 @@ export class SubscriptionInvoiceCron {
             // Each step reads the clock as it starts, and each holds up none of
             // the others: an invoice issued now is archived by the step after,
             // one archived then is mailed by the next, and one mailed then is
-            // collected by the last.
+            // collected by the last. The confirmations go between, on their
+            // own: a contract is confirmed whether or not it was invoiced yet.
             const issued = await this.step('Invoices', () => this.invoices.issueDue(new Date()));
             if (issued && (issued.issued > 0 || issued.held > 0 || issued.failed > 0)) {
                 this.logger.log(
@@ -93,6 +103,32 @@ export class SubscriptionInvoiceCron {
                 this.logger.log(
                     `Invoice mail: ${delivered.delivered} sent, ${delivered.held} held back, ` +
                         `${delivered.failed} to try again.`,
+                );
+            }
+            const confirmed = await this.step('Contract confirmations', () =>
+                this.confirmations?.archiveDue(new Date()),
+            );
+            if (
+                confirmed &&
+                (confirmed.archived > 0 || confirmed.held > 0 || confirmed.failed > 0)
+            ) {
+                this.logger.log(
+                    `Contract confirmations: ${confirmed.archived} archived, ${confirmed.held} ` +
+                        `held back, ${confirmed.failed} to try again.`,
+                );
+            }
+            const confirmationsSent = await this.step('Contract confirmation mail', () =>
+                this.confirmations?.deliverDue(),
+            );
+            if (
+                confirmationsSent &&
+                (confirmationsSent.delivered > 0 ||
+                    confirmationsSent.held > 0 ||
+                    confirmationsSent.failed > 0)
+            ) {
+                this.logger.log(
+                    `Contract confirmation mail: ${confirmationsSent.delivered} sent, ` +
+                        `${confirmationsSent.held} held back, ${confirmationsSent.failed} to try again.`,
                 );
             }
             const collected = await this.step('Invoice collection', () =>

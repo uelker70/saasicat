@@ -28,7 +28,13 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
 export function invoicingStartProblems(
     settings: Pick<PlanCatalogSettings, 'invoicing' | 'issuer' | 'payments' | 'terms'>,
     wired:
-        | { renderer?: unknown; archive?: unknown; mail?: unknown; collections?: unknown }
+        | {
+              renderer?: unknown;
+              archive?: unknown;
+              mail?: unknown;
+              collections?: unknown;
+              confirmations?: { renderer?: unknown; repository?: unknown; archive?: unknown };
+          }
         | undefined,
     adapterBound: boolean,
 ): string[] {
@@ -88,6 +94,31 @@ export function invoicingStartProblems(
     }
     if (!wired.mail) {
         problems.push('invoices reach the subscriber by email: pass chargeJournal.invoices.mail.');
+    }
+    // Every contract an invoice is issued for is confirmed to the subscriber
+    // with its terms (`SC-AUD-016`); without these the contracts would wait
+    // for a confirmation nothing makes.
+    const confirmations = wired.confirmations;
+    if (!confirmations?.renderer) {
+        problems.push(
+            'every contract is confirmed to the subscriber: pass ' +
+                'chargeJournal.invoices.confirmations.renderer, such as ' +
+                "@saasicat/invoice-zugferd's contractConfirmationRenderer().",
+        );
+    }
+    if (confirmations && !confirmations.repository) {
+        problems.push(
+            'contract confirmations need a record of where each stands: pass ' +
+                'chargeJournal.invoices.confirmations.repository, such as ' +
+                'persistence.entitlement.contractConfirmationRepository.',
+        );
+    }
+    if (confirmations && !confirmations.archive) {
+        problems.push(
+            'contract confirmations need an archive: pass ' +
+                'chargeJournal.invoices.confirmations.archive, such as ' +
+                'persistence.entitlement.contractConfirmationArchive.',
+        );
     }
     // An installation that takes payment methods issues invoices that
     // announce a collection; without the attempts nothing would make it.

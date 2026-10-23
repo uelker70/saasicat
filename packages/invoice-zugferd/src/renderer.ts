@@ -8,16 +8,14 @@
 // same bytes every time (`SC-AUD-019`).
 
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 
-import fontkit from '@pdf-lib/fontkit';
 import { AFRelationship, PDFDocument, PDFHexString, PDFName } from 'pdf-lib';
 import type { InvoiceDocument, InvoiceRenderer, SubscriptionInvoiceRecord } from '@saasicat/core';
 
 import { ciiOf } from './cii.js';
 import { titleOf } from './correction.js';
-import { layOut, type Fonts } from './layout.js';
-import { withEvenGlyphs } from './truetype.js';
+import { embedFonts, type FontFile } from './fonts.js';
+import { layOut } from './layout.js';
 import { xmpOf } from './xmp.js';
 
 /** The name the Factur-X standard gives the embedded XML. */
@@ -27,8 +25,7 @@ const EN_16931_LEVEL = 'EN 16931';
 const PRODUCER = 'SaaSiCat';
 const CREATOR = '@saasicat/invoice-zugferd';
 
-/** A font's bytes: TrueType or OpenType. */
-export type FontFile = Uint8Array;
+export type { FontFile } from './fonts.js';
 
 export interface ZugferdRendererOptions {
     /**
@@ -37,17 +34,6 @@ export interface ZugferdRendererOptions {
      * character neither has a glyph for is shown as `?`.
      */
     fonts?: { regular: FontFile; bold: FontFile };
-}
-
-/** The Roboto the package ships, read once from beside its build. */
-let shipped: Promise<{ regular: FontFile; bold: FontFile }> | undefined;
-
-function shippedFonts(): Promise<{ regular: FontFile; bold: FontFile }> {
-    shipped ??= Promise.all([
-        readFile(new URL('../fonts/Roboto-Regular.ttf', import.meta.url)),
-        readFile(new URL('../fonts/Roboto-Bold.ttf', import.meta.url)),
-    ]).then(([regular, bold]) => ({ regular, bold }));
-    return shipped;
 }
 
 /** Sixteen bytes that identify the file of `invoice`, the same for every rendering of it. */
@@ -63,16 +49,11 @@ export class ZugferdInvoiceRenderer implements InvoiceRenderer {
     constructor(private readonly options: ZugferdRendererOptions = {}) {}
 
     async render(invoice: SubscriptionInvoiceRecord): Promise<InvoiceDocument> {
-        const files = this.options.fonts ?? (await shippedFonts());
         // pdf-lib's suffixes for the names it gives fonts and resources come
         // from a generator seeded alike for every document, so they repeat
         // from one rendering to the next; the suite that renders twice says so.
         const pdf = await PDFDocument.create({ updateMetadata: false });
-        pdf.registerFontkit(fontkit);
-        const fonts: Fonts = {
-            regular: await pdf.embedFont(withEvenGlyphs(files.regular), { subset: true }),
-            bold: await pdf.embedFont(withEvenGlyphs(files.bold), { subset: true }),
-        };
+        const fonts = await embedFonts(pdf, this.options.fonts);
 
         layOut(pdf, invoice, fonts);
 

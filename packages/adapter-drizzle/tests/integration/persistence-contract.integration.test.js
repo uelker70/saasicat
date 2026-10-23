@@ -22,7 +22,11 @@ import { dirname, join } from 'node:path';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, sql } from 'drizzle-orm';
-import { INVOICE_ARCHIVE_TRIGGERS, TERMS_ARCHIVE_TRIGGERS } from '@saasicat/core';
+import {
+    CONFIRMATION_ARCHIVE_TRIGGERS,
+    INVOICE_ARCHIVE_TRIGGERS,
+    TERMS_ARCHIVE_TRIGGERS,
+} from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     DrizzleAuditAdapter,
@@ -56,6 +60,8 @@ import {
     DrizzleSubscriptionInvoiceRepository,
     DrizzleInvoiceArchive,
     DrizzleTermsArchive,
+    DrizzleContractConfirmationRepository,
+    DrizzleContractConfirmationArchive,
     DrizzleInvoiceCollectionRepository,
     DrizzleSubscriberPaymentRepository,
     DrizzleSubscriberRepository,
@@ -75,6 +81,8 @@ const PLATFORM_TABLES = [
     'subscription_invoice_collections',
     'subscription_invoice_archive',
     'terms_versions',
+    'contract_confirmation_archive',
+    'contract_confirmations',
     'subscription_invoice_documents',
     'subscription_invoice_lines',
     'subscription_invoices',
@@ -140,6 +148,8 @@ function createHarness() {
             subscriptionInvoiceRepository: new DrizzleSubscriptionInvoiceRepository(db),
             invoiceArchive: new DrizzleInvoiceArchive(db),
             termsArchive: new DrizzleTermsArchive(db),
+            contractConfirmationRepository: new DrizzleContractConfirmationRepository(db),
+            contractConfirmationArchive: new DrizzleContractConfirmationArchive(db),
             invoiceCollectionRepository: new DrizzleInvoiceCollectionRepository(db),
             subscriberPaymentRepository: new DrizzleSubscriberPaymentRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
@@ -224,6 +234,12 @@ function createHarness() {
                     .update(saasicatSchema.subscriptionBundles)
                     .set({ billingCycle })
                     .where(eq(saasicatSchema.subscriptionBundles.id, subscriptionBundleId));
+            },
+            async markContractWrittenBeforeConfirmations(contractId) {
+                await db
+                    .update(saasicatSchema.subscriptionContracts)
+                    .set({ confirmationDue: false })
+                    .where(eq(saasicatSchema.subscriptionContracts.id, contractId));
             },
             async createSubscriber(input) {
                 const id = randomUUID();
@@ -351,6 +367,35 @@ describe('the terms archive says whether it keeps the versions it holds', () => 
         const problem = await archive.protectionProblem();
 
         assert.ok(problem.includes(`lacks ${notEmptied},`), problem);
+    });
+});
+
+// @requirement SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
+describe('the confirmation archive says whether it keeps the confirmations it holds', () => {
+    const migration = aProtectingMigration({
+        file: '1.0-a-contract-confirmation-is-archived.postgres.sql',
+        table: 'contract_confirmation_archive',
+        triggers: CONFIRMATION_ARCHIVE_TRIGGERS,
+    });
+    const problem = () => new DrizzleContractConfirmationArchive(db).protectionProblem();
+
+    test('without the migration, the triggers it lacks', async () => {
+        const [kept, notEmptied] = CONFIRMATION_ARCHIVE_TRIGGERS;
+
+        assert.ok((await problem()).includes(`lacks ${kept} and ${notEmptied},`));
+    });
+
+    test('once the migration ran, none', async () => {
+        await migration.apply();
+
+        assert.equal(await problem(), null);
+    });
+
+    test('with the one against an update or a delete disabled, that one', async () => {
+        const [kept] = CONFIRMATION_ARCHIVE_TRIGGERS;
+        await migration.disable(kept);
+
+        assert.ok((await problem()).includes(`lacks ${kept},`));
     });
 });
 

@@ -162,6 +162,7 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     // The version of the terms named when the contract was written; null where none was.
     termsVersion: text('termsVersion'),
     agreedAt: ts('agreedAt').notNull(),
+    confirmationDue: boolean('confirmationDue').notNull().default(true),
     createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
@@ -898,6 +899,30 @@ export const subscriptionInvoiceArchive = pgTable('subscription_invoice_archive'
 /** The versions of the operator's terms, one PDF each, written once (fragment 25). */
 export const termsVersions = pgTable('terms_versions', {
     version: text('version').primaryKey(),
+    checksum: text('checksum').notNull(),
+    mediaType: text('mediaType').notNull(),
+    fileName: text('fileName').notNull(),
+    content: bytes('content').notNull(),
+    archivedAt: ts('archivedAt').notNull(),
+});
+
+/** Where a contract's confirmation stands, recorded once before its file is archived. */
+export const contractConfirmations = pgTable('contract_confirmations', {
+    contractId: text('contractId').primaryKey(),
+    checksum: text('checksum').notNull(),
+    mediaType: text('mediaType').notNull(),
+    fileName: text('fileName').notNull(),
+    size: integer('size').notNull(),
+    renderedAt: ts('renderedAt').notNull(),
+    archivedAt: ts('archivedAt'),
+    deliveryClaimedAt: ts('deliveryClaimedAt'),
+    deliveredAt: ts('deliveredAt'),
+    deliveredTo: text('deliveredTo'),
+});
+
+/** The file of a contract's confirmation, written once. */
+export const contractConfirmationArchive = pgTable('contract_confirmation_archive', {
+    contractId: text('contractId').primaryKey(),
     checksum: text('checksum').notNull(),
     mediaType: text('mediaType').notNull(),
     fileName: text('fileName').notNull(),

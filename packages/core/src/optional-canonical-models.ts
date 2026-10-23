@@ -32,6 +32,8 @@ export const OPTIONAL_CANONICAL_MODELS = {
         'entitlement.subscriberPaymentRepository',
     ],
     SubscriptionInvoiceArchive: ['entitlement.subscriptionInvoiceArchive'],
+    ContractConfirmation: ['entitlement.contractConfirmationRepository'],
+    ContractConfirmationArchive: ['entitlement.contractConfirmationArchive'],
     SubscriptionInvoiceCollection: [
         'entitlement.invoiceCollectionRepository',
         'entitlement.subscriberPaymentRepository',

@@ -326,6 +326,18 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── contract ──
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED:
         'Der Vertrag nennt in {field} {stated} %, der Steueradapter entscheidet {decided} %.',
+    CONTRACT_CONFIRMATION_CHANGED:
+        'Die Bestätigung des Vertrags {contractId} weicht von der festgehaltenen oder archivierten ab ({rendered} statt {recorded}); die erste bleibt, und der nächste Lauf klärt, welche der Vertrag behält.',
+    CONTRACT_CONFIRMATION_MISMATCH:
+        'Die archivierte Bestätigung des Vertrags {contractId} passt nicht zur beim Rendern festgehaltenen Prüfsumme und wird nicht herausgegeben.',
+    CONTRACT_CONFIRMATION_NOT_ARCHIVED:
+        'Für den Vertrag {contractId} ist keine Bestätigung archiviert: Er wurde vor den Bestätigungen geschlossen, oder seine Bestätigung wird noch erstellt.',
+    CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED:
+        'Der Vertrag {contractId} sagt nicht, wer seine Parteien beim Schreiben waren – eine Migration hat sie übernommen, oder er nennt keinen Aussteller –, deshalb wird er nicht bestätigt.',
+    CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL:
+        'Der Abonnent {subscriberId} hat keine Rechnungs-E-Mail; seine Vertragsbestätigung wird versendet, sobald eine eingetragen ist.',
+    CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED:
+        'Die AGB der Version {version}, die der Vertrag {contractId} festhält, liegen nicht im Archiv; seine Bestätigung wird ohne sie nicht versendet.',
     SUBSCRIPTION_INVOICE_CHARGE_INVOICED:
         "Die Forderung '{chargeId}' steht bereits auf einer Rechnung.",
     SUBSCRIPTION_INVOICE_ALREADY_CANCELLED:

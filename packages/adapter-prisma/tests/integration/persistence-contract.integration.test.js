@@ -25,6 +25,7 @@ import {
     CATALOG_ERROR_CODES,
     INVOICE_ARCHIVE_TRIGGERS,
     TERMS_ARCHIVE_TRIGGERS,
+    CONFIRMATION_ARCHIVE_TRIGGERS,
     isPersistenceRefusal,
 } from '@saasicat/core';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
@@ -51,6 +52,8 @@ import {
     PrismaSubscriptionInvoiceRepository,
     PrismaInvoiceArchive,
     PrismaTermsArchive,
+    PrismaContractConfirmationRepository,
+    PrismaContractConfirmationArchive,
     PrismaInvoiceCollectionRepository,
     PrismaSubscriberPaymentRepository,
     PrismaSubscriberRepository,
@@ -80,6 +83,8 @@ const PLATFORM_TABLES = [
     'subscription_invoice_settlements',
     'subscriber_payments',
     'subscription_invoice_collections',
+    'contract_confirmation_archive',
+    'contract_confirmations',
     'subscription_invoice_archive',
     'terms_versions',
     'subscription_invoice_documents',
@@ -150,6 +155,8 @@ function createHarness() {
             subscriptionInvoiceRepository: new PrismaSubscriptionInvoiceRepository(prisma),
             invoiceArchive: new PrismaInvoiceArchive(prisma),
             termsArchive: new PrismaTermsArchive(prisma),
+            contractConfirmationRepository: new PrismaContractConfirmationRepository(prisma),
+            contractConfirmationArchive: new PrismaContractConfirmationArchive(prisma),
             invoiceCollectionRepository: new PrismaInvoiceCollectionRepository(prisma),
             subscriberPaymentRepository: new PrismaSubscriberPaymentRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
@@ -223,6 +230,12 @@ function createHarness() {
                 await prisma.subscriptionBundle.update({
                     where: { id: subscriptionBundleId },
                     data: { billingCycle },
+                });
+            },
+            async markContractWrittenBeforeConfirmations(contractId) {
+                await prisma.subscriptionContract.update({
+                    where: { id: contractId },
+                    data: { confirmationDue: false },
                 });
             },
             async createSubscriber(input) {
@@ -351,6 +364,40 @@ describe('the terms archive says whether it keeps the versions it holds', () => 
         const problem = await archive.protectionProblem();
 
         assert.ok(problem.includes(`lacks ${kept},`), problem);
+    });
+});
+
+// @requirement SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
+describe('the confirmation archive says whether it keeps the confirmations it holds', () => {
+    const archive = new PrismaContractConfirmationArchive(prisma);
+    const migration = aProtectingMigration({
+        file: '1.0-a-contract-confirmation-is-archived.postgres.sql',
+        table: 'contract_confirmation_archive',
+        triggers: CONFIRMATION_ARCHIVE_TRIGGERS,
+    });
+
+    test('built from the reference schema alone, it names both triggers', async () => {
+        const problem = await archive.protectionProblem();
+
+        assert.ok(
+            problem.includes(`lacks ${CONFIRMATION_ARCHIVE_TRIGGERS.join(' and ')},`),
+            problem,
+        );
+    });
+
+    test('with the migration applied, nothing', async () => {
+        await migration.apply();
+
+        assert.equal(await archive.protectionProblem(), null);
+    });
+
+    test('with the one against a truncate disabled, that one', async () => {
+        const [, notEmptied] = CONFIRMATION_ARCHIVE_TRIGGERS;
+        await migration.disable(notEmptied);
+
+        const problem = await archive.protectionProblem();
+
+        assert.ok(problem.includes(`lacks ${notEmptied},`), problem);
     });
 });
 

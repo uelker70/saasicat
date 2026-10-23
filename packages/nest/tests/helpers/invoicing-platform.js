@@ -9,7 +9,7 @@ import { Test } from '@nestjs/testing';
 
 import { SaaSiCatModule } from '../../dist/platform/index.js';
 import { FakeAppliedSettingsPort } from './applied-settings-port.js';
-import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
+import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER } from './invoice-run.js';
 import { bootable, everythingOnOptions } from './operator-routes.js';
 import {
@@ -28,12 +28,17 @@ export const invoicesUnder = (...prefixes) => ({
     listIssuedNumberPrefixes: async () => prefixes,
 });
 
-/** What the application wires for invoices: the repository and the ports of their documents. */
+/**
+ * What the application wires for invoices: the repository, the ports of their
+ * documents, and the renderer of the contracts' confirmations, whose record
+ * and archive the platform takes from the persistence bundle.
+ */
 export const wiredInvoices = (overrides = {}) => ({
     invoiceRepository: invoicesUnder(),
     renderer: aRenderer(),
     archive: anArchive(),
     mail: aMailbox(),
+    confirmations: { renderer: aConfirmationRenderer() },
     includeCron: false,
     ...overrides,
 });
