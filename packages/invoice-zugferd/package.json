@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/invoice-zugferd",
-    "version": "1.0.0-rc.27",
+    "version": "1.0.0-rc.28",
     "description": "The default invoice renderer for SaaSiCat: renders an issued invoice into ZUGFeRD in the EN 16931 profile — a PDF/A-3 a person reads, labelled in German with English beside it, carrying the CII XML a program reads — and a contract into the confirmation its subscriber keeps. Implements the InvoiceRenderer and ContractConfirmationRenderer ports from @saasicat/core.",
     "type": "module",
     "main": "./dist/index.cjs",
