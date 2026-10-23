@@ -8,5 +8,6 @@ the feature-requires rules — and a package named "types" gave a reader no reas
 function in it. Pricing and proration are planned to consolidate here next.
 
 Every import moves as-is: `from '@saasicat/types'` becomes `from '@saasicat/core'`, and
-`npx @saasicat/cli@latest codemod v1 --dir=.` rewrites it along with the rest of the 1.0 rename.
+`pnpm exec saasicat codemod v1 --dir=.`, from a project with `@saasicat/cli` installed, rewrites it
+along with the rest of the 1.0 rename.
 `@saasicat/types` stays on npm for the 0.x line and gets no 1.0.
