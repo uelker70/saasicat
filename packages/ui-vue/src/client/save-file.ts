@@ -4,6 +4,15 @@
 
 import type { DownloadedFile } from './resources/resource-request.js';
 
+/**
+ * How long a saved file's object URL is kept. A browser may read the blob
+ * only after the click has returned, and one that starts the download later
+ * than that would find the address gone and save an empty or failed file;
+ * FileSaver.js keeps it this long for that reason. A file is held that long and
+ * no longer.
+ */
+export const OBJECT_URL_LIFETIME_MS = 40_000;
+
 /** What saving a file needs of the browser; a test passes its own. */
 export interface SaveFileEnvironment {
     createObjectURL(file: Blob): string;
@@ -16,10 +25,8 @@ export interface SaveFileEnvironment {
 export function browserSaveFileEnvironment(): SaveFileEnvironment {
     return {
         createObjectURL: (file) => URL.createObjectURL(file),
-        // A turn later: a link revoked in the task that clicked it can lose its
-        // download in a browser that starts it asynchronously.
         revokeObjectURL: (url) => {
-            setTimeout(() => URL.revokeObjectURL(url), 0);
+            setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_LIFETIME_MS);
         },
         follow: (url, fileName) => {
             const link = document.createElement('a');
@@ -34,8 +41,9 @@ export function browserSaveFileEnvironment(): SaveFileEnvironment {
 }
 
 /**
- * Saves `file`. The object URL is revoked once the link was followed, so the
- * bytes are not kept for as long as the page lives.
+ * Saves `file`. The object URL is let go once the link was followed — by the
+ * browser's environment `OBJECT_URL_LIFETIME_MS` later —, so the bytes are not
+ * kept for as long as the page lives.
  */
 export function saveFile(
     file: DownloadedFile,

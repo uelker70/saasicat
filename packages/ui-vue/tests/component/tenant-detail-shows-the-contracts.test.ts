@@ -75,6 +75,19 @@ const PAYMENTS = {
             owed: 0,
             correction: null,
             cancelledBy: null,
+            documentArchived: true,
+        },
+        {
+            id: 'inv-2',
+            number: 'AHP-2026-000002',
+            issuedAt: '2026-03-01T05:15:00.000Z',
+            dueDate: '2026-03-15',
+            totalGross: 58.31,
+            currency: 'EUR',
+            owed: 58.31,
+            correction: null,
+            cancelledBy: null,
+            documentArchived: false,
         },
     ],
     openCases: [],
@@ -114,12 +127,17 @@ async function settle(): Promise<void> {
 
 async function mountPage({
     manifest = SERVING,
+    contracts = CONTRACTS,
     confirmation = async (): Promise<unknown> => ({
         content: PDF,
         mediaType: 'application/pdf',
         fileName: 'contract-confirmation-c-2.pdf',
     }),
-}: { manifest?: unknown; confirmation?: () => Promise<unknown> } = {}) {
+}: {
+    manifest?: unknown;
+    contracts?: { contracts: AdminTenantContract[] };
+    confirmation?: () => Promise<unknown>;
+} = {}) {
     const asked: string[] = [];
     const notices: Array<[string, string]> = [];
     const router = createRouter({
@@ -136,7 +154,7 @@ async function mountPage({
         payments: async () => PAYMENTS,
         contracts: async (slug: string) => {
             asked.push(`contracts ${slug}`);
-            return CONTRACTS;
+            return contracts;
         },
         contractConfirmation: async (id: string) => {
             asked.push(`confirmation ${id}`);
@@ -244,6 +262,35 @@ describe("the tenant detail shows the tenant's contracts", () => {
         expect(new Uint8Array(await saved[0].blob.arrayBuffer())).toEqual(PDF);
     });
 
+    test('while one confirmation is on its way, the other downloads wait', async () => {
+        const archived = {
+            state: 'awaiting-mail' as const,
+            archivedAt: '2026-02-01T09:15:00.000Z',
+            deliveredAt: null,
+            deliveredTo: null,
+        };
+        const { wrapper } = await mountPage({
+            contracts: {
+                contracts: [
+                    contract('c-5', 'awaiting-mail', { confirmation: archived }),
+                    contract('c-4', 'awaiting-mail', {
+                        concludedAt: '2026-01-04T09:00:00.000Z',
+                        confirmation: archived,
+                    }),
+                ],
+            },
+            confirmation: () => new Promise(() => {}),
+        });
+        const buttons = () =>
+            sectionTitled(wrapper, 'Contracts')?.findAll('button[aria-label^="Download"]') ?? [];
+        expect(buttons().length, 'the premise').toBe(2);
+
+        await buttons()[0].trigger('click');
+        await settle();
+
+        expect(buttons()[1].attributes('disabled'), 'the other is still offered').toBeDefined();
+    });
+
     test('a download that fails says so, and saves nothing', async () => {
         const { wrapper, notices } = await mountPage({
             confirmation: async () => {
@@ -283,6 +330,17 @@ describe("the tenant detail downloads an invoice's document", () => {
             true,
         );
         expect(wrapper.find('button[aria-label="Download invoice AHP-2026-000001"]').exists()).toBe(
+            false,
+        );
+    });
+
+    test('only for an invoice whose document is archived', async () => {
+        const { wrapper } = await mountPage();
+
+        expect(wrapper.find('button[aria-label="Download invoice AHP-2026-000001"]').exists()).toBe(
+            true,
+        );
+        expect(wrapper.find('button[aria-label="Download invoice AHP-2026-000002"]').exists()).toBe(
             false,
         );
     });

@@ -354,6 +354,9 @@ function invoiceStore(journal) {
                 { limit, after },
             );
         },
+        async listArchivedDocuments(invoiceIds) {
+            return [...new Set(invoiceIds)].filter((id) => documents.get(id)?.archivedAt).sort();
+        },
     };
     return store;
 }

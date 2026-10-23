@@ -717,6 +717,10 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-drizzle/tests/the-archived-invoice-documents-are-read.test.js`
+    - the invoices whose document is archived
+        - are read by one statement over the ids asked for, the archived ones only
+        - of no invoice asks nothing
 - `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
     - a reversal
         - takes the turn of every invoice its payment settles, in one order, then the credits, then
@@ -854,6 +858,8 @@ _Tested by:_
         - the archive’s confirmation is written only for the recorded checksum, once
         - the mail is claimed, recorded and let go each by one write on the claim it names
         - the waiting lists are read page by page, after the id given
+        - the invoices whose document is archived are read out of those asked for, and none asked
+          for asks nothing
         - where it stands is read by the invoice, and nothing where none is recorded
     - the Prisma archive
         - stores a file conflict-free, and asks for nothing more where it was written

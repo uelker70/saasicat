@@ -2579,7 +2579,10 @@ before is not confirmed. Confirmations go with invoices: the start refuses invoi
   Empty `contract_confirmations` and `contract_confirmation_archive` between scenarios.
 - **The administration** shows a tenant's contracts with where each confirmation stands, and
   downloads an archived confirmation and an invoice's archived document beside the tenant, where
-  the manifest announces `contracts.read` and `invoices.read`. **An `HttpClient` of your own**
+  the manifest announces `contracts.read` and `invoices.read` — an invoice's once its document is
+  archived, which `AdminTenantInvoice.documentArchived` says. **A `SubscriptionInvoiceRepository`
+  of your own** answers `listArchivedDocuments(invoiceIds)` with those whose document the archive
+  confirmed. **An `HttpClient` of your own**
   handles `binary: true` and gives its responses `bytes()`, the body as it arrived; without it the
   downloads say so, and every other request works as before. Both shipped clients have it.
 - **An application that words refusals itself** adds `CONTRACT_CONFIRMATION_CHANGED`,

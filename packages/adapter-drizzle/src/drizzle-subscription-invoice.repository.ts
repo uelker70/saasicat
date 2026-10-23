@@ -498,6 +498,24 @@ export class DrizzleSubscriptionInvoiceRepository implements SubscriptionInvoice
             .limit(page.limit);
         return rows.map((row) => row.invoiceId);
     }
+
+    async listArchivedDocuments(
+        invoiceIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        if (invoiceIds.length === 0) return [];
+        const rows = await resolveDb(this.db, tx)
+            .select({ invoiceId: subscriptionInvoiceDocuments.invoiceId })
+            .from(subscriptionInvoiceDocuments)
+            .where(
+                and(
+                    inArray(subscriptionInvoiceDocuments.invoiceId, [...invoiceIds]),
+                    isNotNull(subscriptionInvoiceDocuments.archivedAt),
+                ),
+            )
+            .orderBy(asc(subscriptionInvoiceDocuments.invoiceId));
+        return rows.map((row) => row.invoiceId);
+    }
 }
 
 /**

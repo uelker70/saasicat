@@ -98,6 +98,9 @@ export class SubscriberReconciliationService {
         const subscriber = await this.subscribers.findByTenantId(tenantId);
         if (!subscriber) return { invoices: [], openCases: [] };
         const invoices = await this.invoices.listBySubscriber(subscriber.id);
+        const archived = new Set(
+            await this.invoices.listArchivedDocuments(invoices.map((invoice) => invoice.id)),
+        );
         const owed = new Map(
             (await this.payments.owedByInvoices(invoices.map((invoice) => invoice.id))).map(
                 (each) => [each.invoiceId, each.owed],
@@ -134,6 +137,7 @@ export class SubscriberReconciliationService {
                     ? { kind: invoice.correction.kind, of: invoice.correction.of }
                     : null,
                 cancelledBy: cancelledBy.get(invoice.id) ?? null,
+                documentArchived: archived.has(invoice.id),
             })),
             openCases: await this.viewsOf(open),
         };

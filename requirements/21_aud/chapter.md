@@ -473,6 +473,8 @@ _Tested by:_
         - whose responses have no bytes() is said, rather than read as text
     - a downloaded file saved
         - is handed over with exactly its bytes and name, and its address let go
+    - the browser's save
+        - keeps the object URL for its lifetime, and lets it go then
     - a download from a row
         - saves the file, says which row is on its way, and takes one at a time
         - that fails tells the operator why, and leaves the row free for another try
@@ -483,10 +485,12 @@ _Tested by:_
     - the tenant detail shows the tenant's contracts
         - every one, the newest first, with what it records and where its confirmation stands
         - downloads an archived confirmation under the name it was archived with
+        - while one confirmation is on its way, the other downloads wait
         - a download that fails says so, and saves nothing
         - nothing of them where the platform does not serve them
     - the tenant detail downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not
+        - only for an invoice whose document is archived
         - beside the invoice, under the name it was issued with
 
 <!-- END proof -->

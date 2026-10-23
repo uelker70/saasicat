@@ -224,6 +224,26 @@ describe('where an invoice’s document stands, as the Prisma adapter writes it'
         });
     });
 
+    test('the invoices whose document is archived are read out of those asked for, and none asked for asks nothing', async () => {
+        const client = fakeClient({ rows: [{ invoiceId: 'invoice-1' }] });
+        const repository = new PrismaSubscriptionInvoiceRepository(client);
+
+        assert.deepEqual(await repository.listArchivedDocuments(['invoice-1', 'invoice-2']), [
+            'invoice-1',
+        ]);
+        assert.deepEqual(only(client, 'document.findMany'), {
+            where: { invoiceId: { in: ['invoice-1', 'invoice-2'] }, archivedAt: { not: null } },
+            select: { invoiceId: true },
+            orderBy: { invoiceId: 'asc' },
+        });
+        const idle = fakeClient();
+        assert.deepEqual(
+            await new PrismaSubscriptionInvoiceRepository(idle).listArchivedDocuments([]),
+            [],
+        );
+        assert.equal(idle.calls.length, 0);
+    });
+
     test('where it stands is read by the invoice, and nothing where none is recorded', async () => {
         const repository = new PrismaSubscriptionInvoiceRepository(fakeClient());
 

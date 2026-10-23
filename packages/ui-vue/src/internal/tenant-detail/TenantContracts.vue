@@ -31,6 +31,7 @@
                         formatMessage(msg.contracts.downloadConfirmation, { date: row.concluded })
                     "
                     :loading="downloads.downloading.value === row.id"
+                    :disable="downloads.downloading.value !== null"
                     @click="downloads.download(row.id)"
                 />
             </template>

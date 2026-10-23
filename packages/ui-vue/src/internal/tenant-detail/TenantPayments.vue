@@ -13,7 +13,7 @@
             >
                 <template v-if="documents || cancellation.available.value" #row-actions="{ row }">
                     <q-btn
-                        v-if="documents"
+                        v-if="documents && row.documentArchived"
                         flat
                         dense
                         no-caps
@@ -22,6 +22,7 @@
                             formatMessage(msg.payments.downloadInvoice, { number: row.number })
                         "
                         :loading="documents.downloading.value === row.id"
+                        :disable="documents.downloading.value !== null"
                         @click="documents.download(row.id)"
                     />
                     <q-btn
@@ -109,6 +110,7 @@ const invoiceRows = computed(() =>
         owed: formatCurrency(invoice.owed, locale.value, invoice.currency),
         standing: standingOf(invoice),
         cancellable: props.cancellation.canCancel(invoice),
+        documentArchived: invoice.documentArchived,
         invoice,
     })),
 );

@@ -795,6 +795,15 @@ export interface SubscriptionInvoiceRepository {
         page: { limit: number; after?: string },
         tx?: TransactionContext,
     ): Promise<string[]>;
+
+    /**
+     * Of `invoiceIds`, the invoices whose document the archive confirmed, by
+     * id — the ones whose document can be handed out.
+     */
+    listArchivedDocuments(
+        invoiceIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<string[]>;
 }
 
 /**

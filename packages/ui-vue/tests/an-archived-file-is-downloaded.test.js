@@ -7,7 +7,7 @@
 
 // @requirement SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
 
-import { describe, test } from 'node:test';
+import { describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 
@@ -16,7 +16,9 @@ import { nextTick, ref } from 'vue';
 
 import {
     AdminError,
+    OBJECT_URL_LIFETIME_MS,
     bindResource,
+    browserSaveFileEnvironment,
     createAxiosHttpClient,
     createFetchHttpClient,
     saveFile,
@@ -163,6 +165,26 @@ describe('a downloaded file saved', () => {
         assert.deepEqual(steps, ['create', 'follow blob:1 x.pdf', 'revoke blob:1']);
         assert.equal(blobs[0].type, 'application/pdf');
         assert.deepEqual(new Uint8Array(await blobs[0].arrayBuffer()), Uint8Array.from([1, 2, 3]));
+    });
+});
+
+describe("the browser's save", () => {
+    test('keeps the object URL for its lifetime, and lets it go then', () => {
+        const revoked = [];
+        const original = URL.revokeObjectURL;
+        URL.revokeObjectURL = (url) => revoked.push(url);
+        mock.timers.enable({ apis: ['setTimeout'] });
+        try {
+            browserSaveFileEnvironment().revokeObjectURL('blob:file');
+
+            mock.timers.tick(OBJECT_URL_LIFETIME_MS - 1);
+            assert.deepEqual(revoked, [], 'let go before a slow browser read it');
+            mock.timers.tick(1);
+            assert.deepEqual(revoked, ['blob:file']);
+        } finally {
+            mock.timers.reset();
+            URL.revokeObjectURL = original;
+        }
     });
 });
 

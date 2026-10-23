@@ -33,7 +33,8 @@ export function useFileDownload(
     const save = ports.save ?? saveFile;
 
     async function download(id: string): Promise<void> {
-        // A second click while a file is on its way would fetch it twice.
+        // One at a time, which the buttons show by being disabled meanwhile;
+        // a click that reaches here anyway would fetch a second file at once.
         if (downloading.value !== null) return;
         downloading.value = id;
         try {

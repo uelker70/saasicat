@@ -3915,7 +3915,18 @@ components:
         AdminTenantInvoice:
             type: object
             required:
-                [id, number, issuedAt, dueDate, totalGross, currency, owed, correction, cancelledBy]
+                [
+                    id,
+                    number,
+                    issuedAt,
+                    dueDate,
+                    totalGross,
+                    currency,
+                    owed,
+                    correction,
+                    cancelledBy,
+                    documentArchived,
+                ]
             properties:
                 id: { type: string }
                 number: { type: string }
@@ -3954,6 +3965,11 @@ components:
                     properties:
                         invoiceId: { type: string }
                         number: { type: string }
+                documentArchived:
+                    type: boolean
+                    description: >-
+                        Whether its document is archived, and can be downloaded
+                        at `GET admin/invoices/:id/document`.
 
         AdminTenantPayments:
             type: object

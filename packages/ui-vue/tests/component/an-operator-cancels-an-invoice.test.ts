@@ -44,6 +44,7 @@ const invoice = (number: string, overrides: Partial<AdminTenantInvoice> = {}) =>
     owed: 0,
     correction: null,
     cancelledBy: null,
+    documentArchived: true,
     ...overrides,
 });
 

@@ -2305,6 +2305,14 @@ export function createMemoryHarness() {
             );
         },
         listAwaitingDelivery: invoiceDocuments.awaitingDelivery,
+        async listArchivedDocuments(invoiceIds) {
+            const archived = new Set(
+                state.invoiceDocuments
+                    .filter((row) => row.archivedAt !== null)
+                    .map((row) => row.invoiceId),
+            );
+            return [...new Set(invoiceIds)].filter((id) => archived.has(id)).sort();
+        },
     };
 
     // The archive: a file per invoice, written once, as the table's triggers keep it.
