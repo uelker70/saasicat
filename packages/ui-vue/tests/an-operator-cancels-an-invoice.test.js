@@ -45,6 +45,7 @@ const invoiceOf = (overrides = {}) => ({
     owed: 0,
     correction: null,
     cancelledBy: null,
+    documentArchived: true,
     ...overrides,
 });
 

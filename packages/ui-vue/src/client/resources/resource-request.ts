@@ -69,21 +69,93 @@ export async function requestJson<T>(
 
     if (response.status === 204) return null;
     const body = await response.json().catch(() => null);
+    if (response.status >= 400) throw refusalOf(response.status, body, url, method);
+    // SAFETY: the caller names the shape its route answers with; this reads the
+    // body as JSON and no further, and the 2xx above is the server's word for it.
+    return body as T | null;
+}
+
+/** The `AdminError` a status of 400 or above is thrown as, carrying the parsed body. */
+function refusalOf(status: number, body: unknown, url: string, method: string): AdminError {
+    return new AdminError({
+        status,
+        code: readErrorCode(body),
+        body,
+        // The third place this had to be read, and the second time it was
+        // read a narrower way: without `detail` a page migrating onto these
+        // resources loses "Plan already exists" and shows the generic
+        // status sentence instead. One decision, one function.
+        detail: readErrorDetail(body),
+        url,
+        method,
+    });
+}
+
+/** A file a download answered: its bytes, its media type and the name it is offered under. */
+export interface DownloadedFile {
+    content: Uint8Array;
+    mediaType: string;
+    fileName: string;
+}
+
+/**
+ * Downloads the file `url` answers, such as an invoice's archived document. A
+ * refusal is thrown as `requestJson` throws it, from the JSON body the server
+ * answers a refusal with. The name is the one `Content-Disposition` offers, or
+ * `fallbackName` where it offers none.
+ *
+ * Needs a client whose responses have `bytes()`: both clients the package
+ * ships do. One of the application's own that has none is said, rather than
+ * read through `text()`, which would hand a PDF over decoded as UTF-8.
+ */
+export async function requestFile(
+    http: HttpClient,
+    url: string,
+    fallbackName: string,
+): Promise<DownloadedFile> {
+    const method = 'GET';
+    const response = await http(url, { method, binary: true });
+    requireServerAnswer(
+        response.status,
+        method,
+        url,
+        (diagnostic) =>
+            new AdminError({ status: response.status, url, method, message: diagnostic }),
+    );
     if (response.status >= 400) {
+        throw refusalOf(response.status, await response.json().catch(() => null), url, method);
+    }
+    if (!response.bytes) {
         throw new AdminError({
-            status: response.status,
-            code: readErrorCode(body),
-            body,
-            // The third place this had to be read, and the second time it was
-            // read a narrower way: without `detail` a page migrating onto these
-            // resources loses "Plan already exists" and shows the generic
-            // status sentence instead. One decision, one function.
-            detail: readErrorDetail(body),
+            status: 0,
             url,
             method,
+            message:
+                'The HttpClient cannot hand over a file: its responses have no bytes(). ' +
+                'createFetchHttpClient and createAxiosHttpClient have it.',
         });
     }
-    return body as T | null;
+    return {
+        content: await response.bytes(),
+        mediaType: response.headers.get('content-type') ?? 'application/octet-stream',
+        fileName: offeredName(response.headers.get('content-disposition')) ?? fallbackName,
+    };
+}
+
+/**
+ * The name `attachment; filename="…"` offers, or `null` where the header names
+ * none. Read by position rather than by pattern: the platform keeps the name to
+ * letters, digits, `.`, `_` and `-`, so the first quote after it ends it.
+ */
+function offeredName(disposition: string | null): string | null {
+    if (!disposition) return null;
+    const marker = 'filename="';
+    const start = disposition.indexOf(marker);
+    if (start < 0) return null;
+    const from = start + marker.length;
+    const end = disposition.indexOf('"', from);
+    const name = end < 0 ? '' : disposition.slice(from, end);
+    return name === '' ? null : name;
 }
 
 /**

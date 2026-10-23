@@ -7908,6 +7908,30 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+        test('the invoices whose document is archived are read out of those asked for', async (t) => {
+            const account = await issuedInvoices(t, 'tenant-documents-archived', 3);
+            if (!account) return;
+            const { invoices, issued } = account;
+            const [unrendered, rendered, archived] = issued.map((invoice) => invoice.id);
+            for (const id of [rendered, archived]) {
+                await invoices.recordRendering(id!, renderingOf(CHECKSUM));
+            }
+            await invoices.markArchived(archived!, LEASE_START, CHECKSUM);
+
+            assert.deepEqual(
+                await invoices.listArchivedDocuments([
+                    unrendered!,
+                    rendered!,
+                    archived!,
+                    archived!,
+                    NO_SUCH_VERSION,
+                ]),
+                [archived],
+            );
+            assert.deepEqual(await invoices.listArchivedDocuments([]), []);
+        });
+
         // -------------------------------------------------------------
         // Collections — one attempt not settled per invoice, and its outcome once
         // -------------------------------------------------------------

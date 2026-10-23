@@ -480,6 +480,19 @@ export class PrismaSubscriptionInvoiceRepository implements SubscriptionInvoiceR
         });
         return rows.map((row) => row.invoiceId);
     }
+
+    async listArchivedDocuments(
+        invoiceIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<string[]> {
+        if (invoiceIds.length === 0) return [];
+        const rows = await this.db(tx).subscriptionInvoiceDocument.findMany({
+            where: { invoiceId: { in: [...invoiceIds] }, archivedAt: { not: null } },
+            select: { invoiceId: true },
+            orderBy: { invoiceId: 'asc' },
+        });
+        return rows.map((row) => row.invoiceId);
+    }
 }
 
 /**

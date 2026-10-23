@@ -136,6 +136,8 @@ export interface AdminTenantInvoice {
     correction: Pick<SubscriptionInvoiceCorrection, 'kind' | 'of'> | null;
     /** The cancellation invoice that cancelled it; `null` while it stands. */
     cancelledBy: { invoiceId: string; number: string } | null;
+    /** Whether its document is archived, and can be downloaded (`SC-AUD-014`). */
+    documentArchived: boolean;
 }
 
 /** A tenant's invoices, the newest first, and its cases still open, the oldest first. */

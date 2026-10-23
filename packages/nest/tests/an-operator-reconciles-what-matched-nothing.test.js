@@ -99,6 +99,9 @@ async function twoSubscribersWithACase() {
             invoices
                 .filter((invoice) => invoice.subscriberId === subscriberId)
                 .sort((a, b) => b.issuedAt - a.issuedAt),
+        // The first invoice's document is archived; the second waits for its own.
+        listArchivedDocuments: async (invoiceIds) =>
+            invoiceIds.filter((id) => id === 'invoice-01' || id === 'invoice-03'),
     };
     const service = new SubscriberReconciliationService(payments, store, subscribers);
     return { service, payments };
@@ -221,10 +224,11 @@ describe("a tenant's payments", () => {
                 each.totalGross,
                 each.owed,
                 each.dueDate,
+                each.documentArchived,
             ]),
             [
-                ['AHP-2026-000002', 20, 20, '2026-02-15'],
-                ['AHP-2026-000001', 58.31, 0, '2026-02-15'],
+                ['AHP-2026-000002', 20, 20, '2026-02-15', false],
+                ['AHP-2026-000001', 58.31, 0, '2026-02-15', true],
             ],
         );
         assert.deepEqual(

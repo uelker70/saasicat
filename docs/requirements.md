@@ -15765,6 +15765,17 @@ _Tested by:_
         - a read that fails says so, and a retry asks again
         - without the capability, nothing is asked and no section is shown
         - a manifest the app passes in its options is the one asked
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-contracts.test.ts`
+    - the tenant detail shows the tenant's contracts
+        - every one, the newest first, with what it records and where its confirmation stands
+        - downloads an archived confirmation under the name it was archived with
+        - while one confirmation is on its way, the other downloads wait
+        - a download that fails says so, and saves nothing
+        - nothing of them where the platform does not serve them
+    - the tenant detail downloads an invoice's document
+        - only where the platform serves it, the cancellation beside it or not
+        - only for an invoice whose document is archived
+        - beside the invoice, under the name it was issued with
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
     - the tenant detail shows the tenant's subscriber
         - whom the contracts are concluded with, and nothing held back
@@ -22179,6 +22190,35 @@ _Tested by:_
         - a database from before gains the tables of the confirmations as the fragments declare them
         - an archived confirmation refuses ${what}, and stays
         - an archived confirmation still refuses a delete after the migration ran a second time
+- `packages/ui-vue/tests/an-archived-file-is-downloaded.test.js`
+    - a file through ${name}
+        - arrives as the bytes the server sent, under the name it offers
+        - without a name offered is saved under the one the download falls back to
+        - refused reads as the platform’s code, and a JSON read beside it is untouched
+    - a file through a client of the application’s own
+        - asks for any type rather than JSON where createFetchHttpClient sends it
+        - whose responses have no bytes() is said, rather than read as text
+    - a downloaded file saved
+        - is handed over with exactly its bytes and name, and its address let go
+    - the browser's save
+        - keeps the object URL for its lifetime, and lets it go then
+    - a download from a row
+        - saves the file, says which row is on its way, and takes one at a time
+        - that fails tells the operator why, and leaves the row free for another try
+    - the downloads and the contracts beside a tenant
+        - are offered each where the manifest announces its route
+        - are read where the manifest announces them, and not otherwise
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-contracts.test.ts`
+    - the tenant detail shows the tenant's contracts
+        - every one, the newest first, with what it records and where its confirmation stands
+        - downloads an archived confirmation under the name it was archived with
+        - while one confirmation is on its way, the other downloads wait
+        - a download that fails says so, and saves nothing
+        - nothing of them where the platform does not serve them
+    - the tenant detail downloads an invoice's document
+        - only where the platform serves it, the cancellation beside it or not
+        - only for an invoice whose document is archived
+        - beside the invoice, under the name it was issued with
 
 <!-- END proof -->
 
@@ -23770,6 +23810,10 @@ _Tested by:_
         - token db → factory specs injecting the token
         - hasher instance + instance db enables provisioning
         - transaction runner passes the drizzle tx through as context
+- `packages/adapter-drizzle/tests/the-archived-invoice-documents-are-read.test.js`
+    - the invoices whose document is archived
+        - are read by one statement over the ids asked for, the archived ones only
+        - of no invoice asks nothing
 - `packages/adapter-prisma/tests/a-reversal-is-written-in-its-payments-turn.test.js`
     - a reversal
         - takes the turn of every invoice its payment settles, in one order, then the credits, then
@@ -23907,6 +23951,8 @@ _Tested by:_
         - the archive’s confirmation is written only for the recorded checksum, once
         - the mail is claimed, recorded and let go each by one write on the claim it names
         - the waiting lists are read page by page, after the id given
+        - the invoices whose document is archived are read out of those asked for, and none asked
+          for asks nothing
         - where it stands is read by the invoice, and nothing where none is recorded
     - the Prisma archive
         - stores a file conflict-free, and asks for nothing more where it was written
