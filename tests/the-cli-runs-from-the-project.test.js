@@ -44,8 +44,14 @@ function bare(token) {
     return token.slice(start, end);
 }
 
+/**
+ * Whether `token` hands over the CLI's package: as a word of its own, or as the
+ * value of a flag written with `=` — `--package=`, `-p=` or any spelling a
+ * runner accepts, so the rule does not depend on knowing each one.
+ */
 function namesTheCli(token) {
-    const spec = token.startsWith('--package=') ? token.slice('--package='.length) : token;
+    const equals = token.indexOf('=');
+    const spec = token.startsWith('-') && equals !== -1 ? token.slice(equals + 1) : token;
     return spec === CLI.name || spec.startsWith(`${CLI.name}@`);
 }
 
@@ -99,6 +105,7 @@ describe('a one-off run of the CLI is told apart from one from the project', () 
         'npx @saasicat/cli@latest codemod v1 --dir=.',
         'Run `npx -y @saasicat/cli codemod v1` first.',
         'npx --package=@saasicat/cli saasicat schema check',
+        'npx -p=@saasicat/cli@latest saasicat codemod v1',
         'npx -p @saasicat/cli saasicat schema check',
         'pnpm dlx @saasicat/cli@1.0.0 init',
         'npm exec @saasicat/cli@latest -- codemod v1',
@@ -115,6 +122,7 @@ describe('a one-off run of the CLI is told apart from one from the project', () 
         'pnpm add -D @saasicat/cli@latest',
         'a one-off run through `npx` or `pnpm dlx` installs neither',
         'pnpm dlx jscpd@4',
+        'npx --yes --dir=. jscpd',
         'npx @saasicat/climate',
     ];
     for (const text of installed) {
