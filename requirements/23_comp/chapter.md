@@ -685,6 +685,9 @@ _Tested by:_
         - a rendering is replaced in place of the recorded checksum while nothing is archived
         - the contracts due one are the contracts marked due, joined to their confirmation
         - a confirmation is found by its contract, and nothing where none is recorded
+    - each contract’s standing, as Drizzle reads it
+        - is the contracts asked for, joined to their confirmation, by id
+        - of no contract asks nothing
     - the Drizzle archive of the confirmations
         - stores a file by one insert, and compares one stored before by its checksum
         - reads a file back as it was archived, and nothing where none is
@@ -816,6 +819,9 @@ _Tested by:_
         - the contracts due one are read over the contracts, those for the mail over the
           confirmations, page by page
         - a confirmation is found by its contract, and nothing where none is recorded
+    - each contract’s standing, as the Prisma adapter reads it
+        - is read over the contracts asked for, with their confirmation, by id
+        - of no contract asks nothing
     - the Prisma archive of the confirmations
         - stores a file once, and compares one stored before by its checksum
         - reads a file back as bytes of its own, and nothing where none is kept

@@ -10,6 +10,7 @@
 import type { FactoryProvider } from '@nestjs/common';
 import {
     INVOICE_CANCEL_CAPABILITY,
+    CONTRACT_CONFIRMATIONS_CAPABILITY,
     INVOICE_DOCUMENT_CAPABILITY,
     RECONCILIATION_CLOSE_CAPABILITY,
     RECONCILIATION_READ_CAPABILITY,
@@ -57,6 +58,7 @@ export function buildStandardManifestContribution(
     served: {
         subscriberAccounts: boolean;
         invoiceDocuments?: boolean;
+        contractConfirmations?: boolean;
         subscriberCredits?: boolean;
         subscriberStanding?: boolean;
         subscriberAttention?: boolean;
@@ -109,6 +111,8 @@ export function buildStandardManifestContribution(
         capabilities[INVOICE_DOCUMENT_CAPABILITY] = true;
         capabilities[INVOICE_CANCEL_CAPABILITY] = true;
     }
+    // Beside them, the tenant's contracts with their confirmations.
+    if (served.contractConfirmations) capabilities[CONTRACT_CONFIRMATIONS_CAPABILITY] = true;
     if (served.subscriberCredits) {
         // The same composition serves the credits with the payout beside
         // them, and the cases to reconcile with a tenant's invoices.

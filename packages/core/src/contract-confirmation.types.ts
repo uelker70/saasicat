@@ -10,7 +10,10 @@
 // no number of its own: it names the contract and the day it was written.
 
 import type { InvoiceDocument } from './invoice-document.types.js';
-import type { SubscriptionContractRecord } from './subscription-contract.types.js';
+import type {
+    SubscriptionContractRecord,
+    SubscriptionContractStatus,
+} from './subscription-contract.types.js';
 
 /** A rendered confirmation: its bytes, as a file. */
 export type ContractConfirmationDocument = InvoiceDocument;
@@ -94,3 +97,62 @@ export type NewContractConfirmationRendering = Pick<
     ContractConfirmationRecord,
     'checksum' | 'mediaType' | 'fileName' | 'size' | 'renderedAt'
 >;
+
+/** Whether a contract is due a confirmation, and where its confirmation stands. */
+export interface ContractConfirmationStanding {
+    contractId: string;
+    /** `false` for a contract written before confirmations existed (`confirmationDue`). */
+    due: boolean;
+    /** Where its confirmation stands; `null` while none is rendered, and for one not due. */
+    confirmation: ContractConfirmationRecord | null;
+}
+
+/**
+ * The manifest capability that announces the operator's read of a tenant's
+ * contracts with their confirmations, and the confirmation's download. The
+ * platform sets it where it serves the routes.
+ */
+export const CONTRACT_CONFIRMATIONS_CAPABILITY = 'contracts.read';
+
+/**
+ * Where a contract's confirmation stands, as the operator reads it:
+ *
+ * - `not-due` — the contract was written before confirmations existed;
+ * - `being-made` — due, and not archived yet: rendered or waiting for its
+ *   rendering, or held, which the audit log says why;
+ * - `awaiting-mail` — archived, and not handed to the mail yet;
+ * - `sent` — handed to the mail.
+ */
+export type AdminContractConfirmationState = 'not-due' | 'being-made' | 'awaiting-mail' | 'sent';
+
+/** One of a tenant's contracts, with where its confirmation stands. */
+export interface AdminTenantContract {
+    id: string;
+    status: SubscriptionContractStatus;
+    /** ISO 8601. When the contract was written. */
+    concludedAt: string;
+    /** ISO 8601. */
+    effectiveFrom: string;
+    /** ISO 8601; `null` while it runs open-ended. */
+    effectiveUntil: string | null;
+    billingCycle: 'monthly' | 'yearly';
+    currency: string;
+    /** What the contract costs per billing period, tax included. */
+    totalGross: number;
+    termsVersion: string | null;
+    cancellationNoticeDays: number;
+    confirmation: {
+        state: AdminContractConfirmationState;
+        /** ISO 8601; `null` until the archive confirmed it. */
+        archivedAt: string | null;
+        /** ISO 8601; `null` until the mail took it. */
+        deliveredAt: string | null;
+        /** The address it was sent to. */
+        deliveredTo: string | null;
+    };
+}
+
+/** A tenant's contracts, the newest first. */
+export interface AdminTenantContracts {
+    contracts: AdminTenantContract[];
+}

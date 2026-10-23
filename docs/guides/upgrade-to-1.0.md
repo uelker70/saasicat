@@ -1889,9 +1889,8 @@ withdrawn feature carry the contract forward and keep its copy.
 
 New and optional, and switched off until you switch it on: invoices issued from the charge journal,
 numbered without gaps in one range per year, each rendered into the file its tax law requires,
-archived and mailed to the subscriber. **Do not switch it on for real customers before
-`1.0.0-rc.28`**, which brings the cancellation invoice: an issued invoice is never edited, so until
-then a wrong one cannot be corrected. To adopt it ([wire the backend](wire-the-backend.md#invoices)):
+archived and mailed to the subscriber. An issued invoice is never edited: a wrong one is corrected
+by cancelling it. To adopt it ([wire the backend](wire-the-backend.md#invoices)):
 
 1. Add `SubscriptionInvoice`, `SubscriptionInvoiceLine`, `SubscriptionInvoiceNumber` and
    `SubscriptionInvoiceDocument` from `prisma-fragments/20-subscription-invoice.prisma`, and
@@ -2562,12 +2561,16 @@ before is not confirmed. Confirmations go with invoices: the start refuses invoi
   `chargeJournal.invoices.confirmations` with `renderer`, `repository` and `archive` —
   `persistence.entitlement.contractConfirmationRepository` and `contractConfirmationArchive` — and
   `InvoiceDocumentModule.forRoot({ guards, imports, confirmations: true })` mounts the operator's
-  download at `GET admin/contracts/:id/confirmation`.
+  download at `GET admin/contracts/:id/confirmation` and the read of a tenant's contracts at
+  `GET admin/tenants/:slug/contracts`; its `imports` then bring the administration's
+  `AdminResourcesService` and the `RlsBypassPort` as well, which the read finds the tenant through.
 - **A scheduler of your own** (`invoices.includeCron: false`) calls
   `ContractConfirmationService.archiveDue(now)` and then `deliverDue()` beside the invoices' steps.
 - **A `SubscriptionContractRepository` of your own** writes `confirmationDue` true on every contract
   it creates — the column's default is false, for the contracts written before —, and a
-  **`ContractConfirmationRepository` of your own** lists only the contracts that are due one. The
+  **`ContractConfirmationRepository` of your own** lists only the contracts that are due one, and
+  answers `listStandings` with whether each contract asked for is due one and where its
+  confirmation stands. The
   persistence contract holds both: a contract created through the repository is due a
   confirmation.
 - **A persistence contract harness** gains the `contractConfirmationRepository` and

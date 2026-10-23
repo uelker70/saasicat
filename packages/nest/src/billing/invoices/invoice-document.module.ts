@@ -12,8 +12,10 @@ import {
 } from '@nestjs/common';
 
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
+import { AdminResourcesService } from '../../admin/admin-resources.module.js';
+import { RLS_BYPASS_PORT_TOKEN } from '../../admin/admin.tokens.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
-import type { InvoiceDocument } from '@saasicat/core';
+import type { AdminTenantContracts, InvoiceDocument, RlsBypassPort } from '@saasicat/core';
 import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 
@@ -23,8 +25,9 @@ export interface InvoiceDocumentModuleOptions {
     /**
      * Must bring `InvoiceDocumentService` into scope — the tenant billing
      * module that already provides it, passed as the very object the
-     * application imports, so that no port is built a second time — and
-     * `ContractConfirmationService` where `confirmations` is set.
+     * application imports, so that no port is built a second time — and,
+     * where `confirmations` is set, `ContractConfirmationService` and the
+     * administration's `AdminResourcesService`.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Whether the contracts' confirmations are offered too. */
@@ -82,7 +85,26 @@ function buildContractConfirmationController(guards: Array<Type<CanActivate>>): 
         constructor(
             @Inject(ContractConfirmationService)
             private readonly confirmations: ContractConfirmationService,
+            @Inject(AdminResourcesService)
+            private readonly tenants: AdminResourcesService,
+            // Required rather than optional: without it the tenant would be
+            // looked up in the request's row-level scope, which an operator's
+            // request has none of. Missing, the module does not start.
+            @Inject(RLS_BYPASS_PORT_TOKEN)
+            private readonly rlsBypass: RlsBypassPort,
         ) {}
+
+        /**
+         * The tenant's contracts, the newest first, each with where its
+         * confirmation stands (`SC-AUD-016`).
+         */
+        @Get('tenants/:slug/contracts')
+        contractsOf(@Param('slug') slug: string): Promise<AdminTenantContracts> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const tenant = await this.tenants.getTenantDetail(slug);
+                return this.confirmations.contractsOf(tenant.id);
+            });
+        }
 
         /**
          * The contract's archived confirmation, the file the subscriber was

@@ -263,6 +263,45 @@ describe('where a contract’s confirmation stands, as the Prisma adapter writes
     });
 });
 
+describe('each contract’s standing, as the Prisma adapter reads it', () => {
+    test('is read over the contracts asked for, with their confirmation, by id', async () => {
+        const client = clientAnswering({
+            findMany: [
+                { id: CONTRACT, confirmationDue: true, confirmation: STANDING },
+                { id: 'contract-2', confirmationDue: false, confirmation: null },
+            ],
+        });
+
+        const standings = await new PrismaContractConfirmationRepository(client).listStandings([
+            CONTRACT,
+            'contract-2',
+        ]);
+
+        assert.deepEqual(theOneCall(client), [
+            'contract.findMany',
+            {
+                where: { id: { in: [CONTRACT, 'contract-2'] } },
+                select: { id: true, confirmationDue: true, confirmation: true },
+                orderBy: { id: 'asc' },
+            },
+        ]);
+        assert.deepEqual(standings, [
+            { contractId: CONTRACT, due: true, confirmation: STANDING },
+            { contractId: 'contract-2', due: false, confirmation: null },
+        ]);
+    });
+
+    test('of no contract asks nothing', async () => {
+        const client = clientAnswering();
+
+        assert.deepEqual(
+            await new PrismaContractConfirmationRepository(client).listStandings([]),
+            [],
+        );
+        assert.equal(client.asked.length, 0);
+    });
+});
+
 describe('the Prisma archive of the confirmations', () => {
     const FILE = {
         contractId: CONTRACT,

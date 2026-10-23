@@ -9,8 +9,9 @@ built; those entries say so.
 
 ### SC-PRIC-001 — SaaSiCat computes prices; the integrator bills them
 
-🟢 💰 Nothing is stored as an amount that was paid, which is also why no credit can be owed when a
-period is shortened.
+🔴 _(Withdrawn on 2026-10-23.)_ 💰 `SC-SCOPE-011` covers this ground, the invoices with it. Nothing
+is stored as an amount that was paid, which is also why no credit can be owed when a period is
+shortened.
 
 _Source:_ #222
 

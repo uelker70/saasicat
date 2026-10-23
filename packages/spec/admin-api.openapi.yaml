@@ -477,6 +477,27 @@ paths:
                 '404':
                     description: No tenant with this slug (`TENANT_NOT_FOUND`)
 
+    /tenants/{slug}/contracts:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [subscriptions]
+            summary: The tenant's contracts, each with where its confirmation stands
+            description: >-
+                Served where invoices confirm every contract written since
+                confirmations exist (`SC-AUD-016`); the manifest announces it as
+                `contracts.read`, beside the confirmation's download. Every
+                contract the tenant has — in force, superseded and ended — the
+                newest first.
+            responses:
+                '200':
+                    description: The contracts
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminTenantContracts' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+
     /reconciliation:
         get:
             tags: [subscriptions]
@@ -3946,6 +3967,64 @@ components:
                     type: array
                     description: The oldest first.
                     items: { $ref: '#/components/schemas/AdminReconciliationCase' }
+
+        AdminTenantContracts:
+            type: object
+            required: [contracts]
+            properties:
+                contracts:
+                    type: array
+                    description: The newest first.
+                    items: { $ref: '#/components/schemas/AdminTenantContract' }
+
+        AdminTenantContract:
+            type: object
+            required:
+                [
+                    id,
+                    status,
+                    concludedAt,
+                    effectiveFrom,
+                    effectiveUntil,
+                    billingCycle,
+                    currency,
+                    totalGross,
+                    termsVersion,
+                    cancellationNoticeDays,
+                    confirmation,
+                ]
+            properties:
+                id: { type: string }
+                status: { type: string, enum: [active, scheduled, terminated, superseded] }
+                concludedAt:
+                    type: string
+                    format: date-time
+                    description: When the contract was written.
+                effectiveFrom: { type: string, format: date-time }
+                effectiveUntil: { type: string, format: date-time, nullable: true }
+                billingCycle: { type: string, enum: [monthly, yearly] }
+                currency: { type: string }
+                totalGross:
+                    type: number
+                    description: What the contract costs per billing period, tax included.
+                termsVersion: { type: string, nullable: true }
+                cancellationNoticeDays: { type: integer, minimum: 0 }
+                confirmation:
+                    type: object
+                    required: [state, archivedAt, deliveredAt, deliveredTo]
+                    properties:
+                        state:
+                            type: string
+                            enum: [not-due, being-made, awaiting-mail, sent]
+                            description: >-
+                                `not-due` for a contract written before
+                                confirmations; `being-made` while it is not
+                                archived — held ones among them, which the audit
+                                log says why; `awaiting-mail` once archived;
+                                `sent` once the mail took it.
+                        archivedAt: { type: string, format: date-time, nullable: true }
+                        deliveredAt: { type: string, format: date-time, nullable: true }
+                        deliveredTo: { type: string, nullable: true }
 
         AdminSubscriberPayout:
             type: object

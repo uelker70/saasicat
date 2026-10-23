@@ -410,6 +410,9 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against a truncate disabled, that one
+- `packages/core/tests/a-confirmation-state-is-read-off-its-record.test.js`
+    - the state of a contract’s confirmation
+        - ${what} is ${state}
 - `packages/invoice-zugferd/tests/renders-a-contract-confirmation.test.js`
     - a contract’s confirmation
         - names the parties, the contract’s facts, its lines and what it costs, in German and
@@ -436,12 +439,17 @@ _Tested by:_
     - the confirmation handed out again
         - is the archived file, and refused for no contract, one with none archived, and a file that
           does not match
+    - a tenant’s contracts, as the operator reads them
+        - are every contract, the newest first, each with where its confirmation stands
+        - of a tenant without contracts are none
     - the confirmations start
         - not beside an archive that would let a confirmation it keeps be changed, naming why
     - the quarter-hourly run
         - confirms a contract written since the last one
     - the operator’s download of a confirmation
         - is served beside the invoices’ documents, and answers the archived file under its name
+        - serves the tenant’s contracts beside it, found by its slug outside any row policy, and the
+          manifest announces both
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the confirmations every contract is due, beside the invoices

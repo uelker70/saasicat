@@ -1006,11 +1006,10 @@ What it does not do yet: collect anything, or show a tenant its own account.
 
 The charges of the journal, issued as invoices: one invoice for the charges booked together under a
 contract — the charges a billing period opens with, or one that arises later in the period — numbered
-without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. **Switch it on for
-real customers only from the release that brings the cancellation invoice** (`1.0.0-rc.28`): an
-issued invoice is never edited (`SC-PRIC-095`), so until then a wrong one cannot be corrected. Each
-invoice is issued, rendered into the file its tax law requires — by `@saasicat/invoice-zugferd`, or
-a renderer of your own — archived and mailed.
+without gaps in one range per year (`SC-PRIC-072`). Invoicing ships switched off. An issued invoice
+is never edited: a wrong one is corrected by [cancelling it](#cancelling-an-invoice) (`SC-PRIC-095`).
+Each invoice is issued, rendered into the file its tax law requires — by
+`@saasicat/invoice-zugferd`, or a renderer of your own — archived and mailed.
 
 It needs the charge journal above, a tax adapter, the issuer, the
 [terms](#the-terms-a-contract-is-concluded-under) and a payment gateway (`payments`) in
@@ -1225,8 +1224,14 @@ mailed once under a claim — in the same quarter-hourly run, by the actor
 `GET admin/contracts/:id/confirmation`, behind the administration's guards, checked against the
 recorded checksum: a file that no longer matches is answered `409` with
 `CONTRACT_CONFIRMATION_MISMATCH` and recorded under that action, and a contract with none archived
-`409` with `CONTRACT_CONFIRMATION_NOT_ARCHIVED`. Keep `contract_confirmation_archive` in every
-backup, for as long as the contracts it confirms are kept.
+`409` with `CONTRACT_CONFIRMATION_NOT_ARCHIVED`. **The operator reads** a tenant's contracts at
+`GET admin/tenants/:slug/contracts` — in force, superseded and ended, the newest first — each with
+its start, its rhythm and price, the version of the terms and the notice period it records, and where
+its confirmation stands: `not-due` for a contract written before confirmations, `being-made` while
+it is not archived — a held one among them, which the audit log says why —, `awaiting-mail` once
+archived, `sent` once the mail took it. The manifest announces both routes as `contracts.read`.
+Keep `contract_confirmation_archive` in every backup, for as long as the contracts it confirms are
+kept.
 
 ### Cancelling an invoice
 
