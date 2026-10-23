@@ -20,6 +20,18 @@ export function servesInvoiceDocuments(options: SaaSiCatModuleOptions): boolean 
 }
 
 /**
+ * Whether the operator is offered a tenant's contracts with their
+ * confirmations, and the confirmation's download: wherever invoice documents
+ * are, since invoices do not start without the confirmations.
+ */
+export function servesContractConfirmations(options: SaaSiCatModuleOptions): boolean {
+    return (
+        servesInvoiceDocuments(options) &&
+        Boolean(optionsOf(options.tenantBilling).chargeJournal?.invoices?.confirmations)
+    );
+}
+
+/**
  * The operator's download of an invoice's archived document, and the
  * cancellation of an issued invoice with its preview.
  *
@@ -39,11 +51,10 @@ export function composeInvoiceDocuments(ctx: CompositionContext): DynamicModule[
     return [
         InvoiceDocumentModule.forRoot({
             guards,
-            imports: [tenantBillingModule, ...applicationImports],
+            // The administration's tenants too, which the contracts of one are read beside.
+            imports: [adminResourcesModule, tenantBillingModule, ...applicationImports],
             // Required with invoices: the start refuses invoices without them.
-            confirmations: Boolean(
-                optionsOf(ctx.options.tenantBilling).chargeJournal?.invoices?.confirmations,
-            ),
+            confirmations: servesContractConfirmations(ctx.options),
         }),
         InvoiceCancellationModule.forRoot({
             guards,

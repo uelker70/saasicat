@@ -3,6 +3,7 @@ import type {
     CanonicalContractConfirmationRow,
     ContractConfirmationRecord,
     ContractConfirmationRepository,
+    ContractConfirmationStanding,
     NewContractConfirmationRendering,
     TransactionContext,
 } from '@saasicat/core';
@@ -12,7 +13,11 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 /** Narrow view of the client: the confirmations, and the contracts they are due for. */
 interface ConfirmationPrisma {
     contractConfirmation: PrismaModelDelegateLike<CanonicalContractConfirmationRow>;
-    subscriptionContract: PrismaModelDelegateLike<{ id: string }>;
+    subscriptionContract: PrismaModelDelegateLike<{
+        id: string;
+        confirmationDue: boolean;
+        confirmation: CanonicalContractConfirmationRow | null;
+    }>;
 }
 
 /** Root-client fields used directly: the two delegates. */
@@ -194,5 +199,22 @@ export class PrismaContractConfirmationRepository implements ContractConfirmatio
             take: page.limit,
         });
         return rows.map((row) => row.contractId);
+    }
+
+    async listStandings(
+        contractIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<ContractConfirmationStanding[]> {
+        if (contractIds.length === 0) return [];
+        const rows = await this.db(tx).subscriptionContract.findMany({
+            where: { id: { in: [...contractIds] } },
+            select: { id: true, confirmationDue: true, confirmation: true },
+            orderBy: { id: 'asc' },
+        });
+        return rows.map((row) => ({
+            contractId: row.id,
+            due: row.confirmationDue,
+            confirmation: row.confirmation ? toContractConfirmationRecord(row.confirmation) : null,
+        }));
     }
 }

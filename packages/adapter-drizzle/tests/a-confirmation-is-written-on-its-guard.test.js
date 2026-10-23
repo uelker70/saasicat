@@ -178,6 +178,44 @@ describe('where a confirmation stands, as Drizzle writes it', () => {
     });
 });
 
+describe('each contract’s standing, as Drizzle reads it', () => {
+    test('is the contracts asked for, joined to their confirmation, by id', async () => {
+        const { db, statements } = recording([
+            [CONTRACT, true, ...STANDING],
+            ['contract-8', false, null, null, null, null, null, null, null, null, null, null],
+        ]);
+
+        const standings = await new DrizzleContractConfirmationRepository(db).listStandings([
+            CONTRACT,
+            'contract-8',
+        ]);
+
+        assert.match(
+            statements[0].sql,
+            /from "subscription_contracts" left join "contract_confirmations"/,
+        );
+        assert.match(statements[0].sql, /"subscription_contracts"\."id" in \(\$1, \$2\)/);
+        assert.deepEqual(
+            standings.map((standing) => [
+                standing.contractId,
+                standing.due,
+                standing.confirmation?.checksum ?? null,
+            ]),
+            [
+                [CONTRACT, true, CHECKSUM],
+                ['contract-8', false, null],
+            ],
+        );
+    });
+
+    test('of no contract asks nothing', async () => {
+        const { db, statements } = recording();
+
+        assert.deepEqual(await new DrizzleContractConfirmationRepository(db).listStandings([]), []);
+        assert.equal(statements.length, 0);
+    });
+});
+
 describe('the Drizzle archive of the confirmations', () => {
     const FILE = {
         contractId: CONTRACT,

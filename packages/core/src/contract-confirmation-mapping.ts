@@ -3,8 +3,10 @@
 // defensively as an invoice's document (`invoice-document-mapping.ts`).
 
 import type {
+    AdminContractConfirmationState,
     ArchivedContractConfirmation,
     ContractConfirmationRecord,
+    ContractConfirmationStanding,
 } from './contract-confirmation.types.js';
 import { CONTRACT_ERROR_CODES } from './error-codes.js';
 import { PersistenceRefusal } from './errors.js';
@@ -112,4 +114,17 @@ export function contractConfirmationChanged(
         `The confirmation rendered for contract '${contractId}' differs from the one recorded for it.`,
         { contractId, recorded, rendered },
     );
+}
+
+/**
+ * Where a contract's confirmation stands, as the operator reads it: what its
+ * record says, and for a contract without one, whether it is due one.
+ */
+export function confirmationStateOf(
+    standing: ContractConfirmationStanding,
+): AdminContractConfirmationState {
+    const { confirmation } = standing;
+    if (confirmation?.deliveredAt) return 'sent';
+    if (confirmation?.archivedAt) return 'awaiting-mail';
+    return standing.due || confirmation ? 'being-made' : 'not-due';
 }

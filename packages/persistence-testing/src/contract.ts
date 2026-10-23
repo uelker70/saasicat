@@ -9057,6 +9057,45 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        // @requirement SC-AUD-016
+        test("each contract's standing says whether it is due a confirmation and where its confirmation stands", async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-standings', 3);
+            if (!account) return;
+            const { confirmations, writtenBefore } = account;
+            // SAFETY: `confirmableContracts` wrote three contracts, and answers their ids.
+            const [before, waiting, sent] = account.ids as [string, string, string];
+            await writtenBefore(before);
+            await confirmations.recordRendering(sent, renderingOf(CHECKSUM));
+            await confirmations.markArchived(sent, LEASE_START, CHECKSUM);
+            await confirmations.claimDelivery(sent, CLAIMED_AT, LEASE_START);
+            await confirmations.markDelivered(sent, DELIVERY);
+
+            const standings = await confirmations.listStandings([
+                sent,
+                NO_SUCH_VERSION,
+                before,
+                waiting,
+                sent,
+            ]);
+
+            assert.deepEqual(
+                standings.map((standing) => [standing.contractId, standing.due]),
+                [before, waiting, sent].sort().map((id) => [id, id !== before]),
+                'one standing per contract that exists, by id',
+            );
+            const [delivered] = standings.filter((standing) => standing.contractId === sent);
+            assert.deepEqual(
+                [delivered!.confirmation?.checksum, delivered!.confirmation?.deliveredTo],
+                [CHECKSUM, DELIVERY.to],
+            );
+            assert.ok(
+                standings
+                    .filter((standing) => standing.contractId !== sent)
+                    .every((standing) => standing.confirmation === null),
+            );
+            assert.deepEqual(await confirmations.listStandings([]), []);
+        });
+
         /**
          * The archive of the confirmations, a contract to keep one for, and a
          * file under it. Null without an archive.

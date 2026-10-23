@@ -9,6 +9,7 @@ import type {
 import type {
     ArchivedContractConfirmation,
     ContractConfirmationRecord,
+    ContractConfirmationStanding,
     ContractConfirmationToArchive,
     NewContractConfirmationRendering,
 } from '../contract-confirmation.types.js';
@@ -1856,4 +1857,14 @@ export interface ContractConfirmationRepository {
         page: { limit: number; after?: string },
         tx?: TransactionContext,
     ): Promise<string[]>;
+
+    /**
+     * Whether each of `contractIds` is due a confirmation, and where its
+     * confirmation stands: one standing per contract that exists, by id; a
+     * contract that does not is left out.
+     */
+    listStandings(
+        contractIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<ContractConfirmationStanding[]>;
 }

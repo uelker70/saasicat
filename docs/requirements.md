@@ -132,11 +132,10 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 657 entries: 🟢 567 stand today, 🟡 51 decided but not yet delivered, ⚪ 0 drafts,
-🔵 36 superseded, 🔴 3 withdrawn.
+Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+🔵 36 superseded, 🔴 5 withdrawn.
 
-🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
-[SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
+🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
@@ -224,8 +223,10 @@ Of 657 entries: 🟢 567 stand today, 🟡 51 decided but not yet delivered, ⚪
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered)
 
-🔴 **Withdrawn** — [SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
+🔴 **Withdrawn** — [SC-SCOPE-004](#sc-scope-004--saasicat-does-not-take-payments),
+[SC-SUB-013](#sc-sub-013--nothing-rolls-forward-onto-a-subscription-whose-cancellation-has-landed),
 [SC-SUB-014](#sc-sub-014--accepting-the-same-pending-version-twice-changes-nothing),
+[SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
 Generated from `requirements/` — 657 requirements. Do not edit by hand:
@@ -331,9 +332,10 @@ _Tested by:_
 
 ### SC-SCOPE-004 — SaaSiCat does not take payments
 
-🟢 It records what was agreed and what became due. What talks to a bank, a card processor or an
-invoice run belongs to the integrating developer, behind an agreed interface. Shipping the
-interface and no implementation is what keeps SaaSiCat from becoming a payments product.
+🔴 _(Withdrawn on 2026-10-23.)_ `SC-SCOPE-011` covers this ground, the payments with it. It records
+what was agreed and what became due. What talks to a bank, a card processor or an invoice run
+belongs to the integrating developer, behind an agreed interface. Shipping the interface and no
+implementation is what keeps SaaSiCat from becoming a payments product.
 
 _Source:_ #214 · `docs/explanation/capability-to-contract.md`
 
@@ -450,12 +452,10 @@ _Tested by:_
 
 ### SC-SCOPE-011 — SaaSiCat invoices subscriptions and collects payment through a payment gateway
 
-🟡 _(Decided, not yet delivered.)_ 💰 It records what was agreed, what became due, what was
-invoiced and what was paid. The means of payment stay with the gateway, which is why
-`SC-PRIV-005` holds as it is. Paying an invoice by bank transfer is not offered in this stage;
-it stays open for a later one, for subscribers such as an enterprise customer who pays against
-an invoice. This entry supersedes `SC-SCOPE-004` and `SC-PRIC-001` in the change that delivers
-it.
+🟢 💰 It records what was agreed, what became due, what was invoiced and what was paid. The means of
+payment stay with the gateway, which is why `SC-PRIV-005` holds as it is. Paying an invoice by bank
+transfer is not offered in this stage; it stays open for a later one, for subscribers such as an
+enterprise customer who pays against an invoice.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
@@ -8273,8 +8273,9 @@ built; those entries say so.
 
 ### SC-PRIC-001 — SaaSiCat computes prices; the integrator bills them
 
-🟢 💰 Nothing is stored as an amount that was paid, which is also why no credit can be owed when a
-period is shortened.
+🔴 _(Withdrawn on 2026-10-23.)_ 💰 `SC-SCOPE-011` covers this ground, the invoices with it. Nothing
+is stored as an amount that was paid, which is also why no credit can be owed when a period is
+shortened.
 
 _Source:_ #222
 
@@ -22125,6 +22126,9 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against a truncate disabled, that one
+- `packages/core/tests/a-confirmation-state-is-read-off-its-record.test.js`
+    - the state of a contract’s confirmation
+        - ${what} is ${state}
 - `packages/invoice-zugferd/tests/renders-a-contract-confirmation.test.js`
     - a contract’s confirmation
         - names the parties, the contract’s facts, its lines and what it costs, in German and
@@ -22151,12 +22155,17 @@ _Tested by:_
     - the confirmation handed out again
         - is the archived file, and refused for no contract, one with none archived, and a file that
           does not match
+    - a tenant’s contracts, as the operator reads them
+        - are every contract, the newest first, each with where its confirmation stands
+        - of a tenant without contracts are none
     - the confirmations start
         - not beside an archive that would let a confirmation it keeps be changed, naming why
     - the quarter-hourly run
         - confirms a contract written since the last one
     - the operator’s download of a confirmation
         - is served beside the invoices’ documents, and answers the archived file under its name
+        - serves the tenant’s contracts beside it, found by its slug outside any row policy, and the
+          manifest announces both
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
     - the confirmations every contract is due, beside the invoices
@@ -23729,6 +23738,9 @@ _Tested by:_
         - a rendering is replaced in place of the recorded checksum while nothing is archived
         - the contracts due one are the contracts marked due, joined to their confirmation
         - a confirmation is found by its contract, and nothing where none is recorded
+    - each contract’s standing, as Drizzle reads it
+        - is the contracts asked for, joined to their confirmation, by id
+        - of no contract asks nothing
     - the Drizzle archive of the confirmations
         - stores a file by one insert, and compares one stored before by its checksum
         - reads a file back as it was archived, and nothing where none is
@@ -23860,6 +23872,9 @@ _Tested by:_
         - the contracts due one are read over the contracts, those for the mail over the
           confirmations, page by page
         - a confirmation is found by its contract, and nothing where none is recorded
+    - each contract’s standing, as the Prisma adapter reads it
+        - is read over the contracts asked for, with their confirmation, by id
+        - of no contract asks nothing
     - the Prisma archive of the confirmations
         - stores a file once, and compares one stored before by its checksum
         - reads a file back as bytes of its own, and nothing where none is kept

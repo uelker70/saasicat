@@ -2381,6 +2381,18 @@ export function createMemoryHarness() {
             return confirmations.awaiting(due, page);
         },
         listAwaitingDelivery: confirmations.awaitingDelivery,
+        async listStandings(contractIds) {
+            const standings = [];
+            for (const contractId of [...new Set(contractIds)].sort()) {
+                if (!state.contracts.some((row) => row.id === contractId)) continue;
+                standings.push({
+                    contractId,
+                    due: !state.contractsWrittenBeforeConfirmations.has(contractId),
+                    confirmation: await confirmations.find(contractId),
+                });
+            }
+            return standings;
+        },
     };
 
     // Its file, one per contract, written once, as the table's triggers keep it.

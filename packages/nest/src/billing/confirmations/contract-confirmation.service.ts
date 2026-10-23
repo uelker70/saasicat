@@ -20,8 +20,12 @@ import {
 } from '@nestjs/common';
 import {
     CONTRACT_ERROR_CODES,
+    confirmationStateOf,
     contractPartiesOf,
     invoiceFooterOf,
+    type AdminTenantContract,
+    type AdminTenantContracts,
+    type ContractConfirmationStanding,
     type ContractConfirmationArchivePort,
     type ContractConfirmationRenderer,
     type ContractConfirmationRepository,
@@ -61,7 +65,7 @@ export class ContractConfirmationService implements OnModuleInit {
 
     constructor(
         @Inject(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN)
-        confirmations: ContractConfirmationRepository,
+        private readonly confirmations: ContractConfirmationRepository,
         @Inject(CONTRACT_CONFIRMATION_RENDERER_TOKEN)
         renderer: ContractConfirmationRenderer,
         @Inject(CONTRACT_CONFIRMATION_ARCHIVE_TOKEN)
@@ -69,7 +73,7 @@ export class ContractConfirmationService implements OnModuleInit {
         @Inject(INVOICE_MAIL_PORT_TOKEN)
         mail: InvoiceMailPort,
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
-        contracts: SubscriptionContractRepository,
+        private readonly contracts: SubscriptionContractRepository,
         @Inject(SubscriberService)
         subscribers: SubscriberService,
         @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
@@ -231,4 +235,61 @@ export class ContractConfirmationService implements OnModuleInit {
                 );
         }
     }
+
+    /**
+     * The tenant's contracts — in force, superseded and ended — the newest
+     * first, each with where its confirmation stands (`SC-AUD-016`).
+     */
+    async contractsOf(tenantId: string): Promise<AdminTenantContracts> {
+        return readAcrossTenants(this.rlsBypass, async () => {
+            const contracts = await this.contracts.list({ tenantId });
+            const standings = await this.confirmations.listStandings(
+                contracts.map((contract) => contract.id),
+            );
+            const byContract = new Map(
+                standings.map((standing) => [standing.contractId, standing]),
+            );
+            return {
+                contracts: [...contracts]
+                    .sort(newestFirst)
+                    .map((contract) => adminContractOf(contract, byContract.get(contract.id))),
+            };
+        });
+    }
+}
+
+/** The contract written last first; of two written at once, the larger id first. */
+function newestFirst(a: SubscriptionContractRecord, b: SubscriptionContractRecord): number {
+    return (
+        b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+    );
+}
+
+/** A contract as the operator reads it beside its tenant. */
+function adminContractOf(
+    contract: SubscriptionContractRecord,
+    standing: ContractConfirmationStanding | undefined,
+): AdminTenantContract {
+    // A contract the store answers without a standing is one it did not find a
+    // moment later, which is no confirmation either.
+    const known = standing ?? { contractId: contract.id, due: false, confirmation: null };
+    const { confirmation } = known;
+    return {
+        id: contract.id,
+        status: contract.status,
+        concludedAt: contract.createdAt.toISOString(),
+        effectiveFrom: contract.effectiveFrom.toISOString(),
+        effectiveUntil: contract.effectiveUntil?.toISOString() ?? null,
+        billingCycle: contract.priceSnapshot.billingCycle,
+        currency: contract.priceSnapshot.currency,
+        totalGross: contract.priceSnapshot.totalGross,
+        termsVersion: contract.termsVersion,
+        cancellationNoticeDays: contract.cancellationNoticeDays,
+        confirmation: {
+            state: confirmationStateOf(known),
+            archivedAt: confirmation?.archivedAt?.toISOString() ?? null,
+            deliveredAt: confirmation?.deliveredAt?.toISOString() ?? null,
+            deliveredTo: confirmation?.deliveredTo ?? null,
+        },
+    };
 }

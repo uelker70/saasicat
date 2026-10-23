@@ -223,6 +223,17 @@ export function aConfirmationRecord(contractIds, { writtenBefore = [] } = {}) {
                 at,
             );
         },
+        async listStandings(ids) {
+            const known = new Set(contractIds());
+            return [...new Set(ids)]
+                .filter((id) => known.has(id))
+                .sort()
+                .map((contractId) => ({
+                    contractId,
+                    due: !writtenBefore.includes(contractId),
+                    confirmation: structuredClone(stateOf(contractId) ?? null),
+                }));
+        },
         async listAwaitingDelivery(at) {
             const waiting = [...states.values()].filter(
                 (kept) => kept.archivedAt && !kept.deliveredAt,

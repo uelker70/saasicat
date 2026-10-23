@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, gt, isNotNull, isNull, lt, or, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, type SQL } from 'drizzle-orm';
 import type {
     ContractConfirmationRecord,
     ContractConfirmationRepository,
+    ContractConfirmationStanding,
     NewContractConfirmationRendering,
     TransactionContext,
 } from '@saasicat/core';
@@ -196,6 +197,31 @@ export class DrizzleContractConfirmationRepository implements ContractConfirmati
             .orderBy(asc(contractConfirmations.contractId))
             .limit(page.limit);
         return rows.map((row) => row.contractId);
+    }
+
+    async listStandings(
+        contractIds: readonly string[],
+        tx?: TransactionContext,
+    ): Promise<ContractConfirmationStanding[]> {
+        if (contractIds.length === 0) return [];
+        const rows = await resolveDb(this.db, tx)
+            .select({
+                contractId: subscriptionContracts.id,
+                due: subscriptionContracts.confirmationDue,
+                confirmation: contractConfirmations,
+            })
+            .from(subscriptionContracts)
+            .leftJoin(
+                contractConfirmations,
+                eq(contractConfirmations.contractId, subscriptionContracts.id),
+            )
+            .where(inArray(subscriptionContracts.id, [...contractIds]))
+            .orderBy(asc(subscriptionContracts.id));
+        return rows.map((row) => ({
+            contractId: row.contractId,
+            due: row.due,
+            confirmation: row.confirmation ? toContractConfirmationRecord(row.confirmation) : null,
+        }));
     }
 
     private async rowOf(contractId: string, tx?: TransactionContext) {

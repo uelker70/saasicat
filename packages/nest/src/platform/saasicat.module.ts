@@ -67,7 +67,10 @@ import {
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { servesSubscriberAccounts } from './compose/subscriber-account.js';
-import { servesInvoiceDocuments } from './compose/invoice-documents.js';
+import {
+    servesContractConfirmations,
+    servesInvoiceDocuments,
+} from './compose/invoice-documents.js';
 import { servesSubscriberCredits } from './compose/subscriber-credits.js';
 import { servesSubscriberAdmin } from './compose/subscriber-admin.js';
 import {
@@ -221,6 +224,7 @@ export class SaaSiCatModule {
         if (options.autoManifest !== false) {
             const subscriberAccounts = servesSubscriberAccounts(options);
             const invoiceDocuments = servesInvoiceDocuments(options);
+            const contractConfirmations = servesContractConfirmations(options);
             const subscriberCredits = servesSubscriberCredits(options);
             const subscriberStanding = servesSubscriberAdmin(composition);
             const versionRetirements = servesVersionRetirements(composition);
@@ -243,6 +247,7 @@ export class SaaSiCatModule {
                         {
                             subscriberAccounts,
                             invoiceDocuments,
+                            contractConfirmations,
                             subscriberCredits,
                             subscriberStanding,
                             // Only an adapter holds a contract back, so only then

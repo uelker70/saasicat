@@ -100,9 +100,10 @@ _Tested by:_
 
 ### SC-SCOPE-004 — SaaSiCat does not take payments
 
-🟢 It records what was agreed and what became due. What talks to a bank, a card processor or an
-invoice run belongs to the integrating developer, behind an agreed interface. Shipping the
-interface and no implementation is what keeps SaaSiCat from becoming a payments product.
+🔴 _(Withdrawn on 2026-10-23.)_ `SC-SCOPE-011` covers this ground, the payments with it. It records
+what was agreed and what became due. What talks to a bank, a card processor or an invoice run
+belongs to the integrating developer, behind an agreed interface. Shipping the interface and no
+implementation is what keeps SaaSiCat from becoming a payments product.
 
 _Source:_ #214 · `docs/explanation/capability-to-contract.md`
 
@@ -219,12 +220,10 @@ _Tested by:_
 
 ### SC-SCOPE-011 — SaaSiCat invoices subscriptions and collects payment through a payment gateway
 
-🟡 _(Decided, not yet delivered.)_ 💰 It records what was agreed, what became due, what was
-invoiced and what was paid. The means of payment stay with the gateway, which is why
-`SC-PRIV-005` holds as it is. Paying an invoice by bank transfer is not offered in this stage;
-it stays open for a later one, for subscribers such as an enterprise customer who pays against
-an invoice. This entry supersedes `SC-SCOPE-004` and `SC-PRIC-001` in the change that delivers
-it.
+🟢 💰 It records what was agreed, what became due, what was invoiced and what was paid. The means of
+payment stay with the gateway, which is why `SC-PRIV-005` holds as it is. Paying an invoice by bank
+transfer is not offered in this stage; it stays open for a later one, for subscribers such as an
+enterprise customer who pays against an invoice.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
