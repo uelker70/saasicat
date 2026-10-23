@@ -2517,6 +2517,68 @@ file under a version it has archived.
   triggers.
 - **An application that words refusals itself** adds `TERMS_VERSION_CHANGED`.
 
+### Every contract is confirmed to its subscriber
+
+A contract written from this release on gives its subscriber a confirmation to keep (`SC-AUD-016`):
+rendered from the contract, archived write-once like an invoice's document, and mailed to the
+invoice email with the terms of the version the contract records attached. A contract written
+before is not confirmed. Confirmations go with invoices: the start refuses invoicing without them.
+
+1. Add `ContractConfirmation` and `ContractConfirmationArchive` from
+   `prisma-fragments/26-contract-confirmation.prisma` to your schema, and take fragment 08 as it
+   ships now: `SubscriptionContract` gains `confirmationDue` and the back-relations. The column
+   is false by default, so `db push` leaves every contract already there unconfirmed; the
+   repositories write it true on every contract they create from now on.
+2. Run the migration once, **after** `db push`:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-contract-confirmation-is-archived.postgres.sql
+    ```
+
+    It creates the two tables of the confirmations, where they are missing, and the triggers that
+    refuse every update, delete and truncate of the archive, which `db push` cannot create. It does
+    nothing on a second run, nor on a database without contracts.
+
+3. Pass the renderer beside the invoices; `SaaSiCatModule` takes the record and the archive from
+   the persistence bundle:
+
+    ```ts
+    import { contractConfirmationRenderer } from '@saasicat/invoice-zugferd';
+
+    invoices: {
+        // … as before
+        confirmations: { renderer: contractConfirmationRenderer() },
+    },
+    ```
+
+4. Add `deliverConfirmation({ contract, to, documents })` to your `InvoiceMailPort`: it sends the
+   confirmation, and the terms where the contract records a version, as the attachments it is
+   handed.
+5. The start refuses invoicing without the renderer, without the record or the archive, and beside
+   an archive whose triggers are missing or disabled. Keep `contract_confirmation_archive` in every
+   backup, for as long as the contracts it confirms are kept.
+
+- **An application that wires `TenantBillingModule` itself** passes
+  `chargeJournal.invoices.confirmations` with `renderer`, `repository` and `archive` —
+  `persistence.entitlement.contractConfirmationRepository` and `contractConfirmationArchive` — and
+  `InvoiceDocumentModule.forRoot({ guards, imports, confirmations: true })` mounts the operator's
+  download at `GET admin/contracts/:id/confirmation`.
+- **A scheduler of your own** (`invoices.includeCron: false`) calls
+  `ContractConfirmationService.archiveDue(now)` and then `deliverDue()` beside the invoices' steps.
+- **A `SubscriptionContractRepository` of your own** writes `confirmationDue` true on every contract
+  it creates — the column's default is false, for the contracts written before —, and a
+  **`ContractConfirmationRepository` of your own** lists only the contracts that are due one. The
+  persistence contract holds both: a contract created through the repository is due a
+  confirmation.
+- **A persistence contract harness** gains the `contractConfirmationRepository` and
+  `contractConfirmationArchive` members and the seed `markContractWrittenBeforeConfirmations`; a
+  harness without them declares `gaps: ['contractConfirmations', 'contractConfirmationArchive']`.
+  Empty `contract_confirmations` and `contract_confirmation_archive` between scenarios.
+- **An application that words refusals itself** adds `CONTRACT_CONFIRMATION_CHANGED`,
+  `CONTRACT_CONFIRMATION_MISMATCH`, `CONTRACT_CONFIRMATION_NOT_ARCHIVED`,
+  `CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED`, `CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL` and
+  `CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED`.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

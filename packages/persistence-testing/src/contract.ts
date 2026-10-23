@@ -51,6 +51,7 @@ import type {
     FeatureWithdrawalRepository,
     NewFeatureWithdrawal,
     TermsVersionToArchive,
+    ContractConfirmationToArchive,
 } from '@saasicat/core';
 import {
     BILLING_ERROR_CODES,
@@ -575,6 +576,25 @@ const CONTRACT_GAPS: Record<
     termsArchive: {
         reason: 'adapter provides no TermsArchivePort',
         present: ({ adapter }) => Boolean(adapter.termsArchive),
+    },
+    contractConfirmations: {
+        reason: 'adapter provides no ContractConfirmationRepository, or no contracts, subscriber seed and seed for a contract written before confirmations',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.contractConfirmationRepository &&
+                adapter.subscriptionContractRepository &&
+                typeof seed.createSubscriber === 'function' &&
+                typeof seed.markContractWrittenBeforeConfirmations === 'function',
+            ),
+    },
+    contractConfirmationArchive: {
+        reason: 'adapter provides no ContractConfirmationArchivePort, or no contracts and subscriber seed for it',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.contractConfirmationArchive &&
+                adapter.subscriptionContractRepository &&
+                typeof seed.createSubscriber === 'function',
+            ),
     },
     maintenanceWindows: {
         reason: 'adapter provides no MaintenanceWindowPort',
@@ -8807,6 +8827,300 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 await archive.read('race-2026-11'),
                 versionOf('race-2026-11', OTHER_CHECKSUM),
             );
+        });
+
+        // -------------------------------------------------------------
+        // A contract's confirmation — due with the contract, archived once,
+        // mailed once, in the writes an invoice's document makes
+        // -------------------------------------------------------------
+
+        /**
+         * `count` contracts of one subscriber, by id, and where their
+         * confirmations stand. Null without confirmations.
+         */
+        async function confirmableContracts(t: TestContext, tenantId: string, count = 1) {
+            const confirmations = harness.adapter.contractConfirmationRepository;
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            const writtenBefore = harness.seed.markContractWrittenBeforeConfirmations?.bind(
+                harness.seed,
+            );
+            if (!confirmations || !contracts || !createSubscriber || !writtenBefore) {
+                missing(t, 'contractConfirmations');
+                return null;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: `${tenantId} GmbH` });
+            const parties = partiesWith(subscriberId, `${tenantId} GmbH`);
+            const write = async (index: number) => {
+                const offer = contractFromOffer(`${tenantId}-${index}`, parties);
+                return (await contracts.create({ ...offer, tenantId })).id;
+            };
+            const contractId = await write(0);
+            const ids = [contractId];
+            for (let index = 1; index < count; index++) ids.push(await write(index));
+            return { confirmations, contractId, ids: ids.sort(), writtenBefore };
+        }
+
+        // @requirement SC-AUD-016
+        test("a contract's confirmation is recorded once, another checksum for it is refused, and it is replaced only while nothing is archived", async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-once');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+
+            const first = await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            assert.deepEqual(
+                await confirmations.recordRendering(contractId, {
+                    ...renderingOf(CHECKSUM),
+                    renderedAt: new Date('2026-02-01T05:31:00.000Z'),
+                }),
+                first,
+                'a second recording of the same file changed the first',
+            );
+            await assert.rejects(
+                confirmations.recordRendering(contractId, renderingOf(OTHER_CHECKSUM)),
+                refusedAs(CONTRACT_ERROR_CODES.CONTRACT_CONFIRMATION_CHANGED, {
+                    contractId,
+                    recorded: CHECKSUM,
+                    rendered: OTHER_CHECKSUM,
+                }),
+            );
+            assert.deepEqual(first, {
+                contractId,
+                ...renderingOf(CHECKSUM),
+                archivedAt: null,
+                deliveryClaimedAt: null,
+                deliveredAt: null,
+                deliveredTo: null,
+            });
+
+            assert.equal(
+                await confirmations.replaceRendering(
+                    contractId,
+                    renderingOf(OTHER_CHECKSUM),
+                    OTHER_CHECKSUM,
+                ),
+                null,
+                'a rendering was replaced in place of one not recorded',
+            );
+            const replaced = await confirmations.replaceRendering(
+                contractId,
+                { ...renderingOf(OTHER_CHECKSUM), size: 4096 },
+                CHECKSUM,
+            );
+            assert.deepEqual(replaced, { ...first, checksum: OTHER_CHECKSUM, size: 4096 });
+            assert.deepEqual(await confirmations.find(contractId), replaced);
+            await confirmations.markArchived(contractId, CLAIMED_AT, OTHER_CHECKSUM);
+            assert.equal(
+                await confirmations.replaceRendering(contractId, first, OTHER_CHECKSUM),
+                null,
+                'an archived confirmation was replaced',
+            );
+        });
+
+        test("a contract's confirmation written on a transaction that rolls back is undone with it, and one for no contract is refused", async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-rollback');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    await confirmations.recordRendering(contractId, renderingOf(CHECKSUM), tx);
+                    throw new Error('the run that rendered it failed');
+                }),
+                /the run that rendered it failed/,
+            );
+
+            assert.equal(await confirmations.find(contractId), null);
+            await assert.rejects(
+                confirmations.recordRendering(NO_SUCH_VERSION, renderingOf(CHECKSUM)),
+            );
+            assert.equal(await confirmations.find(NO_SUCH_VERSION), null);
+        });
+
+        // @requirement SC-AUD-016
+        test("a contract's confirmation is archived once, and handed to the mail once, only after it is archived", async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-marks');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+            const archivedAt = new Date('2026-02-01T05:17:00.000Z');
+            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+
+            assert.equal(
+                await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START),
+                false,
+                'a confirmation not archived was claimed for the mail',
+            );
+            assert.equal(
+                await confirmations.markArchived(contractId, archivedAt, OTHER_CHECKSUM),
+                false,
+                'a file other than the recorded one was confirmed',
+            );
+            assert.equal(await confirmations.markArchived(contractId, archivedAt, CHECKSUM), true);
+            assert.equal(await confirmations.markArchived(contractId, CLAIMED_AT, CHECKSUM), false);
+            assert.equal(await confirmations.markDelivered(contractId, DELIVERY), false);
+            assert.equal(
+                await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START),
+                true,
+            );
+            assert.equal(await confirmations.markDelivered(contractId, DELIVERY), true);
+            assert.equal(
+                await confirmations.claimDelivery(contractId, DELIVERY.at, DELIVERY.at),
+                false,
+                'a delivered confirmation was claimed again',
+            );
+
+            const recorded = await confirmations.find(contractId);
+            assert.deepEqual(
+                [recorded!.archivedAt, recorded!.deliveryClaimedAt, recorded!.deliveredTo],
+                [archivedAt, CLAIMED_AT, DELIVERY.to],
+            );
+        });
+
+        test("a confirmation's mail held by a fresh claim is not taken, one held by a stale claim is, and one let go is taken at once", async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-lease');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+            const later = new Date('2026-02-01T05:33:00.000Z');
+            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.markArchived(contractId, LEASE_START, CHECKSUM);
+            await confirmations.claimDelivery(contractId, CLAIMED_AT, LEASE_START);
+
+            // A claim taken exactly when the lease starts still holds; one a
+            // millisecond older is stale.
+            assert.equal(await confirmations.claimDelivery(contractId, later, CLAIMED_AT), false);
+            const afterIt = new Date(CLAIMED_AT.getTime() + 1);
+            assert.equal(await confirmations.claimDelivery(contractId, later, afterIt), true);
+
+            // The run whose claim went stale can neither record the mail nor let it go.
+            assert.equal(await confirmations.markDelivered(contractId, DELIVERY), false);
+            await confirmations.releaseDelivery(contractId, CLAIMED_AT);
+            assert.deepEqual((await confirmations.find(contractId))!.deliveryClaimedAt, later);
+
+            await confirmations.releaseDelivery(contractId, later);
+            assert.equal((await confirmations.find(contractId))!.deliveryClaimedAt, null);
+            assert.equal(await confirmations.claimDelivery(contractId, later, LEASE_START), true);
+        });
+
+        test("of concurrent claims on a confirmation's mail exactly one holds it", async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-race');
+            if (!account) return;
+            const { confirmations, contractId } = account;
+            await confirmations.recordRendering(contractId, renderingOf(CHECKSUM));
+            await confirmations.markArchived(contractId, LEASE_START, CHECKSUM);
+
+            const claims = await Promise.all(
+                [0, 1, 2, 3, 4].map((offset) =>
+                    confirmations.claimDelivery(
+                        contractId,
+                        new Date(CLAIMED_AT.getTime() + offset),
+                        LEASE_START,
+                    ),
+                ),
+            );
+
+            assert.equal(claims.filter(Boolean).length, 1, JSON.stringify(claims));
+        });
+
+        // @requirement SC-AUD-016
+        test('the contracts due a confirmation, and those waiting for its mail, are read page by page, and a contract written before confirmations is due none', async (t) => {
+            const account = await confirmableContracts(t, 'tenant-confirmation-waiting', 5);
+            if (!account) return;
+            const { confirmations, writtenBefore } = account;
+            // SAFETY: `confirmableContracts` wrote five contracts, and answers their ids.
+            const [before, unrendered, rendered, archived, delivered] = account.ids as [
+                string,
+                string,
+                string,
+                string,
+                string,
+            ];
+            await writtenBefore(before);
+            for (const id of [rendered, archived, delivered]) {
+                await confirmations.recordRendering(id, renderingOf(CHECKSUM));
+            }
+            for (const id of [archived, delivered]) {
+                await confirmations.markArchived(id, LEASE_START, CHECKSUM);
+                // Held by a run, and still waiting for the mail.
+                await confirmations.claimDelivery(id, CLAIMED_AT, LEASE_START);
+            }
+            await confirmations.markDelivered(delivered, DELIVERY);
+
+            const awaiting = (page: { limit: number; after?: string }) =>
+                confirmations.listAwaitingConfirmation(page);
+            assert.deepEqual(await awaiting({ limit: 10 }), [unrendered, rendered]);
+            assert.deepEqual(await awaiting({ limit: 1 }), [unrendered]);
+            assert.deepEqual(await awaiting({ limit: 10, after: unrendered }), [rendered]);
+            assert.deepEqual(await confirmations.listAwaitingDelivery({ limit: 10 }), [archived]);
+            assert.deepEqual(
+                await confirmations.listAwaitingDelivery({ limit: 10, after: archived }),
+                [],
+            );
+        });
+
+        /**
+         * The archive of the confirmations, a contract to keep one for, and a
+         * file under it. Null without an archive.
+         */
+        async function aConfirmationArchive(t: TestContext, tenantId: string) {
+            const archive = harness.adapter.contractConfirmationArchive;
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!archive || !contracts || !createSubscriber) {
+                missing(t, 'contractConfirmationArchive');
+                return null;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: `${tenantId} GmbH` });
+            const offer = contractFromOffer(
+                tenantId,
+                partiesWith(subscriberId, `${tenantId} GmbH`),
+            );
+            const { id: contractId } = await contracts.create(offer);
+            // Every byte value, the zero byte among them, opening as every PDF does.
+            const content = new Uint8Array(70_000).map((_, index) => (index * 7) % 256);
+            content.set([0x25, 0x50, 0x44, 0x46, 0x2d]);
+            const confirmationOf = (
+                id: string,
+                checksum = CHECKSUM,
+                bytes = content,
+            ): ContractConfirmationToArchive => ({
+                contractId: id,
+                checksum,
+                mediaType: 'application/pdf',
+                fileName: `contract-${id}.pdf`,
+                content: bytes,
+                archivedAt: new Date('2026-10-23T08:00:00.000Z'),
+            });
+            return { archive, contractId, confirmationOf };
+        }
+
+        // @requirement SC-AUD-016
+        test("a contract's archived confirmation reads back byte for byte, is stored once however often, and another file for it is refused", async (t) => {
+            const kept = await aConfirmationArchive(t, 'tenant-confirmation-archive');
+            if (!kept) return;
+            const { archive, contractId, confirmationOf } = kept;
+
+            await Promise.all([0, 1, 2].map(() => archive.store(confirmationOf(contractId))));
+            await assert.rejects(
+                archive.store(confirmationOf(contractId, OTHER_CHECKSUM, new Uint8Array([0x25]))),
+                refusedAs(CONTRACT_ERROR_CODES.CONTRACT_CONFIRMATION_CHANGED, {
+                    contractId,
+                    recorded: CHECKSUM,
+                    rendered: OTHER_CHECKSUM,
+                }),
+            );
+
+            const read = await archive.read(contractId);
+            assert.deepEqual(read, confirmationOf(contractId));
+            assert.ok(read!.content instanceof Uint8Array);
+            assert.equal(await archive.read(NO_SUCH_VERSION), null);
+        });
+
+        test('a confirmation for a contract that does not exist is not archived', async (t) => {
+            const kept = await aConfirmationArchive(t, 'tenant-confirmation-archive-orphan');
+            if (!kept) return;
+
+            await assert.rejects(kept.archive.store(kept.confirmationOf(NO_SUCH_VERSION)));
+            assert.equal(await kept.archive.read(NO_SUCH_VERSION), null);
         });
 
         // -------------------------------------------------------------

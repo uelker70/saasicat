@@ -120,6 +120,8 @@ persistenceAdapterContract({
         'checkoutOffers',
         'appliedSettings',
         'termsArchive',
+        'contractConfirmations',
+        'contractConfirmationArchive',
         'maintenanceWindows',
         'subscriptionNotices',
         'versionRetirements',

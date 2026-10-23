@@ -11,7 +11,7 @@ import {
     SaaSiCatModule,
     storeSecretsInPlainText,
 } from '../../dist/platform/index.js';
-import { aMailbox, aRenderer, anArchive } from './invoice-documents.js';
+import { aConfirmationRenderer, aMailbox, aRenderer, anArchive } from './invoice-documents.js';
 import { ISSUER, invoicingAdapter } from './invoice-run.js';
 import { MAIN_ACCOUNT, ScriptedGateway, paymentsCatalog } from './payments.js';
 import { TERMS } from './terms.js';
@@ -73,6 +73,8 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             subscriptionContractRepository: REPO,
             subscriberRepository: REPO,
             subscriberLedgerRepository: REPO,
+            contractConfirmationRepository: REPO,
+            contractConfirmationArchive: REPO,
         },
         adminResources: { resources: REPO },
         payments: { paymentEventLog: REPO, subscriberPaymentMethodRepository: REPO },
@@ -134,6 +136,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
                     renderer: aRenderer(),
                     archive: anArchive(),
                     mail: aMailbox(),
+                    confirmations: { renderer: aConfirmationRenderer() },
                     includeCron: false,
                     collections: REPO,
                     payments: REPO,

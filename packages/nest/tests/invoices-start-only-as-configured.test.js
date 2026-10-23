@@ -11,11 +11,16 @@ import assert from 'node:assert/strict';
 
 import { AdminManifestService } from '../dist/admin/index.js';
 import {
+    ContractConfirmationService,
     InvoiceDocumentService,
     SubscriptionInvoiceCron,
     SubscriptionInvoiceService,
 } from '../dist/billing/index.js';
-import { anArchive } from './helpers/invoice-documents.js';
+import {
+    aConfirmationArchive,
+    aConfirmationRenderer,
+    anArchive,
+} from './helpers/invoice-documents.js';
 import {
     invoicesUnder,
     invoicingPlatform as installation,
@@ -118,6 +123,68 @@ describe('invoices start', () => {
 
         assert.throws(() => moduleRef.get(SubscriptionInvoiceService, { strict: false }));
         await moduleRef.close();
+    });
+});
+
+// @requirement SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
+describe('the confirmations every contract is due, beside the invoices', () => {
+    test('start from the renderer alone, keeping their record and their files in the bundle', async () => {
+        const moduleRef = await started(installation());
+
+        assert.ok(moduleRef.get(ContractConfirmationService, { strict: false }));
+        const manifest = await moduleRef.get(AdminManifestService).getManifest();
+        const recorded = manifest.audit.actions.map((action) => action.key);
+        for (const action of [
+            'CONTRACT_CONFIRMATION_HELD',
+            'CONTRACT_CONFIRMATION_RERENDERED',
+            'CONTRACT_CONFIRMATION_MISMATCH',
+            'CONTRACT_CONFIRMATION_DELIVERY_HELD',
+            'CONTRACT_CONFIRMATION_DELIVERY_FAILED',
+        ]) {
+            assert.ok(recorded.includes(action), `the audit log names ${action}`);
+        }
+        await moduleRef.close();
+    });
+
+    test('are required: invoices do not start without their renderer, which the refusal names', async () => {
+        const message = await refusal(
+            installation({ invoices: wiredInvoices({ confirmations: undefined }) }),
+        );
+
+        assert.ok(message.includes('pass chargeJournal.invoices.confirmations.renderer'), message);
+        assert.equal(message.split('\n').length, 2, 'and nothing else');
+    });
+
+    for (const [port, member] of [
+        ['repository', 'contractConfirmationRepository'],
+        ['archive', 'contractConfirmationArchive'],
+    ]) {
+        test(`do not start without their ${port}, where the bundle keeps none either`, async () => {
+            const options = installation();
+            options.persistence.entitlement[member] = undefined;
+
+            const message = await refusal(options);
+
+            assert.ok(
+                message.includes(`pass chargeJournal.invoices.confirmations.${port}`),
+                message,
+            );
+            assert.equal(message.split('\n').length, 2, 'and nothing else');
+        });
+    }
+
+    test('do not start beside an archive that would let a confirmation it keeps be changed', async () => {
+        const archive = aConfirmationArchive({
+            problem: 'the archive lets a kept file be changed',
+        });
+        const confirmations = { renderer: aConfirmationRenderer(), archive };
+
+        const message = await refusal(installation({ invoices: wiredInvoices({ confirmations }) }));
+
+        assert.equal(
+            message,
+            'Contract confirmations cannot start:\n- the archive lets a kept file be changed',
+        );
     });
 });
 

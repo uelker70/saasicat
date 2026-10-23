@@ -396,6 +396,68 @@ retrievable and storable when it is concluded.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - without the migration, the triggers it lacks
+        - once the migration ran, none
+        - with the one against an update or a delete disabled, that one
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
+- `packages/invoice-zugferd/tests/renders-a-contract-confirmation.test.js`
+    - a contract’s confirmation
+        - names the parties, the contract’s facts, its lines and what it costs, in German and
+          English
+        - states the notice period and the terms it was concluded under, attached
+        - of a contract concluded under no terms says so, rather than naming a version
+        - carries the treatment’s note where the contract’s treatment has one
+        - renders into the same bytes every time, and dated when the contract was written
+        - runs on over as many pages as its lines need, each numbered
+        - is refused for a contract that names no issuer
+- `packages/nest/tests/a-contract-is-confirmed.test.js`
+    - a contract written is confirmed
+        - rendered from the contract with the footer the file names and the zone it is told in,
+          archived, and mailed with the terms
+        - a second run renders and mails nothing again
+        - a contract that records no terms is mailed with its confirmation alone
+        - a contract that names another entity than the file is confirmed without the file’s footer
+        - a contract written before confirmations is due none
+    - a confirmation that cannot be made yet is held, and said once
+        - for a contract whose parties a migration copied, or that names no issuer
+        - for a contract whose terms the archive does not hold, until it does
+        - for a subscriber without an invoice email, until one is entered
+        - for a mail that fails, which the next run sends
+    - the confirmation handed out again
+        - is the archived file, and refused for no contract, one with none archived, and a file that
+          does not match
+    - the confirmations start
+        - not beside an archive that would let a confirmation it keeps be changed, naming why
+    - the quarter-hourly run
+        - confirms a contract written since the last one
+    - the operator’s download of a confirmation
+        - is served beside the invoices’ documents, and answers the archived file under its name
+        - is not served where the administration is not
+- `packages/nest/tests/invoices-start-only-as-configured.test.js`
+    - the confirmations every contract is due, beside the invoices
+        - start from the renderer alone, keeping their record and their files in the bundle
+        - are required: invoices do not start without their renderer, which the refusal names
+        - do not start without their ${port}, where the bundle keeps none either
+        - do not start beside an archive that would let a confirmation it keeps be changed
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a contract written before confirmations is due none, and an archived one is kept
+        - a contract no repository wrote is due none, as db push leaves those already there
+        - a database from before gains the tables of the confirmations as the fragments declare them
+        - an archived confirmation refuses ${what}, and stays
+        - an archived confirmation still refuses a delete after the migration ran a second time
+
+<!-- END proof -->
+
 ### SC-AUD-018 — An operator finds what one person did by their e-mail, whatever they acted through
 
 🟢 `<app> audit tail --actor <email>` lists the entries of that person from the web and the command

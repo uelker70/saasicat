@@ -33,6 +33,8 @@ import { DrizzleSubscriberLedgerRepository } from './drizzle-subscriber-ledger.r
 import { DrizzleSubscriptionInvoiceRepository } from './drizzle-subscription-invoice.repository.js';
 import { DrizzleInvoiceArchive } from './drizzle-invoice-archive.js';
 import { DrizzleTermsArchive } from './drizzle-terms-archive.js';
+import { DrizzleContractConfirmationRepository } from './drizzle-contract-confirmation.repository.js';
+import { DrizzleContractConfirmationArchive } from './drizzle-contract-confirmation-archive.js';
 import { DrizzleInvoiceCollectionRepository } from './drizzle-invoice-collection.repository.js';
 import { DrizzleSubscriberPaymentRepository } from './drizzle-subscriber-payment.repository.js';
 import { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
@@ -188,6 +190,15 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             subscriptionInvoiceArchive: unless(
                 'entitlement.subscriptionInvoiceArchive',
                 provide((client) => new DrizzleInvoiceArchive(client)),
+            ),
+            // The confirmation each contract is due, and its file, never changed.
+            contractConfirmationRepository: unless(
+                'entitlement.contractConfirmationRepository',
+                provide((client) => new DrizzleContractConfirmationRepository(client)),
+            ),
+            contractConfirmationArchive: unless(
+                'entitlement.contractConfirmationArchive',
+                provide((client) => new DrizzleContractConfirmationArchive(client)),
             ),
             // The attempts to collect them through their payment gateway.
             invoiceCollectionRepository: unless(

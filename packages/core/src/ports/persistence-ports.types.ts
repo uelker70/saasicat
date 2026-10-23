@@ -23,6 +23,8 @@ import type {
     RlsBypassPort,
 } from './admin-ports.types.js';
 import type {
+    ContractConfirmationArchivePort,
+    ContractConfirmationRepository,
     PlanVersionRepository,
     SubscriberLedgerRepository,
     SubscriptionInvoiceRepository,
@@ -164,6 +166,10 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriptionInvoiceRepository?: PersistenceProvider<SubscriptionInvoiceRepository>;
     /** The invoices' documents, kept in the database (`chargeJournal.invoices.archive`). */
     subscriptionInvoiceArchive?: PersistenceProvider<InvoiceArchivePort>;
+    /** Where each contract's confirmation stands (`chargeJournal.invoices.confirmations`). */
+    contractConfirmationRepository?: PersistenceProvider<ContractConfirmationRepository>;
+    /** The contracts' confirmations, kept in the database (`chargeJournal.invoices.confirmations.archive`). */
+    contractConfirmationArchive?: PersistenceProvider<ContractConfirmationArchivePort>;
     /** The attempts to collect those invoices (`chargeJournal.invoices.collections`). */
     invoiceCollectionRepository?: PersistenceProvider<InvoiceCollectionRepository>;
     /**

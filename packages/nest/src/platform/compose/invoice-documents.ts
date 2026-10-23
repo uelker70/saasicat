@@ -40,6 +40,10 @@ export function composeInvoiceDocuments(ctx: CompositionContext): DynamicModule[
         InvoiceDocumentModule.forRoot({
             guards,
             imports: [tenantBillingModule, ...applicationImports],
+            // Required with invoices: the start refuses invoices without them.
+            confirmations: Boolean(
+                optionsOf(ctx.options.tenantBilling).chargeJournal?.invoices?.confirmations,
+            ),
         }),
         InvoiceCancellationModule.forRoot({
             guards,

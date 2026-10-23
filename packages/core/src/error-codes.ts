@@ -656,6 +656,41 @@ export const CONTRACT_ERROR_CODES = {
      * the installation's tax adapter decides for its subscriber.
      */
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED: 'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_DECIDED',
+    /**
+     * A file of the contract's confirmation has another checksum than the one
+     * recorded or archived for it (`contractId`, `recorded`, `rendered`), and
+     * the first stays. The run takes the archived file as the confirmation,
+     * or — where nothing is archived — records the new rendering in place of
+     * the old; the next run settles one that another run changed in between.
+     */
+    CONTRACT_CONFIRMATION_CHANGED: 'CONTRACT_CONFIRMATION_CHANGED',
+    /**
+     * The archived confirmation does not match the checksum recorded when it
+     * was rendered (`contractId`). It is not handed out.
+     */
+    CONTRACT_CONFIRMATION_MISMATCH: 'CONTRACT_CONFIRMATION_MISMATCH',
+    /**
+     * The contract has no archived confirmation (`contractId`): it was written
+     * before confirmations, or its confirmation is still being made. Nothing is
+     * offered until one is archived.
+     */
+    CONTRACT_CONFIRMATION_NOT_ARCHIVED: 'CONTRACT_CONFIRMATION_NOT_ARCHIVED',
+    /**
+     * The contract does not say who its parties were when it was written — a
+     * migration copied them, or it names no issuer (`contractId`) — so it is
+     * not confirmed.
+     */
+    CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED: 'CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED',
+    /**
+     * The subscriber's record holds no invoice email (`subscriberId`), so the
+     * confirmation cannot be sent; it is sent once one is entered.
+     */
+    CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL: 'CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL',
+    /**
+     * The terms of the version the contract records are not in the archive
+     * (`contractId`, `version`), so the confirmation is not sent without them.
+     */
+    CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED: 'CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED',
 } as const;
 
 export type ContractErrorCode = (typeof CONTRACT_ERROR_CODES)[keyof typeof CONTRACT_ERROR_CODES];

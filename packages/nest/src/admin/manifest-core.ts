@@ -219,6 +219,31 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 severity: 'medium',
             },
             {
+                key: 'CONTRACT_CONFIRMATION_HELD',
+                label: 'Contract waits for its confirmation: its parties or its terms are missing, or the file was refused',
+                severity: 'high',
+            },
+            {
+                key: 'CONTRACT_CONFIRMATION_RERENDERED',
+                label: 'Contract confirmation rendered again before it was archived, in place of the one recorded',
+                severity: 'medium',
+            },
+            {
+                key: 'CONTRACT_CONFIRMATION_MISMATCH',
+                label: 'Archived contract confirmation does not match its checksum, and is not handed out',
+                severity: 'high',
+            },
+            {
+                key: 'CONTRACT_CONFIRMATION_DELIVERY_HELD',
+                label: 'Contract confirmation not sent: the subscriber has no invoice email',
+                severity: 'medium',
+            },
+            {
+                key: 'CONTRACT_CONFIRMATION_DELIVERY_FAILED',
+                label: 'Contract confirmation could not be handed to the mail; tried again',
+                severity: 'medium',
+            },
+            {
                 key: 'SUBSCRIPTION_INVOICE_COLLECTION_FAILED',
                 label: 'Invoice could not be collected through its payment gateway',
                 severity: 'high',

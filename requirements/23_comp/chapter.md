@@ -677,6 +677,18 @@ _Source:_ ADR 0007
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/a-confirmation-is-written-on-its-guard.test.js`
+    - where a confirmation stands, as Drizzle writes it
+        - a rendering is one insert that leaves one recorded before alone
+        - a rendering recorded before under another checksum is refused, and none at all is said
+        - ${what} is one update on its guard, answered by whether it took the row
+        - a rendering is replaced in place of the recorded checksum while nothing is archived
+        - the contracts due one are the contracts marked due, joined to their confirmation
+        - a confirmation is found by its contract, and nothing where none is recorded
+    - the Drizzle archive of the confirmations
+        - stores a file by one insert, and compares one stored before by its checksum
+        - reads a file back as it was archived, and nothing where none is
+        - says what would let a kept confirmation change, from the enabled triggers
 - `packages/adapter-drizzle/tests/a-reversal-takes-its-turn-in-statements.test.js`
     - a reversal
         - takes the turn of every invoice its payment settles, in one order, then the credits, then
@@ -793,6 +805,21 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-contract-confirmation.test.js`
+    - where a contract’s confirmation stands, as the Prisma adapter writes it
+        - ${what}: one guarded update
+        - a guarded write that takes no row answers false
+        - a rendering is inserted conflict-free, and the one found instead is compared by its
+          checksum
+        - a rendering neither written nor found is said
+        - a rendering replaced in place of the one recorded is read back, and nothing where none was
+        - the contracts due one are read over the contracts, those for the mail over the
+          confirmations, page by page
+        - a confirmation is found by its contract, and nothing where none is recorded
+    - the Prisma archive of the confirmations
+        - stores a file once, and compares one stored before by its checksum
+        - reads a file back as bytes of its own, and nothing where none is kept
+        - says what would let a kept confirmation change, from the enabled triggers of its table
 - `packages/adapter-prisma/tests/prisma-invoice-collection.repository.test.js`
     - writing an invoice’s next attempt
         - the first is started in the invoice’s turn after its attempts were read
@@ -937,6 +964,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against a truncate disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - without the migration, the triggers it lacks
+        - once the migration ran, none
+        - with the one against an update or a delete disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -953,6 +984,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against an update or a delete disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken
@@ -1138,6 +1173,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against a truncate disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - without the migration, the triggers it lacks
+        - once the migration ran, none
+        - with the one against an update or a delete disabled, that one
     - drizzle-specific schema interop
         - text-declared enum columns round-trip against Postgres enum types
         - the required planVersionId constraint bites through the drizzle write path
@@ -1150,6 +1189,10 @@ _Tested by:_
         - built from the reference schema alone, it names both triggers
         - with the migration applied, nothing
         - with the one against an update or a delete disabled, that one
+    - the confirmation archive says whether it keeps the confirmations it holds
+        - built from the reference schema alone, it names both triggers
+        - with the migration applied, nothing
+        - with the one against a truncate disabled, that one
     - a create the store refuses
         - a marketing projection for a target and locale that has one is refused by code
         - a unique index of the application's own is not reported as a key taken

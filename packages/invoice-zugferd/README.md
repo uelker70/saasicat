@@ -125,6 +125,28 @@ docker run --rm -v "$PWD:/m" eclipse-temurin:21-jre \
     | grep '<summary status='
 ```
 
+## A contract's confirmation
+
+The package also ships the default `ContractConfirmationRenderer` (`SC-AUD-016`): a contract as the
+subscriber keeps it, on the same letter, labelled the same way — the parties, the contract's facts
+(its id, the day it was written in the installation's time zone, the customer number, its start and
+rhythm), its lines with their rhythm, minimum term and price, what it costs per billing period with
+its tax, the treatment's note, the notice period, and the version of the terms it was concluded
+under, which the mail attaches. A plain PDF: there is no XML for a program to read, and the
+format's validators have nothing to check.
+
+```ts
+import { contractConfirmationRenderer } from '@saasicat/invoice-zugferd';
+
+invoices: {
+    // …
+    confirmations: { renderer: contractConfirmationRenderer() },
+},
+```
+
+Like the invoice, it renders the same bytes every time: its dates are the moment the contract was
+written, and its identifier is derived from the contract. It takes the same `fonts` option.
+
 ## What this is not
 
 - **Not XRechnung.** An invoice to a German public authority needs the

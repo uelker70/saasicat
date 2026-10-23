@@ -24,6 +24,9 @@ import type {
     SubscriberPaymentRepository,
     InvoiceMailPort,
     InvoiceRenderer,
+    ContractConfirmationArchivePort,
+    ContractConfirmationRenderer,
+    ContractConfirmationRepository,
     SubscriptionNoticePort,
     SubscriptionNoticeRepository,
     SubscriptionUsagePort,
@@ -89,6 +92,12 @@ import { InvoiceCollectionService } from './invoices/invoice-collection.service.
 import { InvoicePaymentService } from './invoices/invoice-payment.service.js';
 import { SubscriberCreditService } from './invoices/subscriber-credit.service.js';
 import { SubscriberReconciliationService } from './invoices/subscriber-reconciliation.service.js';
+import { ContractConfirmationService } from './confirmations/contract-confirmation.service.js';
+import {
+    CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
+    CONTRACT_CONFIRMATION_RENDERER_TOKEN,
+    CONTRACT_CONFIRMATION_REPOSITORY_TOKEN,
+} from './confirmations/contract-confirmation.tokens.js';
 import {
     INVOICE_COLLECTION_NOTICE_REPOSITORY_TOKEN,
     INVOICE_COLLECTION_REPOSITORY_TOKEN,
@@ -161,6 +170,41 @@ const INVOICING_IS_WIRED = Symbol('InvoicingIsWired');
 //     `PlanChangePreviewService` (registered internally in TenantBillingModule)
 //     injects `EntitlementService` via constructor. Without global visibility
 //     the app bootstrap breaks with UndefinedDependencyException.
+
+type InvoicesOptions = NonNullable<
+    NonNullable<TenantBillingModuleOptions['chargeJournal']>['invoices']
+>;
+
+/**
+ * The confirmations' ports where every one they need is given — their
+ * renderer, their record, their archive, and the mail they are sent through —
+ * and `null` otherwise, for the start check to name what is missing.
+ */
+function wiredConfirmations(
+    invoices: InvoicesOptions,
+): Required<NonNullable<InvoicesOptions['confirmations']>> | null {
+    const { confirmations, mail } = invoices;
+    if (!confirmations?.renderer || !confirmations.repository || !confirmations.archive || !mail) {
+        return null;
+    }
+    return {
+        renderer: confirmations.renderer,
+        repository: confirmations.repository,
+        archive: confirmations.archive,
+    };
+}
+
+/** The confirmations' ports and their service, where every one of them is given. */
+function confirmationProviders(invoices: InvoicesOptions): Provider[] {
+    const confirmations = wiredConfirmations(invoices);
+    if (!confirmations) return [];
+    return [
+        asProvider(CONTRACT_CONFIRMATION_RENDERER_TOKEN, confirmations.renderer),
+        asProvider(CONTRACT_CONFIRMATION_REPOSITORY_TOKEN, confirmations.repository),
+        asProvider(CONTRACT_CONFIRMATION_ARCHIVE_TOKEN, confirmations.archive),
+        ContractConfirmationService,
+    ];
+}
 
 /**
  * One commercial setting out of the catalogue, or a sentence saying where it
@@ -423,8 +467,27 @@ export interface TenantBillingModuleOptions {
              * the database (`SC-AUD-014`).
              */
             archive: ProviderSpec<InvoiceArchivePort>;
-            /** Sends an archived invoice to the subscriber with its file attached (`SC-PRIC-094`). */
+            /**
+             * Sends an archived invoice to the subscriber with its file attached
+             * (`SC-PRIC-094`), and a contract's confirmation with the terms
+             * (`SC-AUD-016`).
+             */
             mail: ProviderSpec<InvoiceMailPort>;
+            /**
+             * The confirmation every contract written from now on is due
+             * (`SC-AUD-016`): rendered by `renderer` — such as
+             * `@saasicat/invoice-zugferd`'s `contractConfirmationRenderer()` —,
+             * kept where `repository` and `archive` say, and sent through
+             * `mail`'s `deliverConfirmation` with the terms of the version the
+             * contract records. Required with invoices; `SaaSiCatModule` takes
+             * `persistence.entitlement.contractConfirmationRepository` and
+             * `contractConfirmationArchive` unless these name others.
+             */
+            confirmations?: {
+                renderer: ProviderSpec<ContractConfirmationRenderer>;
+                repository?: ProviderSpec<ContractConfirmationRepository>;
+                archive?: ProviderSpec<ContractConfirmationArchivePort>;
+            };
             /**
              * Where the attempts to collect the invoices through their payment
              * gateway are kept — `persistence.entitlement.invoiceCollectionRepository`.
@@ -453,7 +516,8 @@ export interface TenantBillingModuleOptions {
             /**
              * `false` leaves out the quarter-hourly run — for a CLI boot, or an
              * application that calls `SubscriptionInvoiceService.issueDue`, then
-             * `InvoiceDocumentService.archiveDue` and `deliverDue`, and
+             * `InvoiceDocumentService.archiveDue` and `deliverDue`,
+             * `ContractConfirmationService.archiveDue` and `deliverDue`, and
              * `InvoiceCollectionService.collectDue`, from a scheduler of its
              * own. Default: included.
              */
@@ -651,6 +715,7 @@ export class TenantBillingModule {
                 ...(invoices.renderer && invoices.archive && invoices.mail
                     ? [InvoiceDocumentService]
                     : []),
+                ...confirmationProviders(invoices),
                 ...(invoices.collections
                     ? [
                           asProvider(INVOICE_COLLECTION_REPOSITORY_TOKEN, invoices.collections),
@@ -826,6 +891,7 @@ export class TenantBillingModule {
                 ...(invoices?.renderer && invoices.archive && invoices.mail
                     ? [InvoiceDocumentService]
                     : []),
+                ...(invoices && wiredConfirmations(invoices) ? [ContractConfirmationService] : []),
                 ...(invoices?.collections ? [InvoiceCollectionService] : []),
                 ...(invoices?.collections && invoices.payments
                     ? [

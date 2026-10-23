@@ -1,0 +1,65 @@
+// =============================================================================
+// SaaSiCat platform Prisma fragment: ContractConfirmation, ContractConfirmationArchive
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// What a subscriber keeps of the contract they are bound by (SC-AUD-016): a
+// confirmation per contract the platform writes once confirmations exist
+// (08-subscription-contract.prisma, `confirmationDue`), rendered from the
+// contract, archived and mailed to the invoice email with the terms of the
+// version the contract records.
+//
+// `ContractConfirmation` is where it stands: the checksum is recorded once,
+// before the file is archived, and every later download is checked against it;
+// the archive's confirmation and the delivery are set once each. A run claims
+// the mail before it sends it, so of several instances one does.
+//
+// `ContractConfirmationArchive` keeps the file, written once and never changed:
+// the migration `1.0-a-contract-confirmation-is-archived.postgres.sql`, run
+// after `db push`, installs triggers that refuse every UPDATE, DELETE and
+// TRUNCATE, whoever asks. Keep it, with its database backups, for as long as
+// the contract is kept.
+//
+// Required with invoicing (`tenantBilling.chargeJournal.invoices`), whose start
+// refuses invoices without a confirmation repository and archive.
+//
+// Contract: @saasicat/core (ContractConfirmationRepository,
+// ContractConfirmationArchivePort).
+
+model ContractConfirmation {
+    contractId        String    @id
+    // SHA-256 of the rendered file, 64 lower-case hex digits.
+    checksum          String
+    mediaType         String
+    fileName          String
+    // In bytes.
+    size              Int
+    renderedAt        DateTime
+    // Null while the contract waits for its confirmation.
+    archivedAt        DateTime?
+    // When the run mailing it took it on; null while no run holds it.
+    deliveryClaimedAt DateTime?
+    // Null until the confirmation is handed to the mail.
+    deliveredAt       DateTime?
+    deliveredTo       String?
+
+    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+    @@index([archivedAt])
+    @@map("contract_confirmations")
+}
+
+model ContractConfirmationArchive {
+    contractId String   @id
+    // SHA-256 of `content`, 64 lower-case hex digits.
+    checksum   String
+    mediaType  String
+    fileName   String
+    content    Bytes
+    archivedAt DateTime
+
+    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+    @@map("contract_confirmation_archive")
+}

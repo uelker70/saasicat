@@ -217,6 +217,12 @@ export {
     INVOICE_MAIL_PORT_TOKEN,
     INVOICE_RENDERER_TOKEN,
 } from './invoices/invoice-document.tokens.js';
+export { ContractConfirmationService } from './confirmations/contract-confirmation.service.js';
+export {
+    CONTRACT_CONFIRMATION_ARCHIVE_TOKEN,
+    CONTRACT_CONFIRMATION_RENDERER_TOKEN,
+    CONTRACT_CONFIRMATION_REPOSITORY_TOKEN,
+} from './confirmations/contract-confirmation.tokens.js';
 export { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 export * from './trial-carryover.js';
 export * from './dto/tenant-billing.dto.js';

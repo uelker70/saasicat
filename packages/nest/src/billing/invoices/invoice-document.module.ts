@@ -13,6 +13,8 @@ import {
 
 import { AllowDuringMaintenance } from '../../maintenance/allow-during-maintenance.js';
 import { UseRouteGuards } from '../../admin/use-route-guards.decorator.js';
+import type { InvoiceDocument } from '@saasicat/core';
+import { ContractConfirmationService } from '../confirmations/contract-confirmation.service.js';
 import { InvoiceDocumentService } from './invoice-document.service.js';
 
 export interface InvoiceDocumentModuleOptions {
@@ -21,9 +23,12 @@ export interface InvoiceDocumentModuleOptions {
     /**
      * Must bring `InvoiceDocumentService` into scope — the tenant billing
      * module that already provides it, passed as the very object the
-     * application imports, so that no port is built a second time.
+     * application imports, so that no port is built a second time — and
+     * `ContractConfirmationService` where `confirmations` is set.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
+    /** Whether the contracts' confirmations are offered too. */
+    confirmations: boolean;
 }
 
 /**
@@ -31,9 +36,18 @@ export interface InvoiceDocumentModuleOptions {
  * header it stands in: the name comes from the renderer, and a quote or a line
  * break in it would let it write a header of its own.
  */
-function downloadNameOf(fileName: string): string {
+function downloadNameOf(fileName: string, fallback: string): string {
     const kept = fileName.replace(/[^A-Za-z0-9._-]/g, '_');
-    return kept === '' ? 'invoice' : kept;
+    return kept === '' ? fallback : kept;
+}
+
+/** An archived file as the download hands it out, under the name it was archived with. */
+function downloadOf(file: InvoiceDocument, fallback: string): StreamableFile {
+    return new StreamableFile(file.content, {
+        type: file.mediaType,
+        length: file.content.byteLength,
+        disposition: `attachment; filename="${downloadNameOf(file.fileName, fallback)}"`,
+    });
 }
 
 function buildInvoiceDocumentController(guards: Array<Type<CanActivate>>): Type {
@@ -53,21 +67,41 @@ function buildInvoiceDocumentController(guards: Array<Type<CanActivate>>): Type 
          */
         @Get('invoices/:id/document')
         async documentOf(@Param('id') id: string): Promise<StreamableFile> {
-            const document = await this.documents.documentOf(id);
-            return new StreamableFile(document.content, {
-                type: document.mediaType,
-                length: document.content.byteLength,
-                disposition: `attachment; filename="${downloadNameOf(document.fileName)}"`,
-            });
+            return downloadOf(await this.documents.documentOf(id), 'invoice');
         }
     }
 
     return GeneratedInvoiceDocumentController;
 }
 
+function buildContractConfirmationController(guards: Array<Type<CanActivate>>): Type {
+    @Controller('admin')
+    @AllowDuringMaintenance()
+    @UseRouteGuards(...guards)
+    class GeneratedContractConfirmationController {
+        constructor(
+            @Inject(ContractConfirmationService)
+            private readonly confirmations: ContractConfirmationService,
+        ) {}
+
+        /**
+         * The contract's archived confirmation, the file the subscriber was
+         * sent (`SC-AUD-016`), checked against the checksum recorded when it
+         * was rendered.
+         */
+        @Get('contracts/:id/confirmation')
+        async confirmationOf(@Param('id') id: string): Promise<StreamableFile> {
+            return downloadOf(await this.confirmations.confirmationOf(id), 'confirmation');
+        }
+    }
+
+    return GeneratedContractConfirmationController;
+}
+
 /**
- * The operator's download of an invoice's document. Mounted where the
- * platform keeps both the administration's tenants and invoices.
+ * The operator's download of an invoice's document, and of a contract's
+ * confirmation. Mounted where the platform keeps both the administration's
+ * tenants and invoices.
  */
 @Module({})
 export class InvoiceDocumentModule {
@@ -75,7 +109,12 @@ export class InvoiceDocumentModule {
         return {
             module: InvoiceDocumentModule,
             imports: options.imports,
-            controllers: [buildInvoiceDocumentController(options.guards)],
+            controllers: [
+                buildInvoiceDocumentController(options.guards),
+                ...(options.confirmations
+                    ? [buildContractConfirmationController(options.guards)]
+                    : []),
+            ],
         };
     }
 }

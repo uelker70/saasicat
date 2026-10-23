@@ -580,6 +580,45 @@ paths:
                         archived file does not match the recorded checksum and
                         is not handed out (`SUBSCRIPTION_INVOICE_DOCUMENT_MISMATCH`)
 
+    /contracts/{id}/confirmation:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              description: The contract's id
+              schema: { type: string }
+        get:
+            tags: [subscriptions]
+            summary: The confirmation a contract's subscriber was sent
+            description: >-
+                Served beside the invoices' documents, where the platform keeps
+                invoices, which confirm every contract written since
+                confirmations exist (`SC-AUD-016`). Answers the file archived
+                for the contract, checked against the checksum recorded when it
+                was rendered — never a new rendering.
+            responses:
+                '200':
+                    description: The archived file, as an attachment
+                    headers:
+                        Content-Disposition:
+                            description: >-
+                                `attachment; filename="…"`, the renderer's file
+                                name kept to letters, digits, `.`, `_` and `-`
+                            schema: { type: string }
+                    content:
+                        application/pdf:
+                            schema: { type: string, format: binary }
+                '404':
+                    description: No contract with this id (`SUBSCRIPTION_CONTRACT_NOT_FOUND`)
+                '409':
+                    description: >-
+                        The contract has no archived confirmation — it was
+                        written before confirmations, or its confirmation is
+                        still being made (`CONTRACT_CONFIRMATION_NOT_ARCHIVED`)
+                        —, or its archived file does not match the recorded
+                        checksum and is not handed out
+                        (`CONTRACT_CONFIRMATION_MISMATCH`)
+
     /tenants/{slug}/invoices/{invoiceId}:
         parameters:
             - $ref: '#/components/parameters/TenantSlug'

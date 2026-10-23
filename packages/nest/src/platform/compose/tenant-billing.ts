@@ -1,6 +1,8 @@
 import type { DynamicModule } from '@nestjs/common';
 import type {
     BundleRepository,
+    ContractConfirmationArchivePort,
+    ContractConfirmationRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriberPaymentRepository,
@@ -88,8 +90,9 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         // successor contract and the end of the one it replaces are written
         // on one transaction.
         // Collecting records what it tells a subscriber with the other
-        // notices, in the bundle's record unless the application names one.
-        chargeJournal: withCollectionDefaults(tenantOptions.chargeJournal, {
+        // notices, in the bundle's record unless the application names one;
+        // the confirmations are kept in the bundle's tables the same way.
+        chargeJournal: withInvoiceDefaults(tenantOptions.chargeJournal, {
             // SAFETY: the bundle's member is the provider of the record of
             // notices, as `versionNotices.notices` reads it below.
             notices: tenantSlice?.subscriptionNotices as
@@ -99,6 +102,14 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
             // spec it is.
             payments: ctx.persistence?.entitlement?.subscriberPaymentRepository as
                 ProviderSpec<SubscriberPaymentRepository> | undefined,
+            // SAFETY: the bundle's members are the providers of the record and
+            // the archive of the confirmations, which `PersistenceProvider`
+            // types as the provider specs they are.
+            confirmationRepository: ctx.persistence?.entitlement?.contractConfirmationRepository as
+                ProviderSpec<ContractConfirmationRepository> | undefined,
+            // SAFETY: as above.
+            confirmationArchive: ctx.persistence?.entitlement?.contractConfirmationArchive as
+                ProviderSpec<ContractConfirmationArchivePort> | undefined,
         }),
         contractFreeze: tenantOptions.contractFreeze && {
             transactionRunner: ctx.adapters.transactionRunner as
@@ -143,21 +154,33 @@ function contractRepositoryOf(
 
 /**
  * The charge journal as the application configured it, with `notices` and
- * `payments` taken from the bundle where invoices are collected and the
- * application names none.
+ * `payments` taken from the bundle where invoices are collected, and the
+ * confirmations' record and archive where invoices confirm their contracts,
+ * wherever the application names none.
  */
-function withCollectionDefaults(
+function withInvoiceDefaults(
     chargeJournal: TenantBillingModuleOptions['chargeJournal'],
     bundled: {
         notices: ProviderSpec<SubscriptionNoticeRepository> | undefined;
         payments: ProviderSpec<SubscriberPaymentRepository> | undefined;
+        confirmationRepository: ProviderSpec<ContractConfirmationRepository> | undefined;
+        confirmationArchive: ProviderSpec<ContractConfirmationArchivePort> | undefined;
     },
 ): TenantBillingModuleOptions['chargeJournal'] {
     const invoices = chargeJournal?.invoices;
-    if (!chargeJournal || !invoices?.collections) return chargeJournal;
+    if (!chargeJournal || !invoices) return chargeJournal;
     const defaulted = { ...invoices };
-    if (!defaulted.notices && bundled.notices) defaulted.notices = bundled.notices;
-    if (!defaulted.payments && bundled.payments) defaulted.payments = bundled.payments;
+    if (invoices.collections) {
+        if (!defaulted.notices && bundled.notices) defaulted.notices = bundled.notices;
+        if (!defaulted.payments && bundled.payments) defaulted.payments = bundled.payments;
+    }
+    if (invoices.confirmations) {
+        defaulted.confirmations = {
+            ...invoices.confirmations,
+            repository: invoices.confirmations.repository ?? bundled.confirmationRepository,
+            archive: invoices.confirmations.archive ?? bundled.confirmationArchive,
+        };
+    }
     return { ...chargeJournal, invoices: defaulted };
 }
 

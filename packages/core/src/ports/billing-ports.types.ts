@@ -7,6 +7,12 @@ import type {
     SubscriptionBundleRecord,
 } from '../subscription.types.js';
 import type {
+    ArchivedContractConfirmation,
+    ContractConfirmationRecord,
+    ContractConfirmationToArchive,
+    NewContractConfirmationRendering,
+} from '../contract-confirmation.types.js';
+import type {
     ContractAgreement,
     NewSubscriptionContractData,
     RunningContractIssuers,
@@ -1729,4 +1735,125 @@ export interface PlanVersionRepository {
         asOf?: Date,
         tx?: TransactionContext,
     ): Promise<PlanVersionRecord | null>;
+}
+
+/**
+ * Keeps each contract's confirmation, unalterable, for as long as the
+ * contract is kept. The shipped adapters keep it in the database
+ * (`ContractConfirmationArchive`, which refuses every update and delete).
+ */
+export interface ContractConfirmationArchivePort {
+    /**
+     * Stores the confirmation under its contract. Storing it again with the
+     * same checksum is the same write and changes nothing; another checksum
+     * for a contract already confirmed is refused with
+     * `CONTRACT_CONFIRMATION_CHANGED`, and the first stays.
+     */
+    store(confirmation: ContractConfirmationToArchive): Promise<void>;
+    /** The confirmation archived under the contract, or `null` where none is. */
+    read(contractId: string): Promise<ArchivedContractConfirmation | null>;
+    /**
+     * Why the archive would let a confirmation it keeps be changed or
+     * removed, or `null` where it would not. Asked when invoices start, which
+     * are refused while it names a reason.
+     */
+    protectionProblem(): Promise<string | null>;
+}
+
+/**
+ * Where each contract's confirmation stands (`SC-AUD-016`): the rendering
+ * recorded before its file is archived, when the archive confirmed it, and
+ * when and to whom it was mailed. The same writes as an invoice's document,
+ * each guarded the same way, so a confirmation is archived once and mailed
+ * once however many instances run.
+ */
+export interface ContractConfirmationRepository {
+    /**
+     * Records the rendering of a contract's confirmation before its file is
+     * archived, once. Recorded again with the same checksum it is the same
+     * write and answers the record as it stands; another checksum is refused
+     * with `CONTRACT_CONFIRMATION_CHANGED` (`moved`), and the first stays.
+     */
+    recordRendering(
+        contractId: string,
+        rendering: NewContractConfirmationRendering,
+        tx?: TransactionContext,
+    ): Promise<ContractConfirmationRecord>;
+
+    /**
+     * Records a rendering in place of the one recorded with `replaced` as its
+     * checksum, while nothing is archived. `null` where the recorded checksum
+     * is another by now, or the confirmation is archived.
+     */
+    replaceRendering(
+        contractId: string,
+        rendering: NewContractConfirmationRendering,
+        replaced: string,
+        tx?: TransactionContext,
+    ): Promise<ContractConfirmationRecord | null>;
+
+    /**
+     * Records that the archive confirmed the file whose checksum is
+     * `checksum`; `false` where it was already recorded, or the recorded
+     * checksum is another.
+     */
+    markArchived(
+        contractId: string,
+        at: Date,
+        checksum: string,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Claims an archived confirmation's mail for the run calling it at `at`:
+     * where it is not delivered and no run holds it, or the run that holds it
+     * took it on before `staleBefore`. `true` where this run holds it now — of
+     * two concurrent calls exactly one does.
+     */
+    claimDelivery(
+        contractId: string,
+        at: Date,
+        staleBefore: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Records that the confirmation was handed to the mail, provided it is
+     * still held by the claim taken at `claimedAt` and not delivered; `false`
+     * where it is not.
+     */
+    markDelivered(
+        contractId: string,
+        delivery: { claimedAt: Date; at: Date; to: string },
+        tx?: TransactionContext,
+    ): Promise<boolean>;
+
+    /**
+     * Lets go of the claim taken at `claimedAt`, so the next run tries again.
+     * Does nothing where the confirmation is delivered or held by another claim.
+     */
+    releaseDelivery(contractId: string, claimedAt: Date, tx?: TransactionContext): Promise<void>;
+
+    /** Where the contract's confirmation stands, or `null` before it was rendered. */
+    find(contractId: string, tx?: TransactionContext): Promise<ContractConfirmationRecord | null>;
+
+    /**
+     * The contracts due a confirmation (`confirmationDue`) whose confirmation
+     * the archive has not confirmed yet — not rendered, or rendered and not
+     * archived. By id, at most `limit`, after `after` where it is given.
+     */
+    listAwaitingConfirmation(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
+
+    /**
+     * The contracts whose confirmation is archived and not yet handed to the
+     * mail, page by page as above — whether or not a run holds them, which
+     * `claimDelivery` decides.
+     */
+    listAwaitingDelivery(
+        page: { limit: number; after?: string },
+        tx?: TransactionContext,
+    ): Promise<string[]>;
 }

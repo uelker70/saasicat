@@ -46,6 +46,8 @@ import { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.rep
 import { PrismaSubscriptionInvoiceRepository } from './prisma-subscription-invoice.repository.js';
 import { PrismaInvoiceArchive } from './prisma-invoice-archive.js';
 import { PrismaTermsArchive } from './prisma-terms-archive.js';
+import { PrismaContractConfirmationRepository } from './prisma-contract-confirmation.repository.js';
+import { PrismaContractConfirmationArchive } from './prisma-contract-confirmation-archive.js';
 import { PrismaInvoiceCollectionRepository } from './prisma-invoice-collection.repository.js';
 import { PrismaSubscriberPaymentRepository } from './prisma-subscriber-payment.repository.js';
 import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
@@ -84,6 +86,8 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriberLedgerEntry: unknown;
     subscriptionInvoice: unknown;
     subscriptionNotice: unknown;
+    contractConfirmation: unknown;
+    contractConfirmationArchive: unknown;
 }
 
 /**
@@ -266,6 +270,15 @@ export function prismaPersistence<M extends OptionalCanonicalModel = never>(
             subscriptionInvoiceArchive: unless(
                 'entitlement.subscriptionInvoiceArchive',
                 provide((prisma) => new PrismaInvoiceArchive(canonical(prisma))),
+            ),
+            // The confirmation each contract is due, and its file, never changed.
+            contractConfirmationRepository: unless(
+                'entitlement.contractConfirmationRepository',
+                provide((prisma) => new PrismaContractConfirmationRepository(canonical(prisma))),
+            ),
+            contractConfirmationArchive: unless(
+                'entitlement.contractConfirmationArchive',
+                provide((prisma) => new PrismaContractConfirmationArchive(canonical(prisma))),
             ),
             // The attempts to collect them through their payment gateway.
             invoiceCollectionRepository: unless(
