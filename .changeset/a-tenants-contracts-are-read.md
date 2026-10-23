@@ -19,7 +19,9 @@ with the confirmation's download as `contracts.read`.
 `ContractConfirmationRepository` gains `listStandings(contractIds)`, which
 both adapters implement and the persistence contract holds: whether each
 contract is due a confirmation and where its confirmation stands. A
-repository of your own adds it.
+repository of your own adds it. An application that wires
+`InvoiceDocumentModule` itself with `confirmations: true` brings the
+administration's `AdminResourcesService` into its `imports` too.
 
 `SC-SCOPE-011` is delivered: SaaSiCat invoices subscriptions and collects
 payment through a payment gateway, which supersedes `SC-SCOPE-004` and
