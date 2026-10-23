@@ -1,5 +1,134 @@
 # @saasicat/cli
 
+## 1.0.0-rc.28
+
+### Minor Changes
+
+- b239fdd: An operator cancels an issued invoice, from the administration or the command
+  line
+
+    `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview` answers
+    what cancelling the invoice would write and writes nothing;
+    `…/cancellation` writes it, with the second factor, and records
+    `SUBSCRIPTION_INVOICE_CANCELLED` in the audit log with the reason, which
+    details were corrected and whether an address to deliver to was given. The
+    manifest announces both as `invoices.cancel`, served where the invoices'
+    documents are. `<app> invoices cancel --tenant <slug> --invoice <number>
+--reason "…"` previews the same, and cancels with `--apply`, the second factor
+    and, against production, a confirmation.
+
+    The reason is one line of at most 500 characters, refused otherwise with
+    `SUBSCRIPTION_INVOICE_CANCELLATION_REASON_INVALID`; corrections are settled as
+    the subscriber's record holds each detail; an address to deliver to is trimmed
+    and refused with `SUBSCRIPTION_INVOICE_DELIVERY_ADDRESS_INVALID` where it is no
+    email address. The cancellation invoice, its replacement and the replacement's
+    collection notices are sent to that address where one was given, one address
+    for all of it; nothing is written back onto the record. Corrections are held to
+    300 characters each, and the route trims what it is given before checking its
+    length, as the service does, so both paths accept the same.
+
+    `SC-PRIC-091`, `SC-PRIC-092` and `SC-PRIC-093` supersede `SC-PRIC-025`,
+    `SC-PRIC-026` and `SC-PRIC-077`: a replacement names the legal entity and the
+    subscriber of the invoice it replaces, and carries the issuer's address,
+    contact details and footer as `config/saas.yaml` names them on its own issue
+    date, as it already did. `SC-PRIC-094` supersedes `SC-PRIC-047` with the one
+    address to deliver to. `InvoiceCancellationPlan` names `reason` and
+    `deliverTo`.
+
+- 17ceb59: The operator says, line by line, what of a cancelled invoice is still owed
+
+    `GET admin/tenants/:slug/invoices/:invoiceId` answers an invoice with its
+    lines (`AdminInvoice`), each with what its charge stands at — an earlier
+    cancellation's correction included — and whether a cancellation may name it
+    as not owed, or owed in part (`correctable`); the cancellation accepts
+    exactly the lines it offers, by one rule (`lineStandingsOf`). The
+    cancellation routes take `lines`, `{ position, owed }` each:
+    `CancelInvoiceDto` declares them as `InvoiceLineOwedDto`, so a
+    `ValidationPipe` with `whitelist` keeps them, and a position or an amount
+    that is no number is refused before the service reads it. The audit entry
+    names each line that moved, from what to what.
+
+    `lines` in `InvoiceCancellationPlan` and `CancelledInvoice` are now in the
+    invoice's currency, as every other amount the administration reads, rather
+    than in cents (`AdminCorrectedInvoiceLine`); the preview's replacement
+    carries its lines (`AdminReplacementLine`).
+
+    `<app> invoices cancel` takes `--line 2=not-owed` or `--line 2=24.50`,
+    repeatable; the amount takes a dot and at most two decimals, and a comma is
+    refused rather than read as a locale would read it. The preview prints each
+    line that moves and the replacement's lines.
+
+    The cancel dialog on the tenant page lists the invoice's lines with a choice
+    at each one that may be corrected — owed, not owed, or owed in part with the
+    amount — and says why the others offer none; the preview shows each line that
+    moves, from what to what, and the replacement's lines, a correction naming the
+    item it corrects (`SC-ADM-035`).
+
+- f38362e: The tenant page cancels an invoice, and a cancellation is held to the preview
+  the operator confirmed
+
+    Each invoice on the tenant page says what it corrects and which cancellation
+    invoice cancelled it — `AdminTenantPayments` carries `correction` and
+    `cancelledBy` for each. One that stands offers the cancellation in two steps:
+    the reason, an address to deliver to and the subscriber's details the
+    replacement names corrected, then the server's preview, confirmed with the
+    second factor.
+
+    A preview answers a `digest` of everything the cancellation would write but
+    the moment it issues the two invoices, and a cancellation may carry it back as
+    `previewDigest`; where what it would write differs — a payment came in, the
+    subscriber's legal identity was corrected meanwhile —, it is refused with
+    `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, and
+    nothing is written. `InvoiceCancellationRequest` moves from `@saasicat/nest` to
+    `@saasicat/core`. After `--apply`, `<app> invoices cancel` says what was taken
+    over as paid and what was credited.
+
+### Patch Changes
+
+- bea18a3: A cancellation corrects what was not owed, line by line
+
+    `InvoiceCancellationService` takes `lines`, the lines of the cancelled
+    invoice that are not owed or owed at a lower amount. Each moves by a
+    counter-entry written in the cancellation's transaction, and each discount
+    that reduced it in the share it fell: a held add-on price and a booking's
+    feature withdrawal reduction with that booking, every other discount with the
+    plan, to the cent. The replacement carries what is still owed, a
+    counter-entry's line after the line it corrects; where nothing is owed any
+    more there is no replacement and everything paid becomes a credit, and a
+    replacement that would ask for less than nothing is refused. Five refusal
+    codes say what a line may not be (`SUBSCRIPTION_INVOICE_LINE_UNKNOWN`,
+    `…_LINE_NAMED_TWICE`, `…_LINE_NOT_CORRECTABLE`, `…_LINE_OWED_INVALID`,
+    `…_CORRECTION_LEAVES_A_CREDIT`). A correction now moves its charge towards
+    nothing, so a discount's counter-entry gives back.
+
+    Invoice lines gain `correctsPosition`, the line of the same invoice a
+    counter-entry's line corrects, with its foreign key and the check
+    `subscription_invoice_lines_correction_names_its_line`, both in
+    `1.0-an-invoice-is-cancelled.postgres.sql` and `constraints.postgres.sql`.
+    `zugferdInvoiceRenderer()` names it on the line ("Korrektur zu Pos. 2").
+    `SC-PRIC-095` supersedes `SC-PRIC-091`, `SC-PRIC-096` supersedes
+    `SC-PRIC-022`.
+
+- Updated dependencies [bea18a3]
+- Updated dependencies [c9f2d68]
+- Updated dependencies [4c9616d]
+- Updated dependencies [64d7503]
+- Updated dependencies [a2578d7]
+- Updated dependencies [f8a9e97]
+- Updated dependencies [63db610]
+- Updated dependencies [254e643]
+- Updated dependencies [5c1b1ff]
+- Updated dependencies [b239fdd]
+- Updated dependencies [17ceb59]
+- Updated dependencies [d5fdbe8]
+- Updated dependencies [d0892a6]
+- Updated dependencies [9a5f892]
+- Updated dependencies [f38362e]
+- Updated dependencies [ba9ad8f]
+    - @saasicat/core@1.0.0-rc.28
+    - @saasicat/spec@1.0.0-rc.28
+    - @saasicat/nest@1.0.0-rc.28
+
 ## 1.0.0-rc.27
 
 ### Patch Changes

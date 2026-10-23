@@ -1,5 +1,45 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.28
+
+### Patch Changes
+
+- d5fdbe8: A refusal's sentence says what is true wherever the code is thrown, and a plan
+  change refused for its reasons shows them
+
+    Five shipped sentences fitted only one of the places their code is thrown, and
+    a tenant read them on the others: an ended subscription "can no longer be
+    changed" rather than only its plan, a blocked plan change no longer says
+    "during onboarding", a cancellation that changed while ending at once is not
+    called a moved date, a request without a user is not said to lack a tenant,
+    and a cancelled bundle booking is not named by its internal id.
+
+    A plan change refused at the moment it is made — a version offer taken, a
+    switch to a retired version's replacement, a confirmed change in the wizard —
+    now lists the reasons the refusal carries under its sentence, worded as the
+    preview words its blockers; a quota used beyond what the new plan allows was
+    refused with no reason on screen. `resolveErrorMessage` also gives a sentence
+    that names a value the body did not bring way to the server's message, as the
+    administration does, rather than showing the placeholder.
+
+- Updated dependencies [bea18a3]
+- Updated dependencies [c9f2d68]
+- Updated dependencies [4c9616d]
+- Updated dependencies [64d7503]
+- Updated dependencies [a2578d7]
+- Updated dependencies [f8a9e97]
+- Updated dependencies [254e643]
+- Updated dependencies [5c1b1ff]
+- Updated dependencies [b239fdd]
+- Updated dependencies [17ceb59]
+- Updated dependencies [d5fdbe8]
+- Updated dependencies [d0892a6]
+- Updated dependencies [9a5f892]
+- Updated dependencies [f38362e]
+- Updated dependencies [ba9ad8f]
+    - @saasicat/core@1.0.0-rc.28
+    - @saasicat/ui-vue@1.0.0-rc.28
+
 ## 1.0.0-rc.27
 
 ### Patch Changes
