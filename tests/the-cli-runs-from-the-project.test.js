@@ -7,12 +7,15 @@ import { fileURLToPath } from 'node:url';
 
 // `@saasicat/cli` declares `@nestjs/common` and `nest-commander` as peers: the
 // commands it exports are registered in an application's own CLI and have to
-// resolve that application's Nest classes, not a copy of their own. A one-off
-// run that fetches the package — `npx`, `pnpm dlx` and their kin — installs
-// none of those peers, and the CLI stops at its first import with
-// `ERR_MODULE_NOT_FOUND`, before it reads its arguments. So a command a reader
-// copies runs the CLI from the project, where the peers are: `pnpm exec
-// saasicat …`.
+// resolve that application's Nest classes, not a copy of their own. npm's
+// one-off runner installs no peers, so `npx @saasicat/cli` stops at its first
+// import with `ERR_MODULE_NOT_FOUND`, before it reads its arguments. pnpm's
+// `dlx` does install them, and still runs a CLI that is not the project's:
+// whatever version the spec names, against Nest copies of its own. So a
+// command a reader copies runs the CLI one way, from the project, against the
+// versions the application installed — `pnpm exec saasicat …` — and every
+// fetching runner is refused alike, since a page offering `pnpm dlx` beside
+// `pnpm exec` would show two ways where one is meant.
 //
 // For the same reason the CLI is a runtime dependency of the application, as
 // the quickstart installs it. A command that adds it as a development one
@@ -115,6 +118,29 @@ function oneOffRunsIn(text) {
     return runs;
 }
 
+function isLetter(character) {
+    return (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z');
+}
+
+/**
+ * Whether `arg` is one of the install's development flags: as written, as a
+ * long flag with a value other than `false` (`--save-dev=true`), or as a
+ * letter in a bundle of short flags (`-DE`). The letter keeps its case, since
+ * npm's `-d` is a log level and only bun's means development.
+ */
+function savesAsDevelopment(arg, dev) {
+    if (dev.includes(arg)) return true;
+    const equals = arg.indexOf('=');
+    if (arg.startsWith('--') && equals !== -1) {
+        return dev.includes(arg.slice(0, equals)) && arg.slice(equals + 1) !== 'false';
+    }
+    const bundle = arg.slice(1);
+    if (arg.startsWith('-') && bundle.length > 1 && [...bundle].every(isLetter)) {
+        return dev.some((flag) => flag.length === 2 && bundle.includes(flag[1]));
+    }
+    return false;
+}
+
 function backticksIn(line) {
     let count = 0;
     for (const character of line) if (character === '`') count += 1;
@@ -173,7 +199,8 @@ function devInstallsIn(text) {
                     args.push(words[next]);
                     if (raw[next].endsWith(';') || raw[next].endsWith('`')) break;
                 }
-                if (args.some((arg) => install.dev.includes(arg)) && args.some(namesTheCli)) {
+                const asDevelopment = args.some((arg) => savesAsDevelopment(arg, install.dev));
+                if (asDevelopment && args.some(namesTheCli)) {
                     installs.push(`${install.command.join(' ')} ${args.join(' ')}`);
                 }
             }
@@ -237,6 +264,9 @@ describe('an install of the CLI keeps it a runtime dependency', () => {
         'npm i -D @saasicat/cli@1.0.0',
         'yarn add @saasicat/cli --dev',
         'bun add -d @saasicat/cli',
+        'pnpm add -DE @saasicat/cli@latest',
+        'npm i -DE @saasicat/cli',
+        'pnpm add --save-dev=true @saasicat/cli',
         'pnpm add -D \\\n    @saasicat/cli@latest',
         'Run `pnpm add -D\n@saasicat/cli` first.',
     ];
@@ -251,6 +281,9 @@ describe('an install of the CLI keeps it a runtime dependency', () => {
         'pnpm add @saasicat/core @saasicat/spec @saasicat/nest @saasicat/cli',
         'pnpm add -D @saasicat/persistence-testing',
         'npm i -d @saasicat/cli',
+        'npm i -dE @saasicat/cli',
+        'pnpm add -E @saasicat/cli',
+        'pnpm add --save-dev=false @saasicat/cli',
         'pnpm add -D vitest && pnpm add @saasicat/cli',
         'Run `pnpm add @saasicat/cli` and `pnpm add -D vitest`.',
         'pnpm add -D vitest # not @saasicat/cli',
@@ -275,7 +308,7 @@ describe('the command the migration guide gives runs as written', () => {
             found,
             [],
             `run it from the project instead — \`pnpm exec ${Object.keys(CLI.bin)[0]} …\` with ` +
-                `${CLI.name} installed — since a one-off run installs none of its peers`,
+                `${CLI.name} installed — against the versions the application installed`,
         );
     });
 
