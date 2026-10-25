@@ -16467,7 +16467,8 @@ _Tested by:_
         - ${JSON.stringify(typed)} names the number ${customerNumber.sequence} behind
           ${customerNumber.prefix ?? 'any prefix'}
         - ${why} names no customer number
-        - fifteen digits are a number, sixteen are more than the database counts to
+        - the largest number a store counts to is a number, the next one is none
+        - a VAT number typed in one piece names no customer number past what a store counts to
         - a VAT number is matched as a subscriber keeps it: without blanks, dots and hyphens, in
           capitals
         - a line of blanks around a word takes no longer to read than the word

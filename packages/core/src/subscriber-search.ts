@@ -9,8 +9,14 @@
 import { canonicalVatId } from './tax-origin.js';
 import type { SubscriberSearchTerms } from './subscriber.types.js';
 
-/** More digits than this cannot be a customer number the database counted to. */
-const MAX_SEQUENCE_DIGITS = 15;
+/**
+ * The largest customer sequence a store keeps: the column is a PostgreSQL
+ * `integer`. A larger number is nobody's customer number, and handed to a store
+ * it would fail the whole search — the name and VAT terms beside it included —
+ * rather than match nothing. An Italian or French VAT number typed in one piece
+ * ends in eleven digits, so that is not a corner case.
+ */
+const MAX_CUSTOMER_SEQUENCE = 2_147_483_647;
 
 /**
  * The terms the text `query` matches, or `null` for every subscriber where it
@@ -20,7 +26,7 @@ const MAX_SEQUENCE_DIGITS = 15;
  * - A text ending in digits names a customer number: the digits are its
  *   number, and whatever stands before them its prefix — `AHP-10023` asks for
  *   the number 10023 assigned behind `AHP-`, `10023` for 10023 behind any
- *   prefix.
+ *   prefix. A number no store counts to names none.
  * - The VAT number is the text in its canonical form, as a subscriber's is
  *   kept: without blanks, dots and hyphens, in capitals.
  */
@@ -38,9 +44,9 @@ function customerNumberIn(text: string): SubscriberSearchTerms['customerNumber']
     let start = text.length;
     while (start > 0 && isDigit(text.charAt(start - 1))) start -= 1;
     const digits = text.slice(start);
-    if (digits === '' || digits.length > MAX_SEQUENCE_DIGITS) return null;
+    if (digits === '') return null;
     const sequence = Number(digits);
-    if (sequence === 0) return null;
+    if (sequence === 0 || sequence > MAX_CUSTOMER_SEQUENCE) return null;
     const prefix = text.slice(0, start);
     return { prefix: prefix === '' ? null : prefix, sequence };
 }

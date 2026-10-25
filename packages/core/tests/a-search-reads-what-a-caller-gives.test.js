@@ -48,12 +48,21 @@ describe('the terms a search matches', () => {
         });
     }
 
-    test('fifteen digits are a number, sixteen are more than the database counts to', () => {
-        assert.deepEqual(subscriberSearchTermsOf('9'.repeat(15))?.customerNumber, {
-            prefix: null,
-            sequence: 999_999_999_999_999,
+    test('the largest number a store counts to is a number, the next one is none', () => {
+        assert.deepEqual(subscriberSearchTermsOf('K-2147483647')?.customerNumber, {
+            prefix: 'K-',
+            sequence: 2_147_483_647,
         });
-        assert.equal(subscriberSearchTermsOf('9'.repeat(16))?.customerNumber, null);
+        assert.equal(subscriberSearchTermsOf('K-2147483648')?.customerNumber, null);
+        assert.equal(subscriberSearchTermsOf('9'.repeat(200))?.customerNumber, null);
+    });
+
+    test('a VAT number typed in one piece names no customer number past what a store counts to', () => {
+        assert.deepEqual(subscriberSearchTermsOf('IT12345678901'), {
+            legalName: 'IT12345678901',
+            customerNumber: null,
+            vatId: 'IT12345678901',
+        });
     });
 
     test('a VAT number is matched as a subscriber keeps it: without blanks, dots and hyphens, in capitals', () => {

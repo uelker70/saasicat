@@ -5021,7 +5021,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 vatId: 'DE123456789',
                 customerNumberPrefix: 'K-',
             });
-            const andere = await created('tenant-search-other', 'Andere AG');
+            const andere = await created('tenant-search-other', 'Andere AG', {
+                vatId: 'IT12345678901',
+            });
             const ids = async (query: string, extra: Partial<SubscriberSearch> = {}) =>
                 (
                     await subscribers.search({
@@ -5063,6 +5065,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // `_` is a wildcard to LIKE; a prefix holding one names no other prefix.
             assert.deepEqual(await ids(`A_P-${number}`), []);
             assert.deepEqual(await ids(numberOf(baeckerei.customerNumber, 'K-')), [baeckerei.id]);
+            // The column counts to 2³¹−1. Up to there a number is asked for; past it,
+            // none is, and the store is never handed a value it cannot hold.
+            assert.deepEqual(await ids('AHP-2147483647'), []);
+            assert.deepEqual(await ids('2147483648'), []);
         });
 
         test('a subscriber is found by its VAT number as it is kept, however it is typed', async (t) => {
@@ -5071,6 +5077,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             assert.deepEqual(await four.ids(' de 123.456-789 '), [four.baeckerei.id]);
             assert.deepEqual(await four.ids('DE12345678'), []);
+            // Eleven digits after the country, more than a customer number can be —
+            // typed in one piece, they would otherwise be asked for as one.
+            assert.deepEqual(await four.ids('IT12345678901'), [four.andere.id]);
+            assert.deepEqual(await four.ids('IT 123 456 789 01'), [four.andere.id]);
         });
 
         test('every subscriber, the latest customer number first, a page at a time', async (t) => {
