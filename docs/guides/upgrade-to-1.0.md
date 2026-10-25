@@ -5,10 +5,14 @@ you to replace. project-key-history: `projectKey` is one of them. -->
 
 1.0 is the one deliberate break in SaaSiCat's history: phase 4 cut the UI surface to one name
 per thing, and phase 5 renamed what had two spellings. Everything below is mechanical, and one
-command does almost all of it:
+command does almost all of it. Run it from your project, with `@saasicat/cli` installed there: the
+codemod is then the one of the version you move to, and the CLI takes `@nestjs/common` and
+`nest-commander` from your application. Run through `npx`, which installs neither, it stops before
+it reads its arguments.
 
 ```bash
-npx @saasicat/cli@latest codemod v1 --dir=.
+pnpm add @saasicat/cli@latest
+pnpm exec saasicat codemod v1 --dir=.
 ```
 
 It runs `v1-imports` (the surface cut), then `v1-rename` (the names), then `v1-project-key` (the

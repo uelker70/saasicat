@@ -23285,6 +23285,11 @@ _Tested by:_
         - on a 0.x base, a major changeset and pre mode appear together
         - and the tag it uses is the tag the docs name
         - the check has a subject either way
+- `tests/the-cli-runs-from-the-project.test.js`
+    - the command the migration guide gives runs as written
+        - no Markdown a reader copies from runs the CLI through a one-off fetch
+        - no Markdown a reader copies from installs the CLI as a development dependency
+        - the guide runs its codemod from the project
 
 <!-- END proof -->
 

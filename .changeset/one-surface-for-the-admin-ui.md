@@ -31,7 +31,8 @@ layer as well. `./vue` is the narrow door.
 ### Migrating
 
 ```bash
-npx @saasicat/cli@latest codemod v1-imports --dir=./src
+pnpm add @saasicat/cli@latest
+pnpm exec saasicat codemod v1-imports --dir=./src
 ```
 
 It rewrites every subpath that has a new home and reports the ones that no
