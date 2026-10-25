@@ -32,7 +32,10 @@ import type {
     SubscriberBusinessStatusData,
     SubscriberBusinessStatusResult,
     SubscriberRecord,
+    SubscriberSearch,
+    SubscriberSearchPage,
     SubscriberTaxOriginChangeRecord,
+    SubscriberTenantLinkRecord,
     SubscriberVatIdCheckRecord,
     SubscriberWithCurrentCheck,
 } from '../subscriber.types.js';
@@ -472,6 +475,25 @@ export interface SubscriberRepository {
     /** The subscriber live for this tenant, or `null` when it has none. */
     findByTenantId(tenantId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
     /**
+     * One page of the subscribers `search` matches, the latest customer number
+     * first, each with the tenant it is live for where it has one. A subscriber
+     * matches where its legal name holds `terms.legalName` — in any case, every
+     * character taken literally, `%` and `_` included —, where its number is
+     * `terms.customerNumber` behind that prefix or, where none is named, behind
+     * any, or where its VAT number is `terms.vatId`. `withoutLiveTenant` keeps
+     * only those whose every link is closed. A page continues after the
+     * subscriber `after` names; one it does not know continues after nothing.
+     * Platform-wide, like the operator's other reads: the platform wraps the
+     * call in `RlsBypassPort`.
+     */
+    search(search: SubscriberSearch): Promise<SubscriberSearchPage>;
+    /**
+     * Every tenant this subscriber was linked to, the live link first, then
+     * the closed ones, the latest closed first. Empty for a subscriber it does
+     * not know.
+     */
+    listTenantLinks(subscriberId: string): Promise<SubscriberTenantLinkRecord[]>;
+    /**
      * Writes the members given and keeps the rest; `null` when no such
      * subscriber exists. Read and written under the lock a correction takes. A
      * change of the country is a change of the tax origin and is recorded as
@@ -597,6 +619,13 @@ export interface SubscriberLedgerRepository {
         subscriptionId: string,
         tx?: TransactionContext,
     ): Promise<SubscriberChargeRecord[]>;
+
+    /**
+     * Every charge of one subscriber, whichever subscription it arose under,
+     * oldest period first — the account its record shows, also once the
+     * tenant it arose for is gone.
+     */
+    listBySubscriber(subscriberId: string): Promise<SubscriberChargeRecord[]>;
 }
 
 /**
@@ -1024,7 +1053,7 @@ export interface InvoiceCollectionRepository {
  * subscriber is owed, the refunds and payouts that pay them out, the reversals
  * that take a payment back and give it back again, and the cases nothing
  * matched (`SC-PRIC-029`, `SC-PRIC-083`, `SC-PRIC-084`, `SC-PRIC-086`,
- * `SC-ADM-033`). Nothing is edited once written but a refund's status, what a
+ * `SC-ADM-039`). Nothing is edited once written but a refund's status, what a
  * reversal withdrew and gave back, and a case's closing; every other change is
  * an entry of its own.
  *

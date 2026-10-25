@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 17      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 29      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 65      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 44      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 45      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 24      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 26      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 32      |
 | 12  | Self-registration                            | `SC-REG-…`   | 23      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 29      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 35      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 40      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 27      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 38      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 20      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
-🔵 36 superseded, 🔴 5 withdrawn.
+Of 663 entries: 🟢 567 stand today, 🟡 50 decided but not yet delivered, ⚪ 0 drafts,
+🔵 41 superseded, 🔴 5 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
@@ -195,6 +195,7 @@ Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-SUB-020](#sc-sub-020--a-newer-version-is-offered-classified-against-the-version-bound),
 [SC-SUB-027](#sc-sub-027--a-retirements-date-is-the-end-of-a-term-at-least-three-calendar-months-away),
 [SC-SUB-036](#sc-sub-036--a-retirement-waits-for-its-notice-to-reach-the-subscriber),
+[SC-SUB-041](#sc-sub-041--the-operator-corrects-a-subscribers-identity-and-business-status-with-a-reason),
 [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
 [SC-CANC-025](#sc-canc-025--a-cancellation-is-judged-by-the-notice-period-its-contract-recorded),
 [SC-PRIC-003](#sc-pric-003--this-platform-never-pays-money-back),
@@ -218,6 +219,10 @@ Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PROMO-008](#sc-promo-008--an-absolute-discount-stays-below-the-lowest-price-it-can-apply-to),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-MKT-023](#sc-mkt-023--an-offers-amounts-are-computed-from-the-catalogue-never-taken-from-the-request),
+[SC-ADM-028](#sc-adm-028--an-operator-reads-a-subscribers-charges-beside-its-tenant),
+[SC-ADM-032](#sc-adm-032--the-operator-reads-a-subscribers-history-with-who-when-and-why),
+[SC-ADM-033](#sc-adm-033--the-operator-reconciles-what-no-credit-matched-and-closes-each-case-with-a-note),
+[SC-ADM-034](#sc-adm-034--each-invoice-on-the-tenant-page-says-what-it-corrects-and-what-cancelled-it),
 [SC-CFG-034](#sc-cfg-034--an-installation-whose-plans-live-in-the-database-reads-its-settings-from-the-file),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
@@ -229,7 +234,7 @@ Of 657 entries: 🟢 566 stand today, 🟡 50 decided but not yet delivered, ⚪
 [SC-PRIC-001](#sc-pric-001--saasicat-computes-prices-the-integrator-bills-them),
 [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 657 requirements. Do not edit by hand:
+Generated from `requirements/` — 663 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -6349,90 +6354,16 @@ _Tested by:_
 
 ### SC-SUB-041 — The operator corrects a subscriber's identity and business status, with a reason
 
-🟢 💰 On the tenant's page the operator corrects the legal name, the VAT identification number and
-the tax number of the same legal entity, and whether it acts as a business. Each change needs a
-written reason and the operator's second factor, and is recorded with the values it replaced, the
-reason and who made it; a running contract keeps the copy it was concluded with, and the next
-contract names the corrected party (`SC-SUB-017`). Another legal entity taking over is refused rather
-than recorded as an edit, and a change of the business status that moves nothing records nothing.
-This is the operator's half of `SC-SUB-017` and the correction named in `SC-ADM-020`; the invoices
-that carry the corrected identity come with the invoices.
+🔵 _(Superseded on 2026-10-25 by `SC-SUB-045`.)_ 💰 On the tenant's page the operator corrects the
+legal name, the VAT identification number and the tax number of the same legal entity, and whether
+it acts as a business. Each change needs a written reason and the operator's second factor, and is
+recorded with the values it replaced, the reason and who made it; a running contract keeps the copy
+it was concluded with, and the next contract names the corrected party (`SC-SUB-017`). Another legal
+entity taking over is refused rather than recorded as an edit, and a change of the business status
+that moves nothing records nothing. This is the operator's half of `SC-SUB-017` and the correction
+named in `SC-ADM-020`; the invoices that carry the corrected identity come with the invoices.
 
 _Source:_ #331 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
-    - the operator corrects a subscriber's legal identity
-        - the corrected values are what the subscriber now shows, recorded with who and why, and
-          audited
-        - a VAT number it gives is checked right after, and a valid answer releases the next
-          contract
-        - a number the service found ${answered} is kept, and so is the hold on the next contract
-        - a check that fails after the correction leaves the correction audited, not unrecorded
-        - declared as another legal entity taking over, it is refused, nothing changes and nothing
-          is audited
-        - that changes nothing is refused as such
-        - where no tax adapter decides, a VAT number is corrected and not checked
-    - the operator changes whether a subscriber acts as a business
-        - with a reason it is recorded, answered as it now stands, and audited
-        - to the status it has, nothing is recorded and nothing audited
-        - without a reason it is refused
-- `packages/ui-vue/tests/component/a-correction-sends-only-what-changed.test.ts`
-    - the identity correction the form describes
-        - is none for %s
-        - sends %s
-    - the change of business status the form describes
-        - is none for %s
-        - sends %s, the reason trimmed
-- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
-    - the operator corrects the subscriber on the tenant page
-        - offers the corrections, and a check where a tax adapter decides and a number is held
-        - offers no check where no tax adapter names a service
-        - without the capability, nothing is offered and no history is shown
-        - a correction is sent only once something changed and a reason is given, with the second
-          factor
-        - stepping back from the second factor sends nothing and keeps the form
-        - moving to another tenant closes an open dialog and shows nothing of the first one's
-          subscriber while the next one's is read
-        - the next tenant's subscriber read and its history not yet: none of the first one's history
-          is shown
-        - a "${label}" dialog left open does not open again for the next tenant once it is read
-        - while the subscriber is read again after a correction, its actions wait for it
-        - a check is asked without the second factor
-        - the history lists each correction and check with what it changed, why and by whom
-    - the subscriber section on its own
-        - closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown
-- `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
-    - the subscriber's corrections
-        - a correction is declared one of the same legal entity, and carries the second factor
-        - a change of business status carries the second factor
-        - a check sends nothing but the request, and no second factor
-        - the history is read as its entries
-- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
-    - useSubscriberCorrections
-        - where the manifest announces the corrections, the history is read for the tenant
-        - with ${label}, nothing is offered and nothing is read
-        - a check is offered only where a tax adapter decides
-        - a correction goes out with the second factor, is announced, and the subscriber and its
-          history are read again
-        - after a correction, the service's answer — ${found} — is announced as such, the correction
-          beneath it
-        - stepping back from the second factor writes nothing, announces nothing and answers null
-        - a correction the server refuses rejects, so the dialog keeps the form and shows why
-        - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
-          factor
-        - a correction stands though its announcement throws: answered, read again, the throw raised
-          apart
-        - a failed check whose announcement throws still settles: nothing read again, the throw
-          raised apart
-        - a change of business status goes out with the second factor and is announced
-        - a check needs no second factor, announces what the service found, and reads again
-        - a check that fails is reported, and nothing is read again
-
-<!-- END proof -->
 
 ### SC-SUB-042 — The operator withdraws a feature from everybody who holds it, and tells them at once
 
@@ -6635,6 +6566,92 @@ _Tested by:_
         - tells a withdrawal nobody was told of yet before it tells them it is lifted
         - refuses to lift a withdrawal nobody could be told of yet, and lifts nothing
         - tells a lift only to whom the withdrawal itself reached, and the rest after it
+
+<!-- END proof -->
+
+### SC-SUB-045 — The operator corrects a subscriber's identity and business status in its record
+
+🟢 💰 In the subscriber's record the operator corrects the legal name, the VAT identification number
+and the tax number of the same legal entity, and whether it acts as a business. Each change needs a
+written reason and the operator's second factor, and is recorded with the values it replaced, the
+reason and who made it; a running contract keeps the copy it was concluded with, and the next
+contract names the corrected party (`SC-SUB-017`). Another legal entity taking over is refused
+rather than recorded as an edit, and a change of the business status that moves nothing records
+nothing. This is the operator's half of `SC-SUB-017` and the correction named in `SC-ADM-020`; the
+invoices that carry the corrected identity come with the invoices.
+
+_Source:_ #331 · #335 (decided 2026-10-25) · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
+    - the operator corrects a subscriber's legal identity
+        - the corrected values are what the subscriber now shows, recorded with who and why, and
+          audited
+        - a VAT number it gives is checked right after, and a valid answer releases the next
+          contract
+        - a number the service found ${answered} is kept, and so is the hold on the next contract
+        - a check that fails after the correction leaves the correction audited, not unrecorded
+        - declared as another legal entity taking over, it is refused, nothing changes and nothing
+          is audited
+        - that changes nothing is refused as such
+        - where no tax adapter decides, a VAT number is corrected and not checked
+    - the operator changes whether a subscriber acts as a business
+        - with a reason it is recorded, answered as it now stands, and audited
+        - to the status it has, nothing is recorded and nothing audited
+        - without a reason it is refused
+- `packages/ui-vue/tests/component/a-correction-sends-only-what-changed.test.ts`
+    - the identity correction the form describes
+        - is none for %s
+        - sends %s
+    - the change of business status the form describes
+        - is none for %s
+        - sends %s, the reason trimmed
+- `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
+    - the operator corrects the subscriber in its record
+        - offers the corrections, and a check where a tax adapter decides and a number is held
+        - offers no check where no tax adapter names a service
+        - without the capability, nothing is offered and no history is shown
+        - a correction is sent only once something changed and a reason is given, with the second
+          factor
+        - stepping back from the second factor sends nothing and keeps the form
+        - moving to another subscriber closes an open dialog and shows nothing of the first one
+          while the next one is read
+        - the next subscriber read and its history not yet: none of the first one's history is shown
+        - a "${label}" dialog left open does not open again for the next subscriber once it is read
+        - while the subscriber is read again after a correction, its actions wait for it
+        - a check is asked without the second factor
+        - the history lists each correction and check with what it changed, why and by whom
+    - the subscriber section on its own
+        - closes a "${label}" dialog once ${next ? 'another subscriber' : 'none'} is shown
+- `packages/ui-vue/tests/subscriber-record-resource.test.js`
+    - the subscriber's corrections
+        - a correction is declared one of the same legal entity, and carries the second factor
+        - a change of business status carries the second factor
+        - a check sends nothing but the request, and no second factor
+        - the history is read as its entries
+- `packages/ui-vue/tests/use-subscriber-corrections.test.js`
+    - useSubscriberCorrections
+        - where the manifest announces the corrections, the history is read for the subscriber
+        - with ${label}, nothing is offered and nothing is read
+        - a check is offered only where a tax adapter decides
+        - a correction goes out with the second factor, is announced, and the subscriber and its
+          history are read again
+        - after a correction, the service's answer — ${found} — is announced as such, the correction
+          beneath it
+        - stepping back from the second factor writes nothing, announces nothing and answers null
+        - a correction the server refuses rejects, so the dialog keeps the form and shows why
+        - ${what} goes to the subscriber it was confirmed on, though the page moved on during the
+          second factor
+        - a correction stands though its announcement throws: answered, read again, the throw raised
+          apart
+        - a failed check whose announcement throws still settles: nothing read again, the throw
+          raised apart
+        - a change of business status goes out with the second factor and is announced
+        - a check needs no second factor, announces what the service found, and reads again
+        - a check that fails is reported, and nothing is read again
 
 <!-- END proof -->
 
@@ -9458,7 +9475,7 @@ _Tested by:_
         - states as paid on the replacement what moves onto it, and no share below nothing
         - withdraws a collection of it planned and not yet made
     - a cancellation refused
-        - for an invoice the tenant does not have, or that does not exist
+        - for an invoice that does not exist
         - for an invoice cancelled already, and for a cancellation invoice, drawing no number
         - while the invoice’s document is not archived
         - where the subscriber can be reached at no address, until one is given
@@ -10166,7 +10183,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
     - the operator reads a subscriber's credits
         - the oldest first, each named by the invoice it comes from, with what is open
-        - a tenant without a subscriber has none
+        - of a subscriber there is not are refused, by code
         - a refund paid out of a credit is shown with its reference at the gateway
     - a payout the operator records
         - is written against the credit, with its reference and who recorded it, up to what is open
@@ -10180,32 +10197,32 @@ _Tested by:_
         - of a payment SaaSiCat did not collect, or of none, is not its to act on
         - in a state Stripe does not document is refused, so Stripe delivers it again
 - `packages/ui-vue/tests/component/an-operator-pays-out-a-credit.test.ts`
-    - the tenant detail shows the subscriber's credits
+    - the subscriber's record shows its credits
         - where each comes from, what was paid out and what is open, the oldest first
         - offers a payout only for a credit with something open
         - without the capabilities, shows nothing and reads nothing, and offers no payout with the
           view alone
-    - a payout the operator records on the tenant page
+    - a payout the operator records in the record
         - opens with what is open, is sent once a reference names it, with the second factor
         - is dated today in the installation's time zone, read again each time the dialog opens
         - more than is open cannot be sent
     - the payout the form describes
         - is what is open, a reference and a note trimmed, an empty note as none
-- `packages/ui-vue/tests/tenant-credits-resource.test.js`
-    - tenantsResource.credits
-        - asks for the tenant's credits, with its slug escaped
-        - an answer with no credits is an error, not a tenant with none
-    - tenantsResource.recordPayout
+- `packages/ui-vue/tests/subscriber-credits-resource.test.js`
+    - subscribersResource.credits
+        - asks for the subscriber's credits, with its id escaped
+        - an answer with no credits is an error, not a subscriber with none
+    - subscribersResource.recordPayout
         - posts the payout against the credit, both escaped, with the second factor
-- `packages/ui-vue/tests/use-tenant-credits.test.js`
-    - the credits of a tenant
+- `packages/ui-vue/tests/use-subscriber-credits.test.js`
+    - the credits of a subscriber
         - are read where the platform serves them
         - are neither read nor offered where it does not, and a payout only with both
     - a payout
         - is recorded behind the second factor, announced, and the credits read again
         - where the operator steps back from the second factor records nothing and answers null
         - that fails rejects, so the dialog keeps the form, and announces nothing
-        - belongs to the tenant it was asked on, even if the page moved on meanwhile
+        - belongs to the subscriber it was asked on, even if the page moved on meanwhile
 
 <!-- END proof -->
 
@@ -10215,7 +10232,7 @@ _Tested by:_
 arrives twice records one reversal. A reversal takes back what the payment brought, the credit
 first, so the operator is not left refunding what is owed again: the credit the payment left
 shrinks by what is still open of it; the part of that credit already refunded or paid out is shown
-to the operator to reconcile (`SC-ADM-033`); and only what remains opens again the invoices the
+to the operator to reconcile (`SC-ADM-039`); and only what remains opens again the invoices the
 payment settles, each by no more than the payment settles there. A refund is different: SaaSiCat
 never initiates one (`SC-PRIC-076`), and one the operator makes in the gateway is recorded against
 the credit it pays out, reopening nothing; the part of a refund that no credit takes is shown to the
@@ -10423,7 +10440,7 @@ _Tested by:_
     - an invoice is corrected by a cancellation invoice
         - a reversal given back before records what of that covered its cases, once
 - `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
-    - the tenant page's payments
+    - the subscriber's payments in its record
         - a credit a reversal given back left names the reversal
 
 <!-- END proof -->
@@ -11034,7 +11051,7 @@ _Tested by:_
         - is none where the last cancellation left no replacement
 - `packages/nest/tests/an-invoice-is-cancelled.test.js`
     - a cancellation refused
-        - for an invoice the tenant does not have, or that does not exist
+        - for an invoice that does not exist
         - for an invoice cancelled already, and for a cancellation invoice, drawing no number
         - while the invoice’s document is not archived
         - where the subscriber can be reached at no address, until one is given
@@ -12149,21 +12166,15 @@ _Tested by:_
         - marks the tenant of each subscription held back, beside its name
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
     - the tenant detail shows the tenant's subscriber
-        - whom the contracts are concluded with, and nothing held back
+        - whom the contracts are concluded with, and the way into its record
         - a warning names each reason the next contract is held back
-        - without a tax adapter there is no standing, and no warning
-        - a tenant without a subscriber says so
+        - a tenant without a subscriber says so, and offers no record
         - a read that fails says so
         - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/tenant-subscriber-resource.test.js`
     - tenantsResource.subscriber
         - asks for the tenant's subscriber, with its slug escaped
         - an answer with no body is an error, not a tenant without a subscriber
-    - the subscriber's corrections
-        - a correction is declared one of the same legal entity, and carries the second factor
-        - a change of business status carries the second factor
-        - a check sends nothing but the request, and no second factor
-        - the history is read as its entries
     - tenantsResource.subscriberAttention
         - names each tenant once, and answers what the server holds back
         - a list longer than the server takes is asked in pages of two hundred
@@ -12240,7 +12251,7 @@ _Tested by:_
         - a subscriber without a number has none to check
         - without a tax adapter there is no service to check with
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
-    - the operator corrects the subscriber on the tenant page
+    - the operator corrects the subscriber in its record
         - a check is asked without the second factor
 - `packages/ui-vue/tests/use-subscriber-corrections.test.js`
     - useSubscriberCorrections
@@ -15621,6 +15632,8 @@ _Tested by:_
     - an app that calls everything something else
         - the tenant list queries and reads the mapped names
         - the detail route addresses the tenant by the mapped slug
+        - the tenants a subscriber names are read in one question, a soft-deleted one included
+        - no tenants named, no question asked
         - suspending writes the mapped flag
         - the user list filters and reads the mapped names
     - an app that matches the convention is unaffected
@@ -15669,6 +15682,9 @@ _Tested by:_
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
         - the corrections are announced beside the subscriber view, and only there
+- `packages/nest/tests/an-operator-finds-a-subscriber.test.js`
+    - where the list and the record are served
+        - beside the subscriber view, its page announced under the same capability
 - `packages/nest/tests/an-operator-reads-and-pays-out-a-credit.test.js`
     - the manifest
         - announces the credits and the payout where they are served, and neither where they are not
@@ -15713,10 +15729,10 @@ _Tested by:_
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
-    - the operator corrects the subscriber on the tenant page
+    - the operator corrects the subscriber in its record
         - without the capability, nothing is offered and no history is shown
 - `packages/ui-vue/tests/component/an-operator-pays-out-a-credit.test.ts`
-    - the tenant detail shows the subscriber's credits
+    - the subscriber's record shows its credits
         - without the capabilities, shows nothing and reads nothing, and offers no payout with the
           view alone
 - `packages/ui-vue/tests/component/an-operator-retires-a-version-in-the-cockpit.test.ts`
@@ -15755,33 +15771,31 @@ _Tested by:_
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - the lock strip in the administration’s shell
         - an installation that keeps no windows is not asked about them
-- `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
-    - the tenant detail shows the subscriber's account
-        - moving to another tenant shows nothing of the first one's account while the next one's is
-          read
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-account.test.ts`
+    - the subscriber's record shows its account
+        - moving to another subscriber shows nothing of the first one's account while the next one's
+          is read
         - whose account it is, and each charge in the order the platform serves them
         - an amount is shown in the currency it was charged in
-        - a tenant without a subscriber says so
+        - a subscriber without charges says so
         - a read that fails says so, and a retry asks again
         - without the capability, nothing is asked and no section is shown
-        - a manifest the app passes in its options is the one asked
-- `packages/ui-vue/tests/component/tenant-detail-shows-the-contracts.test.ts`
-    - the tenant detail shows the tenant's contracts
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
         - every one, the newest first, with what it records and where its confirmation stands
         - downloads an archived confirmation under the name it was archived with
         - while one confirmation is on its way, the other downloads wait
         - a download that fails says so, and saves nothing
         - nothing of them where the platform does not serve them
-    - the tenant detail downloads an invoice's document
+    - the subscriber's record downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not
         - only for an invoice whose document is archived
         - beside the invoice, under the name it was issued with
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-subscriber.test.ts`
     - the tenant detail shows the tenant's subscriber
-        - whom the contracts are concluded with, and nothing held back
+        - whom the contracts are concluded with, and the way into its record
         - a warning names each reason the next contract is held back
-        - without a tax adapter there is no standing, and no warning
-        - a tenant without a subscriber says so
+        - a tenant without a subscriber says so, and offers no record
         - a read that fails says so
         - without the capability, nothing is asked and no section is shown
 - `packages/ui-vue/tests/manifest-loader.test.js`
@@ -15875,6 +15889,14 @@ _Tested by:_
 - `packages/ui-vue/tests/use-maintenance.test.js`
     - the shell asking whether tenants are locked out
         - asks nothing where the installation keeps no windows
+- `packages/ui-vue/tests/use-subscriber-account.test.js`
+    - useSubscriberAccount
+        - where the manifest announces the account, it is read for the subscriber
+        - with ${label}, nothing is asked and nothing is shown
+        - a manifest that arrives later brings the account with it
+        - another subscriber is another account
+        - without a subscriber, nothing is asked
+        - a read that fails leaves an error and no account
 - `packages/ui-vue/tests/use-subscriber-attention.test.js`
     - useSubscriberAttention
         - asks once for the tenants shown, and answers each by its id
@@ -15884,7 +15906,7 @@ _Tested by:_
         - a read that fails leaves an error, and nobody marked
 - `packages/ui-vue/tests/use-subscriber-corrections.test.js`
     - useSubscriberCorrections
-        - where the manifest announces the corrections, the history is read for the tenant
+        - where the manifest announces the corrections, the history is read for the subscriber
         - with ${label}, nothing is offered and nothing is read
         - a check is offered only where a tax adapter decides
         - a correction goes out with the second factor, is announced, and the subscriber and its
@@ -15893,8 +15915,8 @@ _Tested by:_
           beneath it
         - stepping back from the second factor writes nothing, announces nothing and answers null
         - a correction the server refuses rejects, so the dialog keeps the form and shows why
-        - ${what} goes to the tenant it was confirmed on, though the page moved on during the second
-          factor
+        - ${what} goes to the subscriber it was confirmed on, though the page moved on during the
+          second factor
         - a correction stands though its announcement throws: answered, read again, the throw raised
           apart
         - a failed check whose announcement throws still settles: nothing read again, the throw
@@ -15902,23 +15924,30 @@ _Tested by:_
         - a change of business status goes out with the second factor and is announced
         - a check needs no second factor, announces what the service found, and reads again
         - a check that fails is reported, and nothing is read again
-- `packages/ui-vue/tests/use-tenant-account.test.js`
-    - useTenantAccount
-        - where the manifest announces the account, it is read for the tenant
-        - with ${label}, nothing is asked and nothing is shown
-        - a manifest that arrives later brings the account with it
-        - another tenant is another account
-        - without a tenant, nothing is asked
-        - a read that fails leaves an error and no account
-- `packages/ui-vue/tests/use-tenant-credits.test.js`
-    - the credits of a tenant
+- `packages/ui-vue/tests/use-subscriber-credits.test.js`
+    - the credits of a subscriber
         - are read where the platform serves them
         - are neither read nor offered where it does not, and a payout only with both
     - a payout
         - is recorded behind the second factor, announced, and the credits read again
         - where the operator steps back from the second factor records nothing and answers null
         - that fails rejects, so the dialog keeps the form, and announces nothing
-        - belongs to the tenant it was asked on, even if the page moved on meanwhile
+        - belongs to the subscriber it was asked on, even if the page moved on meanwhile
+- `packages/ui-vue/tests/use-subscribers.test.js`
+    - useSubscribers
+        - reads every subscriber at once
+        - a search typed reads the list again from its first page
+        - narrowed to those without a live tenant, asks for exactly those
+        - the next page is added after the last subscriber read
+        - a page read for a search no longer asked is dropped
+        - a page on its way when the list is read again is dropped
+        - two calls for the next page add it once
+        - a next page that fails after the list was read again is not that list’s error
+        - a next page that fails is shown as the list’s error, not thrown
+    - useSubscriberRecord
+        - where subscribers are served, the record is read for the subscriber on screen
+        - with ${label}, nothing is asked
+        - without a subscriber, nothing is asked
 - `packages/ui-vue/tests/use-tenant-subscriber.test.js`
     - useTenantSubscriber
         - where the manifest announces the subscriber, it is read for the tenant
@@ -16032,13 +16061,13 @@ _Tested by:_
         - with --apply it asks for the second factor and the confirmation, cancels as the operator
           and records it
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
-    - the tenants descriptor
+    - the subscribers descriptor
         - cancels with the second factor and the preview’s digest
     - cancelling an invoice
         - is confirmed behind the second factor with the request previewed and its digest,
           announced, and read again
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - an invoice cancelled from the tenant page
+    - an invoice cancelled from the subscriber’s record
         - is confirmed behind the second factor with the preview’s digest, announced, and the
           invoices read again
 
@@ -16081,13 +16110,13 @@ _Tested by:_
     - the cancellation route
         - writes the cancellation and records it under the operator, the address not named
         - records each line it moved, from what to what, in the invoice’s currency
-        - of another tenant’s invoice is refused as none, and nothing is recorded
+        - of an invoice there is not is refused as none, and nothing is recorded
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
     - the request what the operator entered makes
         - with nothing but a reason: the reason trimmed, no corrections, no address
         - each text trimmed, a detail typed as nothing left as it was, one taken over as none kept
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - an invoice cancelled from the tenant page
+    - an invoice cancelled from the subscriber’s record
         - previews what the reason and the corrections would write, the record’s values offered
 
 <!-- END proof -->
@@ -16099,6 +16128,30 @@ contracts with their history, invoices, payments, open items and the deletion re
 contract dossier planned in #43 is part of this record rather than a second place to look.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/an-operator-finds-a-subscriber.test.ts`
+    - the list of subscribers
+        - names each subscriber, leads into its record, and says which tenant it is live for
+        - asks again for what the operator types, and for those without a tenant
+        - with nobody matching, says so
+        - offers the next page where there is one, and reads it after the last subscriber
+        - a list that fails to load says so
+    - the head of a subscriber's record
+        - names the subscriber, its master data with its invoice email, and its live tenant
+        - names a tenant whose link was closed, from when until when
+        - warns where the application no longer has a tenant whose link is still open
+        - says so where the subscriber is linked to no tenant
+        - a record that fails to load says so, and shows none of its sections
+- `packages/ui-vue/tests/subscriber-record-resource.test.js`
+    - subscribersResource.record
+        - asks for the subscriber's record by its id, escaped
+        - an answer with no body is an error
+
+<!-- END proof -->
 
 ### SC-ADM-022 — An operator lists every invoice with totals per period and tax rate, and exports it
 
@@ -16187,66 +16240,17 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 ### SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
 
-🟢 🔒 The tenant's page shows the charges of its subscriber's account, newest first: each with
-the title its contract line had when the contract was concluded, its period, what made it arise,
-when it became due, and its net amount in its currency. The section names whose account it is, by
-customer number and legal name, and says so when the tenant has no subscriber. It is read only and
-shows no total: without invoices and payments, a sum would be read as what is owed (`SC-ADM-023`).
-It is offered only where the installation keeps a journal of charges (`SC-ADM-015`), only the
-platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy
-the way the administration does (`SC-SEC-003`). Once the subscriber's record exists (`SC-ADM-021`),
-the account is part of it.
+🔵 _(Superseded on 2026-10-25 by `SC-ADM-037`.)_ 🔒 The tenant's page shows the charges of its
+subscriber's account, newest first: each with the title its contract line had when the contract was
+concluded, its period, what made it arise, when it became due, and its net amount in its currency.
+The section names whose account it is, by customer number and legal name, and says so when the
+tenant has no subscriber. It is read only and shows no total: without invoices and payments, a sum
+would be read as what is owed (`SC-ADM-023`). It is offered only where the installation keeps a
+journal of charges (`SC-ADM-015`), only the platform administrator reaches it (`SC-ADM-001`), and it
+reads past the tenants' row-level policy the way the administration does (`SC-SEC-003`). Once the
+subscriber's record exists (`SC-ADM-021`), the account is part of it.
 
 _Source:_ #276 · #318
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/an-operator-reads-a-subscribers-account.test.js`
-    - the operator reads a subscriber's account
-        - newest first, and within one due date the plan, then its add-ons, then its discounts
-        - each charge as the journal holds it, its dates as the wire carries them
-        - a charge under a superseded contract keeps the title that contract gave it
-        - a charge whose contract line cannot be read is shown without a title
-        - names whose account it is by customer number and legal name
-        - a tenant without a subscriber has an account with no holder
-        - a tenant without a subscription has no charges
-    - two charges due at the same moment
-        - the one for the later period comes first
-    - the account is served beside the tenant's detail
-        - with a journal and the tenants, the route answers and the manifest announces it
-        - an unknown tenant is answered as not found, by code
-        - the tenant is found and its journal read outside the tenants' row-level policy
-        - the journal the route reads is the one the platform writes to, built once
-        - without ${without}, neither the route nor the capability exists
-    - mounted by hand
-        - without the bypass port, it refuses to start rather than read in a tenant scope
-        - with it, it starts
-- `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
-    - the tenant detail shows the subscriber's account
-        - moving to another tenant shows nothing of the first one's account while the next one's is
-          read
-        - whose account it is, and each charge in the order the platform serves them
-        - an amount is shown in the currency it was charged in
-        - a tenant without a subscriber says so
-        - a read that fails says so, and a retry asks again
-        - without the capability, nothing is asked and no section is shown
-        - a manifest the app passes in its options is the one asked
-- `packages/ui-vue/tests/tenant-charges-resource.test.js`
-    - tenantsResource.charges
-        - asks for the tenant's charges, with its slug escaped
-        - an answer with no account is an error, not an account with no charges
-- `packages/ui-vue/tests/use-tenant-account.test.js`
-    - useTenantAccount
-        - where the manifest announces the account, it is read for the tenant
-        - with ${label}, nothing is asked and nothing is shown
-        - a manifest that arrives later brings the account with it
-        - another tenant is another account
-        - without a tenant, nothing is asked
-        - a read that fails leaves an error and no account
-
-<!-- END proof -->
 
 ### SC-ADM-029 — Locking tenants out and letting them back in needs the second factor in the administration
 
@@ -16334,14 +16338,264 @@ _Tested by:_
 
 ### SC-ADM-032 — The operator reads a subscriber's history, with who, when and why
 
-🟢 Beside the subscriber on the tenant's page, the latest first: each correction of its legal
-identity with the values before and after, each change of its country or business status, and each
-check of its VAT number with what the service found and whether it counts now — each with when, who
-made it and why, where it says. A change of the number is named once, as the correction it was. The
-history is read from the records the corrections write, so it shows what is kept rather than a
-second log (`SC-SUB-017`, `SC-PRIC-043`).
+🔵 _(Superseded on 2026-10-25 by `SC-ADM-038`.)_ Beside the subscriber on the tenant's page, the
+latest first: each correction of its legal identity with the values before and after, each change of
+its country or business status, and each check of its VAT number with what the service found and
+whether it counts now — each with when, who made it and why, where it says. A change of the number
+is named once, as the correction it was. The history is read from the records the corrections write,
+so it shows what is kept rather than a second log (`SC-SUB-017`, `SC-PRIC-043`).
 
 _Source:_ #331 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+
+🔵 _(Superseded on 2026-10-25 by `SC-ADM-039`.)_ 💰 The part of a refund that no credit takes, and the
+part of a reversal that meets a credit already refunded or paid out (`SC-PRIC-084`), each become a
+case to reconcile, once however often the gateway reports it. The cases stand on a list of their own
+in the administration — with the subscriber, the payment and the gateway's reference, the amount and
+when it was recorded — and on the subscriber's tenant page among its open cases, beside its invoices
+with what each still owes and its credits. The operator closes a case with a note, behind the second
+factor, and the audit log records who closed it, when and why; a closed case stays readable. A
+refund that fails or is canceled, and a reversal the gateway takes back (`SC-PRIC-086`), close the
+cases they opened, saying so.
+
+_Source:_ #333 (decided 2026-10-14)
+
+### SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
+
+🔵 _(Superseded on 2026-10-25 by `SC-ADM-040`.)_ 💰 Each invoice on the subscriber's tenant page
+names, by the numbers on the documents, the invoice it corrects — a cancellation invoice the one it
+cancels, a replacement the one it replaces — and the cancellation invoice that cancelled it; a
+replacement cancelled in turn says both. The operator is offered the cancellation at an invoice that
+stands and is no cancellation invoice (`SC-PRIC-095`), where the platform serves it (`SC-ADM-015`).
+Before the second factor, the dialog shows what the server says the cancellation will write, and a
+cancellation whose figures changed since is refused with the new ones to confirm (`SC-UI-017`).
+
+_Source:_ #334 (decided 2026-10-20)
+
+### SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
+
+🟢 💰 The cancel dialog lists every line of the invoice with what its charge stands at, a correction
+an earlier cancellation wrote included, and offers at each line whose charge asks for something:
+owed, not owed, or owed at an amount below what it stands at. A discount, a credit and a correction
+offer nothing and say so — a discount follows what it reduced (`SC-PRIC-095`). The lines offered
+are the lines the cancellation accepts, because the server says which by the rule it settles them
+by. The preview shows each line that moves, from what to what, and the replacement's lines, a
+correction naming the line it corrects. The command line takes the same with
+`--line <position>=not-owed` or `--line <position>=<amount>`, the amount with a dot and at most two
+decimals.
+
+_Source:_ #334 (decided 2026-10-22)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
+    - the preview is the command, and the cancellation the second one
+        - passes each line on by its position, not owed as nothing and an amount as typed
+    - what the command refuses
+        - a line whose amount takes a comma, saying to use a dot rather than guessing
+    - the commands
+        - print each line that moves from what to what, and the replacement’s lines with what each
+          correction corrects
+- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
+    - the invoice the cancel dialog reads
+        - names each line with what it stands at, and the charge’s line alone may be corrected
+        - of a replacement, says what an earlier cancellation lowered each charge to
+        - offers exactly the lines the cancellation accepts
+        - of an invoice there is not is refused as none
+- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
+    - what of each line the operator says is owed
+        - names a line not owed as nothing owed, one owed in part with its amount, and leaves one
+          owed out
+        - names no lines where every line is owed
+        - with ${what}: ${askable ? 'asked about' : 'not asked about yet'}
+        - ${what} offers no choice, and says why: ${why}
+    - the subscribers descriptor
+        - reads the invoice with its lines, by its id escaped
+    - cancelling an invoice
+        - asks nothing while a line owed in part says no amount
+        - sends the lines the operator named with the request it previews
+    - the lines the dialog offers
+        - are read when it opens
+        - of another invoice replace the first one’s at once, and are read for it
+        - go when it closes
+        - that fail to load say so, and are read again on retry
+- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
+    - the lines of an invoice cancelled from the subscriber’s record
+        - offer a choice at the line the server says may be corrected, and say why at the others
+        - name each choice after its line, and say which option is chosen
+        - owed in part ask for the amount before the preview, and send it
+        - not owed send nothing owed, and owed again send nothing of the line
+        - in the preview, show each line that moves from what to what, and the replacement’s lines
+          with what each correction corrects
+        - that fail to load say so, offer to read them again, and leave the rest of the dialog
+          working
+
+<!-- END proof -->
+
+### SC-ADM-036 — An operator finds a subscriber by its number, name or VAT number, tenant or not
+
+🟢 🔒 The administration lists every subscriber, the latest customer number first, and finds one by
+its customer number — behind the prefix typed, in any case, or behind any prefix where none is typed
+—, by a part of its legal name in any case and with every character taken literally, or by its VAT
+number however it is spaced; a filter shows only those whose every tenant link is closed. A
+subscriber's record is reached by the subscriber itself rather than through its tenant, so it stays
+where it is once the tenant is gone (`SC-ADM-021`). The record names every tenant the subscriber was
+linked to, the live one first and then the earlier ones, the latest first, with when each link began
+and ended, and leads to the tenant's page where the application still has the tenant. Where a link
+is still open and the application no longer has its tenant, the record says so instead of reading
+the link as ended: a link ends when the application's deletion of the tenant closes it, and a tenant
+the application soft-deleted can come back. Only the platform administrator reaches the list and the
+record (`SC-ADM-001`), and both read past the tenants' row-level policy the way the administration
+does (`SC-SEC-003`).
+
+_Source:_ #335 (decided 2026-10-25)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/admin-resources-mapping.test.js`
+    - an app that calls everything something else
+        - the tenants a subscriber names are read in one question, a soft-deleted one included
+- `packages/core/tests/a-search-reads-what-a-caller-gives.test.js`
+    - the terms a search matches
+        - ${JSON.stringify(blank)} asks for every subscriber
+        - a name is matched as typed, trimmed, and names no customer number
+        - ${JSON.stringify(typed)} names the number ${customerNumber.sequence} behind
+          ${customerNumber.prefix ?? 'any prefix'}
+        - ${why} names no customer number
+        - the largest number a store counts to is a number, the next one is none
+        - a VAT number typed in one piece names no customer number past what a store counts to
+        - a VAT number is matched as a subscriber keeps it: without blanks, dots and hyphens, in
+          capitals
+        - a line of blanks around a word takes no longer to read than the word
+    - the tenant links a record lists
+        - the live one first, then the closed ones, the latest closed first
+        - two closed at the same moment go by when each was made, then by the tenant
+        - leaves the list it was given as it was
+- `packages/nest/tests/an-operator-finds-a-subscriber.test.js`
+    - the list of subscribers
+        - is every subscriber, the latest customer number first, each with the tenant it is live for
+        - is searched by a legal name, a customer number or a VAT number
+        - names a live tenant the application no longer has by its id alone
+        - narrowed to those without a live tenant, is the ones whose every link is closed
+        - is read a page at a time, the next one named by the last subscriber on it
+        - is read outside the tenants' row-level policy, the tenants named in one question
+    - the head of a subscriber's record
+        - is its master data with its invoice email, its standing, and the tenant it is live for
+        - names a tenant whose link was closed, with when
+        - says when the application no longer has a tenant whose link is still open
+        - of a subscriber there is not is refused, by code
+        - is read outside the tenants' row-level policy
+- `packages/ui-vue/tests/component/an-operator-finds-a-subscriber.test.ts`
+    - the list of subscribers
+        - names each subscriber, leads into its record, and says which tenant it is live for
+        - asks again for what the operator types, and for those without a tenant
+        - with nobody matching, says so
+        - offers the next page where there is one, and reads it after the last subscriber
+        - a list that fails to load says so
+    - the head of a subscriber's record
+        - names the subscriber, its master data with its invoice email, and its live tenant
+        - names a tenant whose link was closed, from when until when
+        - warns where the application no longer has a tenant whose link is still open
+        - says so where the subscriber is linked to no tenant
+        - a record that fails to load says so, and shows none of its sections
+- `packages/ui-vue/tests/subscriber-record-resource.test.js`
+    - subscribersResource.list
+        - asks for ${what}
+        - an answer with no body is an error, not a list with nobody on it
+- `packages/ui-vue/tests/use-subscribers.test.js`
+    - useSubscribers
+        - reads every subscriber at once
+        - a search typed reads the list again from its first page
+        - narrowed to those without a live tenant, asks for exactly those
+        - the next page is added after the last subscriber read
+        - a page read for a search no longer asked is dropped
+        - a page on its way when the list is read again is dropped
+        - two calls for the next page add it once
+        - a next page that fails after the list was read again is not that list’s error
+        - a next page that fails is shown as the list’s error, not thrown
+    - useSubscriberRecord
+        - where subscribers are served, the record is read for the subscriber on screen
+        - with ${label}, nothing is asked
+        - without a subscriber, nothing is asked
+
+<!-- END proof -->
+
+### SC-ADM-037 — An operator reads a subscriber's charges in its record
+
+🟢 🔒 The subscriber's record shows the charges of its account, newest first, whichever subscription
+and tenant each arose under: each with the title its contract line had when the contract was
+concluded, its period, what made it arise, when it became due, and its net amount in its currency.
+The section names whose account it is, by customer number and legal name. It is read only and shows
+no total: a sum of charges would be read as what is owed (`SC-ADM-023`). It is offered only where
+the installation keeps a journal of charges (`SC-ADM-015`), only the platform administrator reaches
+it (`SC-ADM-001`), and it reads past the tenants' row-level policy the way the administration does
+(`SC-SEC-003`).
+
+_Source:_ #276 · #318 · #335 (decided 2026-10-25)
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-reads-a-subscribers-account.test.js`
+    - the operator reads a subscriber's account
+        - newest first, and within one due date the plan, then its add-ons, then its discounts
+        - each charge as the journal holds it, its dates as the wire carries them
+        - a charge under a superseded contract keeps the title that contract gave it
+        - a charge whose contract line cannot be read is shown without a title
+        - names whose account it is by customer number and legal name
+        - of a subscriber there is not is refused, by code
+        - keeps its charges once the subscription they arose under is gone
+    - two charges due at the same moment
+        - the one for the later period comes first
+    - the account is served in the subscriber's record
+        - with a journal and the tenants, the route answers and the manifest announces it
+        - an unknown subscriber is answered as not found, by code
+        - the subscriber is found and its journal read outside the tenants' row-level policy
+        - the journal the route reads is the one the platform writes to, built once
+        - without ${without}, neither the route nor the capability exists
+    - mounted by hand
+        - without the bypass port, it refuses to start rather than read in a tenant scope
+        - with it, it starts
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-account.test.ts`
+    - the subscriber's record shows its account
+        - moving to another subscriber shows nothing of the first one's account while the next one's
+          is read
+        - whose account it is, and each charge in the order the platform serves them
+        - an amount is shown in the currency it was charged in
+        - a subscriber without charges says so
+        - a read that fails says so, and a retry asks again
+        - without the capability, nothing is asked and no section is shown
+- `packages/ui-vue/tests/subscriber-charges-resource.test.js`
+    - subscribersResource.charges
+        - asks for the subscriber's charges, with its id escaped
+        - an answer with no account is an error, not an account with no charges
+- `packages/ui-vue/tests/use-subscriber-account.test.js`
+    - useSubscriberAccount
+        - where the manifest announces the account, it is read for the subscriber
+        - with ${label}, nothing is asked and nothing is shown
+        - a manifest that arrives later brings the account with it
+        - another subscriber is another account
+        - without a subscriber, nothing is asked
+        - a read that fails leaves an error and no account
+
+<!-- END proof -->
+
+### SC-ADM-038 — The operator reads a subscriber's history in its record, with who, when and why
+
+🟢 In the subscriber's record, the latest first: each correction of its legal identity with the
+values before and after, each change of its country or business status, and each check of its VAT
+number with what the service found and whether it counts now — each with when, who made it and why,
+where it says. A change of the number is named once, as the correction it was. The history is read
+from the records the corrections write, so it shows what is kept rather than a second log
+(`SC-SUB-017`, `SC-PRIC-043`).
+
+_Source:_ #331 · #335 (decided 2026-10-25) · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 <!-- BEGIN proof -->
 
@@ -16350,20 +16604,19 @@ _Tested by:_
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - the subscriber's history
         - names each correction, change and check once, the latest first, with who and why
-        - a tenant without a subscriber has none
+        - of a subscriber there is not is refused, by code
 - `packages/ui-vue/tests/component/an-operator-corrects-the-subscriber.test.ts`
-    - the operator corrects the subscriber on the tenant page
+    - the operator corrects the subscriber in its record
         - offers the corrections, and a check where a tax adapter decides and a number is held
         - offers no check where no tax adapter names a service
         - without the capability, nothing is offered and no history is shown
         - a correction is sent only once something changed and a reason is given, with the second
           factor
         - stepping back from the second factor sends nothing and keeps the form
-        - moving to another tenant closes an open dialog and shows nothing of the first one's
-          subscriber while the next one's is read
-        - the next tenant's subscriber read and its history not yet: none of the first one's history
-          is shown
-        - a "${label}" dialog left open does not open again for the next tenant once it is read
+        - moving to another subscriber closes an open dialog and shows nothing of the first one
+          while the next one is read
+        - the next subscriber read and its history not yet: none of the first one's history is shown
+        - a "${label}" dialog left open does not open again for the next subscriber once it is read
         - while the subscriber is read again after a correction, its actions wait for it
         - a check is asked without the second factor
         - the history lists each correction and check with what it changed, why and by whom
@@ -16372,19 +16625,18 @@ _Tested by:_
 
 <!-- END proof -->
 
-### SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+### SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 
 🟢 💰 The part of a refund that no credit takes, and the part of a reversal that meets a credit
 already refunded or paid out (`SC-PRIC-084`), each become a case to reconcile, once however often
 the gateway reports it. The cases stand on a list of their own in the administration — with the
-subscriber, the payment and the gateway's reference, the amount and when it was recorded — and on
-the subscriber's tenant page among its open cases, beside its invoices with what each still owes
-and its credits. The operator closes a case with a note, behind the second factor, and the audit
-log records who closed it, when and why; a closed case stays readable. A refund that fails or is
-canceled, and a reversal the gateway takes back (`SC-PRIC-086`), close the cases they opened, saying
-so.
+subscriber, the payment and the gateway's reference, the amount and when it was recorded — and in
+the subscriber's record among its open cases, beside its invoices with what each still owes and its
+credits. The operator closes a case with a note, behind the second factor, and the audit log records
+who closed it, when and why; a closed case stays readable. A refund that fails or is canceled, and a
+reversal the gateway takes back (`SC-PRIC-086`), close the cases they opened, saying so.
 
-_Source:_ #333 (decided 2026-10-14)
+_Source:_ #333 (decided 2026-10-14) · #335 (decided 2026-10-25)
 
 <!-- BEGIN proof -->
 
@@ -16452,9 +16704,9 @@ _Tested by:_
         - are read a page at a time, the next one named
         - are closed with the note, trimmed, by the operator who closed it
         - closed once: a second close is refused, and nothing is written
-    - a tenant's payments
+    - a subscriber's payments
         - are its invoices, the latest first, with what each still owes, and its open cases alone
-        - of a tenant without a subscriber are none
+        - of a subscriber there is not are refused, by code
 - `packages/ui-vue/tests/component/an-operator-reconciles-what-matched-nothing.test.ts`
     - the reconciliation page
         - lists the open cases with whom and what each is about
@@ -16462,7 +16714,7 @@ _Tested by:_
         - closes a case with its note behind the second factor
         - offers no closing without the capability to close
         - the closed cases show the note, and who closed one where SaaSiCat did
-    - the tenant page's payments
+    - the subscriber's payments in its record
         - shows the invoices with what each still owes, and the open cases
         - are not asked for where the platform does not serve them
         - a credit a reversal given back left names the reversal
@@ -16471,107 +16723,45 @@ _Tested by:_
         - has the two operations the cases below drive, and no other
         - cases asks for the state, and continues after a case where one is named
         - close posts the note against the case, escaped, with the second factor
-    - tenantsResource.payments
-        - asks for the tenant's payments, with its slug escaped
+    - subscribersResource.payments
+        - asks for the subscriber's payments, with its id escaped
     - the list of cases
         - reads the open cases when the page opens, and the next page when asked
         - switching to the closed cases reads them from the first page, dropping what was added
         - a page that fails to load is shown as the list's error, not thrown
         - closes a case with its note behind the second factor, and reads the list again
         - a cancelled code closes nothing
-    - a tenant's payments
+    - a subscriber's payments
         - are read where the manifest announces them, and not otherwise
 
 <!-- END proof -->
 
-### SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
+### SC-ADM-040 — Each invoice in the subscriber's record says what it corrects and what cancelled it
 
-🟢 💰 Each invoice on the subscriber's tenant page names, by the numbers on the documents, the invoice
-it corrects — a cancellation invoice the one it cancels, a replacement the one it replaces — and the
+🟢 💰 Each invoice in the subscriber's record names, by the numbers on the documents, the invoice it
+corrects — a cancellation invoice the one it cancels, a replacement the one it replaces — and the
 cancellation invoice that cancelled it; a replacement cancelled in turn says both. The operator is
 offered the cancellation at an invoice that stands and is no cancellation invoice (`SC-PRIC-095`),
 where the platform serves it (`SC-ADM-015`). Before the second factor, the dialog shows what the
 server says the cancellation will write, and a cancellation whose figures changed since is refused
 with the new ones to confirm (`SC-UI-017`).
 
-_Source:_ #334 (decided 2026-10-20)
+_Source:_ #334 (decided 2026-10-20) · #335 (decided 2026-10-25)
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
-    - the invoices on the tenant’s page after a cancellation
+    - the invoices in the subscriber’s record after a cancellation
         - say which is cancelled, which cancels it and which replaces it, and nothing of the rest
 - `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
     - the invoices a cancellation is offered at
         - ${what}: ${offered ? 'offered' : 'not offered'}
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - the invoices on the tenant page
+    - the invoices in the subscriber’s record
         - say what each stands in relation to, and offer cancelling only where one stands
         - offer no cancelling where the platform does not serve it
-
-<!-- END proof -->
-
-### SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
-
-🟢 💰 The cancel dialog lists every line of the invoice with what its charge stands at, a correction
-an earlier cancellation wrote included, and offers at each line whose charge asks for something:
-owed, not owed, or owed at an amount below what it stands at. A discount, a credit and a correction
-offer nothing and say so — a discount follows what it reduced (`SC-PRIC-095`). The lines offered
-are the lines the cancellation accepts, because the server says which by the rule it settles them
-by. The preview shows each line that moves, from what to what, and the replacement's lines, a
-correction naming the line it corrects. The command line takes the same with
-`--line <position>=not-owed` or `--line <position>=<amount>`, the amount with a dot and at most two
-decimals.
-
-_Source:_ #334 (decided 2026-10-22)
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/cli/tests/invoice-cancel-cli-flow.test.js`
-    - the preview is the command, and the cancellation the second one
-        - passes each line on by its position, not owed as nothing and an amount as typed
-    - what the command refuses
-        - a line whose amount takes a comma, saying to use a dot rather than guessing
-    - the commands
-        - print each line that moves from what to what, and the replacement’s lines with what each
-          correction corrects
-- `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
-    - the invoice the cancel dialog reads
-        - names each line with what it stands at, and the charge’s line alone may be corrected
-        - of a replacement, says what an earlier cancellation lowered each charge to
-        - offers exactly the lines the cancellation accepts
-        - of ${what} is refused as none
-- `packages/ui-vue/tests/an-operator-cancels-an-invoice.test.js`
-    - what of each line the operator says is owed
-        - names a line not owed as nothing owed, one owed in part with its amount, and leaves one
-          owed out
-        - names no lines where every line is owed
-        - with ${what}: ${askable ? 'asked about' : 'not asked about yet'}
-        - ${what} offers no choice, and says why: ${why}
-    - the tenants descriptor
-        - reads the invoice with its lines, the tenant and the invoice escaped
-    - cancelling an invoice
-        - asks nothing while a line owed in part says no amount
-        - sends the lines the operator named with the request it previews
-    - the lines the dialog offers
-        - are read when it opens
-        - of another invoice replace the first one’s at once, and are read for it
-        - go when it closes
-        - that fail to load say so, and are read again on retry
-- `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - the lines of an invoice cancelled from the tenant page
-        - offer a choice at the line the server says may be corrected, and say why at the others
-        - name each choice after its line, and say which option is chosen
-        - owed in part ask for the amount before the preview, and send it
-        - not owed send nothing owed, and owed again send nothing of the line
-        - in the preview, show each line that moves from what to what, and the replacement’s lines
-          with what each correction corrects
-        - that fail to load say so, offer to read them again, and leave the rest of the dialog
-          working
 
 <!-- END proof -->
 
@@ -17395,7 +17585,7 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - an invoice cancelled from the tenant page
+    - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
         - previews and announces a cancellation that leaves no replacement, naming no party for one
@@ -18052,7 +18242,7 @@ _Tested by:_
 - `packages/nest/tests/an-operator-cancels-an-invoice.test.js`
     - the preview route
         - answers what the cancellation would write, and writes nothing
-        - of another tenant’s invoice is refused as none
+        - of an invoice there is not is refused as none
     - a cancellation held to the preview the operator confirmed
         - is written where it would write what the preview showed
         - names the same preview by the same digest at another moment of its day, and another the
@@ -18072,7 +18262,7 @@ _Tested by:_
           announced, and read again
         - announces a cancellation that left no replacement as one
         - sends what the preview answered, not what was entered after it
-        - for the tenant it was opened on, though the page moved on meanwhile
+        - for the invoice it was confirmed on, though another is opened during the second factor
         - stepped back from at the second factor stays on its preview, cancelling nothing
         - refused because what it writes changed shows the new preview to confirm, and nothing else
         - confirmed again after such a refusal, carries the digest of the new preview
@@ -18081,7 +18271,7 @@ _Tested by:_
         - asks nothing while a line owed in part says no amount
         - sends the lines the operator named with the request it previews
 - `packages/ui-vue/tests/component/an-operator-cancels-an-invoice.test.ts`
-    - an invoice cancelled from the tenant page
+    - an invoice cancelled from the subscriber’s record
         - names the invoice, and previews nothing before a reason is given
         - previews what the reason and the corrections would write, the record’s values offered
         - previews and announces a cancellation that leaves no replacement, naming no party for one
@@ -21439,7 +21629,12 @@ _Tested by:_
 
 - `packages/nest/tests/an-operator-corrects-a-subscriber-in-the-administration.test.js`
     - every subscriber route
-        - ${what}: the tenant is found and its subscriber read outside the tenants' row-level policy
+        - ${what}: the subscriber is read outside the tenants' row-level policy
+- `packages/nest/tests/an-operator-finds-a-subscriber.test.js`
+    - the list of subscribers
+        - is read outside the tenants' row-level policy, the tenants named in one question
+    - the head of a subscriber's record
+        - is read outside the tenants' row-level policy
 - `packages/nest/tests/an-operator-route-acts-across-tenants.test.js`
     - the frame a route runs in follows its guard chain
         - every route behind the administrator runs in the bypass, and no other does
@@ -22166,16 +22361,16 @@ _Tested by:_
     - the confirmation handed out again
         - is the archived file, and refused for no contract, one with none archived, and a file that
           does not match
-    - a tenant’s contracts, as the operator reads them
+    - a subscriber’s contracts, as the operator reads them
         - are every contract, the newest first, each with where its confirmation stands
-        - of a tenant without contracts are none
+        - of a subscriber without contracts are none, and of one there is not are refused
     - the confirmations start
         - not beside an archive that would let a confirmation it keeps be changed, naming why
     - the quarter-hourly run
         - confirms a contract written since the last one
     - the operator’s download of a confirmation
         - is served beside the invoices’ documents, and answers the archived file under its name
-        - serves the tenant’s contracts beside it, found by its slug outside any row policy, and the
+        - serves the subscriber’s contracts in its record, read outside any row policy, and the
           manifest announces both
         - is not served where the administration is not
 - `packages/nest/tests/invoices-start-only-as-configured.test.js`
@@ -22205,17 +22400,17 @@ _Tested by:_
     - a download from a row
         - saves the file, says which row is on its way, and takes one at a time
         - that fails tells the operator why, and leaves the row free for another try
-    - the downloads and the contracts beside a tenant
+    - the downloads and the contracts in a subscriber’s record
         - are offered each where the manifest announces its route
         - are read where the manifest announces them, and not otherwise
-- `packages/ui-vue/tests/component/tenant-detail-shows-the-contracts.test.ts`
-    - the tenant detail shows the tenant's contracts
+- `packages/ui-vue/tests/component/subscriber-record-shows-the-contracts.test.ts`
+    - the subscriber's record shows its contracts
         - every one, the newest first, with what it records and where its confirmation stands
         - downloads an archived confirmation under the name it was archived with
         - while one confirmation is on its way, the other downloads wait
         - a download that fails says so, and saves nothing
         - nothing of them where the platform does not serve them
-    - the tenant detail downloads an invoice's document
+    - the subscriber's record downloads an invoice's document
         - only where the platform serves it, the cancellation beside it or not
         - only for an invoice whose document is archived
         - beside the invoice, under the name it was issued with

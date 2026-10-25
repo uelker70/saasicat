@@ -112,7 +112,7 @@ Two things worth knowing about both adapters:
   `@saasicat/ui-vue` adds no dependency to your install.
 
 **A download asks for bytes.** The operator downloads an invoice's archived document
-and a contract's confirmation beside the tenant. Such a request carries `binary: true`,
+and a contract's confirmation from the subscriber's record. Such a request carries `binary: true`,
 and its response hands the file over through `bytes()`, which both adapters implement:
 `fetch` reads the body as it arrived, axios is asked for an `arraybuffer` for that
 request alone. A client of your own that leaves `bytes()` out serves every other

@@ -26,6 +26,7 @@ export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessage
         pages: {
             dashboard: 'Dashboard',
             tenants: 'Mandanten',
+            subscribers: 'Vertragspartner',
             subscriptions: 'Abonnements',
             promoCodes: 'Promo-Codes',
             plans: 'Pläne & Versionen',
@@ -53,6 +54,7 @@ export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessage
         pages: {
             dashboard: 'Dashboard',
             tenants: 'Tenants',
+            subscribers: 'Subscribers',
             subscriptions: 'Subscriptions',
             promoCodes: 'Promo codes',
             plans: 'Plans & versions',

@@ -40,6 +40,7 @@ describe("the operator sees a tenant's subscriber beside the tenant", () => {
                 postalCode: '20457',
                 city: 'Hamburg',
                 country: 'DE',
+                invoiceEmail: null,
                 business: true,
                 vatId: null,
                 vatIdValidated: false,

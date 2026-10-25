@@ -2594,6 +2594,64 @@ before is not confirmed. Confirmations go with invoices: the start refuses invoi
   `CONTRACT_CONFIRMATION_PARTIES_UNCONFIRMED`, `CONTRACT_CONFIRMATION_NO_INVOICE_EMAIL` and
   `CONTRACT_CONFIRMATION_TERMS_NOT_ARCHIVED`.
 
+### A subscriber has a record of its own
+
+Everything the operator reads about a subscriber now stands in its record, reached by the
+subscriber rather than through its tenant, so it stays reachable once the tenant is gone
+(`SC-ADM-021`, `SC-ADM-036`). The administration gains a page of subscribers — searched by a
+customer number, a legal name or a VAT number, and narrowed to those without a live tenant — and
+each one's record: its master data and corrections, every tenant it was linked to, its charges,
+credits, invoices with their cancellation, and contracts. The tenant's page keeps a card that names
+the subscriber and leads into its record.
+
+- **The routes moved.** Collections are keyed by the subscriber's id, a single invoice by its own,
+  and the routes keyed by a tenant's slug are gone; nothing else answers them.
+
+    | before                                                              | after                                                  |
+    | ------------------------------------------------------------------- | ------------------------------------------------------ |
+    | `GET admin/tenants/:slug/charges`                                   | `GET admin/subscribers/:id/charges`                    |
+    | `GET admin/tenants/:slug/credits`                                   | `GET admin/subscribers/:id/credits`                    |
+    | `POST admin/tenants/:slug/credits/:creditId/payouts`                | `POST admin/subscribers/:id/credits/:creditId/payouts` |
+    | `GET admin/tenants/:slug/payments`                                  | `GET admin/subscribers/:id/payments`                   |
+    | `GET admin/tenants/:slug/contracts`                                 | `GET admin/subscribers/:id/contracts`                  |
+    | `GET admin/tenants/:slug/subscriber/history`                        | `GET admin/subscribers/:id/history`                    |
+    | `POST admin/tenants/:slug/subscriber/identity`                      | `POST admin/subscribers/:id/identity`                  |
+    | `POST admin/tenants/:slug/subscriber/business-status`               | `POST admin/subscribers/:id/business-status`           |
+    | `POST admin/tenants/:slug/subscriber/vat-id-check`                  | `POST admin/subscribers/:id/vat-id-check`              |
+    | `GET admin/tenants/:slug/invoices/:invoiceId`                       | `GET admin/invoices/:invoiceId`                        |
+    | `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview` | `POST admin/invoices/:invoiceId/cancellation/preview`  |
+    | `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`         | `POST admin/invoices/:invoiceId/cancellation`          |
+
+    `GET admin/tenants/:slug/subscriber` stays, for the card, and `GET admin/subscribers` and
+    `GET admin/subscribers/:id` are new. A screen of your own that called the old routes calls the
+    new ones; the shipped administration already does.
+
+- **A deletion of a tenant closes its subscriber's link.** A subscriber has no live tenant only once
+  `subscriber_tenants.unlinkedAt` is set; the record names a tenant your application no longer has
+  as such and does not read the link as ended. Where your application deletes tenants, it closes
+  the link in the same step.
+- **An `AdminResourcesPort` of your own** implements `findTenantsByIds(tenantIds)`: the tenants
+  among them your application still has, soft-deleted ones included, in one read. The shipped
+  `PrismaAdminResourcesAdapter` does.
+- **A `SubscriberRepository` of your own** implements `search` and `listTenantLinks`; **a
+  `SubscriberLedgerRepository` of your own** `listBySubscriber`; **a `SubscriptionContractRepository`
+  of your own** takes `subscriberId` in its `list` filter. A repository that extends a shipped one
+  inherits all of them. **A persistence contract harness** gains the seed `closeTenantLink`, or
+  declares `closedTenantLinkSeed` among its gaps.
+- **The `@saasicat/ui-vue` names follow.** `subscribersResource` holds the subscriber's operations
+  that `tenantsResource` held — `charges`, `credits`, `recordPayout`, `payments`, `contracts`,
+  `contractConfirmation`, `invoiceDocument`, `invoice`, `previewInvoiceCancellation`,
+  `cancelInvoice`, and the corrections as `history`, `correctIdentity`, `changeBusinessStatus` and
+  `checkVatId` —, keyed by the subscriber's or the invoice's id. `useTenantAccount`,
+  `useTenantCredits`, `useTenantPayments`, `useTenantContracts` and `useTenantDownloads` are
+  `useSubscriberAccount`, `useSubscriberCredits`, `useSubscriberPayments`, `useSubscriberContracts`
+  and `useSubscriberDownloads`; `useInvoiceCancellation` takes no tenant. The answers are named
+  after the subscriber too: `AdminSubscriberPayments`, `AdminSubscriberInvoice`,
+  `AdminSubscriberContracts` and `AdminSubscriberContract`, and `AdminSubscriberCorrected` answers
+  an `AdminSubscriberStanding`. An account always names its holder now.
+- **An application that overrides texts** moves the record's messages from the `tenants` namespace
+  to `subscribers`: `charges`, `credits`, `payments`, `contracts` and `subscriber`.
+
 ### The plan catalogue is read when it is asked for
 
 `PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application

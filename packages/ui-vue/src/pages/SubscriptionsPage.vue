@@ -94,6 +94,7 @@ const props = withDefaults(
 const subscriptions = useResource('subscriptions', props.resources);
 
 const msg = useSaMessages('tenants');
+const subscriberMsg = useSaMessages('subscribers');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 
@@ -111,7 +112,7 @@ const attention = useSubscriberAttention(
 
 /** The pill for a row whose subscriber is held back: one, or none. */
 function heldBackOf(row: SubscriptionRow): HeldBackPill[] {
-    const pill = heldBackPill(attention.of(row.tenant?.id), msg.value.subscriber);
+    const pill = heldBackPill(attention.of(row.tenant?.id), subscriberMsg.value.subscriber);
     return pill ? [pill] : [];
 }
 

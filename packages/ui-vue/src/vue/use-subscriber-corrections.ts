@@ -1,6 +1,6 @@
-// What the operator does to a tenant's subscriber beside its view: corrects its
-// legal identity, changes whether it acts as a business, checks its VAT number
-// again — and reads the history of all three.
+// What the operator does to a subscriber in its record: corrects its legal
+// identity, changes whether it acts as a business, checks its VAT number again
+// — and reads the history of all three.
 //
 // A composable rather than page script, so the sequences — second factor,
 // write, announce, reload — can be checked with `node --test` against `dist/`.
@@ -27,21 +27,18 @@ import type { Bound } from '../client/resources/define-resource.js';
 import type {
     SubscriberBusinessStatusInput,
     SubscriberIdentityCorrectionInput,
-    tenantsResource,
-} from '../client/resources/tenants.resource.js';
+    subscribersResource,
+} from '../client/resources/subscribers.resource.js';
 import type { UiNotify, UiNotifyKind } from './ui-notify.js';
 import { report } from './report.js';
 import { useAsyncData, type AsyncData } from './use-async-data.js';
 import type { MfaPrompt } from './use-mfa-prompt.js';
 import { useSaMessages } from './use-super-admin-i18n.js';
 
-/** The tenant operations the corrections call, already bound to the shell's client. */
+/** The subscriber operations the corrections call, already bound to the shell's client. */
 export type SubscriberCorrectionsResource = Pick<
-    Bound<(typeof tenantsResource)['ops']>,
-    | 'subscriberHistory'
-    | 'correctSubscriberIdentity'
-    | 'changeSubscriberBusinessStatus'
-    | 'checkSubscriberVatId'
+    Bound<(typeof subscribersResource)['ops']>,
+    'history' | 'correctIdentity' | 'changeBusinessStatus' | 'checkVatId'
 >;
 
 export interface SubscriberCorrectionsPorts {
@@ -70,12 +67,12 @@ export interface SubscriberCorrections {
 }
 
 export function useSubscriberCorrections(
-    slug: Ref<string>,
+    subscriberId: Ref<string>,
     manifest: Ref<AdminManifest | null>,
-    tenants: SubscriberCorrectionsResource,
+    subscribers: SubscriberCorrectionsResource,
     ports: SubscriberCorrectionsPorts,
 ): SubscriberCorrections {
-    const msg = useSaMessages('tenants');
+    const msg = useSaMessages('subscribers');
     const shell = useSaMessages('shell');
     const errors = useSaMessages('errors');
 
@@ -88,8 +85,9 @@ export function useSubscriberCorrections(
             manifest.value?.capabilities?.[SUBSCRIBER_ATTENTION_CAPABILITY] === true,
     );
     const history = useAsyncData<AdminSubscriberHistoryEntry[]>(
-        async () => (available.value && slug.value ? tenants.subscriberHistory(slug.value) : []),
-        { initial: [], watch: [available], subject: slug },
+        async () =>
+            available.value && subscriberId.value ? subscribers.history(subscriberId.value) : [],
+        { initial: [], watch: [available], subject: subscriberId },
     );
 
     /**
@@ -129,19 +127,20 @@ export function useSubscriberCorrections(
     }
 
     /**
-     * Runs a correction of the tenant on screen behind the second factor;
-     * `null` where the operator stepped back. The tenant is taken before the
-     * prompt opens: the page may move to another tenant while it is open, and
-     * what the operator confirmed belongs to the one they confirmed it on.
+     * Runs a correction of the subscriber on screen behind the second factor;
+     * `null` where the operator stepped back. The subscriber is taken before
+     * the prompt opens: the page may move to another subscriber while it is
+     * open, and what the operator confirmed belongs to the one they confirmed
+     * it on.
      */
     async function behindSecondFactor(
         description: string,
-        write: (tenant: string, code: string) => Promise<AdminSubscriberCorrected>,
+        write: (subscriber: string, code: string) => Promise<AdminSubscriberCorrected>,
         done: string,
     ): Promise<AdminSubscriberCorrected | null> {
-        const tenant = slug.value;
+        const subscriber = subscriberId.value;
         const outcome = await ports.mfa.run(description, shell.value.mfa.invalidCode, (code) =>
-            write(tenant, code),
+            write(subscriber, code),
         );
         if (!outcome.done) return null;
         await changed(outcome.value, done);
@@ -155,19 +154,19 @@ export function useSubscriberCorrections(
         correctIdentity: (input) =>
             behindSecondFactor(
                 msg.value.subscriber.mfaIdentity,
-                (tenant, code) => tenants.correctSubscriberIdentity(tenant, input, code),
+                (subscriber, code) => subscribers.correctIdentity(subscriber, input, code),
                 msg.value.subscriber.corrected,
             ),
         changeBusinessStatus: (input) =>
             behindSecondFactor(
                 msg.value.subscriber.mfaBusiness,
-                (tenant, code) => tenants.changeSubscriberBusinessStatus(tenant, input, code),
+                (subscriber, code) => subscribers.changeBusinessStatus(subscriber, input, code),
                 msg.value.subscriber.businessChanged,
             ),
         async checkVatId() {
             let result: AdminSubscriberCorrected;
             try {
-                result = await tenants.checkSubscriberVatId(slug.value);
+                result = await subscribers.checkVatId(subscriberId.value);
             } catch (err) {
                 report(() => ports.notify('negative', adminErrorMessage(err, errors.value)));
                 return;

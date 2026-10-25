@@ -126,7 +126,7 @@ export const CONTRACT_CONFIRMATIONS_CAPABILITY = 'contracts.read';
 export type AdminContractConfirmationState = 'not-due' | 'being-made' | 'awaiting-mail' | 'sent';
 
 /** One of a tenant's contracts, with where its confirmation stands. */
-export interface AdminTenantContract {
+export interface AdminSubscriberContract {
     id: string;
     status: SubscriptionContractStatus;
     /** ISO 8601. When the contract was written. */
@@ -153,6 +153,6 @@ export interface AdminTenantContract {
 }
 
 /** A tenant's contracts, the newest first. */
-export interface AdminTenantContracts {
-    contracts: AdminTenantContract[];
+export interface AdminSubscriberContracts {
+    contracts: AdminSubscriberContract[];
 }

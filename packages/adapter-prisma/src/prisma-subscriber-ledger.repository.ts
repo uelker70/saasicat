@@ -90,4 +90,20 @@ export class PrismaSubscriberLedgerRepository implements SubscriberLedgerReposit
         });
         return rows.map(toSubscriberChargeRecord);
     }
+
+    async listBySubscriber(subscriberId: string): Promise<SubscriberChargeRecord[]> {
+        const rows = await this.db().subscriberLedgerEntry.findMany({
+            where: { subscriberId },
+            // The subscription between the period and the rest, so two
+            // subscriptions' charges of one period keep one order in every store.
+            orderBy: [
+                { periodStart: 'asc' },
+                { subscriptionId: 'asc' },
+                { source: 'asc' },
+                { sourceRef: 'asc' },
+                { origin: 'asc' },
+            ],
+        });
+        return rows.map(toSubscriberChargeRecord);
+    }
 }

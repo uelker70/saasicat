@@ -332,6 +332,14 @@ export interface ContractSeed {
      */
     createSubscriber?(input: { legalName: string }): Promise<{ subscriberId: string }>;
     /**
+     * Closes the subscriber's live tenant link at `at`, as an application's
+     * deletion of the tenant does. No repository method closes one — the
+     * platform does not delete tenants yet — so the scenarios that read a
+     * subscriber without a live tenant ask for this. Optional for the reason
+     * `clearBookingRequestDate` is.
+     */
+    closeTenantLink?(subscriberId: string, at: Date): Promise<void>;
+    /**
      * Marks a contract as one written before confirmations existed, as `db push`
      * leaves every contract it finds when it adds the column: `confirmationDue`
      * false. No repository writes that, which is the point — a contract the
@@ -384,6 +392,7 @@ export type ContractGap =
     | 'mfa'
     | 'subscriptionContracts'
     | 'subscribers'
+    | 'closedTenantLinkSeed'
     | 'paymentEventLog'
     | 'subscriberPaymentMethods'
     | 'subscriberLedger'

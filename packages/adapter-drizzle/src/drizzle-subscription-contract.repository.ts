@@ -53,6 +53,9 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                     ...(filter.tenantId
                         ? [eq(subscriptionContracts.tenantId, filter.tenantId)]
                         : []),
+                    ...(filter.subscriberId
+                        ? [eq(subscriptionContracts.subscriberId, filter.subscriberId)]
+                        : []),
                     ...(filter.status ? [eq(subscriptionContracts.status, filter.status)] : []),
                     ...(filter.asOf ? [inWindowAt(filter.asOf)] : []),
                 ),

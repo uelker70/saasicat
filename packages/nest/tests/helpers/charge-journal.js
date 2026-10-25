@@ -120,6 +120,11 @@ function journal() {
                 .filter((row) => row.subscriptionId === subscriptionId)
                 .sort((a, b) => a.periodStart - b.periodStart);
         },
+        async listBySubscriber(subscriberId) {
+            return rows
+                .filter((row) => row.subscriberId === subscriberId)
+                .sort((a, b) => a.periodStart - b.periodStart);
+        },
     };
 }
 
@@ -158,7 +163,10 @@ export function anAccount({
     const told = [];
     // The feature withdrawals on record.
     const withdrawals = [];
-    const subscribers = { findByTenantId: async () => subscriber };
+    const subscribers = {
+        findByTenantId: async () => subscriber,
+        findById: async (id) => (subscriber?.id === id ? subscriber : null),
+    };
     const subscriptions = { findForTenant: async () => subscription };
     const service = new SubscriberChargeService(
         ledger,
@@ -172,7 +180,7 @@ export function anAccount({
         null,
         reductions,
     );
-    const reader = new SubscriberAccountService(ledger, contracts, subscribers, subscriptions);
+    const reader = new SubscriberAccountService(ledger, contracts, subscribers);
     return {
         subscription,
         bookings,
@@ -215,9 +223,9 @@ export function anAccount({
                 });
             }
         },
-        /** The account as the operator reads it. */
-        read() {
-            return reader.accountOf('t1');
+        /** The account as the operator reads it, in the subscriber's record. */
+        read(subscriberId = subscriber?.id ?? 'no-subscriber') {
+            return reader.accountOf(subscriberId);
         },
         /** Brings the account up to date at `now`, as the application's call does. */
         charge(now) {

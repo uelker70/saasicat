@@ -899,8 +899,23 @@ list and the subscription list of `@saasicat/ui-vue` ask only then. Your own `Su
 implements `listForTenants`, which reads them in one go, and your own `AdminResourcesPort` gives each
 row of `listSubscriptions` its `tenant.id`.
 
-Beside the view the operator corrects the subscriber, announced as `subscribers.correct`:
-`POST admin/tenants/:slug/subscriber/identity` corrects the legal name, the VAT number and the tax
+The same routes serve the operator's way to a subscriber that does not go through its tenant, so a
+subscriber whose tenant is gone stays reachable (`SC-ADM-036`): `GET admin/subscribers?q=…` lists
+them a page at a time, the latest customer number first — every one, those a customer number, legal
+name or VAT number matches, or with `withoutLiveTenant=true` those whose every tenant link is closed
+—, and `GET admin/subscribers/:id` answers the head of a subscriber's record: its master data, its
+standing, and every tenant it was linked to, each named as your application answers for it now and
+`known: false` where it no longer has the tenant. A link ends only when it is closed, so **a deletion
+of a tenant in your application closes its subscriber's link** (`subscriber_tenants.unlinkedAt`);
+the record does not read a tenant your application no longer has as one the subscriber left. Your
+own `SubscriberRepository` implements `search` and `listTenantLinks`, reading the search terms
+`subscriberSearchTermsOf` makes of what the operator typed; your own `AdminResourcesPort` implements
+`findTenantsByIds`, which names a page's tenants in one question — the shipped
+`PrismaAdminResourcesAdapter` does. A persistence harness of your own either closes a link with the
+`closeTenantLink` seed or names `closedTenantLinkSeed` among its gaps.
+
+In the record the operator corrects the subscriber, announced as `subscribers.correct`:
+`POST admin/subscribers/:id/identity` corrects the legal name, the VAT number and the tax
 number of the same legal entity, and `…/business-status` whether it acts as a business — each with a
 written reason and behind the second factor, recorded with what it replaced and who made it.
 `…/vat-id-check` checks the number held again without it, and `GET …/history` lists the
@@ -909,7 +924,8 @@ number a correction gives is checked with the adapter's service right after it i
 check is kept whether the service found it valid, invalid or did not answer. Your own code does the
 same in three steps — `SubscriberService.correctIdentity`, which writes only, then whatever records
 the correction, then `checkCorrectedVatId(correction)` outside any transaction — and checks the
-number held with `checkVatIdOf`. `TenantDetailPage` offers all of it beside the subscriber.
+number held with `checkVatIdOf`. `SubscriberRecordPage` offers all of it; `TenantDetailPage` names
+the tenant's subscriber and leads into its record.
 
 ## The Subscriber's Account
 
@@ -987,13 +1003,14 @@ it is the new period less the unused rest of the one it replaces. A discount sta
 it was agreed in; at the first change of rhythm after it was agreed, what is left of it comes off
 the new period, once (`SC-PRIC-060`).
 
-With `adminResources` on as well, the operator reads an account beside its tenant. The platform
-serves `GET admin/tenants/:slug/charges` behind the same guards as the other tenant routes of the
-administration and announces it in the manifest as `charges.read`; `TenantDetailPage` then shows the
-charges newest first — each with the title of its contract line, its period, what made it arise,
-when it became due and its net amount — and whose account it is, by customer number and legal name
-(`SC-ADM-028`). There is no total: without invoices and payments, a sum would be read as what is
-owed. Without the journal, neither the route nor the section exists.
+With `adminResources` on as well, the operator reads an account in the subscriber's record. The
+platform serves `GET admin/subscribers/:id/charges` behind the same guards as the other routes of
+the administration and announces it in the manifest as `charges.read`; `SubscriberRecordPage` then
+shows the charges newest first, whichever subscription and tenant each arose under — each with the
+title of its contract line, its period, what made it arise, when it became due and its net amount
+— and whose account it is, by customer number and legal name (`SC-ADM-037`). There is no total: a
+sum of charges would be read as what is owed. Without the journal, neither the route nor the
+section exists.
 
 An operator's request is scoped to no tenant, so the platform reads the account inside
 `RlsBypassPort`. If `subscriber_ledger_entries`, your subscriptions, contracts or subscribers carry
@@ -1224,8 +1241,9 @@ mailed once under a claim — in the same quarter-hourly run, by the actor
 `GET admin/contracts/:id/confirmation`, behind the administration's guards, checked against the
 recorded checksum: a file that no longer matches is answered `409` with
 `CONTRACT_CONFIRMATION_MISMATCH` and recorded under that action, and a contract with none archived
-`409` with `CONTRACT_CONFIRMATION_NOT_ARCHIVED`. **The operator reads** a tenant's contracts at
-`GET admin/tenants/:slug/contracts` — in force, superseded and ended, the newest first — each with
+`409` with `CONTRACT_CONFIRMATION_NOT_ARCHIVED`. **The operator reads** a subscriber's contracts at
+`GET admin/subscribers/:id/contracts` — in force, superseded and ended, whichever tenant each was
+for, the newest first — each with
 its start, its rhythm and price, the version of the terms and the notice period it records, and where
 its confirmation stands: `not-due` for a contract written before confirmations, `being-made` while
 it is not archived — a held one among them, which the audit log says why —, `awaiting-mail` once
@@ -1241,17 +1259,17 @@ a new number, with what was paid for it moved onto the replacement or, where the
 not take it, credited for the operator to refund. The next run archives and mails both like any
 invoice.
 
-- **The invoice's lines**, `GET admin/tenants/:slug/invoices/:invoiceId`, answer the invoice with
+- **The invoice's lines**, `GET admin/invoices/:invoiceId`, answer the invoice with
   each line as its document states it, what its charge stands at — an earlier cancellation's
   correction included — and whether a cancellation may name it as not owed, or owed in part
   (`correctable`). A cancellation accepts exactly the lines this offers (`SC-ADM-035`).
-- **The preview**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview`, answers what
+- **The preview**, `POST admin/invoices/:invoiceId/cancellation/preview`, answers what
   the cancellation would write and writes nothing; show it in the confirmation (`SC-UI-017`), and
   send its `digest` back with the cancellation as `previewDigest`. A payment that arrives in
   between, or a correction of the subscriber's legal identity, then refuses the cancellation with
   `SUBSCRIPTION_INVOICE_CANCELLATION_PREVIEW_CHANGED` and the new preview, rather than writing what
   nobody confirmed.
-- **The cancellation**, `POST admin/tenants/:slug/invoices/:invoiceId/cancellation`, asks for the
+- **The cancellation**, `POST admin/invoices/:invoiceId/cancellation`, asks for the
   second factor (`x-mfa-code`). Both take `reason` — one line of at most 500 characters, which both
   invoices name —, `lines`, each `{ position, owed }` of a line not owed in full with what is still
   owed of it, net, `corrections` of the subscriber's details the replacement names, and
@@ -1265,11 +1283,11 @@ invoice.
   what to what, which details were corrected and whether an address was given. `CancelInvoiceDto`
   carries a decorator on every field, `lines` included, so a `ValidationPipe` with `whitelist` keeps
   them.
-- **On the tenant page** of the shipped administration, each invoice says what it corrects and
+- **In the subscriber's record** of the shipped administration, each invoice says what it corrects and
   which cancellation invoice cancelled it, and one that stands offers the cancellation in two steps
   — what the operator gives, each line owed, not owed or owed in part among it, then the preview
   with the lines that move and the replacement's lines, confirmed with the second factor
-  (`SC-ADM-034`, `SC-ADM-035`). Nothing to wire beyond the routes.
+  (`SC-ADM-040`, `SC-ADM-035`). Nothing to wire beyond the routes.
 - **From the command line**, `<app> invoices cancel --tenant <slug> --invoice <number> --reason "…"`
   shows the same and writes nothing — `--line 2=not-owed` or `--line 2=24.50` names a line by its
   position on the document; `--apply` cancels, with the second factor and, against
@@ -1391,7 +1409,7 @@ you name another. The start refuses collections without it.
 - **What matched nothing** stands on the administration's reconciliation page and on the tenant's
   page beside its invoices with what each still owes; the operator closes each case with a note,
   behind the second factor (`reconciliation.read`, `reconciliation.close`, `payments.read`,
-  `SC-ADM-033`). A refund that fails and a reversal given back close the cases they opened.
+  `SC-ADM-039`). A refund that fails and a reversal given back close the cases they opened.
 - **The audit log** records each payment (`SUBSCRIPTION_INVOICE_PAYMENT_RECORDED`), each credit
   (`SUBSCRIBER_CREDIT_RECORDED`), each refund (`SUBSCRIBER_REFUND_RECORDED`, and
   `SUBSCRIBER_REFUND_GIVEN_BACK` when it fails), each payout (`SUBSCRIBER_CREDIT_PAID_OUT`), each

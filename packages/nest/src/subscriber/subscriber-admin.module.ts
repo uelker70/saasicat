@@ -28,9 +28,13 @@ import {
 } from 'class-validator';
 import {
     SUBSCRIBER_ATTENTION_PAGE_SIZE,
+    SUBSCRIBER_SEARCH_MAX_LENGTH,
     type AdminSubscriberAttention,
     type AdminSubscriberCorrected,
     type AdminSubscriberHistoryEntry,
+    type AdminSubscriberList,
+    type AdminSubscriberRecord,
+    type AdminSubscriberStanding,
     type AdminTenantSubscriber,
     type RlsBypassPort,
     type SubscriberRepository,
@@ -44,6 +48,7 @@ import { asProvider, type ProviderSpec } from '../core/di.js';
 import { WebAuditLogger } from '../core/web-audit.js';
 import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 import { vatIdCheckOutcomeOf } from './subscriber-history.js';
+import { SubscriberRecordService } from './subscriber-record.service.js';
 import { SubscriberStandingService } from './subscriber-standing.service.js';
 import { SubscriberService } from './subscriber.service.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
@@ -62,8 +67,28 @@ export class SubscriberAttentionQueryDto {
     tenantId: string[] = [];
 }
 
+/** The longest subscriber id a page of the list is continued after. */
+const MAX_ID_LENGTH = 200;
+
+/** `GET admin/subscribers?q=…&withoutLiveTenant=true&after=…` — one page of the list. */
+export class SubscriberListQueryDto {
+    @IsOptional()
+    @IsString()
+    @MaxLength(SUBSCRIBER_SEARCH_MAX_LENGTH)
+    q?: string;
+
+    @IsOptional()
+    @IsIn(['true', 'false', true, false])
+    withoutLiveTenant?: 'true' | 'false' | boolean;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(MAX_ID_LENGTH)
+    after?: string;
+}
+
 /**
- * `POST admin/tenants/:slug/subscriber/identity` — a correction of the legal
+ * `POST admin/subscribers/:id/identity` — a correction of the legal
  * identity of the same legal entity. A field left out keeps its value; `null`
  * clears a tax identifier. `kind` is the operator's declaration of what the
  * change is: a takeover by another entity is refused, not recorded as an edit.
@@ -91,7 +116,7 @@ export class CorrectSubscriberIdentityDto {
     reason!: string;
 }
 
-/** `POST admin/tenants/:slug/subscriber/business-status` — whether it acts as a business, and why. */
+/** `POST admin/subscribers/:id/business-status` — whether it acts as a business, and why. */
 export class ChangeSubscriberBusinessStatusDto {
     @ValidateIf((_, value: unknown) => value !== null)
     @IsBoolean()
@@ -126,6 +151,8 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
             private readonly tenants: AdminResourcesService,
             @Inject(SubscriberStandingService)
             private readonly standing: SubscriberStandingService,
+            @Inject(SubscriberRecordService)
+            private readonly records: SubscriberRecordService,
             @Inject(SubscriberService)
             private readonly subscribers: SubscriberService,
             @Inject(WebAuditLogger)
@@ -137,129 +164,12 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
             private readonly rlsBypass: RlsBypassPort,
         ) {}
 
-        /** The tenant's subscriber, its tax details and what holds its next contract back. */
+        /** The tenant's subscriber and what holds its next contract back; the rest is in its record. */
         @Get('tenants/:slug/subscriber')
         subscriberOf(@Param('slug') slug: string): Promise<AdminTenantSubscriber> {
             return this.rlsBypass.runWithBypass(async () => {
                 const tenant = await this.tenants.getTenantDetail(slug);
                 return this.standing.ofTenant(tenant.id);
-            });
-        }
-
-        /** Every correction, change of country or business status, and check, the latest first. */
-        @Get('tenants/:slug/subscriber/history')
-        historyOf(
-            @Param('slug') slug: string,
-        ): Promise<{ entries: AdminSubscriberHistoryEntry[] }> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const tenant = await this.tenants.getTenantDetail(slug);
-                return { entries: await this.standing.historyOfTenant(tenant.id) };
-            });
-        }
-
-        /**
-         * Corrects the legal identity of the tenant's subscriber, with the
-         * second factor. A VAT number it gives the subscriber is checked right
-         * after, where a tax adapter decides, and the outcome is answered — the
-         * correction stands whatever the check found. The audit entry is
-         * written between the two, so a check that fails cannot leave a
-         * correction nobody recorded.
-         */
-        @Post('tenants/:slug/subscriber/identity')
-        @HttpCode(200)
-        @EnforceMfa()
-        correctIdentity(
-            @Param('slug') slug: string,
-            @Body() body: CorrectSubscriberIdentityDto,
-            @Req() request: unknown,
-        ): Promise<AdminSubscriberCorrected> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const { tenantId, subscriberId } = await this.subscriberAt(slug);
-                const correction = await this.subscribers.correctIdentity(subscriberId, {
-                    kind: body.kind,
-                    legalName: body.legalName,
-                    vatId: body.vatId,
-                    taxNumber: body.taxNumber,
-                    reason: body.reason,
-                    correctedBy: this.audit.actorTagFromRequest(request),
-                });
-                await this.audit.logFromRequest(
-                    request,
-                    'Subscriber',
-                    subscriberId,
-                    'SUBSCRIBER_IDENTITY_CORRECTED',
-                    {
-                        tenantId,
-                        fields: Object.keys(correction.corrected),
-                        reason: correction.reason,
-                    },
-                );
-                const vatIdCheck = await this.subscribers.checkCorrectedVatId(correction);
-                return {
-                    subscriber: await this.standing.ofTenant(tenantId),
-                    vatIdCheck: vatIdCheck && vatIdCheckOutcomeOf(vatIdCheck),
-                };
-            });
-        }
-
-        /** Records whether the tenant's subscriber acts as a business, and why, with the second factor. */
-        @Post('tenants/:slug/subscriber/business-status')
-        @HttpCode(200)
-        @EnforceMfa()
-        changeBusinessStatus(
-            @Param('slug') slug: string,
-            @Body() body: ChangeSubscriberBusinessStatusDto,
-            @Req() request: unknown,
-        ): Promise<AdminSubscriberCorrected> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const { tenantId, subscriberId } = await this.subscriberAt(slug);
-                const { change } = await this.subscribers.changeBusinessStatus(subscriberId, {
-                    business: body.business,
-                    reason: body.reason,
-                    changedBy: this.audit.actorTagFromRequest(request),
-                });
-                if (change) {
-                    await this.audit.logFromRequest(
-                        request,
-                        'Subscriber',
-                        subscriberId,
-                        'SUBSCRIBER_BUSINESS_STATUS_CHANGED',
-                        { tenantId, business: body.business, reason: change.reason },
-                    );
-                }
-                return { subscriber: await this.standing.ofTenant(tenantId), vatIdCheck: null };
-            });
-        }
-
-        /**
-         * Checks the VAT number the tenant's subscriber holds, without changing
-         * it, and records the check. No second factor: nobody enters anything,
-         * and the answer is the service's.
-         */
-        @Post('tenants/:slug/subscriber/vat-id-check')
-        @HttpCode(200)
-        checkVatId(
-            @Param('slug') slug: string,
-            @Req() request: unknown,
-        ): Promise<AdminSubscriberCorrected> {
-            return this.rlsBypass.runWithBypass(async () => {
-                const { tenantId, subscriberId } = await this.subscriberAt(slug);
-                const result = await this.subscribers.checkVatIdOf({ subscriberId });
-                await this.audit.logFromRequest(
-                    request,
-                    'Subscriber',
-                    subscriberId,
-                    'SUBSCRIBER_VAT_ID_CHECKED',
-                    {
-                        tenantId,
-                        completed: result.completed,
-                        ...(result.completed ? { valid: result.check.valid } : {}),
-                    },
-                );
-                return {
-                    subscriber: await this.standing.ofTenant(tenantId),
-                    vatIdCheck: vatIdCheckOutcomeOf(result),
-                };
             });
         }
 
@@ -278,13 +188,151 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
             }));
         }
 
-        /** The tenant and its subscriber, refused as the reads refuse them. */
-        private async subscriberAt(
-            slug: string,
-        ): Promise<{ tenantId: string; subscriberId: string }> {
-            const tenant = await this.tenants.getTenantDetail(slug);
-            const subscriber = await this.subscribers.requireForTenant(tenant.id);
-            return { tenantId: tenant.id, subscriberId: subscriber.id };
+        /**
+         * One page of the subscribers, the latest customer number first:
+         * every one, those a customer number, legal name or VAT number
+         * matches, and those whose every tenant link is closed.
+         */
+        @Get('subscribers')
+        list(@Query() query: SubscriberListQueryDto): Promise<AdminSubscriberList> {
+            return this.rlsBypass.runWithBypass(() =>
+                this.records.list({
+                    query: query.q,
+                    // A query string carries text: only `true` asks for those without a tenant.
+                    withoutLiveTenant: String(query.withoutLiveTenant) === 'true',
+                    after: query.after,
+                }),
+            );
+        }
+
+        /** The head of the subscriber's record: its standing and every tenant it was linked to. */
+        @Get('subscribers/:id')
+        recordOf(@Param('id') id: string): Promise<AdminSubscriberRecord> {
+            return this.rlsBypass.runWithBypass(() => this.records.recordOf(id));
+        }
+
+        /** Every correction, change of country or business status, and check, the latest first. */
+        @Get('subscribers/:id/history')
+        historyOf(@Param('id') id: string): Promise<{ entries: AdminSubscriberHistoryEntry[] }> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const subscriber = await this.subscribers.requireById(id);
+                return { entries: await this.standing.historyOf(subscriber.id) };
+            });
+        }
+
+        /**
+         * Corrects the subscriber's legal identity, with the second factor. A
+         * VAT number it gives the subscriber is checked right after, where a
+         * tax adapter decides, and the outcome is answered — the correction
+         * stands whatever the check found. The audit entry is written between
+         * the two, so a check that fails cannot leave a correction nobody
+         * recorded.
+         */
+        @Post('subscribers/:id/identity')
+        @HttpCode(200)
+        @EnforceMfa()
+        correctIdentity(
+            @Param('id') id: string,
+            @Body() body: CorrectSubscriberIdentityDto,
+            @Req() request: unknown,
+        ): Promise<AdminSubscriberCorrected> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const subscriber = await this.subscribers.requireById(id);
+                const correction = await this.subscribers.correctIdentity(subscriber.id, {
+                    kind: body.kind,
+                    legalName: body.legalName,
+                    vatId: body.vatId,
+                    taxNumber: body.taxNumber,
+                    reason: body.reason,
+                    correctedBy: this.audit.actorTagFromRequest(request),
+                });
+                await this.audit.logFromRequest(
+                    request,
+                    'Subscriber',
+                    subscriber.id,
+                    'SUBSCRIBER_IDENTITY_CORRECTED',
+                    {
+                        tenantId: subscriber.tenantId,
+                        fields: Object.keys(correction.corrected),
+                        reason: correction.reason,
+                    },
+                );
+                const vatIdCheck = await this.subscribers.checkCorrectedVatId(correction);
+                return {
+                    subscriber: await this.standingNow(subscriber.id),
+                    vatIdCheck: vatIdCheck && vatIdCheckOutcomeOf(vatIdCheck),
+                };
+            });
+        }
+
+        /** Records whether the subscriber acts as a business, and why, with the second factor. */
+        @Post('subscribers/:id/business-status')
+        @HttpCode(200)
+        @EnforceMfa()
+        changeBusinessStatus(
+            @Param('id') id: string,
+            @Body() body: ChangeSubscriberBusinessStatusDto,
+            @Req() request: unknown,
+        ): Promise<AdminSubscriberCorrected> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const subscriber = await this.subscribers.requireById(id);
+                const { change } = await this.subscribers.changeBusinessStatus(subscriber.id, {
+                    business: body.business,
+                    reason: body.reason,
+                    changedBy: this.audit.actorTagFromRequest(request),
+                });
+                if (change) {
+                    await this.audit.logFromRequest(
+                        request,
+                        'Subscriber',
+                        subscriber.id,
+                        'SUBSCRIBER_BUSINESS_STATUS_CHANGED',
+                        {
+                            tenantId: subscriber.tenantId,
+                            business: body.business,
+                            reason: change.reason,
+                        },
+                    );
+                }
+                return { subscriber: await this.standingNow(subscriber.id), vatIdCheck: null };
+            });
+        }
+
+        /**
+         * Checks the VAT number the subscriber holds, without changing it, and
+         * records the check. No second factor: nobody enters anything, and the
+         * answer is the service's.
+         */
+        @Post('subscribers/:id/vat-id-check')
+        @HttpCode(200)
+        checkVatId(
+            @Param('id') id: string,
+            @Req() request: unknown,
+        ): Promise<AdminSubscriberCorrected> {
+            return this.rlsBypass.runWithBypass(async () => {
+                const subscriber = await this.subscribers.requireById(id);
+                const result = await this.subscribers.checkVatIdOf({ subscriberId: subscriber.id });
+                await this.audit.logFromRequest(
+                    request,
+                    'Subscriber',
+                    subscriber.id,
+                    'SUBSCRIBER_VAT_ID_CHECKED',
+                    {
+                        tenantId: subscriber.tenantId,
+                        completed: result.completed,
+                        ...(result.completed ? { valid: result.check.valid } : {}),
+                    },
+                );
+                return {
+                    subscriber: await this.standingNow(subscriber.id),
+                    vatIdCheck: vatIdCheckOutcomeOf(result),
+                };
+            });
+        }
+
+        /** The subscriber as it stands after a write, read again. */
+        private async standingNow(subscriberId: string): Promise<AdminSubscriberStanding> {
+            return this.standing.standingOf(await this.subscribers.requireById(subscriberId));
         }
     }
 
@@ -292,10 +340,11 @@ function buildSubscriberAdminController(guards: Array<Type<CanActivate>>): Type 
 }
 
 /**
- * The operator's routes about a tenant's subscriber, served beside the tenant
- * it belongs to: its tax details and what holds its next contract back
- * (`SC-PRIC-070`), its history, and the corrections of its legal identity and
- * business status and the check of its VAT number.
+ * The operator's routes about subscribers: a tenant's subscriber beside the
+ * tenant and what holds its next contract back (`SC-PRIC-070`); the list of
+ * subscribers and the head of each one's record, whether its tenant lives or
+ * not (`SC-ADM-036`); its history, and the corrections of its legal identity
+ * and business status and the check of its VAT number.
  */
 @Module({})
 export class SubscriberAdminModule {
@@ -306,6 +355,7 @@ export class SubscriberAdminModule {
             providers: [
                 asProvider(SUBSCRIBER_REPOSITORY_TOKEN, options.subscriberRepository),
                 SubscriberStandingService,
+                SubscriberRecordService,
                 SubscriberService,
                 WebAuditLogger,
             ],

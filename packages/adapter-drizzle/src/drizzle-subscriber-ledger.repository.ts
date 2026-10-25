@@ -82,4 +82,21 @@ export class DrizzleSubscriberLedgerRepository implements SubscriberLedgerReposi
             );
         return rows.map(toSubscriberChargeRecord);
     }
+
+    async listBySubscriber(subscriberId: string): Promise<SubscriberChargeRecord[]> {
+        const rows = await resolveDb(this.db)
+            .select()
+            .from(subscriberLedgerEntries)
+            .where(eq(subscriberLedgerEntries.subscriberId, subscriberId))
+            // The subscription between the period and the rest, so two
+            // subscriptions' charges of one period keep one order in every store.
+            .orderBy(
+                asc(subscriberLedgerEntries.periodStart),
+                asc(subscriberLedgerEntries.subscriptionId),
+                asc(subscriberLedgerEntries.source),
+                asc(subscriberLedgerEntries.sourceRef),
+                asc(subscriberLedgerEntries.origin),
+            );
+        return rows.map(toSubscriberChargeRecord);
+    }
 }

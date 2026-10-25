@@ -73,6 +73,7 @@ export interface AdminManifest {
 export type StandardPageKey =
     | 'dashboard'
     | 'tenants'
+    | 'subscribers'
     | 'subscriptions'
     | 'promoCodes'
     | 'plans'

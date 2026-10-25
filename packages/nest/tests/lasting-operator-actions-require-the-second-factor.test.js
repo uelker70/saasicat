@@ -36,20 +36,20 @@ const LASTING = [
     // A feature taken from every subscription holding it, and given back.
     'POST admin/feature-withdrawals',
     'POST admin/feature-withdrawals/:id/lift',
+    // An issued invoice cancelled and replaced under new numbers (`SC-ADM-019`).
+    'POST admin/invoices/:invoiceId/cancellation',
     // Every tenant locked out at once, and let back in (`SC-ADM-029`).
     'POST admin/maintenance/lock',
     'POST admin/maintenance/unlock',
-    // A mismatch of money declared reconciled, for good (`SC-ADM-033`).
+    // A mismatch of money declared reconciled, for good (`SC-ADM-039`).
     'POST admin/reconciliation/:caseId/close',
+    // What the next invoice's tax is decided from (`SC-PRIC-043`).
+    'POST admin/subscribers/:id/business-status',
     // Money the operator paid a subscriber, recorded for good (`SC-PRIC-083`).
-    'POST admin/tenants/:slug/credits/:creditId/payouts',
-    // An issued invoice cancelled and replaced under new numbers (`SC-ADM-019`).
-    'POST admin/tenants/:slug/invoices/:invoiceId/cancellation',
+    'POST admin/subscribers/:id/credits/:creditId/payouts',
+    // Whom the next invoice names (`SC-SUB-017`).
+    'POST admin/subscribers/:id/identity',
     'POST admin/tenants/:slug/reactivate',
-    // What the next invoice's tax is decided from, and whom it names
-    // (`SC-SUB-017`, `SC-PRIC-043`).
-    'POST admin/tenants/:slug/subscriber/business-status',
-    'POST admin/tenants/:slug/subscriber/identity',
     'POST admin/tenants/:slug/suspend',
 ];
 const TENANT_STATE = ['POST admin/tenants/:slug/reactivate', 'POST admin/tenants/:slug/suspend'];

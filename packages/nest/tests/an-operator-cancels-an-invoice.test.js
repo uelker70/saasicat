@@ -14,7 +14,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import 'reflect-metadata';
-import { NotFoundException, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -58,17 +58,10 @@ async function refusalOf(attempt) {
 /** What the installation holds of invoices and cancellations, to see that nothing was written. */
 const heldBy = ({ store }) => [store.invoices.length, store.cancellations.length];
 
-/** The route's own controller over `installation`, its tenant served as `acme`. */
+/** The route's own controller over `installation`; it names no tenant, the invoice is its key. */
 function aController(installation, logged = []) {
     const [Controller] = InvoiceCancellationModule.forRoot({ guards: [], imports: [] }).controllers;
     return new Controller(
-        {
-            getTenantDetail: async (slug) => {
-                if (slug === 'acme') return { id: 't1', slug };
-                if (slug === 'other') return { id: 't2', slug };
-                throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
-            },
-        },
         installation.cancellation,
         {
             actorTagFromRequest: () => 'web:anna@example.com:admin',
@@ -201,7 +194,7 @@ describe('what an operator gives a cancellation', () => {
 // @requirement SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
 describe('a cancellation settles what it is given before anything else', () => {
     const previewWith = (installation, request) =>
-        installation.cancellation.preview('t1', installation.invoice.id, request, CANCELLED_AT);
+        installation.cancellation.preview(installation.invoice.id, request, CANCELLED_AT);
 
     test('the reason and the address trimmed, as the preview shows and the cancellation records them', async () => {
         const installation = await anInvoiceToCollect();
@@ -212,7 +205,6 @@ describe('a cancellation settles what it is given before anything else', () => {
 
         const plan = await previewWith(installation, request);
         const { cancellation } = await installation.cancellation.cancel(
-            't1',
             installation.invoice.id,
             request,
             'operator:anna',
@@ -244,7 +236,6 @@ describe('a cancellation settles what it is given before anything else', () => {
             assert.deepEqual(
                 await refusalOf(
                     installation.cancellation.cancel(
-                        't1',
                         installation.invoice.id,
                         { reason },
                         'operator:anna',
@@ -341,8 +332,8 @@ describe('a cancellation settles what it is given before anything else', () => {
 
 // @requirement SC-ADM-035 — The operator says, line by line, what of a cancelled invoice is still owed
 describe('the invoice the cancel dialog reads', () => {
-    const readOf = (installation, invoiceId = installation.invoice.id, slug = 'acme') =>
-        aController(installation).invoice(slug, invoiceId);
+    const readOf = (installation, invoiceId = installation.invoice.id) =>
+        aController(installation).invoice(invoiceId);
     const asRead = (lines) =>
         lines.map((line) => [
             line.position,
@@ -378,7 +369,6 @@ describe('the invoice the cancel dialog reads', () => {
     /** A replacement of the invoice with the plan owed in part, archived and mailed. */
     async function aLoweredReplacement(installation) {
         const { replacement } = await installation.cancellation.cancel(
-            't1',
             installation.invoice.id,
             { ...REQUEST, lines: [{ position: 1, owed: 24.5 }] },
             'operator:anna',
@@ -410,7 +400,6 @@ describe('the invoice the cancel dialog reads', () => {
         const accepted = [];
         for (const line of lines) {
             const preview = installation.cancellation.preview(
-                't1',
                 replacement.id,
                 { ...REQUEST, lines: [{ position: line.position, owed: 0 }] },
                 CANCELLED_AT,
@@ -436,19 +425,14 @@ describe('the invoice the cancel dialog reads', () => {
         assert.ok(accepted.includes(true) && accepted.includes(false));
     });
 
-    for (const [what, slug, invoiceId] of [
-        ['another tenant’s invoice', 'other', null],
-        ['an invoice there is not', 'acme', 'no-such-invoice'],
-    ]) {
-        test(`of ${what} is refused as none`, async () => {
-            const installation = await anInvoiceToCollect();
+    test('of an invoice there is not is refused as none', async () => {
+        const installation = await anInvoiceToCollect();
 
-            assert.deepEqual(
-                await refusalOf(readOf(installation, invoiceId ?? installation.invoice.id, slug)),
-                [404, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND],
-            );
-        });
-    }
+        assert.deepEqual(await refusalOf(readOf(installation, 'no-such-invoice')), [
+            404,
+            INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND,
+        ]);
+    });
 });
 
 // @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
@@ -459,7 +443,6 @@ describe('the preview route', () => {
         const before = heldBy(installation);
 
         const plan = await aController(installation, logged).preview(
-            'acme',
             installation.invoice.id,
             REQUEST,
         );
@@ -472,13 +455,11 @@ describe('the preview route', () => {
         assert.deepEqual(logged, []);
     });
 
-    test('of another tenant’s invoice is refused as none', async () => {
+    test('of an invoice there is not is refused as none', async () => {
         const installation = await anInvoiceToCollect();
 
         assert.deepEqual(
-            await refusalOf(
-                aController(installation).preview('other', installation.invoice.id, REQUEST),
-            ),
+            await refusalOf(aController(installation).preview('no-such-invoice', REQUEST)),
             [404, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND],
         );
     });
@@ -492,7 +473,6 @@ describe('the cancellation route', () => {
         const request = { headers: {} };
 
         const cancelled = await aController(installation, logged).cancel(
-            'acme',
             installation.invoice.id,
             { ...REQUEST, corrections: { city: 'Bremen' }, deliverTo: 'accounts@t1.example' },
             request,
@@ -527,7 +507,6 @@ describe('the cancellation route', () => {
         const logged = [];
 
         await aController(installation, logged).cancel(
-            'acme',
             installation.invoice.id,
             { ...REQUEST, lines: [{ position: 1, owed: 24.5 }] },
             { headers: {} },
@@ -539,18 +518,13 @@ describe('the cancellation route', () => {
         ]);
     });
 
-    test('of another tenant’s invoice is refused as none, and nothing is recorded', async () => {
+    test('of an invoice there is not is refused as none, and nothing is recorded', async () => {
         const installation = await anInvoiceToCollect();
         const logged = [];
 
         assert.deepEqual(
             await refusalOf(
-                aController(installation, logged).cancel(
-                    'other',
-                    installation.invoice.id,
-                    REQUEST,
-                    {},
-                ),
+                aController(installation, logged).cancel('no-such-invoice', REQUEST, {}),
             ),
             [404, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND],
         );
@@ -562,10 +536,9 @@ describe('the cancellation route', () => {
 // @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
 describe('a cancellation held to the preview the operator confirmed', () => {
     const previewOf = ({ cancellation, invoice }, at = CANCELLED_AT) =>
-        cancellation.preview('t1', invoice.id, REQUEST, at);
+        cancellation.preview(invoice.id, REQUEST, at);
     const cancelConfirming = ({ cancellation, invoice }, previewDigest) =>
         cancellation.cancel(
-            't1',
             invoice.id,
             { ...REQUEST, previewDigest },
             'operator:anna',
@@ -667,13 +640,12 @@ describe('a cancellation held to the preview the operator confirmed', () => {
     });
 });
 
-// @requirement SC-ADM-034 — Each invoice on the tenant page says what it corrects and what cancelled it
-describe('the invoices on the tenant’s page after a cancellation', () => {
+// @requirement SC-ADM-040 — Each invoice in the subscriber's record says what it corrects and what cancelled it
+describe('the invoices in the subscriber’s record after a cancellation', () => {
     test('say which is cancelled, which cancels it and which replaces it, and nothing of the rest', async () => {
         const installation = await anInvoiceToCollect();
         const { invoice } = installation;
         const { cancellationInvoice, replacement } = await installation.cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -682,10 +654,10 @@ describe('the invoices on the tenant’s page after a cancellation', () => {
         const listing = new SubscriberReconciliationService(
             installation.payments,
             installation.store,
-            installation.subscribers,
+            installation.subscriberRepository,
         );
 
-        const { invoices } = await listing.paymentsOf('t1');
+        const { invoices } = await listing.paymentsOf(invoice.subscriberId);
 
         const of = { invoiceId: invoice.id, number: invoice.number, issueDate: invoice.issueDate };
         const cancelledBy = {
@@ -722,9 +694,9 @@ describe('the invoice an operator names by its number', () => {
 // @requirement SC-ADM-015 — The administration only offers what the application actually has
 describe('where the cancellation is served', () => {
     const CANCELLATION_ROUTES = [
-        'GET admin/tenants/:slug/invoices/:invoiceId',
-        'POST admin/tenants/:slug/invoices/:invoiceId/cancellation',
-        'POST admin/tenants/:slug/invoices/:invoiceId/cancellation/preview',
+        'GET admin/invoices/:invoiceId',
+        'POST admin/invoices/:invoiceId/cancellation',
+        'POST admin/invoices/:invoiceId/cancellation/preview',
     ];
     const servedBy = (options) =>
         controllersIn(SaaSiCatModule.forRoot(options))

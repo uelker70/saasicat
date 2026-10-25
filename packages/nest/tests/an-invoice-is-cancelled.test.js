@@ -69,11 +69,10 @@ describe('an invoice cancelled by the operator', () => {
         const { cancellation, invoice } = installation;
         const before = heldBy(installation);
 
-        const preview = await cancellation.preview('t1', invoice.id, REQUEST, CANCELLED_AT);
+        const preview = await cancellation.preview(invoice.id, REQUEST, CANCELLED_AT);
 
         assert.deepEqual(heldBy(installation), before, 'the preview wrote something');
         const cancelled = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -118,7 +117,6 @@ describe('an invoice cancelled by the operator', () => {
         const { cancellation, invoice } = await anInvoiceToCollect();
 
         const { cancellationInvoice, replacement } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -149,7 +147,6 @@ describe('an invoice cancelled by the operator', () => {
         const { cancellation, invoice } = await anInvoiceToCollect('sepa_debit');
 
         const { replacement } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -173,7 +170,6 @@ describe('an invoice cancelled by the operator', () => {
         await subscribers.changeContact(subscriber.id, { city: 'Potsdam' }, 'operator:anna');
 
         const { replacement, cancellation: written } = await cancellation.cancel(
-            't1',
             invoice.id,
             {
                 ...REQUEST,
@@ -203,7 +199,6 @@ describe('an invoice cancelled by the operator', () => {
         // A consumer in France, which the test adapter treats in no way.
         const refused = await refusalOf(
             installation.cancellation.cancel(
-                't1',
                 installation.invoice.id,
                 { ...REQUEST, corrections: { country: 'FR' } },
                 'operator:anna',
@@ -221,7 +216,6 @@ describe('an invoice cancelled by the operator', () => {
         await installation.collect(FIRST_RUN);
 
         const { replacement, credits } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -248,7 +242,6 @@ describe('an invoice cancelled by the operator', () => {
         await installation.collect(FIRST_RUN);
 
         const { replacement } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -275,7 +268,7 @@ describe('an invoice cancelled by the operator', () => {
             { paymentId: 'payment-taken-back', recordedAt: FIRST_RUN, amount: -5 },
         ];
 
-        const preview = await cancellation.preview('t1', invoice.id, REQUEST, CANCELLED_AT);
+        const preview = await cancellation.preview(invoice.id, REQUEST, CANCELLED_AT);
 
         assert.deepEqual([preview.replacement.paidOnIssue, preview.movedIn], [20, 20]);
     });
@@ -297,7 +290,6 @@ describe('an invoice cancelled by the operator', () => {
         });
 
         const { withdrawnCollections } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -317,22 +309,12 @@ describe('an invoice cancelled by the operator', () => {
 describe('a cancellation refused', () => {
     clockFrom(FIRST_RUN);
 
-    const cancel = (installation, invoiceId, request = REQUEST, tenantId = 't1') =>
-        installation.cancellation.cancel(
-            tenantId,
-            invoiceId,
-            request,
-            'operator:anna',
-            CANCELLED_AT,
-        );
+    const cancel = (installation, invoiceId, request = REQUEST) =>
+        installation.cancellation.cancel(invoiceId, request, 'operator:anna', CANCELLED_AT);
 
-    test('for an invoice the tenant does not have, or that does not exist', async () => {
+    test('for an invoice that does not exist', async () => {
         const installation = await anInvoiceToCollect();
 
-        assert.deepEqual(
-            await refusalOf(cancel(installation, installation.invoice.id, REQUEST, 't2')),
-            [404, INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND],
-        );
         assert.deepEqual(await refusalOf(cancel(installation, 'invoice-unknown')), [
             404,
             INVOICE_ERROR_CODES.SUBSCRIPTION_INVOICE_NOT_FOUND,
@@ -432,7 +414,6 @@ describe('a cancellation that says what was not owed', () => {
 
     const cancel = (installation, lines) =>
         installation.cancellation.cancel(
-            't1',
             installation.invoice.id,
             { ...REQUEST, lines },
             'operator:anna',
@@ -539,14 +520,12 @@ describe('a cancellation that says what was not owed', () => {
         const installation = await anInvoiceToCollect();
         const request = { ...REQUEST, lines: [{ position: planLine, owed: 24.5 }] };
         const preview = await installation.cancellation.preview(
-            't1',
             installation.invoice.id,
             request,
             after(CANCELLED_AT, { minutes: -5 }),
         );
 
         const cancelled = await installation.cancellation.cancel(
-            't1',
             installation.invoice.id,
             { ...request, previewDigest: preview.digest },
             'operator:anna',
@@ -689,7 +668,6 @@ describe('a cancellation that says what was not owed', () => {
             invoice.lines.find((each) => each.chargeId === charge.id).position;
 
         await installation.cancellation.cancel(
-            't1',
             invoice.id,
             { ...REQUEST, lines: [{ position: position(addOn), owed: 0 }] },
             'operator:anna',
@@ -750,7 +728,6 @@ describe('the documents of a cancellation', () => {
     /** Cancels the installation's invoice with `request`, then archives and mails what is due. */
     async function cancelledAndMailed(installation, request) {
         const cancelled = await installation.cancellation.cancel(
-            't1',
             installation.invoice.id,
             request,
             'operator:anna',
@@ -802,7 +779,6 @@ describe('the documents of a cancellation', () => {
         const installation = await anInvoiceToCollect();
         const { cancellation, invoice, documents, mail } = installation;
         const first = await cancellation.cancel(
-            't1',
             invoice.id,
             { ...REQUEST, deliverTo: 'first@t1.example' },
             'operator:anna',
@@ -811,7 +787,6 @@ describe('the documents of a cancellation', () => {
         // Archived, so that it can be cancelled, and not sent yet.
         await documents.archiveDue(after(CANCELLED_AT, { minutes: 15 }));
         const second = await cancellation.cancel(
-            't1',
             first.replacement.id,
             { ...REQUEST, deliverTo: 'second@t1.example' },
             'operator:anna',
@@ -910,7 +885,6 @@ describe('the collections of a cancelled invoice’s chain', () => {
         await runAt(installation, new Date('2026-02-15T05:00:00.000Z'));
         const [attempt] = collections.attempts;
         const { replacement } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -958,13 +932,7 @@ describe('the collections of a cancelled invoice’s chain', () => {
         gateway.answers.push(succeeded(invoice, 'pi_1', 20));
         await installation.collect(FIRST_RUN);
         const [paid] = collections.attempts;
-        const first = await cancellation.cancel(
-            't1',
-            invoice.id,
-            REQUEST,
-            'operator:anna',
-            CANCELLED_AT,
-        );
+        const first = await cancellation.cancel(invoice.id, REQUEST, 'operator:anna', CANCELLED_AT);
         mailed(installation, first.replacement.id);
         gateway.answers.push({ status: 'pending', paymentRef: 'pi_r1' });
         await runAt(installation, after(CANCELLED_AT, { minutes: 15 }));
@@ -977,7 +945,6 @@ describe('the collections of a cancelled invoice’s chain', () => {
             'the premise: the first replacement is collected',
         );
         const second = await cancellation.cancel(
-            't1',
             first.replacement.id,
             REQUEST,
             'operator:anna',
@@ -1022,7 +989,6 @@ describe('the collections of a cancelled invoice’s chain', () => {
         await installation.collect(FIRST_RUN);
         const [attempt] = collections.attempts;
         const { replacement } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',
@@ -1054,7 +1020,6 @@ describe('the collections of a cancelled invoice’s chain', () => {
         await installation.collect(FIRST_RUN);
         const [attempt] = collections.attempts;
         const { replacement } = await cancellation.cancel(
-            't1',
             invoice.id,
             REQUEST,
             'operator:anna',

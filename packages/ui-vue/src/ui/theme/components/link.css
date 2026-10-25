@@ -1,0 +1,10 @@
+/* A link in a page's content that leads to another record — a customer number
+ * in the list of subscribers, a tenant in a subscriber's record. The accent,
+ * because a bare anchor keeps the browser's own blue, which neither theme moves
+ * and which reads at under 2:1 on the dark canvas. A class rather than a rule
+ * on every anchor: Quasar renders its buttons as anchors too, and those carry
+ * colours of their own. */
+.sa-link {
+    color: var(--sa-color-accent-strong);
+    font-weight: var(--sa-weight-medium);
+}

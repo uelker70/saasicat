@@ -576,7 +576,7 @@ describe('a refund the operator made in the gateway', () => {
         assert.deepEqual(entriesOf(audits, 'SUBSCRIBER_REFUND_UNMATCHED'), []);
     });
 
-    // @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+    // @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
     test('beyond what the subscriber is owed is recorded, and what matches nothing is a case to reconcile, audited', async () => {
         quietLog();
         const { deliver, payments, audits, attempt } = await paidBeyond();

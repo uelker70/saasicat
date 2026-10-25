@@ -80,8 +80,8 @@ function setUp({
             calls.push(['numbered', tenantId, number]);
             return numbered;
         },
-        async preview(tenantId, invoiceId, request) {
-            calls.push(['preview', tenantId, invoiceId, request]);
+        async preview(invoiceId, request) {
+            calls.push(['preview', invoiceId, request]);
             if (refusal) throw refusal;
             return {
                 cancelled: {
@@ -104,8 +104,8 @@ function setUp({
                 deliverTo: request.deliverTo,
             };
         },
-        async cancel(tenantId, invoiceId, request, cancelledBy) {
-            calls.push(['cancel', tenantId, invoiceId, request, cancelledBy]);
+        async cancel(invoiceId, request, cancelledBy) {
+            calls.push(['cancel', invoiceId, request, cancelledBy]);
             if (refusal) throw refusal;
             return cancelled;
         },
@@ -132,7 +132,6 @@ describe('the preview is the command, and the cancellation the second one', () =
             ['numbered', 't1', OPTIONS.invoice],
             [
                 'preview',
-                't1',
                 'invoice-1',
                 { reason: OPTIONS.reason, corrections: {}, deliverTo: null, lines: [] },
             ],
@@ -155,7 +154,6 @@ describe('the preview is the command, and the cancellation the second one', () =
         ]);
         assert.deepEqual(calls.at(-1), [
             'cancel',
-            't1',
             'invoice-1',
             { reason: OPTIONS.reason, corrections: {}, deliverTo: null, lines: [] },
             'cli:ops@example.com:deploy-host',
@@ -197,7 +195,7 @@ describe('the preview is the command, and the cancellation the second one', () =
             deliverTo: 'accounts@acme.example',
         });
 
-        assert.deepEqual(calls.at(-1)[3], {
+        assert.deepEqual(calls.at(-1)[2], {
             reason: OPTIONS.reason,
             corrections: { city: 'Bremen', addressLine2: null },
             deliverTo: 'accounts@acme.example',
@@ -211,7 +209,7 @@ describe('the preview is the command, and the cancellation the second one', () =
 
         await flow.preview({ ...OPTIONS, line: ['2=not-owed', '1=24.50', '3=7'] });
 
-        assert.deepEqual(calls.at(-1)[3].lines, [
+        assert.deepEqual(calls.at(-1)[2].lines, [
             { position: 2, owed: 0 },
             { position: 1, owed: 24.5 },
             { position: 3, owed: 7 },

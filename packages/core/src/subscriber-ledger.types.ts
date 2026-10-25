@@ -78,15 +78,14 @@ export interface AdminAccountEntry {
 }
 
 /**
- * A tenant's account as the operator reads it: the charges of the subscription
- * it holds, newest first — by when each became due, then by its period, then
- * the plan before its add-ons before its discounts.
+ * A subscriber's account as the operator reads it in its record: the charges
+ * of every subscription it held, newest first — by when each became due, then
+ * by its period, then the plan before its add-ons before its discounts.
  *
  * No total: without invoices and payments, a sum would be what was charged so
  * far, and it would be read as what is owed.
  */
 export interface AdminSubscriberAccount {
-    /** `null` for a tenant that has no subscriber. */
-    holder: AdminAccountHolder | null;
+    holder: AdminAccountHolder;
     entries: AdminAccountEntry[];
 }

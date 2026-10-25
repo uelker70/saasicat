@@ -422,6 +422,8 @@ export function anInvoicingInstallation({
         journal,
         contracts,
         subscribers,
+        /** The store the subscribers are kept in, for a reader that takes the port. */
+        subscriberRepository,
         taxes,
         audits,
         /** The audit log both services write to. */

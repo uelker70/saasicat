@@ -21,7 +21,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
     CONFIRMATION_ARCHIVE_TRIGGERS,
     INVOICE_ARCHIVE_TRIGGERS,
@@ -249,6 +249,17 @@ function createHarness() {
                     updatedAt: new Date(),
                 });
                 return { subscriberId: id };
+            },
+            async closeTenantLink(subscriberId, at) {
+                await db
+                    .update(saasicatSchema.subscriberTenants)
+                    .set({ unlinkedAt: at })
+                    .where(
+                        and(
+                            eq(saasicatSchema.subscriberTenants.subscriberId, subscriberId),
+                            isNull(saasicatSchema.subscriberTenants.unlinkedAt),
+                        ),
+                    );
             },
             async createPromoCode(input) {
                 const id = randomUUID();

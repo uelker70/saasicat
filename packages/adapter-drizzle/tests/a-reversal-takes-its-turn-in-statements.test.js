@@ -13,7 +13,7 @@
 
 // @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
 // @requirement SC-PRIC-084 — A returned debit or a chargeback is recorded, and what the payment settled opens again
-// @requirement SC-ADM-033 — The operator reconciles what no credit matched, and closes each case with a note
+// @requirement SC-ADM-039 — The operator reconciles what no credit matched, and finds each case in the record
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

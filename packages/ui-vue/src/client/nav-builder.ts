@@ -22,6 +22,7 @@ import { navMessages, type SaNavMessages } from './i18n/messages/nav.js';
 export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     dashboard: '/admin/dashboard',
     tenants: '/admin/tenants',
+    subscribers: '/admin/subscribers',
     subscriptions: '/admin/subscriptions',
     promoCodes: '/admin/promo-codes',
     plans: '/admin/plans',
@@ -107,6 +108,7 @@ export interface NavBuilderOptions {
 const DEFAULT_ICONS: Record<StandardPageKey, string> = {
     dashboard: 'dashboard',
     tenants: 'business',
+    subscribers: 'contact_page',
     subscriptions: 'card_membership',
     promoCodes: 'local_activity',
     plans: 'workspace_premium',
@@ -135,6 +137,7 @@ const PAGE_SECTIONS: Partial<Record<StandardPageKey, SectionKey>> = {
     promoCodes: 'catalog',
     featureWithdrawals: 'catalog',
     tenants: 'customers',
+    subscribers: 'customers',
     subscriptions: 'customers',
     users: 'customers',
     pilots: 'customers',

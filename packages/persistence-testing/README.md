@@ -110,6 +110,7 @@ persistenceAdapterContract({
     gaps: [
         'subscriptionContracts',
         'subscribers',
+        'closedTenantLinkSeed',
         'paymentEventLog',
         'subscriberPaymentMethods',
         'subscriberLedger',

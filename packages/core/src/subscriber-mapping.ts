@@ -16,6 +16,7 @@ import type {
     SubscriberIdentityDelta,
     SubscriberIdentityValues,
     SubscriberRecord,
+    SubscriberTenantLinkRecord,
 } from './subscriber.types.js';
 import type {
     ContractIssuerParty,
@@ -73,6 +74,25 @@ export interface CanonicalSubscriberCorrectionRow {
  */
 export function formatCustomerNumber(prefix: string, sequence: number): string {
     return `${prefix}${sequence}`;
+}
+
+/**
+ * A subscriber's tenant links in the order its record lists them: the live one
+ * first, then the closed ones, the latest closed first. Ties — two links closed
+ * at the same moment — go by when each was made, then by the tenant, so every
+ * store answers one order.
+ */
+export function tenantLinksInOrder(
+    links: readonly SubscriberTenantLinkRecord[],
+): SubscriberTenantLinkRecord[] {
+    const closedAt = (link: SubscriberTenantLinkRecord): number =>
+        link.unlinkedAt === null ? Number.POSITIVE_INFINITY : link.unlinkedAt.getTime();
+    return [...links].sort(
+        (a, b) =>
+            closedAt(b) - closedAt(a) ||
+            b.linkedAt.getTime() - a.linkedAt.getTime() ||
+            (a.tenantId < b.tenantId ? -1 : a.tenantId > b.tenantId ? 1 : 0),
+    );
 }
 
 /** `tenantId` is the tenant the subscriber's live link names, read beside the row. */

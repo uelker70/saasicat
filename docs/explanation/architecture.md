@@ -178,21 +178,22 @@ two things that bite. Every other entry above is composed for you.
 Path: `node_modules/@saasicat/ui-vue/src/pages/` — with the shell in `src/layouts/`, the login
 screens in `src/auth/` and the primitives in `src/ui/`.
 
-| Page                                     | Purpose                                                    |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| `SuperAdminLoginPage`                    | Login form                                                 |
-| `AdminLayout`                            | Sidebar, nav guard, MFA prompt                             |
-| `DashboardPage`                          | KPI cards (fed by the manifest)                            |
-| `TenantsPage` / `TenantDetailPage`       | Tenant management + actions                                |
-| `PlansPage`                              | Plan lifecycle, editor, version timeline and diff          |
-| `BundlesPage`                            | Bundle/BundleVersion CRUD                                  |
-| `DiscoveryPage`                          | Capability/feature/quota review with lifecycle transitions |
-| `MarketingCatalogPage`                   | i18n marketing texts + pricing actions                     |
-| `SubscriptionsPage`                      | Contract management (V3)                                   |
-| `AuditPage`                              | Audit log browser                                          |
-| `UsersPage`                              | SuperAdmin user management (MFA, password reset, role)     |
-| `PilotsPage`                             | Pilot feature grants (feature flags)                       |
-| `PromoCodesPage` / `PromoCodeDetailPage` | Promo code CRUD + redemption tracking                      |
+| Page                                       | Purpose                                                    |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| `SuperAdminLoginPage`                      | Login form                                                 |
+| `AdminLayout`                              | Sidebar, nav guard, MFA prompt                             |
+| `DashboardPage`                            | KPI cards (fed by the manifest)                            |
+| `TenantsPage` / `TenantDetailPage`         | Tenant management + actions                                |
+| `SubscribersPage` / `SubscriberRecordPage` | Subscribers, and everything about one in its record        |
+| `PlansPage`                                | Plan lifecycle, editor, version timeline and diff          |
+| `BundlesPage`                              | Bundle/BundleVersion CRUD                                  |
+| `DiscoveryPage`                            | Capability/feature/quota review with lifecycle transitions |
+| `MarketingCatalogPage`                     | i18n marketing texts + pricing actions                     |
+| `SubscriptionsPage`                        | Contract management (V3)                                   |
+| `AuditPage`                                | Audit log browser                                          |
+| `UsersPage`                                | SuperAdmin user management (MFA, password reset, role)     |
+| `PilotsPage`                               | Pilot feature grants (feature flags)                       |
+| `PromoCodesPage` / `PromoCodeDetailPage`   | Promo code CRUD + redemption tracking                      |
 
 The former synthetic `PlanVersionsPage` is no longer a standard page. A global
 historical comparison will return as an immutable **Publication Archive** /

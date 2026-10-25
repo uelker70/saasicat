@@ -25,6 +25,7 @@ import { reconciliationMessages } from './messages/reconciliation.js';
 import { settingsMessages } from './messages/settings.js';
 import { shellMessages } from './messages/shell.js';
 import { tenantsMessages } from './messages/tenants.js';
+import { subscribersMessages } from './messages/subscribers.js';
 import { usersMessages } from './messages/users.js';
 
 /** Complete platform catalog for one locale, keyed by namespace. */
@@ -35,6 +36,7 @@ export type SaMessages = {
     readonly shell: (typeof shellMessages)['de'];
     readonly dashboard: (typeof dashboardMessages)['de'];
     readonly tenants: (typeof tenantsMessages)['de'];
+    readonly subscribers: (typeof subscribersMessages)['de'];
     readonly users: (typeof usersMessages)['de'];
     readonly audit: (typeof auditMessages)['de'];
     readonly plans: (typeof plansMessages)['de'];
@@ -64,6 +66,7 @@ function catalogFor(locale: SaBuiltinLocale): SaMessages {
         shell: shellMessages[locale],
         dashboard: dashboardMessages[locale],
         tenants: tenantsMessages[locale],
+        subscribers: subscribersMessages[locale],
         users: usersMessages[locale],
         audit: auditMessages[locale],
         plans: plansMessages[locale],

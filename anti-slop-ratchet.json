@@ -1,11 +1,11 @@
 {
-    "require-safety-comment-for-type-assertion": 1119,
+    "require-safety-comment-for-type-assertion": 1109,
     "no-chained-type-assertions": 130,
     "no-widen-then-assert": 0,
     "no-reflect-get": 1,
     "no-reflect-apply": 0,
     "no-module-mocking": 0,
     "no-unsafe-dictionary-type": 266,
-    "no-conditional-empty-object-spread": 172,
+    "no-conditional-empty-object-spread": 169,
     "disable-directive": 0
 }

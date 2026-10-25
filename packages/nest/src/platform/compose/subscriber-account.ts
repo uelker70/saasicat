@@ -16,7 +16,7 @@ export function servesSubscriberAccounts(options: SaaSiCatModuleOptions): boolea
 }
 
 /**
- * The operator's view of a subscriber's account, beside the tenant's detail.
+ * The operator's view of a subscriber's account, in the subscriber's record.
  *
  * Runs after `composeAdminResources` and `composeTenantBilling`, and imports
  * the modules they built rather than building its own: the journal and the

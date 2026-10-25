@@ -18,6 +18,7 @@ import type {
     CreateCheckoutOfferData,
     NewMaintenanceWindow,
     CreateSubscriberData,
+    SubscriberSearch,
     ImmediatePlanChangeInput,
     NewContractLineItemData,
     NewSubscriptionContractData,
@@ -70,6 +71,7 @@ import {
     lineCorrectionsOf,
     movedPaymentParts,
     paidByShares,
+    subscriberSearchTermsOf,
     sumToCents,
     taxPerRate,
     writtenReplacementOf,
@@ -505,6 +507,10 @@ const CONTRACT_GAPS: Record<
     subscribers: {
         reason: 'adapter provides no SubscriberRepository',
         present: ({ adapter }) => Boolean(adapter.subscriberRepository),
+    },
+    closedTenantLinkSeed: {
+        reason: 'harness cannot close a subscriber’s tenant link, which no repository method does',
+        present: ({ seed }) => typeof seed.closeTenantLink === 'function',
     },
     paymentEventLog: {
         reason: 'adapter provides no PaymentEventLog',
@@ -4874,6 +4880,44 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(agreed.partiesMigrated, false);
         });
 
+        test("a subscriber's contracts are listed whichever tenant each was for, and none of another's", async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber?.bind(harness.seed);
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Wiederkehr GmbH' });
+            const other = await createSubscriber({ legalName: 'Andere GmbH' });
+            const first = await contracts.create(
+                contractFromOffer(
+                    'offer-subscriber-first',
+                    partiesWith(subscriberId, 'Wiederkehr GmbH'),
+                ),
+            );
+            const second = await contracts.create(
+                contractFromOffer(
+                    'offer-subscriber-second',
+                    partiesWith(subscriberId, 'Wiederkehr GmbH'),
+                ),
+            );
+            await contracts.create(
+                contractFromOffer(
+                    'offer-subscriber-other',
+                    partiesWith(other.subscriberId, 'Andere GmbH'),
+                ),
+            );
+
+            const listed = await contracts.list({ subscriberId });
+
+            assert.deepEqual(listed.map(({ id }) => id).sort(), [first.id, second.id].sort());
+            assert.notEqual(first.tenantId, second.tenantId, 'the premise: two tenants');
+            assert.deepEqual(
+                await contracts.list({ subscriberId: 'subscriber-nobody-created' }),
+                [],
+            );
+        });
+
         // -------------------------------------------------------------
         // Subscribers — the party a contract is concluded with
         // -------------------------------------------------------------
@@ -4946,6 +4990,197 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.equal(await subscribers.findByTenantId('tenant-without-subscriber'), null);
             assert.equal(await subscribers.findById('subscriber-nobody-created'), null);
+        });
+
+        // -------------------------------------------------------------
+        // Finding a subscriber — whether its tenant lives or not (SC-ADM-036)
+        // -------------------------------------------------------------
+
+        /** Four subscribers to search among, the latest created last, and how to search them. */
+        async function fourToSearch(t: TestContext) {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return null;
+            }
+            const created = async (tenantId: string, legalName: string, details = {}) => {
+                const record = await subscribers.createForTenant({
+                    ...subscriberFor(tenantId, legalName),
+                    ...details,
+                });
+                assert.ok(record, `${tenantId} had no subscriber`);
+                return record;
+            };
+            const muster = await created('tenant-search-muster', 'Muster GmbH', {
+                customerNumberPrefix: 'AHP-',
+            });
+            const holz = await created('tenant-search-holz', '100% Holz_Bau KG', {
+                customerNumberPrefix: 'AHP-',
+            });
+            const baeckerei = await created('tenant-search-vat', 'Bäckerei Korn', {
+                vatId: 'DE123456789',
+                customerNumberPrefix: 'K-',
+            });
+            const andere = await created('tenant-search-other', 'Andere AG', {
+                vatId: 'IT12345678901',
+            });
+            const ids = async (query: string, extra: Partial<SubscriberSearch> = {}) =>
+                (
+                    await subscribers.search({
+                        terms: subscriberSearchTermsOf(query),
+                        withoutLiveTenant: false,
+                        limit: 50,
+                        ...extra,
+                    })
+                ).subscribers.map((subscriber) => subscriber.id);
+            const numberOf = (customerNumber: string, prefix: string) =>
+                customerNumber.slice(prefix.length);
+            return { subscribers, muster, holz, baeckerei, andere, ids, numberOf };
+        }
+
+        test('a subscriber is found by its legal name in any case, every character taken literally', async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const { muster, holz, ids } = four;
+
+            assert.deepEqual(await ids('MUSTER'), [muster.id]);
+            assert.deepEqual(await ids('ster gm'), [muster.id]);
+            // `%` and `_` are wildcards to LIKE; here they are what a name holds.
+            assert.deepEqual(await ids('%'), [holz.id]);
+            assert.deepEqual(await ids('Holz_Bau'), [holz.id]);
+            assert.deepEqual(await ids('Holz%Bau'), []);
+            assert.deepEqual(await ids('Holz\\Bau'), []);
+        });
+
+        test('a subscriber is found by its customer number, behind the prefix named or any', async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const { muster, baeckerei, ids, numberOf } = four;
+            const number = numberOf(muster.customerNumber, 'AHP-');
+
+            assert.deepEqual(await ids(`AHP-${number}`), [muster.id]);
+            assert.deepEqual(await ids(`ahp-${number}`), [muster.id], 'the prefix in any case');
+            assert.deepEqual(await ids(number), [muster.id], 'behind any prefix');
+            assert.deepEqual(await ids(`K-${number}`), [], 'behind another prefix');
+            // `_` is a wildcard to LIKE; a prefix holding one names no other prefix.
+            assert.deepEqual(await ids(`A_P-${number}`), []);
+            assert.deepEqual(await ids(numberOf(baeckerei.customerNumber, 'K-')), [baeckerei.id]);
+            // The column counts to 2³¹−1. Up to there a number is asked for; past it,
+            // none is, and the store is never handed a value it cannot hold.
+            assert.deepEqual(await ids('AHP-2147483647'), []);
+            assert.deepEqual(await ids('2147483648'), []);
+        });
+
+        test('a subscriber is found by its VAT number as it is kept, however it is typed', async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+
+            assert.deepEqual(await four.ids(' de 123.456-789 '), [four.baeckerei.id]);
+            assert.deepEqual(await four.ids('DE12345678'), []);
+            // Eleven digits after the country, more than a customer number can be —
+            // typed in one piece, they would otherwise be asked for as one.
+            assert.deepEqual(await four.ids('IT12345678901'), [four.andere.id]);
+            assert.deepEqual(await four.ids('IT 123 456 789 01'), [four.andere.id]);
+        });
+
+        test('every subscriber, the latest customer number first, a page at a time', async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const { subscribers, muster, holz, baeckerei, andere, ids } = four;
+            const latestFirst = [andere.id, baeckerei.id, holz.id, muster.id];
+
+            assert.deepEqual(await ids(''), latestFirst);
+            const first = await subscribers.search({
+                terms: null,
+                withoutLiveTenant: false,
+                limit: 2,
+            });
+            assert.deepEqual(
+                [first.subscribers.map(({ id }) => id), first.hasMore],
+                [latestFirst.slice(0, 2), true],
+            );
+            const second = await subscribers.search({
+                terms: null,
+                withoutLiveTenant: false,
+                limit: 2,
+                after: first.subscribers[1].id,
+            });
+            assert.deepEqual(
+                [second.subscribers.map(({ id }) => id), second.hasMore],
+                [latestFirst.slice(2), false],
+                'a page that ends with the last one says no other follows',
+            );
+            assert.deepEqual(
+                await ids('', { after: 'subscriber-nobody-created' }),
+                latestFirst,
+                'a page after a subscriber nobody keeps continues after nothing',
+            );
+            assert.deepEqual(
+                (
+                    await subscribers.search({ terms: null, withoutLiveTenant: false, limit: 50 })
+                ).subscribers.map(({ tenantId }) => tenantId),
+                [
+                    'tenant-search-other',
+                    'tenant-search-vat',
+                    'tenant-search-holz',
+                    'tenant-search-muster',
+                ],
+                'each with the tenant it is live for',
+            );
+        });
+
+        test('a subscriber whose tenant link is closed is found among those without a live tenant, and only there', async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const closeTenantLink = harness.seed.closeTenantLink?.bind(harness.seed);
+            if (!closeTenantLink) {
+                missing(t, 'closedTenantLinkSeed');
+                return;
+            }
+            const { subscribers, andere, ids } = four;
+            await closeTenantLink(andere.id, new Date('2026-06-30T10:00:00.000Z'));
+
+            assert.deepEqual(await ids('', { withoutLiveTenant: true }), [andere.id]);
+            assert.deepEqual(await ids('Andere', { withoutLiveTenant: true }), [andere.id]);
+            assert.deepEqual(await ids('Muster', { withoutLiveTenant: true }), []);
+            const [found] = (
+                await subscribers.search({
+                    terms: subscriberSearchTermsOf('Andere'),
+                    withoutLiveTenant: false,
+                    limit: 50,
+                })
+            ).subscribers;
+            assert.equal(found?.tenantId, null, 'found without a tenant it is live for');
+        });
+
+        test('a subscriber names every tenant it was linked to, the live one first', async (t) => {
+            const four = await fourToSearch(t);
+            if (!four) return;
+            const { subscribers, muster, andere } = four;
+
+            const [live] = await subscribers.listTenantLinks(muster.id);
+            assert.deepEqual(live && { tenantId: live.tenantId, unlinkedAt: live.unlinkedAt }, {
+                tenantId: 'tenant-search-muster',
+                unlinkedAt: null,
+            });
+            assert.ok(live?.linkedAt instanceof Date, 'when it was linked');
+            assert.deepEqual(await subscribers.listTenantLinks('subscriber-nobody-created'), []);
+
+            const closeTenantLink = harness.seed.closeTenantLink?.bind(harness.seed);
+            if (!closeTenantLink) {
+                missing(t, 'closedTenantLinkSeed');
+                return;
+            }
+            const closedAt = new Date('2026-06-30T10:00:00.000Z');
+            await closeTenantLink(andere.id, closedAt);
+            const links = await subscribers.listTenantLinks(andere.id);
+            assert.deepEqual(
+                links.map(({ tenantId, unlinkedAt }) => [
+                    tenantId,
+                    unlinkedAt?.toISOString() ?? null,
+                ]),
+                [['tenant-search-other', closedAt.toISOString()]],
+            );
         });
 
         test('a tenant has one live subscriber: a second is refused, and the transaction survives it', async (t) => {
@@ -6640,8 +6875,55 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 correction: null,
                 ...overrides,
             });
-            return { ledger, subscriptionId, discountLineId: discountLine.id, charge };
+            return {
+                ledger,
+                subscriberId,
+                subscriptionId,
+                discountLineId: discountLine.id,
+                charge,
+            };
         }
+
+        test("a subscriber's charges are read whichever subscription they arose under, and none of another's", async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-subscriber');
+            const another = await anAccount(t, 'tenant-ledger-another');
+            if (!account || !another) return;
+            const { ledger, subscriberId, charge } = account;
+            const february = new Date('2026-02-01T00:00:00.000Z');
+            const january = new Date('2026-01-01T00:00:00.000Z');
+
+            await ledger.recordCharges([
+                charge({
+                    subscriptionId: 'sub-b-later',
+                    sourceRef: 'sub-b-later',
+                    periodStart: february,
+                }),
+                charge({
+                    subscriptionId: 'sub-a-earlier',
+                    sourceRef: 'sub-a-earlier',
+                    periodStart: february,
+                }),
+                charge({
+                    subscriptionId: 'sub-a-earlier',
+                    sourceRef: 'sub-a-earlier',
+                    periodStart: january,
+                }),
+            ]);
+            await another.ledger.recordCharges([another.charge()]);
+
+            assert.deepEqual(
+                (await ledger.listBySubscriber(subscriberId)).map((entry) => [
+                    entry.periodStart.toISOString().slice(0, 10),
+                    entry.subscriptionId,
+                ]),
+                [
+                    ['2026-01-01', 'sub-a-earlier'],
+                    ['2026-02-01', 'sub-a-earlier'],
+                    ['2026-02-01', 'sub-b-later'],
+                ],
+            );
+            assert.deepEqual(await ledger.listBySubscriber('subscriber-nobody-created'), []);
+        });
 
         test('a charge is written once, however often it is recorded', async (t) => {
             // Every derivation writes every charge it finds, so a second call —
@@ -9998,7 +10280,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-084
-        // @requirement SC-ADM-033
+        // @requirement SC-ADM-039
         test('what meets a credit already refunded, or goes beyond the payment, is a case to reconcile', async (t) => {
             const account = await paidOnce(t, 'tenant-reversal-refunded', 20);
             if (!account) return;
@@ -10047,7 +10329,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // @requirement SC-PRIC-086
-        // @requirement SC-ADM-033
+        // @requirement SC-ADM-039
         test('what the gateway gives back returns the reversal part for part, and closes its cases', async (t) => {
             const account = await paidOnce(t, 'tenant-reversal-won', 20);
             if (!account) return;
@@ -10606,7 +10888,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await collectable(), true);
         });
 
-        // @requirement SC-ADM-033
+        // @requirement SC-ADM-039
         test('cases are listed open or closed, the oldest first, page by page, and closed once with a note', async (t) => {
             const account = await paidOnce(t, 'tenant-cases');
             if (!account) return;
@@ -10667,7 +10949,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-ADM-033
+        // @requirement SC-ADM-039
         test("a refund's unmatched part opens one case, and its failure closes it", async (t) => {
             const account = await paidOnce(t, 'tenant-case-refund');
             if (!account) return;
@@ -10724,7 +11006,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        // @requirement SC-ADM-033
+        // @requirement SC-ADM-039
         test('what several invoices owe, in one read', async (t) => {
             const account = await payable(t, 'tenant-owed-several', 2);
             if (!account) return;

@@ -4,12 +4,11 @@ import type {
     SubscriberLedgerRepository,
     SubscriberRepository,
     SubscriptionContractRepository,
-    SubscriptionUsagePort,
 } from '@saasicat/core';
 
+import { subscriberNotFound } from '../../subscriber/subscriber.service.js';
 import { SUBSCRIBER_REPOSITORY_TOKEN } from '../../subscriber/subscriber.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../../subscription-contract/subscription-contract.tokens.js';
-import { SUBSCRIPTION_USAGE_PORT_TOKEN } from '../tenant-billing.tokens.js';
 import { accountViewOf } from './subscriber-account.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './subscriber-charge.tokens.js';
 
@@ -29,20 +28,20 @@ export class SubscriberAccountService {
         private readonly contracts: SubscriptionContractRepository,
         @Inject(SUBSCRIBER_REPOSITORY_TOKEN)
         private readonly subscribers: SubscriberRepository,
-        @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
-        private readonly subscriptions: SubscriptionUsagePort,
     ) {}
 
-    /** The account of the tenant's subscriber; empty while it has no subscription. */
-    async accountOf(tenantId: string): Promise<AdminSubscriberAccount> {
-        const [subscription, subscriber, contracts] = await Promise.all([
-            this.subscriptions.findForTenant(tenantId),
-            this.subscribers.findByTenantId(tenantId),
-            this.contracts.list({ tenantId }),
+    /**
+     * The subscriber's account: every charge its journal holds, whichever
+     * subscription and tenant it arose under. Refused where there is no such
+     * subscriber.
+     */
+    async accountOf(subscriberId: string): Promise<AdminSubscriberAccount> {
+        const subscriber = await this.subscribers.findById(subscriberId);
+        if (!subscriber) throw subscriberNotFound(subscriberId);
+        const [charges, contracts] = await Promise.all([
+            this.ledger.listBySubscriber(subscriberId),
+            this.contracts.list({ subscriberId }),
         ]);
-        const charges = subscription?.id
-            ? await this.ledger.listBySubscription(subscription.id)
-            : [];
         return accountViewOf({ subscriber, charges, contracts });
     }
 }
