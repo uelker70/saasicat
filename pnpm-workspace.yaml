@@ -31,13 +31,23 @@ overrides:
     # GHSA-jqff-g426-hqxp, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf and
     # GHSA-5jgf-p345-68v8: host confusion and server-side request forgery
     # through URI normalisation; all four are closed by 3.1.6.
-    fast-uri: '^3.1.6'
+    # GHSA-w74x-v6f9-j3xg, GHSA-xhq7-xmqj-769h, GHSA-wjr9-j795-jxcr and
+    # GHSA-333x-w4r6-6crp: scheme spoofing, path equivalence, host confusion and
+    # scheme injection in normalising and resolving, closed by 3.1.9. Reached
+    # through ajv, which @saasicat/nest depends on; ajv admits 3.1.9, so an
+    # application's own install resolves it anyway.
+    fast-uri: '^3.1.9'
     # GHSA-2v37-7h3g-55p8: predictable Nano ID generation with non-integer size.
     nanoid: '^3.3.17'
     # GHSA-x5fp-wj9c-mxmx: array-limit bypass in qs query-string parsing.
     # GHSA-4mjr-xmp4-gh2g: denial of service through an attacker-controlled
     # `isBuffer`. Reached through express and body-parser.
     qs: '^6.16.0'
+    # GHSA-27r3-jxmh-p828: denial of service through trailing bytes after a
+    # compressed request body, fixed in 2.4.0. Reached through express, which
+    # @nestjs/platform-express brings to the test harness and examples/notesapp;
+    # express admits 2.4.0.
+    'body-parser@^2.0.0': '^2.4.0'
     # GHSA-p2gr-x3f9-5xw5: stack exhaustion merging recursive object graphs.
     # Reached only through the Prisma CLI's config loader, which pins 7.1.5
     # exactly, so this lifts it across a major. What that loader merges is the
@@ -62,8 +72,10 @@ overrides:
     # multipart parsing. GHSA-3pph-fpjx-jg34: denial of service through disk
     # writes an aborted upload leaves behind, fixed in 2.4.0. Reached through
     # @nestjs/platform-express, which pins its version exactly; here that is the
-    # test harness and examples/notesapp.
-    multer: '^2.4.0'
+    # test harness and examples/notesapp. GHSA-q7qp-rjg7-q26m: denial of service
+    # through a pending asynchronous fileFilter after the request is torn down,
+    # fixed in 2.5.0.
+    multer: '^2.5.0'
     # GHSA-rfgv-xxqx-mfg5, GHSA-w293-vg96-wgc3, GHSA-vp8m-p9jh-q5pm,
     # GHSA-pmjh-fq2x-6v4x, GHSA-3xpg-4rpp-hhhm, GHSA-2jfj-6hjv-fm6j,
     # GHSA-rx4f-c7p8-82vq, GHSA-3wwx-pv8p-q78v, GHSA-r53p-7pc4-xj5r,
@@ -72,7 +84,11 @@ overrides:
     # fetch client, all fixed in 8.10.2. Reached only through jsdom, the DOM of
     # the component tests in @saasicat/ui-vue and @saasicat/ui-vue-tenant; no
     # published package carries it. Dependabot's own update failed to lift it.
-    'undici@^8.0.0': '^8.10.2'
+    # GHSA-xjj6-f33q-929c, GHSA-4qv8-2p9j-2685 and GHSA-f72v-6w45-q472: denial of
+    # service through excessive content encodings and an unbounded EventSource
+    # buffer, and an integrity check bypassed by an algorithm token in capitals,
+    # all fixed in 8.12.2.
+    'undici@^8.0.0': '^8.12.2'
     # GHSA-w2qp-rph6-63g4: schema validation bypass through root primitive
     # coercion. GHSA-3m5p-2c4r-xxw2: X-Forwarded-* spoofing under a trustProxy
     # hop count. GHSA-389g-gv7q-r4x8: header validation bypassed through
