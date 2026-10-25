@@ -244,7 +244,7 @@ describe('a one-off run of the CLI is told apart from one from the project', () 
     const installed = [
         'pnpm exec saasicat codemod v1 --dir=.',
         'pnpm add @saasicat/cli@latest',
-        'a one-off run through `npx` or `pnpm dlx` installs neither',
+        "Run through `npx` or `pnpm dlx`, it is not the project's CLI.",
         'pnpm dlx jscpd@4',
         'npx --yes --dir=. jscpd',
         'npx @saasicat/climate',
