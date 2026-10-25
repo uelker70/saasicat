@@ -74,7 +74,8 @@ async function twoSubscribersWithCredits() {
     await payments.creditInvoice('invoice-02', new Date('2026-02-02T00:00:00.000Z'));
     await payments.creditInvoice('invoice-04', new Date('2026-02-02T00:00:00.000Z'));
     const subscribers = {
-        findById: async (id) => (id.startsWith('subscriber-') ? { id } : null),
+        findById: async (id) =>
+            id.startsWith('subscriber-') ? { id, tenantId: `tenant-of-${id}` } : null,
     };
     const store = {
         findById: async (id) => invoices.find((invoice) => invoice.id === id) ?? null,
@@ -341,6 +342,7 @@ describe('the route', () => {
                 'SUBSCRIBER_CREDIT_PAID_OUT',
                 {
                     subscriberId: 'subscriber-1',
+                    tenantId: 'tenant-of-subscriber-1',
                     amount: 10,
                     reference: 'TRF-2026-0042',
                     paidOn: '2026-01-01',

@@ -130,6 +130,7 @@ function buildSubscriberCreditController(guards: Array<Type<CanActivate>>): Type
                     'SUBSCRIBER_CREDIT_PAID_OUT',
                     {
                         subscriberId: id,
+                        tenantId: recorded.tenantId,
                         amount: recorded.entry.amount,
                         reference: recorded.entry.reference,
                         paidOn: recorded.entry.paidOn,

@@ -41,4 +41,5 @@ tenant the application no longer has as such. `AdminResourcesPort` gains
 `SubscriberLedgerRepository` `listBySubscriber`, and the contracts' `list`
 filter `subscriberId`; the shipped adapters implement all of them, and the
 persistence contract holds them. A harness of your own adds the
-`closeTenantLink` seed or declares `closedTenantLinkSeed` among its gaps.
+`closeTenantLink` seed or declares `closedTenantLinkSeed` among its gaps. A
+payout's audit entry names the subscriber beside its tenant.

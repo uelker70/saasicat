@@ -37,6 +37,8 @@ import { SUBSCRIPTION_INVOICE_REPOSITORY_TOKEN } from './subscription-invoice.to
 export interface RecordedPayout {
     entry: AdminSubscriberCreditEntry;
     credits: AdminSubscriberCredits;
+    /** The tenant the subscriber was live for when it was recorded, or `null` where it had none. */
+    tenantId: string | null;
 }
 
 @Injectable()
@@ -107,6 +109,7 @@ export class SubscriberCreditService {
         return {
             entry: entryViewOf(recorded.entry),
             credits: await this.viewOf(await this.payments.listCredits(subscriber.id)),
+            tenantId: subscriber.tenantId,
         };
     }
 
